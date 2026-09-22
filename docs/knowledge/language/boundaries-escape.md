@@ -5,9 +5,9 @@ Parent: [Language](README.md). Related: [types](types-not-glue.md), [aggregates]
 ## The only ways out
 
 1. **`extern` function** — typed call to JS or C.
-2. **`extern class` + `extern` global** — typed host object (`document`, `window`). Names are ABI. No `new` on extern classes. Methods must be called on a receiver (`this` cannot be lost).
+2. **`extern class` + `extern` global** — typed host object (`document`, `window`). Names are ABI. No `new` on extern classes. Methods must be called on a receiver (`this` cannot be lost). An internal class may `extend` an extern class (for example `Error`); it then always emits as a real `class ... extends` and calls the host constructor declared with `init(...)` through `super(...)`.
 3. **`import extern`** — foreign ESM specifier + matching `extern` contract. JS-only.
-4. **Root `js-module` runtime exports** — reusable library ABI.
+4. **Root `js-module` runtime exports** — reusable library ABI. On the semantic backend, an exported function that takes or returns a value struct is published through a D2 adapter: a plain object with the fields in declaration order, read once per field on the way in, and a fresh object on the way out. Internally the struct stays in its private positional form. See [D2 for value structs](../../compiler-design.md#d2-for-value-structs).
 5. **`print`** — portable observable output (treated as untyped boundary for escape).
 6. **`JsValue`** — raw host value with a **closed** operation set.
 
@@ -44,7 +44,7 @@ No registries, proxies, or runtime type checks. Known host factories used by por
 `assume_pure_property_reads` is an explicit unsafe ABI opt-in (Terser
 `pure_getters`, default off). It is not a type proof. Reusable typed replacements
 are tracked in [compressor surface](compressor-surface.md) and the
-[planned migration](../migration/planned-migration.md#phase-4-close-library-losses-with-reusable-proofs).
+[migration plan, step 009](../../migration/index.md#009-reusable-compression-families).
 
 ## `pure extern`
 

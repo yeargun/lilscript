@@ -1,3 +1,6 @@
+use crate::ast::ExprKind;
+use crate::literal::StringValue;
+use crate::semantic::StructType;
 use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 
 use crate::ast::{
@@ -14,7 +17,8 @@ use crate::ir::{
     Terminator, ValueId,
 };
 use crate::semantic::{
-    BuiltinCall, DefaultValue, EscapeState, FunctionType, SemanticModel, SymbolId, Type,
+    BuiltinCall, DefaultValue, EscapeState, FunctionType, NominalMember, SemanticModel, SymbolId,
+    Type,
 };
 use crate::span::Span;
 use crate::typed_array::{is_typed_array_range_intrinsic, TypedArrayKind};
@@ -48,9 +52,66 @@ impl std::error::Error for LowerError {}
 
 pub fn lower_to_control_flow<'ast, 'src>(
     program: &Program<'ast, 'src>,
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
 ) -> Result<ControlFlowModule<'src>, LowerError> {
+    if !semantics.belongs_to(program.source_identity()) {
+        return Err(LowerError::new(
+            program.span,
+            "semantic facts belong to a different source program",
+        ));
+    }
+    if let Some(span) = reference_parameter_span(semantics) {
+        return Err(LowerError::new(
+            span,
+            "legacy lowering of reference parameters is not supported",
+        ));
+    }
     ModuleLowerer::new(program, semantics)?.lower(program)
+}
+
+/// Legacy consumers cannot erase a checked reference convention into their
+/// value-only AST/CFG parameter representations. Inspect shared declarations
+/// at the existing entry boundary; no alternate type table is retained.
+pub(crate) fn reference_parameter_span(semantics: &SemanticModel<'_, '_>) -> Option<Span> {
+    let contains_signature = |signature: &FunctionType<'_>| {
+        signature.params.iter().any(|parameter| {
+            parameter.passing != crate::primitive::ParameterPassing::Value
+                || parameter.ty.contains_mutable_reference_parameters()
+        }) || signature
+            .return_type
+            .contains_mutable_reference_parameters()
+    };
+    for symbol in semantics.symbols() {
+        if symbol.ty.contains_mutable_reference_parameters() {
+            return Some(symbol.span);
+        }
+    }
+    for definition in semantics.structs() {
+        for field in definition.fields.values() {
+            if field.ty.contains_mutable_reference_parameters() {
+                return Some(field.span);
+            }
+        }
+    }
+    for definition in semantics.classes() {
+        for field in definition.fields.values() {
+            if field.ty.contains_mutable_reference_parameters() {
+                return Some(field.span);
+            }
+        }
+        if definition
+            .constructor
+            .as_ref()
+            .is_some_and(contains_signature)
+            || definition
+                .methods
+                .values()
+                .any(|method| contains_signature(&method.signature))
+        {
+            return Some(definition.span);
+        }
+    }
+    None
 }
 
 enum PlannedFunction<'ast, 'src> {
@@ -70,22 +131,26 @@ enum PlannedFunction<'ast, 'src> {
         span: Span,
     },
     Arrow {
+        source: crate::ast::SourceNodeId,
         params: &'ast [Param<'ast, 'src>],
         body: &'ast ArrowBody<'ast, 'src>,
-        captures: Vec<SymbolId>,
         span: Span,
     },
 }
 
+struct ArrowPlan {
+    function: FunctionId,
+    captures: Vec<SymbolId>,
+}
+
 struct ModuleLowerer<'model, 'ast, 'src> {
-    semantics: &'model SemanticModel<'src>,
+    semantics: &'model SemanticModel<'model, 'src>,
     plans: Vec<PlannedFunction<'ast, 'src>>,
     function_symbols: AHashMap<SymbolId, FunctionId>,
     method_functions: AHashMap<(&'src str, &'src str), FunctionId>,
     constructors: AHashMap<&'src str, FunctionId>,
     default_constructors: AHashSet<&'src str>,
-    arrows: AHashMap<Span, FunctionId>,
-    arrow_captures: AHashMap<Span, Vec<SymbolId>>,
+    arrows: AHashMap<crate::ast::SourceNodeId, ArrowPlan>,
     mutable_capture_symbols: AHashSet<SymbolId>,
     global_symbols: AHashSet<SymbolId>,
     external_globals: AHashSet<SymbolId>,
@@ -98,7 +163,7 @@ struct ModuleLowerer<'model, 'ast, 'src> {
 impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
     fn new(
         program: &Program<'ast, 'src>,
-        semantics: &'model SemanticModel<'src>,
+        semantics: &'model SemanticModel<'model, 'src>,
     ) -> Result<Self, LowerError> {
         let mut lowerer = Self {
             semantics,
@@ -108,7 +173,6 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             constructors: AHashMap::default(),
             default_constructors: AHashSet::default(),
             arrows: AHashMap::default(),
-            arrow_captures: AHashMap::default(),
             mutable_capture_symbols: AHashSet::default(),
             global_symbols: AHashSet::default(),
             external_globals: AHashSet::default(),
@@ -213,6 +277,11 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
 
                         let mut current = Some(class.name.name);
                         while let Some(name) = current {
+                            // The host owns a host base class; it is extended by
+                            // its global name, never re-declared by this module.
+                            if semantics.class_info(name).is_some_and(|class| class.external) {
+                                break;
+                            }
                             if !lowerer.identity_observed_classes.insert(name) {
                                 break;
                             }
@@ -377,6 +446,14 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                         })?;
                     let mut current = Some(export.local.name);
                     while let Some(name) = current {
+                        // A host (`extern`) base is where the chain ends: the
+                        // host owns everything above it, and the emitted class
+                        // extends it by its exact global name.
+                        if name != export.local.name
+                            && semantics.class_info(name).is_some_and(|class| class.external)
+                        {
+                            break;
+                        }
                         if semantics
                             .class_info(name)
                             .is_some_and(|class| class.external || class.object)
@@ -494,7 +571,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
 
         let mut arrows = Vec::new();
         collect_program_arrows(program, &mut arrows);
-        for (params, body, span) in arrows {
+        for (params, body, span, source) in arrows {
             let id = FunctionId(lowerer.plans.len() as u32);
             let captures = collect_arrow_captures(
                 params,
@@ -504,18 +581,23 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 &lowerer.global_symbols,
                 &lowerer.function_symbols,
             );
-            lowerer.arrows.insert(span, id);
-            lowerer.arrow_captures.insert(span, captures.clone());
             lowerer.mutable_capture_symbols.extend(
                 captures
                     .iter()
                     .copied()
                     .filter(|symbol| semantics.symbol_is_assigned(*symbol)),
             );
+            lowerer.arrows.insert(
+                source,
+                ArrowPlan {
+                    function: id,
+                    captures,
+                },
+            );
             lowerer.plans.push(PlannedFunction::Arrow {
+                source,
                 params,
                 body,
-                captures,
                 span,
             });
         }
@@ -534,7 +616,6 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 &self.method_functions,
                 &self.constructors,
                 &self.arrows,
-                &self.arrow_captures,
                 &self.mutable_capture_symbols,
                 &self.global_symbols,
                 &self.external_globals,
@@ -555,6 +636,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 PlannedFunction::Function(function) => {
                     builder.name = Some(function.name.name);
                     builder.kind = FunctionKind::Function;
+                    builder.region = function.region;
                     builder.declared_pure = function.declared_pure;
                     builder.is_async = function.is_async;
                     builder.is_generator = function.is_generator;
@@ -573,6 +655,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                 PlannedFunction::Method { class, function } => {
                     builder.name = Some(function.name.name);
                     builder.kind = FunctionKind::Method { class };
+                    builder.region = function.region;
                     builder.declared_pure = function.declared_pure;
                     builder.is_async = function.is_async;
                     builder.is_generator = function.is_generator;
@@ -621,15 +704,15 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                     builder.terminate(Terminator::Return(None))?;
                 }
                 PlannedFunction::Arrow {
+                    source,
                     params,
                     body,
-                    captures,
                     ..
                 } => {
                     builder.kind = FunctionKind::Closure;
                     let function_type = self
                         .semantics
-                        .expression_type(plan_span(plan, program.span))
+                        .expression_type(*source)
                         .cloned()
                         .ok_or_else(|| {
                             LowerError::new(plan_span(plan, program.span), "missing arrow type")
@@ -640,8 +723,8 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                             "arrow expression does not have a function type",
                         ));
                     };
-                    builder.return_type = *signature.return_type;
-                    builder.add_captures(captures)?;
+                    builder.return_type = signature.return_type.as_ref().clone();
+                    builder.add_captures(&self.arrows[source].captures)?;
                     builder.add_params(params)?;
                     match body {
                         ArrowBody::Expr(expression) => {
@@ -661,7 +744,7 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             .semantics
             .structs()
             .map(|info| AggregateLayout {
-                name: info.name,
+                name: info.declaration.name,
                 base: None,
                 fields: info
                     .fields
@@ -678,6 +761,34 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
             })
             .collect::<Vec<_>>();
         structs.sort_unstable_by_key(|layout| layout.name);
+
+        // A class that extends a host class (such as `Error`) constructs host
+        // objects: `super(...)` must run inside a real `class ... extends`, and
+        // `instanceof`, `stack` and the prototype chain are the point. So every
+        // internal class with a host ancestor keeps its identity, exported or
+        // not; dissolving it into flat data would strand `super` outside a class.
+        let host_derived = self
+            .semantics
+            .classes()
+            .filter(|info| !info.external)
+            .filter(|info| {
+                let mut base = info.base.as_ref().and_then(class_name_of);
+                let mut guard = 0usize;
+                while let Some(name) = base {
+                    guard += 1;
+                    if guard > 256 {
+                        break;
+                    }
+                    match self.semantics.class_info(name) {
+                        Some(class) if class.external => return true,
+                        Some(class) => base = class.base.as_ref().and_then(class_name_of),
+                        None => break,
+                    }
+                }
+                false
+            })
+            .map(|info| info.name)
+            .collect::<AHashSet<_>>();
 
         let mut classes = self
             .semantics
@@ -699,13 +810,28 @@ impl<'model, 'ast, 'src> ModuleLowerer<'model, 'ast, 'src> {
                     .collect(),
                 object: info.object,
                 external: info.external,
-                identity_observed: self.identity_observed_classes.contains(info.name),
+                identity_observed: self.identity_observed_classes.contains(info.name)
+                    || host_derived.contains(info.name),
             })
             .collect::<Vec<_>>();
         classes.sort_unstable_by_key(|layout| layout.name);
 
+        let pinned_pool_strings = functions
+            .iter()
+            .filter(|function| function.region.pool_strings)
+            .flat_map(|function| function.blocks.iter())
+            .flat_map(|block| block.instructions.iter())
+            .filter_map(|instruction| match &instruction.op {
+                crate::ir::ControlFlowOp::Const(crate::ir::ConstValue::String(value)) => {
+                    Some(value.clone())
+                }
+                _ => None,
+            })
+            .collect();
+
         Ok(ControlFlowModule {
             functions,
+            pinned_pool_strings,
             globals: self.globals,
             foreign_imports: program
                 .foreign_imports
@@ -743,16 +869,16 @@ struct FunctionBuilder<'model, 'maps, 'src> {
     id: FunctionId,
     name: Option<&'src str>,
     kind: FunctionKind<'src>,
+    region: crate::ast::RegionPolicy,
     declared_pure: bool,
     is_async: bool,
     is_generator: bool,
     return_type: Type<'src>,
-    semantics: &'model SemanticModel<'src>,
+    semantics: &'model SemanticModel<'model, 'src>,
     function_symbols: &'maps AHashMap<SymbolId, FunctionId>,
     method_functions: &'maps AHashMap<(&'src str, &'src str), FunctionId>,
     constructors: &'maps AHashMap<&'src str, FunctionId>,
-    arrows: &'maps AHashMap<Span, FunctionId>,
-    arrow_captures: &'maps AHashMap<Span, Vec<SymbolId>>,
+    arrows: &'maps AHashMap<crate::ast::SourceNodeId, ArrowPlan>,
     mutable_capture_symbols: &'maps AHashSet<SymbolId>,
     global_symbols: &'maps AHashSet<SymbolId>,
     external_globals: &'maps AHashSet<SymbolId>,
@@ -776,12 +902,11 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     #[allow(clippy::too_many_arguments)]
     fn new(
         id: FunctionId,
-        semantics: &'model SemanticModel<'src>,
+        semantics: &'model SemanticModel<'model, 'src>,
         function_symbols: &'maps AHashMap<SymbolId, FunctionId>,
         method_functions: &'maps AHashMap<(&'src str, &'src str), FunctionId>,
         constructors: &'maps AHashMap<&'src str, FunctionId>,
-        arrows: &'maps AHashMap<Span, FunctionId>,
-        arrow_captures: &'maps AHashMap<Span, Vec<SymbolId>>,
+        arrows: &'maps AHashMap<crate::ast::SourceNodeId, ArrowPlan>,
         mutable_capture_symbols: &'maps AHashSet<SymbolId>,
         global_symbols: &'maps AHashSet<SymbolId>,
         external_globals: &'maps AHashSet<SymbolId>,
@@ -791,6 +916,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             id,
             name: None,
             kind: FunctionKind::Function,
+            region: crate::ast::RegionPolicy::default(),
             declared_pure: false,
             is_async: false,
             is_generator: false,
@@ -800,7 +926,6 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             method_functions,
             constructors,
             arrows,
-            arrow_captures,
             mutable_capture_symbols,
             global_symbols,
             external_globals,
@@ -942,13 +1067,17 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         let Some(expression) = expression else {
             return Ok(None);
         };
-        if self.semantics.builtin_call(expression.span()) == Some(BuiltinCall::JsUndefined) {
+        if self.semantics.builtin_call(expression.id) == Some(BuiltinCall::JsUndefined) {
             return Ok(Some(crate::ir::IrParamDefault::Undefined));
         }
         if let Some(value) = scalar_parameter_default(expression) {
             return Ok(Some(crate::ir::IrParamDefault::Const(value)));
         }
-        let Expr::Ident(identifier) = expression else {
+        let Expr {
+            kind: ExprKind::Ident(identifier),
+            ..
+        } = expression
+        else {
             return Ok(Some(crate::ir::IrParamDefault::CallerMaterialized));
         };
         let symbol = self
@@ -1054,7 +1183,11 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 Ok(())
             }
             Stmt::Return {
-                value: Some(Expr::Match { value, arms, span }),
+                value:
+                    Some(Expr {
+                        kind: ExprKind::Match { value, arms, span },
+                        ..
+                    }),
                 ..
             } => self.lower_return_match(value, arms, *span),
             Stmt::Return { value, .. } => {
@@ -1157,7 +1290,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
 
     fn lower_super_call<'ast>(
         &mut self,
-        args: &[Expr<'ast, 'src>],
+        args: &[crate::ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<(), LowerError> {
         let FunctionKind::Constructor { class } = self.kind else {
@@ -1170,6 +1303,26 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             .semantics
             .base_class_name(class)
             .ok_or_else(|| LowerError::new(span, "constructor has no base class"))?;
+        if self.semantics.class_info(base).is_some_and(|info| info.external) {
+            // A host base has no LilScript constructor, but the host's must
+            // still run first: that is what makes the instance a real `Error`.
+            let receiver = self
+                .params
+                .first()
+                .filter(|param| param.name == "this")
+                .map(|param| param.value)
+                .ok_or_else(|| LowerError::new(span, "derived constructor is missing `this`"))?;
+            let args = self.lower_args(args)?;
+            return self.emit_effect(
+                ControlFlowOp::HostCall {
+                    receiver,
+                    method: crate::ir::HOST_SUPER_METHOD,
+                    args,
+                    pure: false,
+                },
+                span,
+            );
+        }
         let Some(function) = self.constructors.get(base).copied() else {
             if args.is_empty() {
                 return Ok(());
@@ -1864,30 +2017,48 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     fn lower_expr<'ast>(&mut self, expression: &Expr<'ast, 'src>) -> Result<ValueId, LowerError> {
         let ty = self.expression_type(expression)?;
         match expression {
-            Expr::Int(value, span) => {
-                self.emit_value(ControlFlowOp::Const(ConstValue::Int(*value)), ty, *span)
-            }
-            Expr::Float(value, span) => {
-                self.emit_value(ControlFlowOp::Const(ConstValue::Float(*value)), ty, *span)
-            }
-            Expr::String(value, span) => self.emit_value(
-                ControlFlowOp::Const(ConstValue::String((*value).to_string())),
+            Expr {
+                kind: ExprKind::Int(value, span),
+                ..
+            } => self.emit_value(ControlFlowOp::Const(ConstValue::Int(*value)), ty, *span),
+            Expr {
+                kind: ExprKind::Float(value, span),
+                ..
+            } => self.emit_value(ControlFlowOp::Const(ConstValue::Float(*value)), ty, *span),
+            Expr {
+                kind: ExprKind::String(value, span),
+                ..
+            } => self.emit_value(
+                ControlFlowOp::Const(ConstValue::String(decode_string(value, *span)?)),
                 ty,
                 *span,
             ),
-            Expr::Bool(value, span) => {
-                self.emit_value(ControlFlowOp::Const(ConstValue::Bool(*value)), ty, *span)
-            }
-            Expr::Null(span) => self.emit_value(ControlFlowOp::Const(ConstValue::Null), ty, *span),
-            Expr::DynamicImport { span, .. } => {
+            Expr {
+                kind: ExprKind::Bool(value, span),
+                ..
+            } => self.emit_value(ControlFlowOp::Const(ConstValue::Bool(*value)), ty, *span),
+            Expr {
+                kind: ExprKind::Null(span),
+                ..
+            } => self.emit_value(ControlFlowOp::Const(ConstValue::Null), ty, *span),
+            Expr {
+                kind: ExprKind::DynamicImport { span, .. },
+                ..
+            } => {
                 let module = self
                     .semantics
                     .dynamic_import_module(*span)
                     .ok_or_else(|| LowerError::new(*span, "missing dynamic module metadata"))?;
                 self.emit_value(ControlFlowOp::DynamicImport { module }, ty, *span)
             }
-            Expr::Ident(ident) => self.lower_ident(*ident, ty),
-            Expr::ArrayLiteral { elements, span } => {
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
+            } => self.lower_ident(*ident, ty),
+            Expr {
+                kind: ExprKind::ArrayLiteral { elements, span },
+                ..
+            } => {
                 if elements
                     .iter()
                     .all(|element| matches!(element, ArrayElement::Value(_)))
@@ -1911,7 +2082,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     self.emit_value(ControlFlowOp::ArraySpread(operands), ty, *span)
                 }
             }
-            Expr::ObjectLiteral { entries, span } => {
+            Expr {
+                kind: ExprKind::ObjectLiteral { entries, span },
+                ..
+            } => {
                 let mut args = Vec::with_capacity(entries.len().saturating_mul(2));
                 for entry in *entries {
                     let RecordElement::Entry(entry) = entry else {
@@ -1921,7 +2095,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                         ));
                     };
                     let key = self.emit_value(
-                        ControlFlowOp::Const(ConstValue::String(entry.key.name.to_string())),
+                        ControlFlowOp::Const(ConstValue::String(decode_string(
+                            entry.key.name,
+                            entry.key.span,
+                        )?)),
                         Type::String,
                         entry.key.span,
                     )?;
@@ -1938,7 +2115,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     *span,
                 )
             }
-            Expr::RecordLiteral { entries, span } => {
+            Expr {
+                kind: ExprKind::RecordLiteral { entries, span },
+                ..
+            } => {
                 if entries
                     .iter()
                     .all(|entry| matches!(entry, RecordElement::Entry(_)))
@@ -1969,7 +2149,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     self.emit_value(ControlFlowOp::RecordSpread(operands), ty, *span)
                 }
             }
-            Expr::StructLiteral { name, values, span } => {
+            Expr {
+                kind: ExprKind::StructLiteral { name, values, span },
+                ..
+            } => {
                 let fields = values
                     .iter()
                     .map(|value| self.lower_expr(value))
@@ -1983,22 +2166,15 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     *span,
                 )
             }
-            Expr::New {
-                class, args, span, ..
+            Expr {
+                kind: ExprKind::New {
+                    class, args, span, ..
+                },
+                ..
             } => {
-                let builtin = match &ty {
-                    Type::Map(_, _) => Some(Intrinsic::MapNew),
-                    Type::Set(_) => Some(Intrinsic::SetNew),
-                    Type::ArrayBuffer => Some(Intrinsic::ArrayBufferNew),
-                    Type::SharedArrayBuffer => Some(Intrinsic::SharedArrayBufferNew),
-                    Type::Symbol => Some(Intrinsic::SymbolNew),
-                    Type::Regex => Some(Intrinsic::RegexNew),
-                    ty if let Some(kind) = TypedArrayKind::from_type(ty) => {
-                        Some(kind.new_intrinsic())
-                    }
-                    _ => None,
-                };
-                if let Some(intrinsic) = builtin {
+                if let Some(crate::primitive::ResolvedIntrinsic::Constructor(intrinsic)) =
+                    self.semantics.resolved_intrinsic(expression.id)
+                {
                     let args = self.lower_args(args)?;
                     return self.emit_value(
                         ControlFlowOp::Intrinsic {
@@ -2030,41 +2206,49 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     *span,
                 )
             }
-            Expr::Await { task, span } => {
+            Expr {
+                kind: ExprKind::Await { task, span },
+                ..
+            } => {
                 let task = self.lower_expr(task)?;
                 self.emit_value(ControlFlowOp::Await { task }, ty, *span)
             }
-            Expr::Member {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
                 if let Some(value) = self.semantics.enum_variant_value(*span) {
                     self.emit_value(ControlFlowOp::Const(ConstValue::Int(value)), ty, *span)
                 } else {
-                    self.lower_member(object, *property, ty, *span)
+                    self.lower_member(object, *property, ty, expression.id, *span)
                 }
             }
-            Expr::OptionalMember {
-                object,
-                property,
-                span,
-            } => self.lower_optional_member(object, *property, ty, *span),
-            Expr::Call { callee, args, span } => self.lower_call(callee, args, ty, *span),
-            Expr::ArrowFunction { span, .. } => {
-                let function = self.arrows.get(span).copied().ok_or_else(|| {
-                    LowerError::new(*span, "arrow function was not assigned an IR function")
-                })?;
-                let captures = self
-                    .arrow_captures
-                    .get(span)
-                    .ok_or_else(|| LowerError::new(*span, "arrow captures were not analyzed"))?
-                    .iter()
-                    .map(|symbol| self.lower_capture_value(*symbol, *span))
-                    .collect::<Result<Vec<_>, _>>()?;
-                self.emit_value(ControlFlowOp::Closure { function, captures }, ty, *span)
-            }
-            Expr::Unary { op, expr, span } => {
+            Expr {
+                kind:
+                    ExprKind::OptionalMember {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
+            } => self.lower_optional_member(object, *property, ty, expression.id, *span),
+            Expr {
+                kind: ExprKind::Call { callee, args, span },
+                ..
+            } => self.lower_call(callee, args, ty, expression.id, *span),
+            Expr {
+                kind: ExprKind::ArrowFunction { span, .. },
+                ..
+            } => self.lower_arrow_value(expression.id, ty, *span),
+            Expr {
+                kind: ExprKind::Unary { op, expr, span },
+                ..
+            } => {
                 let value = self.lower_expr(expr)?;
                 self.emit_value(
                     ControlFlowOp::Unary {
@@ -2078,31 +2262,44 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     *span,
                 )
             }
-            Expr::Binary {
-                op: BinaryOp::Nullish,
-                lhs,
-                rhs,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Binary {
+                        op: BinaryOp::Nullish,
+                        lhs,
+                        rhs,
+                        span,
+                    },
+                ..
             } => {
                 let present = self.semantics.optional_present_type(lhs.span());
                 if present.is_some_and(|present| !matches!(present, Type::Nullable(_))) {
                     match lhs {
-                        Expr::OptionalMember {
-                            object,
-                            property,
-                            span: optional_span,
+                        Expr {
+                            kind:
+                                ExprKind::OptionalMember {
+                                    object,
+                                    property,
+                                    span: optional_span,
+                                },
+                            ..
                         } => self.lower_optional_member_with_fallback(
                             object,
                             *property,
+                            lhs.id,
                             *optional_span,
                             rhs,
                             ty,
                             *span,
                         ),
-                        Expr::OptionalIndex {
-                            object,
-                            index,
-                            span: optional_span,
+                        Expr {
+                            kind:
+                                ExprKind::OptionalIndex {
+                                    object,
+                                    index,
+                                    span: optional_span,
+                                },
+                            ..
                         } => self.lower_optional_index_with_fallback(
                             object,
                             index,
@@ -2117,16 +2314,28 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     self.lower_nullish(lhs, rhs, ty, *span)
                 }
             }
-            Expr::Binary { op, lhs, rhs, span } if matches!(op, BinaryOp::And | BinaryOp::Or) => {
+            Expr {
+                kind: ExprKind::Binary { op, lhs, rhs, span },
+                ..
+            } if matches!(op, BinaryOp::And | BinaryOp::Or) => {
                 self.lower_short_circuit(*op, lhs, rhs, ty, *span)
             }
-            Expr::Binary { op, lhs, rhs, span } => {
-                let lowering_obligation =
-                    if *op == BinaryOp::BitOr && matches!(rhs, Expr::Int(0, _)) {
-                        LoweringObligation::PreserveJavaScriptBitOrZero
-                    } else {
-                        LoweringObligation::Free
-                    };
+            Expr {
+                kind: ExprKind::Binary { op, lhs, rhs, span },
+                ..
+            } => {
+                let lowering_obligation = if *op == BinaryOp::BitOr
+                    && matches!(
+                        rhs,
+                        Expr {
+                            kind: ExprKind::Int(0, _),
+                            ..
+                        }
+                    ) {
+                    LoweringObligation::PreserveJavaScriptBitOrZero
+                } else {
+                    LoweringObligation::Free
+                };
                 let lhs = self.lower_expr(lhs)?;
                 let rhs = self.lower_expr(rhs)?;
                 self.emit_value_with_obligation(
@@ -2140,7 +2349,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     lowering_obligation,
                 )
             }
-            Expr::TypeCheck { value, span, .. } => {
+            Expr {
+                kind: ExprKind::TypeCheck { value, span, .. },
+                ..
+            } => {
                 let value = self.lower_expr(value)?;
                 let target = self
                     .semantics
@@ -2149,15 +2361,23 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     .ok_or_else(|| LowerError::new(*span, "missing type guard target"))?;
                 self.emit_value(ControlFlowOp::TypeCheck { value, target }, ty, *span)
             }
-            Expr::Index {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Index {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => {
                 let object_type = self.expression_type(object)?;
                 let object = self.lower_expr(object)?;
                 if matches!(object_type, Type::Record(_)) {
-                    if let Expr::String(property, _) = index {
+                    if let Expr {
+                        kind: ExprKind::String(property, _),
+                        ..
+                    } = index
+                    {
                         return self.emit_value(
                             ControlFlowOp::RecordFieldGet { object, property },
                             ty,
@@ -2168,37 +2388,64 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 let index = self.lower_expr(index)?;
                 self.emit_value(ControlFlowOp::IndexGet { object, index }, ty, *span)
             }
-            Expr::OptionalIndex {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::OptionalIndex {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => self.lower_optional_index(object, index, ty, *span),
-            Expr::If {
-                condition,
-                then_value,
-                else_value,
-                span,
+            Expr {
+                kind:
+                    ExprKind::If {
+                        condition,
+                        then_value,
+                        else_value,
+                        span,
+                    },
+                ..
             } => self.lower_if_expression(condition, then_value, else_value, ty, *span),
-            Expr::Match { value, arms, span } => self.lower_match(value, arms, ty, *span),
-            Expr::Assignment {
-                op,
-                target,
-                value,
-                span,
+            Expr {
+                kind: ExprKind::Match { value, arms, span },
+                ..
+            } => self.lower_match(value, arms, ty, *span),
+            Expr {
+                kind:
+                    ExprKind::Assignment {
+                        op,
+                        target,
+                        value,
+                        span,
+                    },
+                ..
             } => self.lower_assignment(*op, target, value, ty, *span),
-            Expr::Update {
-                op,
-                target,
-                prefix,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Update {
+                        op,
+                        target,
+                        prefix,
+                        span,
+                    },
+                ..
             } => self.lower_update(*op, target, *prefix, ty, *span),
-            Expr::Template { parts, span } => {
+            Expr {
+                kind: ExprKind::Template { parts, span },
+                ..
+            } => {
                 let mut operands = Vec::with_capacity(parts.len());
                 for part in *parts {
                     match part {
-                        TemplatePart::String(value, _) => {
-                            operands.push(TemplateOperand::String((*value).to_string()))
-                        }
+                        TemplatePart::String(value, _) => operands.push(TemplateOperand::String(
+                            StringValue::decode_template(value).map_err(|error| {
+                                LowerError::new(
+                                    *span,
+                                    format!("invalid template escape: {error:?}"),
+                                )
+                            })?,
+                        )),
                         TemplatePart::Expr(expression) => {
                             operands.push(TemplateOperand::Value(self.lower_expr(expression)?))
                         }
@@ -2329,11 +2576,12 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         object: &Expr<'ast, 'src>,
         property: Ident<'src>,
         ty: Type<'src>,
+        id: crate::ast::SourceNodeId,
         span: Span,
     ) -> Result<ValueId, LowerError> {
         let object_type = self.expression_type(object)?;
         let object_value = self.lower_expr(object)?;
-        self.lower_member_value(object_type, object_value, property, ty, span)
+        self.lower_member_value(object_type, object_value, property, ty, span, id)
     }
 
     fn lower_member_value(
@@ -2343,7 +2591,21 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         property: Ident<'src>,
         ty: Type<'src>,
         span: Span,
+        id: crate::ast::SourceNodeId,
     ) -> Result<ValueId, LowerError> {
+        if let Some(crate::primitive::ResolvedIntrinsic::Property(intrinsic)) =
+            self.semantics.resolved_intrinsic(id)
+        {
+            return self.emit_value(
+                ControlFlowOp::Intrinsic {
+                    intrinsic,
+                    receiver: Some(object_value),
+                    args: Vec::new(),
+                },
+                ty,
+                span,
+            );
+        }
         match object_type {
             Type::Record(_) => self.emit_value(
                 ControlFlowOp::RecordFieldGet {
@@ -2353,74 +2615,53 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 ty,
                 span,
             ),
-            Type::Struct(owner) | Type::StructInstance { name: owner, .. } => {
-                let field = self
-                    .semantics
-                    .struct_info(owner)
-                    .and_then(|info| info.fields.get(property.name))
-                    .ok_or_else(|| LowerError::new(property.span, "missing struct field"))?;
-                self.emit_value(
-                    ControlFlowOp::FieldGet {
-                        object: object_value,
-                        owner,
-                        field: property.name,
-                        index: field.index,
-                    },
-                    ty,
-                    span,
-                )
+            Type::Struct(StructType { name: owner, .. })
+            | Type::StructInstance {
+                declaration: StructType { name: owner, .. },
+                ..
             }
-            Type::Class(owner) | Type::ClassInstance { name: owner, .. } => {
-                if self.semantics.is_extern_class(owner) {
-                    let info = self
-                        .semantics
-                        .class_info(owner)
-                        .ok_or_else(|| LowerError::new(property.span, "missing extern class"))?;
-                    if info.methods.contains_key(property.name) {
+            | Type::Class(owner)
+            | Type::ClassInstance { name: owner, .. } => {
+                let Some(NominalMember::Field {
+                    owner: declaration,
+                    field,
+                }) = self.semantics.resolved_member(id)
+                else {
+                    if matches!(self.semantics.resolved_member(id),
+                        Some(NominalMember::Method { owner, .. })
+                            if self.semantics.nominal_class(owner).is_some_and(|info| info.external))
+                    {
                         return Err(LowerError::new(
                             property.span,
                             "extern methods must be called through their receiver",
                         ));
                     }
-                    return self.emit_value(
-                        ControlFlowOp::HostFieldGet {
-                            object: object_value,
-                            property: property.name,
-                        },
-                        ty,
-                        span,
-                    );
-                }
-                let field = self
+                    return Err(LowerError::new(
+                        property.span,
+                        "bound method values require call-site lowering",
+                    ));
+                };
+                let op = if self
                     .semantics
-                    .class_info(owner)
-                    .and_then(|info| info.fields.get(property.name))
-                    .ok_or_else(|| {
-                        LowerError::new(
-                            property.span,
-                            "bound method values require call-site lowering",
-                        )
-                    })?;
-                self.emit_value(
+                    .nominal_class(declaration)
+                    .is_some_and(|info| info.external)
+                {
+                    ControlFlowOp::HostFieldGet {
+                        object: object_value,
+                        property: field.name,
+                    }
+                } else {
+                    // A member's declaring identity survives inheritance. Its
+                    // receiver still selects the concrete aggregate layout.
                     ControlFlowOp::FieldGet {
                         object: object_value,
                         owner,
-                        field: property.name,
+                        field: field.name,
                         index: field.index,
-                    },
-                    ty,
-                    span,
-                )
+                    }
+                };
+                self.emit_value(op, ty, span)
             }
-            Type::Array(_) if property.name == "length" => self.emit_value(
-                ControlFlowOp::Intrinsic {
-                    intrinsic: Intrinsic::ArrayLength,
-                    receiver: Some(object_value),
-                    args: Vec::new(),
-                },
-                ty,
-                span,
-            ),
             Type::TypeParameter("$js") if property.name == "length" => self.emit_value(
                 ControlFlowOp::Intrinsic {
                     intrinsic: Intrinsic::ArrayLength,
@@ -2439,51 +2680,6 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     ty,
                     span,
                 ),
-            Type::Map(_, _) if property.name == "size" => self.emit_value(
-                ControlFlowOp::Intrinsic {
-                    intrinsic: Intrinsic::MapSize,
-                    receiver: Some(object_value),
-                    args: Vec::new(),
-                },
-                ty,
-                span,
-            ),
-            Type::Set(_) if property.name == "size" => self.emit_value(
-                ControlFlowOp::Intrinsic {
-                    intrinsic: Intrinsic::SetSize,
-                    receiver: Some(object_value),
-                    args: Vec::new(),
-                },
-                ty,
-                span,
-            ),
-            Type::ArrayBuffer | Type::SharedArrayBuffer if property.name == "byteLength" => self
-                .emit_value(
-                    ControlFlowOp::Intrinsic {
-                        intrinsic: Intrinsic::BufferByteLength,
-                        receiver: Some(object_value),
-                        args: Vec::new(),
-                    },
-                    ty,
-                    span,
-                ),
-            object_ty if let Some(kind) = TypedArrayKind::from_type(&object_ty) => {
-                let intrinsic = kind.property_intrinsic(property.name).ok_or_else(|| {
-                    LowerError::new(
-                        span,
-                        format!("member `{}` must be called in this context", property.name),
-                    )
-                })?;
-                self.emit_value(
-                    ControlFlowOp::Intrinsic {
-                        intrinsic,
-                        receiver: Some(object_value),
-                        args: Vec::new(),
-                    },
-                    ty,
-                    span,
-                )
-            }
             Type::Union(members)
                 if property.name == "length"
                     && members.iter().all(indexed_collection_has_length) =>
@@ -2498,15 +2694,6 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     span,
                 )
             }
-            Type::String if property.name == "length" => self.emit_value(
-                ControlFlowOp::Intrinsic {
-                    intrinsic: Intrinsic::StringLength,
-                    receiver: Some(object_value),
-                    args: Vec::new(),
-                },
-                ty,
-                span,
-            ),
             Type::Regex => {
                 if property.name == "lastIndex" {
                     return self.emit_value(
@@ -2564,6 +2751,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         object: &Expr<'ast, 'src>,
         property: Ident<'src>,
         ty: Type<'src>,
+        id: crate::ast::SourceNodeId,
         span: Span,
     ) -> Result<ValueId, LowerError> {
         let Type::Nullable(inner) = self.expression_type(object)? else {
@@ -2591,7 +2779,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             inner.as_ref().clone(),
             span,
         )?;
-        let present = self.lower_member_value(*inner, unwrapped, property, present_ty, span)?;
+        let present = self.lower_member_value(*inner, unwrapped, property, present_ty, span, id)?;
         let present_end = self.current;
         self.terminate(Terminator::Jump(merge_block))?;
 
@@ -2665,6 +2853,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         &mut self,
         object: &Expr<'ast, 'src>,
         property: Ident<'src>,
+        id: crate::ast::SourceNodeId,
         optional_span: Span,
         fallback: &Expr<'ast, 'src>,
         ty: Type<'src>,
@@ -2694,7 +2883,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             inner.as_ref().clone(),
             span,
         )?;
-        let present = self.lower_member_value(*inner, unwrapped, property, present_ty, span)?;
+        let present = self.lower_member_value(*inner, unwrapped, property, present_ty, span, id)?;
         let present_end = self.current;
         self.terminate(Terminator::Jump(merge_block))?;
         self.finish_optional_access_with_fallback(
@@ -2859,15 +3048,19 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     fn lower_call<'ast>(
         &mut self,
         callee: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        args: &[crate::ast::Argument<'ast, 'src>],
         ty: Type<'src>,
+        id: crate::ast::SourceNodeId,
         span: Span,
     ) -> Result<ValueId, LowerError> {
-        if let Some(builtin) = self.semantics.builtin_call(span) {
+        if let Some(builtin) = self.semantics.builtin_call(id) {
             return self.lower_builtin_call(builtin, args, ty, span);
         }
-        if let Expr::Member {
-            object, property, ..
+        if let Expr {
+            kind: ExprKind::Member {
+                object, property, ..
+            },
+            ..
         } = callee
         {
             let receiver_type = self.expression_type(object)?;
@@ -2887,7 +3080,9 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     span,
                 );
             }
-            if let Some(intrinsic) = member_intrinsic(&receiver_type, property.name) {
+            if let Some(crate::primitive::ResolvedIntrinsic::Method(intrinsic)) =
+                self.semantics.resolved_intrinsic(callee.id)
+            {
                 let receiver = self.lower_expr(object)?;
                 let args = if matches!(intrinsic, Intrinsic::BufferSlice)
                     || is_typed_array_range_intrinsic(intrinsic)
@@ -2919,7 +3114,11 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             Type::GenericFunction(function) => Some(function.signature.clone()),
             _ => None,
         };
-        if let Expr::Ident(ident) = callee {
+        if let Expr {
+            kind: ExprKind::Ident(ident),
+            ..
+        } = callee
+        {
             let symbol = self.symbol(*ident)?;
             if let Some(function) = self.function_symbols.get(&symbol).copied() {
                 let provided_args = args.len();
@@ -2937,8 +3136,11 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             }
         }
 
-        if let Expr::Member {
-            object, property, ..
+        if let Expr {
+            kind: ExprKind::Member {
+                object, property, ..
+            },
+            ..
         } = callee
         {
             let receiver_type = self.expression_type(object)?;
@@ -2999,7 +3201,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     fn lower_builtin_call<'ast>(
         &mut self,
         builtin: BuiltinCall,
-        args: &[Expr<'ast, 'src>],
+        args: &[crate::ast::Argument<'ast, 'src>],
         ty: Type<'src>,
         span: Span,
     ) -> Result<ValueId, LowerError> {
@@ -3238,7 +3440,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     fn lower_js_short_circuit<'ast>(
         &mut self,
         builtin: BuiltinCall,
-        args: &[Expr<'ast, 'src>],
+        args: &[crate::ast::Argument<'ast, 'src>],
         ty: Type<'src>,
         span: Span,
     ) -> Result<ValueId, LowerError> {
@@ -3248,7 +3450,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 "JavaScript short-circuit intrinsic requires two operands",
             ));
         };
-        let lhs = self.lower_expr(lhs_expr)?;
+        let lhs = self.lower_expr(&lhs_expr.expression)?;
         let condition = self.emit_value(
             ControlFlowOp::Intrinsic {
                 intrinsic: Intrinsic::JsTruthy,
@@ -3256,10 +3458,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 args: Vec::new(),
             },
             Type::Bool,
-            lhs_expr.span(),
+            lhs_expr.span,
         )?;
         let header = self.current;
-        let rhs_block = self.add_block(rhs_expr.span());
+        let rhs_block = self.add_block(rhs_expr.span);
         let short_block = self.add_block(span);
         let merge_block = self.add_block(span);
         let (then_block, else_block) = match builtin {
@@ -3283,7 +3485,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         self.terminate(Terminator::Jump(merge_block))?;
 
         self.current = rhs_block;
-        let rhs = self.lower_expr(rhs_expr)?;
+        let rhs = self.lower_expr(&rhs_expr.expression)?;
         let rhs_end = self.current;
         self.terminate(Terminator::Jump(merge_block))?;
 
@@ -3331,7 +3533,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
 
     fn lower_args_with_optional_signature<'ast>(
         &mut self,
-        args: &[Expr<'ast, 'src>],
+        args: &[crate::ast::Argument<'ast, 'src>],
         signature: Option<&FunctionType<'src>>,
         span: Span,
     ) -> Result<Vec<ValueId>, LowerError> {
@@ -3341,21 +3543,52 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         }
     }
 
+    fn lower_arrow_value(
+        &mut self,
+        source: crate::ast::SourceNodeId,
+        ty: Type<'src>,
+        span: Span,
+    ) -> Result<ValueId, LowerError> {
+        let plan = self.arrows.get(&source).ok_or_else(|| {
+            LowerError::new(
+                span,
+                "arrow source occurrence was not assigned an IR function",
+            )
+        })?;
+        let function = plan.function;
+        let captures = plan
+            .captures
+            .iter()
+            .map(|symbol| self.lower_capture_value(*symbol, span))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.emit_value(ControlFlowOp::Closure { function, captures }, ty, span)
+    }
+
     fn lower_args_with_defaults<'ast>(
         &mut self,
-        args: &[Expr<'ast, 'src>],
+        args: &[crate::ast::Argument<'ast, 'src>],
         signature: &FunctionType<'src>,
         span: Span,
     ) -> Result<Vec<ValueId>, LowerError> {
+        if signature
+            .params
+            .iter()
+            .any(|parameter| parameter.passing != crate::primitive::ParameterPassing::Value)
+        {
+            return Err(LowerError::new(
+                span,
+                "legacy lowering of reference parameters is not supported",
+            ));
+        }
         let mut values = self.lower_args(args)?;
         for index in args.len()..signature.params.len() {
             let default = signature
-                .defaults
+                .params
                 .get(index)
-                .and_then(Option::as_ref)
+                .and_then(|parameter| parameter.default.as_ref())
                 .ok_or_else(|| LowerError::new(span, "missing lowered parameter default"))?;
             let value =
-                self.lower_default_value(default, &signature.params[index], span, &values)?;
+                self.lower_default_value(default, &signature.params[index].ty, span, &values)?;
             values.push(value);
         }
         Ok(values)
@@ -3421,16 +3654,16 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     })?;
                     lowered.push(self.lower_default_value(
                         argument,
-                        expected,
+                        &expected.ty,
                         span,
                         materialized_args,
                     )?);
                 }
                 for index in args.len()..signature.params.len() {
                     let omitted = signature
-                        .defaults
+                        .params
                         .get(index)
-                        .and_then(Option::as_ref)
+                        .and_then(|parameter| parameter.default.as_ref())
                         .ok_or_else(|| {
                             LowerError::new(
                                 span,
@@ -3439,7 +3672,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                         })?;
                     let value = self.lower_default_value(
                         omitted,
-                        &signature.params[index],
+                        &signature.params[index].ty,
                         span,
                         &lowered,
                     )?;
@@ -3461,24 +3694,12 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                 span,
             );
         }
-        if let DefaultValue::Arrow(arrow_span) = default {
-            let function = self.arrows.get(arrow_span).copied().ok_or_else(|| {
-                LowerError::new(*arrow_span, "default arrow was not assigned an IR function")
-            })?;
-            let captures = self
-                .arrow_captures
-                .get(arrow_span)
-                .ok_or_else(|| {
-                    LowerError::new(*arrow_span, "default arrow captures were not analyzed")
-                })?
-                .iter()
-                .map(|symbol| self.lower_capture_value(*symbol, *arrow_span))
-                .collect::<Result<Vec<_>, _>>()?;
-            return self.emit_value(
-                ControlFlowOp::Closure { function, captures },
-                ty.clone(),
-                *arrow_span,
-            );
+        if let DefaultValue::Arrow(source) = default {
+            let source_span = self
+                .semantics
+                .source_expression(*source)
+                .map_or(span, Expr::span);
+            return self.lower_arrow_value(*source, ty.clone(), source_span);
         }
         if let DefaultValue::Array(elements) = default {
             let element_ty = default_array_element_type(ty).ok_or_else(|| {
@@ -3499,13 +3720,19 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         if let DefaultValue::Symbol(symbol) = default {
             return self.lower_symbol_value(*symbol, span);
         }
-        if let DefaultValue::PendingIdentifier(default_span) = default {
+        if let DefaultValue::PendingIdentifier {
+            span: default_span, ..
+        } = default
+        {
             return Err(LowerError::new(
                 *default_span,
                 "parameter-default binding was not finalized",
             ));
         }
-        if let DefaultValue::PendingUndefined(default_span) = default {
+        if let DefaultValue::PendingUndefined {
+            span: default_span, ..
+        } = default
+        {
             return Err(LowerError::new(
                 *default_span,
                 "parameter-default builtin was not finalized",
@@ -3525,12 +3752,12 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         let value = match default {
             DefaultValue::Int(value) => ConstValue::Int(*value),
             DefaultValue::Float(bits) => ConstValue::Float(f64::from_bits(*bits)),
-            DefaultValue::String(value) => ConstValue::String((*value).to_string()),
+            DefaultValue::String(value) => ConstValue::String(decode_string(value, span)?),
             DefaultValue::Bool(value) => ConstValue::Bool(*value),
             DefaultValue::Null => ConstValue::Null,
             DefaultValue::Symbol(_)
-            | DefaultValue::PendingIdentifier(_)
-            | DefaultValue::PendingUndefined(_) => unreachable!(),
+            | DefaultValue::PendingIdentifier { .. }
+            | DefaultValue::PendingUndefined { .. } => unreachable!(),
             DefaultValue::Undefined => unreachable!(),
             DefaultValue::Parameter(_) => unreachable!(),
             DefaultValue::Array(_)
@@ -3541,8 +3768,21 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         self.emit_value(ControlFlowOp::Const(value), ty.clone(), span)
     }
 
-    fn lower_args<'ast>(&mut self, args: &[Expr<'ast, 'src>]) -> Result<Vec<ValueId>, LowerError> {
-        args.iter().map(|arg| self.lower_expr(arg)).collect()
+    fn lower_args<'ast>(
+        &mut self,
+        args: &[crate::ast::Argument<'ast, 'src>],
+    ) -> Result<Vec<ValueId>, LowerError> {
+        args.iter()
+            .map(|arg| {
+                if arg.passing != crate::primitive::ParameterPassing::Value {
+                    return Err(LowerError::new(
+                        arg.span,
+                        "legacy lowering of reference arguments is not supported",
+                    ));
+                }
+                self.lower_expr(&arg.expression)
+            })
+            .collect()
     }
 
     fn lower_short_circuit<'ast>(
@@ -3753,9 +3993,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                         value_ty.clone(),
                     ),
                     crate::ast::MatchPattern::Int(value, _) => (ConstValue::Int(value), Type::Int),
-                    crate::ast::MatchPattern::String(value, _) => {
-                        (ConstValue::String(value.to_string()), Type::String)
-                    }
+                    crate::ast::MatchPattern::String(value, _) => (
+                        ConstValue::String(decode_string(value, arm.pattern.span())?),
+                        Type::String,
+                    ),
                     crate::ast::MatchPattern::Bool(value, _) => {
                         (ConstValue::Bool(value), Type::Bool)
                     }
@@ -3847,9 +4088,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     value_ty.clone(),
                 ),
                 crate::ast::MatchPattern::Int(value, _) => (ConstValue::Int(value), Type::Int),
-                crate::ast::MatchPattern::String(value, _) => {
-                    (ConstValue::String(value.to_string()), Type::String)
-                }
+                crate::ast::MatchPattern::String(value, _) => (
+                    ConstValue::String(decode_string(value, arm.pattern.span())?),
+                    Type::String,
+                ),
                 crate::ast::MatchPattern::Bool(value, _) => (ConstValue::Bool(value), Type::Bool),
                 crate::ast::MatchPattern::Wildcard(_) => {
                     return Err(LowerError::new(arm.span, "wildcard match arm must be last"));
@@ -4039,7 +4281,10 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
     ) -> Result<Place<'src>, LowerError> {
         let ty = self.expression_type(expression)?;
         match expression {
-            Expr::Ident(ident) => {
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
+            } => {
                 let symbol = self.symbol(*ident)?;
                 if let Some(local) = self.local_by_symbol.get(&symbol).copied() {
                     Ok(Place::Local { local, ty })
@@ -4055,10 +4300,14 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                     Err(LowerError::new(ident.span, "binding is not mutable here"))
                 }
             }
-            Expr::Member {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
                 let object_type = self.expression_type(object)?;
                 let object_value = self.lower_expr(object)?;
@@ -4076,51 +4325,59 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
                         ty,
                     });
                 }
-                let (owner, index) = match object_type {
-                    Type::Struct(owner) | Type::StructInstance { name: owner, .. } => {
-                        let index = self
-                            .semantics
-                            .struct_info(owner)
-                            .and_then(|info| info.fields.get(property.name))
-                            .map(|field| field.index)
-                            .ok_or_else(|| LowerError::new(*span, "missing struct field"))?;
-                        (owner, index)
+                let owner = match object_type {
+                    Type::Struct(StructType { name: owner, .. })
+                    | Type::StructInstance {
+                        declaration: StructType { name: owner, .. },
+                        ..
                     }
-                    Type::Class(owner) | Type::ClassInstance { name: owner, .. } => {
-                        if self.semantics.is_extern_class(owner) {
-                            return Ok(Place::HostField {
-                                object: object_value,
-                                property: property.name,
-                                ty,
-                            });
-                        }
-                        let index = self
-                            .semantics
-                            .class_info(owner)
-                            .and_then(|info| info.fields.get(property.name))
-                            .map(|field| field.index)
-                            .ok_or_else(|| LowerError::new(*span, "missing class field"))?;
-                        (owner, index)
-                    }
+                    | Type::Class(owner)
+                    | Type::ClassInstance { name: owner, .. } => owner,
                     _ => return Err(LowerError::new(*span, "member is not assignable")),
                 };
+                let Some(NominalMember::Field {
+                    owner: declaration,
+                    field,
+                }) = self.semantics.resolved_member(expression.id)
+                else {
+                    return Err(LowerError::new(*span, "missing checked nominal field"));
+                };
+                if self
+                    .semantics
+                    .nominal_class(declaration)
+                    .is_some_and(|info| info.external)
+                {
+                    return Ok(Place::HostField {
+                        object: object_value,
+                        property: field.name,
+                        ty,
+                    });
+                }
                 Ok(Place::Field {
                     object: object_value,
                     owner,
-                    field: property.name,
-                    index,
+                    field: field.name,
+                    index: field.index,
                     ty,
                 })
             }
-            Expr::Index {
-                object,
-                index,
-                span: _,
+            Expr {
+                kind:
+                    ExprKind::Index {
+                        object,
+                        index,
+                        span: _,
+                    },
+                ..
             } => {
                 let object_type = self.expression_type(object)?;
                 let object = self.lower_expr(object)?;
                 if matches!(object_type, Type::Record(_)) {
-                    if let Expr::String(property, _) = index {
+                    if let Expr {
+                        kind: ExprKind::String(property, _),
+                        ..
+                    } = index
+                    {
                         return Ok(Place::RecordField {
                             object,
                             property,
@@ -4256,7 +4513,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
         expression: &Expr<'ast, 'src>,
     ) -> Result<Type<'src>, LowerError> {
         self.semantics
-            .expression_type(expression.span())
+            .expression_type(expression.id)
             .cloned()
             .ok_or_else(|| LowerError::new(expression.span(), "missing expression type"))
     }
@@ -4419,6 +4676,7 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
             name: self.name,
             kind: self.kind,
             origin: FunctionOrigin::Source,
+            region: self.region,
             declared_pure: self.declared_pure,
             is_async: self.is_async,
             is_generator: self.is_generator,
@@ -4442,14 +4700,33 @@ impl<'model, 'maps, 'src> FunctionBuilder<'model, 'maps, 'src> {
 
 fn scalar_parameter_default(expression: &Expr<'_, '_>) -> Option<ConstValue> {
     match expression {
-        Expr::Int(value, _) => Some(ConstValue::Int(*value)),
-        Expr::Float(value, _) => Some(ConstValue::Float(*value)),
-        Expr::String(value, _) => Some(ConstValue::String((*value).to_string())),
-        Expr::Bool(value, _) => Some(ConstValue::Bool(*value)),
-        Expr::Null(_) => Some(ConstValue::Null),
-        Expr::Unary {
-            op: UnaryOp::Neg,
-            expr,
+        Expr {
+            kind: ExprKind::Int(value, _),
+            ..
+        } => Some(ConstValue::Int(*value)),
+        Expr {
+            kind: ExprKind::Float(value, _),
+            ..
+        } => Some(ConstValue::Float(*value)),
+        Expr {
+            kind: ExprKind::String(value, _),
+            ..
+        } => Some(ConstValue::String(StringValue::decode_source(value).ok()?)),
+        Expr {
+            kind: ExprKind::Bool(value, _),
+            ..
+        } => Some(ConstValue::Bool(*value)),
+        Expr {
+            kind: ExprKind::Null(_),
+            ..
+        } => Some(ConstValue::Null),
+        Expr {
+            kind:
+                ExprKind::Unary {
+                    op: UnaryOp::Neg,
+                    expr,
+                    ..
+                },
             ..
         } => match scalar_parameter_default(expr)? {
             ConstValue::Int(value) => Some(ConstValue::Int(-value)),
@@ -4512,7 +4789,7 @@ enum Place<'src> {
 }
 
 fn resolve_declared_return<'ast, 'src>(
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
     function: &FunctionDecl<'ast, 'src>,
 ) -> Result<Type<'src>, LowerError> {
     let symbol = semantics
@@ -4524,8 +4801,8 @@ fn resolve_declared_return<'ast, 'src>(
         .map(|symbol| symbol.ty.clone())
         .ok_or_else(|| LowerError::new(function.name.span, "missing function type"))?;
     let return_type = match function_type {
-        Type::Function(signature) => *signature.return_type,
-        Type::GenericFunction(function) => *function.signature.return_type,
+        Type::Function(signature) => signature.return_type.as_ref().clone(),
+        Type::GenericFunction(function) => function.signature.return_type.as_ref().clone(),
         _ => Err(LowerError::new(
             function.name.span,
             "function symbol does not have a callable type",
@@ -4553,7 +4830,7 @@ fn resolve_declared_return<'ast, 'src>(
 }
 
 fn resolve_symbol_return<'src>(
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
     name: Ident<'src>,
     kind: &str,
 ) -> Result<Type<'src>, LowerError> {
@@ -4565,8 +4842,10 @@ fn resolve_symbol_return<'src>(
         .get(symbol.0 as usize)
         .map(|symbol| symbol.ty.clone())
     {
-        Some(Type::Function(signature)) => Ok(*signature.return_type),
-        Some(Type::GenericFunction(function)) => Ok(*function.signature.return_type),
+        Some(Type::Function(signature)) => Ok(signature.return_type.as_ref().clone()),
+        Some(Type::GenericFunction(function)) => {
+            Ok(function.signature.return_type.as_ref().clone())
+        }
         _ => Err(LowerError::new(
             name.span,
             format!("{kind} symbol does not have a callable type"),
@@ -4629,97 +4908,18 @@ fn lower_assignment_op(op: AssignmentOp) -> IrBinaryOp {
     }
 }
 
-fn member_intrinsic(receiver: &Type<'_>, property: &str) -> Option<Intrinsic> {
-    match (receiver, property) {
-        (Type::TypeParameter("$js"), "truthy") => Some(Intrinsic::JsTruthy),
-        (Type::TypeParameter("$js"), "isArray") => Some(Intrinsic::JsIsArray),
-        (Type::TypeParameter("$js"), "isObject") => Some(Intrinsic::JsIsObject),
-        (Type::Array(_), "map") => Some(Intrinsic::ArrayMap),
-        (Type::Array(_), "filter") => Some(Intrinsic::ArrayFilter),
-        (Type::Array(_), "reduce") => Some(Intrinsic::ArrayReduce),
-        (Type::Array(_), "forEach") => Some(Intrinsic::ArrayForEach),
-        (Type::Array(_), "push") => Some(Intrinsic::ArrayPush),
-        (Type::Array(_), "pop") => Some(Intrinsic::ArrayPop),
-        (Type::Array(_), "indexOf") => Some(Intrinsic::ArrayIndexOf),
-        (Type::Array(_), "includes") => Some(Intrinsic::ArrayIncludes),
-        (Type::Array(_), "join") => Some(Intrinsic::ArrayJoin),
-        (Type::Array(_), "some") => Some(Intrinsic::ArraySome),
-        (Type::Array(_), "every") => Some(Intrinsic::ArrayEvery),
-        (Type::Array(_), "findIndex") => Some(Intrinsic::ArrayFindIndex),
-        (Type::Array(_), "concat") => Some(Intrinsic::ArrayConcat),
-        (Type::Array(_), "copyWithin") => Some(Intrinsic::ArrayCopyWithin),
-        (Type::Array(_), "reverse") => Some(Intrinsic::ArrayReverse),
-        (Type::Array(_), "slice") => Some(Intrinsic::ArraySlice),
-        (Type::Array(_), "splice") => Some(Intrinsic::ArraySplice),
-        (Type::Array(_), "fill") => Some(Intrinsic::ArrayFill),
-        (Type::Map(_, _), "get") => Some(Intrinsic::MapGet),
-        (Type::Map(_, _), "set") => Some(Intrinsic::MapSet),
-        (Type::Map(_, _), "has") => Some(Intrinsic::MapHas),
-        (Type::Map(_, _), "delete") => Some(Intrinsic::MapDelete),
-        (Type::Map(_, _), "clear") => Some(Intrinsic::MapClear),
-        (Type::Set(_), "add") => Some(Intrinsic::SetAdd),
-        (Type::Set(_), "has") => Some(Intrinsic::SetHas),
-        (Type::Set(_), "delete") => Some(Intrinsic::SetDelete),
-        (Type::Set(_), "clear") => Some(Intrinsic::SetClear),
-        (Type::ArrayBuffer | Type::SharedArrayBuffer, "slice") => Some(Intrinsic::BufferSlice),
-        (ty, "set") if TypedArrayKind::from_type(ty).is_some() => Some(Intrinsic::TypedArraySet),
-        (ty, "fill") if TypedArrayKind::from_type(ty).is_some() => Some(Intrinsic::TypedArrayFill),
-        (ty, "copyWithin") if TypedArrayKind::from_type(ty).is_some() => {
-            Some(Intrinsic::TypedArrayCopyWithin)
-        }
-        (ty, method) if let Some(kind) = TypedArrayKind::from_type(ty) => {
-            kind.method_intrinsic(method)
-        }
-        (Type::Float, "abs") => Some(Intrinsic::FloatAbs),
-        (Type::Float, "floor") => Some(Intrinsic::FloatFloor),
-        (Type::Float, "ceil") => Some(Intrinsic::FloatCeil),
-        (Type::Float, "round") => Some(Intrinsic::FloatRound),
-        (Type::Float, "sqrt") => Some(Intrinsic::FloatSqrt),
-        (Type::Float, "sin") => Some(Intrinsic::FloatSin),
-        (Type::Float, "cos") => Some(Intrinsic::FloatCos),
-        (Type::Float, "acos") => Some(Intrinsic::FloatAcos),
-        (Type::Float, "exp") => Some(Intrinsic::FloatExp),
-        (Type::Float, "log") => Some(Intrinsic::FloatLog),
-        (Type::Float, "tan") => Some(Intrinsic::FloatTan),
-        (Type::Float, "atan2") => Some(Intrinsic::FloatAtan2),
-        (Type::Float, "hypot") => Some(Intrinsic::FloatHypot),
-        (Type::Float, "min") => Some(Intrinsic::FloatMin),
-        (Type::Float, "max") => Some(Intrinsic::FloatMax),
-        (Type::Float, "toInt") => Some(Intrinsic::FloatToInt),
-        (Type::Int, "toString") => Some(Intrinsic::IntToString),
-        (Type::Int, "toUnsignedString") => Some(Intrinsic::IntToUnsignedString),
-        (Type::String, "includes") => Some(Intrinsic::StringIncludes),
-        (Type::String, "indexOf") => Some(Intrinsic::StringIndexOf),
-        (Type::String, "lastIndexOf") => Some(Intrinsic::StringLastIndexOf),
-        (Type::String, "repeat") => Some(Intrinsic::StringRepeat),
-        (Type::String, "charCodeAt") => Some(Intrinsic::StringCharCodeAt),
-        (Type::String, "charAt") => Some(Intrinsic::StringCharAt),
-        (Type::String, "startsWith") => Some(Intrinsic::StringStartsWith),
-        (Type::String, "endsWith") => Some(Intrinsic::StringEndsWith),
-        (Type::String, "toUpperCase") => Some(Intrinsic::StringToUpperCase),
-        (Type::String, "toLowerCase") => Some(Intrinsic::StringToLowerCase),
-        (Type::String, "trim") => Some(Intrinsic::StringTrim),
-        (Type::String, "trimStart") => Some(Intrinsic::StringTrimStart),
-        (Type::String, "trimEnd") => Some(Intrinsic::StringTrimEnd),
-        (Type::String, "search") => Some(Intrinsic::StringSearch),
-        (Type::String, "slice") => Some(Intrinsic::StringSlice),
-        (Type::String, "replace") => Some(Intrinsic::StringReplace),
-        (Type::String, "split") => Some(Intrinsic::StringSplit),
-        (Type::String, "codePointLength") => Some(Intrinsic::StringCodePointLength),
-        (Type::String, "truthy") => Some(Intrinsic::JsTruthy),
-        (Type::Regex, "test") => Some(Intrinsic::RegexTest),
-        (Type::Regex, "exec") => Some(Intrinsic::JsRegexExec),
-        _ => None,
-    }
-}
-
-type ArrowRef<'ast, 'src> = (&'ast [Param<'ast, 'src>], &'ast ArrowBody<'ast, 'src>, Span);
+type ArrowRef<'ast, 'src> = (
+    &'ast [Param<'ast, 'src>],
+    &'ast ArrowBody<'ast, 'src>,
+    Span,
+    crate::ast::SourceNodeId,
+);
 
 fn collect_arrow_captures<'ast, 'src>(
     params: &[Param<'ast, 'src>],
     body: &ArrowBody<'ast, 'src>,
     arrow_span: Span,
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
     globals: &AHashSet<SymbolId>,
     functions: &AHashMap<SymbolId, FunctionId>,
 ) -> Vec<SymbolId> {
@@ -4751,7 +4951,7 @@ fn collect_arrow_captures<'ast, 'src>(
 
 fn collect_stmt_symbols<'ast, 'src>(
     statements: &[Stmt<'ast, 'src>],
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
     out: &mut AHashSet<SymbolId>,
 ) {
     for statement in statements {
@@ -4773,7 +4973,7 @@ fn collect_stmt_symbols<'ast, 'src>(
             Stmt::Throw { value, .. } => collect_expr_symbols(value, semantics, out),
             Stmt::SuperCall { args, .. } => {
                 for argument in *args {
-                    collect_expr_symbols(argument, semantics, out);
+                    collect_expr_symbols(&argument.expression, semantics, out);
                 }
             }
             Stmt::Yield { value, .. } => collect_expr_symbols(value, semantics, out),
@@ -4852,91 +5052,179 @@ fn collect_stmt_symbols<'ast, 'src>(
 
 fn collect_expr_symbols<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
     out: &mut AHashSet<SymbolId>,
 ) {
     match expression {
-        Expr::Ident(ident) => {
+        Expr {
+            kind: ExprKind::Ident(ident),
+            ..
+        } => {
             if let Some(symbol) = semantics.identifier_symbol(ident.span) {
                 out.insert(symbol);
             }
         }
-        Expr::ArrowFunction { body, .. } => match body {
+        Expr {
+            kind: ExprKind::ArrowFunction { body, .. },
+            ..
+        } => match body {
             ArrowBody::Expr(expression) => collect_expr_symbols(expression, semantics, out),
             ArrowBody::Block(statements) => collect_stmt_symbols(statements, semantics, out),
         },
-        Expr::Match { value, arms, .. } => {
+        Expr {
+            kind: ExprKind::Match { value, arms, .. },
+            ..
+        } => {
             collect_expr_symbols(value, semantics, out);
             for arm in *arms {
                 collect_expr_symbols(&arm.value, semantics, out);
             }
         }
-        Expr::If {
-            condition,
-            then_value,
-            else_value,
+        Expr {
+            kind:
+                ExprKind::If {
+                    condition,
+                    then_value,
+                    else_value,
+                    ..
+                },
             ..
         } => {
             collect_expr_symbols(condition, semantics, out);
             collect_expr_symbols(then_value, semantics, out);
             collect_expr_symbols(else_value, semantics, out);
         }
-        Expr::ArrayLiteral { elements, .. } => {
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => {
             for element in *elements {
                 collect_expr_symbols(element.value(), semantics, out);
             }
         }
-        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => {
+        Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::ObjectLiteral { entries, .. },
+            ..
+        } => {
             for entry in *entries {
                 collect_expr_symbols(entry.value(), semantics, out);
             }
         }
-        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
+        Expr {
+            kind: ExprKind::StructLiteral { values, .. },
+            ..
+        } => {
             for value in *values {
                 collect_expr_symbols(value, semantics, out);
             }
         }
-        Expr::Member { object, .. }
-        | Expr::OptionalMember { object, .. }
-        | Expr::Unary { expr: object, .. }
-        | Expr::Await { task: object, .. }
-        | Expr::TypeCheck { value: object, .. } => collect_expr_symbols(object, semantics, out),
-        Expr::Call { callee, args, .. } => {
-            collect_expr_symbols(callee, semantics, out);
-            for arg in *args {
-                collect_expr_symbols(arg, semantics, out);
+        Expr {
+            kind: ExprKind::New { args, .. },
+            ..
+        } => {
+            for argument in *args {
+                collect_expr_symbols(&argument.expression, semantics, out);
             }
         }
-        Expr::Binary { lhs, rhs, .. } => {
+        Expr {
+            kind: ExprKind::Member { object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::OptionalMember { object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Unary { expr: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Await { task: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::TypeCheck { value: object, .. },
+            ..
+        } => collect_expr_symbols(object, semantics, out),
+        Expr {
+            kind: ExprKind::Call { callee, args, .. },
+            ..
+        } => {
+            collect_expr_symbols(callee, semantics, out);
+            for arg in *args {
+                collect_expr_symbols(&arg.expression, semantics, out);
+            }
+        }
+        Expr {
+            kind: ExprKind::Binary { lhs, rhs, .. },
+            ..
+        } => {
             collect_expr_symbols(lhs, semantics, out);
             collect_expr_symbols(rhs, semantics, out);
         }
-        Expr::Index { object, index, .. } => {
+        Expr {
+            kind: ExprKind::Index { object, index, .. },
+            ..
+        } => {
             collect_expr_symbols(object, semantics, out);
             collect_expr_symbols(index, semantics, out);
         }
-        Expr::OptionalIndex { object, index, .. } => {
+        Expr {
+            kind: ExprKind::OptionalIndex { object, index, .. },
+            ..
+        } => {
             collect_expr_symbols(object, semantics, out);
             collect_expr_symbols(index, semantics, out);
         }
-        Expr::Assignment { target, value, .. } => {
+        Expr {
+            kind: ExprKind::Assignment { target, value, .. },
+            ..
+        } => {
             collect_expr_symbols(target, semantics, out);
             collect_expr_symbols(value, semantics, out);
         }
-        Expr::Update { target, .. } => collect_expr_symbols(target, semantics, out),
-        Expr::Template { parts, .. } => {
+        Expr {
+            kind: ExprKind::Update { target, .. },
+            ..
+        } => collect_expr_symbols(target, semantics, out),
+        Expr {
+            kind: ExprKind::Template { parts, .. },
+            ..
+        } => {
             for part in *parts {
                 if let TemplatePart::Expr(expression) = part {
                     collect_expr_symbols(expression, semantics, out);
                 }
             }
         }
-        Expr::Int(_, _)
-        | Expr::Float(_, _)
-        | Expr::String(_, _)
-        | Expr::Bool(_, _)
-        | Expr::Null(_)
-        | Expr::DynamicImport { .. } => {}
+        Expr {
+            kind: ExprKind::Int(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Float(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::String(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Bool(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Null(_),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicImport { .. },
+            ..
+        } => {}
     }
 }
 
@@ -5023,7 +5311,7 @@ fn collect_one_stmt_arrows<'ast, 'src>(
         Stmt::Throw { value, .. } => collect_expr_arrows(value, out),
         Stmt::SuperCall { args, .. } => {
             for argument in *args {
-                collect_expr_arrows(argument, out);
+                collect_expr_arrows(&argument.expression, out);
             }
         }
         Stmt::Yield { value, .. } => collect_expr_arrows(value, out),
@@ -5102,83 +5390,172 @@ fn collect_expr_arrows<'ast, 'src>(
     out: &mut Vec<ArrowRef<'ast, 'src>>,
 ) {
     match expression {
-        Expr::ArrowFunction { params, body, span } => {
-            out.push((params, body, *span));
+        Expr {
+            kind: ExprKind::ArrowFunction { params, body, span },
+            ..
+        } => {
+            out.push((params, body, *span, expression.id));
             collect_param_arrows(params, out);
             match body {
                 ArrowBody::Expr(expression) => collect_expr_arrows(expression, out),
                 ArrowBody::Block(statements) => collect_stmt_arrows(statements, out),
             }
         }
-        Expr::Match { value, arms, .. } => {
+        Expr {
+            kind: ExprKind::Match { value, arms, .. },
+            ..
+        } => {
             collect_expr_arrows(value, out);
             for arm in *arms {
                 collect_expr_arrows(&arm.value, out);
             }
         }
-        Expr::If {
-            condition,
-            then_value,
-            else_value,
+        Expr {
+            kind:
+                ExprKind::If {
+                    condition,
+                    then_value,
+                    else_value,
+                    ..
+                },
             ..
         } => {
             collect_expr_arrows(condition, out);
             collect_expr_arrows(then_value, out);
             collect_expr_arrows(else_value, out);
         }
-        Expr::ArrayLiteral { elements, .. } => {
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => {
             for element in *elements {
                 collect_expr_arrows(element.value(), out);
             }
         }
-        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => {
+        Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::ObjectLiteral { entries, .. },
+            ..
+        } => {
             for entry in *entries {
                 collect_expr_arrows(entry.value(), out);
             }
         }
-        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
+        Expr {
+            kind: ExprKind::StructLiteral { values, .. },
+            ..
+        } => {
             for value in *values {
                 collect_expr_arrows(value, out);
             }
         }
-        Expr::Member { object, .. }
-        | Expr::OptionalMember { object, .. }
-        | Expr::Unary { expr: object, .. }
-        | Expr::Await { task: object, .. }
-        | Expr::TypeCheck { value: object, .. } => collect_expr_arrows(object, out),
-        Expr::Call { callee, args, .. } => {
-            collect_expr_arrows(callee, out);
-            for arg in *args {
-                collect_expr_arrows(arg, out);
+        Expr {
+            kind: ExprKind::New { args, .. },
+            ..
+        } => {
+            for argument in *args {
+                collect_expr_arrows(&argument.expression, out);
             }
         }
-        Expr::Binary { lhs, rhs, .. } => {
+        Expr {
+            kind: ExprKind::Member { object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::OptionalMember { object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Unary { expr: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Await { task: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::TypeCheck { value: object, .. },
+            ..
+        } => collect_expr_arrows(object, out),
+        Expr {
+            kind: ExprKind::Call { callee, args, .. },
+            ..
+        } => {
+            collect_expr_arrows(callee, out);
+            for arg in *args {
+                collect_expr_arrows(&arg.expression, out);
+            }
+        }
+        Expr {
+            kind: ExprKind::Binary { lhs, rhs, .. },
+            ..
+        } => {
             collect_expr_arrows(lhs, out);
             collect_expr_arrows(rhs, out);
         }
-        Expr::Index { object, index, .. } | Expr::OptionalIndex { object, index, .. } => {
+        Expr {
+            kind: ExprKind::Index { object, index, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::OptionalIndex { object, index, .. },
+            ..
+        } => {
             collect_expr_arrows(object, out);
             collect_expr_arrows(index, out);
         }
-        Expr::Assignment { target, value, .. } => {
+        Expr {
+            kind: ExprKind::Assignment { target, value, .. },
+            ..
+        } => {
             collect_expr_arrows(target, out);
             collect_expr_arrows(value, out);
         }
-        Expr::Update { target, .. } => collect_expr_arrows(target, out),
-        Expr::Template { parts, .. } => {
+        Expr {
+            kind: ExprKind::Update { target, .. },
+            ..
+        } => collect_expr_arrows(target, out),
+        Expr {
+            kind: ExprKind::Template { parts, .. },
+            ..
+        } => {
             for part in *parts {
                 if let TemplatePart::Expr(expression) = part {
                     collect_expr_arrows(expression, out);
                 }
             }
         }
-        Expr::Int(_, _)
-        | Expr::Float(_, _)
-        | Expr::String(_, _)
-        | Expr::Bool(_, _)
-        | Expr::Null(_)
-        | Expr::Ident(_)
-        | Expr::DynamicImport { .. } => {}
+        Expr {
+            kind: ExprKind::Int(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Float(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::String(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Bool(_, _),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Null(_),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Ident(_),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicImport { .. },
+            ..
+        } => {}
     }
 }
 
@@ -5188,6 +5565,39 @@ mod tests {
 
     use super::*;
     use crate::{analyze, parse_source};
+
+    #[test]
+    fn legacy_entry_points_refuse_source_reference_calls_before_mode_erasure() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            "void bump(ref int value){value+=1;}int value=1;bump(ref value);print(value);",
+        )
+        .unwrap();
+        let semantics = analyze(&program).unwrap();
+        assert!(lower_to_control_flow(&program, &semantics)
+            .unwrap_err()
+            .message
+            .contains("reference"));
+        assert!(crate::compile_to_js(&program)
+            .unwrap_err()
+            .to_string()
+            .contains("reference"));
+        assert!(crate::compile_to_c(&program)
+            .unwrap_err()
+            .to_string()
+            .contains("reference"));
+        assert!(crate::interpret_program(&program, &semantics)
+            .unwrap_err()
+            .message
+            .contains("reference"));
+        assert!(
+            crate::structured_js::lower::lower_slice(&program, &semantics)
+                .unwrap_err()
+                .feature
+                .contains("reference")
+        );
+    }
 
     fn lower(source: &str) -> ControlFlowModule<'_> {
         let arena = Box::leak(Box::new(Bump::new()));
@@ -5514,5 +5924,18 @@ mod tests {
             .flat_map(|function| &function.blocks)
             .flat_map(|block| &block.instructions)
             .any(|instruction| matches!(instruction.op, ControlFlowOp::RecordFieldGet { .. })));
+    }
+}
+
+fn decode_string(source: &str, span: Span) -> Result<StringValue, LowerError> {
+    StringValue::decode_source(source)
+        .map_err(|error| LowerError::new(span, format!("invalid string escape: {error:?}")))
+}
+
+/// The class a base type names, if it names one.
+fn class_name_of<'src>(base: &Type<'src>) -> Option<&'src str> {
+    match base {
+        Type::Class(name) | Type::ClassInstance { name, .. } => Some(*name),
+        _ => None,
     }
 }

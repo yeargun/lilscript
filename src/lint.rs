@@ -1,3 +1,4 @@
+use crate::ast::ExprKind;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
@@ -68,7 +69,7 @@ pub struct LintDiagnostic {
 pub struct LintRuleContext<'context, 'ast, 'src> {
     pub modules: &'context ModuleSet,
     pub program: &'context Program<'ast, 'src>,
-    pub semantics: &'context SemanticModel<'src>,
+    pub semantics: &'context SemanticModel<'ast, 'src>,
     pub ir: &'context crate::ir::ControlFlowModule<'src>,
     pub config: &'context ProjectConfig,
 }
@@ -328,7 +329,7 @@ fn lint_unused_imports(
             continue;
         };
         let mut counts = HashMap::<&str, usize>::new();
-        for token in tokens {
+        for token in &tokens {
             if let TokenKind::Ident(name) = token.kind {
                 *counts.entry(name).or_default() += 1;
             }
@@ -358,7 +359,7 @@ fn lint_unused_imports(
 
 fn lint_ast(
     program: &Program<'_, '_>,
-    semantics: &SemanticModel<'_>,
+    semantics: &SemanticModel<'_, '_>,
     config: &LintConfig,
     pending: &mut Vec<PendingDiagnostic>,
 ) {
@@ -561,89 +562,194 @@ fn lint_statement(statement: &Stmt<'_, '_>, pending: &mut Vec<PendingDiagnostic>
 
 fn task_chain_has_catch(expression: &Expr<'_, '_>) -> bool {
     match expression {
-        Expr::Call { callee, .. } => match callee {
-            Expr::Member {
-                object, property, ..
+        Expr {
+            kind: ExprKind::Call { callee, .. },
+            ..
+        } => match callee {
+            Expr {
+                kind: ExprKind::Member {
+                    object, property, ..
+                },
+                ..
             } => property.name == "catch" || task_chain_has_catch(object),
             _ => task_chain_has_catch(callee),
         },
-        Expr::Member { object, .. } | Expr::OptionalMember { object, .. } => {
-            task_chain_has_catch(object)
+        Expr {
+            kind: ExprKind::Member { object, .. },
+            ..
         }
+        | Expr {
+            kind: ExprKind::OptionalMember { object, .. },
+            ..
+        } => task_chain_has_catch(object),
         _ => false,
     }
 }
 
 fn contains_dynamic_import(expression: &Expr<'_, '_>) -> bool {
     match expression {
-        Expr::DynamicImport { .. } => true,
-        Expr::ArrayLiteral { elements, .. } => elements
+        Expr {
+            kind: ExprKind::DynamicImport { .. },
+            ..
+        } => true,
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => elements
             .iter()
             .any(|element| contains_dynamic_import(element.value())),
-        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => entries
+        Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::ObjectLiteral { entries, .. },
+            ..
+        } => entries
             .iter()
             .any(|entry| contains_dynamic_import(entry.value())),
-        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
-            values.iter().any(contains_dynamic_import)
+        Expr {
+            kind: ExprKind::StructLiteral { values, .. },
+            ..
+        } => values.iter().any(contains_dynamic_import),
+        Expr {
+            kind: ExprKind::New { args, .. },
+            ..
+        } => args
+            .iter()
+            .any(|argument| contains_dynamic_import(&argument.expression)),
+        Expr {
+            kind: ExprKind::Member { object, .. },
+            ..
         }
-        Expr::Member { object, .. }
-        | Expr::OptionalMember { object, .. }
-        | Expr::Unary { expr: object, .. }
-        | Expr::Await { task: object, .. }
-        | Expr::TypeCheck { value: object, .. }
-        | Expr::Update { target: object, .. } => contains_dynamic_import(object),
-        Expr::Call { callee, args, .. } => {
-            contains_dynamic_import(callee) || args.iter().any(contains_dynamic_import)
+        | Expr {
+            kind: ExprKind::OptionalMember { object, .. },
+            ..
         }
-        Expr::ArrowFunction { body, .. } => match body {
+        | Expr {
+            kind: ExprKind::Unary { expr: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Await { task: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::TypeCheck { value: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Update { target: object, .. },
+            ..
+        } => contains_dynamic_import(object),
+        Expr {
+            kind: ExprKind::Call { callee, args, .. },
+            ..
+        } => {
+            contains_dynamic_import(callee)
+                || args
+                    .iter()
+                    .any(|argument| contains_dynamic_import(&argument.expression))
+        }
+        Expr {
+            kind: ExprKind::ArrowFunction { body, .. },
+            ..
+        } => match body {
             ArrowBody::Expr(expression) => contains_dynamic_import(expression),
             ArrowBody::Block(_) => false,
         },
-        Expr::Binary { lhs, rhs, .. }
-        | Expr::Index {
-            object: lhs,
-            index: rhs,
+        Expr {
+            kind: ExprKind::Binary { lhs, rhs, .. },
             ..
         }
-        | Expr::OptionalIndex {
-            object: lhs,
-            index: rhs,
+        | Expr {
+            kind:
+                ExprKind::Index {
+                    object: lhs,
+                    index: rhs,
+                    ..
+                },
             ..
         }
-        | Expr::Assignment {
-            target: lhs,
-            value: rhs,
+        | Expr {
+            kind:
+                ExprKind::OptionalIndex {
+                    object: lhs,
+                    index: rhs,
+                    ..
+                },
+            ..
+        }
+        | Expr {
+            kind:
+                ExprKind::Assignment {
+                    target: lhs,
+                    value: rhs,
+                    ..
+                },
             ..
         } => contains_dynamic_import(lhs) || contains_dynamic_import(rhs),
-        Expr::Template { parts, .. } => parts.iter().any(|part| match part {
+        Expr {
+            kind: ExprKind::Template { parts, .. },
+            ..
+        } => parts.iter().any(|part| match part {
             crate::ast::TemplatePart::Expr(expression) => contains_dynamic_import(expression),
             crate::ast::TemplatePart::String(..) => false,
         }),
-        Expr::Match { value, arms, .. } => {
+        Expr {
+            kind: ExprKind::Match { value, arms, .. },
+            ..
+        } => {
             contains_dynamic_import(value)
                 || arms.iter().any(|arm| contains_dynamic_import(&arm.value))
         }
-        Expr::If {
-            condition,
-            then_value,
-            else_value,
+        Expr {
+            kind:
+                ExprKind::If {
+                    condition,
+                    then_value,
+                    else_value,
+                    ..
+                },
             ..
         } => {
             contains_dynamic_import(condition)
                 || contains_dynamic_import(then_value)
                 || contains_dynamic_import(else_value)
         }
-        Expr::Int(..)
-        | Expr::Float(..)
-        | Expr::String(..)
-        | Expr::Bool(..)
-        | Expr::Null(..)
-        | Expr::Ident(..) => false,
+        Expr {
+            kind: ExprKind::Int(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Float(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::String(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Bool(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Null(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Ident(..),
+            ..
+        } => false,
     }
 }
 
 fn lint_constant_condition(condition: &Expr<'_, '_>, pending: &mut Vec<PendingDiagnostic>) {
-    if let Expr::Bool(value, span) = condition {
+    if let Expr {
+        kind: ExprKind::Bool(value, span),
+        ..
+    } = condition
+    {
         pending.push(PendingDiagnostic {
             span: *span,
             rule: "correctness/constant-condition",
@@ -1184,7 +1290,7 @@ fn walk_statement_idents(statement: &Stmt<'_, '_>, visitor: &mut impl FnMut(Span
         Stmt::Throw { value, .. } => walk_expr_idents(value, visitor),
         Stmt::SuperCall { args, .. } => {
             for argument in *args {
-                walk_expr_idents(argument, visitor);
+                walk_expr_idents(&argument.expression, visitor);
             }
         }
         Stmt::Yield { value, .. } => walk_expr_idents(value, visitor),
@@ -1275,13 +1381,26 @@ fn walk_statement_idents(statement: &Stmt<'_, '_>, visitor: &mut impl FnMut(Span
 
 fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
     match expression {
-        Expr::Ident(identifier) => visitor(identifier.span),
-        Expr::ArrayLiteral { elements, .. } => {
+        Expr {
+            kind: ExprKind::Ident(identifier),
+            ..
+        } => visitor(identifier.span),
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => {
             for element in *elements {
                 walk_expr_idents(element.value(), visitor);
             }
         }
-        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => {
+        Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::ObjectLiteral { entries, .. },
+            ..
+        } => {
             for entry in *entries {
                 if let crate::ast::RecordElement::Entry(entry) = entry {
                     visitor(entry.key.span);
@@ -1289,28 +1408,45 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 walk_expr_idents(entry.value(), visitor);
             }
         }
-        Expr::StructLiteral { name, values, .. } => {
+        Expr {
+            kind: ExprKind::StructLiteral { name, values, .. },
+            ..
+        } => {
             visitor(name.span);
             for value in *values {
                 walk_expr_idents(value, visitor);
             }
         }
-        Expr::New { class, args, .. } => {
+        Expr {
+            kind: ExprKind::New { class, args, .. },
+            ..
+        } => {
             visitor(class.span);
             for argument in *args {
-                walk_expr_idents(argument, visitor);
+                walk_expr_idents(&argument.expression, visitor);
             }
         }
-        Expr::Member { object, .. } | Expr::OptionalMember { object, .. } => {
-            walk_expr_idents(object, visitor)
+        Expr {
+            kind: ExprKind::Member { object, .. },
+            ..
         }
-        Expr::Call { callee, args, .. } => {
+        | Expr {
+            kind: ExprKind::OptionalMember { object, .. },
+            ..
+        } => walk_expr_idents(object, visitor),
+        Expr {
+            kind: ExprKind::Call { callee, args, .. },
+            ..
+        } => {
             walk_expr_idents(callee, visitor);
             for argument in *args {
-                walk_expr_idents(argument, visitor);
+                walk_expr_idents(&argument.expression, visitor);
             }
         }
-        Expr::ArrowFunction { params, body, .. } => {
+        Expr {
+            kind: ExprKind::ArrowFunction { params, body, .. },
+            ..
+        } => {
             for parameter in *params {
                 visitor(parameter.name.span);
             }
@@ -1319,30 +1455,61 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 ArrowBody::Block(body) => walk_statements_idents(body, visitor),
             }
         }
-        Expr::Unary { expr, .. } => walk_expr_idents(expr, visitor),
-        Expr::Await { task, .. } => walk_expr_idents(task, visitor),
-        Expr::Binary { lhs, rhs, .. } => {
+        Expr {
+            kind: ExprKind::Unary { expr, .. },
+            ..
+        } => walk_expr_idents(expr, visitor),
+        Expr {
+            kind: ExprKind::Await { task, .. },
+            ..
+        } => walk_expr_idents(task, visitor),
+        Expr {
+            kind: ExprKind::Binary { lhs, rhs, .. },
+            ..
+        } => {
             walk_expr_idents(lhs, visitor);
             walk_expr_idents(rhs, visitor);
         }
-        Expr::TypeCheck { value, .. } => walk_expr_idents(value, visitor),
-        Expr::Index { object, index, .. } | Expr::OptionalIndex { object, index, .. } => {
+        Expr {
+            kind: ExprKind::TypeCheck { value, .. },
+            ..
+        } => walk_expr_idents(value, visitor),
+        Expr {
+            kind: ExprKind::Index { object, index, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::OptionalIndex { object, index, .. },
+            ..
+        } => {
             walk_expr_idents(object, visitor);
             walk_expr_idents(index, visitor);
         }
-        Expr::Assignment { target, value, .. } => {
+        Expr {
+            kind: ExprKind::Assignment { target, value, .. },
+            ..
+        } => {
             walk_expr_idents(target, visitor);
             walk_expr_idents(value, visitor);
         }
-        Expr::Update { target, .. } => walk_expr_idents(target, visitor),
-        Expr::Template { parts, .. } => {
+        Expr {
+            kind: ExprKind::Update { target, .. },
+            ..
+        } => walk_expr_idents(target, visitor),
+        Expr {
+            kind: ExprKind::Template { parts, .. },
+            ..
+        } => {
             for part in *parts {
                 if let crate::ast::TemplatePart::Expr(expression) = part {
                     walk_expr_idents(expression, visitor);
                 }
             }
         }
-        Expr::Match { value, arms, .. } => {
+        Expr {
+            kind: ExprKind::Match { value, arms, .. },
+            ..
+        } => {
             walk_expr_idents(value, visitor);
             for arm in *arms {
                 if let crate::ast::MatchPattern::EnumVariant {
@@ -1355,22 +1522,44 @@ fn walk_expr_idents(expression: &Expr<'_, '_>, visitor: &mut impl FnMut(Span)) {
                 walk_expr_idents(&arm.value, visitor);
             }
         }
-        Expr::If {
-            condition,
-            then_value,
-            else_value,
+        Expr {
+            kind:
+                ExprKind::If {
+                    condition,
+                    then_value,
+                    else_value,
+                    ..
+                },
             ..
         } => {
             walk_expr_idents(condition, visitor);
             walk_expr_idents(then_value, visitor);
             walk_expr_idents(else_value, visitor);
         }
-        Expr::Int(..)
-        | Expr::Float(..)
-        | Expr::String(..)
-        | Expr::Bool(..)
-        | Expr::Null(..)
-        | Expr::DynamicImport { .. } => {}
+        Expr {
+            kind: ExprKind::Int(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Float(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::String(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Bool(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Null(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::DynamicImport { .. },
+            ..
+        } => {}
     }
 }
 

@@ -1,0 +1,20 @@
+
+running 15 tests
+test semantic::admission_tests::admitted_facts_observer_runs_after_real_drop_and_public_models_still_move_threads ... ok
+test semantic::admission_tests::borrowed_source_payloads_reuse_the_original_module_checker ... ok
+test semantic::admission_tests::admitted_modules_share_declarations_and_charge_exact_facts_interfaces_and_schedule ... ok
+test semantic::admission_tests::callback_error_panic_and_deadline_drop_checker_before_scope_release ... ok
+test semantic::admission_tests::admitted_source_tables_match_the_original_model_and_release_after_callback ... ok
+test semantic::admission_tests::callback_retained_output_transfers_without_leaving_fixed_table_charges ... ok
+test semantic::admission_tests::module_graph_schedule_and_late_interface_work_refusals_keep_actual_attribution ... ok
+test semantic::admission_tests::module_graph_and_semantic_diagnostics_are_unchanged ... ok
+test semantic::admission_tests::module_schedule_and_each_interface_buffer_refuse_before_growth_and_release_scratch ... ok
+test semantic::admission_tests::source_refusals_cover_both_fixed_arrays_without_releasing_parent_storage ... ok
+test semantic::admission_tests::module_resource_refusal_reports_the_actual_source_and_releases_partial_facts ... ok
+test semantic::admission_tests::module_callback_error_panic_and_deadline_preserve_parent_ownership ... ok
+test semantic::admission_tests::source_semantic_errors_keep_original_spans_messages_and_release_facts ... ok
+test semantic::admission_tests::parser_checker_and_lower_use_one_ledger_through_detached_prepared_output ... ok
+test semantic::admission_tests::module_callback_transfers_prepared_output_without_retaining_checker_or_ast ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 2866 filtered out; finished in 0.03s
+

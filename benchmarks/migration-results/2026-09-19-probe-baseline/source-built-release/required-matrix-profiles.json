@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "profiles": [
+    "shipped",
+    "level0",
+    "level5",
+    "level9",
+    "level15",
+    "searchOff",
+    "searchAlways",
+    "gzip",
+    "raw",
+    "perfFirst",
+    "balanced",
+    "noPeephole",
+    "arrows",
+    "functions",
+    "looseNames",
+    "beam1",
+    "beam32",
+    "freqNames",
+    "freqNamesSearchOff",
+    "idiomNames",
+    "idiomNamesSearchOff",
+    "phiRegions"
+  ],
+  "script": {
+    "path": "/home/azureuser/probelil/scripts/configs.mjs",
+    "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+    "bytes": 5251
+  },
+  "golden": {
+    "path": "expected.out",
+    "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+    "bytes": 136
+  },
+  "knownRejectedConfigurationProfiles": [
+    "freqNames",
+    "freqNamesSearchOff",
+    "idiomNames",
+    "idiomNamesSearchOff"
+  ],
+  "scope": "Original profile identities fixed before execution, not frozen Node test IDs"
+}

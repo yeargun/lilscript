@@ -30,7 +30,18 @@ LILSCRIPT="$ROOT/target/release/lilscript" \
   CC="$CC" \
   "$ROOT/scripts/verify-matrix.sh"
 
-CC="$CC" "$ROOT/target/release/lilscript-differential" --cases 64
+# A pinned seed makes this a regression corpus rather than a generator: the same
+# 64 programs on every commit, so a shape it never draws is a shape nobody
+# checks. Draw a fresh one each run; the binary prints the seed before it starts
+# and repeats it on every divergence. Replay a failure by exporting
+# LILSCRIPT_DIFFERENTIAL_SEED with the value it printed.
+if [ -n "${LILSCRIPT_DIFFERENTIAL_SEED:-}" ]; then
+  differential_seed_args="--seed ${LILSCRIPT_DIFFERENTIAL_SEED}"
+else
+  differential_seed_args="--random-seed"
+fi
+# shellcheck disable=SC2086 # deliberate word splitting: one flag or two tokens.
+CC="$CC" "$ROOT/target/release/lilscript-differential" --cases 64 $differential_seed_args
 
 "$ROOT/target/release/lilscript" "$ROOT/examples/extern_abi.lil" \
   --target c -o "$BUILD/extern_abi.c"

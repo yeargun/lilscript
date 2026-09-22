@@ -1,0 +1,3480 @@
+{
+  "schemaVersion": 1,
+  "kind": "required-node-case-inventory",
+  "workload": "motionlil",
+  "capturedFrom": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/node/report.json",
+    "sha256": "ab1f1b56a61d4a6ecd5a2c8b0f845fea1f3c89a48fad8f9acf207c70811763e5",
+    "bytes": 16314
+  },
+  "review": "All eleven original non-browser npm-test identities from the recorded maintained workspace, including its extra prototype/accessor tests. Isolated source/dist is byte-identical; missing dependencies are explicitly recovered from the sibling, not silently taken as the historical installed closure. Browser/type/site/pack obligations are preserved separately.",
+  "originalCommand": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+  "recordedFullCommand": "npm test && npm run check:types && npm run test:browser",
+  "entryPatterns": [
+    "test/node.test.mjs",
+    "test/terser.test.mjs",
+    "test/vite.test.mjs",
+    "test/shake.test.mjs"
+  ],
+  "requiredCases": [
+    "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+    "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+    "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+    "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+    "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+    "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+    "[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]",
+    "[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]",
+    "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+    "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+    "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]"
+  ],
+  "testFiles": [
+    {
+      "path": "test/node.test.mjs",
+      "sha256": "dd41723dafa45e7de3c121acb9f3875e101c5158a298ce3d2bd983a2fa26da82",
+      "bytes": 4345
+    },
+    {
+      "path": "test/terser.test.mjs",
+      "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+      "bytes": 1022
+    },
+    {
+      "path": "test/vite.test.mjs",
+      "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+      "bytes": 1190
+    },
+    {
+      "path": "test/shake.test.mjs",
+      "sha256": "99288d00227525dde7e9753108e05c76b6b81eebe19100ad0b973b8f137b227f",
+      "bytes": 1513
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "package.json",
+      "sha256": "a89168b357b00aa85dea2f27fd41f7fcf270d85ad83fc8f50b571e5e19e75804",
+      "bytes": 2826
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "51c3be59621a1173b930f799b8ab6aac5c94d86eef4584a51e81463b22e586d4",
+      "bytes": 41872
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "314562151e420b06cacdf25fa43e7896d0add507c4f50346f0e98a635a5632a5",
+      "bytes": 8698
+    },
+    {
+      "path": "src/lilscript.toml",
+      "sha256": "f52ee0d997baadd39170780db522f4b810a1869abb4970f32e80d6c925c30864",
+      "bytes": 252
+    },
+    {
+      "path": "test/fixtures/vite/index.html",
+      "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+      "bytes": 195
+    },
+    {
+      "path": "test/fixtures/vite/main.js",
+      "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+      "bytes": 231
+    }
+  ],
+  "prerequisites": [],
+  "buildScript": {
+    "path": "scripts/build.mjs",
+    "sha256": "314562151e420b06cacdf25fa43e7896d0add507c4f50346f0e98a635a5632a5",
+    "bytes": 8698
+  },
+  "sourceSnapshot": {
+    "root": "/tmp/motionlil-cost-audit-20260911/current",
+    "files": [
+      {
+        "path": ".github/workflows/ci.yml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "aa6c15bea51805fb2cb14e9f340d6a53e8d4036487fa602409456665b4d450eb",
+        "bytes": 648
+      },
+      {
+        "path": ".github/workflows/pages.yml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c47dedcec7e12306daaae3f3714e0c45f4ea53836448e0df8ab9d5b6d304814b",
+        "bytes": 855
+      },
+      {
+        "path": ".gitignore",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5b58a638bad2f8a669adac84a675956e9b2310031be93be3118d6e3928481fc4",
+        "bytes": 66
+      },
+      {
+        "path": "LICENSE",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e507e509abf49230c8f5cf975bb495ff0f37e953287e36bab818c7fa9952a5ba",
+        "bytes": 1095
+      },
+      {
+        "path": "NOTICE.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "584e78ffa6e5edf135f29e6dac23643dbd976c2086157e127b24786204a15733",
+        "bytes": 489
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6f61ab121ca806f102311c65d4f00f34dcc18987ccc5284c251dffb658077a5f",
+        "bytes": 7779
+      },
+      {
+        "path": "_site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f20e679a22533a951807ceaf08743dff14e3a62c733090c0eee6aa8875188999",
+        "bytes": 3494
+      },
+      {
+        "path": "_site/comparison.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c140cfe3ea2111eccba869f7b3ad37fa6c97562193f8976aaf185ac96ce7690",
+        "bytes": 7093
+      },
+      {
+        "path": "_site/demo.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+        "bytes": 7929
+      },
+      {
+        "path": "_site/demo.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+        "bytes": 350
+      },
+      {
+        "path": "_site/demo.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+        "bytes": 12210
+      },
+      {
+        "path": "_site/esm-comparison/lilscript.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166
+      },
+      {
+        "path": "_site/esm-comparison/original.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a54042053fedf812fd51d31995c053d584464f225b5aaa57d9acf221e28b957d",
+        "bytes": 137560
+      },
+      {
+        "path": "_site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "29718b3b34cb8e04ec75700a279eb3bfe207672ea47330c448db84c4b918a8d5",
+        "bytes": 12730
+      },
+      {
+        "path": "_site/motionlil.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bbd9c3ddc3c3abde89cfe049e5b4fc119ff7f754e78e050a4691ff58c06d27bc",
+        "bytes": 149423
+      },
+      {
+        "path": "_site/performance.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1a7bc433ad211ae86d664c1864a46252f5e76e0c4034718839352edec34140cb",
+        "bytes": 15587
+      },
+      {
+        "path": "_site/performance/harness.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6a4a988d1360735dd78b674c409731b4fe33af20e1c1995384b620cc8f039b90",
+        "bytes": 5544
+      },
+      {
+        "path": "_site/performance/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "024cb3f68c2d60990f2426f78d4711da02551910e8977fe7a120f4572d6c2733",
+        "bytes": 230
+      },
+      {
+        "path": "_site/performance/inputs/lilscript.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166
+      },
+      {
+        "path": "_site/performance/inputs/original.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a54042053fedf812fd51d31995c053d584464f225b5aaa57d9acf221e28b957d",
+        "bytes": 137560
+      },
+      {
+        "path": "_site/performance/natural-validation.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "20b96c43b26109f9426eb04ba83f9a831a290ee444fbe6dc72d47e7b7fe26df4",
+        "bytes": 1221851
+      },
+      {
+        "path": "_site/performance/performance.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c5d28a6269007214b20e4f332a7fef8807af4b8f3777318d534d5aecd2fe09d",
+        "bytes": 14204117
+      },
+      {
+        "path": "_site/performance/workloads.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b2a37c08d28b57b562e630452cdccceae7e0c778290fc82fbc948e74e6654a9e",
+        "bytes": 1115
+      },
+      {
+        "path": "_site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "33a5a6d498f70b0f3f499a0d3fc8501737b1ff3ecbbdc81d2980942914aaec5d",
+        "bytes": 1899
+      },
+      {
+        "path": "_site/source-build.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fb64f5bb91d1fdbff8db724edfc22fcc44a3355764c244cfbc9c40875978506f",
+        "bytes": 118810
+      },
+      {
+        "path": "_site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+        "bytes": 9071
+      },
+      {
+        "path": "comparison/build-receipt.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "052016b417824e6e04bfdbcca9d1639d474308290ed13373cf77be6f07aec063",
+        "bytes": 15830
+      },
+      {
+        "path": "comparison/runtime-investigation/README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "57af1e4b55e0f8b455de744c22c0f489b9cedf1850d6aff2be86fdb389ee3d1c",
+        "bytes": 5698
+      },
+      {
+        "path": "comparison/runtime-investigation/cost-audit.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0bc5386446a7f364e75864fd69f23b2503e56d86cf43552403bde0c7487fc268",
+        "bytes": 30396
+      },
+      {
+        "path": "comparison/runtime-investigation/validation.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "caf5651f8ad072b7399d2de019cef7509b142dfdc9c2dc82434d07e7f006d94e",
+        "bytes": 3378
+      },
+      {
+        "path": "comparison/source-build/README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1ab3bec645ab0c2e846a276b4cba110b37a5450b0a83ddf20841874ca014f369",
+        "bytes": 1165
+      },
+      {
+        "path": "comparison/source-build/compiler-invocations.jsonl",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ce630980279965f7ab0ab18531f8e93134253a5751d12e94489b95f5a043e256",
+        "bytes": 5633
+      },
+      {
+        "path": "comparison/source-build/esm.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d345f6bf9dc96870cce97c47a71c56dec4673380432d9133ca81f0f8dc246dbd",
+        "bytes": 20594
+      },
+      {
+        "path": "comparison/source-build/job.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c121cd2733f8255193b371e54178edf5abc6757f55b827dfbb5ebffc75f6f92",
+        "bytes": 1377
+      },
+      {
+        "path": "comparison/source-build/lilscript-build-1.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b69dde7b7fa12c43685f64aceb52d36eda1619104d818b83104afec5c9b76c72",
+        "bytes": 135
+      },
+      {
+        "path": "comparison/source-build/lilscript-build-2.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b69dde7b7fa12c43685f64aceb52d36eda1619104d818b83104afec5c9b76c72",
+        "bytes": 135
+      },
+      {
+        "path": "comparison/source-build/lilscript-build-3.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b69dde7b7fa12c43685f64aceb52d36eda1619104d818b83104afec5c9b76c72",
+        "bytes": 135
+      },
+      {
+        "path": "comparison/source-build/lilscript-install.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "65cba8bca1b834bfa7c8d4838ba969e2bbea117ba1d483f4cad823832c4e9c24",
+        "bytes": 28
+      },
+      {
+        "path": "comparison/source-build/lilscript-package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51c3be59621a1173b930f799b8ab6aac5c94d86eef4584a51e81463b22e586d4",
+        "bytes": 41872
+      },
+      {
+        "path": "comparison/source-build/lilscript-tests.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ca885fd92f3547b30ee13707a9c595aaf63087c3fdbf648a4f1aded07d636000",
+        "bytes": 3905
+      },
+      {
+        "path": "comparison/source-build/original-build-1.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a4bfa6a92cbfdabb040d4ed0fc0ad4cbad1b87ddd79263ce89f83823002851e1",
+        "bytes": 10182
+      },
+      {
+        "path": "comparison/source-build/original-build-2.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "89c819be6ef368bfb9d134eaabb5326e84c00bd307e4f74b61182c949069d882",
+        "bytes": 10183
+      },
+      {
+        "path": "comparison/source-build/original-build-3.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "689dcf997dc5bf44ad9a057c1ad5911e9c73cb3a29663371a24d24f3d60af893",
+        "bytes": 10183
+      },
+      {
+        "path": "comparison/source-build/original-esm.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "comparison/source-build/original-install.log",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ea622640a9d3d64d42233f82090d09ef0b2147857d169f14746d986f84a0b062",
+        "bytes": 2323
+      },
+      {
+        "path": "comparison/source-build/original-yarn.lock",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bf7b2345ff9a6e9c019d4888d8d20402feb3b536a889aa97d5d7c5ca760e6292",
+        "bytes": 525536
+      },
+      {
+        "path": "comparison/source-build/result.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1246a71ade78c09ce2371f62b2c0a05eecf6b3036b958678604cb42303848545",
+        "bytes": 115424
+      },
+      {
+        "path": "package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51c3be59621a1173b930f799b8ab6aac5c94d86eef4584a51e81463b22e586d4",
+        "bytes": 41872
+      },
+      {
+        "path": "package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a89168b357b00aa85dea2f27fd41f7fcf270d85ad83fc8f50b571e5e19e75804",
+        "bytes": 2826
+      },
+      {
+        "path": "scripts/build-comparison.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "594c47275b16561cca4afaf6c5dc7f6ea5c1926087ab85c70b8cea7b39056fe8",
+        "bytes": 5721
+      },
+      {
+        "path": "scripts/build-site.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "82f886029824e10d44d3f92357edbe329b93f95e22c368baf6b841f410bd8712",
+        "bytes": 696
+      },
+      {
+        "path": "scripts/build.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "314562151e420b06cacdf25fa43e7896d0add507c4f50346f0e98a635a5632a5",
+        "bytes": 8698
+      },
+      {
+        "path": "scripts/check-natural-performance.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d7ccfb59e058aff8e4e83c6d15b410ed540834abd7eae30450f85d20d2e53d25",
+        "bytes": 5007
+      },
+      {
+        "path": "scripts/check-pack.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+        "bytes": 1176
+      },
+      {
+        "path": "scripts/measure-performance.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a9bde418bc87c16309df4ea7491530e7f2f7622f1b825bb915703243e3feae3d",
+        "bytes": 8529
+      },
+      {
+        "path": "scripts/measure-size.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+        "bytes": 3390
+      },
+      {
+        "path": "site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f20e679a22533a951807ceaf08743dff14e3a62c733090c0eee6aa8875188999",
+        "bytes": 3494
+      },
+      {
+        "path": "site/comparison.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c140cfe3ea2111eccba869f7b3ad37fa6c97562193f8976aaf185ac96ce7690",
+        "bytes": 7093
+      },
+      {
+        "path": "site/demo.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+        "bytes": 7929
+      },
+      {
+        "path": "site/demo.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+        "bytes": 350
+      },
+      {
+        "path": "site/demo.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+        "bytes": 12210
+      },
+      {
+        "path": "site/esm-comparison/lilscript.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166
+      },
+      {
+        "path": "site/esm-comparison/original.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a54042053fedf812fd51d31995c053d584464f225b5aaa57d9acf221e28b957d",
+        "bytes": 137560
+      },
+      {
+        "path": "site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "52a5af9252501b07a103c856dcf7df812a901e29284a333b0c64e9e102a262f1",
+        "bytes": 11589
+      },
+      {
+        "path": "site/performance.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1a7bc433ad211ae86d664c1864a46252f5e76e0c4034718839352edec34140cb",
+        "bytes": 15587
+      },
+      {
+        "path": "site/performance/harness.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6a4a988d1360735dd78b674c409731b4fe33af20e1c1995384b620cc8f039b90",
+        "bytes": 5544
+      },
+      {
+        "path": "site/performance/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "024cb3f68c2d60990f2426f78d4711da02551910e8977fe7a120f4572d6c2733",
+        "bytes": 230
+      },
+      {
+        "path": "site/performance/inputs/lilscript.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166
+      },
+      {
+        "path": "site/performance/inputs/original.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a54042053fedf812fd51d31995c053d584464f225b5aaa57d9acf221e28b957d",
+        "bytes": 137560
+      },
+      {
+        "path": "site/performance/natural-validation.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "20b96c43b26109f9426eb04ba83f9a831a290ee444fbe6dc72d47e7b7fe26df4",
+        "bytes": 1221851
+      },
+      {
+        "path": "site/performance/performance.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c5d28a6269007214b20e4f332a7fef8807af4b8f3777318d534d5aecd2fe09d",
+        "bytes": 14204117
+      },
+      {
+        "path": "site/performance/workloads.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b2a37c08d28b57b562e630452cdccceae7e0c778290fc82fbc948e74e6654a9e",
+        "bytes": 1115
+      },
+      {
+        "path": "site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "33a5a6d498f70b0f3f499a0d3fc8501737b1ff3ecbbdc81d2980942914aaec5d",
+        "bytes": 1899
+      },
+      {
+        "path": "site/source-build.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fb64f5bb91d1fdbff8db724edfc22fcc44a3355764c244cfbc9c40875978506f",
+        "bytes": 118810
+      },
+      {
+        "path": "site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+        "bytes": 9071
+      },
+      {
+        "path": "src/__compile_check.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "src/__full_dom_check.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9c292f1742531a3c595b5b7b2b8a70e104e57d7170560493373ee23f41e18701",
+        "bytes": 238
+      },
+      {
+        "path": "src/compat-lite.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "70127abad5166103eb9573aaa601c4eb8b8f55c83c19ea4c7d57685bfb3c7702",
+        "bytes": 2730
+      },
+      {
+        "path": "src/compat.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fe66c3ea1b000f6094c202e891b41ee2b94bf97d15b2f9a592156883153f4eda",
+        "bytes": 11897
+      },
+      {
+        "path": "src/control-compat.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fd295cc29323234a071711e28c0930f30f4fd75c52bf4ca59319cb7ef0e3b23e",
+        "bytes": 2822
+      },
+      {
+        "path": "src/debug.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3cc696bcad84c70f80f8ae5a89c5572897b4b965213d26ab2a72afa27204379b",
+        "bytes": 81
+      },
+      {
+        "path": "src/dom.full.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "62ffbe250903c1d1b6b3525b78ce46d96b80ed10729e1739724d440c991d8e26",
+        "bytes": 14011
+      },
+      {
+        "path": "src/dom.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "62ffbe250903c1d1b6b3525b78ce46d96b80ed10729e1739724d440c991d8e26",
+        "bytes": 14011
+      },
+      {
+        "path": "src/entries/animate-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6c8999cdea2cc9aeb5e641909931c788f95265bcf6b2167b7ccda7011ddcfcf4",
+        "bytes": 118
+      },
+      {
+        "path": "src/entries/animate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0d7edd86743732826a13e5a13c935a08a57e21fd2b3e91899938b3ec78fce419",
+        "bytes": 3215
+      },
+      {
+        "path": "src/entries/gestures.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "10a2f4d9e18ae9cee598aa028dd1a5ce2b4489b5eaf437cb75ea8d43a7432e03",
+        "bytes": 140
+      },
+      {
+        "path": "src/entries/resize.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3fa93768d47a5a69840fb86faa337697c318ad4b894815580e560f502a77a355",
+        "bytes": 73
+      },
+      {
+        "path": "src/entries/scroll.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9fd495cf062dee52680bd9b4eb5d2677690ef8021b015c0cdebf83e703121c89",
+        "bytes": 170
+      },
+      {
+        "path": "src/entries/viewport.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ebb56f9296ae1b52d93363bf9c6075fbf6bb7a359233789d0613a21395baff0b",
+        "bytes": 89
+      },
+      {
+        "path": "src/entry.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "aea2052984e6ff136844d81c85f4948335468ccf36d742d25b287c282923153d",
+        "bytes": 511
+      },
+      {
+        "path": "src/evidence/animate-stagger.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2e38d0d76d7de98532e8a5912bac6e732323347283987e16f29f77c9e89745cd",
+        "bytes": 85
+      },
+      {
+        "path": "src/evidence/animate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a8b778e8991b46e77d3f2bcdfeb1691104db6350af42a45e42d74f4cb21dd57d",
+        "bytes": 67
+      },
+      {
+        "path": "src/evidence/export.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8f324b82852c48189678f3d5543fe427c0a3207f4cf0cf790aea52119191afde",
+        "bytes": 1679
+      },
+      {
+        "path": "src/evidence/lab.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cf59c5d284de6cb8f444e04f72b8741cde718b764b7b1f2ddf2d0592190e99c2",
+        "bytes": 373
+      },
+      {
+        "path": "src/framer-motion/animation/animate/consumer.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5fb4d2076538e6e57500c006362dd29eef6614121d5670985360d538ed0d2a4e",
+        "bytes": 3578
+      },
+      {
+        "path": "src/framer-motion/animation/animate/element-spring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1b0c3a3bba4a235b7651dafcd345761a7f8a74815f04ad393ad2264fb8feab84",
+        "bytes": 2715
+      },
+      {
+        "path": "src/framer-motion/animation/animate/element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d23b329a6d709a00a259e5c54b6d06ce32db1413c2c5b1392d6c15a60021b71e",
+        "bytes": 2708
+      },
+      {
+        "path": "src/framer-motion/animation/animate/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ab1fa816dc7ead9bd710e8f19f9b920e2e4ca4283835c30a72953b121b1219d5",
+        "bytes": 3574
+      },
+      {
+        "path": "src/framer-motion/animation/animate/resolve-subjects.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6b6e06cd93f15651496c4b067580794a25cc19f81659950d6097ad93073fbaaf",
+        "bytes": 939
+      },
+      {
+        "path": "src/framer-motion/animation/animate/sequence-entry.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b717505adb83284c3a74c63140a4506609cea71359f391a4b83307c2bd6f7450",
+        "bytes": 2288
+      },
+      {
+        "path": "src/framer-motion/animation/animate/sequence.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b1f575fe54b799b4d83932d5ee00d7faec54831e706ad9dc41b7b487642702c3",
+        "bytes": 1994
+      },
+      {
+        "path": "src/framer-motion/animation/animate/subject-dom-spring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b20a890da24fbaedb4ff6e620ccda9e95c276f23554f1a5f6b5f0270bfa50d34",
+        "bytes": 3644
+      },
+      {
+        "path": "src/framer-motion/animation/animate/subject-dom.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b541525d4dd0798d3e1af62d34bf5b8f1167cbc9283be82e77fd173812520e2a",
+        "bytes": 3789
+      },
+      {
+        "path": "src/framer-motion/animation/animate/subject.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "79c49d859fc874adadc3eba71c5fa0bc856868628d75d6481964e3b8ce650125",
+        "bytes": 3793
+      },
+      {
+        "path": "src/framer-motion/animation/animators/waapi/animate-elements-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2d0d3dffedeb3b5d3f4637fca0fc67ffd39ebe4f2b040f8e887c010c5640c72a",
+        "bytes": 5708
+      },
+      {
+        "path": "src/framer-motion/animation/animators/waapi/animate-elements.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9c6430aeebdc559f79bb07156a21f01a82caa48efddef7b27022612e04f5bd1b",
+        "bytes": 5683
+      },
+      {
+        "path": "src/framer-motion/animation/animators/waapi/animate-sequence.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8fd5e45d6904d73d9bbc9ed7616c486a165a309d59235f575ddb346b290381c0",
+        "bytes": 1189
+      },
+      {
+        "path": "src/framer-motion/animation/animators/waapi/animate-style-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ef77cd5dc908e4281d0c6287d92746e85053fde6ecd205b17fddb2dff5533e51",
+        "bytes": 123
+      },
+      {
+        "path": "src/framer-motion/animation/animators/waapi/animate-style.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "159e109c940117bb44ceb19ee37d6db04d8994ebc42e0940e60e4cb2e6da90f3",
+        "bytes": 674
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/create-full.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0d776b60c4f71c5872c32d6f2a500134e9947480e876244e8fa56d260a60037b",
+        "bytes": 19902
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/create.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1c0902bbf7faab32f599602a6060e9d8f688c692feb9a1a3c809a4ceefa0425c",
+        "bytes": 16983
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "79935ad4a65a82ce31511d2af2a10b67d77fe6a2b092d60bfd4e533f5e8c391d",
+        "bytes": 1136
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/utils/calc-repeat-duration.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "361751786bf4dd5176335ada04de8e15d289412ef55d5865ae1bf0c7c107f531",
+        "bytes": 149
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/utils/calc-time.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0c8adf5f6067caa7a3137fa43f4b7aa69ec85ef8f85d281544211c4f1a518a73",
+        "bytes": 843
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/utils/edit.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "74b84f5e606e6f7ca568bd3e2456117b88a6e692534f38bd575011ab79419d2d",
+        "bytes": 987
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/utils/normalize-times.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "289e48af5b6b1eba1361725e6a78e1602ea6a2e4051c38b7e826496836ac109b",
+        "bytes": 238
+      },
+      {
+        "path": "src/framer-motion/animation/sequence/utils/sort.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d0b537ddf0029faa7cf05b2796ad2a355e4d5329d2f3a75c3954d1a7260a9975",
+        "bytes": 517
+      },
+      {
+        "path": "src/framer-motion/animation/utils/create-html-visual-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "54f5038657aca9b60213a90c356e6f139776395729a0c26e82613b00eb9d7313",
+        "bytes": 1017
+      },
+      {
+        "path": "src/framer-motion/animation/utils/create-visual-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0090a50c2b202cedd7f2644c1d254fbb75d0009258b59c510ba79b223a7c916c",
+        "bytes": 2176
+      },
+      {
+        "path": "src/framer-motion/animation/utils/is-dom-keyframes.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "936a0c45f29da286a9835991401f6e42dc90d0a58adb004e6abc34f6f298a6f5",
+        "bytes": 162
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/attach-animation.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "56e5733d5955cad9640d236edac712912c4a9f5cbdeee85319818d40c902dd31",
+        "bytes": 2184
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/attach-function.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "885bc44f3077a7e168f49c154537831b8f5ae9625cbb68ce30ac3da6ef2d7b48",
+        "bytes": 1127
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "946fe309ea56b18977c1c4072fcbda2340af0832801cc27a59ad99fbc5090455",
+        "bytes": 959
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/info.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "53129ab840122022689ace7a8bc1a6df5f6e61f639f8fc5b54d99bdbbad3daff",
+        "bytes": 1700
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/offsets/edge.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3c1558b39bfa872e2c42f4de4bfdbcd69ab5cc755b784feaa210cfb12d9e4a8",
+        "bytes": 1708
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/offsets/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "01f05d58ea66747835e1aff4fe12be8009cb615f0baf52e9d059214636afde5e",
+        "bytes": 4168
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/offsets/inset.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4e9c3ade9b95b911704b4bc9c93d40a33246e7cf2c89b201864dabad0a9a7d10",
+        "bytes": 2695
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/offsets/offset.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5ca9e99092a3289142b1613505b9300fc4c8b9ebd5e11c2d29d6ed5c5c61bb63",
+        "bytes": 1209
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/offsets/presets.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "457de71cac28001ce76ea934db94a830adaee8f89991ca246f590a96be149a29",
+        "bytes": 561
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/on-scroll-handler.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "102c1f0e04e1c38b0faf8166b9eb49b45383a8a9b07e7e3d1bceb2d4a93a891f",
+        "bytes": 3237
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/track.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "629d9b2270a798b12eb5e68c03db5a6780d807d2e6e1a10393f285a64b2c717b",
+        "bytes": 6981
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "033dec1e771aa6186c3088b6efc5d4b337c26a20d0e6f5195de2636d69ac1926",
+        "bytes": 1476
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/utils/can-use-native-timeline.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e65507e79aa32652b6c6b9a9c85f4e69cdcc7d17c9f785afe21042b91100e4ed",
+        "bytes": 389
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/utils/get-timeline.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bb9c97feb2f05fb2fe9e5a8ca9e7731c7b3951729efc88494c360072924c44d0",
+        "bytes": 3828
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/utils/is-element-tracking.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "56153d016a8d2cc49fac913969efd2526a29eadab81ae4c1d290a9018cd1edb1",
+        "bytes": 194
+      },
+      {
+        "path": "src/framer-motion/render/dom/scroll/utils/offset-to-range.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "91a71f52da6d6d56d1cb02d3a3fa8bf13d75b2e803c10dfd8d89a0a3596fadeb",
+        "bytes": 2541
+      },
+      {
+        "path": "src/framer-motion/render/dom/viewport/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fcdb4c6884fe9ef14a34cca49af85130b0c82e8cdc6d31724b2b041f56f34f97",
+        "bytes": 3267
+      },
+      {
+        "path": "src/framer-motion/utils/distance.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "95a0b45ec144b9e09a7af7918d29585105c3ba30ed875ccca3a46678602a8c09",
+        "bytes": 302
+      },
+      {
+        "path": "src/full.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "75f489dd53570931388787cefb91f9d65e3aa6cb78e2fd6d0514e678e870979f",
+        "bytes": 13566
+      },
+      {
+        "path": "src/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0e13f80edb63cbf938758d704e656c85fde3ae882ad6f376e0b2c57430bae941",
+        "bytes": 934
+      },
+      {
+        "path": "src/lilscript.memory-parity.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1da8a634f07359b375b13970b39874f9aeb3d5e8142e463e0973e9a89ce4dcff",
+        "bytes": 205
+      },
+      {
+        "path": "src/lilscript.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f52ee0d997baadd39170780db522f4b810a1869abb4970f32e80d6c925c30864",
+        "bytes": 252
+      },
+      {
+        "path": "src/mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2656c9c7b9a414665a52a0a942a2258aea6da8969477cd70d9fac8441ee4d5de",
+        "bytes": 239
+      },
+      {
+        "path": "src/motion-dom-geometry-smoke.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d997a2d7840e0cb774d8b4be1e3b404c53c59736b5e883a2799f8db9cfded17f",
+        "bytes": 2501
+      },
+      {
+        "path": "src/motion-dom-small-smoke.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7e0df446209976ef3efacbb8935504082625319fd3b632b4968fd3bf5f22eb1e",
+        "bytes": 3788
+      },
+      {
+        "path": "src/motion-dom-smoke.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e6e2a8d3e5483d982225a0c5d66262baed24f661a82acdad9aa324450c1c5ce1",
+        "bytes": 568
+      },
+      {
+        "path": "src/motion-dom-spring-smoke.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d0c765e150e3e122d3dc34c8c2ec33b51a9fcf7ccdb3e79b3475d2f127409f04",
+        "bytes": 418
+      },
+      {
+        "path": "src/motion-dom/animation/AsyncMotionValueAnimation.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "60cb47d59497e60ce9f966bdd84dafe6f917606b6245902c37566393e9e293f3",
+        "bytes": 11713
+      },
+      {
+        "path": "src/motion-dom/animation/AsyncMotionValueAnimationJs.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bd30aa9bc901f8e2cab1a8915d6e795cdfa51d0e8f92d251a31edf822971dbbb",
+        "bytes": 111
+      },
+      {
+        "path": "src/motion-dom/animation/AsyncMotionValueAnimationSpring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bd30aa9bc901f8e2cab1a8915d6e795cdfa51d0e8f92d251a31edf822971dbbb",
+        "bytes": 111
+      },
+      {
+        "path": "src/motion-dom/animation/AsyncMotionValueAnimationSpringJs.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bd30aa9bc901f8e2cab1a8915d6e795cdfa51d0e8f92d251a31edf822971dbbb",
+        "bytes": 111
+      },
+      {
+        "path": "src/motion-dom/animation/GroupAnimation.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e15f9f0aaeaf4172e19c97036ba278c5ea9bd872bec601d687e1d56a6778039d",
+        "bytes": 5311
+      },
+      {
+        "path": "src/motion-dom/animation/GroupAnimationMini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "aaa48f6044bad65269cc0b1d080efe3c5752399a640f82b5860573eed0f29104",
+        "bytes": 2754
+      },
+      {
+        "path": "src/motion-dom/animation/GroupAnimationWithThen.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "502c1abdf6da5f26549425457dff126e4f12d6aa3d9b1f002194750effdaac54",
+        "bytes": 989
+      },
+      {
+        "path": "src/motion-dom/animation/GroupAnimationWithThenMini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cfbc13c743dc2fd1af89fb61f1829ec13d86ed96e244a356f009e6074f66a9b4",
+        "bytes": 874
+      },
+      {
+        "path": "src/motion-dom/animation/JSAnimation.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "30c8cc18974f4582368bab1dbec8869e18d32175aed7c8e598a7822504863b1b",
+        "bytes": 141
+      },
+      {
+        "path": "src/motion-dom/animation/JSAnimationFull.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0bd5565be90302d9476a3aa18c0ac24885df829b0e3d065860d9f0ac184f113b",
+        "bytes": 20673
+      },
+      {
+        "path": "src/motion-dom/animation/NativeAnimation.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bef951c56a7f2e0560837dac2058bae4654d4620eb8cebeb6b47fc497a533d0c",
+        "bytes": 12516
+      },
+      {
+        "path": "src/motion-dom/animation/NativeAnimationExtended.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "40004e8ec8f6dcbc80e42df29d9feaa8ccdd521a36d272b27fd36d1ac93fa177",
+        "bytes": 3080
+      },
+      {
+        "path": "src/motion-dom/animation/NativeAnimationMini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6a2845e4ec1f194465ef5aea545cf030509a5b27037ff28e52a1e7c695b9538b",
+        "bytes": 7652
+      },
+      {
+        "path": "src/motion-dom/animation/NativeAnimationWrapper.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fbeb08697d420eeae492884af532cc71ddce3ef4b547af22706a8648e242df1b",
+        "bytes": 348
+      },
+      {
+        "path": "src/motion-dom/animation/animate/single-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "86ace764686a3831bce1664fe8fe4033d217b06583f538c81f589ebeec9320b3",
+        "bytes": 1014
+      },
+      {
+        "path": "src/motion-dom/animation/animation-state.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "720a941aa3e45fb1f268ed859ddc2c5e3e1a859b0705c2742af5046a15c6d0bd",
+        "bytes": 136
+      },
+      {
+        "path": "src/motion-dom/animation/drivers/frame.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4bce84938ce109f9b662c7161c207489752c8d3beb653afd54913f8f377fdeea",
+        "bytes": 681
+      },
+      {
+        "path": "src/motion-dom/animation/drivers/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8b99e53277dbcb3b696ca12e5f693962db93b0f904118abd7adaf84d8a08e709",
+        "bytes": 242
+      },
+      {
+        "path": "src/motion-dom/animation/generators/generator.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9643f8dcb99ca139e5d84b689904e3949aed74f1bed21f81a50c3e92f08d6bda",
+        "bytes": 589
+      },
+      {
+        "path": "src/motion-dom/animation/generators/inertia.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "80ce426f2762bd153e1e855d9bef4b5d5d1b76d95779a96b9775c48302f37626",
+        "bytes": 5554
+      },
+      {
+        "path": "src/motion-dom/animation/generators/keyframes.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ffd5bb83c6917e26d12c58cac2e9fc0e66a97cd71d2aebf304254a2bac40e633",
+        "bytes": 2511
+      },
+      {
+        "path": "src/motion-dom/animation/generators/spring-apply.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9be97d80f4677489ca9972d6ee7944dbd7ea606abcdb2b8a889e7ce15588a18f",
+        "bytes": 806
+      },
+      {
+        "path": "src/motion-dom/animation/generators/spring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9ea6bb56cdc9dca85c74b5ec76264bc7c28370f3ab229bb1c6075911bd83b82b",
+        "bytes": 17277
+      },
+      {
+        "path": "src/motion-dom/animation/generators/utils/calc-duration.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f1b0cc893eadfc4d7e72286d091cd5611b0fd99baa19ee75b59dd71552d22c0e",
+        "bytes": 491
+      },
+      {
+        "path": "src/motion-dom/animation/generators/utils/create-generator-easing.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e5fc5a5f8fbc6f3d06a632a2e8c8fcabfd334097a3db227890dbe21f03ee7760",
+        "bytes": 1189
+      },
+      {
+        "path": "src/motion-dom/animation/generators/utils/is-generator.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0bca89b2bfc9441adb789504986d3b77e4efbf7b664bb25571c1e32fd305ce6a",
+        "bytes": 189
+      },
+      {
+        "path": "src/motion-dom/animation/generators/utils/pregenerate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1bb25aac8ebc91fef89c1629b2ebb05f6663c608f904553cf2e423677ed93a92",
+        "bytes": 905
+      },
+      {
+        "path": "src/motion-dom/animation/generators/utils/velocity.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "601fd3e2c409b30df86198968cf5f569dc4689b227691665d3d72d67445f993d",
+        "bytes": 348
+      },
+      {
+        "path": "src/motion-dom/animation/generators/value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a543e48ad8e38304bb1bedc7351ed97d1480857a69982954a38bff4d35785bc1",
+        "bytes": 4270
+      },
+      {
+        "path": "src/motion-dom/animation/interfaces/motion-value-spring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "abaed3eecbd12c530bcfbde547839d11df4af865c11948c0033845e5359fce75",
+        "bytes": 6378
+      },
+      {
+        "path": "src/motion-dom/animation/interfaces/motion-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "abaed3eecbd12c530bcfbde547839d11df4af865c11948c0033845e5359fce75",
+        "bytes": 6378
+      },
+      {
+        "path": "src/motion-dom/animation/interfaces/visual-element-target-spring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7f5f38bd5435688aa1ef90219ec626feb27b885aefddda91346dbb17fa95f1a2",
+        "bytes": 7299
+      },
+      {
+        "path": "src/motion-dom/animation/interfaces/visual-element-target.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f9b802086150ebc1abb5d24e32e6d232b401eda8f83fa5ef82d69588334371c6",
+        "bytes": 7292
+      },
+      {
+        "path": "src/motion-dom/animation/interfaces/visual-element-variant.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8d00e925002e74d030d0910a43110a42352fbeb90c1a28cb19dbc17dcf992758",
+        "bytes": 4816
+      },
+      {
+        "path": "src/motion-dom/animation/interfaces/visual-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2b3953a0f640e72e323492c95e7865bc89a93ffef8b476c7f524905f6747a429",
+        "bytes": 1755
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/DOMKeyframesResolver.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a759d39dfbf0637e0e85b17702378c2123072cf9a5898a22239106960e2d8c37",
+        "bytes": 7880
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/KeyframesResolver.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "76a1b3ff90544fb3062347bbe54f2355f3f2276963aa0eaa246daa8d501770df",
+        "bytes": 9925
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/get-final.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "860ea6b07f00dce4613cd840a1225e3756bf4bdcb35dd4cf7a0c537fb622f304",
+        "bytes": 1387
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/offsets/default.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "86f9a252805cea88d9e2841f35ea2e3200047ca2c558a3f78720552a1dd3da6c",
+        "bytes": 301
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/offsets/fill.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f076e2f0e78687da7b3b00c085a2f17be65966dde4d8afb1e38950b2a6e41900",
+        "bytes": 372
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/offsets/time.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0895e3058dd657ccfc90981cc4730ef9c5a4e53e2ce2d3b9d01779b64525956d",
+        "bytes": 196
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/utils/apply-px-defaults-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bae0404d7853a0d4a5840768d2cef50553084a23758ed8ca03df3bc1b344e750",
+        "bytes": 304
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/utils/apply-px-defaults.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bae0404d7853a0d4a5840768d2cef50553084a23758ed8ca03df3bc1b344e750",
+        "bytes": 304
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/utils/fill-wildcards.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ca0b314208dbab8ebd2d7353d8c77003aa5df47378647e553a8db494c36eda4b",
+        "bytes": 381
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/utils/is-none.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "af41da3ba2adba4f87b5713670e7b839e6009a0b52cffd83fa74649ade7cacb8",
+        "bytes": 343
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/utils/make-none-animatable.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7b1f832cfa39902a61edcdfa570a9240f1d15c3bacfdb1f0adf671a36e53a977",
+        "bytes": 1109
+      },
+      {
+        "path": "src/motion-dom/animation/keyframes/utils/unit-conversion.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "76a8ccb33833ab5acd80469b1f26174a86a56520ebcff67e7233b38c062e4100",
+        "bytes": 5621
+      },
+      {
+        "path": "src/motion-dom/animation/optimized-appear/data-id.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a1d44d7d4126934465749c3ef9e9b79b5cd44e503c0d472b74760369a5123b73",
+        "bytes": 216
+      },
+      {
+        "path": "src/motion-dom/animation/optimized-appear/get-appear-id.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "93a0281e84fc4c3c2466bbdf8bcb8308d0bf581183a6cd821cc42f16343c072d",
+        "bytes": 185
+      },
+      {
+        "path": "src/motion-dom/animation/timing.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fa529dfa4b090f62df27caccafe6b28e6e987ad61535c8175bd5bbceaaea022e",
+        "bytes": 2226
+      },
+      {
+        "path": "src/motion-dom/animation/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0b73af5b2beaa159164b15aef3b67d44ebbebd586204f9c6a4358a04efa9504d",
+        "bytes": 2127
+      },
+      {
+        "path": "src/motion-dom/animation/utils/WithPromise.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b02860ae8a1a6c8026365bd306a5b0af69ef5e922953aaf9d4cf511201e8970b",
+        "bytes": 1449
+      },
+      {
+        "path": "src/motion-dom/animation/utils/active-animations.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bb22178771cabd96f37fb5da40a06cf2d66983200dbb6aaecd9f52ad9d38287d",
+        "bytes": 776
+      },
+      {
+        "path": "src/motion-dom/animation/utils/arc.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "efbacd92118d160308b2bb6b649c3d833da83547349602631ae631f772a34845",
+        "bytes": 9026
+      },
+      {
+        "path": "src/motion-dom/animation/utils/calc-child-stagger.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6dd385cf28c51e1b0082ccb744fa3cd6fd35a13bb2027f16a81630221c81688e",
+        "bytes": 1227
+      },
+      {
+        "path": "src/motion-dom/animation/utils/can-animate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "09077164b8482d6ef3807f31bc767b26e732e18176b8b996bc7e6e7d686363d1",
+        "bytes": 2047
+      },
+      {
+        "path": "src/motion-dom/animation/utils/css-variables-conversion.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "58800e5d440a2cfab1fd97c2f0fc225150b829b5cf1ff31d77eba4d135e59e40",
+        "bytes": 1870
+      },
+      {
+        "path": "src/motion-dom/animation/utils/default-transitions.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0767a804ff213cd5b8aa9109c162ff5f608a1e4b299d8b80dd200232d9962da5",
+        "bytes": 1231
+      },
+      {
+        "path": "src/motion-dom/animation/utils/get-value-transition-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "49a5dd1f1b557d0c68833d52f2a6e1eed5d2f344a370c4b28c148dae1d7d3b83",
+        "bytes": 429
+      },
+      {
+        "path": "src/motion-dom/animation/utils/get-value-transition.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9277f1e97472681511535a9539887a01c8c294741cf521f8474af19176481e49",
+        "bytes": 715
+      },
+      {
+        "path": "src/motion-dom/animation/utils/is-animatable.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d4b9f59bbb84de4f1a41e063bbe116b31bf3ef6e7b2ccd163b67d7ee4b1d3ed5",
+        "bytes": 385
+      },
+      {
+        "path": "src/motion-dom/animation/utils/is-css-variable.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0f9a19d9ce5d78b50964112ae699a0a0a49bc771bc6a5be4f7dd8280ed8f76c7",
+        "bytes": 1033
+      },
+      {
+        "path": "src/motion-dom/animation/utils/is-transition-defined.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "474574d831af1ba87569a8b5d195fe138152af2951182da1be6a6a1a3dbfad58",
+        "bytes": 642
+      },
+      {
+        "path": "src/motion-dom/animation/utils/make-animation-instant.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cfbf95f0f409c77736e0ec1deccbdbca622debcc5c4bef7cc6a76089ae1061fe",
+        "bytes": 116
+      },
+      {
+        "path": "src/motion-dom/animation/utils/replace-transition-type-keyframes.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "749afb26dd7dd491cd49c04ec6cf8a4a870ef26120fe5fbf732285f1b0a8bc5b",
+        "bytes": 568
+      },
+      {
+        "path": "src/motion-dom/animation/utils/replace-transition-type-spring.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "65ba34a58f56c27b65e8aae85931c83f2af6341ba75a663d1b63f88ae94c88a9",
+        "bytes": 656
+      },
+      {
+        "path": "src/motion-dom/animation/utils/replace-transition-type.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b909b780d8293c3f2340439092b2bfda20c049797438ad824897c6d12d769ef9",
+        "bytes": 789
+      },
+      {
+        "path": "src/motion-dom/animation/utils/resolve-transition.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ca161e77e5b3da673751b9b244ea92176fea990e37e5927cc886222387ade4eb",
+        "bytes": 718
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/easing/cubic-bezier.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51cdf5b193469d8bec84f0bbd9dd0f85e8984cb2a353c0eeb100dfc05653bb3c",
+        "bytes": 135
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/easing/is-supported.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c01ef0a1dd66d7f6aa4e2b17f1f45b5a7b141e4cf65c60dbfe89524c53c991f8",
+        "bytes": 780
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/easing/map-easing-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e233b40203681b96007d53b251a16fade57bc6f45c6b02ba8e1fa19628e0e5da",
+        "bytes": 217
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/easing/map-easing.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cd15f49252849356448182092929236288f306ca8339bd955e4aed8650c85799",
+        "bytes": 2569
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/easing/supported.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d2abd329bac8e7c8d0d505216adb7eec8f9af0f5b1178f97258e7bb0ff89540d",
+        "bytes": 790
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/start-waapi-animation-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7de77b9a8d2d2c70404920f9b0e9e1ad0c476d54f7f4e8655221e792649309aa",
+        "bytes": 2039
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/start-waapi-animation.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d5fe7ceebdd0c65717e4785040751fde5124a260b238a6f0b2362a3934290baf",
+        "bytes": 2098
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/supports/partial-keyframes.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "44a74a17970931ab31291e7adfd05a211be1e10d89a73002c35658e9b913fb32",
+        "bytes": 228
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/supports/waapi.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "de6c11e755262d5baec038f5edbc6f2372373177434ec4e544d9cb57b92490c8",
+        "bytes": 3970
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/accelerated-values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "440fed7b96101fdc9bc844fbe8a407ea9ba34cb035c2ed1fd409d28f0134d29b",
+        "bytes": 238
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/apply-generator.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c2c7d7461a7b4afd42155d096f31774e8d2ef44519445fe4b767010846b4a07c",
+        "bytes": 661
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/is-browser-color.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "417df550271522c5f64573d8e8578fabd6658a84265f1ea530befd6f6cb4ddfe",
+        "bytes": 378
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/linear.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b1a6d43d9955a5430f9322f830d86ae342868e8eb1130ae688573990bbd9901c",
+        "bytes": 640
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/px-values-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6da2d4241d8b6107607a47eb1f152b0880003f70001e50b88e6389ae90930f56",
+        "bytes": 61
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/px-values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4428d3af5a2937a6db91d9af33a5850e743a814da6de461f8ddb0da3622d7789",
+        "bytes": 1575
+      },
+      {
+        "path": "src/motion-dom/animation/waapi/utils/unsupported-easing.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a3a8b814b88302f05fba67aa9c00dd34ab4b2805e9adcbbb64d1fb926d1f7673",
+        "bytes": 847
+      },
+      {
+        "path": "src/motion-dom/cast-host.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1c1d9655f7b5eab1cad9cf5b44cde0a001d659be5e4c293176ba8e903eb5e796",
+        "bytes": 380
+      },
+      {
+        "path": "src/motion-dom/cast.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2b38720d966682e4c9ab8c4187b7f399371590c62a171f8b9c7612dd0dc4e0d2",
+        "bytes": 701
+      },
+      {
+        "path": "src/motion-dom/dom-host.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bc5b0fdd20cde24c3fab0800e03c5520c9ffc902fe01b4f0520f70ed2c425c9e",
+        "bytes": 5724
+      },
+      {
+        "path": "src/motion-dom/dom-host.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b366ff460eeb4a045a2167717790118faa67ac17adf1811361ae3a0f8cfa0508",
+        "bytes": 9218
+      },
+      {
+        "path": "src/motion-dom/effects/MotionValueState.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1c516a4435f8e1170ce0b5c1ee0fa2f21f797c955b46ae3452e07b9c5124ef9d",
+        "bytes": 2382
+      },
+      {
+        "path": "src/motion-dom/effects/attr/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1047ad9b3d614071241c9fedbb343bed30ee9b83cdf87d6fd9950faffc0ac545",
+        "bytes": 1575
+      },
+      {
+        "path": "src/motion-dom/effects/prop/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2d58651df7c73c1114560baa993dee8c518a430f0e3b4bf0ae61a068d96d97b2",
+        "bytes": 473
+      },
+      {
+        "path": "src/motion-dom/effects/style/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cb360acf225f6a82fe731ece011a6fc40137c861f9a6ddf5d34fc64669ce323c",
+        "bytes": 2411
+      },
+      {
+        "path": "src/motion-dom/effects/style/transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "83fd2ff9c1bb996639b746d0020591a3a4cb15d20e3cda220d4d8ae3e6590b00",
+        "bytes": 2140
+      },
+      {
+        "path": "src/motion-dom/effects/svg/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4557bbb52578f611f19e232b8ecc1b2a432024672db13bd5d2d44a76d48a00ea",
+        "bytes": 2988
+      },
+      {
+        "path": "src/motion-dom/effects/utils/create-dom-effect.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f6ce0cf5ecd81625a84442d54da9ec30745ebaf9799819a0b46e1cbd26c6dced",
+        "bytes": 689
+      },
+      {
+        "path": "src/motion-dom/effects/utils/create-effect.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "71cd508bd85cd655b179b1ce9e117fc8c64dec114c25ad76e201b1fa1379c616",
+        "bytes": 1383
+      },
+      {
+        "path": "src/motion-dom/events/add-dom-event.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2551f788f12df12fd8d0ffc70069180f5335cc6d10c5a1a52f9368ee855d2b28",
+        "bytes": 413
+      },
+      {
+        "path": "src/motion-dom/frameloop/batcher.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a2c45149d67c952a1a138e980c4178b447e45d91a182d21f88c58765a2699c76",
+        "bytes": 5960
+      },
+      {
+        "path": "src/motion-dom/frameloop/frame.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d598d51643f67f6f1e2a2ded24aa1e028364a125c3f63fbf61e96458725d0ed9",
+        "bytes": 567
+      },
+      {
+        "path": "src/motion-dom/frameloop/index-legacy.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1178b7a508785ade12ddfb0b1c0cdad3fa23159af22a6353c5b60682ecf2753a",
+        "bytes": 770
+      },
+      {
+        "path": "src/motion-dom/frameloop/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8e9bf97395f96479b070b3bcb9aeda1e6856feeb4ecee824c05ccd136d8c92e8",
+        "bytes": 123
+      },
+      {
+        "path": "src/motion-dom/frameloop/microtask.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2abdf49854c4e027d9c756876d117bb89ff4bce6cf1708b46e388cc944102795",
+        "bytes": 352
+      },
+      {
+        "path": "src/motion-dom/frameloop/order.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0da0f1e901a7e292e0b7d1247ce9ab86adb786f6012b2d9a1be169555cb34bfb",
+        "bytes": 146
+      },
+      {
+        "path": "src/motion-dom/frameloop/render-step.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a9b523b3e17b0aeb718392e9171f3e91d2f0f9f4f22e2bd241eb309674ec3c93",
+        "bytes": 2666
+      },
+      {
+        "path": "src/motion-dom/frameloop/sync-time.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a905bd0118a992851275e592c506a777f223421c312c3555dfdbb49d39a51446",
+        "bytes": 904
+      },
+      {
+        "path": "src/motion-dom/frameloop/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1976d802369e46f917e4cc51b99fbe85a09f272c6e84e6689f842f6b97210010",
+        "bytes": 2236
+      },
+      {
+        "path": "src/motion-dom/gestures/drag/state/is-active.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0594fd538308d5b892228afc21cbc7ab1af34e4fea404961a149974ad41b34cc",
+        "bytes": 231
+      },
+      {
+        "path": "src/motion-dom/gestures/drag/state/set-active.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ce2c37a4e65bded23af9dd9babd4484bd2ce3e5dab1b708a4c6219b96606f011",
+        "bytes": 685
+      },
+      {
+        "path": "src/motion-dom/gestures/drag/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "da73453c73e0468da6d7aeb291528af1ac107fb889278bb3dfecb678bddc30f4",
+        "bytes": 289
+      },
+      {
+        "path": "src/motion-dom/gestures/hover.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a5c35a2369e26bd35775d1cafa5d98b25740dd5197d8387cdf6c6b08c8a81a7a",
+        "bytes": 3699
+      },
+      {
+        "path": "src/motion-dom/gestures/press/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "345cc665e156122907bb6a0063a10a462747fc9263b7a4151b77dcd07a284247",
+        "bytes": 5427
+      },
+      {
+        "path": "src/motion-dom/gestures/press/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "056c2e1a7ff68cc2a2a865e019139b1fb67c79c41594a9c5cffb41d7e90719c7",
+        "bytes": 113
+      },
+      {
+        "path": "src/motion-dom/gestures/press/utils/is-keyboard-accessible.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8bdebaaf21a94dedd591f09b9b67bc0d72642caf7f89f47f303255fbe9fe7b87",
+        "bytes": 900
+      },
+      {
+        "path": "src/motion-dom/gestures/press/utils/keyboard.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4b05c9558b81e1bb67b91f43783e36b098f1e0454cd2e5894635cdea5503bea4",
+        "bytes": 1624
+      },
+      {
+        "path": "src/motion-dom/gestures/press/utils/state.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8d73c1364f8921db478db1740bb0acb56f0008014c13baf4e8cb60aa77cfa626",
+        "bytes": 603
+      },
+      {
+        "path": "src/motion-dom/gestures/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9559a8483375d3a3fd3776e07bac7ab1092887b2be0440261c759f1faa13104b",
+        "bytes": 167
+      },
+      {
+        "path": "src/motion-dom/gestures/utils/is-node-or-child.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f74d8935519d8edbf347734d0f6b526c31d7c5b1a41955566db64ec5c9a3d87c",
+        "bytes": 320
+      },
+      {
+        "path": "src/motion-dom/gestures/utils/is-primary-pointer.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0f1a25a3eed8af7ea15cc576989f2df828a1033ccf0b06770503db74dfe7049d",
+        "bytes": 345
+      },
+      {
+        "path": "src/motion-dom/gestures/utils/setup.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7cfa75b794018c93f933124649a8c9694094f9a26ef84b1379b0d3e1a2392d60",
+        "bytes": 1095
+      },
+      {
+        "path": "src/motion-dom/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5420e26e22e2998e3dd5e46d34d5f2fc49e7bfcd3b4074a22176fbf63bfca7ef",
+        "bytes": 19583
+      },
+      {
+        "path": "src/motion-dom/layout/LayoutAnimationBuilder.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5ce7a6b8ff2867c644c4541d9c43a5c654b7c30df2c6ca94e6f3f78b16177a39",
+        "bytes": 14889
+      },
+      {
+        "path": "src/motion-dom/projection/animation/mix-values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e41bbd74462c0da140a13e917d03d7309bbcd5b5d7aa8734ba9ee8a910603347",
+        "bytes": 3254
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/conversion.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "878cbb4f0d8c967f4d5c0d6e3699f88c7aef47ec850ff901b67c2da599ac9a39",
+        "bytes": 714
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/copy.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "52f5b8a110c507c559a90d0bf9c62fb0a3c74a8ce6023cb9486a123dbed5ce57",
+        "bytes": 555
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/delta-apply.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e1bcb2dbae47769002a0c5012581c6877c76d72fd4b1fd82d566b8570c7a0c74",
+        "bytes": 5315
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/delta-calc.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e53ad486da5b7b354dcb1e966acb27a16ec39d49054f20a66c2705c0b188ebe8",
+        "bytes": 3042
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/delta-remove.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f1cb9b0cad1abadf62785c8066f9b851e40619e9bcb6cfe7ee03094a68f4203e",
+        "bytes": 2881
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/models.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d45fbfd617ab639068bb75d044d16878ff66a9581ad2e5dc4893422e7013419d",
+        "bytes": 383
+      },
+      {
+        "path": "src/motion-dom/projection/geometry/utils.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "197c01f0432bda0056d0cabb83b7009a1595516d1168b6b9b1f657aa39932665",
+        "bytes": 1013
+      },
+      {
+        "path": "src/motion-dom/projection/node/DocumentProjectionNode.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "57782ef2f5008f542e09ff9d30fd15f8cfe6967eb3741f0e7324c4a6d5c7f81a",
+        "bytes": 1405
+      },
+      {
+        "path": "src/motion-dom/projection/node/HTMLProjectionNode.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4c4b8501ca0441b5a67dfaff6039a722d9006b86a24ccb0fc631e4994fef9c3f",
+        "bytes": 1685
+      },
+      {
+        "path": "src/motion-dom/projection/node/create-projection-node.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "41a04eac1599291141e42f06bd320e8392aae1614fc0fa868963c1879070d24e",
+        "bytes": 78930
+      },
+      {
+        "path": "src/motion-dom/projection/node/group.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "41e00c80fef7264955d13d53f320c4f2c5e2c052127bd1018fc04188ea9f8d0c",
+        "bytes": 2047
+      },
+      {
+        "path": "src/motion-dom/projection/node/state.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ba4d74e7bb5ee3d0a938aef6a59a8ec935c4bbc06bf3ca02ad41cfcf96204306",
+        "bytes": 265
+      },
+      {
+        "path": "src/motion-dom/projection/shared/stack.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4eec318d41b06db130d3bea0257e18b425c6baadaab85fe99bcfcfd455075b0a",
+        "bytes": 4181
+      },
+      {
+        "path": "src/motion-dom/projection/styles/scale-border-radius.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ad18a64c2fd3a052e7f65533ed8b7d39ac82bb5d6d1eecfaea0ff827e64001be",
+        "bytes": 1054
+      },
+      {
+        "path": "src/motion-dom/projection/styles/scale-box-shadow.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a36aef4540c2f98410c9132b8650eaddf343485b2d4b3e45fcf1136c74e6815a",
+        "bytes": 2133
+      },
+      {
+        "path": "src/motion-dom/projection/styles/scale-correction.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3aec875f6e9dcf8f1ff433e03cf4a26a310f5ea722769a525c9c8255abacd686",
+        "bytes": 1292
+      },
+      {
+        "path": "src/motion-dom/projection/styles/transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cc356c6f019e1cb6c6b1c24f80f07d395bb667bf1aa73efc56ac59c79999d623",
+        "bytes": 2989
+      },
+      {
+        "path": "src/motion-dom/projection/styles/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "764f75d5f1b6325a6db294baaefd769baf9ad0b6cb3daf7449584994c7038c29",
+        "bytes": 653
+      },
+      {
+        "path": "src/motion-dom/projection/utils/compare-by-depth.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "02a9db6600c7c3415595c070511bdf4168b0722a79ee14d30cdb5c1fc921e435",
+        "bytes": 178
+      },
+      {
+        "path": "src/motion-dom/projection/utils/each-axis.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "782e4e67bfd6ab5fd3a8bfd4699d35cc5e0fcf7d8bc345dda28e72ad56c1dd5a",
+        "bytes": 103
+      },
+      {
+        "path": "src/motion-dom/projection/utils/flat-tree.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "30691feaf3eae1cc24ef8996398cce790e7af4d3c567f8396493233448a34a62",
+        "bytes": 1056
+      },
+      {
+        "path": "src/motion-dom/projection/utils/has-transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6484609fee8079d3a300bd21bc13d6a58a528203a9625006a432cbbe257b187e",
+        "bytes": 1311
+      },
+      {
+        "path": "src/motion-dom/projection/utils/measure.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "66434571149d23b8b9ab6a373e2c33e620726bc53d41dfda3cf1d4c093bfffff",
+        "bytes": 1974
+      },
+      {
+        "path": "src/motion-dom/render/Feature.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1eeae4fcdad9c66dfc839e1d9ab68c91acfc3aa1da491534fac4f31ac28f3dfb",
+        "bytes": 197
+      },
+      {
+        "path": "src/motion-dom/render/VisualElement.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "613992c8ec1412433fd1eccbf406af352b7767da0c6944f96d9b0a6c169af6c9",
+        "bytes": 25272
+      },
+      {
+        "path": "src/motion-dom/render/dom/DOMVisualElement.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "072711238cf13d4be76041873d63fcd5a361f9e4b1ec98a29e2ff1f9278ca8f7",
+        "bytes": 2288
+      },
+      {
+        "path": "src/motion-dom/render/dom/is-css-var.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2d7f246eefcaf73712df478c8825df1b0114d959a2d0e0e1b5c6e6776fa146d1",
+        "bytes": 70
+      },
+      {
+        "path": "src/motion-dom/render/dom/parse-transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9545a72866e03a85bd6a878a523966e1975aae1c6004d5726375b7ab9ab0c357",
+        "bytes": 5047
+      },
+      {
+        "path": "src/motion-dom/render/dom/style-computed.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d876881ed49c3b0e231a835190b16e87fed8d9f7deb46c38de165c7c89d65ba6",
+        "bytes": 457
+      },
+      {
+        "path": "src/motion-dom/render/dom/style-set.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "dad7ccc8a872e69ddc3566cb7f75d2aab1e16dc52a1986d04db3c9597f74de74",
+        "bytes": 532
+      },
+      {
+        "path": "src/motion-dom/render/dom/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e967346765b8fb8828add823c704fac4cb801f99815ace7562610f7c44e2e67a",
+        "bytes": 293
+      },
+      {
+        "path": "src/motion-dom/render/dom/utils/camel-to-dash.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2431941a028c0e5d17141918c4a25e93a3b6d9c2600a09a39dff7b19e2940694",
+        "bytes": 321
+      },
+      {
+        "path": "src/motion-dom/render/html/HTMLVisualElement.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "56f2a7e6e816d39821095f24d82973bccca543a6533eaadec5e77375697d6ca5",
+        "bytes": 2364
+      },
+      {
+        "path": "src/motion-dom/render/html/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e93995462062d42f4ab37d37a83563f4ef15e383605dc0404a265931d1a43aef",
+        "bytes": 481
+      },
+      {
+        "path": "src/motion-dom/render/html/utils/build-styles.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "53a10b575e984f41014165b6f6bc73123cd086d80f462b198db26ce2969dd180",
+        "bytes": 2364
+      },
+      {
+        "path": "src/motion-dom/render/html/utils/build-transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f7617816b36f05574696981d4207495f13d58ff87679e7f3ccc0f270d2cf5780",
+        "bytes": 2791
+      },
+      {
+        "path": "src/motion-dom/render/html/utils/render.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f55a4fc2a98ffbcfdf865358840429e46533acaa5b205ac086b5bf290633bb6f",
+        "bytes": 1552
+      },
+      {
+        "path": "src/motion-dom/render/html/utils/scrape-motion-values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "03bbbc2da08e9dc46b25b81e5d38bd2635010494c790dc132575fe3555062cc6",
+        "bytes": 1169
+      },
+      {
+        "path": "src/motion-dom/render/object/ObjectVisualElement.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fb4fa6ed3a729b9bf66ebece78c5a4a75dbcac8e925d5c3a8ca58d1faa5ee910",
+        "bytes": 1777
+      },
+      {
+        "path": "src/motion-dom/render/store.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "eea6ac1c43a6906043c1ad25c20e6af190c28c496091e7a836952200c42999c7",
+        "bytes": 143
+      },
+      {
+        "path": "src/motion-dom/render/svg/SVGVisualElement.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1725c26c5dc500ef2b3bb24a89df18c6b0a35205f6a894ed8b3921a9491faa2f",
+        "bytes": 2989
+      },
+      {
+        "path": "src/motion-dom/render/svg/utils/build-attrs.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6881117c491b7c9714baff1d0684557448f764aadbb2ab7932d1ae08a4e4d743",
+        "bytes": 3020
+      },
+      {
+        "path": "src/motion-dom/render/svg/utils/camel-case-attrs.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e4442e8d0761089fefbcccd62e7ca6f60ff0d85c5d1918cbc3b32dde1b3b0d43",
+        "bytes": 1109
+      },
+      {
+        "path": "src/motion-dom/render/svg/utils/is-svg-tag.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ab0f36fcde3734a0db7817822105cc563b097c11bb3deb553c1a8a3fda52d095",
+        "bytes": 120
+      },
+      {
+        "path": "src/motion-dom/render/svg/utils/path.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "af7d5fcc6b64ebda9cb71b7e3bffac92e8214373607ee2408bdff9d07963c1a3",
+        "bytes": 426
+      },
+      {
+        "path": "src/motion-dom/render/svg/utils/render.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fcdf293996f8bb74c7ee0018eb2995b317cc00f5adad1577c3d50f72f93288aa",
+        "bytes": 1073
+      },
+      {
+        "path": "src/motion-dom/render/svg/utils/scrape-motion-values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "dd4e02a233109bd0d631ab788e85c493f9ca4a94b94f03b62b1dde3f9f76900e",
+        "bytes": 1159
+      },
+      {
+        "path": "src/motion-dom/render/utils/animation-state.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "69e2690000a435b4488d3d2ae66e493051ffa0e4be611cf7a2e1cdabae3f8fea",
+        "bytes": 15662
+      },
+      {
+        "path": "src/motion-dom/render/utils/get-variant-context.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "33a55abd76b377aa3e7a170b68717d73f195672443bf4215c1fae5d19208dc7a",
+        "bytes": 2460
+      },
+      {
+        "path": "src/motion-dom/render/utils/is-animation-controls.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d5493615a7248d44b4175f48b61124f0e136b260e88ee59378fcce6c02102de4",
+        "bytes": 213
+      },
+      {
+        "path": "src/motion-dom/render/utils/is-controlling-variants.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9e1c3623ff180180e5d41035d670fe26c38f028cfd05afa4d906a55c6205da23",
+        "bytes": 716
+      },
+      {
+        "path": "src/motion-dom/render/utils/is-forced-motion-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9ffcaf643380dd514a956b6d756916fef74fc6ceb868d02135b6ba387bfea97e",
+        "bytes": 498
+      },
+      {
+        "path": "src/motion-dom/render/utils/is-keyframes-target.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "940775643e4619ee7b82596085efd7f5da2e1962ce329c46f25daf9dcb22f2f7",
+        "bytes": 67
+      },
+      {
+        "path": "src/motion-dom/render/utils/is-variant-label.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "887594da77d448899453f93fbcb1cc1da8e26b7d9b94f218fcb8241339d21d09",
+        "bytes": 106
+      },
+      {
+        "path": "src/motion-dom/render/utils/keys-position.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b46c1a89d69bca0e770721e2a0691288aedd8870e4ee4c36fdc3a2a4511aa968",
+        "bytes": 457
+      },
+      {
+        "path": "src/motion-dom/render/utils/keys-transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "396d9b0dce8c864d6765cfacc4a134cb0e8026966e45d78a8c3ff34f0752f56e",
+        "bytes": 509
+      },
+      {
+        "path": "src/motion-dom/render/utils/motion-values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "03ab404abe447154b4b44a48d2587b3cf823caa911e3b375756ab914faa4fef7",
+        "bytes": 2030
+      },
+      {
+        "path": "src/motion-dom/render/utils/reduced-motion/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "025dc987e37539ed2d94c0f8d4dc75d5fff3ab509572fa2bb337f88367289d66",
+        "bytes": 576
+      },
+      {
+        "path": "src/motion-dom/render/utils/reduced-motion/state.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2bf6f1048a38daaeddb3d2c79833bba4498792f4d015b08e05a229543a8c2d07",
+        "bytes": 339
+      },
+      {
+        "path": "src/motion-dom/render/utils/resolve-dynamic-variants.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4ae32eca329024756533cb68299b52c3d35385ce752d76e242e665ed84b34dda",
+        "bytes": 455
+      },
+      {
+        "path": "src/motion-dom/render/utils/resolve-variants.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c03e6d66b0128e9be98cb8346b652ef3b5366f94d997350d6277c88c5e2afe10",
+        "bytes": 1459
+      },
+      {
+        "path": "src/motion-dom/render/utils/setters.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "098ca05c6d58a50a868801a1eedc9ce248230672da1f07758bc8e4c9c6825d3b",
+        "bytes": 1739
+      },
+      {
+        "path": "src/motion-dom/render/utils/shallow-compare.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7965c297282b31d25794cf0eb0112535423b17a98a29ef3bd7d99c83570067e0",
+        "bytes": 384
+      },
+      {
+        "path": "src/motion-dom/render/utils/variant-props.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "08c800b2339be469dc7c06ef59536df87353326ac455a3b66527a26b0a51aa78",
+        "bytes": 294
+      },
+      {
+        "path": "src/motion-dom/resize/handle-element-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "01798a40c59ac3abf72e4a586e6b0e2d4163121bc3e1225a5133ffbeb9c09093",
+        "bytes": 3407
+      },
+      {
+        "path": "src/motion-dom/resize/handle-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0dc6b68e492000bbcb28d661cc2db8cd2e1abec97d7af61a333ddbf45e1b9d82",
+        "bytes": 3578
+      },
+      {
+        "path": "src/motion-dom/resize/handle-window.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5e1ab8aad098562218107735553da13b48c35f1ee708cbda7f1db67f459a7de4",
+        "bytes": 1181
+      },
+      {
+        "path": "src/motion-dom/resize/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "00cb9bf283b0b7667deac5705a8051d925f9b1380ff153b5aba85c6e3959658a",
+        "bytes": 549
+      },
+      {
+        "path": "src/motion-dom/resize/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "18fe8691435a0b042a748f2dae9eec96df65773d68e5838ac614aa57d11597cf",
+        "bytes": 162
+      },
+      {
+        "path": "src/motion-dom/scroll/observe.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c47f726050cf7db518cd50e487eaf6ffa3e52afd6a40b6c2f6cbae9086e9dce1",
+        "bytes": 950
+      },
+      {
+        "path": "src/motion-dom/stats/buffer.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "96f77e41492f9ce28e257f8cd859ae9889f4444292378d2371c5db8681ab08d3",
+        "bytes": 315
+      },
+      {
+        "path": "src/motion-dom/stats/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "27f05caaa0b3512b52320bb4f77ccb9f3fdfd3599ea8f1fd3f083ccfd8c8bcb4",
+        "bytes": 824
+      },
+      {
+        "path": "src/motion-dom/stats/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c9b7626f133b642b49fcb8f0bb8d32ac854a7252b0c37d4fa074e36d64560af9",
+        "bytes": 745
+      },
+      {
+        "path": "src/motion-dom/string-host.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f8187df7f8c86866d75686841e0366f2c3cd6ad3cda69b9b3a1c94cfeea8c48d",
+        "bytes": 579
+      },
+      {
+        "path": "src/motion-dom/string-host.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "93a326181231d93d8ee22d690530de899266db203ff02f17868c2aa00a9938da",
+        "bytes": 777
+      },
+      {
+        "path": "src/motion-dom/utils/border-radius.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c04b69dd88139e77ca0d097558a11f16941dc0f11deeed6a4cabc09dd7235517",
+        "bytes": 148
+      },
+      {
+        "path": "src/motion-dom/utils/delay.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4d9c323d1e2ff2e139e50c06677e563540ba1e77eaa3b1768b86e5d195a4a07e",
+        "bytes": 1173
+      },
+      {
+        "path": "src/motion-dom/utils/interpolate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "68658ca077871da33514911ed6cffadc2df3114687b4d4ccbcaa53be9ee3ac62",
+        "bytes": 2790
+      },
+      {
+        "path": "src/motion-dom/utils/is-html-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3ce5bccda97507ca196a0f4777c1a557eabe3b6ad199441f84ed51b80b67dbab",
+        "bytes": 300
+      },
+      {
+        "path": "src/motion-dom/utils/is-svg-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9a95ad13c2204563e249e6e7d2f0aff93c4fb146e5f88bc140bbef8f42b9a85b",
+        "bytes": 263
+      },
+      {
+        "path": "src/motion-dom/utils/is-svg-svg-element.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e25d6a1c082f308f979a72f9cea2fd94d01c8439bbbcc6c7c4f5d4813a268963",
+        "bytes": 270
+      },
+      {
+        "path": "src/motion-dom/utils/mix/color.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f947b60acc2ca488b2d11a948454314ef96d511c0412efc017d06950550ee97c",
+        "bytes": 2368
+      },
+      {
+        "path": "src/motion-dom/utils/mix/complex.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "36dcc9bda592d0b61a60e88a01b37bb568e36ef8d3bf8a1537a76d009d39e560",
+        "bytes": 6605
+      },
+      {
+        "path": "src/motion-dom/utils/mix/immediate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "45587ff0f2fb89a0c7f72dd4372ad034704ea5005d328153ae6aba09a9b0cb4d",
+        "bytes": 151
+      },
+      {
+        "path": "src/motion-dom/utils/mix/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e51d4e92f4627b6313cf02bb276a9ec6c0142146069418a314e91f8c9d74a75e",
+        "bytes": 200
+      },
+      {
+        "path": "src/motion-dom/utils/mix/number.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "afe105366a371285f4bf1176e8b3ed24e717673479086ec275c78969627e398b",
+        "bytes": 110
+      },
+      {
+        "path": "src/motion-dom/utils/mix/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "src/motion-dom/utils/mix/visibility.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "04eef8d5f1232f461b216e65c68a3d1aa4ec6a003aacf721ce53ece665377423",
+        "bytes": 480
+      },
+      {
+        "path": "src/motion-dom/utils/resolve-elements-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "343914b9fc2fa8fa47562babf1c5ce97152ffa465aecb2808119f0716e22cf62",
+        "bytes": 643
+      },
+      {
+        "path": "src/motion-dom/utils/resolve-elements.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f7527816ce859979706e7314cf122cba4fed568fc6fdfff8b554b27a7735f4f6",
+        "bytes": 1288
+      },
+      {
+        "path": "src/motion-dom/utils/stagger-mini.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "349d9866d18e1f5ec04f7e94335df5b8c91cf05bfbcd84e1344cdc76b471f1fe",
+        "bytes": 528
+      },
+      {
+        "path": "src/motion-dom/utils/stagger.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8b406009d2bc33f2b9bc002631e7a28b3b96be7af0345b73497fce3243e9e67f",
+        "bytes": 1874
+      },
+      {
+        "path": "src/motion-dom/utils/supports/flags.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "331be71075748d9148b95aa50a7f1ad0849245bd8327afd249f8fb5b06f029c0",
+        "bytes": 68
+      },
+      {
+        "path": "src/motion-dom/utils/supports/linear-easing.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "62fee996de1ba6f022cda88456c33a90d9edba9af645fb3ea8a29145c90ce998",
+        "bytes": 214
+      },
+      {
+        "path": "src/motion-dom/utils/supports/memo.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bc9fd5200f302a52c805e298c87038f034760cf3b3ff63d9a55b3936789e6976",
+        "bytes": 360
+      },
+      {
+        "path": "src/motion-dom/utils/supports/scroll-timeline.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b773f0e6954fd1271321f599d2a966fbb417d454c60cfd2547eed43be0f5c576",
+        "bytes": 324
+      },
+      {
+        "path": "src/motion-dom/utils/transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fa0d0420f2c4e181bf9722e834a44abf5fdc68f815702e8fe0c592befce904b7",
+        "bytes": 846
+      },
+      {
+        "path": "src/motion-dom/value/follow-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0af0308f32a11e30ac1ac06965bf2b56360d994ec341eaabb432ba20fe762ebf",
+        "bytes": 6004
+      },
+      {
+        "path": "src/motion-dom/value/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f5a36aabba3765f634f39301044f9c5b7107af12e8b2ead9226657ea31f4a583",
+        "bytes": 10200
+      },
+      {
+        "path": "src/motion-dom/value/map-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "28773d044f7bbfc8db23509bdd401f78d09482d8f8926aa5c9d3b624e5b16a72",
+        "bytes": 547
+      },
+      {
+        "path": "src/motion-dom/value/spring-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b7ba0066efc95a4c002b45fe5c99bc949e9cc87763ec72ca02117847ac450689",
+        "bytes": 658
+      },
+      {
+        "path": "src/motion-dom/value/subscribe-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d4bf5c8be7d886788d482a42305edfdefc4fdcd5ed38aab7c638256b0dd9a2eb",
+        "bytes": 934
+      },
+      {
+        "path": "src/motion-dom/value/transform-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "86dc39b3d6a67c422b5773d3eba4409f81d4278b792de469a1272c396cc6de3a",
+        "bytes": 472
+      },
+      {
+        "path": "src/motion-dom/value/types/auto.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ea681805055d3a993a66a57b7b2131b7f5c3ee08ede46f773570b89fa728b1ce",
+        "bytes": 200
+      },
+      {
+        "path": "src/motion-dom/value/types/color/hex.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "38778767264d1c25ff8ef7f49dd329b5c3ae592592d20e76bfa8ced3d2291b44",
+        "bytes": 1057
+      },
+      {
+        "path": "src/motion-dom/value/types/color/hsla-to-rgba.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d4ba9ec8b2b7aa3e69381e3fd9b1ad56c77869397d27566c6896c32d4c034e5a",
+        "bytes": 1156
+      },
+      {
+        "path": "src/motion-dom/value/types/color/hsla.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d490172f5849c3af12adbf0b82945c37a5b401022705f3a9c24073a41624f455",
+        "bytes": 1306
+      },
+      {
+        "path": "src/motion-dom/value/types/color/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b5bd4692121d756df305a620be4f86a8c18f91155203b49a5dc4a372fd13acfe",
+        "bytes": 1377
+      },
+      {
+        "path": "src/motion-dom/value/types/color/rgba.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "46f5ec102e525e015c06f10168e8e6872e90e557756a456ddd85825297e10c13",
+        "bytes": 1673
+      },
+      {
+        "path": "src/motion-dom/value/types/color/shape.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4d12a9fe8aefef213ac3bd834821b0bf87c5dd5ad5cecac01be08815ab6a1853",
+        "bytes": 1016
+      },
+      {
+        "path": "src/motion-dom/value/types/color/utils.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e79964115c491e3d27e71a6bd0ebb2bbd5c0aa1861a29305f0ec2644554f6431",
+        "bytes": 2880
+      },
+      {
+        "path": "src/motion-dom/value/types/complex/filter.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6b6facadf74634ceeeb8645f003252f7539b47eb0e3e388499d14d597d4adb42",
+        "bytes": 1916
+      },
+      {
+        "path": "src/motion-dom/value/types/complex/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ad5ecc9e9f61e5cceb3ed3cdfc394b6af03fe7faed1f5cda7257e86750d3b20a",
+        "bytes": 5431
+      },
+      {
+        "path": "src/motion-dom/value/types/complex/mask.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7fa080c0c609b83c80875ab6aa2e9fdcf6601faf3ddfd94c590cca4cd8ce61c3",
+        "bytes": 1265
+      },
+      {
+        "path": "src/motion-dom/value/types/dimensions.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2fece11789c6413dee546aa58a3a7c485cf417be2490abf2e8362fc8000de95e",
+        "bytes": 606
+      },
+      {
+        "path": "src/motion-dom/value/types/int.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d6caadf6889f6192515cef2645e78360735ffe6d937cdec1a8b74716dd7f9f2f",
+        "bytes": 259
+      },
+      {
+        "path": "src/motion-dom/value/types/maps/defaults.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "14c54f406f8f8e6b9beb4e5d4c2f1504b9b6ad11efa0d7dc53a075220bbb2679",
+        "bytes": 2410
+      },
+      {
+        "path": "src/motion-dom/value/types/maps/number.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2cbd17e8b999241f74486b3a35019ea36a7c44a09d13e5933d9ec87e8d500805",
+        "bytes": 1933
+      },
+      {
+        "path": "src/motion-dom/value/types/maps/transform.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6c098b8bd6cd17482cd58efcfa1b5070a2080d17f7521852eb41f23d423de254",
+        "bytes": 1308
+      },
+      {
+        "path": "src/motion-dom/value/types/maps/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "40a853284a4c54d9b63ceb1e50eb2c9ae23185571165b41eac71a6fc873aea66",
+        "bytes": 319
+      },
+      {
+        "path": "src/motion-dom/value/types/numbers/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c117f2d4adcef166812d041d691325ebc83fe25ff8bceeb6cdd18fd3c790c65e",
+        "bytes": 686
+      },
+      {
+        "path": "src/motion-dom/value/types/numbers/units.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3f852b1352c54830bd3c76df6ddcccf2b71e4b49c997a9b6b733fe8aad02eea8",
+        "bytes": 1497
+      },
+      {
+        "path": "src/motion-dom/value/types/test.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "52f445bb9ced187cb7275e262c809f9dd2a69588d762336b69663a8ba02e9807",
+        "bytes": 139
+      },
+      {
+        "path": "src/motion-dom/value/types/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "456cf44bf68583d175fbc059085d2b114727267c9d794fb023c98d14c10af7fe",
+        "bytes": 1315
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/animatable-none.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e40856987c5051e6bd38717bef361f548f1be3655c707d82bfe99305fe7f99ad",
+        "bytes": 725
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/color-regex.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "99b7368588bb9724a06bbec459c2f1c61667cabb9b9c45c55d8ca3bccaf0c6b5",
+        "bytes": 179
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/find.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9a13023e47fca5742cee254a937828b70922a33f3922f8244dd8cfd3db53d66a",
+        "bytes": 527
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/float-regex.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "544b7d88187afcfca07477835f8bd39c70ba5244e891f00763e3b009c17ba10d",
+        "bytes": 77
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/get-as-type.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9db0cb13ca2a1da3f58ced1f189bb544aa02b726897f3c4dc73ec768ada0d490",
+        "bytes": 273
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/is-nullish.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "be36b65673e99e23f9589c21d71b27fc08a5b557a0255efd5ab7335f7bed85f4",
+        "bytes": 65
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/sanitize.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0e5b49fc73795963212c8aaa49913e15cc8c5b381f593fe7a4b3e812d8dc96a6",
+        "bytes": 79
+      },
+      {
+        "path": "src/motion-dom/value/types/utils/single-color-regex.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4e99d724b46d55ed705f8c1215114b4cde21c8ce3b8cbdc4baa232e9fa6854bc",
+        "bytes": 186
+      },
+      {
+        "path": "src/motion-dom/value/utils/is-motion-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "67e9b63055e0fcc1c9189824f18f22434f8bae5c3c30e7e5b1b6fd77314fde32",
+        "bytes": 236
+      },
+      {
+        "path": "src/motion-dom/value/utils/resolve-motion-value.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "75e1f2d18e64493014846d96d9cf7ee5b71c2d4da6d95f970cc229f9d50ecd3e",
+        "bytes": 248
+      },
+      {
+        "path": "src/motion-dom/value/will-change/add-will-change.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6159a2bf4caeb00ca80337c157d7a677605a7ae2a26ddf1a9e41b67243362879",
+        "bytes": 1035
+      },
+      {
+        "path": "src/motion-dom/value/will-change/is.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "42820d02b156195bd93e88c468532fde4b9c621846fd50bae44527da265ca1a2",
+        "bytes": 257
+      },
+      {
+        "path": "src/motion-dom/value/will-change/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4a9526ffa397108ce6cd728b4567388f4bdc60b5e64cc6e1e797ddf5a71d1646",
+        "bytes": 55
+      },
+      {
+        "path": "src/motion-dom/view/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6c8890813c39c1935cc831d36f70895be76759193fbe30500d2a951e1ad96838",
+        "bytes": 4093
+      },
+      {
+        "path": "src/motion-dom/view/queue.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bb3dd2a2ccc792226ef0214dd5174d6243238e5d7c4460c589dfff26ae7178c7",
+        "bytes": 2110
+      },
+      {
+        "path": "src/motion-dom/view/start.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "94d3c8ad350b0781d86050d0a43bb51ec7197fe3222b1ab5dd584bc7b05b4716",
+        "bytes": 31663
+      },
+      {
+        "path": "src/motion-dom/view/utils/assign-names.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "993599395ae1024fae7370d7d79a54a9c356a72b20e55b34663656893b2288f1",
+        "bytes": 4523
+      },
+      {
+        "path": "src/motion-dom/view/utils/choose-layer-type.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "48178dbc00ed44da27df12ea7e1a1351a7a313f27bf27dfc101f15945d171cdd",
+        "bytes": 197
+      },
+      {
+        "path": "src/motion-dom/view/utils/css.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9fe14a5ff5b9658553ced44e010d06e32948a7f2b33aa7b61cdd18d5f28c2737",
+        "bytes": 1606
+      },
+      {
+        "path": "src/motion-dom/view/utils/get-layer-info.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ff6c71dd42a15028a0d22128e9392aa57675a001c7507113144afe74e9436e10",
+        "bytes": 1055
+      },
+      {
+        "path": "src/motion-dom/view/utils/get-view-animations.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2629282b2b0c45f4df5f5d330a49c41e9014ff391609767f6f57318d6696b469",
+        "bytes": 662
+      },
+      {
+        "path": "src/motion-dom/view/utils/has-target.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "15a1018b48a7964a3bec50ef5358476da27248e7af0b77a1791d28fe8fbe654c",
+        "bytes": 401
+      },
+      {
+        "path": "src/motion-dom/weak-host.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f5042e4348a34135ff25e1c035099c7e52b5abbc4615901961822e7ce73ed2ef",
+        "bytes": 974
+      },
+      {
+        "path": "src/motion-smoke.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c2f597b88b03eb88c2b4095025c6aeebaeb615f9118a3451b966791545dc1776",
+        "bytes": 981
+      },
+      {
+        "path": "src/motion-utils-smoke.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d9a27c968d5f7bcf282ed691248034cad8069c3ee07435158aa5c1e19d810c38",
+        "bytes": 2977
+      },
+      {
+        "path": "src/motion-utils/array.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fb626be242bc382d752e85dc2968d7947b1063a5944412e75abd33fd6358ab98",
+        "bytes": 780
+      },
+      {
+        "path": "src/motion-utils/clamp.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b05024646076ff9cb140538425fe086bfb889aaeaac6b2b627685cadb3e5bacd",
+        "bytes": 174
+      },
+      {
+        "path": "src/motion-utils/easing/anticipate.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d9a49070887f11fcefd3f2adb1d091fc9010752a42975b7d059ace406b60bfa3",
+        "bytes": 239
+      },
+      {
+        "path": "src/motion-utils/easing/back.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "81ff8a25e909df4512b3130c51b160937f48622d6e0e47e97e7d81f92cc30994",
+        "bytes": 343
+      },
+      {
+        "path": "src/motion-utils/easing/circ.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c96a0a1def42b543717d711fb95567f7a30159223a4c49b4b241faefd95222d1",
+        "bytes": 291
+      },
+      {
+        "path": "src/motion-utils/easing/cubic-bezier.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fea93def34d65d501b23a71e0e12cea8ed90d58420c268bf7a995d2792e1d180",
+        "bytes": 1097
+      },
+      {
+        "path": "src/motion-utils/easing/ease.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b0d731b47e9d3d81b413f801ae8a0e4951d172fd2ec5a16d1271925ff312d049",
+        "bytes": 259
+      },
+      {
+        "path": "src/motion-utils/easing/modifiers/mirror.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "adaf02ea59002aec51947089aa453ecb6f1899f1decef4913f0c27e85334ed48",
+        "bytes": 211
+      },
+      {
+        "path": "src/motion-utils/easing/modifiers/reverse.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "619444b6dc4492244dce6966b5efa62fa769474962f4f358f2d8b791f3688396",
+        "bytes": 116
+      },
+      {
+        "path": "src/motion-utils/easing/steps.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ec895fcd47083ca5e93092a206b82eb89da01bf1a986db4e7604825e5ae92f23",
+        "bytes": 503
+      },
+      {
+        "path": "src/motion-utils/easing/utils/get-easing-for-segment.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "778486c7b428f650313061b6fbbb8189d4f090d476a269283a4ddbfb5e8a2dee",
+        "bytes": 307
+      },
+      {
+        "path": "src/motion-utils/easing/utils/is-bezier-definition.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ddade3e07d5a3d71289f95ba853ee9c52eca181b3c0abc54035c476ff4ef3334",
+        "bytes": 102
+      },
+      {
+        "path": "src/motion-utils/easing/utils/is-easing-array.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7ad0dd68f4590ab7a2411184d78c3ae1ce2dac609f726931aebf93c562a3d283",
+        "bytes": 92
+      },
+      {
+        "path": "src/motion-utils/easing/utils/map.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3a629d42181d4bf2d6ce48b71cf6f93be0549e24ca07a78f2e9f0a41dc0c4e00",
+        "bytes": 1451
+      },
+      {
+        "path": "src/motion-utils/errors.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0ba0eafbe0f6d0d7e7cd203a1e226e6de74c50b726b387d6515c566f3e0095df",
+        "bytes": 284
+      },
+      {
+        "path": "src/motion-utils/format-error-message.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "07fb5182db1b17f36a3ebf3ab02ba7f1ecc8ad460dfd9205dba832d677b61da5",
+        "bytes": 252
+      },
+      {
+        "path": "src/motion-utils/global-config.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7f42ca8a0f5a190590b436ecf9d2a6845f10156387e85b15edd360a53806df5c",
+        "bytes": 405
+      },
+      {
+        "path": "src/motion-utils/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "549be76ae016f2586e5029915c35572d76c1fa29ef4e47388b95faef121eb209",
+        "bytes": 2257
+      },
+      {
+        "path": "src/motion-utils/is-numerical-string.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "88587910acdf4f9980726ce611686b9d338d9c03f4875aa7f6be47e7e4491c45",
+        "bytes": 155
+      },
+      {
+        "path": "src/motion-utils/is-object.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "361a38028f4c5f4baa94b9ecf621e3ec1f739e1260c2f84cbd3a30fa1c235973",
+        "bytes": 85
+      },
+      {
+        "path": "src/motion-utils/is-zero-value-string.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cd991dbab46a3a851bbe47f73847fdab585c881b52f653b116cca0fe78f575e3",
+        "bytes": 134
+      },
+      {
+        "path": "src/motion-utils/memo.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2a457e9ea6596c69d362a1fbdf4b4a145206659922408c2634bb9a5bd04e13ed",
+        "bytes": 429
+      },
+      {
+        "path": "src/motion-utils/noop.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "930978ef306983adcf7d42024e8afe9ffb8fb0679e1fddb2719d6cd1dbb5fd74",
+        "bytes": 53
+      },
+      {
+        "path": "src/motion-utils/pipe.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "66240f8695dca5f976811de253a3a30e7fe0e6343ee7568a00b47cbdd23b6a77",
+        "bytes": 513
+      },
+      {
+        "path": "src/motion-utils/progress.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "569b5d816f25575b0aa74b89edc82d5eb05c7ae05d6f5e11303cb7d8b4ab9379",
+        "bytes": 168
+      },
+      {
+        "path": "src/motion-utils/subscription-manager.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ec2759dcfc1431c8c517bd0bbd3021b9382a64bac25b81f1f3e431c4e4d25bc6",
+        "bytes": 938
+      },
+      {
+        "path": "src/motion-utils/time-conversion.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c3d53cce9b5ce289a34ffc51dd0195b99146b67c76df083f0849c392be9378dc",
+        "bytes": 173
+      },
+      {
+        "path": "src/motion-utils/types/geometry.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1cd32273cd089fe759fa084e1c79c86f1c7e8c6f058761b11561c0590c4eeae7",
+        "bytes": 383
+      },
+      {
+        "path": "src/motion-utils/velocity-per-second.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "aad3f655ca84669ece83f37fdb4752f363b569ebf27add256369cf151cf83cb3",
+        "bytes": 168
+      },
+      {
+        "path": "src/motion-utils/warn-once.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6175fec99a2d7e7a9d0e0dba4dc580dcd2f2f8ee6d7b55fe144ea5fad30a9d3f",
+        "bytes": 476
+      },
+      {
+        "path": "src/motion-utils/wrap.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e75b0ab49f6bd42a67c73efb90e580ef0d82f4dd66cce90408d9aef0714e3593",
+        "bytes": 265
+      },
+      {
+        "path": "test/browser-backends.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "eb3d4b3109b48effa22cc015aa81e96249be1cbd404809d6ebb4baa89215c55d",
+        "bytes": 7180
+      },
+      {
+        "path": "test/browser-controls.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8e5afbe3cb8d2310da74fbb9ab3aa3f0e4c7cc3843c093f39f717838ceb082a6",
+        "bytes": 2807
+      },
+      {
+        "path": "test/browser-lifecycle.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ef84a7aa68aab92e4dff2e82acecc2187522177e59788aa8d4aba842925e5dc7",
+        "bytes": 6208
+      },
+      {
+        "path": "test/browser-runtime.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6cd8bb37157e524f78b259a9b6e8e676b9418ce14454ebc1c2d8f1b38fe3ae47",
+        "bytes": 5329
+      },
+      {
+        "path": "test/fixtures/vite/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+        "bytes": 195
+      },
+      {
+        "path": "test/fixtures/vite/main.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+        "bytes": 231
+      },
+      {
+        "path": "test/node.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "dd41723dafa45e7de3c121acb9f3875e101c5158a298ce3d2bd983a2fa26da82",
+        "bytes": 4345
+      },
+      {
+        "path": "test/shake.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "99288d00227525dde7e9753108e05c76b6b81eebe19100ad0b973b8f137b227f",
+        "bytes": 1513
+      },
+      {
+        "path": "test/site.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "21fe1e72f64cc36138b24852791aaa1db3b07cdce2c227bc660d9880bef06850",
+        "bytes": 3433
+      },
+      {
+        "path": "test/terser.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+        "bytes": 1022
+      },
+      {
+        "path": "test/types/consumer.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+        "bytes": 388
+      },
+      {
+        "path": "test/types/tsconfig.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+        "bytes": 240
+      },
+      {
+        "path": "test/vite.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+        "bytes": 1190
+      },
+      {
+        "path": "types/debug.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+        "bytes": 80
+      },
+      {
+        "path": "types/dom.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+        "bytes": 27
+      },
+      {
+        "path": "types/full.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+        "bytes": 27
+      },
+      {
+        "path": "types/index.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+        "bytes": 12044
+      },
+      {
+        "path": "types/mini.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+        "bytes": 2915
+      },
+      {
+        "path": "types/motion-dom.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+        "bytes": 204959
+      },
+      {
+        "path": "types/motion-utils.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+        "bytes": 5249
+      }
+    ],
+    "sha256": "43afa8d7cfa51796226b35a43b8b50b9562b8e4b91f21bb3d2d39e44a29f1e03"
+  },
+  "dependencySnapshot": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/before.json",
+    "sha256": "2bc4e15487fab2b98b26038d86bad6ff31bd7512bf5d22b7c25c7edf41087e5f",
+    "bytes": 735745,
+    "root": "/home/azureuser/motionlil/node_modules",
+    "manifestSha256": "c273b62c50a1139c19c06a2fe521c687f4fad7884bf7162fe3c805f4ffb48b37",
+    "entries": 1761,
+    "files": 1518,
+    "scope": "Complete explicitly recovered sibling dependency tree including symlink destinations; five relevant direct versions match recorded lock. Original maintained workspace has no resolvable installed dependencies, and Playwright is absent here."
+  },
+  "recoveredDirectVersions": [
+    {
+      "name": "esbuild",
+      "version": "0.25.9"
+    },
+    {
+      "name": "motion",
+      "version": "13.1.0"
+    },
+    {
+      "name": "terser",
+      "version": "5.43.1"
+    },
+    {
+      "name": "typescript",
+      "version": "5.9.2"
+    },
+    {
+      "name": "vite",
+      "version": "6.4.3"
+    }
+  ],
+  "observedInventory": {
+    "testNodes": 11,
+    "suiteNodes": 0,
+    "totalIdentities": 11,
+    "skipped": 0,
+    "failed": 0
+  },
+  "deliveryScope": {
+    "requiredArtifacts": [
+      "dist/index.js",
+      "dist/index.cjs",
+      "dist/animate.js",
+      "dist/animate-mini.js",
+      "dist/scroll.js",
+      "dist/gestures.js",
+      "dist/viewport.js",
+      "dist/resize.js",
+      "dist/full.js",
+      "dist/mini.js",
+      "dist/debug.js"
+    ],
+    "sourceBuilt": false,
+    "scope": "Eleven passively observed original modules: default barrel and six feature modules, root CJS, full/mini/debug ESM. Test-generated Terser/Vite/esbuild outputs are not independently scored delivery artifacts.",
+    "full": "Export presence is checked against installed upstream. This does not qualify behavior of every full export.",
+    "commonjs": "Root CJS export-name parity and one numeric mix assertion; full/mini/debug CJS remain outside this selection.",
+    "browser": "Original four browser entry files remain unexecuted; Node module observation is not browser byte-execution evidence.",
+    "declarations": "Original check:types is required separately but is not an npm-test prerequisite; not executed in this discovery."
+  },
+  "sourceBuildStatus": {
+    "status": "unverified",
+    "scope": "Original build runs nine compiler invocations concurrently (six features, full, mini, debug) and applies compatibility facades, esbuild and Terser. It selects MOTIONLIL_LILSCRIPT_BIN; the current two-invocation qualifier cannot be applied unchanged."
+  },
+  "additionalRequiredCoverage": [
+    "Original check:types and all four test:browser files remain required and unexecuted here.",
+    "Original check:site/check:pack, installed-package and global/UMD behavior remain required.",
+    "Fresh source-built nine-invocation delivery and final exact-codec qualification remain unverified.",
+    "Full export behavior, geometry migration and public layout/constructibility/identity coverage are broader than these eleven identities.",
+    "The separate ten-case geometry supplement is new boundary evidence, not an original-suite replacement or current-source compiler qualification.",
+    "The explicitly recovered dependency tree is not the historical full installed environment; Playwright/browser provisioning remains unresolved."
+  ],
+  "unexecutedBrowserEntryFiles": [
+    {
+      "path": "test/browser-controls.test.mjs",
+      "sha256": "8e5afbe3cb8d2310da74fbb9ab3aa3f0e4c7cc3843c093f39f717838ceb082a6",
+      "bytes": 2807
+    },
+    {
+      "path": "test/browser-runtime.test.mjs",
+      "sha256": "6cd8bb37157e524f78b259a9b6e8e676b9418ce14454ebc1c2d8f1b38fe3ae47",
+      "bytes": 5329
+    },
+    {
+      "path": "test/browser-backends.test.mjs",
+      "sha256": "eb3d4b3109b48effa22cc015aa81e96249be1cbd404809d6ebb4baa89215c55d",
+      "bytes": 7180
+    },
+    {
+      "path": "test/browser-lifecycle.test.mjs",
+      "sha256": "ef84a7aa68aab92e4dff2e82acecc2187522177e59788aa8d4aba842925e5dc7",
+      "bytes": 6208
+    }
+  ],
+  "geometrySupplement": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/receipt.json",
+    "sha256": "462522c111e9cbb28d4fb26f2569062e19115abe15e70df832e3bcec5181706c",
+    "bytes": 11225
+  }
+}

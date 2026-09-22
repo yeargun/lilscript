@@ -1,0 +1,11 @@
+
+running 6 tests
+test semantic_program::publication::search::cursor_tests::refused_cursor_scan_preserves_progress_and_exact_incumbent ... ok
+test semantic_program::publication::search::cursor_tests::reclaim_scan_skips_active_states_and_charges_empty_state_slots ... ok
+test semantic_program::publication::search::cursor_tests::structural_age_turns_preserve_quality_turns_and_use_canonical_ties ... ok
+test semantic_program::publication::search::cursor_tests::width_one_keeps_a_waiting_cursor_but_never_an_exhausted_tail ... ok
+test semantic_program::publication::search::cursor_tests::partial_reclaim_refusal_preserves_pins_and_unvisited_states ... ok
+test semantic_program::publication::search::cursor_tests::partial_finish_refusal_keeps_exact_incumbent_and_releases_discovery_owners ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2933 filtered out; finished in 0.02s
+

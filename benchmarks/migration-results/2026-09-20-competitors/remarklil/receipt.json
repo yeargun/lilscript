@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "kind": "competitor-recipe-run",
+  "boundary": "remarklil",
+  "started": "2026-09-20T22:30:34.533Z",
+  "passed": true,
+  "ourArtifact": {
+    "path": "/home/azureuser/remarklil/dist/remark.esm.js",
+    "sha256": "b20ee6c69945743b36f753cc3243a6c0784b390d515fcf6180e057a3fdf8a406",
+    "bytes": 125199
+  },
+  "upstream": {
+    "directory": "/home/azureuser/remarklil/node_modules/remark",
+    "name": "remark",
+    "version": "15.0.1",
+    "entry": "index.js",
+    "externals": []
+  },
+  "competitors": [
+    {
+      "id": "terser@5.51.2/terser",
+      "recipe": "terser",
+      "tool": {
+        "name": "terser",
+        "version": "5.51.2",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/terser/package.json",
+          "sha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+          "bytes": 3334
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/terser",
+          "sha256": "312a3f9b37d3f5316ee384bfdc347313dae6f0f9056c44b3cae56c8e4e9f4496",
+          "bytes": 444
+        }
+      },
+      "renames": "locals and top-level module bindings (`-m --module`); property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/remarklil/terser.min.js",
+      "sha256": "20d4c2b626c3ee764ce8d6e156fd68df31de176d8f4c916c59ae1569711e93b5",
+      "bytes": 90312,
+      "sizes": {
+        "raw": 90312,
+        "gzip": 25137,
+        "brotli": 22450
+      },
+      "exports": [
+        "remark"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 0.721,
+      "massMatches": false,
+      "comparable": false
+    },
+    {
+      "id": "esbuild@0.28.1/esbuild",
+      "recipe": "esbuild",
+      "tool": {
+        "name": "esbuild",
+        "version": "0.28.1",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+          "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+          "bytes": 3980
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+          "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+          "bytes": 11407472
+        }
+      },
+      "renames": "locals and top-level bindings; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/remarklil/esbuild.min.js",
+      "sha256": "03d3167f51e55e6cbad9e8335bbe3b46611f7170fb4cecda15e48d69d5983b90",
+      "bytes": 92473,
+      "sizes": {
+        "raw": 92473,
+        "gzip": 26971,
+        "brotli": 24094
+      },
+      "exports": [
+        "remark"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 0.739,
+      "massMatches": false,
+      "comparable": false
+    },
+    {
+      "id": "rolldown@1.2.5/oxc",
+      "recipe": "oxc",
+      "tool": {
+        "name": "rolldown",
+        "version": "1.2.5",
+        "home": "/home/azureuser/markedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/markedlil/node_modules/rolldown/package.json",
+          "sha256": "6be75efa1a51c115f17375d1fc4713f70392bff70335045ec5cf7eeaf1228c96",
+          "bytes": 6127
+        },
+        "binary": {
+          "path": "/home/azureuser/markedlil/node_modules/.bin/rolldown",
+          "sha256": "4f32d8fafabe786e739f8be56df684e56def00e63a32858ad9d5ede57406bc6c",
+          "bytes": 46
+        }
+      },
+      "renames": "locals and top-level bindings through Rolldown's Oxc minifier; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/remarklil/oxc.min.js",
+      "sha256": "525f4ea1c4f23cf94811b065abc4033c72a5af0cc3e94132c4a2db94ca1581ed",
+      "bytes": 90470,
+      "sizes": {
+        "raw": 90470,
+        "gzip": 25628,
+        "brotli": 22943
+      },
+      "exports": [
+        "remark"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 0.723,
+      "massMatches": false,
+      "comparable": false
+    }
+  ],
+  "refused": [],
+  "limitations": [
+    "Byte construction only. These artifacts are not executed, so this receipt is not behavior evidence.",
+    "Each recipe states its own renaming policy; the comparison is only as fair as that statement.",
+    "The bundle leaves external exactly what our artifact imports. A boundary that bundles a different dependency graph is not comparable and says so.",
+    "NOT COMPARABLE (program mass): the reconstructed upstream is 72.1% of our artifact's raw size (90312 against 125199), outside the 0.8-1.25 band. This port bundles a different dependency graph than the npm entry does, so the two are not the same program."
+  ],
+  "bundle": {
+    "tool": {
+      "name": "esbuild",
+      "version": "0.28.1",
+      "home": "/home/azureuser/unifiedlil/node_modules",
+      "package": {
+        "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      },
+      "binary": {
+        "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      }
+    },
+    "args": [
+      "/home/azureuser/remarklil/node_modules/remark/index.js",
+      "--bundle",
+      "--format=esm",
+      "--target=es2020",
+      "--outfile=/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/remarklil/upstream.bundle.mjs"
+    ],
+    "output": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/remarklil/upstream.bundle.mjs",
+      "sha256": "7bb997ef8651ce42310a0c3be6c7836420001f9675657b573e777834f5ec53df",
+      "bytes": 248411
+    }
+  },
+  "ourSizes": {
+    "raw": 125199,
+    "gzip": 42413,
+    "brotli": 36064
+  },
+  "bundleSizes": {
+    "raw": 248411,
+    "gzip": 46788,
+    "brotli": 39892
+  },
+  "publicSurface": {
+    "ours": [
+      "remark"
+    ]
+  },
+  "comparable": false,
+  "completed": "2026-09-20T22:30:37.478Z",
+  "fingerprint": "08e58ebed4adf72c01a2d84aa57c228e1074b9740dffb8d4fb7faa9d11847e61"
+}

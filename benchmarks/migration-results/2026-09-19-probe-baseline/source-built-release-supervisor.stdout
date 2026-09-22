@@ -1,0 +1,1 @@
+{"output":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-probe-baseline/source-built-release","passed":false,"evidenceComplete":false,"baseQualified":true,"matrix":{"requested":22,"invocationReceipts":10,"compiled":10,"observedProfiles":10,"goldenMatches":10,"compilationFailures":0,"runtimeFailures":0,"evidenceErrors":36}}

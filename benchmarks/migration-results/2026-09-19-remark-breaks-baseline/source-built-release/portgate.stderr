@@ -1,0 +1,7 @@
+[portgate] arm preserved-release-original-remark-breaks: compiler 3d8e45059024, 1 ports
+[portgate] remark-breakslil: building (--compile)
+[portgate] remark-breakslil: testing
+[portgate] remark-breakslil: build=ok 13s tests=pass evidence=unverified
+[portgate] recorded 1 ports to /tmp/lilscript-remark-breaks-20260919-U8OjGp/portgate
+[portgate] UNVERIFIED REQUIRED TESTS (1): remark-breakslil
+[portgate] evidence is retained; an inventory run or failing suite cannot return a verified gate result

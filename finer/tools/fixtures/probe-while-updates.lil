@@ -1,0 +1,10 @@
+extern int read();
+int whileShaped(int seed) {
+  int total = 0;
+  int j = seed;
+  while (j > 0) { total ^= j; j--; }
+  int k = seed;
+  while (k > 0) total += k--;
+  return total;
+}
+print(whileShaped(read()));print(whileShaped(0));print(whileShaped(3));print(whileShaped(8));

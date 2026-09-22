@@ -1,0 +1,46 @@
+{
+  "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+  "args": [
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-probe-baseline/qualify.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-probe-baseline/source-built-release"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "timeoutMs": 390000,
+  "wrapper": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-probe-baseline/qualify.mjs",
+    "sha256": "95a0836d68bbfd3e6f5e58ac1ecf5dc6f22da441a309e3b171a4772d3ff05a13",
+    "bytes": 25875
+  },
+  "runner": {
+    "path": "finer/tools/bounded-command.mjs",
+    "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+    "bytes": 5871
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "started": "2026-09-19T18:16:30.428Z",
+  "completed": "2026-09-19T18:21:12.718Z",
+  "status": 1,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 390000,
+    "killAfterMs": 1000,
+    "maxBuffer": 33554432,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "9c4c0130e409b72c45755a347bb70bf121a2bc7c62cdcdff0dc139ec54009272",
+    "bytes": 345
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

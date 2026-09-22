@@ -1,0 +1,1 @@
+let distractor;let first;let second;let run;let side;distractor=function(a){return a&65^12;};let a=distractor;first=function(a){return (a&512)+ 3;};let b=first;second=function(a){return a&255^65;};let c=second;run=function(a){return b(a)+ c(a)|0;};let d=run;side=function(b){return a(b);};let e=side;export{d as run,e as side};

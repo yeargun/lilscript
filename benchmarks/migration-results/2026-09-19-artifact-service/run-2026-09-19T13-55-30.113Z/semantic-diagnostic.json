@@ -1,0 +1,29 @@
+{
+  "scope": "Existing-binary diagnosis after failed service filter; not accepted qualification",
+  "sourceReceipt": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-55-30.113Z/receipt.json",
+    "sha256": "914cc08e7eaecd350129a6a0800d1d44dd4d0f13ad2477bfa937be3efe2e7362",
+    "inputSha256": "975f847de7c246f1b384bba832c4086d953dc70eab1b58c248f7854d8d3b63fe"
+  },
+  "binary": {
+    "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+    "sha256": "2bdd83aa027a6110ddf97c3c20277c8463fdc47ea9955fb306a03ffc4e7709eb",
+    "bytes": 390383608
+  },
+  "filter": "semantic_program::",
+  "passed": 700,
+  "failed": 1,
+  "failure": "new checked-fold permission test expected Admission(ForbiddenTactic), while existing provenance mapping returns ForbiddenTactic",
+  "log": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-55-30.113Z/semantic-diagnostic.stdout",
+    "sha256": "ea40e214a1400a8af90b83d54784cec6147189d4a8bd9d7539e665e5e1829cca"
+  },
+  "stderr": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-55-30.113Z/semantic-diagnostic.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "limits": [
+    "Source tests were corrected after the binary build; this receipt uses the recorded built inputs, not current source",
+    "No rebuild or whole repository/fleet run"
+  ]
+}

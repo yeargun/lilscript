@@ -2,7 +2,7 @@
 
 Parent: [Config](README.md). Search mechanics: [candidate search](../compilation/candidate-search.md).
 
-`optimization_level` is **search effort** 0–15. It does not weaken type checking or `[optimization]` IR passes (those have their own keys). Duplicate feature names and levels > 15 are errors.
+`optimization_level` is **search effort** 0–16. It does not weaken type checking or `[optimization]` IR passes (those have their own keys). Duplicate feature names and levels above 16 are errors. Level 16 is level 15 plus one documented grant: tactics that declare `startup_at_level_16` may take startup runtime risk without an explicit `on` permission (D5, [compiler design](../../compiler-design.md)); no maintained port uses it, and new ports grant runtime risk through `[policy.tactics]` instead.
 
 A listed feature still needs its compression decision when it is dual-gated, and
 `candidate_search = off` still zeros optional terminal work. Effort is not the

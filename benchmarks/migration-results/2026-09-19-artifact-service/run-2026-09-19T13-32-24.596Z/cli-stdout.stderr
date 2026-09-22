@@ -1,0 +1,339 @@
+{
+  "schema": 1,
+  "backend": "semantic",
+  "source_sha256": "11b200d9553cec2c18547dd1006277dd401179ae5d6573e591e109c712d78fae",
+  "request": {
+    "target": "JavaScript",
+    "preserve_root_exports": true,
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "effective_logical_work": 200000000,
+    "effective_retained_bytes": 256000000
+  },
+  "inputs": {
+    "root": 0,
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-32-24.596Z/entry.lil",
+        "bytes": 49,
+        "sha256": "1be9ce2d2aa8f8cff051b57ffbb970d02b6bab10cc7af7db336e1ca4fea973aa",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ]
+  },
+  "shape": {
+    "modules": 1,
+    "units": 2,
+    "operations": 8,
+    "cells": 2
+  },
+  "javascript_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "javascript",
+      "world": "ReusableLibrary",
+      "execution": "Module",
+      "ecmascript": "es2022",
+      "preserve_root_exports": true,
+      "public_aggregate_abi": "Named",
+      "preserve_extern_fields": true,
+      "internal_exports_may_mangle": false,
+      "public_function_spelling": "None",
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "strip_console": false,
+      "preserved_properties": [],
+      "owned_properties": "UnderscoreSuffix",
+      "bundle_mode": "Single"
+    },
+    "objective": {
+      "codec": "Brotli",
+      "priority": "SizeFirst",
+      "realistic_performance_limit_percent": 25,
+      "optional_alternatives": 24,
+      "optional_codec_probes": 48,
+      "cleanup_finalists": 1,
+      "retained_candidates": 384,
+      "retained_candidate_bytes": 786432,
+      "beam_width": 10,
+      "search": {
+        "version": 7,
+        "codec_schedule": "staged",
+        "render_batch": 8,
+        "diversity_interval": 4
+      }
+    },
+    "effort": 13,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "native_policy": null,
+  "phases_ns": {
+    "policy_ns": 607244,
+    "discovery_ns": 368037,
+    "parse_ns": 46897,
+    "check_ns": 185606,
+    "convert_ns": 193842,
+    "frontend_release_ns": 9288,
+    "adopt_ns": 120575,
+    "javascript_ns": 8802203,
+    "finish_ns": 25227
+  },
+  "total_ns": 10916360,
+  "ledger_before_finish": {
+    "baseline_work": 2244,
+    "optional_work": 2665,
+    "retained_bytes": 16010453,
+    "peak_retained_bytes": 16763284,
+    "analysis_work": 2275,
+    "edit_work": 219,
+    "render_work": 1998,
+    "codec_work": 417
+  },
+  "ledger_after_finish": {
+    "baseline_work": 2244,
+    "optional_work": 2665,
+    "retained_bytes": 0,
+    "peak_retained_bytes": 16763284,
+    "analysis_work": 2275,
+    "edit_work": 219,
+    "render_work": 1998,
+    "codec_work": 417
+  },
+  "resources": {
+    "baseline_work": 2244,
+    "optional_work": 2665,
+    "codec_work": 417,
+    "peak_retained_bytes": 16763284,
+    "retained_bytes_after_handoff": 0,
+    "frontend_logical_work": 148,
+    "frontend_allocation_accounting": "not-yet-instrumented",
+    "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+    "scope": "admitted semantic/target/codec storage; frontend allocations, caller configuration I/O, returned buffers and process RSS are separate"
+  },
+  "artifacts": [
+    {
+      "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+      "raw": 75,
+      "gzip9": null,
+      "brotli11": 79,
+      "details": {
+        "recipe_words": [
+          3,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "recipe_fingerprint": 12139990537254341990,
+        "resource": "whole",
+        "execution": "Module",
+        "style": "Global",
+        "source_names": [],
+        "output": {
+          "dead_code_elimination": true,
+          "target_compaction": true,
+          "literals": "Original"
+        },
+        "sizes": [
+          75,
+          null,
+          79
+        ],
+        "policy_fingerprint": [
+          199,
+          151,
+          198,
+          196,
+          12,
+          134,
+          129,
+          142,
+          225,
+          34,
+          11,
+          95,
+          245,
+          63,
+          182,
+          168,
+          3,
+          156,
+          193,
+          27,
+          162,
+          182,
+          45,
+          214,
+          117,
+          29,
+          168,
+          54,
+          150,
+          91,
+          71,
+          254
+        ]
+      }
+    }
+  ],
+  "winners": [
+    null,
+    null,
+    0
+  ],
+  "native_sha256": null,
+  "native_delivery": null,
+  "first_artifact_ns": 5031804,
+  "search": {
+    "request": {
+      "objectives": [
+        "Brotli"
+      ],
+      "scalar": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "helper": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "string": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "local_facts": {
+        "work": 1000000,
+        "result_bytes": 512000
+      },
+      "facts_cache": {
+        "entries": 128,
+        "bytes": 16000000,
+        "result_bytes": 512000
+      }
+    },
+    "proposals": 2,
+    "structures": 1,
+    "renders": 3,
+    "codec_probes": 2,
+    "proof_queries": 1,
+    "beam_evictions": 0,
+    "admitted_artifacts": 3,
+    "stop": null
+  }
+}

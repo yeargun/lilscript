@@ -1,0 +1,885 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "remark-mathlil",
+  "started": "2026-09-21T10:48:12.649Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/remark-mathlil",
+  "workspace": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/test.js",
+  "derivation": {
+    "supported": true,
+    "script": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/test.js",
+    "originalSegments": [
+      "npm run build",
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/test.js"
+    ],
+    "segments": [
+      "npm run build",
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/test.js"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/test.js"
+    ],
+    "deviations": [
+      "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+    ],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/remark-math.cjs",
+      "dist/remark-math.closed.js",
+      "dist/remark-math.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/remark-math.cjs",
+      "./dist/remark-math.closed.js",
+      "./dist/remark-math.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/node/report.json",
+    "sha256": "16207689036247cbe90ee702af3291970b1cc34e0ba617fac65027f8b35c5f0b",
+    "bytes": 69241
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes the upstream public API",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",37,3,1,\"test\",\"keeps official extension keys in the library lane\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps official extension keys in the library lane",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",45,3,1,\"test\",\"pushes micromark and mdast extensions onto the processor\",1]",
+      "file": "test/api.test.mjs",
+      "name": "pushes micromark and mdast extensions onto the processor",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",61,3,1,\"test\",\"creates missing extension arrays\",1]",
+      "file": "test/api.test.mjs",
+      "name": "creates missing extension arrays",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",70,3,1,\"test\",\"does not over-escape a lone dollar with default options\",1]",
+      "file": "test/api.test.mjs",
+      "name": "does not over-escape a lone dollar with default options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",29,1,0,\"suite\",\"@itslil/remark-math\",1]",
+      "file": "test/api.test.mjs",
+      "name": "@itslil/remark-math",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact whose exports stay callable",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-math closed lane\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "@itslil/remark-math closed lane",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",19,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/test.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should parse inline and block math\",1]",
+      "file": "test/official/test.js",
+      "name": "should parse inline and block math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",71,11,1,\"test\",\"should ignore an escaped opening dollar sign\",1]",
+      "file": "test/official/test.js",
+      "name": "should ignore an escaped opening dollar sign",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",90,11,1,\"test\",\"should *not* ignore an escaped closing dollar sign\",1]",
+      "file": "test/official/test.js",
+      "name": "should *not* ignore an escaped closing dollar sign",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",123,11,1,\"test\",\"should support a escaped escape before a dollar sign\",1]",
+      "file": "test/official/test.js",
+      "name": "should support a escaped escape before a dollar sign",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",156,11,1,\"test\",\"should ignore dollar signs in inline code (#1)\",1]",
+      "file": "test/official/test.js",
+      "name": "should ignore dollar signs in inline code (#1)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",181,11,1,\"test\",\"should allow backticks in math\",1]",
+      "file": "test/official/test.js",
+      "name": "should allow backticks in math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",208,11,1,\"test\",\"should support backticks in inline math\",1]",
+      "file": "test/official/test.js",
+      "name": "should support backticks in inline math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",238,11,1,\"test\",\"should support a super factorial in inline math\",1]",
+      "file": "test/official/test.js",
+      "name": "should support a super factorial in inline math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",270,11,1,\"test\",\"should support a super factorial in block math\",1]",
+      "file": "test/official/test.js",
+      "name": "should support a super factorial in block math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",305,11,1,\"test\",\"should support a math block right after a paragraph\",1]",
+      "file": "test/official/test.js",
+      "name": "should support a math block right after a paragraph",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",347,11,1,\"test\",\"should support inline math with double dollars\",1]",
+      "file": "test/official/test.js",
+      "name": "should support inline math with double dollars",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",380,11,1,\"test\",\"should support block math with triple dollars\",1]",
+      "file": "test/official/test.js",
+      "name": "should support block math with triple dollars",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",415,11,1,\"test\",\"should support indented block math\",1]",
+      "file": "test/official/test.js",
+      "name": "should support indented block math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",446,11,1,\"test\",\"should stringify inline and block math\",1]",
+      "file": "test/official/test.js",
+      "name": "should stringify inline and block math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",459,11,1,\"test\",\"should support `singleDollarTextMath: false` (1)\",1]",
+      "file": "test/official/test.js",
+      "name": "should support `singleDollarTextMath: false` (1)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",475,11,1,\"test\",\"should support `singleDollarTextMath: false` (2)\",1]",
+      "file": "test/official/test.js",
+      "name": "should support `singleDollarTextMath: false` (2)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",493,11,1,\"test\",\"should stringify math in a blockquote\",1]",
+      "file": "test/official/test.js",
+      "name": "should stringify math in a blockquote",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",506,11,1,\"test\",\"should support an opening fence w/ meta, w/o closing fence\",1]",
+      "file": "test/official/test.js",
+      "name": "should support an opening fence w/ meta, w/o closing fence",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",516,11,1,\"test\",\"should support `meta`\",1]",
+      "file": "test/official/test.js",
+      "name": "should support `meta`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",523,11,1,\"test\",\"should include values after the opening fence\",1]",
+      "file": "test/official/test.js",
+      "name": "should include values after the opening fence",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",533,11,1,\"test\",\"should not support values before the closing fence\",1]",
+      "file": "test/official/test.js",
+      "name": "should not support values before the closing fence",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",543,11,1,\"test\",\"should include values before the closing fence (except for spacing #2)\",1]",
+      "file": "test/official/test.js",
+      "name": "should include values before the closing fence (except for spacing #2)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",553,11,1,\"test\",\"should exclude spacing after the closing fence\",1]",
+      "file": "test/official/test.js",
+      "name": "should exclude spacing after the closing fence",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",563,11,1,\"test\",\"should not affect the next block\",1]",
+      "file": "test/official/test.js",
+      "name": "should not affect the next block",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",595,11,1,\"test\",\"should support two dollar signs on inline math\",1]",
+      "file": "test/official/test.js",
+      "name": "should support two dollar signs on inline math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",627,11,1,\"test\",\"should stringify a tree\",1]",
+      "file": "test/official/test.js",
+      "name": "should stringify a tree",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",651,11,1,\"test\",\"should stringify inline math with double dollars using one dollar by default\",1]",
+      "file": "test/official/test.js",
+      "name": "should stringify inline math with double dollars using one dollar by default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",667,11,1,\"test\",\"should stringify inline math with double dollars using one dollar\",1]",
+      "file": "test/official/test.js",
+      "name": "should stringify inline math with double dollars using one dollar",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",683,11,1,\"test\",\"should do markdown-it-katex#01\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#01",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",690,11,1,\"test\",\"should do markdown-it-katex#02 (deviation)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#02 (deviation)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",697,11,1,\"test\",\"should do markdown-it-katex#03: no whitespace before and after is fine\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#03: no whitespace before and after is fine",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",707,11,1,\"test\",\"should do markdown-it-katex#04: even when it starts with a negative sign\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#04: even when it starts with a negative sign",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",717,11,1,\"test\",\"should do markdown-it-katex#05: shouldn’t render empty content\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#05: shouldn’t render empty content",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",727,11,1,\"test\",\"should do markdown-it-katex#06: should require a closing delimiter\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#06: should require a closing delimiter",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",737,11,1,\"test\",\"should do markdown-it-katex#07: paragraph break in inline math is not allowed\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#07: paragraph break in inline math is not allowed",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",747,11,1,\"test\",\"should do markdown-it-katex#08: inline math with apparent markup should not be processed\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#08: inline math with apparent markup should not be processed",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",757,11,1,\"test\",\"should do markdown-it-katex#09: block math can be indented up to 3 spaces\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#09: block math can be indented up to 3 spaces",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",767,11,1,\"test\",\"should do markdown-it-katex#10: …but 4 means a code block\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#10: …but 4 means a code block",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",777,11,1,\"test\",\"should do markdown-it-katex#11: multiline inline math\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#11: multiline inline math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",787,11,1,\"test\",\"should do markdown-it-katex#12: multiline display math\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#12: multiline display math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",797,11,1,\"test\",\"should do markdown-it-katex#13: text can immediately follow inline math\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#13: text can immediately follow inline math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",807,11,1,\"test\",\"should do markdown-it-katex#14: display math self-closes at the end of document\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#14: display math self-closes at the end of document",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",817,11,1,\"test\",\"should do markdown-it-katex#15: display and inline math can appear in lists\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#15: display and inline math can appear in lists",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",827,11,1,\"test\",\"should do markdown-it-katex#16: display math can be written in one line (deviation)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#16: display math can be written in one line (deviation)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",837,11,1,\"test\",\"should do markdown-it-katex#17: …or on multiple lines with expression starting and ending on delimited lines (deviation)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#17: …or on multiple lines with expression starting and ending on delimited lines (deviation)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",848,11,1,\"test\",\"should do markdown-it-katex#18: escaped delimiters should not render math (deviated)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#18: escaped delimiters should not render math (deviated)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",858,11,1,\"test\",\"should do markdown-it-katex#19: numbers can not follow closing inline math (deviated)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#19: numbers can not follow closing inline math (deviated)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",872,11,1,\"test\",\"should do markdown-it-katex#20: require non whitespace to right of opening inline math (deviated)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#20: require non whitespace to right of opening inline math (deviated)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",882,11,1,\"test\",\"should do markdown-it-katex#21: require non whitespace to left of closing inline math (deviated)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#21: require non whitespace to left of closing inline math (deviated)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",896,11,1,\"test\",\"should do markdown-it-katex#23: escaped delimiters in math mode (deviated)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#23: escaped delimiters in math mode (deviated)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",907,11,1,\"test\",\"should do markdown-it-katex#24: multiple escaped delimiters in math module (deviated)\",1]",
+      "file": "test/official/test.js",
+      "name": "should do markdown-it-katex#24: multiple escaped delimiters in math module (deviated)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",11,1,0,\"test\",\"remarkMath\",1]",
+      "file": "test/official/test.js",
+      "name": "remarkMath",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.cjs",
+      "sha256": "469c4791ee810dff1b37b3be30809838112776335b5a0362f057a3beda42dba5",
+      "bytes": 7798
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+      "sha256": "55c59dbdcd9b40a59de0d5f84e9efeadba77e1804979bf9dad2231a7b07f4151",
+      "bytes": 6569
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.closed.js",
+      "sha256": "a93ccc4630b32ad272600e9014de31112fe9ac60ed06ed61de0ced8c66a98419",
+      "bytes": 6606
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+      "sha256": "55c59dbdcd9b40a59de0d5f84e9efeadba77e1804979bf9dad2231a7b07f4151",
+      "bytes": 6569
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/remark-math.cjs",
+    "dist/remark-math.closed.js",
+    "dist/remark-math.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 6943.220783000012,
+  "completed": "2026-09-21T10:48:19.534Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bd7ccb9d19bd8d0418269beb24d69ac64b65c4c5896c968412af97010836dcf4",
+      "bytes": 1016040
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bd7ccb9d19bd8d0418269beb24d69ac64b65c4c5896c968412af97010836dcf4",
+      "bytes": 1016040
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "867c60650fc8fc86a138a13f17ab4575da6147db7137feec3e7ae05050c36ca3",
+      "bytes": 3875
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bf85eecdc55732cbf79a8b21d4cfbd93a04e49d74af1a72692056460d95622cf",
+      "bytes": 17617
+    },
+    {
+      "path": "node/loaded/484976-6b7f0e1a-2314-481f-ae85-42ab2750c187.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c12baad3c93085fdcdb1a1342f1d7e4ec022b284f9db74e499f7a5f86bf959a6",
+      "bytes": 353
+    },
+    {
+      "path": "node/loaded/484976-f2ab27aa-a687-462a-b734-bc44fdcba6d9.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a8ec6868af38779ff442d56ce4777c149659078f8f1030b1c6579fcd54de13d5",
+      "bytes": 357
+    },
+    {
+      "path": "node/loaded/484977-52fda884-6456-4b7f-b356-7729978d10b2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "45949149ede308e2e7fb88d8de02aed001c018d2e5610a595e8d2aa68c3e1fc4",
+      "bytes": 363
+    },
+    {
+      "path": "node/loaded/484978-63d98431-fde1-450e-83c9-527bd6691557.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d90851c7de46900f2915af9ac739a3b111468dedb0c672dbbeb3bb7ce3f2a1b3",
+      "bytes": 357
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4675e3d9eb949d72e239339e2c9b38b0186248ad72bd3632fa1d12dcec13eae0",
+      "bytes": 535
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "61152b145f6c3ddf51269628c6199486bee55b4677e49c218e337c903197eaf0",
+      "bytes": 176
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "16207689036247cbe90ee702af3291970b1cc34e0ba617fac65027f8b35c5f0b",
+      "bytes": 69241
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

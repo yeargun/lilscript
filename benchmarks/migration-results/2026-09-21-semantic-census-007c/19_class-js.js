@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;let f;let g;let h;let i;a=function(cell_2,initial){cell_2.value=initial;};let init=a;b=function(cell_4,amount){let a;a=cell_4;a.value=(a.value|0)+ amount|0;return cell_4.value|0;};let add=b;c={value:0};d=init(c,10);let counter=c;f=void console.log((e=counter,add(e,5)));i=void console.log((g=counter,add((h=-3,g),h)));

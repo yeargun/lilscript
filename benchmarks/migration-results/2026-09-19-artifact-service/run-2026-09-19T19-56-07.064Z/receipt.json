@@ -1,0 +1,205 @@
+{
+  "schema": 1,
+  "scope": "explicit affected release Rust test filters only; no CLI, delivery, library-fleet or speed qualification",
+  "started": "2026-09-19T19:56:07.068Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 10.928351999999961
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 71.83316200000002
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 13.925358999999958
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 3.8948049999999625
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--release",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 305.84228700000006
+    },
+    {
+      "label": "tests-0",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/deps/lilscript-118f13b3560da7bd",
+      "args": [
+        "js_peephole::assignment_sink_tests::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 132.93166099999996
+    },
+    {
+      "label": "tests-1",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/deps/lilscript-118f13b3560da7bd",
+      "args": [
+        "semantic::class_ownership_tests::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 5.053211000000033
+    }
+  ],
+  "profile": "release",
+  "buildJobs": "2",
+  "semanticCore": false,
+  "moduleBoundary": false,
+  "publicIntegration": false,
+  "testsOnly": true,
+  "testFilters": [
+    "js_peephole::assignment_sink_tests::",
+    "semantic::class_ownership_tests::"
+  ],
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack",
+    "Only the recorded library test filters execute; prior production evidence is not rerun"
+  ],
+  "buildEnvironment": {},
+  "inputSha256": "e5a33cae693ff58a818bfc395a55bc6d958b6bf21c0679ae82e39f86311a9554",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "testBuildProfiles": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/release/deps/lilscript-118f13b3560da7bd",
+      "target": "lilscript",
+      "profile": {
+        "opt_level": "3",
+        "debuginfo": 0,
+        "debug_assertions": false,
+        "overflow_checks": false,
+        "test": true
+      },
+      "features": []
+    }
+  ],
+  "testBinaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/release/deps/lilscript-118f13b3560da7bd",
+      "sha256": "29659ada78cee37d3e52aef2d5ec4a49d08d2fd81fdaa70b300acb9577957dfd",
+      "bytes": 39485112
+    }
+  ],
+  "focusedTests": [
+    {
+      "filter": "js_peephole::assignment_sink_tests::",
+      "passed": 6
+    },
+    {
+      "filter": "semantic::class_ownership_tests::",
+      "passed": 5
+    }
+  ],
+  "focusedFailures": [],
+  "passed": true,
+  "inputsStable": true,
+  "completed": "2026-09-19T19:56:08.038Z"
+}

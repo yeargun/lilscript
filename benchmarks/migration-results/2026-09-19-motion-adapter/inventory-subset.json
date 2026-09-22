@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "scope": "Read-only one-row consumer check, not whole-fleet inventory",
+  "parent": {
+    "path": "benchmarks/libraries/maintained-workloads.json",
+    "sha256": "972f431ed87a5e70816df92bc738d8384143b386256e5fef9d8b299b1dcb4a3d",
+    "bytes": 104370
+  },
+  "objective": "For each maintained library and raw/gzip/Brotli objective, tie or beat the strongest eligible competitor while preserving behavior and public APIs within agreed compilation/runtime budgets. Aim for strict wins almost always; the numerical win-rate threshold remains open.",
+  "libraries": [
+    {
+      "id": "motionlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/tmp/motionlil-cost-audit-20260911/current",
+      "workspaceCandidates": [
+        "/tmp/motionlil-cost-audit-20260911/current",
+        "/home/azureuser/motionlil",
+        "/tmp/lilscript-source-performance-20260910/motion-work"
+      ],
+      "portHeadAtInventory": "d4e7a9c2261c8b4b3e264fec5717e970eaed1729",
+      "package": {
+        "name": "motionlil",
+        "version": "0.1.5",
+        "declaredEntryFiles": [
+          "./dist/debug.cjs",
+          "./dist/debug.js",
+          "./dist/full.cjs",
+          "./dist/full.js",
+          "./dist/index.cjs",
+          "./dist/index.js",
+          "./dist/mini.cjs",
+          "./dist/mini.js",
+          "./dist/motionlil.global.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/motiondivision/motion.git",
+        "commit": "adaf7a4e5368d704ea350669f6ac674fb26ff270",
+        "package": "motion",
+        "version": "13.1.0",
+        "directory": "packages/motion"
+      },
+      "recordedComparisonScope": "motion@13.1.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/motion/dist/es/index.mjs",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-nine-invocation-build-inspected-source-replay-pending"
+      },
+      "tests": {
+        "recordedCommand": "npm test && npm run check:types && npm run test:browser",
+        "packageScripts": {
+          "check": "npm run test && npm run check:types && npm run check:site && npm run check:pack",
+          "check:types": "tsc -p test/types/tsconfig.json",
+          "test": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+          "test:size": "node scripts/measure-size.mjs",
+          "test:browser": "node --test test/browser-controls.test.mjs test/browser-runtime.test.mjs test/browser-backends.test.mjs test/browser-lifecycle.test.mjs",
+          "test:performance": "node scripts/measure-performance.mjs site/performance"
+        },
+        "adapterStatus": "original-node-cases-frozen-recovered-dependencies-browser-and-source-replay-pending",
+        "requiredCaseInventory": "/home/azureuser/lilscript/benchmarks/libraries/motionlil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/node.test.mjs",
+            "test/terser.test.mjs",
+            "test/vite.test.mjs",
+            "test/shake.test.mjs"
+          ],
+          "artifacts": [
+            "dist/index.js",
+            "dist/index.cjs",
+            "dist/animate.js",
+            "dist/animate-mini.js",
+            "dist/scroll.js",
+            "dist/gestures.js",
+            "dist/viewport.js",
+            "dist/resize.js",
+            "dist/full.js",
+            "dist/mini.js",
+            "dist/debug.js"
+          ],
+          "caseInventory": "/home/azureuser/lilscript/benchmarks/libraries/motionlil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "src/lilscript.memory-parity.toml",
+          "sha256": "1da8a634f07359b375b13970b39874f9aeb3d5e8142e463e0973e9a89ce4dcff"
+        },
+        {
+          "path": "src/lilscript.toml",
+          "sha256": "f52ee0d997baadd39170780db522f4b810a1869abb4970f32e80d6c925c30864"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Keep full 312-export scope separate from 52-export default; constructor/layout coverage incomplete in recorded evidence.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "motionlil"
+      }
+    }
+  ],
+  "additionalCoverage": []
+}

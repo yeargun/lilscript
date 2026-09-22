@@ -1,0 +1,188 @@
+{
+  "root": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html",
+  "files": [
+    {
+      "path": "LICENSE",
+      "kind": "file",
+      "executable": false,
+      "sha256": "219c138192de46366164088cc40be8477618d247b9e1262e76014b5fc846f908",
+      "bytes": 1091
+    },
+    {
+      "path": "NOTICE.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "face38b8fb382c576f2276a8719e6bcbe838ba57d00718aad4663240974d7d65",
+      "bytes": 493
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "aeabc8dbb2f7c313f07d2012b964d2bbc642e285794322e58506eb4abf85c062",
+      "bytes": 887
+    },
+    {
+      "path": "dist/to-html.cjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6251b2367acc1a9875fe44fc3ff78cb622056ae1551dbdcfd4d560d4c4e659fb",
+      "bytes": 31100
+    },
+    {
+      "path": "dist/to-html.closed.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5f141aa185acb302fc281e925d79fea6948454cc71e9398d204b34ed65cca82e",
+      "bytes": 29952
+    },
+    {
+      "path": "dist/to-html.d.ts",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da4ddc9d09fff5d40cb628ab4f6b903c118d10a37c72e3bd727783d6f6bc7eef",
+      "bytes": 1005
+    },
+    {
+      "path": "dist/to-html.esm.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.umd.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5730dc50aceb38311e0868aa54dd98d4d474e47ba43639eb85d43c1887a36bdf",
+      "bytes": 31171
+    },
+    {
+      "path": "package.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+      "bytes": 1884
+    },
+    {
+      "path": "src/index.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0fa477ec92851ed6e58e8a4cdfdefc64a0d326748ed2542487c47b5bd2fa45d8",
+      "bytes": 164
+    },
+    {
+      "path": "src/lib/entities.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da241d65eb99b3d8116c6ca6372d4708b633d93127e77897f8ec39e5e53eb886",
+      "bytes": 5781
+    },
+    {
+      "path": "src/lib/handle/comment.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c1b705c415968848cd5d2e0c9e1a2403e81e75b19e6213c8b70a67320fb8079",
+      "bytes": 499
+    },
+    {
+      "path": "src/lib/handle/doctype.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a18bff27907fecde3ffd44c6c1adbd2a6513e8e9f0356444aa6c7acc5547f501",
+      "bytes": 339
+    },
+    {
+      "path": "src/lib/handle/element.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f3abf6c3c4bcbeead650d23b02a5e5b6b1b5ba7f5afe0c5848811ad00ddb1c9c",
+      "bytes": 6032
+    },
+    {
+      "path": "src/lib/handle/index.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f8b1a787209af8672c29f01185dd99e6c575e4d4a2abc3a0479bb2b8aef1fb87",
+      "bytes": 1257
+    },
+    {
+      "path": "src/lib/handle/raw.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "68d551152ba36a178112cbf1f397b3e85243377611b6e35e35cd010de9bdc14f",
+      "bytes": 294
+    },
+    {
+      "path": "src/lib/handle/root.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b2ec07dec13d0892da360201fb7ab15d868c6ffcdf9653cbe28e290da3cc9847",
+      "bytes": 181
+    },
+    {
+      "path": "src/lib/handle/text.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3aaabda981f5c88d0d107f90b76f0f314baf7f5320593049019b04c1ff41b100",
+      "bytes": 567
+    },
+    {
+      "path": "src/lib/index.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "26c55ae933415e3b0e0b1a3c677c1680224c6e9833ccab40460468e8f9248856",
+      "bytes": 2486
+    },
+    {
+      "path": "src/lib/omission/closing.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3f6e927f30745ed944c537b23214544f6a4e8be90faed591cde4f23b9fbfcd70",
+      "bytes": 4116
+    },
+    {
+      "path": "src/lib/omission/omission.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "349a475265c135b94e6612b27bee5350c45518162fe86c84ae2555cd738de90f",
+      "bytes": 513
+    },
+    {
+      "path": "src/lib/omission/opening.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b0554c4639e81d743effc460c4e5b5504b96864cd493d583704452e8393be7da",
+      "bytes": 3550
+    },
+    {
+      "path": "src/lib/omission/util/siblings.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f66f24cfed228c58d234253ded8ac3266d36ab866028083cbff806c1cdaa50fe",
+      "bytes": 932
+    },
+    {
+      "path": "src/lib/schema-data.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d8af02546e95f0422caa52f0905cb9fb4fe8bb5138c62ba29f1a16e1536f7ec3",
+      "bytes": 18501
+    },
+    {
+      "path": "src/lib/schema.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0df18e11024aafb9f6bc52eb6b35403299745fd8be29eed15865a0ea5ac67ce3",
+      "bytes": 3621
+    },
+    {
+      "path": "src/lib/types.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "00ef68aa24de78cca81260ca6c375673129e228f40763718bd0fdf2a946b857d",
+      "bytes": 6348
+    }
+  ],
+  "sha256": "abcb2f48ea5491c1d27b028a834af911b5e7a1009fdaef4a7006a02cf9dfdb75"
+}

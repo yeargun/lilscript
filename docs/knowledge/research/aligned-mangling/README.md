@@ -46,7 +46,8 @@ The −801 is the headline: it is bigger than every row in the
 rewrite that passes a 37-observation behavioural differential against the
 shipped artifact, and it was confirmed with `lilscript-codec`, not only with
 the diagnostic scorer. [05](05-concentration.md) has the mechanism;
-[PLAN.md](PLAN.md) has what to do about it.
+The [migration plan](../../../migration/index.md#010-bounded-codec-search) owns
+any implementation work; these measurements are historical research.
 
 ## Pages
 
@@ -63,7 +64,7 @@ the diagnostic scorer. [05](05-concentration.md) has the mechanism;
 | [08 search](08-search.md) | Do transform families add up? A factorial says yes — once you factor along the right axes |
 | [09 the equation](09-the-equation.md) | The closed form, why its gradient is useless, the cheap re-solve, and −952 bytes across the shipped libraries |
 | [RULES](RULES.md) | The compiler-facing rules, distilled, with the evidence behind each |
-| [PLAN](PLAN.md) | The migration plan |
+| [Migration plan](../../../migration/index.md) | The only active implementation sequence; the former naming plan is externally archived |
 | [findings.html](findings.html) | The same evidence as one page, generated from the JSON (`node render-findings.mjs`) |
 
 ## Reproduce

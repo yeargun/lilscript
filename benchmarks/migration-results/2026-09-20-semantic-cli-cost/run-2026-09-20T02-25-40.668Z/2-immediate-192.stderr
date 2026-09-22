@@ -1,0 +1,495 @@
+{
+  "artifacts": [
+    {
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "raw": 17476,
+      "gzip9": null,
+      "brotli11": 3503,
+      "details": {
+        "recipe_words": [
+          3,
+          1,
+          181,
+          14,
+          0,
+          5,
+          3,
+          175,
+          35,
+          176,
+          36,
+          184,
+          40,
+          0,
+          1,
+          232,
+          0,
+          2,
+          1,
+          0,
+          1,
+          232,
+          1,
+          0,
+          0,
+          0
+        ],
+        "recipe_fingerprint": 12718125117218328224,
+        "semantic": {
+          "snapshot_identity": "RevisionId(376)",
+          "meaning_identity": "RevisionId(377)",
+          "identity_scope": "process-local diagnostics, not canonical recipe identity",
+          "rewrite_order": "newest-first",
+          "rewrites": []
+        },
+        "resource": "whole",
+        "execution": "Module",
+        "style": "Scoped",
+        "source_names": [],
+        "output": {
+          "dead_code_elimination": true,
+          "target_compaction": true,
+          "literals": "Original"
+        },
+        "sizes": [
+          17476,
+          null,
+          3503
+        ],
+        "policy_fingerprint": [
+          245,
+          222,
+          91,
+          172,
+          8,
+          28,
+          238,
+          77,
+          170,
+          40,
+          206,
+          89,
+          77,
+          2,
+          157,
+          111,
+          168,
+          224,
+          55,
+          37,
+          8,
+          167,
+          100,
+          145,
+          73,
+          109,
+          111,
+          224,
+          79,
+          159,
+          229,
+          207
+        ]
+      }
+    }
+  ],
+  "winners": [
+    null,
+    null,
+    0
+  ],
+  "native_sha256": null,
+  "native_delivery": null,
+  "first_artifact_ns": 25513786,
+  "search": {
+    "request": {
+      "objectives": [
+        "Brotli"
+      ],
+      "scalar": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "helper": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "string": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "local_facts": {
+        "work": 1000000,
+        "result_bytes": 512000
+      },
+      "facts_cache": {
+        "entries": 128,
+        "bytes": 16000000,
+        "result_bytes": 512000
+      }
+    },
+    "proposals": 96,
+    "structures": 33,
+    "renders": 97,
+    "codec_probes": 96,
+    "proof_queries": 73,
+    "beam_evictions": 22,
+    "admitted_artifacts": 97,
+    "stop": "Limit(Alternatives)"
+  },
+  "schema": 1,
+  "backend": "semantic",
+  "source_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f",
+  "request": {
+    "target": "JavaScript",
+    "preserve_root_exports": true,
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "effective_logical_work": 200000000,
+    "effective_retained_bytes": 256000000
+  },
+  "inputs": {
+    "root": 0,
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "bytes": 610,
+        "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+        "dependencies": [
+          1,
+          7,
+          9,
+          10,
+          11
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "bytes": 204,
+        "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+        "dependencies": [
+          2
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+        "bytes": 292,
+        "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+        "dependencies": [
+          3,
+          4,
+          5,
+          6
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+        "bytes": 918,
+        "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+        "dependencies": [
+          4,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+        "bytes": 321,
+        "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+        "dependencies": [
+          3,
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+        "bytes": 82,
+        "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+        "bytes": 168,
+        "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+        "dependencies": [
+          5
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+        "bytes": 925,
+        "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+        "dependencies": [
+          8,
+          9
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+        "bytes": 1513,
+        "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+        "dependencies": [
+          9
+        ],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+        "bytes": 20051,
+        "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+        "bytes": 955,
+        "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+        "bytes": 115,
+        "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ]
+  },
+  "shape": {
+    "modules": 12,
+    "units": 44,
+    "operations": 1219,
+    "cells": 250
+  },
+  "javascript_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "javascript",
+      "world": "ReusableLibrary",
+      "execution": "Module",
+      "ecmascript": "es2022",
+      "preserve_root_exports": true,
+      "public_aggregate_abi": "Named",
+      "preserve_extern_fields": true,
+      "internal_exports_may_mangle": false,
+      "public_function_spelling": "None",
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "strip_console": false,
+      "preserved_properties": [],
+      "owned_properties": "UnderscoreSuffix",
+      "bundle_mode": "Single"
+    },
+    "objective": {
+      "codec": "Brotli",
+      "priority": "SizeFirst",
+      "realistic_performance_limit_percent": 25,
+      "optional_alternatives": 96,
+      "optional_codec_probes": 192,
+      "cleanup_finalists": 1,
+      "retained_candidates": 384,
+      "retained_candidate_bytes": 786432,
+      "beam_width": 10,
+      "search": {
+        "version": 22,
+        "codec_schedule": "immediate",
+        "render_batch": 8,
+        "diversity_interval": 4
+      }
+    },
+    "effort": 13,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "native_policy": null,
+  "phases_ns": {
+    "policy_ns": 89498,
+    "discovery_parse_ns": 1063365,
+    "check_ns": 406769,
+    "convert_ns": 2335941,
+    "frontend_release_ns": 71844,
+    "adopt_ns": 113663,
+    "javascript_ns": 1930034863,
+    "finish_ns": 52799,
+    "source_release_ns": 451
+  },
+  "total_ns": 1934340291,
+  "ledger_before_finish": {
+    "baseline_work": 2865000,
+    "optional_work": 15315855,
+    "retained_bytes": 16415450,
+    "peak_retained_bytes": 22467098,
+    "analysis_work": 7603265,
+    "edit_work": 3496,
+    "render_work": 8815816,
+    "codec_work": 1758278
+  },
+  "resources": {
+    "baseline_work": 2865000,
+    "optional_work": 15315855,
+    "codec_work": 1758278,
+    "peak_retained_bytes": 22467098,
+    "frontend_logical_work": 2625472,
+    "frontend_allocation_accounting": "partial",
+    "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+    "source_buffer_capacity": 48768,
+    "frontend_phase_accounting": {
+      "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+      "main_parse_arena": "not repeated; discovery programs reused",
+      "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+      "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+      "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+      "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+      "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+      "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+      "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+      "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+      "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+      "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+      "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+      "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+      "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+      "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+      "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+      "semantic_verification": "pre-admitted work and owned scratch",
+      "module_metadata": "uninstrumented"
+    },
+    "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+    "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+    "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+    "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+    "retained_bytes_after_handoff": 0
+  },
+  "ledger_after_finish": {
+    "baseline_work": 2865000,
+    "optional_work": 15315855,
+    "retained_bytes": 0,
+    "peak_retained_bytes": 22467098,
+    "analysis_work": 7603265,
+    "edit_work": 3496,
+    "render_work": 8815816,
+    "codec_work": 1758278
+  }
+}
+lilscript-timing {"wall_ms":1934.7,"admission_ms":0.0,"admission_calls":0,"admission_mb":0.00,"direct_validate_ms":0.0,"direct_validate_calls":0,"direct_validate_mb":0.00,"probe_dropped_ms":0.0,"probe_dropped_calls":0,"probe_dropped_mb":0.00,"codec_ms":0.0,"codec_calls":0,"codec_mb":0.00,"analyze_ms":0.0,"analyze_calls":0,"analyze_mb":0.00,"emit_ms":0.0,"emit_calls":0,"emit_mb":0.00,"peephole_ms":0.0,"peephole_calls":0,"peephole_mb":0.00,"cleanup_ms":0.0,"cleanup_calls":0,"cleanup_mb":0.00,"optimize_ms":0.0,"optimize_calls":0,"optimize_mb":0.00,"lex_ms":0.0,"lex_calls":0,"lex_mb":0.00,"closers_ms":0.0,"closers_calls":0,"closers_mb":0.00,"regions_ms":0.0,"regions_calls":0,"regions_mb":0.00,"scopes_ms":0.0,"scopes_calls":0,"scopes_mb":0.00,"bindings_ms":0.0,"bindings_calls":0,"bindings_mb":0.00,"idle_fold_ms":0.0,"idle_fold_calls":0,"idle_fold_mb":0.00,"active_fold_ms":0.0,"active_fold_calls":0,"active_fold_mb":0.00,"scalar_fixpoint_ms":0.0,"scalar_fixpoint_runs":0,"scalar_fixpoint_max":0,"inline_fixpoint_ms":0.0,"inline_fixpoint_runs":0,"inline_fixpoint_max":0,"js_demand_ms":18.572,"js_demand_calls":33,"js_formation_ms":20.048,"js_formation_calls":33,"target_verify_ms":1.460,"target_verify_calls":34,"target_edition_ms":0.002,"target_edition_calls":34,"target_basis_ms":1.031,"target_basis_calls":34,"target_names_ms":5.846,"target_names_calls":97,"target_print_ms":22.827,"target_print_calls":97,"canonical_gzip_ms":0.000,"canonical_gzip_calls":0,"canonical_brotli_ms":1857.523,"canonical_brotli_calls":97,"cleanup_entered":0,"cleanup_entered_sum":0,"cleanup_unbudgeted":0,"cleanup_unbudgeted_sum":0,"cleanup_skipped":0,"cleanup_skipped_sum":0,"cleanup_canonical_err":0,"cleanup_canonical_err_sum":0,"cleanup_canonical_same":0,"cleanup_canonical_same_sum":0,"cleanup_canonical_boundary":0,"cleanup_canonical_boundary_sum":0,"cleanup_canonical_refused":0,"cleanup_canonical_refused_sum":0,"cleanup_canonical_unprobed":0,"cleanup_canonical_unprobed_sum":0,"cleanup_canonical_pushed":0,"cleanup_canonical_pushed_sum":0,"cleanup_shaped_pushed":0,"cleanup_shaped_pushed_sum":0,"cleanup_shaped_lost":0,"cleanup_shaped_lost_sum":0,"cleanup_shaped_refused":0,"cleanup_shaped_refused_sum":0,"rename_candidates":0,"rename_candidates_sum":0,"rename_starved":0,"rename_starved_sum":0,"rename_idle":0,"rename_idle_sum":0,"rename_unparsed":0,"rename_unparsed_sum":0,"rename_refused":0,"rename_refused_sum":0,"rename_unprobed":0,"rename_unprobed_sum":0,"rename_won":0,"rename_won_sum":0,"idiom_candidates":0,"idiom_candidates_sum":0,"idiom_won":0,"idiom_won_sum":0,"idiom_lost":0,"idiom_lost_sum":0,"idiom_idle":0,"idiom_idle_sum":0,"rename_lost":0,"rename_lost_sum":0,"rename_templated":0,"rename_templated_sum":0,"rename_unsound":0,"rename_unsound_sum":0,"rename_ambiguous":0,"rename_ambiguous_sum":0,"memo_codec_hits":0,"memo_analyze_hits":0}

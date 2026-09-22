@@ -1,0 +1,28 @@
+{
+  "files": [
+    "test/compat.test.mjs"
+  ],
+  "fixtures": [
+    {
+      "path": "package.json",
+      "sha256": "3c1d3a350177817ccc906d56cf0bd70440c1023876b0f98ead4dc9ac6b5512a4",
+      "bytes": 2012
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "694b0e61cee1560d7ebccb649e807bfd7965af8436fae8902b0d5d9c2fa13856",
+      "bytes": 51775
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "3824114e576370be9fa26147b22e8b9e7fb64b681fa32cf0284325214dc79738",
+      "bytes": 3434
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "cf90474a61ee3b75bf94e93e6cd8e28b51535de31b76b128242ac0dc3ef2ec2b",
+      "bytes": 3791
+    }
+  ],
+  "prerequisites": []
+}

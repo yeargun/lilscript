@@ -1,0 +1,18 @@
+# reusable ESM — host-visible names stay
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+assume_pristine_builtins = true
+strip_console = true
+local_name_reserve = 48
+candidate_search = "always"
+function_spelling = "arrow"
+public_aggregate_abi = "named"
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+extern_fields = true
+pool_strings = true

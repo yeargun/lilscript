@@ -1,0 +1,1 @@
+let a;let b;let divisor=0;a=void console.log(7/divisor|0);b=void console.log(7%divisor|0);

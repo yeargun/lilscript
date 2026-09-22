@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 1,
+  "kind": "compiler-entrypoint-source-inventory",
+  "status": "source-inspected-not-runtime-qualified",
+  "sources": [
+    {
+      "path": "src/lib.rs",
+      "sha256": "d999dcec156a861683f5a87a4d04b881f47af7bb492667cf4289dc0294d2f47b",
+      "bytes": 3101
+    },
+    {
+      "path": "src/compiler.rs",
+      "sha256": "7a4339f736c579ed1a92b2e26b1b69c77c9a5cc050e2814427cf54e665e54287",
+      "bytes": 824383
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "33aa3851add8d8ed343780685eeba48841b31b53d2f122a1dd4e11d78d1f5261",
+      "bytes": 25746
+    },
+    {
+      "path": "src/codegen_js.rs",
+      "sha256": "415d1838eb7361b1fa3a4d06969a18bc961507302a4fb62a25b71d288ba7b9c8",
+      "bytes": 59094
+    },
+    {
+      "path": "src/codegen_native.rs",
+      "sha256": "270c1c13b2af5c82020097d413d5c795b1fa652e5bfde6dd1d8b6a0d1d554182",
+      "bytes": 214202
+    },
+    {
+      "path": "src/bin/lilpack.rs",
+      "sha256": "fce34970fc9bb9c76d541f652f1a658f144878997663e38b416a552b3d082068",
+      "bytes": 14882
+    },
+    {
+      "path": "tooling/lilpack/vite-runtime.mjs",
+      "sha256": "ce2e6de6f94aabdd2f5a1cb32e2947db0eefae03acc4b007bc34387f0cf05f4b",
+      "bytes": 8141
+    },
+    {
+      "path": "src/bin/lilscript-lsp.rs",
+      "sha256": "e05f14bab9e3af266fa793e22b3d00c0ba227a9b146d2cc1f78d5dc0a61fce24",
+      "bytes": 53744
+    },
+    {
+      "path": "src/bin/lilscript-playground.rs",
+      "sha256": "071d453af5de3828d40164dd9859878fc627db9e61af388abf212efc3c983618",
+      "bytes": 8020
+    },
+    {
+      "path": "src/bin/lilscript-fmt.rs",
+      "sha256": "93ab173d00e54be2937050f217ee8e1a613549fab2ad1685929fea3b396683d6",
+      "bytes": 3272
+    },
+    {
+      "path": "src/bin/lilscript-lint.rs",
+      "sha256": "0f4838f0baf91ad15e4f2af29ce328e12f7e1f0dcc688219bd36284df4dbdfd9",
+      "bytes": 7417
+    },
+    {
+      "path": "examples/semantic-integrated.rs",
+      "sha256": "36ef42818713532f2dd5879dbcc22b8bc1bced6056551f725e38d4c47d5eea32",
+      "bytes": 21785
+    }
+  ],
+  "publicFunctions": [
+    {
+      "name": "compile_source",
+      "line": 281
+    },
+    {
+      "name": "compile_source_to_c",
+      "line": 287
+    },
+    {
+      "name": "compile_source_to_js_module",
+      "line": 293
+    },
+    {
+      "name": "compile_source_all",
+      "line": 303
+    },
+    {
+      "name": "compile_path",
+      "line": 318
+    },
+    {
+      "name": "compile_path_configured",
+      "line": 322
+    },
+    {
+      "name": "compile_path_explained_configured",
+      "line": 326
+    },
+    {
+      "name": "compile_path_to_js_module_explained_configured",
+      "line": 333
+    },
+    {
+      "name": "profile_template_path_configured",
+      "line": 381
+    },
+    {
+      "name": "compile_path_to_c",
+      "line": 407
+    },
+    {
+      "name": "compile_path_to_c_configured",
+      "line": 415
+    },
+    {
+      "name": "compile_path_to_js_module",
+      "line": 427
+    },
+    {
+      "name": "compile_path_to_js_module_configured",
+      "line": 431
+    },
+    {
+      "name": "compile_path_to_js_bundle_configured",
+      "line": 438
+    },
+    {
+      "name": "compile_path_to_js_module_with_source",
+      "line": 703
+    },
+    {
+      "name": "compile_path_all",
+      "line": 710
+    },
+    {
+      "name": "compile_path_all_configured",
+      "line": 714
+    },
+    {
+      "name": "compile_path_all_to_js_bundle_configured",
+      "line": 721
+    },
+    {
+      "name": "compile_path_with_source",
+      "line": 775
+    },
+    {
+      "name": "compile_path_with_source_configured",
+      "line": 779
+    }
+  ],
+  "compilerExports": [
+    "compile_path",
+    "compile_path_all",
+    "compile_path_all_configured",
+    "compile_path_all_to_js_bundle_configured",
+    "compile_path_configured",
+    "compile_path_explained_configured",
+    "compile_path_to_c",
+    "compile_path_to_c_configured",
+    "compile_path_to_js_bundle_configured",
+    "compile_path_to_js_module",
+    "compile_path_to_js_module_configured",
+    "compile_path_to_js_module_explained_configured",
+    "compile_path_to_js_module_with_source",
+    "compile_path_with_source",
+    "compile_path_with_source_configured",
+    "compile_source",
+    "compile_source_all",
+    "compile_source_to_c",
+    "compile_source_to_js_module",
+    "profile_template_path_configured"
+  ],
+  "rows": [
+    {
+      "id": "source-js",
+      "entrypoints": [
+        "compile_source",
+        "compile_to_js"
+      ],
+      "current": "implemented",
+      "newRoute": "unverified",
+      "consumers": [
+        "playground",
+        "LSP source fallback"
+      ],
+      "evidence": [
+        {
+          "path": "src/compiler.rs",
+          "line": 281,
+          "excerpt": "pub fn compile_source(source: &str) -> Result<String, SourceCompileError> {"
+        },
+        {
+          "path": "src/codegen_js.rs",
+          "line": 135,
+          "excerpt": "pub fn compile_to_js<'ast, 'src>(program: &Program<'ast, 'src>) -> Result<String, CompileError> {"
+        },
+        {
+          "path": "src/bin/lilscript-playground.rs",
+          "line": 173,
+          "excerpt": "let response = match compile_source(source) {"
+        },
+        {
+          "path": "src/bin/lilscript-lsp.rs",
+          "line": 250,
+          "excerpt": "match compile_source(source) {"
+        }
+      ],
+      "gapAssignment": [
+        "005",
+        "007",
+        "011"
+      ]
+    },
+    {
+      "id": "path-js-script-and-esm",
+      "entrypoints": [
+        "compile_path",
+        "compile_path_configured",
+        "compile_path_explained_configured",
+        "compile_path_to_js_module",
+        "compile_path_to_js_module_configured",
+        "compile_path_to_js_module_explained_configured",
+        "compile_path_to_js_module_with_source",
+        "compile_path_with_source",
+        "compile_path_with_source_configured"
+      ],
+      "current": "implemented",
+      "newRoute": "unverified",
+      "consumers": [
+        "CLI js/js-module",
+        "LSP configured document"
+      ],
+      "evidence": [
+        {
+          "path": "src/compiler.rs",
+          "line": 798,
+          "excerpt": "fn compile_path_js_configured_inner("
+        },
+        {
+          "path": "src/compiler.rs",
+          "line": 828,
+          "excerpt": "fn compile_path_js_module_configured_inner("
+        },
+        {
+          "path": "src/compiler.rs",
+          "line": 1422,
+          "excerpt": "fn compile_program_to_js_configured<'ast, 'src>("
+        },
+        {
+          "path": "src/main.rs",
+          "line": 136,
+          "excerpt": "Target::Js => {"
+        },
+        {
+          "path": "src/main.rs",
+          "line": 161,
+          "excerpt": "Target::JsModule => {"
+        },
+        {
+          "path": "src/bin/lilscript-lsp.rs",
+          "line": 222,
+          "excerpt": "|loaded| compile_path_with_source_configured(&path, source, &loaded.config),"
+        }
+      ],
+      "gapAssignment": [
+        "005",
+        "007",
+        "008",
+        "011"
+      ]
+    },
+    {
+      "id": "explained-delivery",
+      "current": "partial",
+      "newRoute": "unverified",
+      "consumers": [
+        "CLI --explain"
+      ],
+      "evidence": [
+        {
+          "path": "src/compiler.rs",
+          "line": 340,
+          "excerpt": "fn compile_path_explained_inner("
+        },
+        {
+          "path": "src/compiler.rs",
+          "line": 368,
+          "excerpt": "finish_javascript_module(selected.javascript, config, &pure_exports)"
+        }
+      ],
+      "limitation": "ESM finalization occurs after optimize_and_select_javascript; measure actual final returned bytes.",
+      "gapAssignment": [
+        "005",
+        "008",
+        "011"
+      ]
+    },
+    {
+      "id": "js-bundle-and-delegated-bundling",
+      "entrypoints": [
+        "compile_path_to_js_bundle_configured",
+        "compile_path_all_to_js_bundle_configured"
+      ],
+      "current": "implemented",
+      "newRoute": "unverified",
+      "consumers": [
+        "CLI bundling",
+        "Lilpack Vite dev/build"
+      ],
+      "evidence": [
+        {
+          "path": "src/compiler.rs",
+          "line": 438,
+          "excerpt": "pub fn compile_path_to_js_bundle_configured("
+        },
+        {
+          "path": "tooling/lilpack/vite-runtime.mjs",
+          "line": 124,
+          "excerpt": "function compileLilscript(file, options) {"
+        },
+        {
+          "path": "tooling/lilpack/vite-runtime.mjs",
+          "line": 139,
+          "excerpt": "function compilerDependencies(file, options) {"
+        }
+      ],
+      "gapAssignment": [
+        "008",
+        "011"
+      ]
+    },
+    {
+      "id": "native-and-all",
+      "entrypoints": [
+        "compile_path_all",
+        "compile_path_all_configured",
+        "compile_path_all_to_js_bundle_configured",
+        "compile_path_to_c",
+        "compile_path_to_c_configured",
+        "compile_source_all",
+        "compile_source_to_c"
+      ],
+      "current": "partial",
+      "newRoute": "partial",
+      "consumers": [
+        "CLI c/native/all",
+        "portable semantic example"
+      ],
+      "evidence": [
+        {
+          "path": "src/main.rs",
+          "line": 191,
+          "excerpt": "Target::Native => {"
+        },
+        {
+          "path": "src/compiler.rs",
+          "line": 303,
+          "excerpt": "pub fn compile_source_all(source: &str) -> Result<CompilationArtifacts, SourceCompileError> {"
+        },
+        {
+          "path": "src/codegen_native.rs",
+          "line": 37,
+          "excerpt": "\"legacy native reference parameters are not supported\","
+        },
+        {
+          "path": "examples/semantic-integrated.rs",
+          "line": 306,
+          "excerpt": "Mode::Native => {"
+        }
+      ],
+      "limitation": "Legacy native rejects reference parameters and several JS-only constructs; semantic example support does not establish public compiler coverage.",
+      "gapAssignment": [
+        "005",
+        "007",
+        "011"
+      ]
+    },
+    {
+      "id": "diagnostics-and-tooling",
+      "current": "implemented",
+      "newRoute": "unverified",
+      "consumers": [
+        "CLI",
+        "LSP",
+        "formatter",
+        "linter",
+        "playground"
+      ],
+      "evidence": [
+        {
+          "path": "src/lib.rs",
+          "line": 79,
+          "excerpt": "pub use parser::{parse_source, ParseError, Parser};"
+        },
+        {
+          "path": "src/lib.rs",
+          "line": 81,
+          "excerpt": "pub use semantic::{analyze, SemanticError, SemanticModel, Type};"
+        },
+        {
+          "path": "src/compiler.rs",
+          "line": 10317,
+          "excerpt": "pub fn render_module_diagnostic(error: &ModuleError) -> String {"
+        }
+      ],
+      "gapAssignment": [
+        "007",
+        "011"
+      ]
+    },
+    {
+      "id": "source-maps",
+      "current": "partial",
+      "newRoute": "unverified",
+      "consumers": [
+        "Lilpack production Vite output"
+      ],
+      "evidence": [
+        {
+          "path": "src/bin/lilpack.rs",
+          "line": 75,
+          "excerpt": "/// Emit production source maps."
+        },
+        {
+          "path": "tooling/lilpack/vite-runtime.mjs",
+          "line": 43,
+          "excerpt": "sourcemap: options.sourcemap,"
+        }
+      ],
+      "limitation": "Vite sourcemap flag is present; original LilScript mapping through compilation is not established by this source inventory.",
+      "gapAssignment": [
+        "008",
+        "011"
+      ]
+    },
+    {
+      "id": "semantic-search-driver",
+      "current": "partial",
+      "newRoute": "partial",
+      "consumers": [
+        "examples/semantic-integrated.rs",
+        "semantic_program tests"
+      ],
+      "evidence": [
+        {
+          "path": "examples/semantic-integrated.rs",
+          "line": 350,
+          "excerpt": "let search = result(compilation.search_javascript_observed("
+        }
+      ],
+      "limitation": "Example directly constructs compilation/search and hardcodes all three objectives; the inspected production compile entrypoints still use legacy CFG lowering.",
+      "gapAssignment": [
+        "003",
+        "005",
+        "006",
+        "010",
+        "011"
+      ]
+    }
+  ],
+  "nativeRejectionTests": [
+    {
+      "test": "rejects_json_parse_for_native_targets",
+      "line": 4348
+    },
+    {
+      "test": "rejects_first_class_javascript_abi_for_native_targets",
+      "line": 4361
+    },
+    {
+      "test": "rejects_typed_javascript_adapters_for_native_targets",
+      "line": 4378
+    },
+    {
+      "test": "rejects_regex_for_native_targets_without_approximating_ecmascript",
+      "line": 4395
+    },
+    {
+      "test": "rejects_exceptions_for_native_targets",
+      "line": 4412
+    },
+    {
+      "test": "rejects_generators_and_inheritance_until_native_abis_are_exact",
+      "line": 4423
+    },
+    {
+      "test": "rejects_javascript_values_at_the_native_boundary",
+      "line": 4514
+    }
+  ],
+  "limitations": [
+    "Source inspection only; tests associated with these routes were not executed in this census.",
+    "Feature-by-feature language support and JS/native behavioral qualification remain incomplete; no milestone closure follows.",
+    "Current means the inspected legacy public implementation, newRoute means the proposed semantic-program production route. A partial example is not public API coverage."
+  ],
+  "integrationNeeds": [
+    "A configured source/path service accepting resolved policy and owning discovery-to-artifact resources before module discovery.",
+    "Source/path/CLI/LSP/Lilpack callers must identify the selected backend and refuse unsupported new-route forms without fallback.",
+    "Return delivered resource identities and exact post-packaging codec sizes tied to compiler/source/config/test contracts.",
+    "Expose frontend-inclusive phase metrics and preserve diagnostics and original source positions.",
+    "A production Vitest/Jest observer must connect the same discovered cases and actual imported artifact bytes; file lists or successful package commands do not suffice."
+  ]
+}

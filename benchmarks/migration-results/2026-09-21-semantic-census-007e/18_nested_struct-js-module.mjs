@@ -1,0 +1,1 @@
+let a;let b;let line=[[1,2],[8,13]];a=void console.log((line[1][0]|0)- (line[0][0]|0)|0);b=void console.log((line[1][1]|0)- (line[0][1]|0)|0);

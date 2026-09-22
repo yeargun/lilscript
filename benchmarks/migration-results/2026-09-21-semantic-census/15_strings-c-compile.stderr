@@ -1,0 +1,1 @@
+semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(6)), span: Span { start: 34, end: 58 }, feature: "native method primitive" }

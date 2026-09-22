@@ -1,0 +1,3 @@
+extern void visit(func()->int read,func()->void change);extern int saved();
+func()->int make(){Record<int> state=record{x:0};return ()=>{try{state.x=1;visit(()=>state.x??0,()=>{state.x=7;});return state.x??0;}finally{state.x=(state.x??0)+10;}};}
+auto step=make();print(step());print(saved());try{print(step());}catch(auto error){print(99);}print(saved());

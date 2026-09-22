@@ -1,0 +1,1894 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-source-baselines/rehype-katexlil/node/events.jsonl",
+    "test/audit.test.mjs",
+    "test/official/test.js",
+    "test/parity.test.mjs",
+    "test/rehype-katex.test.mjs",
+    "test/site.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/audit.test.mjs",
+      "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+      "bytes": 4580
+    },
+    {
+      "path": "test/official/test.js",
+      "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+      "bytes": 7874
+    },
+    {
+      "path": "test/parity.test.mjs",
+      "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+      "bytes": 10603
+    },
+    {
+      "path": "test/rehype-katex.test.mjs",
+      "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+      "bytes": 2098
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/official/test.js",
+      "test/*.test.mjs"
+    ],
+    "files": [
+      "test/audit.test.mjs",
+      "test/official/test.js",
+      "test/parity.test.mjs",
+      "test/rehype-katex.test.mjs",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-source-baselines/rehype-katexlil/node/observe.mjs",
+    "sha256": "a4fdbe22bbbabeda4393dbbb12e7df93c0b62f33b5f18ce836debff2edca010e",
+    "bytes": 542,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+          "bytes": 1105
+        },
+        "actual": {
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+          "bytes": 1105
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        },
+        "actual": {
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        "actual": {
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+          "bytes": 950
+        },
+        "actual": {
+          "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+          "bytes": 950
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+          "bytes": 6263
+        },
+        "actual": {
+          "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+          "bytes": 6263
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+          "bytes": 1731
+        },
+        "actual": {
+          "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+          "bytes": 1731
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+          "bytes": 9647
+        },
+        "actual": {
+          "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+          "bytes": 9647
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+          "bytes": 898046
+        },
+        "actual": {
+          "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+          "bytes": 898046
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+          "bytes": 2302
+        },
+        "actual": {
+          "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+          "bytes": 2302
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/audit.test.mjs",
+        "expected": {
+          "path": "test/audit.test.mjs",
+          "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+          "bytes": 4580
+        },
+        "actual": {
+          "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+          "bytes": 4580
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+          "bytes": 7874
+        },
+        "actual": {
+          "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+          "bytes": 7874
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/parity.test.mjs",
+        "expected": {
+          "path": "test/parity.test.mjs",
+          "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+          "bytes": 10603
+        },
+        "actual": {
+          "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+          "bytes": 10603
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/rehype-katex.test.mjs",
+        "expected": {
+          "path": "test/rehype-katex.test.mjs",
+          "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+          "bytes": 2098
+        },
+        "actual": {
+          "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+          "bytes": 2098
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+          "bytes": 318
+        },
+        "actual": {
+          "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+          "bytes": 318
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/types/rehype-katex.d.ts",
+        "expected": {
+          "path": "types/rehype-katex.d.ts",
+          "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+          "bytes": 328
+        },
+        "actual": {
+          "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+          "bytes": 328
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+          "bytes": 1105
+        },
+        "actual": {
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+          "bytes": 1105
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        },
+        "actual": {
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        "actual": {
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+          "bytes": 950
+        },
+        "actual": {
+          "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+          "bytes": 950
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+          "bytes": 6263
+        },
+        "actual": {
+          "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+          "bytes": 6263
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+          "bytes": 1731
+        },
+        "actual": {
+          "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+          "bytes": 1731
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+          "bytes": 9647
+        },
+        "actual": {
+          "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+          "bytes": 9647
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+          "bytes": 898046
+        },
+        "actual": {
+          "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+          "bytes": 898046
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+          "bytes": 2302
+        },
+        "actual": {
+          "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+          "bytes": 2302
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/audit.test.mjs",
+        "expected": {
+          "path": "test/audit.test.mjs",
+          "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+          "bytes": 4580
+        },
+        "actual": {
+          "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+          "bytes": 4580
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+          "bytes": 7874
+        },
+        "actual": {
+          "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+          "bytes": 7874
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/parity.test.mjs",
+        "expected": {
+          "path": "test/parity.test.mjs",
+          "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+          "bytes": 10603
+        },
+        "actual": {
+          "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+          "bytes": 10603
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/rehype-katex.test.mjs",
+        "expected": {
+          "path": "test/rehype-katex.test.mjs",
+          "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+          "bytes": 2098
+        },
+        "actual": {
+          "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+          "bytes": 2098
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+          "bytes": 318
+        },
+        "actual": {
+          "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+          "bytes": 318
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/types/rehype-katex.d.ts",
+        "expected": {
+          "path": "types/rehype-katex.d.ts",
+          "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+          "bytes": 328
+        },
+        "actual": {
+          "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+          "bytes": 328
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+          "bytes": 1105
+        },
+        "actual": {
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+          "bytes": 1105
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        },
+        "actual": {
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        "actual": {
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+          "bytes": 950
+        },
+        "actual": {
+          "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+          "bytes": 950
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+          "bytes": 6263
+        },
+        "actual": {
+          "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+          "bytes": 6263
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+          "bytes": 1731
+        },
+        "actual": {
+          "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+          "bytes": 1731
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+          "bytes": 9647
+        },
+        "actual": {
+          "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+          "bytes": 9647
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+          "bytes": 898046
+        },
+        "actual": {
+          "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+          "bytes": 898046
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+          "bytes": 2302
+        },
+        "actual": {
+          "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+          "bytes": 2302
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/audit.test.mjs",
+        "expected": {
+          "path": "test/audit.test.mjs",
+          "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+          "bytes": 4580
+        },
+        "actual": {
+          "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+          "bytes": 4580
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+          "bytes": 7874
+        },
+        "actual": {
+          "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+          "bytes": 7874
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/parity.test.mjs",
+        "expected": {
+          "path": "test/parity.test.mjs",
+          "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+          "bytes": 10603
+        },
+        "actual": {
+          "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+          "bytes": 10603
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/rehype-katex.test.mjs",
+        "expected": {
+          "path": "test/rehype-katex.test.mjs",
+          "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+          "bytes": 2098
+        },
+        "actual": {
+          "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+          "bytes": 2098
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+          "bytes": 318
+        },
+        "actual": {
+          "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+          "bytes": 318
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/types/rehype-katex.d.ts",
+        "expected": {
+          "path": "types/rehype-katex.d.ts",
+          "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+          "bytes": 328
+        },
+        "actual": {
+          "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+          "bytes": 328
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-check:types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:types"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          "actual": {
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          },
+          "actual": {
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-source-baselines/rehype-katexlil/node/prerequisite-0.stdout",
+        "sha256": "aea655f14aa7c3209ce9bffcc84b2f0d2613bdc4ad36bf41db6d0e23847b2c2f",
+        "bytes": 163
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-source-baselines/rehype-katexlil/node/prerequisite-0.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          "actual": {
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          },
+          "actual": {
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          "actual": {
+            "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+            "bytes": 2512
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          },
+          "actual": {
+            "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+            "bytes": 64102
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/home/azureuser/.cargo/bin:/home/azureuser/.opencode/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.sdkman/candidates/springboot/current/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.local/bin:/home/azureuser/eddocupptx/build/release:/home/azureuser/.bun/bin:/home/azureuser/.nvm/versions/node/v20.19.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/azureuser/.claude/remote/plugins/e386d0f8/f3b2ab7888e1fcd9/bin"
+  },
+  "supervision": {
+    "timeoutMs": 900000,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [
+      "[\"test/audit.test.mjs\",103,1,0,\"suite\",\"source, data, and artifact audit\",1]",
+      "[\"test/audit.test.mjs\",104,3,1,\"test\",\"preserves the upstream rehype-katex module paths\",1]",
+      "[\"test/audit.test.mjs\",109,3,1,\"test\",\"covers every KaTeX 0.16.22 source module by upstream filename\",1]",
+      "[\"test/audit.test.mjs\",121,3,1,\"test\",\"vendors the exact KaTeX 0.16.22 metric and Unicode mappings\",1]",
+      "[\"test/audit.test.mjs\",136,3,1,\"test\",\"pins package, lockfile, declarations, and artifact exports\",1]",
+      "[\"test/official/test.js\",104,11,1,\"test\",\"should transform `.math-inline.math-display` math with `displayMode: true`\",1]",
+      "[\"test/official/test.js\",12,1,0,\"test\",\"rehype-katex\",1]",
+      "[\"test/official/test.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+      "[\"test/official/test.js\",131,11,1,\"test\",\"should support `macros`\",1]",
+      "[\"test/official/test.js\",151,11,1,\"test\",\"should handle errors, support `errorColor`\",1]",
+      "[\"test/official/test.js\",19,11,1,\"test\",\"should transform math with katex\",1]",
+      "[\"test/official/test.js\",204,11,1,\"test\",\"should support `strict: ignore`\",1]",
+      "[\"test/official/test.js\",224,11,1,\"test\",\"should support comments\",1]",
+      "[\"test/official/test.js\",249,11,1,\"test\",\"should not crash on non-parse errors\",1]",
+      "[\"test/official/test.js\",49,11,1,\"test\",\"should support markdown fenced code\",1]",
+      "[\"test/official/test.js\",68,11,1,\"test\",\"should integrate with `remark-math`\",1]",
+      "[\"test/parity.test.mjs\",107,3,1,\"test\",\"uses preformatted text and replaces the pre for language-math\",1]",
+      "[\"test/parity.test.mjs\",135,3,1,\"test\",\"matches preformatted text extraction for nested HAST\",1]",
+      "[\"test/parity.test.mjs\",160,3,1,\"test\",\"transforms each math sibling without revisiting replacements\",1]",
+      "[\"test/parity.test.mjs\",170,3,1,\"test\",\"matches official ParseError recovery and diagnostics\",1]",
+      "[\"test/parity.test.mjs\",191,3,1,\"test\",\"matches HTML null preprocessing in ParseError output\",1]",
+      "[\"test/parity.test.mjs\",206,3,1,\"test\",\"rejects invalid trusted HTML attribute names like KaTeX toMarkup\",1]",
+      "[\"test/parity.test.mjs\",227,3,1,\"test\",\"preserves upstream truthy errorColor coercion on non-parse errors\",1]",
+      "[\"test/parity.test.mjs\",245,3,1,\"test\",\"shares the runtime mhchem registry\",1]",
+      "[\"test/parity.test.mjs\",257,3,1,\"test\",\"shares macros registered through __defineMacro\",1]",
+      "[\"test/parity.test.mjs\",269,3,1,\"test\",\"shares functions registered through __defineFunction\",1]",
+      "[\"test/parity.test.mjs\",56,1,0,\"suite\",\"KaTeX 0.16.22 structural parity\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML line-ending preprocessing\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML-only output\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"MathML-only output\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"array rules and SVG lines\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"commutative diagrams\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"custom macros\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"empty expression\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"enclosures\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"flush-left display\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fonts and colors\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fractions\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"horizontal braces\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"left equation numbers\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"mathematical alphanumeric fonts\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"matrix environments\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"minimum rule thickness\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"plain symbols\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"roots and generated SVG paths\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"spacing nodes\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy accents\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy delimiters\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"superscripts and subscripts\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"text and consecutive MathML text\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML classes\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML identifiers\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML styles\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted anchors\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted data attributes\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted image nodes\",1]",
+      "[\"test/parity.test.mjs\",58,5,1,\"test\",\"unicode fallback classes\",1]",
+      "[\"test/parity.test.mjs\",82,3,1,\"test\",\"preserves a non-math tree and ignores scalar className\",1]",
+      "[\"test/parity.test.mjs\",89,3,1,\"test\",\"does not transform a matching root element without a parent\",1]",
+      "[\"test/parity.test.mjs\",96,3,1,\"test\",\"uses display mode when both math classes are present\",1]",
+      "[\"test/rehype-katex.test.mjs\",10,3,1,\"test\",\"transforms span.math-inline x^2 into katex\",1]",
+      "[\"test/rehype-katex.test.mjs\",30,3,1,\"test\",\"exports default as the plugin\",1]",
+      "[\"test/rehype-katex.test.mjs\",36,3,1,\"test\",\"pins tree and option keys on the library artifact\",1]",
+      "[\"test/rehype-katex.test.mjs\",45,3,1,\"test\",\"closed artifact performs the core call\",1]",
+      "[\"test/rehype-katex.test.mjs\",9,1,0,\"suite\",\"@itslil/rehype-katex\",1]",
+      "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+    ],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/audit.test.mjs\",104,3,1,\"test\",\"preserves the upstream rehype-katex module paths\",1]",
+        "file": "test/audit.test.mjs",
+        "name": "preserves the upstream rehype-katex module paths",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/audit.test.mjs\",109,3,1,\"test\",\"covers every KaTeX 0.16.22 source module by upstream filename\",1]",
+        "file": "test/audit.test.mjs",
+        "name": "covers every KaTeX 0.16.22 source module by upstream filename",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/audit.test.mjs\",121,3,1,\"test\",\"vendors the exact KaTeX 0.16.22 metric and Unicode mappings\",1]",
+        "file": "test/audit.test.mjs",
+        "name": "vendors the exact KaTeX 0.16.22 metric and Unicode mappings",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/audit.test.mjs\",136,3,1,\"test\",\"pins package, lockfile, declarations, and artifact exports\",1]",
+        "file": "test/audit.test.mjs",
+        "name": "pins package, lockfile, declarations, and artifact exports",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/audit.test.mjs\",103,1,0,\"suite\",\"source, data, and artifact audit\",1]",
+        "file": "test/audit.test.mjs",
+        "name": "source, data, and artifact audit",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/test.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",19,11,1,\"test\",\"should transform math with katex\",1]",
+        "file": "test/official/test.js",
+        "name": "should transform math with katex",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",49,11,1,\"test\",\"should support markdown fenced code\",1]",
+        "file": "test/official/test.js",
+        "name": "should support markdown fenced code",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should integrate with `remark-math`\",1]",
+        "file": "test/official/test.js",
+        "name": "should integrate with `remark-math`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",104,11,1,\"test\",\"should transform `.math-inline.math-display` math with `displayMode: true`\",1]",
+        "file": "test/official/test.js",
+        "name": "should transform `.math-inline.math-display` math with `displayMode: true`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",131,11,1,\"test\",\"should support `macros`\",1]",
+        "file": "test/official/test.js",
+        "name": "should support `macros`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",151,11,1,\"test\",\"should handle errors, support `errorColor`\",1]",
+        "file": "test/official/test.js",
+        "name": "should handle errors, support `errorColor`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",204,11,1,\"test\",\"should support `strict: ignore`\",1]",
+        "file": "test/official/test.js",
+        "name": "should support `strict: ignore`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",224,11,1,\"test\",\"should support comments\",1]",
+        "file": "test/official/test.js",
+        "name": "should support comments",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",249,11,1,\"test\",\"should not crash on non-parse errors\",1]",
+        "file": "test/official/test.js",
+        "name": "should not crash on non-parse errors",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",12,1,0,\"test\",\"rehype-katex\",1]",
+        "file": "test/official/test.js",
+        "name": "rehype-katex",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"empty expression\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "empty expression",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"plain symbols\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "plain symbols",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML line-ending preprocessing\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "HTML line-ending preprocessing",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"superscripts and subscripts\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "superscripts and subscripts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fractions\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "fractions",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"roots and generated SVG paths\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "roots and generated SVG paths",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy delimiters\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "stretchy delimiters",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"matrix environments\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "matrix environments",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"array rules and SVG lines\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "array rules and SVG lines",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy accents\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "stretchy accents",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"horizontal braces\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "horizontal braces",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"enclosures\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "enclosures",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fonts and colors\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "fonts and colors",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"text and consecutive MathML text\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "text and consecutive MathML text",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"unicode fallback classes\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "unicode fallback classes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"mathematical alphanumeric fonts\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "mathematical alphanumeric fonts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"spacing nodes\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "spacing nodes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"commutative diagrams\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "commutative diagrams",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted anchors\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "trusted anchors",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted image nodes\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "trusted image nodes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML classes\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "trusted HTML classes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML identifiers\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "trusted HTML identifiers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML styles\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "trusted HTML styles",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted data attributes\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "trusted data attributes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML-only output\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "HTML-only output",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"MathML-only output\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "MathML-only output",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"left equation numbers\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "left equation numbers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"flush-left display\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "flush-left display",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"minimum rule thickness\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "minimum rule thickness",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"custom macros\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "custom macros",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",82,3,1,\"test\",\"preserves a non-math tree and ignores scalar className\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "preserves a non-math tree and ignores scalar className",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",89,3,1,\"test\",\"does not transform a matching root element without a parent\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "does not transform a matching root element without a parent",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",96,3,1,\"test\",\"uses display mode when both math classes are present\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "uses display mode when both math classes are present",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",107,3,1,\"test\",\"uses preformatted text and replaces the pre for language-math\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "uses preformatted text and replaces the pre for language-math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",135,3,1,\"test\",\"matches preformatted text extraction for nested HAST\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "matches preformatted text extraction for nested HAST",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",160,3,1,\"test\",\"transforms each math sibling without revisiting replacements\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "transforms each math sibling without revisiting replacements",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",170,3,1,\"test\",\"matches official ParseError recovery and diagnostics\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "matches official ParseError recovery and diagnostics",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",191,3,1,\"test\",\"matches HTML null preprocessing in ParseError output\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "matches HTML null preprocessing in ParseError output",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",206,3,1,\"test\",\"rejects invalid trusted HTML attribute names like KaTeX toMarkup\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "rejects invalid trusted HTML attribute names like KaTeX toMarkup",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",227,3,1,\"test\",\"preserves upstream truthy errorColor coercion on non-parse errors\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "preserves upstream truthy errorColor coercion on non-parse errors",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",245,3,1,\"test\",\"shares the runtime mhchem registry\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "shares the runtime mhchem registry",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",257,3,1,\"test\",\"shares macros registered through __defineMacro\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "shares macros registered through __defineMacro",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",269,3,1,\"test\",\"shares functions registered through __defineFunction\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "shares functions registered through __defineFunction",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/parity.test.mjs\",56,1,0,\"suite\",\"KaTeX 0.16.22 structural parity\",1]",
+        "file": "test/parity.test.mjs",
+        "name": "KaTeX 0.16.22 structural parity",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/rehype-katex.test.mjs\",10,3,1,\"test\",\"transforms span.math-inline x^2 into katex\",1]",
+        "file": "test/rehype-katex.test.mjs",
+        "name": "transforms span.math-inline x^2 into katex",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/rehype-katex.test.mjs\",30,3,1,\"test\",\"exports default as the plugin\",1]",
+        "file": "test/rehype-katex.test.mjs",
+        "name": "exports default as the plugin",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/rehype-katex.test.mjs\",36,3,1,\"test\",\"pins tree and option keys on the library artifact\",1]",
+        "file": "test/rehype-katex.test.mjs",
+        "name": "pins tree and option keys on the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/rehype-katex.test.mjs\",45,3,1,\"test\",\"closed artifact performs the core call\",1]",
+        "file": "test/rehype-katex.test.mjs",
+        "name": "closed artifact performs the core call",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/rehype-katex.test.mjs\",9,1,0,\"suite\",\"@itslil/rehype-katex\",1]",
+        "file": "test/rehype-katex.test.mjs",
+        "name": "@itslil/rehype-katex",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.cjs",
+        "sha256": "be7b5490cd9168e606f290bf8576aae51fba15f67c55a1f7b29fd6f96958ea6f",
+        "bytes": 284846
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+        "bytes": 2364
+      },
+      {
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+        "bytes": 2235
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "format": "module",
+        "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+        "bytes": 2235,
+        "pid": 3457541
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "format": "module",
+        "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+        "bytes": 2364,
+        "pid": 3457541
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.cjs",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.cjs",
+        "format": "commonjs",
+        "sha256": "be7b5490cd9168e606f290bf8576aae51fba15f67c55a1f7b29fd6f96958ea6f",
+        "bytes": 284846,
+        "pid": 3457541
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "format": "module",
+        "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+        "bytes": 2235,
+        "pid": 3457543
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "format": "module",
+        "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+        "bytes": 2364,
+        "pid": 3457544
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "format": "module",
+        "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+        "bytes": 2235,
+        "pid": 3457544
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.esm.js",
+        "format": "module",
+        "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+        "bytes": 2235,
+        "pid": 3457550
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "url": "file:///tmp/lilscript-baseline-rehype-katexlil-FPl4Ey/rehype-katexlil/dist/rehype-katex.closed.js",
+        "format": "module",
+        "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+        "bytes": 2364,
+        "pid": 3457550
+      }
+    ]
+  },
+  "errors": [],
+  "certification": "verified",
+  "inventoryCandidate": [
+    "[\"test/audit.test.mjs\",104,3,1,\"test\",\"preserves the upstream rehype-katex module paths\",1]",
+    "[\"test/audit.test.mjs\",109,3,1,\"test\",\"covers every KaTeX 0.16.22 source module by upstream filename\",1]",
+    "[\"test/audit.test.mjs\",121,3,1,\"test\",\"vendors the exact KaTeX 0.16.22 metric and Unicode mappings\",1]",
+    "[\"test/audit.test.mjs\",136,3,1,\"test\",\"pins package, lockfile, declarations, and artifact exports\",1]",
+    "[\"test/audit.test.mjs\",103,1,0,\"suite\",\"source, data, and artifact audit\",1]",
+    "[\"test/official/test.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/test.js\",19,11,1,\"test\",\"should transform math with katex\",1]",
+    "[\"test/official/test.js\",49,11,1,\"test\",\"should support markdown fenced code\",1]",
+    "[\"test/official/test.js\",68,11,1,\"test\",\"should integrate with `remark-math`\",1]",
+    "[\"test/official/test.js\",104,11,1,\"test\",\"should transform `.math-inline.math-display` math with `displayMode: true`\",1]",
+    "[\"test/official/test.js\",131,11,1,\"test\",\"should support `macros`\",1]",
+    "[\"test/official/test.js\",151,11,1,\"test\",\"should handle errors, support `errorColor`\",1]",
+    "[\"test/official/test.js\",204,11,1,\"test\",\"should support `strict: ignore`\",1]",
+    "[\"test/official/test.js\",224,11,1,\"test\",\"should support comments\",1]",
+    "[\"test/official/test.js\",249,11,1,\"test\",\"should not crash on non-parse errors\",1]",
+    "[\"test/official/test.js\",12,1,0,\"test\",\"rehype-katex\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"empty expression\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"plain symbols\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML line-ending preprocessing\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"superscripts and subscripts\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fractions\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"roots and generated SVG paths\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy delimiters\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"matrix environments\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"array rules and SVG lines\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy accents\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"horizontal braces\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"enclosures\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fonts and colors\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"text and consecutive MathML text\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"unicode fallback classes\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"mathematical alphanumeric fonts\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"spacing nodes\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"commutative diagrams\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted anchors\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted image nodes\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML classes\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML identifiers\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML styles\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted data attributes\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML-only output\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"MathML-only output\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"left equation numbers\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"flush-left display\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"minimum rule thickness\",1]",
+    "[\"test/parity.test.mjs\",58,5,1,\"test\",\"custom macros\",1]",
+    "[\"test/parity.test.mjs\",82,3,1,\"test\",\"preserves a non-math tree and ignores scalar className\",1]",
+    "[\"test/parity.test.mjs\",89,3,1,\"test\",\"does not transform a matching root element without a parent\",1]",
+    "[\"test/parity.test.mjs\",96,3,1,\"test\",\"uses display mode when both math classes are present\",1]",
+    "[\"test/parity.test.mjs\",107,3,1,\"test\",\"uses preformatted text and replaces the pre for language-math\",1]",
+    "[\"test/parity.test.mjs\",135,3,1,\"test\",\"matches preformatted text extraction for nested HAST\",1]",
+    "[\"test/parity.test.mjs\",160,3,1,\"test\",\"transforms each math sibling without revisiting replacements\",1]",
+    "[\"test/parity.test.mjs\",170,3,1,\"test\",\"matches official ParseError recovery and diagnostics\",1]",
+    "[\"test/parity.test.mjs\",191,3,1,\"test\",\"matches HTML null preprocessing in ParseError output\",1]",
+    "[\"test/parity.test.mjs\",206,3,1,\"test\",\"rejects invalid trusted HTML attribute names like KaTeX toMarkup\",1]",
+    "[\"test/parity.test.mjs\",227,3,1,\"test\",\"preserves upstream truthy errorColor coercion on non-parse errors\",1]",
+    "[\"test/parity.test.mjs\",245,3,1,\"test\",\"shares the runtime mhchem registry\",1]",
+    "[\"test/parity.test.mjs\",257,3,1,\"test\",\"shares macros registered through __defineMacro\",1]",
+    "[\"test/parity.test.mjs\",269,3,1,\"test\",\"shares functions registered through __defineFunction\",1]",
+    "[\"test/parity.test.mjs\",56,1,0,\"suite\",\"KaTeX 0.16.22 structural parity\",1]",
+    "[\"test/rehype-katex.test.mjs\",10,3,1,\"test\",\"transforms span.math-inline x^2 into katex\",1]",
+    "[\"test/rehype-katex.test.mjs\",30,3,1,\"test\",\"exports default as the plugin\",1]",
+    "[\"test/rehype-katex.test.mjs\",36,3,1,\"test\",\"pins tree and option keys on the library artifact\",1]",
+    "[\"test/rehype-katex.test.mjs\",45,3,1,\"test\",\"closed artifact performs the core call\",1]",
+    "[\"test/rehype-katex.test.mjs\",9,1,0,\"suite\",\"@itslil/rehype-katex\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

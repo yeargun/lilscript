@@ -1,0 +1,1 @@
+extern string key();func()->int make(){Record<int> state=record{x:1};return ()=>state[key()]??0;}print(make()());

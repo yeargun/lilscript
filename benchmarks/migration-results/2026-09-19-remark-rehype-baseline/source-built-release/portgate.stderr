@@ -1,0 +1,7 @@
+[portgate] arm preserved-release-original-remark-rehype: compiler e0c4cb31f2bf, 1 ports
+[portgate] remark-rehypelil: building (--compile)
+[portgate] remark-rehypelil: testing
+[portgate] remark-rehypelil: build=ok 51s tests=pass evidence=unverified
+[portgate] recorded 1 ports to /tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate
+[portgate] UNVERIFIED REQUIRED TESTS (1): remark-rehypelil
+[portgate] evidence is retained; an inventory run or failing suite cannot return a verified gate result

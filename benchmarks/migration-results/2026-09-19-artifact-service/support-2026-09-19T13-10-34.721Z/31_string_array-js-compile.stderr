@@ -1,0 +1,259 @@
+{
+  "schema": 1,
+  "backend": "semantic",
+  "source_sha256": "f2bd3bc8e27cc4c403e8056a1ba47a4784d8addff2f8762999a61ef3d874eb91",
+  "request": {
+    "target": "JavaScript",
+    "preserve_root_exports": false,
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "effective_logical_work": 200000000,
+    "effective_retained_bytes": 256000000
+  },
+  "inputs": {
+    "root": 0,
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/tests/cases/31_string_array.lil",
+        "bytes": 153,
+        "sha256": "27768717d410ef3c86ad2e34bc311408b81cf9cb997dd6a23436211334f1771e",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ]
+  },
+  "shape": {
+    "modules": 1,
+    "units": 1,
+    "operations": 28,
+    "cells": 3
+  },
+  "javascript_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "public_aggregate_abi": "Named",
+      "preserve_extern_fields": true,
+      "internal_exports_may_mangle": false,
+      "public_function_spelling": "None",
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "strip_console": false,
+      "preserved_properties": [],
+      "owned_properties": "UnderscoreSuffix",
+      "bundle_mode": "Single"
+    },
+    "objective": {
+      "codec": "Brotli",
+      "priority": "SizeFirst",
+      "realistic_performance_limit_percent": 25,
+      "optional_alternatives": 0,
+      "optional_codec_probes": 0,
+      "cleanup_finalists": 1,
+      "retained_candidates": 1,
+      "retained_candidate_bytes": 1,
+      "beam_width": 1,
+      "search": {
+        "version": 6,
+        "codec_schedule": "staged",
+        "render_batch": 8,
+        "diversity_interval": 4
+      }
+    },
+    "effort": 13,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "off",
+          "enabled": false
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "off",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "off",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "native_policy": null,
+  "artifacts": [
+    {
+      "sha256": "cb686c07c06aae902b4e230641f782fb67b665c4b162bd196d3bc52d7c4ba092",
+      "raw": 181,
+      "gzip9": null,
+      "brotli11": 124
+    }
+  ],
+  "winners": [
+    null,
+    null,
+    0
+  ],
+  "native_sha256": null,
+  "native_delivery": null,
+  "phases_ns": {
+    "policy_ns": 523117,
+    "discovery_ns": 349161,
+    "parse_ns": 73948,
+    "check_ns": 164837,
+    "convert_ns": 212247,
+    "frontend_release_ns": 9848,
+    "adopt_ns": 108763,
+    "javascript_ns": 4311290
+  },
+  "first_artifact_ns": 5782206,
+  "total_ns": 6262983,
+  "search": {
+    "request": {
+      "objectives": [
+        "Brotli"
+      ],
+      "scalar": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "helper": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "string": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "local_facts": {
+        "work": 1000000,
+        "result_bytes": 512000
+      },
+      "facts_cache": {
+        "entries": 128,
+        "bytes": 16000000,
+        "result_bytes": 512000
+      }
+    },
+    "proposals": 0,
+    "structures": 1,
+    "renders": 1,
+    "codec_probes": 0,
+    "proof_queries": 0,
+    "beam_evictions": 0,
+    "admitted_artifacts": 1,
+    "stop": null
+  },
+  "resources": {
+    "baseline_work": 6352,
+    "optional_work": 0,
+    "codec_work": 240,
+    "peak_retained_bytes": 770884,
+    "retained_bytes_after_handoff": 0,
+    "frontend_logical_work": 460,
+    "frontend_allocation_accounting": "not-yet-instrumented",
+    "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+    "scope": "admitted semantic/target/codec storage; frontend allocations, caller configuration I/O, returned buffers and process RSS are separate"
+  }
+}

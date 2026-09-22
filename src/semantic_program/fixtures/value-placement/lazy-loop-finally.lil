@@ -1,0 +1,2 @@
+extern bool gate(int index);extern int amount(int index);extern void seen(int value);
+export int run(){int total=0;try{for(int index=0;index<3;index+=1){if(gate(index)&&amount(index)>0){total+=index+1;}}return total;}finally{seen(total);}}

@@ -1,0 +1,2273 @@
+{
+  "schema": 1,
+  "started": "2026-09-19T16:09:37.769Z",
+  "passed": true,
+  "scope": "five repeated debug retained-history versus advancing-current ownership pairs, one unchanged integrated fixture",
+  "controls": {
+    "pairs": 5,
+    "edits": 16,
+    "retain_at": 1,
+    "work": 200000000,
+    "memory": 256000000
+  },
+  "node": {
+    "version": "v24.11.1",
+    "executable": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node"
+  },
+  "load_average_start": [
+    1.93,
+    2.53,
+    2.67
+  ],
+  "limitations": [
+    "Both arms use the same preserved debug compiler, original runner and fixture; no compiler or library changes are made.",
+    "This compares retained versus advancing persistent ownership, not incremental compilation versus fresh recomputation.",
+    "Edit duration sums edit plus parent-release time after the common first fork; initial compilation, rendering, codec replay and host observation are outside that interval.",
+    "The retained arm keeps edit history; the advancing arm still retains the baseline and the branch after edit one.",
+    "Copied bytes are reported semantic payload copies, not total allocations, process memory, or operating-system copy volume.",
+    "GNU time peak RSS and process timings cover the whole driver invocation, not only edits or external artifact qualification.",
+    "Debug timings on a shared, non-isolated host with uncontrolled background load are diagnostic; no release-speed, confidence interval or speed-win claim.",
+    "All five pairs and their original qualification outputs are retained; no samples are excluded or retried.",
+    "The enclosing 600-second POSIX process-group timeout bounds the existing runner, whose inner commands remain synchronous."
+  ],
+  "inputs": {
+    "sha256": "13bad2506bfbd4ccb9c91b93f5fdebaeedf9c91832b47059668b0f12c280ea97",
+    "files": [
+      {
+        "path": "../../../tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18",
+        "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+        "bytes": 140592
+      },
+      {
+        "path": "../../../tmp/lilscript-parse-once-baseline-20260919/lilscript-codec",
+        "sha256": "eb9029c2bfd457f77b2b97174bf51001d13f98cc9a7950c925ad649fe9229ee5",
+        "bytes": 198430704
+      },
+      {
+        "path": "../../../tmp/lilscript-parse-once-baseline-20260919/semantic-integrated",
+        "sha256": "1b51189a13a1dfa065d9da36727c3fd8a1df97f4a23d08879b162e54d321433b",
+        "bytes": 221044312
+      },
+      {
+        "path": "../../../usr/bin/cc",
+        "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+        "bytes": 1023032
+      },
+      {
+        "path": "../../../usr/bin/python3",
+        "sha256": "e50d468e8b0adfb05733f5b87b3cff34829c4a8c1aea50c865aa8bdfe4bb150f",
+        "bytes": 8020928
+      },
+      {
+        "path": "../../../usr/bin/time",
+        "sha256": "3b11dec50514a8473e9f6efa7a34d584d0657538c09988f61b72d38ad4991a10",
+        "bytes": 27160
+      },
+      {
+        "path": "../.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": ".nvmrc",
+        "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+        "bytes": 8
+      },
+      {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/qualify-retained-advance.mjs",
+        "sha256": "e3f26a45131310530fefd598ac8f1aaba5343cc529ecc62ec830ce06ba20eb4c",
+        "bytes": 12915
+      },
+      {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/inputs-after.json",
+        "sha256": "c6e9d0f7b7e2a486f6ee2eba1e1d53b58a23a0e91e6371dbe34d9e896bd8916d",
+        "bytes": 175303
+      },
+      {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/inputs-before.json",
+        "sha256": "c6e9d0f7b7e2a486f6ee2eba1e1d53b58a23a0e91e6371dbe34d9e896bd8916d",
+        "bytes": 175303
+      },
+      {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/receipt.json",
+        "sha256": "32243eee8a6548c09cfea59945debbbf40ba5618d0fae1f4b4a96b85a4d12648",
+        "bytes": 58030
+      },
+      {
+        "path": "finer/tools/bounded-command.mjs",
+        "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+        "bytes": 5871
+      },
+      {
+        "path": "finer/tools/semantic-integration.py",
+        "sha256": "0954ccc1c118af872a117f33f93e5264cb0ff99df7e6c71638d9f7f30dc1a90b",
+        "bytes": 33459
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+        "bytes": 541
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/editable.lil",
+        "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+        "bytes": 115
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+        "bytes": 610
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/expected.json",
+        "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+        "bytes": 2346
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+        "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+        "bytes": 292
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+        "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+        "bytes": 82
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+        "bytes": 204
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+        "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+        "bytes": 918
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+        "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+        "bytes": 168
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+        "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+        "bytes": 321
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/host.js",
+        "sha256": "96e6296d9aed1b15e6e3f210157a8eb2683f406f844da0f12073a2f9c2d3f281",
+        "bytes": 1264
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+        "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+        "bytes": 925
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/rules-oracle-origin.json",
+        "sha256": "3b21906d6f4ff0c01a9df57c0926ab4904ca686217c8d47832e0cf19a812711b",
+        "bytes": 2384
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/rules-oracle-table.json",
+        "sha256": "52ae0c11927a3b657d148d6ab1ce505c764586a004323fe9e9e290d05fd868fb",
+        "bytes": 15833
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/rules-oracle.mjs",
+        "sha256": "93b0ef9379d83269af7d4e48f45faa0d67fab6d8a8376de5b365935d57126b54",
+        "bytes": 5149
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+        "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+        "bytes": 20051
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+        "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+        "bytes": 1513
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/str.original.lil",
+        "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+        "bytes": 9602
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+        "bytes": 73
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/native.expected.out",
+        "sha256": "68f4d5c1ad9d0be1b5ce3e717704b8fc99329e2ff866edc88e60c22f7f5c5f5d",
+        "bytes": 24
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/origin.json",
+        "sha256": "6b11fbdced48f403f3a55a9332b29286e015c0fa78856a58a7f2eb2ce1f95819",
+        "bytes": 5624
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/products.lil",
+        "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+        "bytes": 955
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/setup.js",
+        "sha256": "48d959dc33792a8b45e466a6dabecfeab19db3a1b3ffb245f951eb0af268362d",
+        "bytes": 1124
+      }
+    ]
+  },
+  "qualification": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/receipt.json",
+    "sha256": "32243eee8a6548c09cfea59945debbbf40ba5618d0fae1f4b4a96b85a4d12648",
+    "bytes": 58030,
+    "compilerInputsSha256": "1fca56536bbfcb2152924d5ee9e94f905ef84b02be5c7d18c0eee7f1d2fd5635"
+  },
+  "environment": {
+    "cwd": "/home/azureuser/lilscript",
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "RUST_BACKTRACE": "0",
+      "LILSCRIPT_NATIVE_CC": "/usr/bin/cc",
+      "LILSCRIPT_NATIVE_CLANG": "/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18",
+      "CC": "/usr/bin/cc",
+      "PYTHONUNBUFFERED": "1"
+    },
+    "other_variables": "inherited"
+  },
+  "command": {
+    "executable": "/usr/bin/python3",
+    "args": [
+      "/home/azureuser/lilscript/finer/tools/semantic-integration.py",
+      "--driver",
+      "/tmp/lilscript-parse-once-baseline-20260919/semantic-integrated",
+      "--codec",
+      "/tmp/lilscript-parse-once-baseline-20260919/lilscript-codec",
+      "--fixture",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+      "--output",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired",
+      "--mode",
+      "paired",
+      "--pairs",
+      "5",
+      "--edits",
+      "16",
+      "--retain-at",
+      "1"
+    ],
+    "timeoutMs": 600000,
+    "killAfterMs": 1000,
+    "maxBuffer": 16777216
+  },
+  "execution": {
+    "wall_ns": 12263375089,
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "supervision": {
+      "timeoutMs": 600000,
+      "killAfterMs": 1000,
+      "maxBuffer": 16777216,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "samples": {
+    "retain": [
+      {
+        "post_fork_edit_and_release_ns": 2702212,
+        "copied_payload_bytes": 8128,
+        "post_fork_copied_payload_bytes": 7620,
+        "reused_units": 0,
+        "post_fork_reused_units": 0,
+        "whole_driver_peak_rss_kib": 18980,
+        "whole_driver_wall_seconds": 0.65
+      },
+      {
+        "post_fork_edit_and_release_ns": 2041702,
+        "copied_payload_bytes": 8128,
+        "post_fork_copied_payload_bytes": 7620,
+        "reused_units": 0,
+        "post_fork_reused_units": 0,
+        "whole_driver_peak_rss_kib": 18708,
+        "whole_driver_wall_seconds": 0.55
+      },
+      {
+        "post_fork_edit_and_release_ns": 1977540,
+        "copied_payload_bytes": 8128,
+        "post_fork_copied_payload_bytes": 7620,
+        "reused_units": 0,
+        "post_fork_reused_units": 0,
+        "whole_driver_peak_rss_kib": 19032,
+        "whole_driver_wall_seconds": 0.47
+      },
+      {
+        "post_fork_edit_and_release_ns": 2050003,
+        "copied_payload_bytes": 8128,
+        "post_fork_copied_payload_bytes": 7620,
+        "reused_units": 0,
+        "post_fork_reused_units": 0,
+        "whole_driver_peak_rss_kib": 19032,
+        "whole_driver_wall_seconds": 0.5
+      },
+      {
+        "post_fork_edit_and_release_ns": 2539852,
+        "copied_payload_bytes": 8128,
+        "post_fork_copied_payload_bytes": 7620,
+        "reused_units": 0,
+        "post_fork_reused_units": 0,
+        "whole_driver_peak_rss_kib": 18940,
+        "whole_driver_wall_seconds": 0.55
+      }
+    ],
+    "advance": [
+      {
+        "post_fork_edit_and_release_ns": 1420802,
+        "copied_payload_bytes": 1016,
+        "post_fork_copied_payload_bytes": 508,
+        "reused_units": 14,
+        "post_fork_reused_units": 14,
+        "whole_driver_peak_rss_kib": 19036,
+        "whole_driver_wall_seconds": 0.67
+      },
+      {
+        "post_fork_edit_and_release_ns": 1743695,
+        "copied_payload_bytes": 1016,
+        "post_fork_copied_payload_bytes": 508,
+        "reused_units": 14,
+        "post_fork_reused_units": 14,
+        "whole_driver_peak_rss_kib": 19040,
+        "whole_driver_wall_seconds": 0.64
+      },
+      {
+        "post_fork_edit_and_release_ns": 1165925,
+        "copied_payload_bytes": 1016,
+        "post_fork_copied_payload_bytes": 508,
+        "reused_units": 14,
+        "post_fork_reused_units": 14,
+        "whole_driver_peak_rss_kib": 19008,
+        "whole_driver_wall_seconds": 0.48
+      },
+      {
+        "post_fork_edit_and_release_ns": 1111009,
+        "copied_payload_bytes": 1016,
+        "post_fork_copied_payload_bytes": 508,
+        "reused_units": 14,
+        "post_fork_reused_units": 14,
+        "whole_driver_peak_rss_kib": 19144,
+        "whole_driver_wall_seconds": 0.48
+      },
+      {
+        "post_fork_edit_and_release_ns": 1834136,
+        "copied_payload_bytes": 1016,
+        "post_fork_copied_payload_bytes": 508,
+        "reused_units": 14,
+        "post_fork_reused_units": 14,
+        "whole_driver_peak_rss_kib": 18912,
+        "whole_driver_wall_seconds": 0.6
+      }
+    ]
+  },
+  "medians": {
+    "retain": {
+      "post_fork_edit_and_release_ns": 2050003,
+      "copied_payload_bytes": 8128,
+      "post_fork_copied_payload_bytes": 7620,
+      "reused_units": 0,
+      "post_fork_reused_units": 0,
+      "whole_driver_peak_rss_kib": 18980,
+      "whole_driver_wall_seconds": 0.55
+    },
+    "advance": {
+      "post_fork_edit_and_release_ns": 1420802,
+      "copied_payload_bytes": 1016,
+      "post_fork_copied_payload_bytes": 508,
+      "reused_units": 14,
+      "post_fork_reused_units": 14,
+      "whole_driver_peak_rss_kib": 19036,
+      "whole_driver_wall_seconds": 0.6
+    }
+  },
+  "pairs": [
+    {
+      "advance_over_retain_edit_time": 0.5257922028323463,
+      "advance_over_retain_peak_rss": 1.0029504741833508,
+      "ordinal": 0,
+      "qualified": true
+    },
+    {
+      "advance_over_retain_edit_time": 0.8540399137582272,
+      "advance_over_retain_peak_rss": 1.0177464186444303,
+      "ordinal": 1,
+      "qualified": true
+    },
+    {
+      "advance_over_retain_edit_time": 0.5895835229628731,
+      "advance_over_retain_peak_rss": 0.9987389659520807,
+      "ordinal": 2,
+      "qualified": true
+    },
+    {
+      "advance_over_retain_edit_time": 0.5419548166514878,
+      "advance_over_retain_peak_rss": 1.0058848255569568,
+      "ordinal": 3,
+      "qualified": true
+    },
+    {
+      "advance_over_retain_edit_time": 0.7221428650173317,
+      "advance_over_retain_peak_rss": 0.9985216473072862,
+      "ordinal": 4,
+      "qualified": true
+    }
+  ],
+  "edit_ratio_summary": {
+    "geometric_mean": 0.6354549550075004,
+    "max": 0.8540399137582272,
+    "median": 0.5895835229628731,
+    "min": 0.5257922028323463,
+    "scope": "Observed paired samples; no confidence interval or speed gate is inferred."
+  },
+  "counts": {
+    "pairs": 5,
+    "driver_runs": 10,
+    "edits": 160,
+    "artifact_executions": 50,
+    "canonical_codec_runs": 10,
+    "canonical_artifact_replays": 50
+  },
+  "summary": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/summary.json",
+    "sha256": "502d10794b07a3fd528ca4ef9091c71cf133c210bd7f92091a13671841dce75b",
+    "bytes": 201523
+  },
+  "contract": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/contract.json",
+    "sha256": "cb4a6a8697e59dc67bfcd89792853730f5cef025e39b4b23a1696f590dc710b6",
+    "bytes": 11252
+  },
+  "inputsStable": true,
+  "generatedFiles": [
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/inputs-after.json",
+      "sha256": "2cfc098c5f124f9bb085692f09e8cf7af9b71d703b20ea017ae8d407ccc8d226",
+      "bytes": 7509
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/inputs-before.json",
+      "sha256": "2cfc098c5f124f9bb085692f09e8cf7af9b71d703b20ea017ae8d407ccc8d226",
+      "bytes": 7509
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/canonical-codecs.command.json",
+      "sha256": "c44ae719df704260b4561b9856fababd9a4e61d1e9da4d38d652af432f4ae504",
+      "bytes": 1124
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/canonical-codecs.stdout",
+      "sha256": "3322ad0559fdfd90d70acbc75a8274c02c3bc22471524fa0019fd832fb753af5",
+      "bytes": 1398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-baseline-recheck.command.json",
+      "sha256": "53ca6f0c1c825215fae168cb47239bcc80d1f9a96e87254e1ac41101102dd099",
+      "bytes": 3095
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-baseline.command.json",
+      "sha256": "6adc58862a4cbcde87a5151c572b3eb44f7d133a3d689776a4a367ac79bd0b37",
+      "bytes": 3087
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-final.command.json",
+      "sha256": "96cc713aae38a90b3f7032dad7cc217c8a9d0c558c7b2e49fbddadbbb069ae8f",
+      "bytes": 3084
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-retained-branch-recheck.command.json",
+      "sha256": "c0d883a11592d5b6da1cbf9df0a42703f86c89281024045bd09100fbae225565",
+      "bytes": 3102
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-retained-branch.command.json",
+      "sha256": "83346b7d94e7fe17da814a14305cd27c51bb759226a394e72e0a19109ec693f2",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/report.json",
+      "sha256": "f9e1900e9dec5fa1c702af018225ef60f53b8bb2d302ab890c3bba937104f46b",
+      "bytes": 37732
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance-driver.command.json",
+      "sha256": "fe1fdd4427f22b670c2ba8e5810ee2c28171a604851e482ee79b122ed65a54fc",
+      "bytes": 1083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance.json",
+      "sha256": "a24c98d08a18b270bd2030cbe2d3523e3049e5f1e3ee022df602283e286507c2",
+      "bytes": 19413
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-advance.time",
+      "sha256": "edf7dcc3e52a0270e3a46639906e72c34782a3a848c3cfa545b85def0181cd97",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/canonical-codecs.command.json",
+      "sha256": "1896b06cc73a1b2003093e36616cf04ed2dc0784254213872ba231a1aae1b470",
+      "bytes": 1119
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/canonical-codecs.stdout",
+      "sha256": "6b1ae7979d441564a1cf9adc8b5fedd2cd3bd2f803507c563e47068460961537",
+      "bytes": 1393
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-baseline-recheck.command.json",
+      "sha256": "4dc1bf7460f7ea11273b7a7a2e03e25001ec5c67d5477be3b7059f328a8c3db5",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-baseline.command.json",
+      "sha256": "3830df7702c599f67c652546e8039a13a800f16d31b6404e8ddb95718a63a914",
+      "bytes": 3086
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-final.command.json",
+      "sha256": "8bb4625efd53aa1866a820538846729f29def767fab115867f137c181bd09900",
+      "bytes": 3083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-retained-branch-recheck.command.json",
+      "sha256": "99c8bda29221dc22964ce3847667420a00f99c5f19970bf7a1c708b56e5a848d",
+      "bytes": 3101
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-retained-branch.command.json",
+      "sha256": "7a6dc1950d7a1c06ee80500bb72b2af7b25571f9b33ed7e0bac950da9abf3e68",
+      "bytes": 3093
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/report.json",
+      "sha256": "781c77408c6f85e204e039f9af69030b4e44b89bb7d718fac708353a691994e7",
+      "bytes": 37885
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain-driver.command.json",
+      "sha256": "07735bb56b7850bb65e8af9fe69a70619a8d4f7f124573c6070487e3e5f8d302",
+      "bytes": 1080
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain.json",
+      "sha256": "bcc140f31d93df4993d158658e69e307f11c8b157aa401d6a4020b4712c40934",
+      "bytes": 19398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain.time",
+      "sha256": "cdfbefb2dbae93c94206c2447cc2eaf0e3fc317ea01cb65cb8c0e5e67760613f",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/canonical-codecs.command.json",
+      "sha256": "42e6cb99bafce4f18f2eb65076de61a572d667bd9ff5dbb7310233b1ab95b35d",
+      "bytes": 1124
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/canonical-codecs.stdout",
+      "sha256": "1cb6235fb521063895694df055a071d6d021e8d78c361159f59d6a84da2ee643",
+      "bytes": 1398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-baseline-recheck.command.json",
+      "sha256": "a34d9cca6a446a375c820af145df1766f00299019bdcda09a53aca837e6b01dd",
+      "bytes": 3095
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-baseline.command.json",
+      "sha256": "6712d8df26029ef41fbfc3a1c105c18b82106139c40c8e851c9cee8a1d7619a3",
+      "bytes": 3087
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-final.command.json",
+      "sha256": "b8c1165e5b03a99ce046195d9f786f2e89177c33ed861179176a7ddc19f7b14e",
+      "bytes": 3084
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-retained-branch-recheck.command.json",
+      "sha256": "e727a76906909473d6975af3cec42c089b8b45c92a36ab618e79560c6f3a21c2",
+      "bytes": 3102
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-retained-branch.command.json",
+      "sha256": "b2808df19790d2b18d193e4b2c3cbcde0e2893ec2c70d05bc21af1abee89cd82",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/report.json",
+      "sha256": "4d149f406717a56d6dd15791999a8d79e7b1b902c258c6f61857bcc475f9fd94",
+      "bytes": 37743
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance-driver.command.json",
+      "sha256": "b5f11f03061324e8d7adf246bb6d46fdb688ff5f844c4fe8ef2ec50321c6e8ce",
+      "bytes": 1083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance.json",
+      "sha256": "5ef6189a96a60aade540a6ab22168d76e65f9dcda3663f13db7a2ce5256fe534",
+      "bytes": 19414
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-advance.time",
+      "sha256": "7c985b5f45d72ab604651a0ac5e99b60f8528732eb5d849273b5d54b9824b7ef",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/canonical-codecs.command.json",
+      "sha256": "797d2665cfc8ef097d1e14efea7791df3503a990cae170b98508bbdbfef0c62b",
+      "bytes": 1119
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/canonical-codecs.stdout",
+      "sha256": "24accacd1b8f338b6e2b5e2e171d54131386b3165cc340dabfed2a0b4d3968e8",
+      "bytes": 1393
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-baseline-recheck.command.json",
+      "sha256": "586cb5ac651c74ff7c73af3a1960d6728155d0cfdb3f4506a52fe00a1df25646",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-baseline.command.json",
+      "sha256": "7a3579cec312351263f1d5bf9889be4082dda5ae2a70ac237b9e3ac262a75a98",
+      "bytes": 3086
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-final.command.json",
+      "sha256": "3f7f1c55eab6a60a7683eebed848001ad742571a91a8bf77c26b0165fd955a13",
+      "bytes": 3083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-retained-branch-recheck.command.json",
+      "sha256": "5a7771dde51e33dba4a6e7065337b2a00190cebd6b28a453c2e890e89806273d",
+      "bytes": 3101
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-retained-branch.command.json",
+      "sha256": "165351ccaff7c31c700557ee0afebeb39b5bdc85e0d8dd2d95da87624397ac2c",
+      "bytes": 3093
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/report.json",
+      "sha256": "09898bb38d87f5d2ba711ea3c5c98f2e47e261102151380ac48596bcd784b48d",
+      "bytes": 37880
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain-driver.command.json",
+      "sha256": "8f74b4b495a4772278d9b3ba206b20f35b238e517a6c5ae13f7362f4ed0ecc65",
+      "bytes": 1080
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain.json",
+      "sha256": "66d23c06d1f4866e66ae1d44069b4c9d7a7b0bbdd20182f274cdc336e71ef09d",
+      "bytes": 19397
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/01-retain.time",
+      "sha256": "b177b681109f623db30deb7ddf672a3a75fa1fd454102a2141982668ac9b1473",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/canonical-codecs.command.json",
+      "sha256": "7d196430ea116ecbd48328acc88b06469b4cb28c6288320d5aa14b4a98f2c430",
+      "bytes": 1124
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/canonical-codecs.stdout",
+      "sha256": "98999c1e2addea2a132ec2bda014fbdcb550199e340909f34882fa82174d66b9",
+      "bytes": 1398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-baseline-recheck.command.json",
+      "sha256": "ea53be51a4a3e925a442ab0222b0ac834e495fddfe64dd8f01b355960ac95b70",
+      "bytes": 3095
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-baseline.command.json",
+      "sha256": "6d65b2aeafbc4dfca24ee976932fd4ca7231ae336f0f02f466a6c7850b4ec079",
+      "bytes": 3087
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-final.command.json",
+      "sha256": "c5073e235b9d001ac16856ea514477b5fbd8a756eac485e36299c062bfec9f4c",
+      "bytes": 3084
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-retained-branch-recheck.command.json",
+      "sha256": "87977e70ea12cf1c111b19694131301efb49445384859dd81187996263cd80c4",
+      "bytes": 3102
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-retained-branch.command.json",
+      "sha256": "6bb4a2a566244b008c2e169aa64d6010d631f60d705c07e968ab89cc7a74f65f",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/report.json",
+      "sha256": "d2300b80fef018fc5591d5f49c1c36645b43ac52ec3c5c4822d4922acad813b6",
+      "bytes": 37717
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance-driver.command.json",
+      "sha256": "c7e896ef9dcc7a4c19fe07cb91d6eed741ee31cac45afaf97d113ce0022a859a",
+      "bytes": 1083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance.json",
+      "sha256": "ba392fd66c9d6287eedd06ebc7f3d0898361465069bac3326a7befff2fad2009",
+      "bytes": 19413
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-advance.time",
+      "sha256": "17262db0a5a1a33375c0412a7c9db4c085928503edfb925fa5667881e396eb27",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/canonical-codecs.command.json",
+      "sha256": "06c35b2ec835d79dc6985484082a03d00e2fd3bfc2af45260dd6b7649f93ac9f",
+      "bytes": 1119
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/canonical-codecs.stdout",
+      "sha256": "4c93bac6cc1ab9b95212be3b5efaa39f5f66a7c0681693d59908522a408a43f6",
+      "bytes": 1393
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-baseline-recheck.command.json",
+      "sha256": "1522c35ca636b65e2e930243a2897633d8afb52bf8d8e9a4e4794a65cd4c60db",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-baseline.command.json",
+      "sha256": "5a13b56a6a34c11aeddb8372aef3541c2854b3d1b2a2c8b0e5547365169a5ec4",
+      "bytes": 3086
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-final.command.json",
+      "sha256": "a0b4a6550111fe9d49ed596f1ba1e24bf56ef0f65a096bc3e5faf0d9e7be9c2d",
+      "bytes": 3083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-retained-branch-recheck.command.json",
+      "sha256": "3a1bb232ca9031b5b8332189b9fb89f4c18581042592d33a4cb7b52a8c6e153d",
+      "bytes": 3101
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-retained-branch.command.json",
+      "sha256": "24e981163dc383e3bed32926fc71ede7e9e788f9dff8e43f3da4982c61700bca",
+      "bytes": 3093
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/report.json",
+      "sha256": "b7ea97fc78b2ef438856913babc18284fec857b850b3a0fb715552107d240bac",
+      "bytes": 37875
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain-driver.command.json",
+      "sha256": "b8c46a3a8e08a617478c9c5e1290949edcb9ebcaaf1d9d830664b5ef727245c8",
+      "bytes": 1080
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain.json",
+      "sha256": "6147cc95ac9b31d70a4ec89198c0a0b0309312cfc14245c09f8bdc6f61bcae20",
+      "bytes": 19397
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/02-retain.time",
+      "sha256": "730d36bf5dbffaa09ee8c7615a75ab849be0e130fac65a8151a9d681849855f2",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/canonical-codecs.command.json",
+      "sha256": "b933d2fd191cd6d590348bed1f48aac266509566bc4927565d6a42cfa1465620",
+      "bytes": 1124
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/canonical-codecs.stdout",
+      "sha256": "602885ef7b1fab995d082554a09b83c623d50470c5e64ad27823291cde7a8426",
+      "bytes": 1398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-baseline-recheck.command.json",
+      "sha256": "317278071e2a281569e2f3a712987843adb221aa29289496aa2a0881342729c7",
+      "bytes": 3095
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-baseline.command.json",
+      "sha256": "d970c4ecca0ddb95459eddf93503bd64256ce875fcaffe65aa4067aa294b0bdb",
+      "bytes": 3087
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-final.command.json",
+      "sha256": "213bdc5065abe691fc9de12d00c19b6faa79128c8634ffbd6d314145db7976e6",
+      "bytes": 3084
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-retained-branch-recheck.command.json",
+      "sha256": "253ea8de92df7d025b80784d56545f246451affee89eadfe17bc0a1d92d323fc",
+      "bytes": 3102
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-retained-branch.command.json",
+      "sha256": "fde275e7add9c47029e11458434bf26ad665845788dcdfc1f23c7ba14a10ce9a",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/report.json",
+      "sha256": "3b1ddda5ab6d8b41d9d5611c8f4c8e92020c06c111ac1a4a9e679cf1e524b1a9",
+      "bytes": 37716
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance-driver.command.json",
+      "sha256": "f9b63a8385918a673147635ef4e6eb9ded17babe6ab57ca605340992e9b4e5f3",
+      "bytes": 1083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance.json",
+      "sha256": "0f3faeefbb15f6d39913e03bb33cecaf33c68c61d8cbb771f0605777c1ca3129",
+      "bytes": 19413
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-advance.time",
+      "sha256": "8ce3049ffe8be079a8c92a8ad6b9b6e23ad27b22901e38ab0c8660bf1768ddb8",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/canonical-codecs.command.json",
+      "sha256": "503bb66f33b8249d06399b75598727c34a35d2cdf35cfc2d8ea1f73d54ae882f",
+      "bytes": 1119
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/canonical-codecs.stdout",
+      "sha256": "e0b5cec6d1d9331707f69c009f430ccad2669ae6700893d352aac244c5c0a4fa",
+      "bytes": 1393
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-baseline-recheck.command.json",
+      "sha256": "496d35980d5d33069678e504e190a5e97ed2b9ecc6d6df07b8cd01d2e6a59d14",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-baseline.command.json",
+      "sha256": "c2bf1f63b8b831e5d8453ae536b98361fa1a7face7a08462f17448d362ea52f2",
+      "bytes": 3086
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-final.command.json",
+      "sha256": "5facbb6dc261f7c4a3bb636ca0b20776a31562d00266878005c3501c6b9f194c",
+      "bytes": 3083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-retained-branch-recheck.command.json",
+      "sha256": "3a93be769ca528914850bd7268b31acbd475eeb4a8492fea2c596ebc50cecd2e",
+      "bytes": 3101
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-retained-branch.command.json",
+      "sha256": "89a1c693a38cdadfbedeb0227828a07b6294b39089af6fbf9a939207bc568e41",
+      "bytes": 3093
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/report.json",
+      "sha256": "2076feb4fa6afc6cea986ea284a6f8dc252eb7711bc78c931a2220e04737b646",
+      "bytes": 37875
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain-driver.command.json",
+      "sha256": "f87ebaefb47e2d181c059ee9f1cd53b22462f6a4d848cdd7ad6329be48f27c4b",
+      "bytes": 1080
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain.json",
+      "sha256": "a308475f4458dfe79f8b3bd63a4e2f27cb5c480fd48cbc82a6aeefaaea7624cb",
+      "bytes": 19396
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/03-retain.time",
+      "sha256": "b9f602ece813b699eaffeceb3b8a38d4864a6759cbfbb7a616a863ce6804874a",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/canonical-codecs.command.json",
+      "sha256": "3dd5794d50dbd1ff51f531da50b49a20f0e2e051778fc59e0e1aa8cd3954d3ab",
+      "bytes": 1124
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/canonical-codecs.stdout",
+      "sha256": "de8c3fc24d4484e458e85f83e99f94632e06dcca8d5399f584e6200851ae3c28",
+      "bytes": 1398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-baseline-recheck.command.json",
+      "sha256": "53696e4c96c85fd04d4623b7dba5a4d00f681455dabce6f8ac1fff709fef306c",
+      "bytes": 3095
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-baseline.command.json",
+      "sha256": "126ae58d827a2fce622d3ea60063d0857ba6c47f9804379ed2aec7a7dfd44bbb",
+      "bytes": 3087
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-final.command.json",
+      "sha256": "efab34f19669272ffdb28f5a017d129b3d626c32770fa5f709f762fefd3970ff",
+      "bytes": 3084
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-retained-branch-recheck.command.json",
+      "sha256": "2390fa6b26bf62d0faf798585070c0ab51e5f57100dfdd41a646272f895157ab",
+      "bytes": 3102
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-retained-branch.command.json",
+      "sha256": "9f821b09c3e68dc0fee3810520c6f101eb98f8d9c156e564bf6b9fa29ed3f13e",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/report.json",
+      "sha256": "157dc5196b7a56a6af61041245df73062ce11f210e59cd51f621fc70e2db2e69",
+      "bytes": 37745
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance-driver.command.json",
+      "sha256": "bd1991dca9f11cdbdb86060f0f2c05c5cc09c77fa5216fd456a70345307f5808",
+      "bytes": 1083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance.json",
+      "sha256": "57c4f19e035d1cd1f3d23d651f08f0f0ae6f6a7f6908f55e500ba82f5eb0b4ec",
+      "bytes": 19412
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-advance.time",
+      "sha256": "84f038de5f6ce6a12fe0f452c53e7fd8694280e8a1fd2eeab227b3a50640a0b6",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/canonical-codecs.command.json",
+      "sha256": "3b786d5f9e7badc78541abd158f75c3cff6d084893c52505a1a5e725f08be681",
+      "bytes": 1119
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/canonical-codecs.stdout",
+      "sha256": "cc253661d83a721ad25b4fea9db402a0d8e6f1598fb421fc296fd8dab4d7273c",
+      "bytes": 1393
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-baseline-recheck.command.json",
+      "sha256": "072e4d8cf9fa3299eea4b81e76b95e0bd528e1859cf0e429c26a08914f334d4b",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-baseline.command.json",
+      "sha256": "e60a1f0a32f157c1dd4b09f07a387d7b70424c8d55d8b7cd26b8e34f69a11b53",
+      "bytes": 3086
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-final.command.json",
+      "sha256": "3d272ed11a3eaa43e3a3aab39d488dac2661a7b865f2839cdd4cf1efb7a62481",
+      "bytes": 3083
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-retained-branch-recheck.command.json",
+      "sha256": "493c36adf43efc0e62696c764e5ced568f9282e14191315fab8eb16df2690acc",
+      "bytes": 3101
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-retained-branch.command.json",
+      "sha256": "7000c2bf3840286ddd3b73e8b0aea44d51c6335d23369609ecf96be6fcb59647",
+      "bytes": 3093
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/report.json",
+      "sha256": "7cc9d430c4c4736c62504384786898251de7d467aaf8c7052e7ce3b0f86adf2e",
+      "bytes": 37878
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain-driver.command.json",
+      "sha256": "35e7018a2ab4298ab837e3d33b04045f2afb887af132af92ffe0e881e343adbc",
+      "bytes": 1080
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain.json",
+      "sha256": "32d03d6a6e15803eb88eb77a8b52636f23cfcb7f9230d23fbc27fe8c64e01dbe",
+      "bytes": 19398
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/04-retain.time",
+      "sha256": "a306bbe88161527b7b0ef0dd843b78857a9e044e685854dc789122111b0f10d5",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/contract.json",
+      "sha256": "cb4a6a8697e59dc67bfcd89792853730f5cef025e39b4b23a1696f590dc710b6",
+      "bytes": 11252
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/summary.json",
+      "sha256": "502d10794b07a3fd528ca4ef9091c71cf133c210bd7f92091a13671841dce75b",
+      "bytes": 201523
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/qualified-inputs-after.json",
+      "sha256": "c6e9d0f7b7e2a486f6ee2eba1e1d53b58a23a0e91e6371dbe34d9e896bd8916d",
+      "bytes": 175303
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/qualified-inputs-before.json",
+      "sha256": "c6e9d0f7b7e2a486f6ee2eba1e1d53b58a23a0e91e6371dbe34d9e896bd8916d",
+      "bytes": 175303
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/qualified-receipt.json",
+      "sha256": "32243eee8a6548c09cfea59945debbbf40ba5618d0fae1f4b4a96b85a4d12648",
+      "bytes": 58030
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/runner.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/runner.stdout",
+      "sha256": "2c0c3d481abf8c30e2d5cefb3d936f7ac9fb2f4647147642f1ef4e75f1136fd6",
+      "bytes": 665
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/semantic-integration.py",
+      "sha256": "0954ccc1c118af872a117f33f93e5264cb0ff99df7e6c71638d9f7f30dc1a90b",
+      "bytes": 33459
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/wrapper.mjs",
+      "sha256": "e3f26a45131310530fefd598ac8f1aaba5343cc529ecc62ec830ce06ba20eb4c",
+      "bytes": 12915
+    }
+  ],
+  "load_average_end": [
+    2.66,
+    2.67,
+    2.72
+  ],
+  "completed": "2026-09-19T16:09:57.341Z"
+}

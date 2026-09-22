@@ -1,0 +1,37 @@
+extern void keep(int slot,func(int)->int callback);
+extern int invoke(int slot,int delta);
+extern void clear(int slot);
+extern void clearAll();
+extern func(int)->int take(int slot);
+extern void expectLive(int count);
+extern void assertEmpty();
+
+func(int)->int counter(int seed){return (int delta)=>{seed+=delta;return seed;};}
+void fill() {
+    int index=0;
+    while(index<4) {
+        expectLive(index*2);
+        int state=index*10;
+        keep(index,(int delta)=>{state+=delta;return state;});
+        auto scratch=counter(100+index);print(scratch(1));
+        index+=1;
+        if(index==2){continue;}
+        if(index==4){break;}
+    }
+}
+void churn() {
+    int index=0;
+    while(index<128) {
+        assertEmpty();
+        auto scratch=counter(index);
+        auto copy=scratch;
+        scratch=counter(index+1);
+        index+=1;
+        if(index==128){break;}
+        if(index%2==0){continue;}
+    }
+}
+fill();expectLive(8);
+print(invoke(0,1));print(invoke(1,2));print(invoke(2,3));print(invoke(3,4));
+print(invoke(0,5));print(invoke(1,5));
+clearAll();assertEmpty();churn();assertEmpty();

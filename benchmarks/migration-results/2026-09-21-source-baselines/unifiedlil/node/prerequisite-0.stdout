@@ -1,0 +1,5 @@
+
+> @itslil/unified@11.0.6 check:sources
+> node scripts/check-shared-sources.mjs
+
+checked 6 pinned shared Lil sources

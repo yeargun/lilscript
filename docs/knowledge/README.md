@@ -17,13 +17,9 @@ more specific question and links to detail instead of repeating it.
    narrow target representation.
 5. **Implementation:** [current architecture](compilation/current-architecture.md)
    and its topic pages describe the code that exists.
-6. **Target and execution:** [planned architecture](compilation/planned-architecture.md)
-   and [planned migration](migration/planned-migration.md).
-7. **Proof of claims:** [verification](verification/README.md) defines valid
-   evidence; [evidence](evidence/README.md) links results.
-8. **Live work:** [ledger](migration/board/LEDGER.md). Board notes and journals
-   are context, not architecture authority. The size workstream's contract,
-   standings and hypothesis log are in [`finer/`](../../finer/README.md).
+6. **Target and migration:** [compiler design](../compiler-design.md) records the objective, proposed architecture and open decisions; the single [migration plan](../migration/index.md) contains all implementation steps and verified progress.
+7. **Proof of claims:** [verification](verification/README.md) defines valid evidence; [evidence](evidence/README.md) links results.
+8. **Existing tools/history:** [finer](../../finer/README.md) retains measurement tools and old experiments; it does not coordinate the redesign.
 9. **Research:** [research](research/README.md) contains experiments and rejected
    ideas. Load it only when the canonical pages cite a specific finding.
 
@@ -37,11 +33,11 @@ more specific question and links to detail instead of repeating it.
 | Why is a semantic rule not a codec choice? | [Contracts before objectives](decisions/contracts-before-objectives.md) |
 | Why not add a library-specific fold? | [Typed proofs, not glue](decisions/typed-proofs-not-glue.md) |
 | What pipeline exists now? | [Current architecture](compilation/current-architecture.md) |
-| What is the smallest planned replacement? | [Planned architecture](compilation/planned-architecture.md) |
+| How do we decide the replacement together? | [Compiler design](../compiler-design.md) |
 | Is a choice mandatory, ABI-fixed, or scored? | [Decision registry](compilation/decision-registry.md) |
 | How are raw/gzip/Brotli winners selected? | [Objectives](compilation/objectives.md) -> [candidate search](compilation/candidate-search.md) |
 | Is a size number publishable? | [Verification](verification/README.md) -> [evidence](evidence/README.md) |
-| What should be implemented next? | [Current status](../current-status.md) -> [migration](migration/planned-migration.md) -> [ledger](migration/board/LEDGER.md) |
+| What happens next? | [Single migration plan](../migration/index.md); see readiness, dependencies and unverified gates |
 
 ## Domain Tree
 
@@ -70,7 +66,7 @@ more specific question and links to detail instead of repeating it.
 
 - Architecture: [router](compilation/architecture.md),
   [current](compilation/current-architecture.md),
-  [planned](compilation/planned-architecture.md)
+  [design discussion](../compiler-design.md)
 - Policy: [objectives](compilation/objectives.md),
   [decision registry](compilation/decision-registry.md),
   [global optima](compilation/global-optima.md)
@@ -98,7 +94,7 @@ more specific question and links to detail instead of repeating it.
   [library proof matrix](evidence/library-proof-matrix.md) and
   [Motion](evidence/motion-compatibility.md), [Marked](evidence/marked.md),
   [MobX](evidence/mobx.md), [jQuery](evidence/jquery.md)
-- [Migration](migration/README.md)
+- [Joint design discussion](../compiler-design.md)
 - [Research](research/README.md)
 
 ## Source Authority Map

@@ -1,0 +1,41 @@
+{
+  "root": "/tmp/lilscript-marked-retained-open-20260919-pjMCdF/markedlil/dist",
+  "files": [
+    {
+      "path": "marked.cjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e03e4173de323dedc8eab29b177f8d393893b97a5464955fc7c96618c171eecf",
+      "bytes": 37339
+    },
+    {
+      "path": "marked.d.ts",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8817f58467cb6f5f74c423514fe46619bff6fe84b390383f1c50993642ddfc28",
+      "bytes": 873
+    },
+    {
+      "path": "marked.esm.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e9a949d4b4a363c268c5b57bc844feced40bc3f55c24d6bc6755b49710d7a7de",
+      "bytes": 34176
+    },
+    {
+      "path": "marked.raw.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c08107d23ed741a987e8d9297f8f93594749c57323b1f03e7467b399120621de",
+      "bytes": 34092
+    },
+    {
+      "path": "marked.umd.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cf79c49ae782ab2b1e0ee4ec792e1d4d29660a54f284fe8641fa7616f67c2d0a",
+      "bytes": 37410
+    }
+  ],
+  "sha256": "d618c0c89796e9fb6876f6db1721e613b4684e083585d57a41c73a21207c8a4f"
+}

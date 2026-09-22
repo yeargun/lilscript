@@ -1,0 +1,887 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-remark-gfm-inventory-discovery",
+  "started": "2026-09-20T00:45:03.515Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/remark-gfmlil",
+  "workspace": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil",
+  "boundsMs": {
+    "externalSupervisor": 90000,
+    "sharedAttempt": 90000,
+    "typePrerequisite": 60000,
+    "nodeSuiteCeiling": 90000
+  },
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/npm-cache"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution and original assertions only; no compiler execution, source-built qualification, installation or codec measurement.",
+    "All original files, including eight parseable tree.json expectations, are copied and pinned. The original fixture fallback for table-no-align uses input.md when output.md is absent; it is not changed.",
+    "CJS coverage checks only export/function shape. Closed coverage checks registration. Original site assertions read retained files, not a rebuilt site or browser.",
+    "Original parser/serializer integration uses upstream remark with the candidate GFM plugin; no upstream GFM plugin substitutes for the candidate.",
+    "Two unsupported historical configuration fields and the source qualifier's different type-script declaration remain explicit source-build prerequisites.",
+    "Installed project/global npm contents are pinned, not the entire OS environment. D2 and broader delivery/competitor obligations remain open."
+  ],
+  "expectedTrees": [
+    {
+      "path": "test/official/fixtures/autolink-literal/tree.json",
+      "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+      "bytes": 52219
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/tree.json",
+      "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+      "bytes": 2698
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+      "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+      "bytes": 1951
+    },
+    {
+      "path": "test/official/fixtures/table/tree.json",
+      "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+      "bytes": 11398
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/tree.json",
+      "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+      "bytes": 4453
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/tree.json",
+      "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+      "bytes": 4453
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/tree.json",
+      "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+      "bytes": 3550
+    },
+    {
+      "path": "test/official/fixtures/tasklist/tree.json",
+      "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+      "bytes": 4467
+    }
+  ],
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/node/report.json",
+    "sha256": "6f0036caf8204489f95ccf672c9d107b8c7534242e0c941e9129174f85b1591b",
+    "bytes": 102024
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes the upstream public API",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+      "file": "test/api.test.mjs",
+      "name": "registers micromark and mdast extensions",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+      "file": "test/api.test.mjs",
+      "name": "forwards options into the GFM combiners",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+      "file": "test/api.test.mjs",
+      "name": "works through processor.use(plugin, options)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+      "file": "test/api.test.mjs",
+      "name": "does not start an email autolink after escaped atext",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+      "file": "test/api.test.mjs",
+      "name": "@itslil/remark-gfm",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact whose exports stay callable",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "@itslil/remark-gfm closed lane",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/index.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+      "file": "test/official/index.js",
+      "name": "should not throw if not passed options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+      "file": "test/official/index.js",
+      "name": "remarkGfm",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+      "file": "test/official/index.js",
+      "name": "autolink-literal",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+      "file": "test/official/index.js",
+      "name": "strikethrough-default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+      "file": "test/official/index.js",
+      "name": "strikethrough-not-one",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+      "file": "test/official/index.js",
+      "name": "table",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+      "file": "test/official/index.js",
+      "name": "table-no-align",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+      "file": "test/official/index.js",
+      "name": "table-no-padding",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+      "file": "test/official/index.js",
+      "name": "table-string-length",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+      "file": "test/official/index.js",
+      "name": "tasklist",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+      "file": "test/official/index.js",
+      "name": "fixtures",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-check-types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:types"
+        ],
+        "timeoutMs": 60000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "actual": {
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "actual": {
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/types/remark-gfm.d.ts",
+          "expected": {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/dist/remark-gfm.d.ts",
+          "expected": {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "actual": {
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "actual": {
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "actual": {
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/node/prerequisite-0.stdout",
+        "sha256": "7cfe516923796a4d5dd62a97e5a3f5f191d1a7cc44ee9db5febdfc32f3415d40",
+        "bytes": 175
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/node/prerequisite-0.stderr",
+        "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+        "bytes": 211
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "actual": {
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "actual": {
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/types/remark-gfm.d.ts",
+          "expected": {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/dist/remark-gfm.d.ts",
+          "expected": {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "actual": {
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "actual": {
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "actual": {
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "actual": {
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "actual": {
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/types/remark-gfm.d.ts",
+          "expected": {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/dist/remark-gfm.d.ts",
+          "expected": {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "actual": {
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "actual": {
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-remark-gfm-discovery-20260920-N5PCnP/remark-gfmlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "actual": {
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 3511.1192429999996,
+  "completed": "2026-09-20T00:45:07.027Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fad6384a9e26d02fa1fddef540b2574738d0b4abf18d0834c0f0464f536d23c6",
+      "bytes": 863961
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fad6384a9e26d02fa1fddef540b2574738d0b4abf18d0834c0f0464f536d23c6",
+      "bytes": 863961
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "24baadf1859c3dd024a97ff8c4ded9ae5f215827dc859217aa454847a07f6c07",
+      "bytes": 9797
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "78a4054c63a480a81dc8404591ae791a9875abcdf876b073576e0c81b201d044",
+      "bytes": 8442
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a19f147d73bfdeb33d0f89daca5cd7e85832d5d07e2b6fb3f63b354570a5c4d6",
+      "bytes": 5228
+    },
+    {
+      "path": "node/loaded/1650099-0275ab5d-7753-4f6b-93aa-7de7b5f7804f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "203228b031b327cdce43134534368c2448b8758b3ad7a0635c02dec4d59a6634",
+      "bytes": 369
+    },
+    {
+      "path": "node/loaded/1650099-4dc3e42e-a032-48cd-a84c-38e4d18c1fc2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "39485ce91411674d4a6e9780993eeb75fa51e4882d0dd702a24a75699da96138",
+      "bytes": 365
+    },
+    {
+      "path": "node/loaded/1650105-863eaee7-37a7-49a3-8b28-fb70afe6b360.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "32598daaa841ee6285fbc2e2f9ee75480ef2a4c811be9454a30f15fca87ce76e",
+      "bytes": 375
+    },
+    {
+      "path": "node/loaded/1650106-8e72d856-96ac-4dcf-9e25-812cd5dd779b.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2bca609f7e61db0a545fca103f06f262b4984314c5c291ca5fc61bbca4921ffe",
+      "bytes": 369
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c1f7d7c6084afe43560874c5e3768e8dfef3913c081f38b2dbef358a91ce67fb",
+      "bytes": 545
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7cfe516923796a4d5dd62a97e5a3f5f191d1a7cc44ee9db5febdfc32f3415d40",
+      "bytes": 175
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6f0036caf8204489f95ccf672c9d107b8c7534242e0c941e9129174f85b1591b",
+      "bytes": 102024
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

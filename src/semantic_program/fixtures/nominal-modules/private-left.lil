@@ -1,0 +1,4 @@
+struct Private { int number; }
+export Private makeLeft(int value) { return Private{value}; }
+export int leftNumber(Private value) { return value.number; }
+export void setLeft(ref Private value, int replacement) { value.number = replacement; }

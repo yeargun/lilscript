@@ -1,0 +1,411 @@
+{
+  "schema": 1,
+  "mode": "Native",
+  "entry": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+  "config": {
+    "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+    "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+    "level_override": null
+  },
+  "policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "native",
+      "abi_version": 1
+    },
+    "objective": null,
+    "effort": 0,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "driver_ceilings": {
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "checkpoints": 128
+  },
+  "sources": [
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+      "bytes": 73,
+      "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+      "dependencies": [
+        1
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+      "bytes": 955,
+      "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+      "dependencies": [],
+      "dynamic_dependencies": []
+    }
+  ],
+  "source_shape": {
+    "modules": 2,
+    "units": 5,
+    "operations": 89,
+    "cells": 15
+  },
+  "phase_ns": {
+    "policy": 380571,
+    "discovery": 510313,
+    "parse": 179285,
+    "check": 336198,
+    "lower": 400368,
+    "frontend_release": 9949,
+    "adopt": 200153,
+    "backend_and_workflow": 452545,
+    "finish": 28654,
+    "source_release": 1553
+  },
+  "mode_details": {
+    "native_formation_ns": 445973
+  },
+  "edits": [],
+  "retain_at": null,
+  "cold_first_complete_ns": 3296696,
+  "cold_first_complete_scope": "From process entry before argument/config parsing through first fully scored and qualified JS artifact (all requested codecs), or qualified native C bytes; includes frontend input hashing, release and driver bookkeeping. Search timestamps its committed baseline without copying observation history.",
+  "ledger_before_finish": {
+    "baseline_work": 19062,
+    "optional_work": 0,
+    "retained_bytes": 29148,
+    "peak_retained_bytes": 46389,
+    "analysis_work": 5905,
+    "edit_work": 263,
+    "render_work": 12894,
+    "codec_work": 0
+  },
+  "ledger_after_finish": {
+    "baseline_work": 19062,
+    "optional_work": 0,
+    "retained_bytes": 0,
+    "peak_retained_bytes": 46389,
+    "analysis_work": 5905,
+    "edit_work": 263,
+    "render_work": 12894,
+    "codec_work": 0
+  },
+  "service": {
+    "schema": 1,
+    "backend": "semantic",
+    "source_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615",
+    "request": {
+      "target": "Native",
+      "preserve_root_exports": true,
+      "logical_work": 200000000,
+      "retained_bytes": 256000000,
+      "effective_logical_work": 200000000,
+      "effective_retained_bytes": 256000000
+    },
+    "inputs": {
+      "root": 0,
+      "modules": [
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+          "bytes": 73,
+          "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+          "dependencies": [
+            1
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+          "bytes": 955,
+          "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        }
+      ]
+    },
+    "shape": {
+      "modules": 2,
+      "units": 5,
+      "operations": 89,
+      "cells": 15
+    },
+    "javascript_policy": null,
+    "native_policy": {
+      "schema": 2,
+      "algorithm": 1,
+      "contract": {
+        "target": "native",
+        "abi_version": 1
+      },
+      "objective": null,
+      "effort": 0,
+      "tactics": [
+        {
+          "id": "dead-code-elimination",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "constant-folding",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "inlining",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "scalar-replacement",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "call-specialization",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "helper-sharing",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "target-compaction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "identifier-mangling",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "property-mangling",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "string-pooling",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "string-array-packing",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "startup-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "recurring-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "naming-search",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        }
+      ],
+      "resources": {
+        "logical_work": null,
+        "retained_bytes": null,
+        "wall_time_ms": null
+      },
+      "constraints": {
+        "max_startup_work": null,
+        "max_recurring_work": null,
+        "max_runtime_memory_bytes": null,
+        "max_performance_regression_percent": null
+      }
+    },
+    "phases_ns": {
+      "policy_ns": 380571,
+      "discovery_ns": 510313,
+      "parse_ns": 179285,
+      "check_ns": 336198,
+      "convert_ns": 400368,
+      "frontend_release_ns": 9949,
+      "adopt_ns": 200153,
+      "finish_ns": 28654,
+      "source_release_ns": 1553
+    },
+    "total_ns": 3010110,
+    "ledger_before_finish": {
+      "baseline_work": 19062,
+      "optional_work": 0,
+      "retained_bytes": 29148,
+      "peak_retained_bytes": 46389,
+      "analysis_work": 5905,
+      "edit_work": 263,
+      "render_work": 12894,
+      "codec_work": 0
+    },
+    "resources": {
+      "baseline_work": 19062,
+      "optional_work": 0,
+      "codec_work": 0,
+      "peak_retained_bytes": 46389,
+      "frontend_logical_work": 3085,
+      "frontend_allocation_accounting": "not-yet-instrumented",
+      "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+      "scope": "admitted semantic/target/codec storage; frontend allocations, caller configuration I/O, returned buffers and process RSS are separate",
+      "retained_bytes_after_handoff": 0
+    },
+    "ledger_after_finish": {
+      "baseline_work": 19062,
+      "optional_work": 0,
+      "retained_bytes": 0,
+      "peak_retained_bytes": 46389,
+      "analysis_work": 5905,
+      "edit_work": 263,
+      "render_work": 12894,
+      "codec_work": 0
+    }
+  },
+  "artifacts": [],
+  "native": {
+    "file": "native.c",
+    "sha256": "8f5a3c5e5d9b2f88b51ec157990cd84036642fc60fb45b01ebb812f2d6ed0849",
+    "bytes": 5606
+  },
+  "limits": "Frontend and edit phase clocks exclude driver record construction. Direct render clocks include qualification and delivered metadata/hashing. The whole backend workflow includes per-edit metric bookkeeping and qualified delivery metadata/hashing; shared winners move once and labels share caller-owned buffers. Final driver report serialization, artifact writes and external execution are outside both clocks. Whole-process RSS includes frontend and caller-owned diagnostics. Retained versus advance compares real source edits; it does not establish faster cold search. Native C compilation/runtime belongs to the external execution receipt."
+}

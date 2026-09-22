@@ -1,0 +1,11 @@
+
+running 6 tests
+test semantic_program::artifact_provenance::tests::detached_plan_owns_original_domain_and_rejected_admission_releases_storage ... ok
+test semantic_program::artifact_provenance::tests::source_baseline_and_searched_source_keep_different_permission_dependencies ... ok
+test semantic_program::artifact_provenance::tests::full_plan_is_canonical_but_overrides_still_require_search ... ok
+test semantic_program::artifact_provenance::tests::naming_records_actual_choices_and_revalidates_equal_cached_bytes ... ok
+test semantic_program::artifact_provenance::tests::structural_and_output_tactics_are_actual_and_not_lost_to_cost_reuse ... ok
+test semantic_program::artifact_provenance::tests::unknown_runtime_cost_remains_unknown_under_policy_constraints ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2723 filtered out; finished in 0.00s
+

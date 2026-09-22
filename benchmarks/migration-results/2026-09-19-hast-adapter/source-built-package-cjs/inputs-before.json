@@ -1,0 +1,100 @@
+{
+  "files": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/qualify-package-cjs.mjs",
+      "sha256": "01b1b13c7267deb1f55e7c5e425c4bd4e2599ed192d2cb98f5bf947ec4208abe",
+      "bytes": 16542
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/package-cjs-smoke.mjs",
+      "sha256": "9274f1bb61802300c469b4d5ea8ab6d532747146e0f899ffee239bd402b7f291",
+      "bytes": 2744
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/package.json",
+      "sha256": "7cbb6a7c030b398a7591992750cfb3e2479ef4f8aaa40316e3deb98af3b8184c",
+      "bytes": 6535
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/bin/npm-cli.js",
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+      "bytes": 54
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/lib/cli.js",
+      "sha256": "67666f06479f9b0bbc01412c198caadd4287d34d5ed74a02871ea78f186451e7",
+      "bytes": 407
+    },
+    {
+      "path": "/home/azureuser/lilscript/.nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built/hast-util-to-htmllil.json",
+      "sha256": "0a3c34ff4c96f77ba1f8fb34dbaa3099431567cbc9837c2dc47224c3f5b7d675",
+      "bytes": 298483
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built/manifest.json",
+      "sha256": "e9e256873f6138e17b25641d44323495d5b3f66daf2fa0aa41b67c3a81c3ba99",
+      "bytes": 1490
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built/tests/hast-util-to-htmllil/report.json",
+      "sha256": "a6c11faed0eba02d2614adebe54221907f9ff1a9d1dd5e501715339c95f762d2",
+      "bytes": 273851
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/public-boundary.json",
+      "sha256": "0c81cbe4f11b49708cb7b208ac5d5bfafd5e8a134b9452962126c630563e317f",
+      "bytes": 5125
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/receipt.json",
+      "sha256": "753f8619613608a88532a7e230dbeb8fbaf8e8219f813d512162f3b480ecc8e0",
+      "bytes": 17083
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/workspace.after.json",
+      "sha256": "160b166590fc341be5c6a82b2a0170b0c158fa3c481232d7d0af8cbadc878f28",
+      "bytes": 18774
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-05-45.258Z/receipt.json",
+      "sha256": "cd424638e1d82eba84df5d9dcbafe58455f82c375e8009d7db7b0dead67340bc",
+      "bytes": 22298
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-05-45.258Z/inputs-before.json",
+      "sha256": "38832e541cd2dd2b74f869eb9a862ed914c35b384991b6a77f2be5f9a89a2b6c",
+      "bytes": 171303
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-05-45.258Z/inputs-after.json",
+      "sha256": "38832e541cd2dd2b74f869eb9a862ed914c35b384991b6a77f2be5f9a89a2b6c",
+      "bytes": 171303
+    }
+  ],
+  "sha256": "58b3081ee3c1a7dc1ab8507b122559d2cbe9f145dc687ec533dcf7e5e8897ede"
+}

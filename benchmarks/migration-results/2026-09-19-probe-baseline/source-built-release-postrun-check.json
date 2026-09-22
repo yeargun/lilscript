@@ -1,0 +1,294 @@
+{
+  "checked": "2026-09-19T18:22:18.611Z",
+  "receipt": {
+    "path": "benchmarks/migration-results/2026-09-19-probe-baseline/source-built-release/receipt.json",
+    "sha256": "0e862def92869916cced7f8871e5d0c0e1a6a48d4f920fd71f99e7d35cafc4d7",
+    "bytes": 105548
+  },
+  "verifiedOutputFiles": 109,
+  "uniqueBaseCaseIDs": 2,
+  "baseReport": {
+    "path": "benchmarks/migration-results/2026-09-19-probe-baseline/source-built-release/tests/probelil/report.json",
+    "sha256": "06931c4d0579b0171625bdf3789edfecee5f68f8f6019bd3501a4a1cf5017c8a",
+    "bytes": 5738
+  },
+  "canonicalStdout": {
+    "sha256": "a1e3afc9751e3e9dc981926fa8a7169dfeede3bc22a0a9e5f20ebf38b8543eac",
+    "bytes": 2288
+  },
+  "matrixStdout": {
+    "sha256": "0142eea65532b0815ab346ecd956ab20274d5eb5aef6343a93846e0aa2d45e9b",
+    "bytes": 280
+  },
+  "matrixStderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "matrixCounts": {
+    "requested": 22,
+    "invocationReceipts": 10,
+    "compiled": 10,
+    "observedProfiles": 10,
+    "goldenMatches": 10,
+    "compilationFailures": 0,
+    "runtimeFailures": 0,
+    "evidenceErrors": 36
+  },
+  "retainedConfigs": [
+    "balanced.toml",
+    "gzip.toml",
+    "level0.toml",
+    "level15.toml",
+    "level5.toml",
+    "level9.toml",
+    "perfFirst.toml",
+    "raw.toml",
+    "searchAlways.toml",
+    "searchOff.toml",
+    "shipped.toml"
+  ],
+  "remainingMatchingProcesses": [],
+  "scope": "Post-run file rehash and process command-line observation only; does not prove escaped-session cleanup or add execution credit",
+  "perProfile": [
+    {
+      "profile": "shipped",
+      "disposition": "golden-match",
+      "ms": 30628.12206,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+        "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+        "bytes": 4034
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+        "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+        "bytes": 4034,
+        "raw": 4034,
+        "gzip9": 1605,
+        "brotli11": 1492
+      }
+    },
+    {
+      "profile": "level0",
+      "disposition": "golden-match",
+      "ms": 170.336154,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+        "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+        "bytes": 4442
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+        "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+        "bytes": 4442,
+        "raw": 4442,
+        "gzip9": 1769,
+        "brotli11": 1624
+      }
+    },
+    {
+      "profile": "level5",
+      "disposition": "golden-match",
+      "ms": 5125.828296,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+        "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+        "bytes": 4090
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+        "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+        "bytes": 4090,
+        "raw": 4090,
+        "gzip9": 1663,
+        "brotli11": 1536
+      }
+    },
+    {
+      "profile": "level9",
+      "disposition": "golden-match",
+      "ms": 24702.258555,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+        "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+        "bytes": 4056
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+        "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+        "bytes": 4056,
+        "raw": 4056,
+        "gzip9": 1602,
+        "brotli11": 1492
+      }
+    },
+    {
+      "profile": "level15",
+      "disposition": "golden-match",
+      "ms": 33356.176455,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+        "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+        "bytes": 4054
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+        "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+        "bytes": 4054,
+        "raw": 4054,
+        "gzip9": 1610,
+        "brotli11": 1495
+      }
+    },
+    {
+      "profile": "searchOff",
+      "disposition": "golden-match",
+      "ms": 205.763262,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+        "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+        "bytes": 4093
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+        "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+        "bytes": 4093,
+        "raw": 4093,
+        "gzip9": 1678,
+        "brotli11": 1556
+      }
+    },
+    {
+      "profile": "searchAlways",
+      "disposition": "golden-match",
+      "ms": 55088.11766,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+        "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+        "bytes": 3920
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+        "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+        "bytes": 3920,
+        "raw": 3920,
+        "gzip9": 1569,
+        "brotli11": 1465
+      }
+    },
+    {
+      "profile": "gzip",
+      "disposition": "golden-match",
+      "ms": 28753.977424,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+        "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+        "bytes": 3868
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+        "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+        "bytes": 3868,
+        "raw": 3868,
+        "gzip9": 1592,
+        "brotli11": 1515
+      }
+    },
+    {
+      "profile": "raw",
+      "disposition": "golden-match",
+      "ms": 27706.171461,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+        "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+        "bytes": 3866
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+        "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+        "bytes": 3866,
+        "raw": 3866,
+        "gzip9": 1648,
+        "brotli11": 1564
+      }
+    },
+    {
+      "profile": "perfFirst",
+      "disposition": "golden-match",
+      "ms": 30710.869739,
+      "artifact": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+        "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+        "bytes": 4089
+      },
+      "sizes": {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+        "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+        "bytes": 4089,
+        "raw": 4089,
+        "gzip9": 1610,
+        "brotli11": 1494
+      }
+    },
+    {
+      "profile": "balanced",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "noPeephole",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "arrows",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "functions",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "looseNames",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "beam1",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "beam32",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "freqNames",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "freqNamesSearchOff",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "idiomNames",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "idiomNamesSearchOff",
+      "disposition": "unreported",
+      "artifact": null
+    },
+    {
+      "profile": "phiRegions",
+      "disposition": "unreported",
+      "artifact": null
+    }
+  ]
+}

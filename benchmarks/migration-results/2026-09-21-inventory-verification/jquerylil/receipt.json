@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "jquerylil",
+  "started": "2026-09-21T10:46:56.052Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/jquerylil",
+  "workspace": "/tmp/lilscript-adapter-jquerylil-36QUkv/jquerylil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/jquerylil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/jquerylil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-jquerylil-36QUkv/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test test/compat.test.mjs",
+  "derivation": {
+    "supported": true,
+    "script": "node --test test/compat.test.mjs",
+    "originalSegments": [
+      "node --test test/compat.test.mjs"
+    ],
+    "segments": [
+      "node --test test/compat.test.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/compat.test.mjs"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/jquery.cjs",
+      "dist/jquery.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/jquery.cjs",
+      "./dist/jquery.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/jquerylil/node/report.json",
+    "sha256": "3fd5f28a5707c771d9b4d4024512e5d98997e0b0364cf02d13cc3b807dbed8ef",
+    "bytes": 39621
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "exports the 3.7.1 surface",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches core utilities",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches Deferred resolve/reject",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "renders callback changes through the same public tween instance",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "ships the compiler-selected compact ESM, not a pretty-printed wrapper",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "loads from CommonJS",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "selects, classes, and events",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "@itslil/jquery vs jquery@3.7.1",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-jquerylil-36QUkv/jquerylil/dist/jquery.cjs",
+      "sha256": "322590bb5a5e29ce3f4e2edfc358b7093732e6a7f93cf1a53a875bd8a5a5ec7f",
+      "bytes": 81882
+    },
+    {
+      "path": "/tmp/lilscript-adapter-jquerylil-36QUkv/jquerylil/dist/jquery.esm.js",
+      "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+      "bytes": 81828
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/jquery.cjs",
+    "dist/jquery.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 4094.640483,
+  "completed": "2026-09-21T10:47:00.118Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0da6a49c4b6997c0ef3a0a892710d8caebcc52a17c02cc1e9491aa19b6d9a2d8",
+      "bytes": 1198159
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0da6a49c4b6997c0ef3a0a892710d8caebcc52a17c02cc1e9491aa19b6d9a2d8",
+      "bytes": 1198159
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "59dd8079ccd133b92fa9dafd9f2706f1bf5867b916f623500d00a7c8be9bc29c",
+      "bytes": 3731
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c1f0fc4992aa32a077ebab132803f3be8964ec1226d180e64d937ba4f15019f8",
+      "bytes": 2428
+    },
+    {
+      "path": "node/loaded/481972-35ba8b0c-6b37-4af7-a3bd-ea9ea9e1e1b8.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2e25639c5ab5d975904b8e978be54bf4c2a06358c3f30deb37e9c9178ce17323",
+      "bytes": 324
+    },
+    {
+      "path": "node/loaded/481972-842822f5-3913-42a8-96f5-c192b8230cd3.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cc4d3dbb4d40cd09557c077a878065e323849fbbfebdaa43953075012051515c",
+      "bytes": 328
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5af9f937e1b9249725d6bd7dd42d8fa9d6f01c941f74630ec2cfc041f14ca9bd",
+      "bytes": 411
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3fd5f28a5707c771d9b4d4024512e5d98997e0b0364cf02d13cc3b807dbed8ef",
+      "bytes": 39621
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+export func()->int make(int seed){int state=seed;auto helper=(int used,int unused)=>{state+=used;return state;};return ()=>helper(1,2);}auto a=make(3);auto b=make(10);print(a());print(b());print(a());

@@ -1,0 +1,4 @@
+export T snapshot<T>(T value) {
+    T saved=value;
+    return saved;
+}

@@ -1,0 +1,1012 @@
+{
+  "schema": 1,
+  "mode": "Search",
+  "entry": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+  "config": {
+    "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+    "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+    "level_override": null
+  },
+  "policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "javascript",
+      "world": "ReusableLibrary",
+      "execution": "Module",
+      "ecmascript": "es2022",
+      "preserve_root_exports": true,
+      "public_aggregate_abi": "Named",
+      "preserve_extern_fields": true,
+      "internal_exports_may_mangle": false,
+      "public_function_spelling": "None",
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "strip_console": false,
+      "preserved_properties": [],
+      "owned_properties": "UnderscoreSuffix",
+      "bundle_mode": "Single"
+    },
+    "objective": {
+      "codec": "Brotli",
+      "priority": "SizeFirst",
+      "realistic_performance_limit_percent": 25,
+      "optional_alternatives": 96,
+      "optional_codec_probes": 192,
+      "cleanup_finalists": 1,
+      "retained_candidates": 384,
+      "retained_candidate_bytes": 786432,
+      "beam_width": 10,
+      "search": {
+        "version": 11,
+        "codec_schedule": "staged",
+        "render_batch": 8,
+        "diversity_interval": 4
+      }
+    },
+    "effort": 13,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "driver_ceilings": {
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "checkpoints": 128
+  },
+  "sources": [
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+      "bytes": 610,
+      "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+      "dependencies": [
+        1,
+        7,
+        9,
+        10,
+        11
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+      "bytes": 204,
+      "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+      "dependencies": [
+        2
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+      "bytes": 292,
+      "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+      "dependencies": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+      "bytes": 918,
+      "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+      "dependencies": [
+        4,
+        5
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+      "bytes": 321,
+      "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+      "dependencies": [
+        3,
+        5
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+      "bytes": 82,
+      "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+      "dependencies": [],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+      "bytes": 168,
+      "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+      "dependencies": [
+        5
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+      "bytes": 925,
+      "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+      "dependencies": [
+        8,
+        9
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+      "bytes": 1513,
+      "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+      "dependencies": [
+        9
+      ],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+      "bytes": 20051,
+      "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+      "dependencies": [],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+      "bytes": 955,
+      "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+      "dependencies": [],
+      "dynamic_dependencies": []
+    },
+    {
+      "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+      "bytes": 115,
+      "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+      "dependencies": [],
+      "dynamic_dependencies": []
+    }
+  ],
+  "source_shape": {
+    "modules": 12,
+    "units": 44,
+    "operations": 1219,
+    "cells": 250
+  },
+  "phase_ns": {
+    "policy": 531571,
+    "discovery": 4472510,
+    "parse": 3250751,
+    "check": 2905197,
+    "lower": 41367485,
+    "frontend_release": 93935,
+    "adopt": 1616163,
+    "backend_and_workflow": 7306072508,
+    "finish": 170348,
+    "source_release": 3687
+  },
+  "mode_details": {
+    "search_ns": 7306015272,
+    "search": {
+      "request": {
+        "objectives": [
+          "Raw",
+          "Gzip",
+          "Brotli"
+        ],
+        "scalar": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "helper": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "string": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "local_facts": {
+          "work": 1000000,
+          "result_bytes": 512000
+        },
+        "facts_cache": {
+          "entries": 128,
+          "bytes": 16000000,
+          "result_bytes": 512000
+        }
+      },
+      "proposals": 96,
+      "structures": 33,
+      "renders": 97,
+      "codec_probes": 192,
+      "proof_queries": 132,
+      "beam_evictions": 22,
+      "admitted_artifacts": 97,
+      "stop": "Limit(Alternatives)"
+    },
+    "ledger": {
+      "baseline_work": 3103896,
+      "optional_work": 43266544,
+      "retained_bytes": 16418945,
+      "peak_retained_bytes": 22763809,
+      "analysis_work": 8023650,
+      "edit_work": 4608,
+      "render_work": 8827342,
+      "codec_work": 29514840
+    }
+  },
+  "edits": [],
+  "retain_at": null,
+  "cold_first_complete_ns": 142446424,
+  "cold_first_complete_scope": "From process entry before argument/config parsing through first fully scored and qualified JS artifact (all requested codecs), or qualified native C bytes; includes frontend input hashing, release and driver bookkeeping. Search timestamps its committed baseline without copying observation history.",
+  "ledger_before_finish": {
+    "baseline_work": 3103896,
+    "optional_work": 43266544,
+    "retained_bytes": 16418945,
+    "peak_retained_bytes": 22763809,
+    "analysis_work": 8023650,
+    "edit_work": 4608,
+    "render_work": 8827342,
+    "codec_work": 29514840
+  },
+  "ledger_after_finish": {
+    "baseline_work": 3103896,
+    "optional_work": 43266544,
+    "retained_bytes": 0,
+    "peak_retained_bytes": 22763809,
+    "analysis_work": 8023650,
+    "edit_work": 4608,
+    "render_work": 8827342,
+    "codec_work": 29514840
+  },
+  "service": {
+    "schema": 1,
+    "backend": "semantic",
+    "source_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f",
+    "request": {
+      "target": "JavaScript",
+      "preserve_root_exports": true,
+      "logical_work": 200000000,
+      "retained_bytes": 256000000,
+      "effective_logical_work": 200000000,
+      "effective_retained_bytes": 256000000
+    },
+    "inputs": {
+      "root": 0,
+      "modules": [
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+          "bytes": 610,
+          "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+          "dependencies": [
+            1,
+            7,
+            9,
+            10,
+            11
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+          "bytes": 204,
+          "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+          "dependencies": [
+            2
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+          "bytes": 292,
+          "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+          "dependencies": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+          "bytes": 918,
+          "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+          "dependencies": [
+            4,
+            5
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+          "bytes": 321,
+          "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+          "dependencies": [
+            3,
+            5
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+          "bytes": 82,
+          "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+          "bytes": 168,
+          "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+          "dependencies": [
+            5
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+          "bytes": 925,
+          "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+          "dependencies": [
+            8,
+            9
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+          "bytes": 1513,
+          "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+          "dependencies": [
+            9
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+          "bytes": 20051,
+          "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+          "bytes": 955,
+          "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+          "bytes": 115,
+          "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        }
+      ]
+    },
+    "shape": {
+      "modules": 12,
+      "units": 44,
+      "operations": 1219,
+      "cells": 250
+    },
+    "javascript_policy": {
+      "schema": 2,
+      "algorithm": 1,
+      "contract": {
+        "target": "javascript",
+        "world": "ReusableLibrary",
+        "execution": "Module",
+        "ecmascript": "es2022",
+        "preserve_root_exports": true,
+        "public_aggregate_abi": "Named",
+        "preserve_extern_fields": true,
+        "internal_exports_may_mangle": false,
+        "public_function_spelling": "None",
+        "pristine_builtins": false,
+        "pure_property_reads": false,
+        "strip_console": false,
+        "preserved_properties": [],
+        "owned_properties": "UnderscoreSuffix",
+        "bundle_mode": "Single"
+      },
+      "objective": {
+        "codec": "Brotli",
+        "priority": "SizeFirst",
+        "realistic_performance_limit_percent": 25,
+        "optional_alternatives": 96,
+        "optional_codec_probes": 192,
+        "cleanup_finalists": 1,
+        "retained_candidates": 384,
+        "retained_candidate_bytes": 786432,
+        "beam_width": 10,
+        "search": {
+          "version": 11,
+          "codec_schedule": "staged",
+          "render_batch": 8,
+          "diversity_interval": 4
+        }
+      },
+      "effort": 13,
+      "tactics": [
+        {
+          "id": "dead-code-elimination",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "constant-folding",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "inlining",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "scalar-replacement",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "call-specialization",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "helper-sharing",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "target-compaction",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "identifier-mangling",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "property-mangling",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "string-pooling",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "string-array-packing",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "startup-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "recurring-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "naming-search",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        }
+      ],
+      "resources": {
+        "logical_work": null,
+        "retained_bytes": null,
+        "wall_time_ms": null
+      },
+      "constraints": {
+        "max_startup_work": null,
+        "max_recurring_work": null,
+        "max_runtime_memory_bytes": null,
+        "max_performance_regression_percent": null
+      }
+    },
+    "native_policy": null,
+    "phases_ns": {
+      "policy_ns": 531571,
+      "discovery_ns": 4472510,
+      "parse_ns": 3250751,
+      "check_ns": 2905197,
+      "convert_ns": 41367485,
+      "frontend_release_ns": 93935,
+      "adopt_ns": 1616163,
+      "finish_ns": 170348,
+      "source_release_ns": 3687
+    },
+    "total_ns": 7362399238,
+    "ledger_before_finish": {
+      "baseline_work": 3103896,
+      "optional_work": 43266544,
+      "retained_bytes": 16418945,
+      "peak_retained_bytes": 22763809,
+      "analysis_work": 8023650,
+      "edit_work": 4608,
+      "render_work": 8827342,
+      "codec_work": 29514840
+    },
+    "resources": {
+      "baseline_work": 3103896,
+      "optional_work": 43266544,
+      "codec_work": 29514840,
+      "peak_retained_bytes": 22763809,
+      "frontend_logical_work": 2577939,
+      "frontend_allocation_accounting": "partial",
+      "source_buffer_accounting": "admitted String capacities",
+      "source_buffer_capacity": 38871,
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+      "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+      "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+      "scope": "admitted path source buffers, covered parser arenas and token vectors, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+      "retained_bytes_after_handoff": 0
+    },
+    "ledger_after_finish": {
+      "baseline_work": 3103896,
+      "optional_work": 43266544,
+      "retained_bytes": 0,
+      "peak_retained_bytes": 22763809,
+      "analysis_work": 8023650,
+      "edit_work": 4608,
+      "render_work": 8827342,
+      "codec_work": 29514840
+    }
+  },
+  "artifacts": [
+    {
+      "label": "winner-Raw",
+      "file": "winner-Raw.mjs",
+      "sha256": "c905606e21e89ba0a1ae31fd182fb5e397ca496f78eea81d9e8849413d6a8dbf",
+      "bytes": 17463,
+      "details": {
+        "recipe_words": [
+          3,
+          1,
+          181,
+          14,
+          0,
+          5,
+          4,
+          175,
+          35,
+          176,
+          36,
+          183,
+          39,
+          184,
+          40,
+          0,
+          1,
+          232,
+          0,
+          2,
+          1,
+          0,
+          1,
+          232,
+          1,
+          0,
+          0,
+          0
+        ],
+        "recipe_fingerprint": 7964416084117478087,
+        "semantic": {
+          "snapshot_identity": "RevisionId(376)",
+          "meaning_identity": "RevisionId(377)",
+          "identity_scope": "process-local diagnostics, not canonical recipe identity",
+          "rewrite_order": "newest-first",
+          "rewrites": []
+        },
+        "resource": "whole",
+        "execution": "Module",
+        "style": "Scoped",
+        "source_names": [],
+        "output": {
+          "dead_code_elimination": true,
+          "target_compaction": true,
+          "literals": "Original"
+        },
+        "sizes": [
+          17463,
+          3837,
+          3516
+        ],
+        "policy_fingerprint": [
+          5,
+          244,
+          227,
+          75,
+          222,
+          206,
+          26,
+          235,
+          22,
+          32,
+          236,
+          100,
+          95,
+          180,
+          192,
+          34,
+          218,
+          86,
+          10,
+          93,
+          98,
+          85,
+          12,
+          28,
+          40,
+          102,
+          202,
+          97,
+          195,
+          229,
+          16,
+          57
+        ]
+      },
+      "expected_edit_value": 11
+    },
+    {
+      "label": "winner-Gzip",
+      "file": "winner-Gzip.mjs",
+      "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb",
+      "bytes": 17472,
+      "details": {
+        "recipe_words": [
+          3,
+          1,
+          181,
+          14,
+          0,
+          5,
+          3,
+          175,
+          35,
+          176,
+          36,
+          184,
+          40,
+          1,
+          0,
+          0,
+          1,
+          40,
+          2,
+          1,
+          232,
+          0,
+          2,
+          1,
+          0,
+          1,
+          232,
+          1,
+          0,
+          0,
+          0
+        ],
+        "recipe_fingerprint": 10912004202802848762,
+        "semantic": {
+          "snapshot_identity": "RevisionId(376)",
+          "meaning_identity": "RevisionId(377)",
+          "identity_scope": "process-local diagnostics, not canonical recipe identity",
+          "rewrite_order": "newest-first",
+          "rewrites": []
+        },
+        "resource": "whole",
+        "execution": "Module",
+        "style": "Scoped",
+        "source_names": [],
+        "output": {
+          "dead_code_elimination": true,
+          "target_compaction": true,
+          "literals": "Original"
+        },
+        "sizes": [
+          17472,
+          3832,
+          3499
+        ],
+        "policy_fingerprint": [
+          5,
+          244,
+          227,
+          75,
+          222,
+          206,
+          26,
+          235,
+          22,
+          32,
+          236,
+          100,
+          95,
+          180,
+          192,
+          34,
+          218,
+          86,
+          10,
+          93,
+          98,
+          85,
+          12,
+          28,
+          40,
+          102,
+          202,
+          97,
+          195,
+          229,
+          16,
+          57
+        ]
+      },
+      "expected_edit_value": 11
+    },
+    {
+      "label": "winner-Brotli",
+      "file": "winner-Brotli.mjs",
+      "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb",
+      "bytes": 17472,
+      "details": {
+        "recipe_words": [
+          3,
+          1,
+          181,
+          14,
+          0,
+          5,
+          3,
+          175,
+          35,
+          176,
+          36,
+          184,
+          40,
+          1,
+          0,
+          0,
+          1,
+          40,
+          2,
+          1,
+          232,
+          0,
+          2,
+          1,
+          0,
+          1,
+          232,
+          1,
+          0,
+          0,
+          0
+        ],
+        "recipe_fingerprint": 10912004202802848762,
+        "semantic": {
+          "snapshot_identity": "RevisionId(376)",
+          "meaning_identity": "RevisionId(377)",
+          "identity_scope": "process-local diagnostics, not canonical recipe identity",
+          "rewrite_order": "newest-first",
+          "rewrites": []
+        },
+        "resource": "whole",
+        "execution": "Module",
+        "style": "Scoped",
+        "source_names": [],
+        "output": {
+          "dead_code_elimination": true,
+          "target_compaction": true,
+          "literals": "Original"
+        },
+        "sizes": [
+          17472,
+          3832,
+          3499
+        ],
+        "policy_fingerprint": [
+          5,
+          244,
+          227,
+          75,
+          222,
+          206,
+          26,
+          235,
+          22,
+          32,
+          236,
+          100,
+          95,
+          180,
+          192,
+          34,
+          218,
+          86,
+          10,
+          93,
+          98,
+          85,
+          12,
+          28,
+          40,
+          102,
+          202,
+          97,
+          195,
+          229,
+          16,
+          57
+        ]
+      },
+      "expected_edit_value": 11
+    }
+  ],
+  "native": null,
+  "limits": "Frontend and edit phase clocks exclude driver record construction. Direct render clocks include qualification and delivered metadata/hashing. The whole backend workflow includes per-edit metric bookkeeping and qualified delivery metadata/hashing; shared winners move once and labels share caller-owned buffers. Final driver report serialization, artifact writes and external execution are outside both clocks. Whole-process RSS includes frontend and caller-owned diagnostics. Retained versus advance compares real source edits; it does not establish faster cold search. Native C compilation/runtime belongs to the external execution receipt."
+}

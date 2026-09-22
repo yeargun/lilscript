@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "owner": {
+    "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+    "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+    "bytes": 15672
+  },
+  "snapshots": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-frontend-20260920/project-dependencies-before.json",
+      "sha256": "d31f22c6b8dabda9ecea7aa986466c0f3fdf7e8a87a5eeeb3e3e1dd1f27c1f05",
+      "bytes": 309933
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-frontend-20260920/npm-runtime-before.json",
+      "sha256": "42c75f4c22bacd8f8291f57588841f473b7e37cc3236e3b2540015671e113ad0",
+      "bytes": 524100
+    }
+  ]
+}

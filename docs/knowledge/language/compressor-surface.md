@@ -3,7 +3,7 @@
 Parent: [Language](README.md). Contract: [`docs/language-v0.1.md`](../../language-v0.1.md).
 Objectives: [compilation objectives](../compilation/objectives.md).
 Ports: [corpora](../evidence/corpora-and-lanes.md), [jQuery](../evidence/jquery.md).
-Plan: [reusable-proof phase](../migration/planned-migration.md#phase-4-close-library-losses-with-reusable-proofs).
+Plan: [reusable compression families](../../migration/index.md#009-reusable-compression-families).
 
 LilScript beats Terser, Oxc, and Closure ADVANCED when the program is **written
 in LilScript**. It does not beat them by transliterating JavaScript into
@@ -180,10 +180,11 @@ allocations and proven-own constant keys; it does not consume
 
 Monaco’s `js-host.ts` (`rbDeleteTree`, `emptyBuf`, `domCreateElement`) exists
 because SSA coalescing and known-host lowering miscompiled large graphs
-([ident](../migration/board/LEDGER.md) lane). That is 07.1 / identity work, not
-a new keyword. Do not grow syntax to paper over an unsound coalescer.
+(historical identity-lane evidence). The replacement plan assigns binding identity to
+[step 008](../../migration/index.md#008-whole-program-js-and-delivery).
+Do not grow syntax to paper over an unsound coalescer.
 
-Search ranking unresolved names ([ident-05](../migration/board/notes/ident-05.md))
+Search ranking unresolved names (ident-05 (archived: `repository/docs/knowledge/migration/board/notes/ident-05.md`))
 is the same class: the selector admitted an invalid program. Widening search
 or adding syntax does not fix it.
 

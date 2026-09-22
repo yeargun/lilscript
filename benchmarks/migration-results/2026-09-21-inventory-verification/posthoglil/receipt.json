@@ -1,0 +1,561 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "posthoglil",
+  "started": "2026-09-21T10:47:31.832Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/posthoglil",
+  "workspace": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/posthoglil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/posthoglil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test test/compat.test.mjs test/api.test.mjs",
+  "derivation": {
+    "supported": true,
+    "script": "node --test test/compat.test.mjs test/api.test.mjs",
+    "originalSegments": [
+      "node --test test/compat.test.mjs test/api.test.mjs"
+    ],
+    "segments": [
+      "node --test test/compat.test.mjs test/api.test.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/compat.test.mjs",
+      "test/api.test.mjs"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/autocapture.cjs",
+      "dist/autocapture.esm.js",
+      "dist/error-tracking.cjs",
+      "dist/error-tracking.esm.js",
+      "dist/otlp.cjs",
+      "dist/otlp.esm.js",
+      "dist/posthog.cjs",
+      "dist/posthog.esm.js",
+      "dist/replay-core.cjs",
+      "dist/replay-core.esm.js",
+      "dist/surveys.cjs",
+      "dist/surveys.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/autocapture.cjs",
+      "./dist/autocapture.esm.js",
+      "./dist/error-tracking.cjs",
+      "./dist/error-tracking.esm.js",
+      "./dist/otlp.cjs",
+      "./dist/otlp.esm.js",
+      "./dist/posthog.cjs",
+      "./dist/posthog.esm.js",
+      "./dist/replay-core.cjs",
+      "./dist/replay-core.esm.js",
+      "./dist/surveys.cjs",
+      "./dist/surveys.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/posthoglil/node/report.json",
+    "sha256": "195ed51517b1512a27b68031a28ad998ff96056d7db44df928d21b70c8beb09a",
+    "bytes": 71779
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",85,3,1,\"test\",\"keeps every public kernel name exact in the compiler output\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps every public kernel name exact in the compiler output",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",92,3,1,\"test\",\"exposes the same named surface as default\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes the same named surface as default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",84,1,0,\"suite\",\"@itslil/posthog-js JS library API\",1]",
+      "file": "test/api.test.mjs",
+      "name": "@itslil/posthog-js JS library API",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",24,3,1,\"test\",\"parses the official hyphenated, hex, brace, and urn forms\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "parses the official hyphenated, hex, brace, and urn forms",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",37,3,1,\"test\",\"matches official fromFieldsV7\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches official fromFieldsV7",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"generates version-7 and version-4 strings\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "generates version-7 and version-4 strings",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",23,1,0,\"suite\",\"uuid\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "uuid",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",84,3,1,\"test\",\"normalizes v2 flags the same way\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "normalizes v2 flags the same way",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",88,3,1,\"test\",\"normalizes v1 flags the same way\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "normalizes v1 flags the same way",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",100,3,1,\"test\",\"minimizes $feature_flag_called properties from the same allowlist\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "minimizes $feature_flag_called properties from the same allowlist",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",54,1,0,\"suite\",\"feature flags\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "feature flags",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",118,3,1,\"test\",\"sanitizes cookie names\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "sanitizes cookie names",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",124,3,1,\"test\",\"parses official cookie fixtures\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "parses official cookie fixtures",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",141,3,1,\"test\",\"roundtrips serialize → parse as anonymous\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "roundtrips serialize → parse as anonymous",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",149,3,1,\"test\",\"reads cookies from a header store\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "reads cookies from a header store",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",155,3,1,\"test\",\"matches consent cookie names and opt-out\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches consent cookie names and opt-out",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",117,1,0,\"suite\",\"cookies and consent\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "cookies and consent",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",169,3,1,\"test\",\"routes US, EU, custom, and app hosts\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "routes US, EU, custom, and app hosts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",188,3,1,\"test\",\"matches the token-bucket updates\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches the token-bucket updates",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",197,3,1,\"test\",\"batches, offsets, and sorts unload requests\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "batches, offsets, and sorts unload requests",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",168,1,0,\"suite\",\"router, rate limit, queue\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "router, rate limit, queue",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",218,3,1,\"test\",\"matches the default blocked UA list and lookups\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches the default blocked UA list and lookups",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",217,1,0,\"suite\",\"bot detection\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "bot detection",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",245,3,1,\"test\",\"matches string helpers and person-property hashes\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches string helpers and person-property hashes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",264,3,1,\"test\",\"matches clamp, remote config, and sample-rate checks\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches clamp, remote config, and sample-rate checks",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",304,3,1,\"test\",\"matches portable type, json, and url helpers\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches portable type, json, and url helpers",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",244,1,0,\"suite\",\"strings, numbers, types, json, url\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "strings, numbers, types, json, url",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",337,3,1,\"test\",\"resolves config and consumes tokens the same way\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "resolves config and consumes tokens the same way",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",336,1,0,\"suite\",\"bucketed rate limiter\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "bucketed rate limiter",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+      "sha256": "e3b95f5d7710853a37817534297486a7d469c3dea5642ffbfdbdc1efea4904c4",
+      "bytes": 16359
+    },
+    {
+      "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+      "sha256": "e3b95f5d7710853a37817534297486a7d469c3dea5642ffbfdbdc1efea4904c4",
+      "bytes": 16359
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/autocapture.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/autocapture.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/error-tracking.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/error-tracking.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/otlp.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/otlp.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/replay-core.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/replay-core.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/surveys.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/surveys.esm.js"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [
+    "dist/autocapture.cjs",
+    "dist/autocapture.esm.js",
+    "dist/error-tracking.cjs",
+    "dist/error-tracking.esm.js",
+    "dist/otlp.cjs",
+    "dist/otlp.esm.js",
+    "dist/posthog.cjs",
+    "dist/replay-core.cjs",
+    "dist/replay-core.esm.js",
+    "dist/surveys.cjs",
+    "dist/surveys.esm.js"
+  ],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/posthog.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 9863.673779999997,
+  "completed": "2026-09-21T10:47:41.664Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2dd010219e23078c89e2461ac56ed5cb16b0b32e6de3653bef8ae86ee8ef056f",
+      "bytes": 3938428
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2dd010219e23078c89e2461ac56ed5cb16b0b32e6de3653bef8ae86ee8ef056f",
+      "bytes": 3938428
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ca691f45f407cd36e21ec6099863c2960252f636f1e74015604c15803b9ae491",
+      "bytes": 6248
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d299aae5e6557142593092b108e1d54952084d414f5e33f166f1a4aae736f3a3",
+      "bytes": 7326
+    },
+    {
+      "path": "node/loaded/484010-9556b2de-c7b5-4f48-82d0-85bfc6883915.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9f52699e506a89ceb72431756d13d5552a9a8a1ef847341b9afe313bf02b3d73",
+      "bytes": 334
+    },
+    {
+      "path": "node/loaded/484011-80cfc391-07bc-4331-af89-ff8bb07bb8fe.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1ddb359ebe16519f99b79e923e19bbeedb003e790b01434ef643b3dd49de2812",
+      "bytes": 334
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "430de0eeca350cea604c404ac1280dae54fd640be56acd7fb805c510d2555556",
+      "bytes": 1167
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "195ed51517b1512a27b68031a28ad998ff96056d7db44df928d21b70c8beb09a",
+      "bytes": 71779
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

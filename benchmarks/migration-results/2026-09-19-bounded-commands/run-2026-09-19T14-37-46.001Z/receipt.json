@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "scope": "bounded command owner and focused Node/Vitest evidence tools; not a library/compiler qualification",
+  "started": "2026-09-19T14:37:46.024Z",
+  "inputSha256": "b58c4221b959eb5bc21db384ad2cfed90cbd7c30c32a24a7035d99a83b8dfa25",
+  "runtime": {
+    "version": "v24.11.1",
+    "path": "../.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "limitations": [
+    "POSIX group cleanup cannot kill escaped sessions or execute after supervisor SIGKILL",
+    "Node timers depend on a responsive event loop; kernel-stuck children may not acknowledge signals",
+    "Output limits count buffered stream bytes, not process RSS or all allocator overhead",
+    "No full library suite or compiler build; installed dependency closure is not qualified by this tools receipt",
+    "Per-command deadlines do not bound synchronous workspace copying, hashing or Git metadata reads"
+  ],
+  "command": {
+    "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "args": [
+      "--test",
+      "finer/tools/bounded-command.test.mjs",
+      "finer/tools/node-test-evidence.test.mjs",
+      "finer/tools/vitest-test-evidence.test.mjs",
+      "finer/tools/artifact-evidence.test.mjs",
+      "finer/tools/migration-inventory.test.mjs"
+    ],
+    "status": 0,
+    "signal": null,
+    "supervision": {
+      "timeoutMs": 120000,
+      "killAfterMs": 1000,
+      "maxBuffer": 16777216,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    },
+    "elapsedMs": 10789.189518
+  },
+  "tests": {
+    "total": 63,
+    "passed": 63,
+    "failed": 0
+  },
+  "passed": true,
+  "inputsStable": true,
+  "completed": "2026-09-19T14:37:56.958Z"
+}

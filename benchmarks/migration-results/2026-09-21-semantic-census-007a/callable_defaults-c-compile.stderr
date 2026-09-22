@@ -1,0 +1,15 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/callable_defaults.lil:10:1
+  |
+10 | class Mapper {
+  func(int)->int transform;
+
+  init(func(int)->int transform = (int current) => current * 2) {
+    this.transform = transform;
+  }
+
+  int run(int value) {
+    return this.transform(value);
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

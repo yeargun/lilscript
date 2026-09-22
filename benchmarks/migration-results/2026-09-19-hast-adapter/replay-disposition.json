@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "existing-artifact-replay-disposition",
+  "report": {
+    "path": "replay/report.json",
+    "sha256": "a689150d8f88c8bad9f59c5c6c1e68fe4709964735b64106c3af07bf88f397b4",
+    "bytes": 273478
+  },
+  "elapsedMs": 471,
+  "suiteEvidence": "verified",
+  "certification": "unverified",
+  "sourceBuilt": false,
+  "requiredCoverage": [
+    "CJS package require/export behavior and shipped packaging remain unverified by this ESM/closed suite.",
+    "UMD and browser/site runtime delivery, including required assets, remain unverified; original site checks only read existing files.",
+    "Original check:pack and source-built check:site commands need their own complete evidence; neither was removed or reclassified as covered.",
+    "Source-qualified compiler builds and runtime/dependency delivery closure must be re-established for changed generated artifacts; the existing-dist replay is diagnostic only."
+  ],
+  "meaning": "Verified here means only that all frozen original cases passed with both exact existing ESM/closed artifacts observed. No compiler build, full package delivery, or workload acceptance is implied."
+}

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "motionlil",
+  "inventory": {
+    "path": "benchmarks/libraries/motionlil.required-tests.json",
+    "sha256": "c17cb9bfed1f09c5221e4c8bd3928402ebb042cfb59aef099b475c76199b7888",
+    "bytes": 120111
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/motionlil/receipt.json",
+    "sha256": "e8fd7de05b6c501bf94a73814d473cf7a29fbd21a93b8d252dcb983d9cfbd1a4",
+    "bytes": 13957
+  },
+  "frozenCases": 11,
+  "observedCases": 9,
+  "appeared": [],
+  "disappeared": [
+    "[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]",
+    "[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]"
+  ],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": false
+}

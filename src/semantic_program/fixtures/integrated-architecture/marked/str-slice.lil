@@ -1,0 +1,75 @@
+import {
+  otherCodeRemoveIndent,
+  otherIndentCodeCompensation,
+  otherBeginningSpace,
+  otherSlashPipe,
+  otherBlankLine,
+  otherEscapeTest,
+  otherEscapeTestNoEncode,
+  otherPercentDecode
+} from "./rules.lil";
+
+export string slice(string s, int start, int end) {
+  return s.slice(start, end);
+}
+
+export string sliceFrom(string s, int start) {
+  return s.slice(start);
+}
+
+export string replaceRe(string s, Regex re, string replacement) {
+  return s.replace(re, replacement);
+}
+
+export JsValue execRe(Regex re, string src) {
+  return re.exec(src);
+}
+
+export string joinLines(string[] lines) {
+  string out = "";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      out = out + "\n";
+    }
+    out = out + lines[i];
+    i = i + 1;
+  }
+  return out;
+}
+
+export string[] splitLines(string src) {
+  return src.split("\n");
+}
+
+export string firstLine(string src) {
+  int n = src.indexOf("\n");
+  if (n < 0) {
+    return src;
+  }
+  return slice(src, 0, n);
+}
+
+export string expandTabs(string line, int indent) {
+  int col = indent;
+  string expanded = "";
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch == "\t") {
+      int added = 4 - (col % 4);
+      expanded = expanded + " ".repeat(added);
+      col = col + added;
+    } else {
+      expanded = expanded + ch;
+      col = col + 1;
+    }
+    i = i + 1;
+  }
+  return expanded;
+}
+
+export string removeCodeIndent(string raw) {
+  otherCodeRemoveIndent.lastIndex = 0;
+  return replaceRe(raw, otherCodeRemoveIndent, "");
+}

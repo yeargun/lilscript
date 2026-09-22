@@ -1,0 +1,4 @@
+
+> @itslil/react-markdown@10.1.0 check:types
+> tsc --noEmit --strict --preserveSymlinks --module node16 --moduleResolution node16 --target es2022 test/types.ts
+

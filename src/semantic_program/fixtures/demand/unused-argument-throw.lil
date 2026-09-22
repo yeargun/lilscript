@@ -1,0 +1,1 @@
+extern int argument(int n);int first(int used,int unused,int last){return used;}try{print(first(argument(1),argument(2),argument(3)));}catch(auto error){print(90);}finally{print(99);}

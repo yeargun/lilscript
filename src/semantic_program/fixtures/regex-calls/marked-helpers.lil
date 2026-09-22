@@ -1,0 +1,31 @@
+export string replaceRe(string s, Regex re, string replacement) {
+  return s.replace(re, replacement);
+}
+
+export JsValue execRe(Regex re, string src) {
+  return re.exec(src);
+}
+
+export string expandTabs(string line, int indent) {
+  int col = indent;
+  string expanded = "";
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch == "\t") {
+      int added = 4 - (col % 4);
+      expanded = expanded + " ".repeat(added);
+      col = col + added;
+    } else {
+      expanded = expanded + ch;
+      col = col + 1;
+    }
+    i = i + 1;
+  }
+  return expanded;
+}
+
+export string removeCodeIndent(string raw) {
+  otherCodeRemoveIndent.lastIndex = 0;
+  return replaceRe(raw, otherCodeRemoveIndent, "");
+}

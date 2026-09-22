@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "kind": "runner-test-file-inventory",
+  "workload": "mobxlil",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--experimental-vm-modules",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "jest.config.cjs",
+    "--listTests",
+    "--json",
+    "--runInBand"
+  ],
+  "cwd": "/home/azureuser/mobxlil",
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "version": "v24.11.1",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "config": {
+    "path": "jest.config.cjs",
+    "sha256": "8cada9d3067ce2fed864455027dc4fe9ece24e14c878da244095cb8f16b683e1",
+    "bytes": 1154
+  },
+  "runner": {
+    "path": "node_modules/jest/bin/jest.js",
+    "sha256": "2a9b435eab8a343bd09fe285b2e2043ff9ff89fae4e1d1f46ba3df28659d8a2c",
+    "bytes": 324
+  },
+  "exitCode": 0,
+  "elapsedMs": 301.20167200000003,
+  "testFiles": [
+    {
+      "path": "tests/differential/async.test.js",
+      "sha256": "133c473abffa5ce7ad087a2a7228f3aef3b802e7ca0cb9df607221fcd3a48de1",
+      "bytes": 933
+    },
+    {
+      "path": "tests/differential/descriptors.test.js",
+      "sha256": "05a9c084f34fb911c2898dbaa7bd6429e94ce1ae56ff033fc954bc21db39b418",
+      "bytes": 875
+    },
+    {
+      "path": "tests/differential/graph.test.js",
+      "sha256": "0b4ea44439b22ceeec03083c213450c18c2fabbb4f0e3db7efdf7f2172e412ce",
+      "bytes": 2625
+    },
+    {
+      "path": "tests/differential/lifecycle.test.js",
+      "sha256": "0368114356b0ec650ec0686be5bf26b010575febb84753a3a429edacb7cfb383",
+      "bytes": 653
+    },
+    {
+      "path": "tests/differential/proxy.test.js",
+      "sha256": "cba1620f60aa03bcab239028a5507d8d7e6aa98fe68491bebb879e740f86c0c9",
+      "bytes": 1312
+    },
+    {
+      "path": "tests/upstream/base/action.js",
+      "sha256": "80cf42337301137583f2107842c2c02c16855609088a8fd4ac2a43af98f2988f",
+      "bytes": 15462
+    },
+    {
+      "path": "tests/upstream/base/api.js",
+      "sha256": "052146ba50bc578b206683244adc09746bbd0dc0594b76c95916cfde9a413818",
+      "bytes": 2609
+    },
+    {
+      "path": "tests/upstream/base/array.js",
+      "sha256": "54f7212c133e2111497f13ae87ba2265c8decd25dc29a1d3166d30807b55e9ca",
+      "bytes": 24630
+    },
+    {
+      "path": "tests/upstream/base/autorun.js",
+      "sha256": "eec3ca9f215225fa1a81c7e2cf9c44cf743c5fefe46379790cd63055805761b8",
+      "bytes": 3831
+    },
+    {
+      "path": "tests/upstream/base/autorunAsync.js",
+      "sha256": "5d50bd8349d4e14524d60050398bd144e3f0b2ba7f6d090578d22cf559fcf96d",
+      "bytes": 7857
+    },
+    {
+      "path": "tests/upstream/base/babel-tests.js",
+      "sha256": "5941d87b141bbc54b9eea7053b9f969b9ddb63ea7e0a3b911af679e051881912",
+      "bytes": 33094
+    },
+    {
+      "path": "tests/upstream/base/become-observed.ts",
+      "sha256": "845c44f69065db069731ff55ac02b0fab2cfbb0fbb4a08f2ccbbb8fed7096a2d",
+      "bytes": 14697
+    },
+    {
+      "path": "tests/upstream/base/cycles.js",
+      "sha256": "209eff80a053c5f41a11daf498791f6c84679575d611ed9802cf9b60b5f8d0ca",
+      "bytes": 5411
+    },
+    {
+      "path": "tests/upstream/base/decorate.js",
+      "sha256": "91619994df025297a470ac49e7a6b26a0da6f36bb69ad30b4622f42230fd9c9a",
+      "bytes": 11472
+    },
+    {
+      "path": "tests/upstream/base/errorhandling.js",
+      "sha256": "f687a6d7ddcfdf2b90989f839c44376f206eb483e46eba92b3c74691cea34dfc",
+      "bytes": 21730
+    },
+    {
+      "path": "tests/upstream/base/extendObservable.js",
+      "sha256": "6dba4547009993cb1d5fdbc3ca965cc57256b65f8b4947dd4584db21bb7b9b4d",
+      "bytes": 4081
+    },
+    {
+      "path": "tests/upstream/base/extras.js",
+      "sha256": "4ca54159968f4a052393c18999de0da8696edea34cc770d354209d5d37594838",
+      "bytes": 28969
+    },
+    {
+      "path": "tests/upstream/base/flow.js",
+      "sha256": "651889ec4b01a6928112aec913241739f74bd369f2b54b640dc52e69d61cabf9",
+      "bytes": 12516
+    },
+    {
+      "path": "tests/upstream/base/intercept.js",
+      "sha256": "6cba1d98be5485b08f07fe243f4ded59c0549dc2983dbb6809a92a6e3309126c",
+      "bytes": 4211
+    },
+    {
+      "path": "tests/upstream/base/make-observable.ts",
+      "sha256": "caa0754177f5ce03b7b6bf28a2a7d61d4c73a990171bde9f5f157ec5ec1830b6",
+      "bytes": 32836
+    },
+    {
+      "path": "tests/upstream/base/makereactive.js",
+      "sha256": "7f74760d3bee72e032dfe498a6c6110130f099334554069c4fafcc3f81bac999",
+      "bytes": 16532
+    },
+    {
+      "path": "tests/upstream/base/map.js",
+      "sha256": "116ebf3bc3a6867e37903db5ce98433bdf1f23783af02151a61c2140b472519d",
+      "bytes": 34725
+    },
+    {
+      "path": "tests/upstream/base/nested.js",
+      "sha256": "5a9e8bff6610f18209f2b22f65e1d0196490539eb9c8dcaabd496ac1a6808ef1",
+      "bytes": 2065
+    },
+    {
+      "path": "tests/upstream/base/object-api-proxy.js",
+      "sha256": "962e84beb3fc434a3af66cce1b4b274bcc13363df0c67526b3ab0ad23d9519c7",
+      "bytes": 8487
+    },
+    {
+      "path": "tests/upstream/base/object-api.js",
+      "sha256": "0943733aed289fa10509df4895cc3412306b22d904962c4bc7e7b9297523a36d",
+      "bytes": 15530
+    },
+    {
+      "path": "tests/upstream/base/observables.js",
+      "sha256": "28330e2a04e90b4446a46fd87d3042c05d9647ff0276978a8669a7e3eab529f6",
+      "bytes": 60997
+    },
+    {
+      "path": "tests/upstream/base/observe.ts",
+      "sha256": "388a010773434ad91c8cbdd07636e9dc6269c4e9d84e040fb09de6597d6725af",
+      "bytes": 1200
+    },
+    {
+      "path": "tests/upstream/base/proxies.js",
+      "sha256": "c50a01b7768f1fd7e8d751b636a7b80c20245afe6d3af2c278dff608aaddfbfe",
+      "bytes": 8051
+    },
+    {
+      "path": "tests/upstream/base/reaction.js",
+      "sha256": "808971aa61fd2435cda29306a3c2ba6b2b4d8b2b8e1b6279f6b56c6aed8d4249",
+      "bytes": 17045
+    },
+    {
+      "path": "tests/upstream/base/set.js",
+      "sha256": "d161faac41c0e81bd959b3fd6885fe8a3ff87ca15b37f06c1ccc7e82e1127ef4",
+      "bytes": 13780
+    },
+    {
+      "path": "tests/upstream/base/spy.js",
+      "sha256": "423dc9442cc407bf88a870769b596e10f1959582e6413ab738efe748457cc5c6",
+      "bytes": 4063
+    },
+    {
+      "path": "tests/upstream/base/stage3-decorators-inheritance.ts",
+      "sha256": "c002d3e2ffa2ee5ca599f9638f9d0cf4a971cc54ee902909b57fbaebc8e69ba8",
+      "bytes": 9152
+    },
+    {
+      "path": "tests/upstream/base/stage3-decorators.ts",
+      "sha256": "1fd20a08c59b74925ac202f01ec6b52a9c01bab134a18751bd33d02563551516",
+      "bytes": 33636
+    },
+    {
+      "path": "tests/upstream/base/strict-mode.js",
+      "sha256": "21c16ce62715d4baa3c06d06a368c15d58cc2680446be31d12d4b2e0abed171d",
+      "bytes": 10274
+    },
+    {
+      "path": "tests/upstream/base/tojs.js",
+      "sha256": "eb7e7fdcc9e1e6708d46b6d4847e9c7947eadb7b103dbee461d2b1a777aa4e69",
+      "bytes": 9599
+    },
+    {
+      "path": "tests/upstream/base/typescript-tests.ts",
+      "sha256": "56156314bf419acec4c54860b405e0d7211cf27654e20a9e44f364a23450467f",
+      "bytes": 63115
+    },
+    {
+      "path": "tests/upstream/base/untracked.ts",
+      "sha256": "e25abbfc3a7528bd617367c2b757a092a0f118ad89f8921412197c53da3fdfde",
+      "bytes": 671
+    }
+  ],
+  "individualCaseInventory": "pending",
+  "certification": "unverified",
+  "limits": [
+    "Runner-selected files only. No test bodies executed and no individual case IDs discovered.",
+    "Other package-declared test commands and suite adapters remain required."
+  ]
+}

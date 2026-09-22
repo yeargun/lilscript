@@ -1,0 +1,16 @@
+extern int read();
+int exceptions(int seed) {
+  int total = 0;
+  try {
+    if (seed >= 0) {
+      throw "seeded";
+    }
+    total += 1;
+  } catch (auto caught) {
+    total += 10;
+  } finally {
+    total += 100;
+  }
+  return total;
+}
+print(exceptions(read()));print(exceptions(-3));print(exceptions(0));

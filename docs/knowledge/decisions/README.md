@@ -3,7 +3,7 @@
 Parent: [knowledge tree](../README.md). Product intent: [mission](../mission.md).
 Current implementation: [current architecture](../compilation/current-architecture.md).
 
-These records explain durable choices. They do not define syntax, report live
+These records explain choices behind existing implementations. The [joint design reset](../../compiler-design.md) may revisit them; they do not prescribe the replacement architecture. They do not define syntax, report live
 status, or publish measurements. Each record states the intent, decision,
 tradeoff, and refusal so an implementation change can be reviewed without
 loading migration history or research logs.

@@ -1,0 +1,5 @@
+int distractor(int value){return(value&65)^12;}
+int first(int value){return(value&512)+3;}
+int second(int value){return(value&255)^65;}
+export int run(int value){return first(value)+second(value);}
+export int side(int value){return distractor(value);}

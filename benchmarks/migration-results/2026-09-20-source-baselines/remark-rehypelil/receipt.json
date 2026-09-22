@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "remark-rehypelil",
+  "started": "2026-09-20T18:41:24.002Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/remark-rehypelil",
+  "workspace": "/tmp/lilscript-baseline-remark-rehypelil-zfdfyR/remark-rehypelil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "sourceSnapshot": {
+    "root": "/home/azureuser/remark-rehypelil",
+    "files": 35,
+    "sha256": "9892e535d81149e774147c6bf68cdd337c87cc9699715d8343433b58aa27944e"
+  },
+  "committedArtifactsRemoved": [
+    "dist/remark-rehype.cjs",
+    "dist/remark-rehype.closed.js",
+    "dist/remark-rehype.esm.js",
+    "dist/remark-rehype.raw.js",
+    "dist/remark-rehype.umd.js"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 34.883,
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/remark-rehype.cjs",
+      "sha256": "897a0928d8fd3beec2ba20cf5fe2b1ac059f1a1d3352c5c532cf556dfb5207bd",
+      "bytes": 15627,
+      "sizes": {
+        "raw": 15627,
+        "gzip": 5512,
+        "brotli": 4970
+      }
+    },
+    {
+      "path": "dist/remark-rehype.closed.js",
+      "sha256": "8d4bb0b4babd7c4188a66fb911e00f3c945f66db4c23cf1cc15fd10a5d982fe8",
+      "bytes": 14820,
+      "sizes": {
+        "raw": 14820,
+        "gzip": 5441,
+        "brotli": 4923
+      }
+    },
+    {
+      "path": "dist/remark-rehype.esm.js",
+      "sha256": "8a723408f1b8707ac38af574558ce35d0c43f76e562e83ed98990ffc199935af",
+      "bytes": 14192,
+      "sizes": {
+        "raw": 14192,
+        "gzip": 4845,
+        "brotli": 4351
+      }
+    },
+    {
+      "path": "dist/remark-rehype.raw.js",
+      "sha256": "6773d15a8e06a497990c6cebb766df5757a61ddde4584bac76e222ed67e9c414",
+      "bytes": 14103,
+      "sizes": {
+        "raw": 14103,
+        "gzip": 4781,
+        "brotli": 4286
+      }
+    },
+    {
+      "path": "dist/remark-rehype.umd.js",
+      "sha256": "ac60f063b72e4f6a1670445b6872856a9bf3640ad300f62aa94a6f9267d13c2b",
+      "bytes": 15734,
+      "sizes": {
+        "raw": 15734,
+        "gzip": 5548,
+        "brotli": 4999
+      }
+    }
+  ],
+  "measurements": {
+    "dist/remark-rehype.cjs": {
+      "raw": 15627,
+      "gzip": 5512,
+      "brotli": 4970
+    },
+    "dist/remark-rehype.closed.js": {
+      "raw": 14820,
+      "gzip": 5441,
+      "brotli": 4923
+    },
+    "dist/remark-rehype.esm.js": {
+      "raw": 14192,
+      "gzip": 4845,
+      "brotli": 4351
+    },
+    "dist/remark-rehype.raw.js": {
+      "raw": 14103,
+      "gzip": 4781,
+      "brotli": 4286
+    },
+    "dist/remark-rehype.umd.js": {
+      "raw": 15734,
+      "gzip": 5548,
+      "brotli": 4999
+    }
+  },
+  "testWallSeconds": 3.254,
+  "cases": {
+    "required": 21,
+    "executed": 21,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/remark-rehype.esm.js",
+      "sha256": "8a723408f1b8707ac38af574558ce35d0c43f76e562e83ed98990ffc199935af",
+      "bytes": 14192
+    },
+    {
+      "path": "dist/remark-rehype.closed.js",
+      "sha256": "8d4bb0b4babd7c4188a66fb911e00f3c945f66db4c23cf1cc15fd10a5d982fe8",
+      "bytes": 14820
+    },
+    {
+      "path": "dist/remark-rehype.esm.js",
+      "sha256": "8a723408f1b8707ac38af574558ce35d0c43f76e562e83ed98990ffc199935af",
+      "bytes": 14192
+    },
+    {
+      "path": "dist/remark-rehype.esm.js",
+      "sha256": "8a723408f1b8707ac38af574558ce35d0c43f76e562e83ed98990ffc199935af",
+      "bytes": 14192
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 38.143,
+  "completed": "2026-09-20T18:42:02.145Z",
+  "fingerprint": "89086550969b7494f070c7ea01487a895abefbfec33b059d5fa9d3c3a1eb1317"
+}

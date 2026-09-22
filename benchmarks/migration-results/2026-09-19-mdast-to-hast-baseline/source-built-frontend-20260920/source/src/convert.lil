@@ -1,0 +1,904 @@
+import {
+  applyData,
+  arr1,
+  arrayIncludes,
+  arrayIndexOf,
+  cloneValue,
+  definitionId,
+  element,
+  emptyChildren,
+  firstLang,
+  hasOwn,
+  jsString,
+  normalizeUri,
+  optionString,
+  patchNode,
+  pointSide,
+  rawNode,
+  rootNode,
+  stringField,
+  stringIndexOf,
+  textNode,
+  trimLines,
+  trimMarkdownSpaceStart,
+  wrapNodes
+} from "./types.lil";
+
+extern JsValue Error;
+extern JsValue Map;
+
+JsValue stateAll(JsValue state, JsValue node) {
+  return JS.call(JS.get(state, "all"), state, node);
+}
+
+JsValue finish(JsValue state, JsValue from, JsValue to) {
+  JS.call(JS.get(state, "patch"), state, from, to);
+  return JS.call(JS.get(state, "applyData"), state, from, to);
+}
+
+JsValue handleParagraph(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("p", JS.object(), stateAll(state, node)));
+}
+
+JsValue handleRoot(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, rootNode(JS.call(JS.get(state, "wrap"), state, stateAll(state, node), false)));
+}
+
+JsValue handleText(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, textNode(trimLines(jsString(JS.get(node, "value")))));
+}
+
+JsValue handleBlockquote(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("blockquote", JS.object(), JS.call(JS.get(state, "wrap"), state, stateAll(state, node), true)));
+}
+
+JsValue handleBreak(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue br = finish(state, node, element("br", JS.object(), emptyChildren()));
+  JsValue out = JS.array();
+  JS.push(out, br);
+  JS.push(out, textNode("\n"));
+  return out;
+}
+
+JsValue handleDelete(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("del", JS.object(), stateAll(state, node)));
+}
+
+JsValue handleEmphasis(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("em", JS.object(), stateAll(state, node)));
+}
+
+JsValue handleStrong(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("strong", JS.object(), stateAll(state, node)));
+}
+
+JsValue handleThematicBreak(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("hr", JS.object(), emptyChildren()));
+}
+
+JsValue handleHeading(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue depthVal = JS.get(node, "depth");
+  string depth = "1";
+  if (depthVal is float) {
+    depth = depthVal.toInt().toString();
+  }
+  return finish(state, node, element("h" + depth, JS.object(), stateAll(state, node)));
+}
+
+JsValue handleHtml(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  if (JS.get(JS.get(state, "options"), "allowDangerousHtml").truthy()) {
+    return finish(state, node, rawNode(stringField(node, "value")));
+  }
+  return JS.undefined();
+}
+
+JsValue handleImage(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue props = JS.object();
+  props["src"] = normalizeUri(stringField(node, "url"));
+  JsValue alt = JS.get(node, "alt");
+  if (!(JS.isUndefined(alt) || JS.isNullish(alt))) {
+    props["alt"] = alt;
+  }
+  JsValue title = JS.get(node, "title");
+  if (!(JS.isUndefined(title) || JS.isNullish(title))) {
+    props["title"] = title;
+  }
+  return finish(state, node, element("img", props, emptyChildren()));
+}
+
+JsValue handleInlineCode(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  Regex nl = new Regex("\\r\\n|\\n|\\r", "g");
+  JsValue text = textNode(stringField(node, "value").replace(nl, " "));
+  JS.call(JS.get(state, "patch"), state, node, text);
+  return finish(state, node, element("code", JS.object(), arr1(text)));
+}
+
+JsValue handleCode(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue raw = JS.get(node, "value");
+  string value = "";
+  if (raw is string && raw.length > 0) {
+    value = raw + "\n";
+  }
+  JsValue props = JS.object();
+  JsValue langVal = JS.get(node, "lang");
+  if (langVal is string && langVal.length > 0) {
+    string lang = firstLang(langVal);
+    if (lang.length > 0) {
+      props["className"] = arr1("language-" + lang);
+    }
+  }
+  JsValue result = element("code", props, arr1(textNode(value)));
+  JsValue meta = JS.get(node, "meta");
+  if (!JS.isUndefined(meta) && !JS.isNullish(meta) && meta.truthy()) {
+    result["data"] = JS.object("meta", meta);
+  }
+  JS.call(JS.get(state, "patch"), state, node, result);
+  result = JS.call(JS.get(state, "applyData"), state, node, result);
+  result = element("pre", JS.object(), arr1(result));
+  JS.call(JS.get(state, "patch"), state, node, result);
+  return result;
+}
+
+JsValue handleTableCell(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  return finish(state, node, element("td", JS.object(), stateAll(state, node)));
+}
+
+JsValue handleLink(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue props = JS.object();
+  props["href"] = normalizeUri(stringField(node, "url"));
+  JsValue title = JS.get(node, "title");
+  if (!(JS.isUndefined(title) || JS.isNullish(title))) {
+    props["title"] = title;
+  }
+  return finish(state, node, element("a", props, stateAll(state, node)));
+}
+
+bool itemIsLoose(JsValue node) {
+  JsValue spread = JS.get(node, "spread");
+  if (JS.isUndefined(spread) || JS.isNullish(spread)) {
+    JsValue children = JS.get(node, "children");
+    return JS.isArray(children) && JS.number(JS.get(children, "length")) > 1.0;
+  }
+  return spread.truthy();
+}
+
+bool listIsLoose(JsValue node) {
+  if (JS.get(node, "type") is string && JS.get(node, "type") == "list" && JS.get(node, "spread").truthy()) {
+    return true;
+  }
+  if (!(JS.get(node, "type") is string) || JS.get(node, "type") != "list") {
+    return false;
+  }
+  JsValue children = JS.get(node, "children");
+  if (!JS.isArray(children)) {
+    return false;
+  }
+  int n = JS.number(JS.get(children, "length")).toInt();
+  int i = -1;
+  while (true) {
+    i = i + 1;
+    if (i >= n) {
+      break;
+    }
+    if (itemIsLoose(children[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+JsValue handleListItem(JsValue _s, JsValue state, JsValue node, JsValue parent) {
+  JsValue results = stateAll(state, node);
+  bool loose = itemIsLoose(node);
+  if (!(JS.isUndefined(parent) || JS.isNullish(parent))) {
+    loose = listIsLoose(parent);
+  }
+  JsValue props = JS.object();
+  JsValue checkedVal = JS.get(node, "checked");
+  if (checkedVal is bool) {
+    JsValue paragraph = JS.undefined();
+    if (JS.number(JS.get(results, "length")) > 0.0) {
+      JsValue head = results[0];
+      if (JS.get(head, "type") is string && JS.get(head, "type") == "element" && JS.get(head, "tagName") is string && JS.get(head, "tagName") == "p") {
+        paragraph = head;
+      }
+    }
+    if (JS.isUndefined(paragraph) || JS.isNullish(paragraph)) {
+      paragraph = element("p", JS.object(), emptyChildren());
+      JsValue next = arr1(paragraph);
+      int i = -1;
+      int n = JS.number(JS.get(results, "length")).toInt();
+      while (true) {
+        i = i + 1;
+        if (i >= n) {
+          break;
+        }
+        JS.push(next, results[i]);
+      }
+      results = next;
+    }
+    JsValue pKids = JS.get(paragraph, "children");
+    if (!JS.isArray(pKids)) {
+      pKids = emptyChildren();
+    }
+    JsValue withBox = arr1(element("input", JS.object("type", "checkbox", "checked", checkedVal, "disabled", true), emptyChildren()));
+    if (JS.number(JS.get(pKids, "length")) > 0.0) {
+      JS.push(withBox, textNode(" "));
+    }
+    int q = -1;
+    int qn = JS.number(JS.get(pKids, "length")).toInt();
+    while (true) {
+      q = q + 1;
+      if (q >= qn) {
+        break;
+      }
+      JS.push(withBox, pKids[q]);
+    }
+    paragraph["children"] = withBox;
+    props["className"] = arr1("task-list-item");
+  }
+  JsValue children = emptyChildren();
+  int index = -1;
+  int rn = JS.number(JS.get(results, "length")).toInt();
+  while (true) {
+    index = index + 1;
+    if (index >= rn) {
+      break;
+    }
+    JsValue child = results[index];
+    bool isP = JS.get(child, "type") is string && JS.get(child, "type") == "element" && JS.get(child, "tagName") is string && JS.get(child, "tagName") == "p";
+    if (loose || index != 0 || !isP) {
+      JS.push(children, textNode("\n"));
+    }
+    if (isP && !loose) {
+      JsValue inner = JS.get(child, "children");
+      int k = -1;
+      int kn = 0;
+      if (JS.isArray(inner)) {
+        kn = JS.number(JS.get(inner, "length")).toInt();
+      }
+      while (true) {
+        k = k + 1;
+        if (k >= kn) {
+          break;
+        }
+        JS.push(children, inner[k]);
+      }
+    } else {
+      JS.push(children, child);
+    }
+  }
+  if (rn > 0) {
+    JsValue tail = results[rn - 1];
+    bool tailP = JS.get(tail, "type") is string && JS.get(tail, "type") == "element" && JS.get(tail, "tagName") is string && JS.get(tail, "tagName") == "p";
+    if (loose || !tailP) {
+      JS.push(children, textNode("\n"));
+    }
+  }
+  return finish(state, node, element("li", props, children));
+}
+
+JsValue handleList(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue props = JS.object();
+  JsValue results = stateAll(state, node);
+  JsValue startVal = JS.get(node, "start");
+  if (startVal is float && startVal.toInt() != 1) {
+    props["start"] = startVal;
+  }
+  int i = -1;
+  int n = JS.number(JS.get(results, "length")).toInt();
+  while (true) {
+    i = i + 1;
+    if (i >= n) {
+      break;
+    }
+    JsValue childProps = JS.get(results[i], "properties");
+    if (!JS.isUndefined(childProps) && !JS.isNullish(childProps) && arrayIncludes(JS.get(childProps, "className"), "task-list-item")) {
+      props["className"] = arr1("contains-task-list");
+    }
+  }
+  string tag = "ul";
+  if (JS.get(node, "ordered").truthy()) {
+    tag = "ol";
+  }
+  return finish(state, node, element(tag, props, JS.call(JS.get(state, "wrap"), state, results, true)));
+}
+
+int jsLen(JsValue value) {
+  if (!JS.isArray(value)) {
+    return 0;
+  }
+  return JS.number(JS.get(value, "length")).toInt();
+}
+
+JsValue oneTableCell(JsValue state, string tagName, JsValue align, JsValue cells, int cellIndex) {
+  JsValue props = JS.object();
+  if (JS.isArray(align) && cellIndex < jsLen(align)) {
+    JsValue alignValue = align[cellIndex];
+    if (!(JS.isUndefined(alignValue) || JS.isNullish(alignValue)) && alignValue.truthy()) {
+      props["align"] = alignValue;
+    }
+  }
+  JsValue result = element(tagName, props, emptyChildren());
+  if (JS.isArray(cells) && cellIndex < jsLen(cells)) {
+    JsValue cell = cells[cellIndex];
+    if (!(JS.isUndefined(cell) || JS.isNullish(cell))) {
+      result["children"] = stateAll(state, cell);
+      JS.call(JS.get(state, "patch"), state, cell, result);
+      result = JS.call(JS.get(state, "applyData"), state, cell, result);
+    }
+  }
+  return result;
+}
+
+JsValue handleTableRow(JsValue _s, JsValue state, JsValue node, JsValue parent) {
+  JsValue siblings = JS.undefined();
+  JsValue align = JS.undefined();
+  if (!(JS.isUndefined(parent) || JS.isNullish(parent))) {
+    siblings = JS.get(parent, "children");
+    if (JS.get(parent, "type") is string && JS.get(parent, "type") == "table") {
+      align = JS.get(parent, "align");
+    }
+  }
+  string tagName = "td";
+  if (JS.isArray(siblings) && arrayIndexOf(siblings, node) == 0) {
+    tagName = "th";
+  }
+  JsValue cells = JS.get(node, "children");
+  int cellCount = jsLen(cells);
+  if (JS.isArray(align)) {
+    cellCount = jsLen(align);
+  }
+  JsValue out = emptyChildren();
+  int cellIndex = -1;
+  while (true) {
+    cellIndex = cellIndex + 1;
+    if (cellIndex >= cellCount) {
+      break;
+    }
+    JS.push(out, oneTableCell(state, tagName, align, cells, cellIndex));
+  }
+  return finish(state, node, element("tr", JS.object(), JS.call(JS.get(state, "wrap"), state, out, true)));
+}
+
+JsValue handleTable(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue rows = stateAll(state, node);
+  JsValue tableContent = emptyChildren();
+  if (JS.number(JS.get(rows, "length")) > 0.0) {
+    JsValue firstRow = JS.call(JS.get(rows, "shift"), rows);
+    JsValue head = element("thead", JS.object(), JS.call(JS.get(state, "wrap"), state, arr1(firstRow), true));
+    JsValue kids = JS.get(node, "children");
+    if (JS.isArray(kids) && JS.number(JS.get(kids, "length")) > 0.0) {
+      JS.call(JS.get(state, "patch"), state, kids[0], head);
+    }
+    JS.push(tableContent, head);
+  }
+  if (JS.number(JS.get(rows, "length")) > 0.0) {
+    JsValue body = element("tbody", JS.object(), JS.call(JS.get(state, "wrap"), state, rows, true));
+    JsValue kids = JS.get(node, "children");
+    if (JS.isArray(kids) && JS.number(JS.get(kids, "length")) > 1.0) {
+      JsValue start = pointSide(kids[1], "start");
+      JsValue end = pointSide(kids[JS.number(JS.get(kids, "length")).toInt() - 1], "end");
+      if (!(JS.isUndefined(start) || JS.isNullish(start) || JS.isUndefined(end) || JS.isNullish(end))) {
+        body["position"] = JS.object("start", start, "end", end);
+      }
+    }
+    JS.push(tableContent, body);
+  }
+  return finish(state, node, element("table", JS.object(), JS.call(JS.get(state, "wrap"), state, tableContent, true)));
+}
+
+JsValue mapGet(JsValue map, string id) {
+  return JS.call(JS.get(map, "get"), map, id);
+}
+
+string revertSuffix(JsValue node) {
+  string subtype = stringField(node, "referenceType");
+  if (subtype == "collapsed") {
+    return "][]";
+  }
+  if (subtype == "full") {
+    JsValue labelVal = JS.get(node, "label");
+    if (JS.isUndefined(labelVal) || JS.isNullish(labelVal)) {
+      return "][" + jsString(JS.get(node, "identifier")) + "]";
+    }
+    return "][" + jsString(labelVal) + "]";
+  }
+  return "]";
+}
+
+JsValue revertReference(JsValue state, JsValue node) {
+  string suffix = revertSuffix(node);
+  if (JS.get(node, "type") is string && JS.get(node, "type") == "imageReference") {
+    return arr1(textNode("![" + stringField(node, "alt") + suffix));
+  }
+  JsValue contents = stateAll(state, node);
+  if (JS.number(JS.get(contents, "length")) > 0.0 && JS.get(contents[0], "type") is string && JS.get(contents[0], "type") == "text") {
+    contents[0]["value"] = "[" + stringField(contents[0], "value");
+  } else {
+    JsValue next = arr1(textNode("["));
+    int i = -1;
+    int n = JS.number(JS.get(contents, "length")).toInt();
+    while (true) {
+      i = i + 1;
+      if (i >= n) {
+        break;
+      }
+      JS.push(next, contents[i]);
+    }
+    contents = next;
+  }
+  int cn = JS.number(JS.get(contents, "length")).toInt();
+  if (cn > 0 && JS.get(contents[cn - 1], "type") is string && JS.get(contents[cn - 1], "type") == "text") {
+    contents[cn - 1]["value"] = stringField(contents[cn - 1], "value") + suffix;
+  } else {
+    JS.push(contents, textNode(suffix));
+  }
+  return contents;
+}
+
+JsValue handleLinkReference(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue found = mapGet(JS.get(state, "definitionById"), definitionId(node));
+  if (JS.isUndefined(found) || JS.isNullish(found)) {
+    return revertReference(state, node);
+  }
+  JsValue props = JS.object();
+  props["href"] = normalizeUri(stringField(found, "url"));
+  JsValue title = JS.get(found, "title");
+  if (!(JS.isUndefined(title) || JS.isNullish(title))) {
+    props["title"] = title;
+  }
+  return finish(state, node, element("a", props, stateAll(state, node)));
+}
+
+JsValue handleImageReference(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  JsValue found = mapGet(JS.get(state, "definitionById"), definitionId(node));
+  if (JS.isUndefined(found) || JS.isNullish(found)) {
+    return revertReference(state, node);
+  }
+  JsValue props = JS.object();
+  props["src"] = normalizeUri(stringField(found, "url"));
+  JsValue alt = JS.get(node, "alt");
+  if (!(JS.isUndefined(alt) || JS.isNullish(alt))) {
+    props["alt"] = alt;
+  }
+  JsValue title = JS.get(found, "title");
+  if (!(JS.isUndefined(title) || JS.isNullish(title))) {
+    props["title"] = title;
+  }
+  return finish(state, node, element("img", props, emptyChildren()));
+}
+
+JsValue handleIgnore(JsValue _s, JsValue _state, JsValue _node, JsValue _p) {
+  return JS.undefined();
+}
+
+JsValue unknownDefault(JsValue state, JsValue node) {
+  JsValue data = JS.get(node, "data");
+  if (JS.isUndefined(data) || JS.isNullish(data)) {
+    data = JS.object();
+  }
+  JsValue result = JS.undefined();
+  if (hasOwn(node, "value") && !(hasOwn(data, "hProperties") || hasOwn(data, "hChildren"))) {
+    result = textNode(jsString(JS.get(node, "value")));
+  } else {
+    result = element("div", JS.object(), stateAll(state, node));
+  }
+  JS.call(JS.get(state, "patch"), state, node, result);
+  return JS.call(JS.get(state, "applyData"), state, node, result);
+}
+
+JsValue oneImpl(JsValue self, JsValue node, JsValue parent) {
+  if (JS.isUndefined(node) || JS.isNullish(node) || JS.typeOf(node) != "object") {
+    throw JS.construct(Error, "Cannot compile `" + jsString(node) + "`");
+  }
+  JsValue typeVal = JS.get(node, "type");
+  if (!(typeVal is string)) {
+    throw JS.construct(Error, "Cannot compile unknown node");
+  }
+  string type = typeVal;
+  JsValue handlers = JS.get(self, "handlers");
+  if (hasOwn(handlers, type)) {
+    JsValue handle = JS.get(handlers, type);
+    if (!(JS.isUndefined(handle) || JS.isNullish(handle) || !handle.truthy())) {
+      return JS.call(handle, handlers, self, node, parent);
+    }
+  }
+  JsValue pass = JS.get(JS.get(self, "options"), "passThrough");
+  if (JS.isArray(pass) && arrayIncludes(pass, type)) {
+    if (hasOwn(node, "children")) {
+      JsValue copied = JS.object();
+      for (string key in node) {
+        if (key != "children" && hasOwn(node, key)) {
+          copied[key] = cloneValue(JS.get(node, key));
+        }
+      }
+      copied["children"] = stateAll(self, node);
+      return copied;
+    }
+    return cloneValue(node);
+  }
+  JsValue unknown = JS.get(JS.get(self, "options"), "unknownHandler");
+  if (JS.typeOf(unknown) == "function") {
+    return JS.call(unknown, JS.undefined(), self, node, parent);
+  }
+  return unknownDefault(self, node);
+}
+
+JsValue allImpl(JsValue self, JsValue parent) {
+  JsValue values = emptyChildren();
+  if (JS.isUndefined(parent) || JS.isNullish(parent) || !hasOwn(parent, "children")) {
+    return values;
+  }
+  JsValue nodes = JS.get(parent, "children");
+  if (!JS.isArray(nodes)) {
+    return values;
+  }
+  int n = JS.number(JS.get(nodes, "length")).toInt();
+  int index = -1;
+  while (true) {
+    index = index + 1;
+    if (index >= n) {
+      break;
+    }
+    JsValue result = JS.call(JS.get(self, "one"), self, nodes[index], parent);
+    if (!(JS.isUndefined(result) || JS.isNullish(result) || !result.truthy())) {
+      if (index > 0 && JS.get(nodes[index - 1], "type") is string && JS.get(nodes[index - 1], "type") == "break" && !JS.isArray(result)) {
+        if (JS.get(result, "type") is string && JS.get(result, "type") == "text") {
+          result["value"] = trimMarkdownSpaceStart(stringField(result, "value"));
+        } else if (JS.get(result, "type") is string && JS.get(result, "type") == "element") {
+          JsValue kids = JS.get(result, "children");
+          if (JS.isArray(kids) && JS.number(JS.get(kids, "length")) > 0.0 && JS.get(kids[0], "type") is string && JS.get(kids[0], "type") == "text") {
+            kids[0]["value"] = trimMarkdownSpaceStart(stringField(kids[0], "value"));
+          }
+        }
+      }
+      if (JS.isArray(result)) {
+        int r = -1;
+        int rn = JS.number(JS.get(result, "length")).toInt();
+        while (true) {
+          r = r + 1;
+          if (r >= rn) {
+            break;
+          }
+          JS.push(values, result[r]);
+        }
+      } else {
+        JS.push(values, result);
+      }
+    }
+  }
+  return values;
+}
+
+export JsValue makeDefaultHandlers() {
+  JsValue handlers = JS.object();
+  handlers["paragraph"] = JS.method3(handleParagraph);
+  handlers["root"] = JS.method3(handleRoot);
+  handlers["text"] = JS.method3(handleText);
+  handlers["blockquote"] = JS.method3(handleBlockquote);
+  handlers["break"] = JS.method3(handleBreak);
+  handlers["delete"] = JS.method3(handleDelete);
+  handlers["emphasis"] = JS.method3(handleEmphasis);
+  handlers["strong"] = JS.method3(handleStrong);
+  handlers["thematicBreak"] = JS.method3(handleThematicBreak);
+  handlers["footnoteReference"] = JS.method3(handleFootnoteReference);
+  handlers["heading"] = JS.method3(handleHeading);
+  handlers["html"] = JS.method3(handleHtml);
+  handlers["image"] = JS.method3(handleImage);
+  handlers["link"] = JS.method3(handleLink);
+  handlers["linkReference"] = JS.method3(handleLinkReference);
+  handlers["imageReference"] = JS.method3(handleImageReference);
+  handlers["list"] = JS.method3(handleList);
+  handlers["listItem"] = JS.method3(handleListItem);
+  handlers["inlineCode"] = JS.method3(handleInlineCode);
+  handlers["code"] = JS.method3(handleCode);
+  handlers["table"] = JS.method3(handleTable);
+  handlers["tableRow"] = JS.method3(handleTableRow);
+  handlers["tableCell"] = JS.method3(handleTableCell);
+  handlers["definition"] = JS.method3(handleIgnore);
+  handlers["yaml"] = JS.method3(handleIgnore);
+  handlers["toml"] = JS.method3(handleIgnore);
+  handlers["footnoteDefinition"] = JS.method3(handleIgnore);
+  return handlers;
+}
+
+JsValue patchMethod(JsValue _s, JsValue from, JsValue to) {
+  patchNode(from, to);
+  return JS.undefined();
+}
+
+JsValue applyMethod(JsValue _s, JsValue from, JsValue to) {
+  return applyData(from, to);
+}
+
+JsValue wrapMethod(JsValue _s, JsValue nodes, JsValue loose) {
+  return wrapNodes(nodes, loose);
+}
+
+JsValue allMethod(JsValue self, JsValue parent) {
+  return allImpl(self, parent);
+}
+
+JsValue oneMethod(JsValue self, JsValue node, JsValue parent) {
+  return oneImpl(self, node, parent);
+}
+
+void collectDefs(JsValue node, JsValue definitionById, JsValue footnoteById) {
+  if (JS.isUndefined(node) || JS.isNullish(node) || JS.typeOf(node) != "object") {
+    return;
+  }
+  JsValue typeVal = JS.get(node, "type");
+  if (typeVal is string && (typeVal == "definition" || typeVal == "footnoteDefinition")) {
+    string id = definitionId(node);
+    JsValue map = definitionById;
+    if (typeVal == "footnoteDefinition") {
+      map = footnoteById;
+    }
+    if (!JS.call(JS.get(map, "has"), map, id).truthy()) {
+      JS.call(JS.get(map, "set"), map, id, node);
+    }
+  }
+  JsValue children = JS.get(node, "children");
+  if (!JS.isArray(children)) {
+    return;
+  }
+  int n = JS.number(JS.get(children, "length")).toInt();
+  int i = -1;
+  while (true) {
+    i = i + 1;
+    if (i >= n) {
+      break;
+    }
+    collectDefs(children[i], definitionById, footnoteById);
+  }
+}
+
+JsValue createState(JsValue tree, JsValue options) {
+  JsValue settings = options;
+  if (JS.isUndefined(settings) || JS.isNullish(settings)) {
+    settings = JS.object();
+  }
+  JsValue state = JS.object();
+  state["options"] = settings;
+  state["definitionById"] = JS.construct(Map);
+  state["footnoteById"] = JS.construct(Map);
+  state["footnoteCounts"] = JS.construct(Map);
+  state["footnoteOrder"] = emptyChildren();
+  collectDefs(tree, JS.get(state, "definitionById"), JS.get(state, "footnoteById"));
+  state["handlers"] = makeDefaultHandlers();
+  JsValue extra = JS.get(settings, "handlers");
+  if (!JS.isUndefined(extra) && !JS.isNullish(extra) && JS.typeOf(extra) == "object") {
+    for (string key in extra) {
+      if (hasOwn(extra, key)) {
+        JS.get(state, "handlers")[key] = JS.get(extra, key);
+      }
+    }
+  }
+  state["patch"] = JS.method2(patchMethod);
+  state["applyData"] = JS.method2(applyMethod);
+  state["wrap"] = JS.method2(wrapMethod);
+  state["all"] = JS.method1(allMethod);
+  state["one"] = JS.method2(oneMethod);
+  return state;
+}
+
+JsValue handleFootnoteReference(JsValue _s, JsValue state, JsValue node, JsValue _p) {
+  string prefix = optionString(JS.get(state, "options"), "clobberPrefix", "user-content-");
+  string id = definitionId(node);
+  string safeId = normalizeUri(id.toLowerCase());
+  JsValue order = JS.get(state, "footnoteOrder");
+  JsValue counts = JS.get(state, "footnoteCounts");
+  int pos = stringIndexOf(order, id);
+  JsValue reuseVal = mapGet(counts, id);
+  int reuse = 0;
+  int counter = 0;
+  if (JS.isUndefined(reuseVal) || JS.isNullish(reuseVal)) {
+    JS.push(order, id);
+    counter = JS.number(JS.get(order, "length")).toInt();
+  } else {
+    reuse = JS.number(reuseVal).toInt();
+    counter = pos + 1;
+  }
+  reuse = reuse + 1;
+  JS.call(JS.get(counts, "set"), counts, id, reuse);
+  string refId = prefix + "fnref-" + safeId;
+  if (reuse > 1) {
+    refId = refId + "-" + reuse.toString();
+  }
+  JsValue props = JS.object();
+  props["href"] = "#" + prefix + "fn-" + safeId;
+  props["id"] = refId;
+  props["dataFootnoteRef"] = true;
+  props["ariaDescribedBy"] = arr1("footnote-label");
+  JsValue link = element("a", props, arr1(textNode(counter.toString())));
+  JS.call(JS.get(state, "patch"), state, node, link);
+  JsValue sup = element("sup", JS.object(), arr1(link));
+  JS.call(JS.get(state, "patch"), state, node, sup);
+  return JS.call(JS.get(state, "applyData"), state, node, sup);
+}
+
+JsValue footnoteBackContentImpl(JsValue _s, JsValue _ref, JsValue reref) {
+  JsValue result = arr1(textNode("↩"));
+  float rereferenceIndex = JS.number(reref);
+  if (rereferenceIndex > 1) {
+    JS.push(result, element("sup", JS.object(), arr1(textNode(jsString(rereferenceIndex)))));
+  }
+  return result;
+}
+
+JsValue footnoteBackLabelImpl(JsValue _s, JsValue ref, JsValue reref) {
+  float referenceIndex = JS.number(ref);
+  float rereferenceIndex = JS.number(reref);
+  string text = "Back to reference " + jsString(referenceIndex + 1.0);
+  if (rereferenceIndex > 1) {
+    text = text + "-" + jsString(rereferenceIndex);
+  }
+  return text;
+}
+
+JsValue backChildren(JsValue contentFn, int referenceIndex, int rereferenceIndex) {
+  JsValue children = contentFn;
+  if (!(contentFn is string)) {
+    children = JS.call(contentFn, JS.undefined(), referenceIndex, rereferenceIndex);
+  }
+  if (children is string) {
+    return arr1(textNode(children));
+  }
+  if (JS.isArray(children)) {
+    return children;
+  }
+  return arr1(children);
+}
+
+string backLabel(JsValue labelFn, int referenceIndex, int rereferenceIndex) {
+  if (labelFn is string) {
+    return labelFn;
+  }
+  return jsString(JS.call(labelFn, JS.undefined(), referenceIndex, rereferenceIndex));
+}
+
+JsValue buildFooter(JsValue state) {
+  JsValue options = JS.get(state, "options");
+  string prefix = optionString(options, "clobberPrefix", "user-content-");
+  JsValue contentFn = JS.get(options, "footnoteBackContent");
+  if (JS.isUndefined(contentFn) || JS.isNullish(contentFn)) {
+    contentFn = JS.method2(footnoteBackContentImpl);
+  }
+  JsValue labelFn = JS.get(options, "footnoteBackLabel");
+  if (JS.isUndefined(labelFn) || JS.isNullish(labelFn)) {
+    labelFn = JS.method2(footnoteBackLabelImpl);
+  }
+  string footnoteLabel = optionString(options, "footnoteLabel", "Footnotes");
+  string footnoteLabelTagName = optionString(options, "footnoteLabelTagName", "h2");
+  JsValue labelProps = JS.get(options, "footnoteLabelProperties");
+  if (JS.isUndefined(labelProps) || JS.isNullish(labelProps)) {
+    labelProps = JS.object();
+    labelProps["className"] = arr1("sr-only");
+  } else {
+    labelProps = cloneValue(labelProps);
+  }
+  labelProps["id"] = "footnote-label";
+  JsValue listItems = emptyChildren();
+  JsValue order = JS.get(state, "footnoteOrder");
+  int referenceIndex = -1;
+  int orderLen = JS.number(JS.get(order, "length")).toInt();
+  while (true) {
+    referenceIndex = referenceIndex + 1;
+    if (referenceIndex >= orderLen) {
+      break;
+    }
+    string id = "";
+    JsValue idVal = order[referenceIndex];
+    if (idVal is string) {
+      id = idVal;
+    }
+    JsValue definition = mapGet(JS.get(state, "footnoteById"), id);
+    if (JS.isUndefined(definition) || JS.isNullish(definition)) {
+      continue;
+    }
+    JsValue content = stateAll(state, definition);
+    string safeId = normalizeUri(definitionId(definition).toLowerCase());
+    JsValue countVal = mapGet(JS.get(state, "footnoteCounts"), id);
+    int count = 0;
+    if (!(JS.isUndefined(countVal) || JS.isNullish(countVal))) {
+      count = JS.number(countVal).toInt();
+    }
+    JsValue backReferences = emptyChildren();
+    int rereferenceIndex = 0;
+    while (true) {
+      rereferenceIndex = rereferenceIndex + 1;
+      if (rereferenceIndex > count) {
+        break;
+      }
+      if (JS.number(JS.get(backReferences, "length")) > 0.0) {
+        JS.push(backReferences, textNode(" "));
+      }
+      string href = "#" + prefix + "fnref-" + safeId;
+      if (rereferenceIndex > 1) {
+        href = href + "-" + rereferenceIndex.toString();
+      }
+      JsValue backProps = JS.object();
+      backProps["href"] = href;
+      backProps["dataFootnoteBackref"] = "";
+      backProps["ariaLabel"] = backLabel(labelFn, referenceIndex, rereferenceIndex);
+      backProps["className"] = arr1("data-footnote-backref");
+      JS.push(backReferences, element("a", backProps, backChildren(contentFn, referenceIndex, rereferenceIndex)));
+    }
+    int cn = JS.number(JS.get(content, "length")).toInt();
+    if (cn > 0 && JS.get(content[cn - 1], "type") is string && JS.get(content[cn - 1], "type") == "element" && JS.get(content[cn - 1], "tagName") is string && JS.get(content[cn - 1], "tagName") == "p") {
+      JsValue pKids = JS.get(content[cn - 1], "children");
+      if (!JS.isArray(pKids)) {
+        pKids = emptyChildren();
+        content[cn - 1]["children"] = pKids;
+      }
+      int pn = JS.number(JS.get(pKids, "length")).toInt();
+      if (pn > 0 && JS.get(pKids[pn - 1], "type") is string && JS.get(pKids[pn - 1], "type") == "text") {
+        pKids[pn - 1]["value"] = stringField(pKids[pn - 1], "value") + " ";
+      } else {
+        JS.push(pKids, textNode(" "));
+      }
+      int b = -1;
+      int bn = JS.number(JS.get(backReferences, "length")).toInt();
+      while (true) {
+        b = b + 1;
+        if (b >= bn) {
+          break;
+        }
+        JS.push(pKids, backReferences[b]);
+      }
+    } else {
+      int b = -1;
+      int bn = JS.number(JS.get(backReferences, "length")).toInt();
+      while (true) {
+        b = b + 1;
+        if (b >= bn) {
+          break;
+        }
+        JS.push(content, backReferences[b]);
+      }
+    }
+    JsValue listItem = element("li", JS.object("id", prefix + "fn-" + safeId), JS.call(JS.get(state, "wrap"), state, content, true));
+    JS.call(JS.get(state, "patch"), state, definition, listItem);
+    JS.push(listItems, listItem);
+  }
+  if (JS.number(JS.get(listItems, "length")) == 0.0) {
+    return JS.undefined();
+  }
+  JsValue sectionKids = emptyChildren();
+  JS.push(sectionKids, element(footnoteLabelTagName, labelProps, arr1(textNode(footnoteLabel))));
+  JS.push(sectionKids, textNode("\n"));
+  JS.push(sectionKids, element("ol", JS.object(), JS.call(JS.get(state, "wrap"), state, listItems, true)));
+  JS.push(sectionKids, textNode("\n"));
+  return element("section", JS.object("dataFootnotes", true, "className", arr1("footnotes")), sectionKids);
+}
+
+export JsValue convertToHast(JsValue tree, JsValue opt) {
+  JsValue state = createState(tree, opt);
+  JsValue node = JS.call(JS.get(state, "one"), state, tree, JS.undefined());
+  JsValue result = node;
+  if (JS.isArray(node)) {
+    result = rootNode(node);
+  } else if (JS.isUndefined(node) || JS.isNullish(node)) {
+    result = rootNode(emptyChildren());
+  }
+  JsValue foot = buildFooter(state);
+  if (!(JS.isUndefined(foot) || JS.isNullish(foot))) {
+    JsValue kids = JS.get(result, "children");
+    if (!JS.isArray(kids)) {
+      kids = emptyChildren();
+      result["children"] = kids;
+    }
+    JS.push(kids, textNode("\n"));
+    JS.push(kids, foot);
+  }
+  return result;
+}
+
+export JsValue makeFootnoteBackContent() {
+  return JS.method2(footnoteBackContentImpl);
+}
+
+export JsValue makeFootnoteBackLabel() {
+  return JS.method2(footnoteBackLabelImpl);
+}

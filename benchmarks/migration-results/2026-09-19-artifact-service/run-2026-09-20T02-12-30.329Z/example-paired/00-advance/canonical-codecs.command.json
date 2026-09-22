@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/lilscript-codec",
+    "--json",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/final.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch-recheck.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline-recheck.mjs"
+  ],
+  "elapsed_ns": 47587618,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "f8d928002e15d81db2e395284f00c270ec91687ee02d263e2a10bd54c568a97c"
+}

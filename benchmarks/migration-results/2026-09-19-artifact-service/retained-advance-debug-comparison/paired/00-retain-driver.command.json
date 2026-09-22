@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/usr/bin/time",
+    "-o",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain.time",
+    "-f",
+    "wall_s=%e\nuser_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nexit=%x",
+    "/tmp/lilscript-parse-once-baseline-20260919/semantic-integrated",
+    "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+    "--config",
+    "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+    "--output",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired/00-retain",
+    "--mode",
+    "retain",
+    "--edits",
+    "16",
+    "--work",
+    "200000000",
+    "--memory",
+    "256000000",
+    "--retain-at",
+    "1"
+  ],
+  "elapsed_ns": 654769421,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

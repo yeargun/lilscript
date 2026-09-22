@@ -1,0 +1,280 @@
+{
+  "sha256": "b58c4221b959eb5bc21db384ad2cfed90cbd7c30c32a24a7035d99a83b8dfa25",
+  "files": [
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "benchmarks/libraries/maintained-workloads.json",
+      "sha256": "3c48ee5262c9107587ea62e42ac993cb459d84e17762c6f7310b7cedc96e4716",
+      "bytes": 100928
+    },
+    {
+      "path": "benchmarks/libraries/markedlil.profiles.tests.json",
+      "sha256": "513e0c12316d445476e05af8ed65d83dd760f635eac720c1b4c070f5adc17ecb",
+      "bytes": 12346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-bounded-commands/qualify.mjs",
+      "sha256": "747f33230567044c72f41f37a0b69146d75728047b032f462b361a27ca5c477a",
+      "bytes": 4218
+    },
+    {
+      "path": "finer/tools/architecture-experiment.mjs",
+      "sha256": "6ca033b49c5e6bf0a7db49918e2a4a925238526d482fc58142b2ae6d4a31ee59",
+      "bytes": 13921
+    },
+    {
+      "path": "finer/tools/architecture-fixtures.mjs",
+      "sha256": "04884b594488c7dff5d81827cf1d1935374f34f65ee9c1e877936d069b071736",
+      "bytes": 24491
+    },
+    {
+      "path": "finer/tools/architecture-reference-sweep.mjs",
+      "sha256": "db5b099f5ef5844b36d815998ee9574c8154074221320876d502f9f96a048623",
+      "bytes": 7284
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/artifact-evidence.test.mjs",
+      "sha256": "c71d5642d9e5ae4f13b3f17057096e3b2d5d622934139c660c81af77202f0344",
+      "bytes": 9626
+    },
+    {
+      "path": "finer/tools/baselines.mjs",
+      "sha256": "ea719c04e07c65a58262156ef1de815f441cac45c9914eb140e4d132789fee27",
+      "bytes": 4570
+    },
+    {
+      "path": "finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "finer/tools/bounded-command.test.mjs",
+      "sha256": "b20b0815e8f20489690ce407e7708c2669c07b870ce8a04242c7060d3545807e",
+      "bytes": 16802
+    },
+    {
+      "path": "finer/tools/compiler-receipt.mjs",
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "finer/tools/externs-from-types.mjs",
+      "sha256": "b6624d10ede4a0bf4b13a010a910329c5be9109724463253b55d158f11710acc",
+      "bytes": 13851
+    },
+    {
+      "path": "finer/tools/fixtures/marked-brackets.origin.json",
+      "sha256": "4ac651b13885f699bc26488681d6b3a64dda0a0fb38b635d3e24680bdb7e4b7b",
+      "bytes": 686
+    },
+    {
+      "path": "finer/tools/fixtures/marked-join-lines.origin.json",
+      "sha256": "4aabc1b76dfc326d6798046c28db4a31443ddc82de88fd4a753947d511362273",
+      "bytes": 614
+    },
+    {
+      "path": "finer/tools/fixtures/probe-arithmetic-updates.origin.json",
+      "sha256": "826d3f9964c28664699e4620ddc5c7815ed1f1f2dbe65c60eba0740dbfb8f47c",
+      "bytes": 634
+    },
+    {
+      "path": "finer/tools/fixtures/probe-captured-updates.origin.json",
+      "sha256": "922879ed394cfef37c60a275da1826bcdd5e015a415625321b980dad0489e3e1",
+      "bytes": 814
+    },
+    {
+      "path": "finer/tools/fixtures/probe-classes.origin.json",
+      "sha256": "52cc122949f28d7612d44ad20bb2c9709ef2b8f1eda75523edb283b55b745638",
+      "bytes": 421
+    },
+    {
+      "path": "finer/tools/fixtures/probe-collections.origin.json",
+      "sha256": "558fb5cb078ba204ccb391fe6ae4dea80c966c0fa6ca137e2c095c4a2f510b02",
+      "bytes": 629
+    },
+    {
+      "path": "finer/tools/fixtures/probe-defaults.origin.json",
+      "sha256": "23e520efb860db67f5f1a3ba59521915abae7da0d7f499ce91bc4c0b500b3ba6",
+      "bytes": 646
+    },
+    {
+      "path": "finer/tools/fixtures/probe-exceptions.origin.json",
+      "sha256": "2fb53e16b4a5cc05273c81590632d7823a573debf0581b232bf39f92ffb1438e",
+      "bytes": 633
+    },
+    {
+      "path": "finer/tools/fixtures/probe-for-control.origin.json",
+      "sha256": "b223045d86d158ce70849140c14f0a247ab85b37c053650bebea180565631e88",
+      "bytes": 620
+    },
+    {
+      "path": "finer/tools/fixtures/probe-for-header.origin.json",
+      "sha256": "98f371c6616a85506a777cc4ff6ad91aeaf92d7a25a83bff324d718d4f83ae54",
+      "bytes": 630
+    },
+    {
+      "path": "finer/tools/fixtures/probe-loop-captures.origin.json",
+      "sha256": "f767dacc7c15fca372ebae1e2a2392e00aced202188efca2a77bcf9337d0b550",
+      "bytes": 626
+    },
+    {
+      "path": "finer/tools/fixtures/probe-memory.origin.json",
+      "sha256": "d923d9868bc02075b65c47ec5d123355c16252b6ac9098f88a9e76619e69c61e",
+      "bytes": 641
+    },
+    {
+      "path": "finer/tools/fixtures/probe-nested-loops.origin.json",
+      "sha256": "b081026234f723f6275db03ab7604debe469c719c923fedee508bcb3dc4bf676",
+      "bytes": 627
+    },
+    {
+      "path": "finer/tools/fixtures/probe-protected-branch.origin.json",
+      "sha256": "36769f2068638075f2b00ef5b1cf95f4d6df2ba56d0f896c6066a032ee40eb3a",
+      "bytes": 701
+    },
+    {
+      "path": "finer/tools/fixtures/probe-records.origin.json",
+      "sha256": "4d0efeeb3b223a245e4166a9f0fd3f212ae17ec359a5579497e71b610bd95b7f",
+      "bytes": 579
+    },
+    {
+      "path": "finer/tools/fixtures/probe-strings.origin.json",
+      "sha256": "473c31108a159c34980544a36c172409b5eb80ccb889f2e2a9dcc99f1fa095f9",
+      "bytes": 625
+    },
+    {
+      "path": "finer/tools/fixtures/probe-template-binding.origin.json",
+      "sha256": "0b2ca55063ff606cb4578446f5e11f63ed2118b6a99c08db522b437e1a625f21",
+      "bytes": 630
+    },
+    {
+      "path": "finer/tools/fixtures/probe-while-updates.origin.json",
+      "sha256": "d9e1248ff2cc29159edde59b450547a58b0c3b485add79f19c92303116c10f23",
+      "bytes": 630
+    },
+    {
+      "path": "finer/tools/fleet-compare.mjs",
+      "sha256": "f02d86770c1d2b520a04b3294c56667accc904a8c7b490dbec3e011fa0f7541f",
+      "bytes": 5932
+    },
+    {
+      "path": "finer/tools/fleet.mjs",
+      "sha256": "65a20d19e591d031b72ae12c29ec42466c741f60de5ecfe0d558e3b2102b3671",
+      "bytes": 11895
+    },
+    {
+      "path": "finer/tools/migration-inventory.mjs",
+      "sha256": "9deb5559b9e5a40d16c1913a9835e14ba3f8982440db7b32da8579cb6f95ce2a",
+      "bytes": 24409
+    },
+    {
+      "path": "finer/tools/migration-inventory.test.mjs",
+      "sha256": "6a658f07f0492ce4722477085e6dd9a8c39aabddf61158811136a915ca802af0",
+      "bytes": 14982
+    },
+    {
+      "path": "finer/tools/naming-experiment.mjs",
+      "sha256": "25b43d9d924b0af7a5db9e9e1ce2046866035df7a6b0b129a6e13c6f8b2bdc4a",
+      "bytes": 14625
+    },
+    {
+      "path": "finer/tools/new.mjs",
+      "sha256": "d1907a52db58abb0a111b347379a41d7c2d84bc494b506571a4fbff2365a82e0",
+      "bytes": 4380
+    },
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "sha256": "9cc8b18ac0ea6447020ac8197fd35de0fd56c855940091b415f4a5caad3a33a5",
+      "bytes": 6735
+    },
+    {
+      "path": "finer/tools/node-test-evidence.test.mjs",
+      "sha256": "a05381347dbc76f37ee63b88755f7a9f371feddfdee48957e974f47842b4dda5",
+      "bytes": 10248
+    },
+    {
+      "path": "finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "finer/tools/observe-vitest-sources.mjs",
+      "sha256": "d14312c20f09cbad1cdc34616bb4dd4d3fae39b6f20cde8e4bc698967c86bd94",
+      "bytes": 1458
+    },
+    {
+      "path": "finer/tools/port-adapters/marked-profiles.test.mjs",
+      "sha256": "01615e2df144de28cfa6ab3b0720ca39097835cef404799e2a65c6632d5f8641",
+      "bytes": 3359
+    },
+    {
+      "path": "finer/tools/port-adapters/probe.test.mjs",
+      "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+      "bytes": 802
+    },
+    {
+      "path": "finer/tools/portgate.mjs",
+      "sha256": "eb7d2474af4c0d08ad0825db53413aef506ad6f2f97b043a138c8156ff3c83b2",
+      "bytes": 28554
+    },
+    {
+      "path": "finer/tools/rebuild-bars.mjs",
+      "sha256": "bedc8557973e418de85ab1043d390951c3997d264d95be951412c92ee835d1a5",
+      "bytes": 5958
+    },
+    {
+      "path": "finer/tools/repeat-coverage.mjs",
+      "sha256": "4e10c34544c9c1a9a79ec8191992f5e96722a03d707602762ce1b1b38613ef93",
+      "bytes": 2087
+    },
+    {
+      "path": "finer/tools/shipped-vs-compiled.mjs",
+      "sha256": "6e0c2368d5a4f70da3fcb09f39e06b6f11babfbc2fa19e01ec172d5c34273c27",
+      "bytes": 4306
+    },
+    {
+      "path": "finer/tools/sweep.mjs",
+      "sha256": "488ca93154b0803dd1a9382764b578ec08394a680b920343870273cd6564dda0",
+      "bytes": 14197
+    },
+    {
+      "path": "finer/tools/vitest-evidence-runner.mjs",
+      "sha256": "dfd78f61b64318faa62e132587c07786ebdeb63cd606eda52226d0efe47e0695",
+      "bytes": 2064
+    },
+    {
+      "path": "finer/tools/vitest-test-evidence.mjs",
+      "sha256": "a1c78215b4b7e2f185f74abdfe78c45db59cc8389d0f7eaa85f8c7e6dd94f4c7",
+      "bytes": 9116
+    },
+    {
+      "path": "finer/tools/vitest-test-evidence.test.mjs",
+      "sha256": "cacbe827d2ef4272fbb4d2cdf9d9f96a698417c9bb1322e1d1f823953c1ff1b8",
+      "bytes": 7907
+    },
+    {
+      "path": "finer/tools/vitest-test-reporter.mjs",
+      "sha256": "d13219798eb72bea800dbec1355f6f7fcf1c11263122836436295170ba50af5d",
+      "bytes": 1540
+    },
+    {
+      "path": "finer/tools/workers.mjs",
+      "sha256": "cf731e0af781425e42965cccb7b51bf683e49e228b5af38b419199680f01dd56",
+      "bytes": 22586
+    }
+  ]
+}

@@ -1,0 +1,601 @@
+{
+  "source": {
+    "root": "/home/azureuser/rehype-stringifylil",
+    "files": [
+      {
+        "path": ".github/workflows/pages.yml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+        "bytes": 887
+      },
+      {
+        "path": ".gitignore",
+        "kind": "file",
+        "executable": false,
+        "sha256": "befbb01e1cafe574986501e54d11bdb193dcd174a9780c9f64434a63ea91f450",
+        "bytes": 63
+      },
+      {
+        "path": "LICENSE",
+        "kind": "file",
+        "executable": false,
+        "sha256": "219c138192de46366164088cc40be8477618d247b9e1262e76014b5fc846f908",
+        "bytes": 1091
+      },
+      {
+        "path": "NOTICE.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2dbc6a671b4323ba5466732b4e657b3e15998390ebfed4b51b4e004bee3678d1",
+        "bytes": 477
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "708326a4d6d8289042d8aedbf0404387c7933935cabc523b07607c34a9587ff7",
+        "bytes": 994
+      },
+      {
+        "path": "_site/.nojekyll",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "_site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+        "bytes": 14889
+      },
+      {
+        "path": "_site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+        "bytes": 9384
+      },
+      {
+        "path": "_site/official.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+        "bytes": 58600
+      },
+      {
+        "path": "_site/rehype-stringify.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7badf7afaa647b10722afbdf22484c7782af23e7724200c40ca43bd3ff4dbb47",
+        "bytes": 30604
+      },
+      {
+        "path": "_site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+        "bytes": 2593
+      },
+      {
+        "path": "_site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+        "bytes": 11136
+      },
+      {
+        "path": "lilscript.closed.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+        "bytes": 407
+      },
+      {
+        "path": "lilscript.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+        "bytes": 966
+      },
+      {
+        "path": "package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+        "bytes": 19067
+      },
+      {
+        "path": "package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+        "bytes": 1962
+      },
+      {
+        "path": "scripts/build-site.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+        "bytes": 954
+      },
+      {
+        "path": "scripts/build.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+        "bytes": 3235
+      },
+      {
+        "path": "scripts/check-pack.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+        "bytes": 1073
+      },
+      {
+        "path": "site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+        "bytes": 14889
+      },
+      {
+        "path": "site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+        "bytes": 9384
+      },
+      {
+        "path": "site/official.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+        "bytes": 58600
+      },
+      {
+        "path": "site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+        "bytes": 2593
+      },
+      {
+        "path": "site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+        "bytes": 11136
+      },
+      {
+        "path": "src/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bdfd1afed9ad707ea7288d845e12e1235b81179e84ccc467524df7ed7d07c905",
+        "bytes": 91
+      },
+      {
+        "path": "src/lib/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "57e0751a0863bc01e123b939eced4a17ae62ec5bba6fab54b4878b75821225d3",
+        "bytes": 883
+      },
+      {
+        "path": "test/api.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+        "bytes": 4177
+      },
+      {
+        "path": "test/closed.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+        "bytes": 593
+      },
+      {
+        "path": "test/site.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+        "bytes": 758
+      },
+      {
+        "path": "types/rehype-stringify.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+        "bytes": 1169
+      }
+    ],
+    "sha256": "195a59058dd364e87362d22d444114f47ad837ac761e22f3cc96814c993e862c"
+  },
+  "original": {
+    "root": "/home/azureuser/rehype-stringifylil",
+    "files": [
+      {
+        "path": ".github/workflows/pages.yml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+        "bytes": 887
+      },
+      {
+        "path": ".gitignore",
+        "kind": "file",
+        "executable": false,
+        "sha256": "befbb01e1cafe574986501e54d11bdb193dcd174a9780c9f64434a63ea91f450",
+        "bytes": 63
+      },
+      {
+        "path": "LICENSE",
+        "kind": "file",
+        "executable": false,
+        "sha256": "219c138192de46366164088cc40be8477618d247b9e1262e76014b5fc846f908",
+        "bytes": 1091
+      },
+      {
+        "path": "NOTICE.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2dbc6a671b4323ba5466732b4e657b3e15998390ebfed4b51b4e004bee3678d1",
+        "bytes": 477
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "708326a4d6d8289042d8aedbf0404387c7933935cabc523b07607c34a9587ff7",
+        "bytes": 994
+      },
+      {
+        "path": "_site/.nojekyll",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "_site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+        "bytes": 14889
+      },
+      {
+        "path": "_site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+        "bytes": 9384
+      },
+      {
+        "path": "_site/official.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+        "bytes": 58600
+      },
+      {
+        "path": "_site/rehype-stringify.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7badf7afaa647b10722afbdf22484c7782af23e7724200c40ca43bd3ff4dbb47",
+        "bytes": 30604
+      },
+      {
+        "path": "_site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+        "bytes": 2593
+      },
+      {
+        "path": "_site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+        "bytes": 11136
+      },
+      {
+        "path": "dist/rehype-stringify.cjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "195361c7db3d503292ff9dd1699df2bbe5b5b0f46bf8cd87534706330320edb7",
+        "bytes": 31130
+      },
+      {
+        "path": "dist/rehype-stringify.closed.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5c4806ead034a786ba01bc8e0e23dd5436c0208e579eaa91895869b388ba3869",
+        "bytes": 29238
+      },
+      {
+        "path": "dist/rehype-stringify.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+        "bytes": 1169
+      },
+      {
+        "path": "dist/rehype-stringify.esm.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4ad241896dedbd14d8187ffdde40d9127d2cc86a76da3612f48d311eb42c9af1",
+        "bytes": 29299
+      },
+      {
+        "path": "dist/rehype-stringify.raw.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "134a17cff9a52a947197a6d078b6962ce650ddaef531f4b13581793b4a866459",
+        "bytes": 29204
+      },
+      {
+        "path": "dist/rehype-stringify.umd.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "79ef0a9a6a685dc3b5153811e064268c11bc0c10a9ba18d422a2557218462f83",
+        "bytes": 31255
+      },
+      {
+        "path": "lilscript.closed.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+        "bytes": 407
+      },
+      {
+        "path": "lilscript.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+        "bytes": 966
+      },
+      {
+        "path": "package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+        "bytes": 19067
+      },
+      {
+        "path": "package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+        "bytes": 1962
+      },
+      {
+        "path": "scripts/build-site.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+        "bytes": 954
+      },
+      {
+        "path": "scripts/build.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+        "bytes": 3235
+      },
+      {
+        "path": "scripts/check-pack.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+        "bytes": 1073
+      },
+      {
+        "path": "site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+        "bytes": 14889
+      },
+      {
+        "path": "site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+        "bytes": 9384
+      },
+      {
+        "path": "site/official.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+        "bytes": 58600
+      },
+      {
+        "path": "site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+        "bytes": 2593
+      },
+      {
+        "path": "site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+        "bytes": 11136
+      },
+      {
+        "path": "src/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bdfd1afed9ad707ea7288d845e12e1235b81179e84ccc467524df7ed7d07c905",
+        "bytes": 91
+      },
+      {
+        "path": "src/lib/index.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "57e0751a0863bc01e123b939eced4a17ae62ec5bba6fab54b4878b75821225d3",
+        "bytes": 883
+      },
+      {
+        "path": "test/api.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+        "bytes": 4177
+      },
+      {
+        "path": "test/closed.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+        "bytes": 593
+      },
+      {
+        "path": "test/site.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+        "bytes": 758
+      },
+      {
+        "path": "types/rehype-stringify.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+        "bytes": 1169
+      }
+    ],
+    "sha256": "caa958935bf5ea198dbca2a1ae8421fdda9828d95f9acb377bbb7d09254efcbd"
+  },
+  "project": {
+    "root": "/home/azureuser/rehype-stringifylil/node_modules",
+    "files": [
+      {
+        "path": "",
+        "kind": "directory"
+      },
+      {
+        "path": ".bin",
+        "kind": "directory"
+      },
+      {
+        "path": ".bin/esbuild",
+        "kind": "file",
+        "symlink": "../esbuild/bin/esbuild",
+        "resolved": "/home/azureuser/rehype-stringifylil/node_modules/esbuild/bin/esbuild",
+        "executable": true,
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      },
+      {
+        "path": ".package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5f091abef125be20d533b54af3edb30677668a757a02cb5c2e823787e4ad8261",
+        "bytes": 18748
+      },
+      {
+        "path": "@esbuild",
+        "kind": "directory"
+      },
+      {
+        "path": "@esbuild/linux-x64",
+        "kind": "directory"
+      },
+      {
+        "path": "@esbuild/linux-x64/README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3b0ebdffe92e5b77c948c4ac0bf4bc4a38803b15405d0425b517705221c27a2f",
+        "bytes": 141
+      },
+      {
+        "path": "@esbuild/linux-x64/bin",
+        "kind": "directory"
+      },
+      {
+        "path": "@esbuild/linux-x64/bin/esbuild",
+        "kind": "file",
+        "executable": true,
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      },
+      {
+        "path": "@esbuild/linux-x64/package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2332dc7d04175b16730f136b5bf32b31203eecea5be03b66e9453a4658b3d971",
+        "bytes": 372
+      },
+      {
+        "path": "esbuild",
+        "kind": "directory"
+      },
+      {
+        "path": "esbuild/LICENSE.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681",
+        "bytes": 1069
+      },
+      {
+        "path": "esbuild/README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6d481cd60ec3c679e5e395f547ab4221147f35642894f6b95a8df38fd25c87bd",
+        "bytes": 175
+      },
+      {
+        "path": "esbuild/bin",
+        "kind": "directory"
+      },
+      {
+        "path": "esbuild/bin/esbuild",
+        "kind": "file",
+        "executable": true,
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      },
+      {
+        "path": "esbuild/install.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "612294e278914443bdcf81cb17f54afec34dbdd2ebd999a6ee187912320cc315",
+        "bytes": 11773
+      },
+      {
+        "path": "esbuild/lib",
+        "kind": "directory"
+      },
+      {
+        "path": "esbuild/lib/main.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "161c8e0690c46021506e32fda85956d785b70f309ae97011fd27374c065cac9b",
+        "bytes": 23392
+      },
+      {
+        "path": "esbuild/lib/main.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8331fe1d8b3a07381f33cc425fcfaa94776e263113653f80ec3ba433e9657e73",
+        "bytes": 97214
+      },
+      {
+        "path": "esbuild/package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      }
+    ],
+    "bytes": 34379280,
+    "sha256": "a369233d4d4d9d26419150ad466e89e51fb1439807ce582e4046a16b5b85e388"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "required-node-case-inventory",
+  "workload": "probelil",
+  "capturedFrom": {
+    "path": "/tmp/lilscript-migration-implementation-20260912/existing-artifact-replay/reports/probelil/report.json",
+    "sha256": "586ba3ff262230bd2063a9cdd70e27d593d4b511a5ec15504ffbb328f0342495",
+    "bytes": 4012
+  },
+  "review": "Reviewed scripts/build.mjs and README: both optimized and preset-none lanes must match the existing expected.out through dist/run.cjs. The shared adapter names these two existing requirements. No output was blessed and no language-wide coverage claim is made.",
+  "requiredCases": [
+    "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"optimized preserves the probe's golden behavior\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"unoptimized reference preserves the probe's golden behavior\",1]"
+  ],
+  "testFiles": [
+    {
+      "path": ".lilscript-test-adapter/suite.test.mjs",
+      "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+      "bytes": 802
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "expected.out",
+      "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+      "bytes": 136
+    },
+    {
+      "path": "dist/run.cjs",
+      "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+      "bytes": 70
+    }
+  ],
+  "buildScript": {
+    "path": "/home/azureuser/probelil/scripts/build.mjs",
+    "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+    "bytes": 4311
+  },
+  "acceptance": "case-inventory-only; next source-qualified build must replay it",
+  "scope": "base-golden-lanes-only",
+  "additionalRequiredCoverage": [
+    {
+      "script": "scripts/configs.mjs",
+      "profiles": 22,
+      "identity": {
+        "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+        "bytes": 5251
+      },
+      "status": "source-qualified-matrix-artifact-and-golden-replay-pending",
+      "negativeEvidence": "001-probe-matrix-negative-20260912.json"
+    }
+  ]
+}

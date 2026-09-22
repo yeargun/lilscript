@@ -1,0 +1,9130 @@
+[
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 2,
+    "structural_attempts": 0,
+    "structures": 1,
+    "proof_queries": 0,
+    "probes": 2,
+    "renders": 3,
+    "measured": 3,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 6178,
+    "analysis_work": 6568,
+    "edit_work": 179,
+    "render_work": 7508,
+    "codec_work": 1259,
+    "peak_retained_bytes": 786654,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 8,
+    "structural_attempts": 2,
+    "structures": 3,
+    "proof_queries": 2,
+    "probes": 8,
+    "renders": 9,
+    "measured": 9,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 2,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 34171,
+    "analysis_work": 18144,
+    "edit_work": 291,
+    "render_work": 21520,
+    "codec_work": 3552,
+    "peak_retained_bytes": 1788692,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 11,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 48598,
+    "analysis_work": 24072,
+    "edit_work": 379,
+    "render_work": 28739,
+    "codec_work": 4744,
+    "peak_retained_bytes": 1790016,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 11,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 48598,
+    "analysis_work": 24072,
+    "edit_work": 379,
+    "render_work": 28739,
+    "codec_work": 4744,
+    "peak_retained_bytes": 1790016,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 1,
+    "structural_attempts": 0,
+    "structures": 1,
+    "proof_queries": 0,
+    "probes": 2,
+    "renders": 2,
+    "measured": 2,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 271965,
+    "analysis_work": 6570,
+    "edit_work": 179,
+    "render_work": 5277,
+    "codec_work": 537799,
+    "peak_retained_bytes": 784236,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 327,
+        "oracle": 243,
+        "regret": 84,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 181,
+        "oracle": 167,
+        "regret": 14,
+        "style": "Scoped",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(a){return a&65^12;};let a=distractor;first=function(a){return (a&512)+ 3;};let b=first;second=function(a){return a&255^65;};let c=second;run=function(a){return b(a)+ c(a)|0;};let d=run;side=function(b){return a(b);};let e=side;export{d as run,e as side};",
+        "sha256": "b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 4,
+    "structural_attempts": 1,
+    "structures": 2,
+    "proof_queries": 1,
+    "probes": 8,
+    "renders": 5,
+    "measured": 5,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 1092136,
+    "analysis_work": 12693,
+    "edit_work": 235,
+    "render_work": 12513,
+    "codec_work": 1344555,
+    "peak_retained_bytes": 1788361,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 22,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 3002955,
+    "analysis_work": 24666,
+    "edit_work": 379,
+    "render_work": 28744,
+    "codec_work": 3227026,
+    "peak_retained_bytes": 1793896,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 22,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 3002955,
+    "analysis_work": 24666,
+    "edit_work": 379,
+    "render_work": 28744,
+    "codec_work": 3227026,
+    "peak_retained_bytes": 1793896,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 8,
+    "structural_attempts": 2,
+    "structures": 3,
+    "proof_queries": 2,
+    "probes": 2,
+    "renders": 9,
+    "measured": 3,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        1,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 2,
+    "queued": 8,
+    "baseline_work": 9336,
+    "optional_work": 31965,
+    "analysis_work": 18349,
+    "edit_work": 291,
+    "render_work": 21541,
+    "codec_work": 1120,
+    "peak_retained_bytes": 1805214,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 8,
+    "renders": 12,
+    "measured": 9,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 11,
+    "baseline_work": 9336,
+    "optional_work": 48081,
+    "analysis_work": 24798,
+    "edit_work": 379,
+    "render_work": 28760,
+    "codec_work": 3480,
+    "peak_retained_bytes": 1809186,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 11,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 11,
+    "baseline_work": 9336,
+    "optional_work": 49436,
+    "analysis_work": 24889,
+    "edit_work": 379,
+    "render_work": 28760,
+    "codec_work": 4744,
+    "peak_retained_bytes": 1809186,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 11,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 11,
+    "baseline_work": 9336,
+    "optional_work": 49436,
+    "analysis_work": 24889,
+    "edit_work": 379,
+    "render_work": 28760,
+    "codec_work": 4744,
+    "peak_retained_bytes": 1809186,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 8,
+    "structural_attempts": 2,
+    "structures": 3,
+    "proof_queries": 2,
+    "probes": 2,
+    "renders": 9,
+    "measured": 2,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 1,
+    "queued": 7,
+    "baseline_work": 277860,
+    "optional_work": 300020,
+    "analysis_work": 18249,
+    "edit_work": 291,
+    "render_work": 21541,
+    "codec_work": 537799,
+    "peak_retained_bytes": 1805214,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 327,
+        "oracle": 243,
+        "regret": 84,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 181,
+        "oracle": 167,
+        "regret": 14,
+        "style": "Scoped",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(a){return a&65^12;};let a=distractor;first=function(a){return (a&512)+ 3;};let b=first;second=function(a){return a&255^65;};let c=second;run=function(a){return b(a)+ c(a)|0;};let d=run;side=function(b){return a(b);};let e=side;export{d as run,e as side};",
+        "sha256": "b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 10,
+    "structural_attempts": 3,
+    "structures": 4,
+    "proof_queries": 3,
+    "probes": 8,
+    "renders": 11,
+    "measured": 5,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Global"
+      ]
+    ],
+    "beam_evictions": 2,
+    "queued": 9,
+    "baseline_work": 277860,
+    "optional_work": 1118302,
+    "analysis_work": 24651,
+    "edit_work": 347,
+    "render_work": 26609,
+    "codec_work": 1344555,
+    "peak_retained_bytes": 1807568,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 22,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 11,
+    "baseline_work": 277860,
+    "optional_work": 3003723,
+    "analysis_work": 25418,
+    "edit_work": 379,
+    "render_work": 28760,
+    "codec_work": 3227026,
+    "peak_retained_bytes": 1807778,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 5,
+    "structures": 4,
+    "proof_queries": 5,
+    "probes": 22,
+    "renders": 12,
+    "measured": 12,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 11,
+    "baseline_work": 277860,
+    "optional_work": 3003723,
+    "analysis_work": 25418,
+    "edit_work": 379,
+    "render_work": 28760,
+    "codec_work": 3227026,
+    "peak_retained_bytes": 1807778,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 2,
+    "structural_attempts": 0,
+    "structures": 1,
+    "proof_queries": 0,
+    "probes": 2,
+    "renders": 3,
+    "measured": 3,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 6178,
+    "analysis_work": 6568,
+    "edit_work": 179,
+    "render_work": 7508,
+    "codec_work": 1259,
+    "peak_retained_bytes": 786654,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 8,
+    "structural_attempts": 2,
+    "structures": 3,
+    "proof_queries": 2,
+    "probes": 8,
+    "renders": 9,
+    "measured": 9,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 1,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 34188,
+    "analysis_work": 18160,
+    "edit_work": 291,
+    "render_work": 21521,
+    "codec_work": 3552,
+    "peak_retained_bytes": 1789484,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 17,
+    "renders": 18,
+    "measured": 18,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 4,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 73483,
+    "analysis_work": 34864,
+    "edit_work": 455,
+    "render_work": 40789,
+    "codec_work": 6711,
+    "peak_retained_bytes": 1790808,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 17,
+    "renders": 18,
+    "measured": 18,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 4,
+    "queued": 0,
+    "baseline_work": 9336,
+    "optional_work": 73483,
+    "analysis_work": 34864,
+    "edit_work": 455,
+    "render_work": 40789,
+    "codec_work": 6711,
+    "peak_retained_bytes": 1790808,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 1,
+    "structural_attempts": 0,
+    "structures": 1,
+    "proof_queries": 0,
+    "probes": 2,
+    "renders": 2,
+    "measured": 2,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 271965,
+    "analysis_work": 6570,
+    "edit_work": 179,
+    "render_work": 5277,
+    "codec_work": 537799,
+    "peak_retained_bytes": 784236,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 327,
+        "oracle": 243,
+        "regret": 84,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 181,
+        "oracle": 167,
+        "regret": 14,
+        "style": "Scoped",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(a){return a&65^12;};let a=distractor;first=function(a){return (a&512)+ 3;};let b=first;second=function(a){return a&255^65;};let c=second;run=function(a){return b(a)+ c(a)|0;};let d=run;side=function(b){return a(b);};let e=side;export{d as run,e as side};",
+        "sha256": "b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 4,
+    "structural_attempts": 1,
+    "structures": 2,
+    "proof_queries": 1,
+    "probes": 8,
+    "renders": 5,
+    "measured": 5,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 1092136,
+    "analysis_work": 12693,
+    "edit_work": 235,
+    "render_work": 12513,
+    "codec_work": 1344555,
+    "peak_retained_bytes": 1788361,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 290,
+        "oracle": 243,
+        "regret": 47,
+        "style": "Global",
+        "javascript": "let first;let second;let run;let side;first=function(e){return (e&512)+ 3;};let a=first;second=function(f){return f&255^65;};let b=second;run=function(g){return a(g)+ b(g)|0;};let c=run;side=function(h){let i;let j;let k;j=(i=h,k=i,k&65^12);return j;};let d=side;export{c as run,d as side};",
+        "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 179,
+        "oracle": 167,
+        "regret": 12,
+        "style": "Scoped",
+        "javascript": "let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};",
+        "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 12,
+    "structural_attempts": 4,
+    "structures": 5,
+    "proof_queries": 3,
+    "probes": 24,
+    "renders": 13,
+    "measured": 13,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ]
+    ],
+    "beam_evictions": 2,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 3277529,
+    "analysis_work": 30167,
+    "edit_work": 387,
+    "render_work": 29743,
+    "codec_work": 3495092,
+    "peak_retained_bytes": 1790548,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 243,
+        "oracle": 243,
+        "regret": 0,
+        "style": "Global",
+        "javascript": "let run;let side;run=function(c){let d;let e;let f;let g;let h;e=(d=c,h=d,(h&512)+ 3);let i;g=(f=c,i=f,i&255^65);return e+ g|0;};let a=run;side=function(j){let k;let l;let m;l=(k=j,m=k,m&65^12);return l;};let b=side;export{a as run,b as side};",
+        "sha256": "6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 167,
+        "oracle": 167,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 34,
+    "renders": 18,
+    "measured": 18,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        4,
+        "Global"
+      ],
+      [
+        4,
+        "Scoped"
+      ],
+      [
+        4,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 0,
+    "baseline_work": 277860,
+    "optional_work": 4639209,
+    "analysis_work": 36090,
+    "edit_work": 455,
+    "render_work": 40793,
+    "codec_work": 4839731,
+    "peak_retained_bytes": 1792840,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 243,
+        "oracle": 243,
+        "regret": 0,
+        "style": "Global",
+        "javascript": "let run;let side;run=function(c){let d;let e;let f;let g;let h;e=(d=c,h=d,(h&512)+ 3);let i;g=(f=c,i=f,i&255^65);return e+ g|0;};let a=run;side=function(j){let k;let l;let m;l=(k=j,m=k,m&65^12);return l;};let b=side;export{a as run,b as side};",
+        "sha256": "6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 167,
+        "oracle": 167,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 8,
+    "structural_attempts": 2,
+    "structures": 3,
+    "proof_queries": 2,
+    "probes": 2,
+    "renders": 9,
+    "measured": 3,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        3,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 1,
+    "queued": 8,
+    "baseline_work": 9336,
+    "optional_work": 31180,
+    "analysis_work": 18364,
+    "edit_work": 292,
+    "render_work": 20762,
+    "codec_work": 1098,
+    "peak_retained_bytes": 1804790,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 161,
+        "oracle": 143,
+        "regret": 18,
+        "style": "Scoped",
+        "javascript": "let second;let run;let side;second=function(a){return a&255^65;};let a=second;run=function(b){let c;let d;let e;d=(c=b,e=c,(e&512)+ 3);return d+ a(b)|0;};let b=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let c=side;export{b as run,c as side};",
+        "sha256": "823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 15,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 8,
+    "renders": 16,
+    "measured": 9,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 15,
+    "baseline_work": 9336,
+    "optional_work": 67053,
+    "analysis_work": 35786,
+    "edit_work": 456,
+    "render_work": 36733,
+    "codec_work": 3414,
+    "peak_retained_bytes": 1808380,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 151,
+        "oracle": 143,
+        "regret": 8,
+        "style": "Source",
+        "javascript": "let a;let b;let c;a=(0,{second:function(value){return value&255^65;}}.second);let second=a;b=(0,{run:function(value){let a;let b;let c;b=(a=value,c=a,(c&512)+ 3);return b+ second(value)|0;}}.run);let run=b;c=(0,{side:function(value){let a;let b;let c;b=(a=value,c=a,c&65^12);return b;}}.side);let side=c;export{run,side};",
+        "sha256": "8bb562810c1caf204b842643015124054901073c4419125de39c8786cdbae412",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 17,
+    "renders": 18,
+    "measured": 18,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        6,
+        "Scoped"
+      ],
+      [
+        6,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        6,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 17,
+    "baseline_work": 9336,
+    "optional_work": 74563,
+    "analysis_work": 36525,
+    "edit_work": 456,
+    "render_work": 40328,
+    "codec_work": 6590,
+    "peak_retained_bytes": 1808380,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 17,
+    "renders": 18,
+    "measured": 18,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        6,
+        "Scoped"
+      ],
+      [
+        6,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        6,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 3,
+    "queued": 17,
+    "baseline_work": 9336,
+    "optional_work": 74563,
+    "analysis_work": 36525,
+    "edit_work": 456,
+    "render_work": 40328,
+    "codec_work": 6590,
+    "peak_retained_bytes": 1808380,
+    "winners": [
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 2,
+    "proposal_limit": 24,
+    "proposals": 8,
+    "structural_attempts": 2,
+    "structures": 3,
+    "proof_queries": 2,
+    "probes": 2,
+    "renders": 9,
+    "measured": 2,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ]
+    ],
+    "beam_evictions": 0,
+    "queued": 7,
+    "baseline_work": 277860,
+    "optional_work": 299240,
+    "analysis_work": 18247,
+    "edit_work": 292,
+    "render_work": 20762,
+    "codec_work": 537799,
+    "peak_retained_bytes": 1804790,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 327,
+        "oracle": 243,
+        "regret": 84,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 181,
+        "oracle": 167,
+        "regret": 14,
+        "style": "Scoped",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(a){return a&65^12;};let a=distractor;first=function(a){return (a&512)+ 3;};let b=first;second=function(a){return a&255^65;};let c=second;run=function(a){return b(a)+ c(a)|0;};let d=run;side=function(b){return a(b);};let e=side;export{d as run,e as side};",
+        "sha256": "b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 162,
+        "oracle": 143,
+        "regret": 19,
+        "style": "Global",
+        "javascript": "let distractor;let first;let second;let run;let side;distractor=function(f){return f&65^12;};let a=distractor;first=function(g){return (g&512)+ 3;};let b=first;second=function(h){return h&255^65;};let c=second;run=function(i){return b(i)+ c(i)|0;};let d=run;side=function(j){return a(j);};let e=side;export{d as run,e as side};",
+        "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 8,
+    "proposal_limit": 24,
+    "proposals": 11,
+    "structural_attempts": 3,
+    "structures": 4,
+    "proof_queries": 3,
+    "probes": 8,
+    "renders": 12,
+    "measured": 5,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        1,
+        "Global"
+      ]
+    ],
+    "beam_evictions": 2,
+    "queued": 11,
+    "baseline_work": 277860,
+    "optional_work": 1117918,
+    "analysis_work": 24348,
+    "edit_work": 351,
+    "render_work": 26568,
+    "codec_work": 1344511,
+    "peak_retained_bytes": 1807144,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 268,
+        "oracle": 243,
+        "regret": 25,
+        "style": "Scoped",
+        "javascript": "let second;let run;let side;second=function(a){return a&255^65;};let a=second;run=function(b){let c;let d;let e;d=(c=b,e=c,(e&512)+ 3);return d+ a(b)|0;};let b=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let c=side;export{b as run,c as side};",
+        "sha256": "823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 178,
+        "oracle": 167,
+        "regret": 11,
+        "style": "Scoped",
+        "javascript": "let second;let run;let side;second=function(a){return a&255^65;};let a=second;run=function(b){let c;let d;let e;d=(c=b,e=c,(e&512)+ 3);return d+ a(b)|0;};let b=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let c=side;export{b as run,c as side};",
+        "sha256": "823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 161,
+        "oracle": 143,
+        "regret": 18,
+        "style": "Scoped",
+        "javascript": "let second;let run;let side;second=function(a){return a&255^65;};let a=second;run=function(b){let c;let d;let e;d=(c=b,e=c,(e&512)+ 3);return d+ a(b)|0;};let b=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let c=side;export{b as run,c as side};",
+        "sha256": "823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 24,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 5,
+    "structures": 6,
+    "proof_queries": 3,
+    "probes": 24,
+    "renders": 18,
+    "measured": 13,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ]
+    ],
+    "beam_evictions": 4,
+    "queued": 17,
+    "baseline_work": 277860,
+    "optional_work": 3294595,
+    "analysis_work": 36611,
+    "edit_work": 424,
+    "render_work": 40328,
+    "codec_work": 3495092,
+    "peak_retained_bytes": 1807980,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 243,
+        "oracle": 243,
+        "regret": 0,
+        "style": "Global",
+        "javascript": "let run;let side;run=function(c){let d;let e;let f;let g;let h;e=(d=c,h=d,(h&512)+ 3);let i;g=(f=c,i=f,i&255^65);return e+ g|0;};let a=run;side=function(j){let k;let l;let m;l=(k=j,m=k,m&65^12);return l;};let b=side;export{a as run,b as side};",
+        "sha256": "6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 167,
+        "oracle": 167,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": "Limit(CodecProbes)",
+    "discovery_refusal": null
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probe_limit": 48,
+    "proposal_limit": 24,
+    "proposals": 17,
+    "structural_attempts": 7,
+    "structures": 6,
+    "proof_queries": 5,
+    "probes": 34,
+    "renders": 18,
+    "measured": 18,
+    "seen": [
+      [
+        0,
+        "Global"
+      ],
+      [
+        0,
+        "Scoped"
+      ],
+      [
+        0,
+        "Source"
+      ],
+      [
+        3,
+        "Scoped"
+      ],
+      [
+        1,
+        "Global"
+      ],
+      [
+        1,
+        "Scoped"
+      ],
+      [
+        1,
+        "Source"
+      ],
+      [
+        3,
+        "Global"
+      ],
+      [
+        3,
+        "Source"
+      ],
+      [
+        7,
+        "Global"
+      ],
+      [
+        7,
+        "Scoped"
+      ],
+      [
+        7,
+        "Source"
+      ],
+      [
+        2,
+        "Global"
+      ],
+      [
+        6,
+        "Scoped"
+      ],
+      [
+        6,
+        "Global"
+      ],
+      [
+        2,
+        "Scoped"
+      ],
+      [
+        2,
+        "Source"
+      ],
+      [
+        6,
+        "Source"
+      ]
+    ],
+    "beam_evictions": 4,
+    "queued": 17,
+    "baseline_work": 277860,
+    "optional_work": 4639540,
+    "analysis_work": 37124,
+    "edit_work": 456,
+    "render_work": 40328,
+    "codec_work": 4839492,
+    "peak_retained_bytes": 1807980,
+    "winners": [
+      {
+        "objective": "Raw",
+        "score": 243,
+        "oracle": 243,
+        "regret": 0,
+        "style": "Global",
+        "javascript": "let run;let side;run=function(c){let d;let e;let f;let g;let h;e=(d=c,h=d,(h&512)+ 3);let i;g=(f=c,i=f,i&255^65);return e+ g|0;};let a=run;side=function(j){let k;let l;let m;l=(k=j,m=k,m&65^12);return l;};let b=side;export{a as run,b as side};",
+        "sha256": "6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Gzip",
+        "score": 167,
+        "oracle": 167,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      },
+      {
+        "objective": "Brotli",
+        "score": 143,
+        "oracle": 143,
+        "regret": 0,
+        "style": "Scoped",
+        "javascript": "let run;let side;run=function(a){let b;let c;let d;let e;let f;c=(b=a,f=b,(f&512)+ 3);let g;e=(d=a,g=d,g&255^65);return c+ e|0;};let a=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let b=side;export{a as run,b as side};",
+        "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+        "observed": [
+          [
+            "api",
+            "run",
+            1,
+            "side",
+            1
+          ],
+          [
+            -513,
+            193,
+            77
+          ],
+          [
+            -257,
+            705,
+            77
+          ],
+          [
+            -65,
+            769,
+            13
+          ],
+          [
+            -1,
+            705,
+            77
+          ],
+          [
+            0,
+            68,
+            12
+          ],
+          [
+            1,
+            67,
+            13
+          ],
+          [
+            7,
+            73,
+            13
+          ],
+          [
+            65,
+            3,
+            77
+          ],
+          [
+            255,
+            193,
+            77
+          ],
+          [
+            512,
+            580,
+            12
+          ],
+          [
+            767,
+            705,
+            77
+          ],
+          [
+            4294967297,
+            67,
+            13
+          ],
+          [
+            "coerce",
+            1
+          ],
+          [
+            "coerce",
+            2
+          ],
+          [
+            "boxed",
+            76
+          ],
+          [
+            "side-coerce"
+          ],
+          [
+            "side-boxed",
+            77
+          ],
+          [
+            "throw-coerce",
+            1
+          ],
+          [
+            "throw-coerce",
+            2
+          ],
+          [
+            "caught",
+            true
+          ]
+        ]
+      }
+    ],
+    "stopped": null,
+    "discovery_refusal": null
+  }
+]

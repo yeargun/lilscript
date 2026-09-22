@@ -1,0 +1,1661 @@
+{
+  "schema": 1,
+  "scope": "focused debug artifact admission, shared recipe ownership, public scoped service and original example consumers; not milestone certification",
+  "started": "2026-09-19T15:55:00.968Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 8.094207999999995
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 16.151016
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 12.673535000000001
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 2.497261000000009
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--lib",
+        "--bin",
+        "lilscript",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 127140.621767
+    },
+    {
+      "label": "tests-0",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler_service::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 2709.0328109999973
+    },
+    {
+      "label": "tests-1",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compilation_policy::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 46.91898200000287
+    },
+    {
+      "label": "tests-2",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compilation_policy_evidence_tests::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 28.350612000009278
+    },
+    {
+      "label": "tests-3",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "lexer::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 25.019177999987733
+    },
+    {
+      "label": "tests-4",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "parser::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 123.25527200000943
+    },
+    {
+      "label": "tests-5",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "module::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 37.726894999999786
+    },
+    {
+      "label": "tests-6",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "literal::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 57.33804199998849
+    },
+    {
+      "label": "tests-7",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "output_budget::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 26.953421999991406
+    },
+    {
+      "label": "tests-8",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 260.4063229999738
+    },
+    {
+      "label": "tests-9",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 55816.64345099998
+    },
+    {
+      "label": "tests-10",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::attributes_purity_errors_to_the_dependency_module"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 33.24821299998439
+    },
+    {
+      "label": "tests-11",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::compiles_and_tree_shakes_a_module_graph"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 29.527931999997236
+    },
+    {
+      "label": "tests-12",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::cyclic_imports_observe_live_export_updates"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 62.8657640000165
+    },
+    {
+      "label": "tests-13",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::initializes_each_module_once_in_a_static_cycle"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 59.6496310000075
+    },
+    {
+      "label": "tests-14",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::links_two_module_cycle_with_exported_value"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 59.858377999975346
+    },
+    {
+      "label": "tests-15",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::permits_deferred_cyclic_module_value_reads"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 77.33416800000123
+    },
+    {
+      "label": "tests-16",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::rejects_eager_cyclic_module_value_reads"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 33.19018799997866
+    },
+    {
+      "label": "tests-17",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::reports_missing_exports_and_links_static_module_cycles"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 31.049087999999756
+    },
+    {
+      "label": "tests-18",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::resolves_reexports_through_a_static_cycle"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 59.23687799999607
+    },
+    {
+      "label": "tests-19",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::emits_typed_foreign_modules_as_native_esm_imports"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 39.81143699999666
+    },
+    {
+      "label": "tests-20",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::preserves_side_effect_foreign_esm_imports"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 29.003636000008555
+    },
+    {
+      "label": "tests-21",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::tree_shakes_unused_foreign_imports_through_barrel_reexports"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 32.28606199999922
+    },
+    {
+      "label": "tests-22",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::preserves_surviving_dependency_functions_as_esm_chunks"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 59.230681999993976
+    },
+    {
+      "label": "tests-23",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::split_rejects_more_mandatory_lazy_chunks_than_max_chunks"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 31.058380999980727
+    },
+    {
+      "label": "tests-24",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler::tests::splits_only_shared_modules_that_meet_size_policy"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 105.60655299999053
+    },
+    {
+      "label": "cli-unit-tests",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-88c9d4a211b5d4f5",
+      "args": [],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 32.89679500000784
+    },
+    {
+      "label": "string-group-oracle",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::search_string_group_tests::manual_joint_string_pool_has_a_qualified_finite_oracle_beyond_singleton_discovery",
+        "--exact",
+        "--nocapture"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 747.9057909999974
+    },
+    {
+      "label": "naming-neighborhood-oracle",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::search_naming_neighborhood_tests::source_name_overrides_have_a_qualified_finite_structural_neighborhood",
+        "--exact",
+        "--nocapture"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 970.7954319999844
+    },
+    {
+      "label": "build-cli",
+      "command": "cargo",
+      "args": [
+        "build",
+        "--bin",
+        "lilscript",
+        "--bin",
+        "lilscript-codec",
+        "--example",
+        "semantic-integrated",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 7482.3146410000045
+    },
+    {
+      "label": "example-direct",
+      "command": "python3",
+      "args": [
+        "/home/azureuser/lilscript/finer/tools/semantic-integration.py",
+        "--driver",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+        "--codec",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+        "--fixture",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-direct",
+        "--mode",
+        "direct",
+        "--pairs",
+        "1",
+        "--edits",
+        "4"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 1895.0328340000124
+    },
+    {
+      "label": "example-search",
+      "command": "python3",
+      "args": [
+        "/home/azureuser/lilscript/finer/tools/semantic-integration.py",
+        "--driver",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+        "--codec",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+        "--fixture",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-search",
+        "--mode",
+        "search",
+        "--pairs",
+        "1",
+        "--edits",
+        "4"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 8845.007029999979
+    },
+    {
+      "label": "example-paired",
+      "command": "python3",
+      "args": [
+        "/home/azureuser/lilscript/finer/tools/semantic-integration.py",
+        "--driver",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+        "--codec",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+        "--fixture",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-paired",
+        "--mode",
+        "paired",
+        "--pairs",
+        "1",
+        "--edits",
+        "4",
+        "--retain-at",
+        "1"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 2831.6251999999804
+    },
+    {
+      "label": "example-native",
+      "command": "python3",
+      "args": [
+        "/home/azureuser/lilscript/finer/tools/semantic-integration.py",
+        "--driver",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+        "--codec",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+        "--fixture",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native",
+        "--mode",
+        "native",
+        "--pairs",
+        "1",
+        "--edits",
+        "4"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 1285.8783399999957
+    },
+    {
+      "label": "cli-stdout",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/lilscript.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 22.965434000012465
+    },
+    {
+      "label": "cli-file",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/lilscript.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--explain",
+        "json",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/file.mjs"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 23.081792999990284
+    },
+    {
+      "label": "cli-rescore",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+      "args": [
+        "--json",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.mjs"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 13.473845000000438
+    },
+    {
+      "label": "cli-parse",
+      "command": "node",
+      "args": [
+        "--check",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.mjs"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 25.610482999996748
+    },
+    {
+      "label": "cli-execute",
+      "command": "node",
+      "args": [
+        "--input-type=module",
+        "-e",
+        "const m=await import(\"file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.mjs\");console.log(JSON.stringify([m.byte.name,m.byte.length,m.byte(-1),m.byte({valueOf(){return 511}})]));"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 33.35884599998826
+    },
+    {
+      "label": "cli-development",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/lilscript.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--explain",
+        "json",
+        "--mode",
+        "development"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 19.461838999995962
+    },
+    {
+      "label": "cli-legacy-family-unsupported",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/legacy-family.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module"
+      ],
+      "status": 1,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 10.109101000009105
+    },
+    {
+      "label": "cli-unsupported",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/unsupported.lil",
+        "--config",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/lilscript.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module"
+      ],
+      "status": 1,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 11.925562999997055
+    },
+    {
+      "label": "cli-all",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/portable.lil",
+        "--config",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/lilscript.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "all",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/portable",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 85.07902500001364
+    },
+    {
+      "label": "cli-native-execute",
+      "command": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/portable",
+      "args": [],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 7.964485000004061
+    },
+    {
+      "label": "cli-all-js-execute",
+      "command": "node",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/portable.js"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 29.951731999986805
+    }
+  ],
+  "semanticCore": true,
+  "moduleBoundary": true,
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack"
+  ],
+  "inputSha256": "1fca56536bbfcb2152924d5ee9e94f905ef84b02be5c7d18c0eee7f1d2fd5635",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "testBinaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "sha256": "8674c7f8ea6f2b49a2feda279f0aebc629005a82138c9ca4e00cdde80cdac7e6",
+      "bytes": 398137616
+    },
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-88c9d4a211b5d4f5",
+      "sha256": "9e8ded8b8ec97014ee806b3d4dc580964a813e987f1a3163dbe8557df2a8c705",
+      "bytes": 200222136
+    }
+  ],
+  "focusedTests": [
+    {
+      "filter": "compiler_service::",
+      "passed": 33
+    },
+    {
+      "filter": "compilation_policy::",
+      "passed": 31
+    },
+    {
+      "filter": "compilation_policy_evidence_tests::",
+      "passed": 8
+    },
+    {
+      "filter": "lexer::",
+      "passed": 13
+    },
+    {
+      "filter": "parser::",
+      "passed": 58
+    },
+    {
+      "filter": "module::",
+      "passed": 25
+    },
+    {
+      "filter": "literal::",
+      "passed": 13
+    },
+    {
+      "filter": "output_budget::",
+      "passed": 13
+    },
+    {
+      "filter": "semantic::",
+      "passed": 139
+    },
+    {
+      "filter": "semantic_program::",
+      "passed": 717
+    },
+    {
+      "filter": "compiler::tests::attributes_purity_errors_to_the_dependency_module",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::compiles_and_tree_shakes_a_module_graph",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::cyclic_imports_observe_live_export_updates",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::initializes_each_module_once_in_a_static_cycle",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::links_two_module_cycle_with_exported_value",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::permits_deferred_cyclic_module_value_reads",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::rejects_eager_cyclic_module_value_reads",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::reports_missing_exports_and_links_static_module_cycles",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::resolves_reexports_through_a_static_cycle",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::emits_typed_foreign_modules_as_native_esm_imports",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::preserves_side_effect_foreign_esm_imports",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::tree_shakes_unused_foreign_imports_through_barrel_reexports",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::preserves_surviving_dependency_functions_as_esm_chunks",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::split_rejects_more_mandatory_lazy_chunks_than_max_chunks",
+      "passed": 1
+    },
+    {
+      "filter": "compiler::tests::splits_only_shared_modules_that_meet_size_policy",
+      "passed": 1
+    }
+  ],
+  "focusedFailures": [],
+  "stringGroupOracle": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/string-group-oracle.json",
+    "sha256": "7e16a8b4b343e9792022944572158260bb877fee7f3a19296b334a0ffd850136",
+    "bytes": 80084
+  },
+  "namingNeighborhoodOracle": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/naming-neighborhood-oracle.json",
+    "sha256": "b9a5a33b5a9252af36bb63988a868998bd23151a0ad731c9d4e5d3c887bc5e45",
+    "bytes": 120194
+  },
+  "binaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "sha256": "a9a5603dbc1e27952f768474a6a818777ffa472afa6e7bd7377b19a6d90c8647",
+      "bytes": 265188744
+    },
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+      "sha256": "eb9029c2bfd457f77b2b97174bf51001d13f98cc9a7950c925ad649fe9229ee5",
+      "bytes": 198430704
+    },
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+      "sha256": "1b51189a13a1dfa065d9da36727c3fd8a1df97f4a23d08879b162e54d321433b",
+      "bytes": 221044312
+    }
+  ],
+  "exampleConsumers": [
+    {
+      "mode": "direct",
+      "summary": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-direct/summary.json",
+        "sha256": "94e56180bd7d37cddf452649a0ccc30c859b15d5c5134fb1681f0e1ab55c4c03",
+        "bytes": 6196
+      },
+      "contract": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-direct/contract.json",
+        "sha256": "bc488cf9299c893ceb886a036e24e5e6da3fc485870adc821671490c73716418",
+        "bytes": 11348
+      },
+      "runs": 1
+    },
+    {
+      "mode": "search",
+      "summary": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-search/summary.json",
+        "sha256": "0371ae8df78e0b91bf35723f7d8963874628ae8e2d3cd2adbfa7c9c56ecd2800",
+        "bytes": 13186
+      },
+      "contract": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-search/contract.json",
+        "sha256": "7e49c73447e3c95b93032a70f80070c9cd01ce936d30b29b3903e3d83bb20841",
+        "bytes": 11348
+      },
+      "runs": 1
+    },
+    {
+      "mode": "paired",
+      "summary": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-paired/summary.json",
+        "sha256": "3324f0366e54d63cb816a8d2284f17c25418a98c555f7a14444c753205b0e764",
+        "bytes": 40840
+      },
+      "contract": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-paired/contract.json",
+        "sha256": "eb47bbd386fae2100a0dbf86c73bb09dab26d4c7be42de86231222c17b29c6c9",
+        "bytes": 11345
+      },
+      "runs": 2
+    },
+    {
+      "mode": "native",
+      "summary": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/summary.json",
+        "sha256": "ebe739a41c55c51bb6b5e3b1daad4bcd349281508f92f35440e46a7543cd1aba",
+        "bytes": 4796
+      },
+      "contract": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/contract.json",
+        "sha256": "4088e55cdc96f069d938ad9908d1912628967461361c63c443a87e95bbb25622",
+        "bytes": 10045
+      },
+      "runs": 1
+    }
+  ],
+  "delivered": {
+    "source": {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.lil",
+      "sha256": "1be9ce2d2aa8f8cff051b57ffbb970d02b6bab10cc7af7db336e1ca4fea973aa",
+      "bytes": 49
+    },
+    "output": {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.mjs",
+      "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+      "bytes": 75
+    },
+    "canonicalSizes": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.mjs",
+      "raw": 75,
+      "gzip9": 85,
+      "brotli11": 79
+    },
+    "report": {
+      "artifacts": [
+        {
+          "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+          "raw": 75,
+          "gzip9": null,
+          "brotli11": 79,
+          "details": {
+            "recipe_words": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "recipe_fingerprint": 12139990537254343000,
+            "semantic": {
+              "snapshot_identity": "RevisionId(13)",
+              "meaning_identity": "RevisionId(14)",
+              "identity_scope": "process-local diagnostics, not canonical recipe identity",
+              "rewrite_order": "newest-first",
+              "rewrites": []
+            },
+            "resource": "whole",
+            "execution": "Module",
+            "style": "Global",
+            "source_names": [],
+            "output": {
+              "dead_code_elimination": true,
+              "target_compaction": true,
+              "literals": "Original"
+            },
+            "sizes": [
+              75,
+              null,
+              79
+            ],
+            "policy_fingerprint": [
+              46,
+              179,
+              92,
+              172,
+              210,
+              77,
+              244,
+              252,
+              108,
+              228,
+              26,
+              171,
+              171,
+              192,
+              221,
+              154,
+              109,
+              196,
+              202,
+              56,
+              146,
+              42,
+              94,
+              188,
+              137,
+              238,
+              31,
+              114,
+              84,
+              223,
+              148,
+              37
+            ]
+          }
+        }
+      ],
+      "winners": [
+        null,
+        null,
+        0
+      ],
+      "native_sha256": null,
+      "native_delivery": null,
+      "first_artifact_ns": 5318744,
+      "search": {
+        "request": {
+          "objectives": [
+            "Brotli"
+          ],
+          "scalar": {
+            "work": 2000000,
+            "scratch_bytes": 4000000,
+            "output_bytes": 2000000
+          },
+          "helper": {
+            "work": 2000000,
+            "scratch_bytes": 4000000,
+            "output_bytes": 2000000
+          },
+          "string": {
+            "work": 2000000,
+            "scratch_bytes": 4000000,
+            "output_bytes": 2000000
+          },
+          "local_facts": {
+            "work": 1000000,
+            "result_bytes": 512000
+          },
+          "facts_cache": {
+            "entries": 128,
+            "bytes": 16000000,
+            "result_bytes": 512000
+          }
+        },
+        "proposals": 2,
+        "structures": 1,
+        "renders": 3,
+        "codec_probes": 2,
+        "proof_queries": 1,
+        "beam_evictions": 0,
+        "admitted_artifacts": 3,
+        "stop": null
+      },
+      "schema": 1,
+      "backend": "semantic",
+      "source_sha256": "b2be91819b6a2d681d6ed23daaa558efb5590c21896ed8249b3d1a4f46e57a58",
+      "request": {
+        "target": "JavaScript",
+        "preserve_root_exports": true,
+        "logical_work": 200000000,
+        "retained_bytes": 256000000,
+        "effective_logical_work": 200000000,
+        "effective_retained_bytes": 256000000
+      },
+      "inputs": {
+        "root": 0,
+        "modules": [
+          {
+            "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/entry.lil",
+            "bytes": 49,
+            "sha256": "1be9ce2d2aa8f8cff051b57ffbb970d02b6bab10cc7af7db336e1ca4fea973aa",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          }
+        ]
+      },
+      "shape": {
+        "modules": 1,
+        "units": 2,
+        "operations": 8,
+        "cells": 2
+      },
+      "javascript_policy": {
+        "schema": 2,
+        "algorithm": 1,
+        "contract": {
+          "target": "javascript",
+          "world": "ReusableLibrary",
+          "execution": "Module",
+          "ecmascript": "es2022",
+          "preserve_root_exports": true,
+          "public_aggregate_abi": "Named",
+          "preserve_extern_fields": true,
+          "internal_exports_may_mangle": false,
+          "public_function_spelling": "None",
+          "pristine_builtins": false,
+          "pure_property_reads": false,
+          "strip_console": false,
+          "preserved_properties": [],
+          "owned_properties": "UnderscoreSuffix",
+          "bundle_mode": "Single"
+        },
+        "objective": {
+          "codec": "Brotli",
+          "priority": "SizeFirst",
+          "realistic_performance_limit_percent": 25,
+          "optional_alternatives": 24,
+          "optional_codec_probes": 48,
+          "cleanup_finalists": 1,
+          "retained_candidates": 384,
+          "retained_candidate_bytes": 786432,
+          "beam_width": 10,
+          "search": {
+            "version": 12,
+            "codec_schedule": "staged",
+            "render_batch": 8,
+            "diversity_interval": 4
+          }
+        },
+        "effort": 13,
+        "tactics": [
+          {
+            "id": "dead-code-elimination",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "constant-folding",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "inlining",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "scalar-replacement",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "call-specialization",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "helper-sharing",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "target-compaction",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "identifier-mangling",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "property-mangling",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "string-pooling",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "string-array-packing",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          },
+          {
+            "id": "startup-reconstruction",
+            "state": {
+              "permission": "auto",
+              "enabled": false
+            }
+          },
+          {
+            "id": "recurring-reconstruction",
+            "state": {
+              "permission": "auto",
+              "enabled": false
+            }
+          },
+          {
+            "id": "naming-search",
+            "state": {
+              "permission": "auto",
+              "enabled": true
+            }
+          }
+        ],
+        "resources": {
+          "logical_work": null,
+          "retained_bytes": null,
+          "wall_time_ms": null
+        },
+        "constraints": {
+          "max_startup_work": null,
+          "max_recurring_work": null,
+          "max_runtime_memory_bytes": null,
+          "max_performance_regression_percent": null
+        }
+      },
+      "native_policy": null,
+      "phases_ns": {
+        "policy_ns": 586876,
+        "discovery_parse_ns": 351877,
+        "check_ns": 220962,
+        "convert_ns": 436134,
+        "frontend_release_ns": 17823,
+        "adopt_ns": 103883,
+        "javascript_ns": 8928075,
+        "finish_ns": 26298,
+        "source_release_ns": 1353
+      },
+      "total_ns": 11272504,
+      "ledger_before_finish": {
+        "baseline_work": 4526,
+        "optional_work": 2666,
+        "retained_bytes": 16010917,
+        "peak_retained_bytes": 16763892,
+        "analysis_work": 4132,
+        "edit_work": 210,
+        "render_work": 2433,
+        "codec_work": 417
+      },
+      "resources": {
+        "baseline_work": 4526,
+        "optional_work": 2666,
+        "codec_work": 417,
+        "peak_retained_bytes": 16763892,
+        "frontend_logical_work": 2453,
+        "frontend_allocation_accounting": "partial",
+        "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+        "source_buffer_capacity": 448,
+        "frontend_phase_accounting": {
+          "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+          "main_parse_arena": "not repeated; discovery programs reused",
+          "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+          "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+          "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+          "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+          "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+          "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+          "semantic_verification": "pre-admitted work and owned scratch",
+          "module_metadata": "uninstrumented"
+        },
+        "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+        "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+        "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+        "scope": "admitted path source buffers, covered parser arenas and token vectors, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+        "retained_bytes_after_handoff": 0
+      },
+      "ledger_after_finish": {
+        "baseline_work": 4526,
+        "optional_work": 2666,
+        "retained_bytes": 0,
+        "peak_retained_bytes": 16763892,
+        "analysis_work": 4132,
+        "edit_work": 210,
+        "render_work": 2433,
+        "codec_work": 417
+      }
+    }
+  },
+  "passed": true,
+  "inputsStable": true,
+  "completed": "2026-09-19T15:58:36.520Z"
+}

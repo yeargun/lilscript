@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T11:21:36.687Z",
+  "completed": "2026-09-21T11:21:36.860Z",
+  "wallSeconds": 0.171,
+  "command": "node",
+  "args": [
+    "--test",
+    "finer/tools/policy-precedence.test.mjs"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/5e5232c0cd29305a227793f1989da83203e013283bf0584b5d5488791ce1e2f2/lilscript",
+    "sha256": "5e5232c0cd29305a227793f1989da83203e013283bf0584b5d5488791ce1e2f2",
+    "bytes": 17913040,
+    "preservedFrom": "target/release/lilscript"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript/finer/tools/policy-precedence.test.mjs",
+        "sha256": "b2fd83611da2a2cf6131f00f79129832058f85959df0cfe6c1fb964072601ae4",
+        "bytes": 6712
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/config.rs",
+        "sha256": "f4639577b76917d9cb176cbdcf05861079fd2d44f82d02970c6190da37a2a6aa",
+        "bytes": 174987
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/main.rs",
+        "sha256": "d7975be156fce5ccfdab3e4bc9357da172ea5c7f1451b22403731f96afadee1b",
+        "bytes": 31566
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/compilation_policy.rs",
+        "sha256": "edb505d7f3427288ea1ff539960683b34ffd9ccc01a39ef0ac07a3cd509be6ae",
+        "bytes": 84451
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/5e5232c0cd29305a227793f1989da83203e013283bf0584b5d5488791ce1e2f2/lilscript",
+        "sha256": "5e5232c0cd29305a227793f1989da83203e013283bf0584b5d5488791ce1e2f2",
+        "bytes": 17913040
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "d6f0808e179c8730f0019fe2af621f9f3c0d9db2e98dbc7f5f53d9cbc2a0655c",
+    "bytes": 1073
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "passed": true,
+  "fingerprint": "15eed86e81af5c7ffbfcfb10d11f6e91a3ec79f14e5ba1f097e0a68cd10c5fae"
+}

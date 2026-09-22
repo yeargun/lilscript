@@ -1,0 +1,35 @@
+{"kind":"diagnostic","event":"test:stdout","message":"Chromium 151.0.7922.34: @itslil/katex median 6.60 ms, katex@0.16.22 median 6.10 ms, ratio 1.082; parity 30/30\n"}
+{"kind":"test-case","id":"[\"test/browser-perf.test.mjs\",20,3,1,\"test\",\"renders the corpus identically and within the regression guard rail\",1]","file":"test/browser-perf.test.mjs","name":"renders the corpus identically and within the regression guard rail","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/browser-perf.test.mjs\",19,1,0,\"suite\",\"browser performance (Playwright, Chromium)\",1]","file":"test/browser-perf.test.mjs","name":"browser performance (Playwright, Chromium)","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/contrib-differential.test.mjs\",18,3,1,\"test\",\"contains no runtime JavaScript host modules\",1]","file":"test/contrib-differential.test.mjs","name":"contains no runtime JavaScript host modules","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/contrib-differential.test.mjs\",25,3,1,\"test\",\"matches official render-a11y-string outputs and errors\",1]","file":"test/contrib-differential.test.mjs","name":"matches official render-a11y-string outputs and errors","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/contrib-differential.test.mjs\",68,3,1,\"test\",\"matches official mhchem rendering across parser state machines\",1]","file":"test/contrib-differential.test.mjs","name":"matches official mhchem rendering across parser state machines","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/contrib-differential.test.mjs\",17,1,0,\"suite\",\"contrib LilScript parity\",1]","file":"test/contrib-differential.test.mjs","name":"contrib LilScript parity","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",38,3,1,\"test\",\"renders x^2 with MathML and HTML\",1]","file":"test/katex.test.mjs","name":"renders x^2 with MathML and HTML","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",47,3,1,\"test\",\"renders frac\",1]","file":"test/katex.test.mjs","name":"renders frac","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",56,3,1,\"test\",\"matches the upstream root exports\",1]","file":"test/katex.test.mjs","name":"matches the upstream root exports","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",82,3,1,\"test\",\"honors throwOnError and errorColor\",1]","file":"test/katex.test.mjs","name":"honors throwOnError and errorColor","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",90,3,1,\"test\",\"pins option keys on the library artifact\",1]","file":"test/katex.test.mjs","name":"pins option keys on the library artifact","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",98,3,1,\"test\",\"render appends a DOM tree and covers the TeX surface\",1]","file":"test/katex.test.mjs","name":"render appends a DOM tree and covers the TeX surface","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",124,3,1,\"test\",\"closed artifact performs the core call\",1]","file":"test/katex.test.mjs","name":"closed artifact performs the core call","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/katex.test.mjs\",37,1,0,\"suite\",\"@itslil/katex\",1]","file":"test/katex.test.mjs","name":"@itslil/katex","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",14,3,1,\"test\",\"reports the pinned upstream version in ESM, CJS, and the CLI\",1]","file":"test/package.test.mjs","name":"reports the pinned upstream version in ESM, CJS, and the CLI","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",27,3,1,\"test\",\"matches pinned upstream root and contrib export keys\",1]","file":"test/package.test.mjs","name":"matches pinned upstream root and contrib export keys","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",49,3,1,\"test\",\"renders stdin through the CLI\",1]","file":"test/package.test.mjs","name":"renders stdin through the CLI","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",59,3,1,\"test\",\"loads ESM and CommonJS contrib entry points\",1]","file":"test/package.test.mjs","name":"loads ESM and CommonJS contrib entry points","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",70,3,1,\"test\",\"loads browser builds as classic scripts\",1]","file":"test/package.test.mjs","name":"loads browser builds as classic scripts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",100,3,1,\"test\",\"matches official mhchem output\",1]","file":"test/package.test.mjs","name":"matches official mhchem output","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",113,3,1,\"test\",\"matches official output across the screenshot corpus\",1]","file":"test/package.test.mjs","name":"matches official output across the screenshot corpus","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",13,1,0,\"suite\",\"published surface\",1]","file":"test/package.test.mjs","name":"published surface","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",25,3,1,\"test\",\"ships the benchmark page and the corpus it shares with Node\",1]","file":"test/site.test.mjs","name":"ships the benchmark page and the corpus it shares with Node","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",31,3,1,\"test\",\"publishes results that name their sources and both worlds\",1]","file":"test/site.test.mjs","name":"publishes results that name their sources and both worlds","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 21"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 5"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 21"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 2171.429694"}

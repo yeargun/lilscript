@@ -1,0 +1,12 @@
+
+running 7 tests
+test semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work ... ok
+test semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis ... ok
+test semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline ... ok
+test semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled ... ok
+test semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets ... ok
+test semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets ... ok
+test semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 2932 filtered out; finished in 0.21s
+

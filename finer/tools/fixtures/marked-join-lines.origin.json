@@ -1,0 +1,13 @@
+{
+  "source": "/home/azureuser/markedlil/src/str.lil",
+  "sourceSha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+  "span": {
+    "start": 1352,
+    "end": 1562
+  },
+  "originalFunctionSha256": "fb27688752330f7ac6db0deebe8b74c17b1a6629e503ef4c12608a0054919aec",
+  "adaptation": "Preserve the complete function, removing only an export keyword when present; add a closed opaque-input harness.",
+  "fixtureSha256": "4ac99ee2a6b27d71bc1714d29a75e6f088fbc5f952ec31b1f4e46a2a84cb9e3f",
+  "setup": "globalThis.lines=()=>[\"first\",\"\",\"last\"];\n",
+  "expected": "\nonly\nfirst\n\nlast\n"
+}

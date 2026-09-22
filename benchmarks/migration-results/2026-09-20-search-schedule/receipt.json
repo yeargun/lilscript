@@ -1,0 +1,254 @@
+{
+  "schema": 1,
+  "scope": "32-row finite search schedule ablation; test-only source change; not production heuristic, release speed or fleet qualification",
+  "passed": true,
+  "parent": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-27-16.430Z/receipt.json",
+    "sha256": "172eebff10917e908fb1b2ae83ffae6182d91174684e454614f48227434ba3d6",
+    "bytes": 5837
+  },
+  "compilerInputSha256": "77f4458c7b69666bade4bb744498d92efaefbc0f854d043bff94b91f56bad0a8",
+  "binary": {
+    "path": "/tmp/lilscript-search-schedule-baseline-20260920/lilscript-c737e884cfca95f9",
+    "sha256": "16e3d817b7af00089ef92992ae7b18493a9d7f254788b00b7f07db8a478bcc98",
+    "bytes": 416036688
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "codec": {
+    "path": "/tmp/lilscript-frontend-release-20260920/lilscript-codec",
+    "sha256": "fd21fda3d4e38ebb223e42b91fec9763aebaf5de187158bbc2397b1acc24a2f5",
+    "bytes": 2600976
+  },
+  "codecParent": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T00-18-53.146Z/receipt.json",
+    "sha256": "e6301eff8cf5d57d39313452af9e6d1babb09894406e3bf43e6c967b7c5a116a",
+    "bytes": 44249
+  },
+  "commands": [
+    {
+      "label": "ablation",
+      "command": "/tmp/lilscript-search-schedule-baseline-20260920/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults",
+        "--exact",
+        "--nocapture"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "codec-replay",
+      "command": "/tmp/lilscript-frontend-release-20260920/lilscript-codec",
+      "args": [
+        "--json",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/e2fbe64cbf9973c4c25550cee906da8134327901261f207f555338e94c18dc37.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/0584c482e42b3d33cc8c7ab49d12460e6bd3f6bb4ae51965fadc35ffd217acc3.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/ffa6f04d0c850ade0f6a671552a983cad027b821b1c31a8236bb835b7cc7082f.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/f9f5fe41895ce372bc25dcceb6434875bac5e4fbd9fdbd73161a6ddb5a633ce1.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/02af85d44b0aeb82121bce664d568f83d6fc32b17c32078b88539109cc2959cd.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/702f9b15e291182cebb9841f31651addd4099553ff9594415cf63413e569f5f1.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/8bb562810c1caf204b842643015124054901073c4419125de39c8786cdbae412.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/123f8b7162f84cb683a7dd3cde723df387610c0692d9f95b07769228b8fb567a.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/98406dbf04f05d317d85039b33d60247df10aa74472680dfc270e84ff24e00ba.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/b5eb61cea8c5486620e7616cb769bef1b3b6deeb9437f09615c521a5ebeece02.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/f456f620185c7236a1aef59eaa999466c9af964cedbba52498cc9e07ec16f127.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/7e12987ebb14150fedbbde247a812a39791b08523e97928b2b8d9173aaa5bffb.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/df004c906676f663fcb46c122d14ef21f265b010c2dbf11ecee7cfecab5798e6.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/4432a45b716d48e8386ab89f20b8941c890147aea11ee6a2473d73ad388c7abe.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/8a918d2b6d15bf0e63156d5cfeb6eb9e35dea674625802544e6002cab81e7fcd.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/a7d9570ee33a657882b119e660a0739acb08b1b883fc95227b1ff4d42142144e.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5.mjs",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-search-schedule/artifacts/4c911a633b341d0349b81ee1dc894658da537aec7c2799ea09073c1b02028851.mjs"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    }
+  ],
+  "inputsStable": true,
+  "rows": 32,
+  "oracleArtifacts": 24,
+  "uniqueArtifacts": 24,
+  "winnerObservations": 64,
+  "outputs": [
+    {
+      "path": "oracle.json",
+      "sha256": "9fc594b44b0c3d89992baef4818865655f163cc82f365c7cc66c5a7c783c2632",
+      "bytes": 40455
+    },
+    {
+      "path": "rows.json",
+      "sha256": "8dd32cc26d6c4baadf79b9e314bb043ffdbd454d332d32798b00b588765a2c86",
+      "bytes": 166113
+    },
+    {
+      "path": "ablation.stdout",
+      "sha256": "c788e13b8faeec29739ec6a35057050b7055f9156bac7ee2488fbf80f4ec6034",
+      "bytes": 265
+    },
+    {
+      "path": "ablation.stderr",
+      "sha256": "f15bf98401fe17d73f773feaa69ca044749d3eaec6e051d87cf986ebf60418d2",
+      "bytes": 87730
+    },
+    {
+      "path": "codec-replay.stdout",
+      "sha256": "8042f89ba452e0e783ba55a9512cdd2474f7213abd36da03b62cc2673f7bfc0c",
+      "bytes": 5387
+    },
+    {
+      "path": "codec-replay.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "artifacts/782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b.mjs",
+      "sha256": "782346862f37edd54fd56dadbe612927297a54161d4abe8ecbeff5841057416b",
+      "bytes": 327
+    },
+    {
+      "path": "artifacts/b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe.mjs",
+      "sha256": "b64276d1621200c33abb1ecd313feb30ae0c7c0d7d2b9bc4fdc90e7a0e26b3fe",
+      "bytes": 327
+    },
+    {
+      "path": "artifacts/e2fbe64cbf9973c4c25550cee906da8134327901261f207f555338e94c18dc37.mjs",
+      "sha256": "e2fbe64cbf9973c4c25550cee906da8134327901261f207f555338e94c18dc37",
+      "bytes": 429
+    },
+    {
+      "path": "artifacts/83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363.mjs",
+      "sha256": "83726cab8f0c1312fdb7b3f0d8e0d89ed61e2e8b90281d47b0391c3fda171363",
+      "bytes": 290
+    },
+    {
+      "path": "artifacts/ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130.mjs",
+      "sha256": "ca021c8f4d3eba4962f64bb9bdaabf27c4c14f7120d4068b812cc0770c2f8130",
+      "bytes": 290
+    },
+    {
+      "path": "artifacts/0584c482e42b3d33cc8c7ab49d12460e6bd3f6bb4ae51965fadc35ffd217acc3.mjs",
+      "sha256": "0584c482e42b3d33cc8c7ab49d12460e6bd3f6bb4ae51965fadc35ffd217acc3",
+      "bytes": 365
+    },
+    {
+      "path": "artifacts/ffa6f04d0c850ade0f6a671552a983cad027b821b1c31a8236bb835b7cc7082f.mjs",
+      "sha256": "ffa6f04d0c850ade0f6a671552a983cad027b821b1c31a8236bb835b7cc7082f",
+      "bytes": 305
+    },
+    {
+      "path": "artifacts/f9f5fe41895ce372bc25dcceb6434875bac5e4fbd9fdbd73161a6ddb5a633ce1.mjs",
+      "sha256": "f9f5fe41895ce372bc25dcceb6434875bac5e4fbd9fdbd73161a6ddb5a633ce1",
+      "bytes": 305
+    },
+    {
+      "path": "artifacts/02af85d44b0aeb82121bce664d568f83d6fc32b17c32078b88539109cc2959cd.mjs",
+      "sha256": "02af85d44b0aeb82121bce664d568f83d6fc32b17c32078b88539109cc2959cd",
+      "bytes": 385
+    },
+    {
+      "path": "artifacts/702f9b15e291182cebb9841f31651addd4099553ff9594415cf63413e569f5f1.mjs",
+      "sha256": "702f9b15e291182cebb9841f31651addd4099553ff9594415cf63413e569f5f1",
+      "bytes": 268
+    },
+    {
+      "path": "artifacts/823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4.mjs",
+      "sha256": "823130ff650194d784a4ee3b7153b126d12193a81542cbdbffbcc189b9b8d6d4",
+      "bytes": 268
+    },
+    {
+      "path": "artifacts/8bb562810c1caf204b842643015124054901073c4419125de39c8786cdbae412.mjs",
+      "sha256": "8bb562810c1caf204b842643015124054901073c4419125de39c8786cdbae412",
+      "bytes": 321
+    },
+    {
+      "path": "artifacts/123f8b7162f84cb683a7dd3cde723df387610c0692d9f95b07769228b8fb567a.mjs",
+      "sha256": "123f8b7162f84cb683a7dd3cde723df387610c0692d9f95b07769228b8fb567a",
+      "bytes": 312
+    },
+    {
+      "path": "artifacts/98406dbf04f05d317d85039b33d60247df10aa74472680dfc270e84ff24e00ba.mjs",
+      "sha256": "98406dbf04f05d317d85039b33d60247df10aa74472680dfc270e84ff24e00ba",
+      "bytes": 312
+    },
+    {
+      "path": "artifacts/b5eb61cea8c5486620e7616cb769bef1b3b6deeb9437f09615c521a5ebeece02.mjs",
+      "sha256": "b5eb61cea8c5486620e7616cb769bef1b3b6deeb9437f09615c521a5ebeece02",
+      "bytes": 391
+    },
+    {
+      "path": "artifacts/f456f620185c7236a1aef59eaa999466c9af964cedbba52498cc9e07ec16f127.mjs",
+      "sha256": "f456f620185c7236a1aef59eaa999466c9af964cedbba52498cc9e07ec16f127",
+      "bytes": 275
+    },
+    {
+      "path": "artifacts/7e12987ebb14150fedbbde247a812a39791b08523e97928b2b8d9173aaa5bffb.mjs",
+      "sha256": "7e12987ebb14150fedbbde247a812a39791b08523e97928b2b8d9173aaa5bffb",
+      "bytes": 275
+    },
+    {
+      "path": "artifacts/df004c906676f663fcb46c122d14ef21f265b010c2dbf11ecee7cfecab5798e6.mjs",
+      "sha256": "df004c906676f663fcb46c122d14ef21f265b010c2dbf11ecee7cfecab5798e6",
+      "bytes": 327
+    },
+    {
+      "path": "artifacts/4432a45b716d48e8386ab89f20b8941c890147aea11ee6a2473d73ad388c7abe.mjs",
+      "sha256": "4432a45b716d48e8386ab89f20b8941c890147aea11ee6a2473d73ad388c7abe",
+      "bytes": 280
+    },
+    {
+      "path": "artifacts/8a918d2b6d15bf0e63156d5cfeb6eb9e35dea674625802544e6002cab81e7fcd.mjs",
+      "sha256": "8a918d2b6d15bf0e63156d5cfeb6eb9e35dea674625802544e6002cab81e7fcd",
+      "bytes": 280
+    },
+    {
+      "path": "artifacts/a7d9570ee33a657882b119e660a0739acb08b1b883fc95227b1ff4d42142144e.mjs",
+      "sha256": "a7d9570ee33a657882b119e660a0739acb08b1b883fc95227b1ff4d42142144e",
+      "bytes": 337
+    },
+    {
+      "path": "artifacts/6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e.mjs",
+      "sha256": "6d948bd7d9f02e2e13d4f9ef50b23c1138d0fca077c6529bb06c9dd9422b559e",
+      "bytes": 243
+    },
+    {
+      "path": "artifacts/35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5.mjs",
+      "sha256": "35b19c32c27e8ea68ba9c6f8881fa864d6f95a4f1f177b9978cf8066b66cbfc5",
+      "bytes": 243
+    },
+    {
+      "path": "artifacts/4c911a633b341d0349b81ee1dc894658da537aec7c2799ea09073c1b02028851.mjs",
+      "sha256": "4c911a633b341d0349b81ee1dc894658da537aec7c2799ea09073c1b02028851",
+      "bytes": 273
+    }
+  ]
+}

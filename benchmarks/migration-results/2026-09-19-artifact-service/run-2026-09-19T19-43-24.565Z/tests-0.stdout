@@ -1,0 +1,257 @@
+
+running 6 tests
+test js_peephole::assignment_sink_tests::public_entries_preserve_assigned_values_and_later_nullish_truthiness ... FAILED
+test js_peephole::assignment_sink_tests::public_entries_preserve_literal_and_call_argument_observations ... ok
+test js_peephole::assignment_sink_tests::public_entries_preserve_prefix_effects_and_conditional_reachability ... FAILED
+test js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_postfix_consumers ... FAILED
+test js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers ... FAILED
+test js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles ... FAILED
+
+failures:
+
+---- js_peephole::assignment_sink_tests::public_entries_preserve_assigned_values_and_later_nullish_truthiness stdout ----
+
+thread 'js_peephole::assignment_sink_tests::public_entries_preserve_assigned_values_and_later_nullish_truthiness' (1162562) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:
+shape_declarations: status=Some(0)
+expected: "[[1,true,true,\"object\"],[1,true,true,\"undefined\"],[1,true,true,\"boolean\"],[1,true,true,\"number\"],[1,true,false,\"object\"]]\n"
+actual: "[[1,false,true,\"boolean\"],[1,false,true,\"boolean\"],[1,true,true,\"boolean\"],[1,false,true,\"boolean\"],[1,false,true,\"boolean\"]]\n"
+stderr: 
+source:
+
+function observe(input) {
+    let calls=0,a='before',t=false;
+    function produce(){calls++;return input}
+    t=(a=produce()==null)||!a;
+    return [calls,a===input,t,typeof a];
+}
+console.log(JSON.stringify([
+    observe(null),observe(void 0),observe(false),observe(0),observe({value:7})
+]));
+
+
+optimize_generated_javascript: status=Some(0)
+expected: "[[1,true,true,\"object\"],[1,true,true,\"undefined\"],[1,true,true,\"boolean\"],[1,true,true,\"number\"],[1,true,false,\"object\"]]\n"
+actual: "[[1,false,true,\"boolean\"],[1,false,true,\"boolean\"],[1,true,true,\"boolean\"],[1,false,true,\"boolean\"],[1,false,true,\"boolean\"]]\n"
+stderr: 
+source:
+
+function observe(input) {
+    let calls=0,a='before',t=false;
+    function produce(){calls++;return input}
+    t=(a=produce()==null)||!a;
+    return[calls,a===input,t,typeof a]
+}
+console.log(JSON.stringify([
+    observe(null),observe(void 0),observe(false),observe(0),observe({value:7})
+]))
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- js_peephole::assignment_sink_tests::public_entries_preserve_prefix_effects_and_conditional_reachability stdout ----
+
+thread 'js_peephole::assignment_sink_tests::public_entries_preserve_prefix_effects_and_conditional_reachability' (1162566) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:
+shape_declarations: status=Some(0)
+expected: "[[2,2,[2,2]],[2,[2,2],[2]],[[1],null],[[9],[0,[9]]],[2,[2,2],[2]],[1,2,[0,2]],[[1],null]]\n"
+actual: "[[2,2,[1,2]],[2,[0,2],[0]],[[1],null],[[9],[0,[9]]],[2,[2,2],[2]],[1,2,[0,2]],[[1],null]]\n"
+stderr: 
+source:
+
+const rows=[];
+{
+    let x=1,b=0,d=0;
+    d=[x,b=(x=2)];
+    rows.push([x,b,d]);
+}
+{
+    let b=0,d=0,events=[];
+    const x={valueOf(){events.push(b);return b}};
+    d=[+x,b=2];
+    rows.push([b,d,events]);
+}
+{
+    let b,d,x=0;
+    b=[1],x&&(d=[b]);
+    rows.push([b,d??null]);
+}
+{
+    let b,d;
+    function h(){b=[9];return 0}
+    b=[1],d=[h(),b];
+    rows.push([b,d]);
+}
+{
+    let b=0,d=0,events=[];
+    const x={get y(){events.push(b);return b}};
+    b=2,d=[x.y,b];
+    rows.push([b,d,events]);
+}
+{
+    let b=0,d=0,x=0;
+    b=2,d=[x++,b];
+    rows.push([x,b,d]);
+}
+{
+    let b=0,d=null,x=false;
+    b=[1],x?(d=[b]):0;
+    rows.push([b,d]);
+}
+console.log(JSON.stringify(rows));
+
+
+optimize_generated_javascript: status=Some(0)
+expected: "[[2,2,[2,2]],[2,[2,2],[2]],[[1],null],[[9],[0,[9]]],[2,[2,2],[2]],[1,2,[0,2]],[[1],null]]\n"
+actual: "[[2,2,[2,2]],[2,[0,2],[0]],[[1],null],[[9],[0,[9]]],[2,[2,2],[2]],[1,2,[0,2]],[[1],null]]\n"
+stderr: 
+source:
+
+const rows=[];
+{
+    let x=1,b=0,d=0;
+    b=(x=2),
+    rows.push([x,b,[x,b]])
+}
+{
+    let b=0,d=0,events=[];
+    const x={valueOf(){events.push(b);return b}};
+    d=[+x,b=2],
+    rows.push([b,d,events])
+}
+{
+    let b,d,x=0;
+    b=[1],x&&(d=[b]),
+    rows.push([b,d??null])
+}
+{
+    let b,d;
+    function h(){b=[9];return 0}
+    b=[1],d=[h(),b];
+    rows.push([b,d])
+}
+{
+    let b=0,d=0,events=[];
+    const x={get y(){events.push(b);return b}};
+    b=2,d=[x.y,b],
+    rows.push([b,d,events])
+}
+{
+    let b=0,d=0,x=0;
+    b=2,d=[x++,b],
+    rows.push([x,b,d])
+}
+{
+    let b=0,d=null,x=false;
+    b=[1],x?(d=[b]):0,
+    rows.push([b,d])
+}
+console.log(JSON.stringify(rows))
+
+
+---- js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_postfix_consumers stdout ----
+
+thread 'js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_postfix_consumers' (1162564) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:
+shape_declarations: status=Some(0)
+expected: "[[1,true,7],[1,true,7],[1,true,7],[1,true,1],[1,true,7],[1,true,7]]\n"
+actual: "[[1,false,7],[1,false,7],[1,false,7],[1,false,1],[1,false,7],[1,false,7]]\n"
+stderr: 
+source:
+const rows=[];{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().value);rows.push([calls,a===input,t]);}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()['value']);rows.push([calls,a===input,t]);}{const input=(function(value){return value+4});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()(3));rows.push([calls,a===input,t]);}{const input=(function(parts){return parts[0].length});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()`x`);rows.push([calls,a===input,t]);}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?.value);rows.push([calls,a===input,t]);}{const input=({value:7,method(){return this.value}});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().method());rows.push([calls,a===input,t]);}console.log(JSON.stringify(rows));
+
+optimize_generated_javascript: status=Some(0)
+expected: "[[1,true,7],[1,true,7],[1,true,7],[1,true,1],[1,true,7],[1,true,7]]\n"
+actual: "[[1,false,7],[1,false,7],[1,false,7],[1,false,1],[1,false,7],[1,false,7]]\n"
+stderr: 
+source:
+const rows=[];{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().value);rows.push([calls,a===input,t])}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().value);rows.push([calls,a===input,t])}{const input=(function(value){return value+4});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()(3));rows.push([calls,a===input,t])}{const input=(function(parts){return parts[0].length});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()`x`);rows.push([calls,a===input,t])}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?.value);rows.push([calls,a===input,t])}{const input=({value:7,method(){return this.value}});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().method());rows.push([calls,a===input,t])}console.log(JSON.stringify(rows))
+
+---- js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers stdout ----
+
+thread 'js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers' (1162563) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:
+shape_declarations: status=Some(0)
+expected: "[[1,true,true],[1,true,true],[1,true,10],[1,true,21],[1,true,12],[1,true,0],[1,true,9],[1,true,9],[1,true,false]]\n"
+actual: "[[1,false,true],[1,false,true],[1,false,10],[1,false,21],[1,false,12],[1,true,0],[1,false,9],[1,false,9],[1,true,false]]\n"
+stderr: 
+source:
+const rows=[];{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()==null);rows.push([calls,a===input,t]);}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()===7);rows.push([calls,a===input,t]);}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()+3);rows.push([calls,a===input,t]);}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()*3);rows.push([calls,a===input,t]);}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?11:12);rows.push([calls,a===input,t]);}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()&&9);rows.push([calls,a===input,t]);}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()||9);rows.push([calls,a===input,t]);}{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t]);}{const input=false;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t]);}console.log(JSON.stringify(rows));
+
+optimize_generated_javascript: status=Some(0)
+expected: "[[1,true,true],[1,true,true],[1,true,10],[1,true,21],[1,true,12],[1,true,0],[1,true,9],[1,true,9],[1,true,false]]\n"
+actual: "[[1,false,true],[1,false,true],[1,false,10],[1,false,21],[1,false,12],[1,true,0],[1,false,9],[1,false,9],[1,true,false]]\n"
+stderr: 
+source:
+const rows=[];{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()==null);rows.push([calls,a===input,t])}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()===7);rows.push([calls,a===input,t])}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()+3);rows.push([calls,a===input,t])}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()*3);rows.push([calls,a===input,t])}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?11:12);rows.push([calls,a===input,t])}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()&&9);rows.push([calls,a===input,t])}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()||9);rows.push([calls,a===input,t])}{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t])}{const input=false;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t])}console.log(JSON.stringify(rows))
+
+---- js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles stdout ----
+
+thread 'js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles' (1162567) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:
+shape_declarations: status=Some(1)
+expected: "[[2,2],[2,5,null],[2,2]]\n"
+actual: ""
+stderr: [eval]:5
+    d={(b=2)};
+       ^
+Unexpected token `(`. Expected identifier, string literal, numeric literal or [ for the computed key
+
+SyntaxError: Unexpected token '('
+    at makeContextifyScript (node:internal/vm:194:14)
+    at compileScript (node:internal/process/execution:388:10)
+    at evalTypeScript (node:internal/process/execution:260:22)
+    at node:internal/main/eval_string:71:3
+
+Node.js v24.11.1
+
+source:
+
+const rows=[];
+{
+    let b=0,d=0;
+    d={(b=2)};
+    rows.push([b,d.b]);
+}
+{
+    let b=0,d=0;
+    d=(b=2)=>b+1;
+    rows.push([b,d(4),d()]);
+}
+{
+    let b=0,d=0;
+    b=2,d=()=>b;
+    rows.push([b,d()]);
+}
+console.log(JSON.stringify(rows));
+
+
+optimize_generated_javascript: status=Some(0)
+expected: "[[2,2],[2,5,null],[2,2]]\n"
+actual: "[[2,2],[0,5,3],[2,2]]\n"
+stderr: 
+source:
+
+const rows=[];
+{
+    let b=0,d=0;
+    b=2,
+    rows.push([b,{b}.b])
+}
+{
+    let b=0,d=0;
+    d=(b=2)=>b+1,
+    rows.push([b,d(4),d()])
+}
+{
+    let b=0,d=0;
+    b=2,d=()=>b,
+    rows.push([b,d()])
+}
+console.log(JSON.stringify(rows))
+
+
+
+failures:
+    js_peephole::assignment_sink_tests::public_entries_preserve_assigned_values_and_later_nullish_truthiness
+    js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers
+    js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_postfix_consumers
+    js_peephole::assignment_sink_tests::public_entries_preserve_prefix_effects_and_conditional_reachability
+    js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles
+
+test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 2892 filtered out; finished in 0.15s
+

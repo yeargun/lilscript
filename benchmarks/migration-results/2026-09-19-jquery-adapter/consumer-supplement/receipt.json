@@ -1,0 +1,371 @@
+{
+  "schema": 1,
+  "kind": "jquery-retained-artifact-original-consumer-supplement",
+  "started": "2026-09-19T21:15:31.549Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "boundsMs": {
+    "externalSupervisor": 90000,
+    "sharedAttempt": 90000,
+    "killGrace": 1000
+  },
+  "maxBufferBytes": 67108864,
+  "parent": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/existing-dist/receipt.json",
+    "expectedSha256": "c622329fefc6428424d3b3fb342a29dceb875b8ecd360877040e6eeb96191ddb"
+  },
+  "originalCommand": "node benchmarks/popular/verify-jquery.mjs",
+  "requiredCompletionMarkers": [
+    "jquery-upstream:core:ok",
+    "jquery-upstream:deferred:ok",
+    "jquery-upstream:data:ok",
+    "jquery-upstream:queue:ok",
+    "jquery-upstream:attributes:ok",
+    "jquery-upstream:events:ok artifact=b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0"
+  ],
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "JQUERY_LILSCRIPT_ARTIFACT": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+      "JQUERY_LILSCRIPT_ARTIFACT_SHA256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0"
+    },
+    "otherwise": "inherited"
+  },
+  "limitations": [
+    "One unchanged top-level assertion script, not Node test cases and not additions to the frozen eight compatibility identities.",
+    "Existing retained ESM only; no compiler, esbuild build, npm, install, codec, CJS, UMD, package or source-built qualification.",
+    "The existing artifact override skips the script's compiler/esbuild branch. Its unconditional mkdir may create an empty popular/build directory; existing files must remain unchanged.",
+    "Popular's installed jquery@3.7.1 is the separate upstream oracle; its dependency tree differs from jquerylil's and both complete trees are pinned.",
+    "The original JSDOM assertions cover core, Deferred, data, queue, attributes/CSS and events, not full upstream QUnit/browser or the separate port's other consumer suites.",
+    "Full source/dependency and executed-tool identities are recorded; the operating system and inherited host environment are not hermetic. No npm command executes, so global npm is not an input.",
+    "The outer caller must actually apply the declared 90-second process-group bound. Shared-host elapsed time is diagnostic only."
+  ],
+  "candidate": {
+    "path": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+    "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+    "bytes": 81828
+  },
+  "oracle": {
+    "path": "/home/azureuser/lilscript/benchmarks/popular/node_modules/jquery/dist/jquery.js",
+    "sha256": "78a85aca2f0b110c29e0d2b137e09f0a1fb7a8e554b499f740d6744dc8962cfe",
+    "bytes": 285314
+  },
+  "command": {
+    "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "args": [
+      "--import",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supplement/observe.mjs",
+      "/home/azureuser/lilscript/benchmarks/popular/verify-jquery.mjs"
+    ],
+    "cwd": "/home/azureuser/lilscript/benchmarks/popular",
+    "timeoutMs": 85548
+  },
+  "result": {
+    "pid": 1324541,
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "supervision": {
+      "timeoutMs": 85548,
+      "killAfterMs": 1000,
+      "maxBuffer": 67108864,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "observedLoads": [
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/lilscript/benchmarks/popular/jquery-benchmark-artifact.mjs",
+      "url": "file:///home/azureuser/lilscript/benchmarks/popular/jquery-benchmark-artifact.mjs",
+      "format": "module",
+      "sha256": "878618d88958e12cc6c5a31a164a58fa69f55985fd7b959fcd2935c4f8bbfcee",
+      "bytes": 2229,
+      "pid": 1324541
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/lilscript/benchmarks/popular/node_modules/jquery/dist/jquery.js",
+      "url": "file:///home/azureuser/lilscript/benchmarks/popular/node_modules/jquery/dist/jquery.js",
+      "sha256": "78a85aca2f0b110c29e0d2b137e09f0a1fb7a8e554b499f740d6744dc8962cfe",
+      "bytes": 285314,
+      "pid": 1324541
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/lilscript/benchmarks/popular/verify-jquery.mjs",
+      "url": "file:///home/azureuser/lilscript/benchmarks/popular/verify-jquery.mjs",
+      "format": "module",
+      "sha256": "f23a70fc1839abc2364910b82e08e6af3b74ef4e9579b3e0c283e6726c03a18c",
+      "bytes": 16979,
+      "pid": 1324541
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+      "url": "file:///home/azureuser/jquerylil/dist/jquery.esm.js",
+      "format": "module",
+      "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+      "bytes": 81828,
+      "pid": 1324541
+    }
+  ],
+  "completionMarkers": [],
+  "failure": {
+    "message": "original consumer exited unsuccessfully\n\n1 !== 0\n",
+    "stack": "AssertionError [ERR_ASSERTION]: original consumer exited unsuccessfully\n\n1 !== 0\n\n    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supplement.mjs:142:10\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+  },
+  "inputsStable": true,
+  "elapsedMs": 6256.152655,
+  "completed": "2026-09-19T21:15:37.805Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "175a3c385e9ccac064d481fbf685624ae8af0ede6681d8b3a4457deae7211b53",
+      "bytes": 2932168
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "175a3c385e9ccac064d481fbf685624ae8af0ede6681d8b3a4457deae7211b53",
+      "bytes": 2932168
+    },
+    {
+      "path": "consumer.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f71ed2f296707b359edeadc44126a0ea3b892f5968565c5774ebce0f9d545bd8",
+      "bytes": 83497
+    },
+    {
+      "path": "consumer.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "jquery.esm.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+      "bytes": 81828
+    },
+    {
+      "path": "loaded/1324541-2095fc65-a349-4a6b-a0f9-b92af51038be.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ee5936a65a1481a21ed997f3eee7a3337a69a395b18ad2893cf744da80c1e924",
+      "bytes": 340
+    },
+    {
+      "path": "loaded/1324541-5e8da20f-60e8-4c5f-84db-3c5e44df0d4e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "816c0da6de4ce3b067d469a4204403150dd0583afde4303398171ab927966c0f",
+      "bytes": 334
+    },
+    {
+      "path": "loaded/1324541-9d2d563b-9c8d-4e13-adbb-43fe454a639a.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fc1f99a18c54643f21dab22e7aef2d9c30f55a7408c300e0849743c8f03f772a",
+      "bytes": 317
+    },
+    {
+      "path": "loaded/1324541-fea07f5e-1ee5-4bb2-b073-aa34ecf213b4.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1d192b042cb4d8e584d4837327c381c2514c2c03e2eb199f969aeed0bc884665",
+      "bytes": 281
+    },
+    {
+      "path": "observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9b567429a1331e7f1e2fd1faca0eed95b1fe8f8d048a62347581ced8d3340e68",
+      "bytes": 540
+    },
+    {
+      "path": "parent/after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "94040c92c5e02d391bd1fd0e743238442609c62c580f95f98f8164417003f960",
+      "bytes": 513812
+    },
+    {
+      "path": "parent/before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "94040c92c5e02d391bd1fd0e743238442609c62c580f95f98f8164417003f960",
+      "bytes": 513812
+    },
+    {
+      "path": "parent/declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3e68bf0ca5a9a5d723ea031857bac539c2dd010974ec5d467836fc8fd4a7a788",
+      "bytes": 692
+    },
+    {
+      "path": "parent/discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9550a008dd4c120622e3bdc39c7a1c58de2f9d052b9811ec118050c481d48751",
+      "bytes": 7876
+    },
+    {
+      "path": "parent/node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "19488290580c229ca991ab1f3f4a8eb029ab7d943c0f9599a60d9f6afb0ad9d5",
+      "bytes": 2427
+    },
+    {
+      "path": "parent/node/loaded/1293207-0ba53c0c-3a6d-49df-933a-a016a0b5a2c8.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9c965c6cd4584d98871fdc1378ef058f85c4f2e973f88ff30f5696c6b8101202",
+      "bytes": 281
+    },
+    {
+      "path": "parent/node/loaded/1293207-b3f52568-5beb-482c-90bb-1b3a812f747f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "690466b33bf13dd7fc848525c98abb5b078e7e3a35e7a1ccac1276abeb472cb5",
+      "bytes": 277
+    },
+    {
+      "path": "parent/node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "23c5d1284c4e677ae41d0a9873470a8f0ebc46f44e05fc68da4a304f6ab3d1b1",
+      "bytes": 359
+    },
+    {
+      "path": "parent/node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "84ac3f585b27e7525bd5713fc295b7fe729dd0bc9e2a00b0a9fdfea57b53585e",
+      "bytes": 7636
+    },
+    {
+      "path": "parent/node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "parent/receipt.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c622329fefc6428424d3b3fb342a29dceb875b8ecd360877040e6eeb96191ddb",
+      "bytes": 7986
+    },
+    {
+      "path": "parent/runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "parent/runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "parent/runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "parent/runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "parent/runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/jquery-benchmark-artifact.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "878618d88958e12cc6c5a31a164a58fa69f55985fd7b959fcd2935c4f8bbfcee",
+      "bytes": 2229
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "runner-sources/package-lock.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2e82fd5c17113cbf008ce0d4bafc4530d2ac8743856c4cada3fdea51e1dd9607",
+      "bytes": 80679
+    },
+    {
+      "path": "runner-sources/package.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "452ae8374a675f02e3c9393fdcbc703c1acad8d15c6287f67559b4be172c54e2",
+      "bytes": 1629
+    },
+    {
+      "path": "runner-sources/verify-jquery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f23a70fc1839abc2364910b82e08e6af3b74ef4e9579b3e0c283e6726c03a18c",
+      "bytes": 16979
+    },
+    {
+      "path": "supplement-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4e533d675a4376da7632fd2f64eb72d94efc87bbdf9b0009f5b410b83c796b77",
+      "bytes": 11738
+    }
+  ]
+}

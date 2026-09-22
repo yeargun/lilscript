@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "kind": "required-node-case-inventory",
+  "workload": "rehype-stringifylil",
+  "capturedFrom": {
+    "path": "benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-stringifylil/node/report.json",
+    "sha256": "acd83cb477e740cfe828476f6fb6ed74d11406b71079bf72769e6099a0036ace",
+    "bytes": 33746
+  },
+  "review": "Derived from the library's own `npm test` script by finer/tools/adapter-derivation.mjs and observed once against the existing distribution. 10 tests and 3 suites executed and passed; 2 of 3 declared entry files were loaded by the suite.",
+  "originalCommand": "node --test test/*.test.mjs",
+  "executedSegments": [
+    "node --test test/*.test.mjs"
+  ],
+  "droppedSegments": [],
+  "entryPatterns": [
+    "test/*.test.mjs"
+  ],
+  "nodeArguments": [],
+  "requiredCases": [
+    "[\"test/api.test.mjs\",118,3,1,\"test\",\"copies own settings without prototype pollution\",1]",
+    "[\"test/api.test.mjs\",29,1,0,\"suite\",\"rehype-stringify\",1]",
+    "[\"test/api.test.mjs\",30,3,1,\"test\",\"exports only the default plugin\",1]",
+    "[\"test/api.test.mjs\",35,3,1,\"test\",\"compiles a paragraph hast node to html\",1]",
+    "[\"test/api.test.mjs\",43,3,1,\"test\",\"emits input type from properties\",1]",
+    "[\"test/api.test.mjs\",57,3,1,\"test\",\"escapes text and joins className arrays\",1]",
+    "[\"test/api.test.mjs\",70,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+    "[\"test/api.test.mjs\",78,3,1,\"test\",\"merges processor settings before explicit options\",1]",
+    "[\"test/api.test.mjs\",88,3,1,\"test\",\"passes all character-reference options to the serializer\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype-stringify closed\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+      "bytes": 4177
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+      "bytes": 593
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+      "bytes": 407
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+      "bytes": 966
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+      "bytes": 19067
+    },
+    {
+      "path": "package.json",
+      "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+      "bytes": 1962
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+      "bytes": 954
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+      "bytes": 3235
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+      "bytes": 1073
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+      "bytes": 9384
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+      "bytes": 58600
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+      "bytes": 2593
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+      "bytes": 4177
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+      "bytes": 593
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "types/rehype-stringify.d.ts",
+      "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+      "bytes": 1169
+    }
+  ],
+  "prerequisites": [],
+  "buildScript": {
+    "path": "scripts/build.mjs",
+    "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+    "bytes": 3235
+  },
+  "sourceSnapshot": {
+    "root": "/home/azureuser/rehype-stringifylil",
+    "files": 30,
+    "sha256": "195a59058dd364e87362d22d444114f47ad837ac761e22f3cc96814c993e862c"
+  },
+  "dependencySnapshot": {
+    "root": "/home/azureuser/rehype-stringifylil/node_modules",
+    "files": [
+      {
+        "path": "",
+        "kind": "directory"
+      },
+      {
+        "path": ".bin",
+        "kind": "directory"
+      },
+      {
+        "path": ".bin/esbuild",
+        "kind": "file",
+        "symlink": "../esbuild/bin/esbuild",
+        "resolved": "/home/azureuser/rehype-stringifylil/node_modules/esbuild/bin/esbuild",
+        "executable": true,
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      },
+      {
+        "path": ".package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5f091abef125be20d533b54af3edb30677668a757a02cb5c2e823787e4ad8261",
+        "bytes": 18748
+      },
+      {
+        "path": "@esbuild",
+        "kind": "directory"
+      },
+      {
+        "path": "@esbuild/linux-x64",
+        "kind": "directory"
+      },
+      {
+        "path": "@esbuild/linux-x64/README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3b0ebdffe92e5b77c948c4ac0bf4bc4a38803b15405d0425b517705221c27a2f",
+        "bytes": 141
+      },
+      {
+        "path": "@esbuild/linux-x64/bin",
+        "kind": "directory"
+      },
+      {
+        "path": "@esbuild/linux-x64/bin/esbuild",
+        "kind": "file",
+        "executable": true,
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      },
+      {
+        "path": "@esbuild/linux-x64/package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2332dc7d04175b16730f136b5bf32b31203eecea5be03b66e9453a4658b3d971",
+        "bytes": 372
+      },
+      {
+        "path": "esbuild",
+        "kind": "directory"
+      },
+      {
+        "path": "esbuild/LICENSE.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681",
+        "bytes": 1069
+      },
+      {
+        "path": "esbuild/README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6d481cd60ec3c679e5e395f547ab4221147f35642894f6b95a8df38fd25c87bd",
+        "bytes": 175
+      },
+      {
+        "path": "esbuild/bin",
+        "kind": "directory"
+      },
+      {
+        "path": "esbuild/bin/esbuild",
+        "kind": "file",
+        "executable": true,
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      },
+      {
+        "path": "esbuild/install.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "612294e278914443bdcf81cb17f54afec34dbdd2ebd999a6ee187912320cc315",
+        "bytes": 11773
+      },
+      {
+        "path": "esbuild/lib",
+        "kind": "directory"
+      },
+      {
+        "path": "esbuild/lib/main.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "161c8e0690c46021506e32fda85956d785b70f309ae97011fd27374c065cac9b",
+        "bytes": 23392
+      },
+      {
+        "path": "esbuild/lib/main.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8331fe1d8b3a07381f33cc425fcfaa94776e263113653f80ec3ba433e9657e73",
+        "bytes": 97214
+      },
+      {
+        "path": "esbuild/package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      }
+    ],
+    "bytes": 34379280,
+    "sha256": "a369233d4d4d9d26419150ad466e89e51fb1439807ce582e4046a16b5b85e388"
+  },
+  "observedInventory": {
+    "testCases": 10,
+    "suiteNodes": 3,
+    "totalIdentities": 13,
+    "skipped": 0,
+    "failed": 0
+  },
+  "deliveryScope": {
+    "requiredArtifacts": [
+      "dist/rehype-stringify.closed.js",
+      "dist/rehype-stringify.esm.js"
+    ],
+    "declaredButUnexercised": [
+      "dist/rehype-stringify.cjs"
+    ],
+    "declaredButAbsent": [],
+    "sourceBuilt": false,
+    "package": "unverified: no pack, install or packaged-consumer observation",
+    "declarations": "unverified: type declarations are not exercised by this command",
+    "site": "as the original command covers it; no browser execution"
+  },
+  "sourceBuildGaps": [
+    "No compiler ran: this inventory pins the existing distribution, not a source-built incumbent.",
+    "Declared entry files the original suite never loads: dist/rehype-stringify.cjs. Their delivery remains unqualified."
+  ],
+  "additionalRequiredCoverage": [
+    "CJS, UMD and browser boundaries beyond what the original command loads.",
+    "Packaged install and downstream consumer observation.",
+    "Type declaration checking where the original command does not perform it.",
+    "Source-built qualification and codec measurement (001 baselines)."
+  ]
+}

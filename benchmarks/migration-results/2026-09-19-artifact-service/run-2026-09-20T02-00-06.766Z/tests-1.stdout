@@ -1,0 +1,9 @@
+
+running 4 tests
+test compression::tests::raw_has_no_codec_work_or_scratch_even_under_zero_admission ... ok
+test compression::tests::encoder_admission_failures_release_scratch_and_preserve_the_other_domain ... ok
+test compression::tests::late_brotli_denial_does_not_exit_the_process ... ok
+test compression::tests::admitted_codecs_match_pinned_convenience_scores_without_retaining_encoded_output ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2936 filtered out; finished in 0.42s
+

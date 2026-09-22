@@ -1,0 +1,5 @@
+error: unsupported semantic source: semantic constructor call contract
+ --> /home/azureuser/lilscript/tests/cases/typed_arrays.lil:1:16
+  |
+ 1 | Int8Array i8 = new Int8Array(2);
+  |                ^^^^^^^^^^^^^^^^

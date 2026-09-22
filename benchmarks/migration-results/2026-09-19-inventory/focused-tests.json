@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "kind": "inventory-tool-validation",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--test",
+    "finer/tools/migration-inventory.test.mjs",
+    "finer/tools/artifact-evidence.test.mjs",
+    "finer/tools/node-test-evidence.test.mjs"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "version": "v24.11.1",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "exitCode": 0,
+  "elapsedMs": 3552.261662,
+  "passed": 31,
+  "log": {
+    "path": "focused-tests.log",
+    "sha256": "553cdea9c683fffaeaac729b93530e522edfa87635c5f41a0c69bd413f3b5911",
+    "bytes": 2810
+  },
+  "toolInputs": [
+    {
+      "path": "finer/tools/migration-inventory.mjs",
+      "sha256": "39964a26ebf4e2ca27c76d725d5cbf638d8d323bb8e03a175f66fdd051022a31",
+      "bytes": 23329
+    },
+    {
+      "path": "finer/tools/migration-inventory.test.mjs",
+      "sha256": "aea1837fb13978478f463c4ac7704e3615e0e66429700404250ba8248c32b7ad",
+      "bytes": 12415
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/artifact-evidence.test.mjs",
+      "sha256": "c71d5642d9e5ae4f13b3f17057096e3b2d5d622934139c660c81af77202f0344",
+      "bytes": 9626
+    },
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "sha256": "0989d1d03bf3255a3b358a69e93208279dce04a5cd2486c248af8fe8a6675c27",
+      "bytes": 4922
+    },
+    {
+      "path": "finer/tools/node-test-evidence.test.mjs",
+      "sha256": "77b84ab5e6b5b0bc997c485396b4f615af56b8f3933aef79aefa6b5a95dfabd1",
+      "bytes": 6135
+    }
+  ],
+  "scope": "Focused Node tests only; no Rust build or library fleet."
+}

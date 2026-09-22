@@ -1,0 +1,9 @@
+struct Pair { int x; int y; }
+int step(Pair local, ref int tally, Pair other) {
+    local.x=7;
+    other.y=9;
+    tally+=local.x;
+    return other.x+local.y;
+}
+Pair state=Pair{1,2};int total=10;
+print(step(state,ref total,state));print(total);print(state.x);print(state.y);

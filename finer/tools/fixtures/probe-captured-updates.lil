@@ -1,0 +1,15 @@
+extern int read();
+func(int)->int counter(int start) {
+  int total = start;
+  return (int amount) => { total += amount; return total; };
+}
+
+int closures(int seed) {
+  func(int)->int bump = counter(seed);
+  int first = bump(1);
+  int second = bump(2);
+  int captured = seed * 2;
+  func()->int read2 = () => captured;
+  return first + second + read2();
+}
+print(closures(read()));print(closures(0));print(closures(-3));

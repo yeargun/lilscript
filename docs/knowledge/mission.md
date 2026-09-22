@@ -118,6 +118,5 @@ or a more abstract architecture is not automatically better.
 6. Are compile-time/runtime costs and unexplored work reported?
 7. Does the appropriate semantic/API corpus pass before a size claim is made?
 
-Architecture: [current](compilation/current-architecture.md) ->
-[planned](compilation/planned-architecture.md). Execution:
-[planned migration](migration/planned-migration.md).
+Existing implementation: [current architecture](compilation/current-architecture.md).
+Future design and migration: [joint discussion](../compiler-design.md); old plans are retired.

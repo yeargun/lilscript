@@ -1,0 +1,4 @@
+struct Pair { int x; int y; }
+auto step=(Pair local,int delta)=>{local.x+=delta;return local.x+local.y;};
+Pair state=Pair{1,2};
+print(step(state,3));print(step(state,4));print(state.x);

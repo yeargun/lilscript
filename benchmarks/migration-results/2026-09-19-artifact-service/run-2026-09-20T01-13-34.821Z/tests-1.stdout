@@ -1,0 +1,38 @@
+
+running 33 tests
+test compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources ... ok
+test compiler_service::tests::deadline_at_adoption_discards_prepared_graph_before_releasing_its_charge ... ok
+test compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission ... ok
+test compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization ... ok
+test compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence ... ok
+test compiler_service::tests::path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_copy ... ok
+test compiler_service::tests::path_checker_refusal_releases_source_buffers_but_preserves_owned_diagnostic ... ok
+test compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic ... ok
+test compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget ... ok
+test compiler_service::tests::path_post_discovery_work_refusal_releases_sources_before_returning ... ok
+test compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error ... ok
+test compiler_service::tests::path_source_memory_refusal_is_typed_without_diagnostic_source_copy ... ok
+test compiler_service::tests::path_store_refusal_releases_prepared_graph_then_factory_source_buffers ... ok
+test compiler_service::tests::resource_owner_exists_before_discovery_and_parse ... ok
+test compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission ... ok
+test compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history ... ok
+test compiler_service::tests::explicit_zero_specialization_matches_omitted_source_and_module_compilation ... ok
+test compiler_service::tests::semantic_service_rejects_legacy_ast_specialization_before_io_or_work ... ok
+test compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget ... ok
+test compiler_service::tests::path_factory_parses_each_canonical_module_once_and_releases_syntax_before_backend ... ok
+test compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback ... ok
+test compiler_service::tests::source_checker_and_conversion_work_refusals_remain_typed_at_the_public_boundary ... ok
+test compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release ... ok
+test compiler_service::tests::source_parser_memory_refusal_remains_typed_at_the_public_boundary ... ok
+test compiler_service::tests::shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger ... ok
+test compiler_service::tests::store_construction_refusal_returns_the_owner_for_prepared_graph_cleanup ... ok
+test compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs ... ok
+test compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api ... ok
+test compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child ... ok
+test compiler_service::tests::source_service_returns_independently_scored_qualified_winners ... ok
+test compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work ... ok
+test compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects ... ok
+test compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 2901 filtered out; finished in 2.50s
+

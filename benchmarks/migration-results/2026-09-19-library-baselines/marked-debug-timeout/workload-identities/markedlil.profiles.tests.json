@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "kind": "required-node-case-inventory",
+  "workload": "markedlil",
+  "capturedFrom": {
+    "path": "/tmp/lilscript-finer-structured-20260911/canaries/initial-marked/tests/markedlil/report.json",
+    "sha256": "44cf3b66dbfff5841ace9c77ecdc0343f557753259cbbc58646b978d308b4007",
+    "bytes": 23952
+  },
+  "review": "Matches all five package-declared test files and their 36 reported suite/test nodes. The corpus loader requires 660 included examples. Existing exclusions are recorded; no test or case was removed. This inventory does not replace pending full raw/gzip/closed profile suites or VM/browser artifact observation.",
+  "testFiles": [
+    {
+      "path": "test/compat.test.mjs",
+      "sha256": "0923daf39ccf25a5eadbc97e91c5c26a80e32a6dcc85f2dcf9bb230ce7bfd4b1",
+      "bytes": 2456
+    },
+    {
+      "path": "test/options.test.mjs",
+      "sha256": "19f6ce8363248b41a4d9b45b7a9fc79abdea0c66cbe830d1ed37848e79efe74f",
+      "bytes": 4907
+    },
+    {
+      "path": "test/official-parse.test.mjs",
+      "sha256": "1d2bbca29febdf937c238d5ede739ad21c12334b321c143c898261a271c99f1c",
+      "bytes": 1320
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "3de988d56f65ddaf7510a3b952d5341bbe61caf24727889a0896774cb5b2d78f",
+      "bytes": 6004
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "ca2e9d19200311373418de7131752516025a3e09733639b63c244afc8b8a5d1f",
+      "bytes": 2004
+    },
+    {
+      "path": ".lilscript-test-adapter/suite.test.mjs",
+      "sha256": "01615e2df144de28cfa6ab3b0720ca39097835cef404799e2a65c6632d5f8641",
+      "bytes": 3359
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "test/specs/gfm.0.29.json",
+      "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+      "rows": 28,
+      "included": 24,
+      "excludedExamples": [
+        633,
+        634,
+        635,
+        657
+      ]
+    },
+    {
+      "path": "test/specs/commonmark.0.31.2.json",
+      "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+      "rows": 652,
+      "included": 636,
+      "excludedExamples": [
+        32,
+        33,
+        503,
+        512,
+        520,
+        524,
+        526,
+        528,
+        533,
+        536,
+        538,
+        540,
+        602,
+        608,
+        611,
+        612
+      ]
+    }
+  ],
+  "requiredCases": [
+    "[\".lilscript-test-adapter/suite.test.mjs\",14,3,0,\"suite\",\"complete bytes ESM consumer profile\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",14,3,0,\"suite\",\"complete esm ESM consumer profile\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",14,3,0,\"suite\",\"complete gzip ESM consumer profile\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",15,5,1,\"test\",\"uses the frozen 660-example corpus\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",15,5,1,\"test\",\"uses the frozen 660-example corpus\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",15,5,1,\"test\",\"uses the frozen 660-example corpus\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",16,5,1,\"test\",\"preserves a list item whose contents are a closing bracket\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",16,5,1,\"test\",\"preserves a list item whose contents are a closing bracket\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",16,5,1,\"test\",\"preserves a list item whose contents are a closing bracket\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"breaks\\\":true}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"breaks\\\":true}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"breaks\\\":true}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"gfm\\\":false}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"gfm\\\":false}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"gfm\\\":false}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"pedantic\\\":true}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"pedantic\\\":true}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {\\\"pedantic\\\":true}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parse matches upstream on every corpus example with {}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"breaks\\\":true}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"breaks\\\":true}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"breaks\\\":true}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"gfm\\\":false}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"gfm\\\":false}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"gfm\\\":false}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"pedantic\\\":true}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"pedantic\\\":true}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {\\\"pedantic\\\":true}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {}\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {}\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",23,9,1,\"test\",\"parseInline matches upstream on every corpus example with {}\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",30,5,1,\"test\",\"preserves the declared parse API and option spellings\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",30,5,1,\"test\",\"preserves the declared parse API and option spellings\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",30,5,1,\"test\",\"preserves the declared parse API and option spellings\",3]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",43,5,1,\"test\",\"preserves live defaults and factory defaults through every setter\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",43,5,1,\"test\",\"preserves live defaults and factory defaults through every setter\",2]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",43,5,1,\"test\",\"preserves live defaults and factory defaults through every setter\",3]",
+    "[\"test/api.test.mjs\",107,3,1,\"test\",\"lets named and marked.setOptions / options mutate live defaults\",1]",
+    "[\"test/api.test.mjs\",131,3,1,\"test\",\"rejects a non-string on every marked() entry\",1]",
+    "[\"test/api.test.mjs\",65,1,0,\"suite\",\"@itslil/marked JS library API\",1]",
+    "[\"test/api.test.mjs\",66,3,1,\"test\",\"keeps every public parse-path name exact in the compiler output\",1]",
+    "[\"test/api.test.mjs\",77,3,1,\"test\",\"exposes the same parse-path surface on ESM, CJS, and UMD\",1]",
+    "[\"test/api.test.mjs\",87,3,1,\"test\",\"reads per-call option objects under their real names, including null\",1]",
+    "[\"test/closed.test.mjs\",13,1,0,\"suite\",\"@itslil/marked closed LilScript lane\",1]",
+    "[\"test/closed.test.mjs\",14,3,1,\"test\",\"is compiled next to the library artifact\",1]",
+    "[\"test/closed.test.mjs\",18,3,1,\"test\",\"mangles the JS option keys and keeps default parse working\",1]",
+    "[\"test/closed.test.mjs\",29,1,0,\"suite\",\"@itslil/marked codec-specific compiles\",1]",
+    "[\"test/closed.test.mjs\",30,3,1,\"test\",\"keeps the marked option keys on gzip and raw cost models\",1]",
+    "[\"test/compat.test.mjs\",15,1,0,\"suite\",\"@itslil/marked vs marked@18.0.10\",1]",
+    "[\"test/compat.test.mjs\",16,3,1,\"test\",\"exports parse, parseInline, and marked()\",1]",
+    "[\"test/compat.test.mjs\",27,3,1,\"test\",\"ships the compiler-selected compact ESM\",1]",
+    "[\"test/compat.test.mjs\",35,3,1,\"test\",\"loads from CommonJS\",1]",
+    "[\"test/compat.test.mjs\",42,3,1,\"test\",\"matches official HTML on GFM and CommonMark spec cases\",1]",
+    "[\"test/official-parse.test.mjs\",11,1,0,\"suite\",\"parse-only marked@18.0.10\",1]",
+    "[\"test/official-parse.test.mjs\",12,3,1,\"test\",\"matches published marked HTML on the spec corpus\",1]",
+    "[\"test/options.test.mjs\",100,3,1,\"test\",\"getDefaults stays the factory after setOptions\",1]",
+    "[\"test/options.test.mjs\",111,3,1,\"test\",\"setOptions changes later parses and refreshes marked.defaults\",1]",
+    "[\"test/options.test.mjs\",126,3,1,\"test\",\"marked() rejects a non-string\",1]",
+    "[\"test/options.test.mjs\",34,1,0,\"suite\",\"@itslil/marked options\",1]",
+    "[\"test/options.test.mjs\",36,5,1,\"test\",\"matches official HTML with {\\\"breaks\\\":true}\",1]",
+    "[\"test/options.test.mjs\",36,5,1,\"test\",\"matches official HTML with {\\\"gfm\\\":false}\",1]",
+    "[\"test/options.test.mjs\",36,5,1,\"test\",\"matches official HTML with {\\\"pedantic\\\":true}\",1]",
+    "[\"test/options.test.mjs\",36,5,1,\"test\",\"matches official HTML with {}\",1]",
+    "[\"test/options.test.mjs\",42,3,1,\"test\",\"marked() reads the same option object as parse()\",1]",
+    "[\"test/options.test.mjs\",47,3,1,\"test\",\"matches official parseInline across the corpus\",1]",
+    "[\"test/options.test.mjs\",60,5,1,\"test\",\"matches official parseInline with {\\\"breaks\\\":true}\",1]",
+    "[\"test/options.test.mjs\",60,5,1,\"test\",\"matches official parseInline with {\\\"gfm\\\":false}\",1]",
+    "[\"test/options.test.mjs\",60,5,1,\"test\",\"matches official parseInline with {\\\"pedantic\\\":true}\",1]",
+    "[\"test/options.test.mjs\",60,5,1,\"test\",\"matches official parseInline with {}\",1]",
+    "[\"test/options.test.mjs\",74,1,0,\"suite\",\"@itslil/marked option API\",1]",
+    "[\"test/options.test.mjs\",75,3,1,\"test\",\"emits the public option keys, not mangled names\",1]",
+    "[\"test/options.test.mjs\",84,3,1,\"test\",\"reports defaults under their real names\",1]",
+    "[\"test/options.test.mjs\",94,3,1,\"test\",\"CJS getDefaults uses the same keys\",1]"
+  ],
+  "description": "Version 2 retains the original five test files and all declared cases, and adds complete Brotli, gzip and raw ESM parse/parseInline profiles over the same frozen 660 included examples, four option sets, public API checks and the reduced closing-bracket regression. Failed and skipped declarations remain required.",
+  "supersedes": "markedlil.tests.json",
+  "inventoryDiscovery": {
+    "reportedNodes": 75,
+    "failedNodes": 6,
+    "reportSha256": "48227b987ce37becc5f659cb2f230922ec7194fffa3b3a3988688bddcc0d5ea7"
+  }
+}

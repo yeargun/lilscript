@@ -1,0 +1,2901 @@
+{
+  "schema": 1,
+  "scope": "paired debug parse-once frontend diagnostic; exact delivery and source-manifest comparison",
+  "started": "2026-09-19T15:59:35.533Z",
+  "repetitions": 5,
+  "schedule": "For each fixture, before/after on even repetitions, after/before on odd repetitions; no warmup exclusion",
+  "commandPolicy": {
+    "timeoutMs": 60000,
+    "killAfterMs": 1000,
+    "maxBuffer": 16777216
+  },
+  "node": {
+    "version": "v24.11.1",
+    "executable": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "required_version": "v24.11.1"
+  },
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "logical_cpus": 8,
+    "load_average_start": [
+      5.45,
+      4.83,
+      3.13
+    ],
+    "load_average_end": [
+      4.74,
+      4.71,
+      3.15
+    ]
+  },
+  "limitations": [
+    "Debug builds and five local repetitions are not release-speed or fleet performance qualification.",
+    "The shared host is not isolated and background CPU/memory load is not controlled; recorded load averages do not correct timings.",
+    "No speed or compression improvement is asserted; output equality is required.",
+    "Wall time includes supervised process startup and completion, not only compiler phases.",
+    "Input and executable hashing is outside measured wall time and can warm filesystem caches; no cache flushing or cold-start claim.",
+    "Before discovery_ns plus parse_ns is compared with after discovery_parse_ns; separate new discovery/parse times are not inferred.",
+    "Logical work is an accounting tariff, not elapsed time; source capacities use each implementation's reported backing allocation.",
+    "Peak retained bytes cover the whole compilation, not a frontend-only peak or process RSS.",
+    "Remaining resource-accounting exclusions are preserved in every original compiler report.",
+    "Both compilers are otherwise different qualified checkpoints; this is not an isolated compiler patch benchmark.",
+    "Native-entry is compiled as JavaScript; this does not test native compilation or runtime equivalence."
+  ],
+  "trials": [
+    {
+      "fixture": "entry",
+      "repetition": 1,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 251401784,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-1-before.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-1-before.stderr",
+        "sha256": "e4b9f67ab1dff8ff16b3c7ee0f01991f97e828f93ee4fe348418c97bb47f6038",
+        "bytes": 13277
+      },
+      "metrics": {
+        "discovery_parse_ns": 9870812,
+        "check_ns": 5137418,
+        "convert_ns": 38193979,
+        "frontend_release_ns": 70272,
+        "adopt_ns": 999076,
+        "source_release_ns": 5339,
+        "total_ns": 143191951,
+        "wall_ns": 251401784,
+        "frontend_logical_work": 2577939,
+        "source_buffer_capacity": 38871,
+        "whole_compilation_peak_retained_bytes": 2529135
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 1,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 145911813,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-1-after.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-1-after.stderr",
+        "sha256": "059c9420ad531783f240cff3407017b599542e9ef824e4c89ff585893c03644b",
+        "bytes": 13328
+      },
+      "metrics": {
+        "discovery_parse_ns": 4658023,
+        "check_ns": 3010986,
+        "convert_ns": 35955387,
+        "frontend_release_ns": 128971,
+        "adopt_ns": 1055502,
+        "source_release_ns": 3146,
+        "total_ns": 133487440,
+        "wall_ns": 145911813,
+        "frontend_logical_work": 2594874,
+        "source_buffer_capacity": 48768,
+        "whole_compilation_peak_retained_bytes": 2539032
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 2,
+      "side": "after",
+      "order": 0,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 157573792,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-2-after.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-2-after.stderr",
+        "sha256": "a5bcf04914e4b99a4a439c2d0dfd2e95327d161dc76c96c5e19a1d6e24a82fcc",
+        "bytes": 13328
+      },
+      "metrics": {
+        "discovery_parse_ns": 4824193,
+        "check_ns": 2997561,
+        "convert_ns": 35543928,
+        "frontend_release_ns": 127207,
+        "adopt_ns": 1036617,
+        "source_release_ns": 3487,
+        "total_ns": 132371024,
+        "wall_ns": 157573792,
+        "frontend_logical_work": 2594874,
+        "source_buffer_capacity": 48768,
+        "whole_compilation_peak_retained_bytes": 2539032
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 2,
+      "side": "before",
+      "order": 1,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 165260984,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-2-before.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-2-before.stderr",
+        "sha256": "53bf44a985264c58534b6005d1bc44425a5754eb072f28d64dfc4ab2e9b7592e",
+        "bytes": 13277
+      },
+      "metrics": {
+        "discovery_parse_ns": 8841282,
+        "check_ns": 3131529,
+        "convert_ns": 35877164,
+        "frontend_release_ns": 83276,
+        "adopt_ns": 1028234,
+        "source_release_ns": 4889,
+        "total_ns": 136315029,
+        "wall_ns": 165260984,
+        "frontend_logical_work": 2577939,
+        "source_buffer_capacity": 38871,
+        "whole_compilation_peak_retained_bytes": 2529135
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 3,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 166655392,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-3-before.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-3-before.stderr",
+        "sha256": "5ca0dce503eba6b0c576b97ee6a4595b113e57a6a2b0d0e1efd33459a9b14268",
+        "bytes": 13277
+      },
+      "metrics": {
+        "discovery_parse_ns": 8348480,
+        "check_ns": 3141998,
+        "convert_ns": 39444959,
+        "frontend_release_ns": 83216,
+        "adopt_ns": 1001193,
+        "source_release_ns": 5300,
+        "total_ns": 143507614,
+        "wall_ns": 166655392,
+        "frontend_logical_work": 2577939,
+        "source_buffer_capacity": 38871,
+        "whole_compilation_peak_retained_bytes": 2529135
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 3,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 157460980,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-3-after.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-3-after.stderr",
+        "sha256": "45baee4f8e0323cf51dac3d91af67eb4c84f3ae84a287c1ce9c90e9f2355319e",
+        "bytes": 13328
+      },
+      "metrics": {
+        "discovery_parse_ns": 4715803,
+        "check_ns": 3298461,
+        "convert_ns": 36011706,
+        "frontend_release_ns": 122399,
+        "adopt_ns": 1021161,
+        "source_release_ns": 3376,
+        "total_ns": 135183661,
+        "wall_ns": 157460980,
+        "frontend_logical_work": 2594874,
+        "source_buffer_capacity": 48768,
+        "whole_compilation_peak_retained_bytes": 2539032
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 4,
+      "side": "after",
+      "order": 0,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 160996576,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-4-after.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-4-after.stderr",
+        "sha256": "b433d243ae005efad99d91c1ef77861eb513568a6905b1c75238c144441decb4",
+        "bytes": 13327
+      },
+      "metrics": {
+        "discovery_parse_ns": 4708440,
+        "check_ns": 2997849,
+        "convert_ns": 39308654,
+        "frontend_release_ns": 124843,
+        "adopt_ns": 998779,
+        "source_release_ns": 3126,
+        "total_ns": 138323766,
+        "wall_ns": 160996576,
+        "frontend_logical_work": 2594874,
+        "source_buffer_capacity": 48768,
+        "whole_compilation_peak_retained_bytes": 2539032
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 4,
+      "side": "before",
+      "order": 1,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 162244789,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-4-before.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-4-before.stderr",
+        "sha256": "50d81f9029917f20bb3e7a3840863e84b1e60ec94f829bde89d30a0d7a733116",
+        "bytes": 13277
+      },
+      "metrics": {
+        "discovery_parse_ns": 7887590,
+        "check_ns": 3048824,
+        "convert_ns": 36273449,
+        "frontend_release_ns": 60162,
+        "adopt_ns": 1023040,
+        "source_release_ns": 4488,
+        "total_ns": 135303635,
+        "wall_ns": 162244789,
+        "frontend_logical_work": 2577939,
+        "source_buffer_capacity": 38871,
+        "whole_compilation_peak_retained_bytes": 2529135
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 5,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 162169897,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-5-before.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-5-before.stderr",
+        "sha256": "b33450adeedc7eacfe7a6a63ee120b93958af31346f1485343dfd7474f6efe4f",
+        "bytes": 13277
+      },
+      "metrics": {
+        "discovery_parse_ns": 8547854,
+        "check_ns": 3142479,
+        "convert_ns": 36401359,
+        "frontend_release_ns": 81111,
+        "adopt_ns": 1043458,
+        "source_release_ns": 4769,
+        "total_ns": 137053885,
+        "wall_ns": 162169897,
+        "frontend_logical_work": 2577939,
+        "source_buffer_capacity": 38871,
+        "whole_compilation_peak_retained_bytes": 2529135
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "entry",
+      "repetition": 5,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 171315645,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-5-after.stdout",
+        "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+        "bytes": 18232
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/entry-5-after.stderr",
+        "sha256": "3270db73c7e796d8913aa7e72079347d8e178f8dc30e74ea9f176f8020a90796",
+        "bytes": 13329
+      },
+      "metrics": {
+        "discovery_parse_ns": 6663103,
+        "check_ns": 3725317,
+        "convert_ns": 42207651,
+        "frontend_release_ns": 157394,
+        "adopt_ns": 1005478,
+        "source_release_ns": 3718,
+        "total_ns": 143573139,
+        "wall_ns": 171315645,
+        "frontend_logical_work": 2594874,
+        "source_buffer_capacity": 48768,
+        "whole_compilation_peak_retained_bytes": 2539032
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "cddeeee191f3abe8a496a72eb5bf80484eda13a595dc2585d76b4e7ca375174f"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 1,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 43482653,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-1-before.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-1-before.stderr",
+        "sha256": "b819c24eec7dce677ba3259cc8fd4663a1fc05d27fd3eab8012772b9b36d152f",
+        "bytes": 9913
+      },
+      "metrics": {
+        "discovery_parse_ns": 1052625,
+        "check_ns": 696331,
+        "convert_ns": 1454727,
+        "frontend_release_ns": 22322,
+        "adopt_ns": 242402,
+        "source_release_ns": 2616,
+        "total_ns": 14725790,
+        "wall_ns": 43482653,
+        "frontend_logical_work": 57452,
+        "source_buffer_capacity": 1028,
+        "whole_compilation_peak_retained_bytes": 835673
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 1,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 36565033,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-1-after.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-1-after.stderr",
+        "sha256": "e09bbf6f83b8e1d21e81f6b01069c2b2df7a1c5c88fa8c938e17a650da863355",
+        "bytes": 9964
+      },
+      "metrics": {
+        "discovery_parse_ns": 856259,
+        "check_ns": 584612,
+        "convert_ns": 1388463,
+        "frontend_release_ns": 18905,
+        "adopt_ns": 210002,
+        "source_release_ns": 1282,
+        "total_ns": 14234836,
+        "wall_ns": 36565033,
+        "frontend_logical_work": 57844,
+        "source_buffer_capacity": 1408,
+        "whole_compilation_peak_retained_bytes": 836053
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 2,
+      "side": "after",
+      "order": 0,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 37188407,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-2-after.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-2-after.stderr",
+        "sha256": "26ec675c86375eca9afbfe8dae64cf3bf4e339d96967b98c8fc017271b25d49d",
+        "bytes": 9964
+      },
+      "metrics": {
+        "discovery_parse_ns": 675883,
+        "check_ns": 550859,
+        "convert_ns": 1407569,
+        "frontend_release_ns": 17292,
+        "adopt_ns": 189745,
+        "source_release_ns": 1623,
+        "total_ns": 13740623,
+        "wall_ns": 37188407,
+        "frontend_logical_work": 57844,
+        "source_buffer_capacity": 1408,
+        "whole_compilation_peak_retained_bytes": 836053
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 2,
+      "side": "before",
+      "order": 1,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 38167994,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-2-before.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-2-before.stderr",
+        "sha256": "459c6242b44d40543f00e8d316ab99ce3dec42439ba4cad3be5c1978ae2f5bbb",
+        "bytes": 9913
+      },
+      "metrics": {
+        "discovery_parse_ns": 1028481,
+        "check_ns": 605501,
+        "convert_ns": 1441172,
+        "frontend_release_ns": 17552,
+        "adopt_ns": 184805,
+        "source_release_ns": 2244,
+        "total_ns": 14103140,
+        "wall_ns": 38167994,
+        "frontend_logical_work": 57452,
+        "source_buffer_capacity": 1028,
+        "whole_compilation_peak_retained_bytes": 835673
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 3,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 39766316,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-3-before.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-3-before.stderr",
+        "sha256": "7286952ad72dca41d7288e6154d029a5a76a2b09d2f56555cbd5bfe917393985",
+        "bytes": 9913
+      },
+      "metrics": {
+        "discovery_parse_ns": 1269360,
+        "check_ns": 728911,
+        "convert_ns": 1599538,
+        "frontend_release_ns": 17763,
+        "adopt_ns": 184484,
+        "source_release_ns": 2474,
+        "total_ns": 15368233,
+        "wall_ns": 39766316,
+        "frontend_logical_work": 57452,
+        "source_buffer_capacity": 1028,
+        "whole_compilation_peak_retained_bytes": 835673
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 3,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 35734331,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-3-after.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-3-after.stderr",
+        "sha256": "28e80eef5f3f1123dc9ace26f0d955eddd86f026ada8ef2abf52bcc518600e2e",
+        "bytes": 9964
+      },
+      "metrics": {
+        "discovery_parse_ns": 683968,
+        "check_ns": 560136,
+        "convert_ns": 1405034,
+        "frontend_release_ns": 18194,
+        "adopt_ns": 211556,
+        "source_release_ns": 1152,
+        "total_ns": 13501667,
+        "wall_ns": 35734331,
+        "frontend_logical_work": 57844,
+        "source_buffer_capacity": 1408,
+        "whole_compilation_peak_retained_bytes": 836053
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 4,
+      "side": "after",
+      "order": 0,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 35314377,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-4-after.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-4-after.stderr",
+        "sha256": "f40b1608685d202c72bcf0eef3134fee010451b51fc57c017404740989edd901",
+        "bytes": 9964
+      },
+      "metrics": {
+        "discovery_parse_ns": 709916,
+        "check_ns": 554816,
+        "convert_ns": 1438136,
+        "frontend_release_ns": 17964,
+        "adopt_ns": 180137,
+        "source_release_ns": 1273,
+        "total_ns": 13954413,
+        "wall_ns": 35314377,
+        "frontend_logical_work": 57844,
+        "source_buffer_capacity": 1408,
+        "whole_compilation_peak_retained_bytes": 836053
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 4,
+      "side": "before",
+      "order": 1,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 37362712,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-4-before.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-4-before.stderr",
+        "sha256": "8ee748a4cc8f9bcb0b0c98bff0fc94a7a7117183f821b0d0eaccdbce7479a2b0",
+        "bytes": 9914
+      },
+      "metrics": {
+        "discovery_parse_ns": 1123288,
+        "check_ns": 611702,
+        "convert_ns": 1449427,
+        "frontend_release_ns": 17633,
+        "adopt_ns": 185196,
+        "source_release_ns": 2455,
+        "total_ns": 14886855,
+        "wall_ns": 37362712,
+        "frontend_logical_work": 57452,
+        "source_buffer_capacity": 1028,
+        "whole_compilation_peak_retained_bytes": 835673
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 5,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 53924490,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-5-before.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-5-before.stderr",
+        "sha256": "4b83a0e95ccf72d3988f572bed96a68b53c0cdf7e955b5787f42b7f7ef0880e5",
+        "bytes": 9914
+      },
+      "metrics": {
+        "discovery_parse_ns": 1312552,
+        "check_ns": 736646,
+        "convert_ns": 2027407,
+        "frontend_release_ns": 25318,
+        "adopt_ns": 211646,
+        "source_release_ns": 3687,
+        "total_ns": 16550412,
+        "wall_ns": 53924490,
+        "frontend_logical_work": 57452,
+        "source_buffer_capacity": 1028,
+        "whole_compilation_peak_retained_bytes": 835673
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 5,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 35186458,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-5-after.stdout",
+        "sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+        "bytes": 1000
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/native-entry-5-after.stderr",
+        "sha256": "965f9eac3d5b9c84fce45d3e47618ac96d35b94b5229bc28009c9e3a141b9510",
+        "bytes": 9964
+      },
+      "metrics": {
+        "discovery_parse_ns": 792060,
+        "check_ns": 530520,
+        "convert_ns": 1435060,
+        "frontend_release_ns": 19216,
+        "adopt_ns": 186108,
+        "source_release_ns": 1333,
+        "total_ns": 13613305,
+        "wall_ns": 35186458,
+        "frontend_logical_work": 57844,
+        "source_buffer_capacity": 1408,
+        "whole_compilation_peak_retained_bytes": 836053
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "15eab0c709ce02bc4cf0c67b8d6c214d6666ed4f3337397784876d197807f615"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 1,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 41585870,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-1-before.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-1-before.stderr",
+        "sha256": "2db75f257007225f27da6c3e73f279b8694d8de3ad1a3afd5ba3223eda4d41f2",
+        "bytes": 11299
+      },
+      "metrics": {
+        "discovery_parse_ns": 2226760,
+        "check_ns": 915540,
+        "convert_ns": 3401162,
+        "frontend_release_ns": 23433,
+        "adopt_ns": 246912,
+        "source_release_ns": 2515,
+        "total_ns": 18700717,
+        "wall_ns": 41585870,
+        "frontend_logical_work": 152100,
+        "source_buffer_capacity": 1985,
+        "whole_compilation_peak_retained_bytes": 853286
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 1,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 47955212,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-1-after.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-1-after.stderr",
+        "sha256": "96c410f02bab322eaf12d38fcec30fff2295eca8eca7b53efa1d8b922b47b4fb",
+        "bytes": 11350
+      },
+      "metrics": {
+        "discovery_parse_ns": 1486202,
+        "check_ns": 881775,
+        "convert_ns": 3116201,
+        "frontend_release_ns": 25408,
+        "adopt_ns": 248433,
+        "source_release_ns": 1192,
+        "total_ns": 17380353,
+        "wall_ns": 47955212,
+        "frontend_logical_work": 152308,
+        "source_buffer_capacity": 3840,
+        "whole_compilation_peak_retained_bytes": 855141
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 2,
+      "side": "after",
+      "order": 0,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 50009825,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-2-after.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-2-after.stderr",
+        "sha256": "f7274f8524bd34c5c69eb50b5e5b557a907f79bf94bd0bacb179860616b71400",
+        "bytes": 11350
+      },
+      "metrics": {
+        "discovery_parse_ns": 1514264,
+        "check_ns": 972603,
+        "convert_ns": 3965535,
+        "frontend_release_ns": 37189,
+        "adopt_ns": 303657,
+        "source_release_ns": 1914,
+        "total_ns": 21093357,
+        "wall_ns": 50009825,
+        "frontend_logical_work": 152308,
+        "source_buffer_capacity": 3840,
+        "whole_compilation_peak_retained_bytes": 855141
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 2,
+      "side": "before",
+      "order": 1,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 40025443,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-2-before.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-2-before.stderr",
+        "sha256": "82b30c5a563d96f5dceed0e88ca75dea7f5e18dee1892fddfddcc65a9e36d48b",
+        "bytes": 11299
+      },
+      "metrics": {
+        "discovery_parse_ns": 2249195,
+        "check_ns": 993673,
+        "convert_ns": 3205478,
+        "frontend_release_ns": 23944,
+        "adopt_ns": 282196,
+        "source_release_ns": 2745,
+        "total_ns": 18721564,
+        "wall_ns": 40025443,
+        "frontend_logical_work": 152100,
+        "source_buffer_capacity": 1985,
+        "whole_compilation_peak_retained_bytes": 853286
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 3,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 53643793,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-3-before.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-3-before.stderr",
+        "sha256": "7b8de52212195fa1443697de50b229345668ff601cac6725eaeb6f98aeb6d7f7",
+        "bytes": 11300
+      },
+      "metrics": {
+        "discovery_parse_ns": 2986339,
+        "check_ns": 1215647,
+        "convert_ns": 4837341,
+        "frontend_release_ns": 29014,
+        "adopt_ns": 380840,
+        "source_release_ns": 3086,
+        "total_ns": 25309430,
+        "wall_ns": 53643793,
+        "frontend_logical_work": 152100,
+        "source_buffer_capacity": 1985,
+        "whole_compilation_peak_retained_bytes": 853286
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 3,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 49226513,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-3-after.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-3-after.stderr",
+        "sha256": "de137d41f6784caf47cb469f95b9cd882fe475c87d70be2f4902c600003b2fed",
+        "bytes": 11350
+      },
+      "metrics": {
+        "discovery_parse_ns": 1524073,
+        "check_ns": 854454,
+        "convert_ns": 3879435,
+        "frontend_release_ns": 31619,
+        "adopt_ns": 395918,
+        "source_release_ns": 1663,
+        "total_ns": 23189156,
+        "wall_ns": 49226513,
+        "frontend_logical_work": 152308,
+        "source_buffer_capacity": 3840,
+        "whole_compilation_peak_retained_bytes": 855141
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 4,
+      "side": "after",
+      "order": 0,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 50121831,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-4-after.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-4-after.stderr",
+        "sha256": "418a920490fd660dbf5348d0bcb244c7adc149c7a7cdded598daaa0884ca8d3a",
+        "bytes": 11351
+      },
+      "metrics": {
+        "discovery_parse_ns": 1756561,
+        "check_ns": 1051233,
+        "convert_ns": 3953373,
+        "frontend_release_ns": 26419,
+        "adopt_ns": 284983,
+        "source_release_ns": 2184,
+        "total_ns": 20906632,
+        "wall_ns": 50121831,
+        "frontend_logical_work": 152308,
+        "source_buffer_capacity": 3840,
+        "whole_compilation_peak_retained_bytes": 855141
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 4,
+      "side": "before",
+      "order": 1,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 42756545,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-4-before.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-4-before.stderr",
+        "sha256": "75e4c9407431dc730d826bdc71443ad800f5a25172d1f3c1f86c52351d6b3ea2",
+        "bytes": 11299
+      },
+      "metrics": {
+        "discovery_parse_ns": 2355118,
+        "check_ns": 995619,
+        "convert_ns": 3220805,
+        "frontend_release_ns": 24536,
+        "adopt_ns": 271547,
+        "source_release_ns": 3156,
+        "total_ns": 19463356,
+        "wall_ns": 42756545,
+        "frontend_logical_work": 152100,
+        "source_buffer_capacity": 1985,
+        "whole_compilation_peak_retained_bytes": 853286
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 5,
+      "side": "before",
+      "order": 0,
+      "command": "/tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 42999248,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-5-before.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-5-before.stderr",
+        "sha256": "9f3c793a722a32bae21889f0a3a2593ba780ca33da51845cd8acf638b84992b2",
+        "bytes": 11299
+      },
+      "metrics": {
+        "discovery_parse_ns": 2211330,
+        "check_ns": 944624,
+        "convert_ns": 3215876,
+        "frontend_release_ns": 23894,
+        "adopt_ns": 296163,
+        "source_release_ns": 2435,
+        "total_ns": 18338135,
+        "wall_ns": 42999248,
+        "frontend_logical_work": 152100,
+        "source_buffer_capacity": 1985,
+        "whole_compilation_peak_retained_bytes": 853286
+      },
+      "source_buffer_accounting": "admitted String capacities",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "pre-admitted arena backing",
+        "main_parse_arena": "pre-admitted arena backing and owned program list",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    },
+    {
+      "fixture": "factory",
+      "repetition": 5,
+      "side": "after",
+      "order": 1,
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+      "args": [
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--backend",
+        "semantic",
+        "--target",
+        "js-module",
+        "--mode",
+        "development",
+        "--explain",
+        "json"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 41080385,
+      "stdout": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-5-after.stdout",
+        "sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+        "bytes": 988
+      },
+      "stderr": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/parse-once-debug-comparison/factory-5-after.stderr",
+        "sha256": "116fe4cab4d864a3b876d389bf85bf1f5bd6bb4f929352cd40f4e7e8754cb179",
+        "bytes": 11350
+      },
+      "metrics": {
+        "discovery_parse_ns": 1463884,
+        "check_ns": 883439,
+        "convert_ns": 3209453,
+        "frontend_release_ns": 26019,
+        "adopt_ns": 246340,
+        "source_release_ns": 1362,
+        "total_ns": 17503196,
+        "wall_ns": 41080385,
+        "frontend_logical_work": 152308,
+        "source_buffer_capacity": 3840,
+        "whole_compilation_peak_retained_bytes": 855141
+      },
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_non_arena": "template scanner buffers, Logos extras, diagnostics and pre-adoption SourceIdentity allocations; comprehensive recursion/lookahead/lexer work uninstrumented",
+        "checker": "pre-admitted fixed source-node tables and module-facts vector; model stays live through conversion",
+        "checker_remaining": "nested type payloads, hash/ordered maps, declaration/interface storage, module graph validation/schedule, traversal scratch, diagnostics and comprehensive checker work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "input_manifest_sha256": "0c3887638d170bbb6f07b3345337c4fa6ca7b33358539d3ea19de8c7aa1f8a8f"
+    }
+  ],
+  "pairs": [
+    {
+      "fixture": "entry",
+      "repetition": 1,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "raw": 18232,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "entry",
+      "repetition": 2,
+      "order": [
+        "after",
+        "before"
+      ],
+      "delivered_sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "raw": 18232,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "entry",
+      "repetition": 3,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "raw": 18232,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "entry",
+      "repetition": 4,
+      "order": [
+        "after",
+        "before"
+      ],
+      "delivered_sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "raw": 18232,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "entry",
+      "repetition": 5,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "raw": 18232,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 1,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+      "raw": 1000,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 2,
+      "order": [
+        "after",
+        "before"
+      ],
+      "delivered_sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+      "raw": 1000,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 3,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+      "raw": 1000,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 4,
+      "order": [
+        "after",
+        "before"
+      ],
+      "delivered_sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+      "raw": 1000,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "native-entry",
+      "repetition": 5,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "329e602ce45ab3f15e79673cdceb726fde77261867dfdc4a3c75475b9acc2df3",
+      "raw": 1000,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "factory",
+      "repetition": 1,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+      "raw": 988,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "factory",
+      "repetition": 2,
+      "order": [
+        "after",
+        "before"
+      ],
+      "delivered_sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+      "raw": 988,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "factory",
+      "repetition": 3,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+      "raw": 988,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "factory",
+      "repetition": 4,
+      "order": [
+        "after",
+        "before"
+      ],
+      "delivered_sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+      "raw": 988,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    },
+    {
+      "fixture": "factory",
+      "repetition": 5,
+      "order": [
+        "before",
+        "after"
+      ],
+      "delivered_sha256": "5c4445c1509bd13188cd5fbf93027fa752d39632aa1050c1e468aeedb77c44bc",
+      "raw": 988,
+      "exact_stdout_equal": true,
+      "exact_input_manifest_equal": true
+    }
+  ],
+  "results": [
+    {
+      "fixture": "entry",
+      "entry": {
+        "path": "src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+        "bytes": 610
+      },
+      "inputs": {
+        "root": 0,
+        "modules": [
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+            "bytes": 610,
+            "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+            "dependencies": [
+              1,
+              7,
+              9,
+              10,
+              11
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+            "bytes": 204,
+            "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+            "dependencies": [
+              2
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+            "bytes": 292,
+            "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+            "dependencies": [
+              3,
+              4,
+              5,
+              6
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+            "bytes": 918,
+            "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+            "dependencies": [
+              4,
+              5
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+            "bytes": 321,
+            "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+            "dependencies": [
+              3,
+              5
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+            "bytes": 82,
+            "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+            "bytes": 168,
+            "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+            "dependencies": [
+              5
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+            "bytes": 925,
+            "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+            "dependencies": [
+              8,
+              9
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+            "bytes": 1513,
+            "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+            "dependencies": [
+              9
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+            "bytes": 20051,
+            "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+            "bytes": 955,
+            "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+            "bytes": 115,
+            "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          }
+        ]
+      },
+      "medians": {
+        "discovery_parse_ns": {
+          "before": 8547854,
+          "after": 4715803,
+          "difference": -3832051
+        },
+        "check_ns": {
+          "before": 3141998,
+          "after": 3010986,
+          "difference": -131012
+        },
+        "convert_ns": {
+          "before": 36401359,
+          "after": 36011706,
+          "difference": -389653
+        },
+        "frontend_release_ns": {
+          "before": 81111,
+          "after": 127207,
+          "difference": 46096
+        },
+        "adopt_ns": {
+          "before": 1023040,
+          "after": 1021161,
+          "difference": -1879
+        },
+        "source_release_ns": {
+          "before": 4889,
+          "after": 3376,
+          "difference": -1513
+        },
+        "total_ns": {
+          "before": 137053885,
+          "after": 135183661,
+          "difference": -1870224
+        },
+        "wall_ns": {
+          "before": 165260984,
+          "after": 157573792,
+          "difference": -7687192
+        },
+        "frontend_logical_work": {
+          "before": 2577939,
+          "after": 2594874,
+          "difference": 16935
+        },
+        "source_buffer_capacity": {
+          "before": 38871,
+          "after": 48768,
+          "difference": 9897
+        },
+        "whole_compilation_peak_retained_bytes": {
+          "before": 2529135,
+          "after": 2539032,
+          "difference": 9897
+        }
+      }
+    },
+    {
+      "fixture": "native-entry",
+      "entry": {
+        "path": "src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+        "bytes": 73
+      },
+      "inputs": {
+        "root": 0,
+        "modules": [
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+            "bytes": 73,
+            "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+            "dependencies": [
+              1
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+            "bytes": 955,
+            "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          }
+        ]
+      },
+      "medians": {
+        "discovery_parse_ns": {
+          "before": 1123288,
+          "after": 709916,
+          "difference": -413372
+        },
+        "check_ns": {
+          "before": 696331,
+          "after": 554816,
+          "difference": -141515
+        },
+        "convert_ns": {
+          "before": 1454727,
+          "after": 1407569,
+          "difference": -47158
+        },
+        "frontend_release_ns": {
+          "before": 17763,
+          "after": 18194,
+          "difference": 431
+        },
+        "adopt_ns": {
+          "before": 185196,
+          "after": 189745,
+          "difference": 4549
+        },
+        "source_release_ns": {
+          "before": 2474,
+          "after": 1282,
+          "difference": -1192
+        },
+        "total_ns": {
+          "before": 14886855,
+          "after": 13740623,
+          "difference": -1146232
+        },
+        "wall_ns": {
+          "before": 39766316,
+          "after": 35734331,
+          "difference": -4031985
+        },
+        "frontend_logical_work": {
+          "before": 57452,
+          "after": 57844,
+          "difference": 392
+        },
+        "source_buffer_capacity": {
+          "before": 1028,
+          "after": 1408,
+          "difference": 380
+        },
+        "whole_compilation_peak_retained_bytes": {
+          "before": 835673,
+          "after": 836053,
+          "difference": 380
+        }
+      }
+    },
+    {
+      "fixture": "factory",
+      "entry": {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+        "bytes": 204
+      },
+      "inputs": {
+        "root": 0,
+        "modules": [
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+            "bytes": 204,
+            "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+            "dependencies": [
+              1
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+            "bytes": 292,
+            "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+            "dependencies": [
+              2,
+              3,
+              4,
+              5
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+            "bytes": 918,
+            "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+            "dependencies": [
+              3,
+              4
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+            "bytes": 321,
+            "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+            "dependencies": [
+              2,
+              4
+            ],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+            "bytes": 82,
+            "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+            "dependencies": [],
+            "dynamic_dependencies": []
+          },
+          {
+            "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+            "bytes": 168,
+            "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+            "dependencies": [
+              4
+            ],
+            "dynamic_dependencies": []
+          }
+        ]
+      },
+      "medians": {
+        "discovery_parse_ns": {
+          "before": 2249195,
+          "after": 1514264,
+          "difference": -734931
+        },
+        "check_ns": {
+          "before": 993673,
+          "after": 883439,
+          "difference": -110234
+        },
+        "convert_ns": {
+          "before": 3220805,
+          "after": 3879435,
+          "difference": 658630
+        },
+        "frontend_release_ns": {
+          "before": 23944,
+          "after": 26419,
+          "difference": 2475
+        },
+        "adopt_ns": {
+          "before": 282196,
+          "after": 284983,
+          "difference": 2787
+        },
+        "source_release_ns": {
+          "before": 2745,
+          "after": 1663,
+          "difference": -1082
+        },
+        "total_ns": {
+          "before": 18721564,
+          "after": 20906632,
+          "difference": 2185068
+        },
+        "wall_ns": {
+          "before": 42756545,
+          "after": 49226513,
+          "difference": 6469968
+        },
+        "frontend_logical_work": {
+          "before": 152100,
+          "after": 152308,
+          "difference": 208
+        },
+        "source_buffer_capacity": {
+          "before": 1985,
+          "after": 3840,
+          "difference": 1855
+        },
+        "whole_compilation_peak_retained_bytes": {
+          "before": 853286,
+          "after": 855141,
+          "difference": 1855
+        }
+      }
+    }
+  ],
+  "passed": true,
+  "pinnedInputs": {
+    "sha256": "a1a0bb60a4f0d585e6550fd2675b85386dba9139f9a44663fe5d08e5768e287a",
+    "files": [
+      {
+        "path": "../.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": ".nvmrc",
+        "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+        "bytes": 8
+      },
+      {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/compare-parse-once.mjs",
+        "sha256": "afd424dd6b89d45dbc516599c57d41e2aba7a54bf375f9e56592d92b646c6989",
+        "bytes": 16223
+      },
+      {
+        "path": "finer/tools/bounded-command.mjs",
+        "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+        "bytes": 5871
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+        "bytes": 541
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/editable.lil",
+        "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+        "bytes": 115
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+        "bytes": 610
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+        "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+        "bytes": 292
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+        "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+        "bytes": 82
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+        "bytes": 204
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+        "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+        "bytes": 918
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+        "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+        "bytes": 168
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+        "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+        "bytes": 321
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+        "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+        "bytes": 925
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+        "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+        "bytes": 20051
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+        "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+        "bytes": 1513
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/marked/str.original.lil",
+        "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+        "bytes": 9602
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+        "bytes": 73
+      },
+      {
+        "path": "src/semantic_program/fixtures/integrated-architecture/products.lil",
+        "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+        "bytes": 955
+      }
+    ]
+  },
+  "compilers": {
+    "before": {
+      "qualification": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-34-11.534Z/receipt.json",
+        "sha256": "53888122458e0198873b0854a848d03c1598d7bb532023026d86d19a6984c7b7",
+        "bytes": 45534
+      },
+      "compilerInputsSha256": "5a53a17673368ef3ab133158cb9378506fc59f1d54f9e6f8218ee5a273a8c985",
+      "compiler": {
+        "path": "../../../tmp/lilscript-checker-admission-baseline-20260919/lilscript",
+        "sha256": "6356aec211222f7cff3330808542ab8d3bda4de6751e9c12a019bdb7e56eb205",
+        "bytes": 264710744
+      },
+      "qualifiedCompiler": {
+        "path": "target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+        "sha256": "6356aec211222f7cff3330808542ab8d3bda4de6751e9c12a019bdb7e56eb205",
+        "bytes": 264710744
+      },
+      "inputManifests": [
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-34-11.534Z/inputs-before.json",
+          "sha256": "ceb1606cced7b000a6cc84c658363e8d18607098a29d33baa2e0bf42ac57ee31",
+          "bytes": 174655
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-34-11.534Z/inputs-after.json",
+          "sha256": "ceb1606cced7b000a6cc84c658363e8d18607098a29d33baa2e0bf42ac57ee31",
+          "bytes": 174655
+        }
+      ]
+    },
+    "after": {
+      "qualification": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/receipt.json",
+        "sha256": "32243eee8a6548c09cfea59945debbbf40ba5618d0fae1f4b4a96b85a4d12648",
+        "bytes": 58030
+      },
+      "compilerInputsSha256": "1fca56536bbfcb2152924d5ee9e94f905ef84b02be5c7d18c0eee7f1d2fd5635",
+      "compiler": {
+        "path": "target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+        "sha256": "a9a5603dbc1e27952f768474a6a818777ffa472afa6e7bd7377b19a6d90c8647",
+        "bytes": 265188744
+      },
+      "qualifiedCompiler": {
+        "path": "target/qualification-internal-provenance-20260918-v3/debug/lilscript",
+        "sha256": "a9a5603dbc1e27952f768474a6a818777ffa472afa6e7bd7377b19a6d90c8647",
+        "bytes": 265188744
+      },
+      "inputManifests": [
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/inputs-before.json",
+          "sha256": "c6e9d0f7b7e2a486f6ee2eba1e1d53b58a23a0e91e6371dbe34d9e896bd8916d",
+          "bytes": 175303
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/inputs-after.json",
+          "sha256": "c6e9d0f7b7e2a486f6ee2eba1e1d53b58a23a0e91e6371dbe34d9e896bd8916d",
+          "bytes": 175303
+        }
+      ]
+    }
+  },
+  "config": {
+    "path": "src/semantic_program/fixtures/integrated-architecture/config.toml",
+    "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+    "bytes": 541
+  },
+  "environment": {
+    "cwd": "/home/azureuser/lilscript",
+    "overrides": {
+      "RUST_BACKTRACE": "0"
+    },
+    "inherited": true
+  },
+  "inputsStable": true,
+  "completed": "2026-09-19T16:00:04.409Z"
+}

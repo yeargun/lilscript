@@ -1,0 +1,64 @@
+{
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/discover.mjs"
+  ],
+  "before": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/discover.mjs",
+      "sha256": "9550a008dd4c120622e3bdc39c7a1c58de2f9d052b9811ec118050c481d48751",
+      "bytes": 7876
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "after": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/discover.mjs",
+      "sha256": "9550a008dd4c120622e3bdc39c7a1c58de2f9d052b9811ec118050c481d48751",
+      "bytes": 7876
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "elapsedMs": 2683.221451,
+  "stdout": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/supervisor.stdout",
+    "sha256": "41bb9323d9de1379e53a21b5a3a6fbaaa0e687e95f81bc297ec66c2e21f38267",
+    "bytes": 152
+  },
+  "stderr": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/supervisor.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

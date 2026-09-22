@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "workload": "remark-gfmlil",
+  "scope": "Original retained-distribution observations plus current source inspection; not new-source or arbitrary-input semantics",
+  "receipt": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/receipt.json",
+    "sha256": "b584655ac815c09b7a7c6353d06757cc24cceef4f9a421050664662ef1ad32b0",
+    "bytes": 31773
+  },
+  "files": [
+    {
+      "path": "/home/azureuser/remark-gfmlil/src/entry.lil",
+      "sha256": "f5d79eb4eb8456bca47f5dbf69801347974c9924f8b2a3dbe0c5a061d25dd2f4",
+      "bytes": 1284
+    },
+    {
+      "path": "/home/azureuser/remark-gfmlil/test/api.test.mjs",
+      "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+      "bytes": 2584
+    },
+    {
+      "path": "/home/azureuser/remark-gfmlil/test/closed.test.mjs",
+      "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+      "bytes": 1000
+    },
+    {
+      "path": "/home/azureuser/remark-gfmlil/test/official/index.js",
+      "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+      "bytes": 2422
+    }
+  ],
+  "observed": [
+    "ESM plugin receives processor as callback this and mutates the live data() store; direct and processor.use callers observe registered extension arrays.",
+    "Original options flow into GFM combiners; eight original parser/serializer fixtures and escaped-atext regression pass through upstream remark with the candidate plugin.",
+    "CJS export keys/callable shape and closed registration pass, without full CJS or closed behavior coverage."
+  ],
+  "sourceMeaning": "JS.method1 wraps a JsValue callback; JS.invoke/objGet/objSet/push operate on the processor-owned foreign store. This is an explicit host-object boundary, not a proof of private typed-value ownership.",
+  "open": [
+    "Repeated-registration aliasing, getters/setters, proxy/coercion/throw order and general input compatibility are not comprehensively tested here.",
+    "D2 remains unanswered; preserve supported observations without inferring privacy from types."
+  ]
+}

@@ -1,0 +1,2064 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "hast-util-to-htmllil",
+  "started": "2026-09-20T23:35:49.363Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/hast-util-to-htmllil",
+  "workspace": "/tmp/lilscript-baseline-hast-util-to-htmllil-6THQxL/hast-util-to-htmllil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/hast-util-to-htmllil",
+    "candidates": [
+      "/home/azureuser/hast-util-to-htmllil",
+      "/home/azureuser/hast-util-to-htmllil",
+      "/tmp/lilscript-page-refresh-20260910/current/hast-util-to-htmllil"
+    ],
+    "recorded": "/home/azureuser/hast-util-to-htmllil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+    "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+    "bytes": 17886160,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/hast-util-to-htmllil",
+    "files": 83,
+    "sha256": "3f0d90d8dda8ed2e1af5dc4cd494754e660cf263da282abd526919ef6c8d5734"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+        "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+        "bytes": 17886160
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/hast-util-to-htmllil/lilscript.closed.toml",
+        "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+        "bytes": 407
+      },
+      {
+        "path": "/home/azureuser/hast-util-to-htmllil/lilscript.toml",
+        "sha256": "41ada36aca53e769f897c9fb1dbfefc7061d0eaf2a47b82caa9735f4f6be1d1c",
+        "bytes": 652
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/to-html.cjs",
+    "dist/to-html.closed.js",
+    "dist/to-html.esm.js",
+    "dist/to-html.raw.js",
+    "dist/to-html.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.572,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/to-html.cjs",
+      "sha256": "6251b2367acc1a9875fe44fc3ff78cb622056ae1551dbdcfd4d560d4c4e659fb",
+      "bytes": 31100,
+      "sizes": {
+        "raw": 31100,
+        "gzip": 10259,
+        "brotli": 9100
+      }
+    },
+    {
+      "path": "dist/to-html.closed.js",
+      "sha256": "5f141aa185acb302fc281e925d79fea6948454cc71e9398d204b34ed65cca82e",
+      "bytes": 29952,
+      "sizes": {
+        "raw": 29952,
+        "gzip": 9816,
+        "brotli": 8668
+      }
+    },
+    {
+      "path": "dist/to-html.esm.js",
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101,
+      "sizes": {
+        "raw": 30101,
+        "gzip": 9971,
+        "brotli": 8807
+      }
+    },
+    {
+      "path": "dist/to-html.raw.js",
+      "sha256": "397dd261cec9d981eb18640f260abea7d1a97634de6fd0d7e8c2cc8782f9dea7",
+      "bytes": 30005,
+      "sizes": {
+        "raw": 30005,
+        "gzip": 9904,
+        "brotli": 8750
+      }
+    },
+    {
+      "path": "dist/to-html.umd.js",
+      "sha256": "5730dc50aceb38311e0868aa54dd98d4d474e47ba43639eb85d43c1887a36bdf",
+      "bytes": 31171,
+      "sizes": {
+        "raw": 31171,
+        "gzip": 10287,
+        "brotli": 9129
+      }
+    }
+  ],
+  "measurements": {
+    "dist/to-html.cjs": {
+      "raw": 31100,
+      "gzip": 10259,
+      "brotli": 9100
+    },
+    "dist/to-html.closed.js": {
+      "raw": 29952,
+      "gzip": 9816,
+      "brotli": 8668
+    },
+    "dist/to-html.esm.js": {
+      "raw": 30101,
+      "gzip": 9971,
+      "brotli": 8807
+    },
+    "dist/to-html.raw.js": {
+      "raw": 30005,
+      "gzip": 9904,
+      "brotli": 8750
+    },
+    "dist/to-html.umd.js": {
+      "raw": 31171,
+      "gzip": 10287,
+      "brotli": 9129
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 1.391,
+  "cases": {
+    "required": 460,
+    "executed": 460,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/to-html.esm.js",
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.esm.js",
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.esm.js",
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.closed.js",
+      "sha256": "5f141aa185acb302fc281e925d79fea6948454cc71e9398d204b34ed65cca82e",
+      "bytes": 29952
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 0, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 1, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 2, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 3, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 4, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 5, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 6, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 0, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 0, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 1, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 1, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 2, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 2, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 3, unquoted false\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",34,9,1,\"test\",\"matches 9.0.5 for flags 7, context 3, unquoted true\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",41,3,1,\"test\",\"handles reference termination at string boundaries\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",59,3,1,\"test\",\"ignores inherited character-reference settings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",66,3,1,\"test\",\"matches option and nested proxy evaluation order\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/character-references.test.mjs\",21,1,0,\"suite\",\"characterReferences\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",8,13,2,\"test\",\"should ignore unknowns set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",20,13,2,\"test\",\"should ignore unknowns set to `null`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",32,13,2,\"test\",\"should ignore unknowns set to `undefined`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",47,13,2,\"test\",\"should ignore unknowns set to `NaN`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",59,13,2,\"test\",\"should serialize unknowns set to `true` without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",74,13,2,\"test\",\"should serialize unknowns set to their name as their name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",89,13,2,\"test\",\"should serialize unknown lists as space-separated\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",104,13,2,\"test\",\"should serialize unknowns set to an integer as it’s string version\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",119,13,2,\"test\",\"should serialize unknowns set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",131,13,2,\"test\",\"should serialize unknowns set to objects\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",7,11,1,\"test\",\"should support unknown properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",146,13,2,\"test\",\"should ignore known booleans set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",161,13,2,\"test\",\"should ignore falsey known booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",173,13,2,\"test\",\"should ignore NaN known booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",185,13,2,\"test\",\"should serialize known booleans set to `true` without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",200,13,2,\"test\",\"should serialize known booleans set to their name without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",215,13,2,\"test\",\"should serialize truthy known booleans without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",230,13,2,\"test\",\"should serialize known booleans set to arbitrary strings with value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",240,13,2,\"test\",\"should serialize known booleans set to an empty string without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",250,13,2,\"test\",\"should serialize known overloaded booleans set to arbitrary strings with value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",145,11,1,\"test\",\"shold support known booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",262,13,2,\"test\",\"should ignore known overloaded booleans set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",277,13,2,\"test\",\"should ignore falsey known overloaded booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",292,13,2,\"test\",\"should ignore NaN known overloaded booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",307,13,2,\"test\",\"should serialize known overloaded booleans set to `true` without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",322,13,2,\"test\",\"should serialize known overloaded booleans set to their name without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",337,13,2,\"test\",\"should serialize known overloaded booleans set to an empty string without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",352,13,2,\"test\",\"should serialize truthy known overloaded booleans without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",367,13,2,\"test\",\"should serialize known overloaded booleans set to another string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",261,11,1,\"test\",\"should support known overloaded booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",383,13,2,\"test\",\"should ignore known numbers set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",398,13,2,\"test\",\"should ignore NaN known numbers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",410,13,2,\"test\",\"should serialize known numbers set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",425,13,2,\"test\",\"should serialize known numbers set to `-1`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",440,13,2,\"test\",\"should serialize known numbers set to `1`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",455,13,2,\"test\",\"should serialize known numbers set to `Math.PI`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",470,13,2,\"test\",\"should serialize known numbers set to `true` as without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",485,13,2,\"test\",\"should serialize known numbers set to an empty string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",500,13,2,\"test\",\"should serialize known numbers set to their name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",515,13,2,\"test\",\"should serialize known numbers set to a string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",530,13,2,\"test\",\"should serialize known numbers set to an object\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",546,13,2,\"test\",\"should serialize known numbers set to an array of strings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",561,13,2,\"test\",\"should serialize known numbers set to an array of numbers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",576,13,2,\"test\",\"should serialize known numbers set to an array of booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",382,11,1,\"test\",\"should support known numbers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",596,15,2,\"test\",\"should ignore known space-separated lists set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",611,15,2,\"test\",\"should ignore NaN known space-separated lists\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",626,15,2,\"test\",\"should serialize known space-separated lists set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",641,15,2,\"test\",\"should serialize known space-separated lists set to `true` as without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",656,15,2,\"test\",\"should serialize known space-separated lists set to an empty string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",671,15,2,\"test\",\"should serialize known space-separated lists set to their attribute name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",686,15,2,\"test\",\"should serialize known space-separated lists set to their property name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",701,15,2,\"test\",\"should serialize known space-separated lists set to a string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",716,15,2,\"test\",\"should serialize known space-separated lists set to an object\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",732,15,2,\"test\",\"should serialize known space-separated lists set to an array of strings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",747,15,2,\"test\",\"should serialize known space-separated lists set to an array of numbers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",762,15,2,\"test\",\"should serialize known space-separated lists set to an array of booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",593,11,1,\"test\",\"should support known space-separated lists\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",783,15,2,\"test\",\"should ignore known comma-separated lists set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",798,15,2,\"test\",\"should ignore NaN known comma-separated lists\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",813,15,2,\"test\",\"should serialize known comma-separated lists set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",828,15,2,\"test\",\"should serialize known comma-separated lists set to `true` as without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",843,15,2,\"test\",\"should serialize known comma-separated lists set to an empty string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",858,15,2,\"test\",\"should serialize known comma-separated lists set to their name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",873,15,2,\"test\",\"should serialize known comma-separated lists set to a string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",888,15,2,\"test\",\"should serialize known comma-separated lists set to an object\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",904,15,2,\"test\",\"should serialize known comma-separated lists set to an array of strings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",919,15,2,\"test\",\"should serialize known comma-separated lists set to an array of numbers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",934,15,2,\"test\",\"should serialize known comma-separated lists set to an array of booleans\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",780,11,1,\"test\",\"should support known comma-separated lists\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",953,13,2,\"test\",\"should ignore known normals set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",968,13,2,\"test\",\"should ignore NaN known normals\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",980,13,2,\"test\",\"should serialize known normals set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",995,13,2,\"test\",\"should serialize known normals set to `true` as without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1010,13,2,\"test\",\"should serialize known normals set to an empty string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1025,13,2,\"test\",\"should serialize known normals set to their name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1040,13,2,\"test\",\"should serialize known normals set to a string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1055,13,2,\"test\",\"should serialize known normals set to an object\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1071,13,2,\"test\",\"should serialize known normals set to an array of strings as a space-separated list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1086,13,2,\"test\",\"should serialize known normals set to an array of numbers as a space-separated list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1101,13,2,\"test\",\"should serialize known normals set to an array of booleans as a space-separated list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",952,11,1,\"test\",\"should support known normals\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1119,13,2,\"test\",\"should ignore data properties set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1134,13,2,\"test\",\"should ignore NaN data properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1146,13,2,\"test\",\"should serialize data properties set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1161,13,2,\"test\",\"should serialize data properties set to `true` as without value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1176,13,2,\"test\",\"should serialize data properties set to an empty string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1191,13,2,\"test\",\"should serialize data properties set to their property name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1206,13,2,\"test\",\"should serialize data properties set to their attribute name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1221,13,2,\"test\",\"should serialize data properties set to a string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1236,13,2,\"test\",\"should serialize numeric-first data properties set to a string\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1251,13,2,\"test\",\"should serialize data properties set to an object\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1267,13,2,\"test\",\"should serialize data properties set to an array of strings as a space-separated list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1282,13,2,\"test\",\"should serialize data properties set to an array of numbers as a space-separated list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1297,13,2,\"test\",\"should serialize data properties set to an array of booleans as a space-separated list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1118,11,1,\"test\",\"should support data properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1315,13,2,\"test\",\"should show empty string attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1327,13,2,\"test\",\"should collapse empty string attributes in `collapseEmptyAttributes` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1314,11,1,\"test\",\"should support `collapseEmptyAttributes`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1344,13,2,\"test\",\"should serialize multiple properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1356,13,2,\"test\",\"should serialize multiple properties tightly in `tightAttributes` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1343,11,1,\"test\",\"should support `tightAttributes`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1378,13,2,\"test\",\"should serialize comma-separated attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1393,13,2,\"test\",\"should serialize comma-separated attributes tighly in `tightCommaSeparatedLists` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1377,11,1,\"test\",\"should support `tightCommaSeparatedLists`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1415,13,2,\"test\",\"should quote attribute values with double quotes by default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1430,13,2,\"test\",\"should quote attribute values with single quotes if `quote: '\\\\''`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1450,13,2,\"test\",\"should quote attribute values with double quotes if `quote: '\\\\\\\"'`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1470,13,2,\"test\",\"should quote attribute values with single quotes if `quote: '\\\\''` even if they occur in value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1490,13,2,\"test\",\"should quote attribute values with double quotes if `quote: '\\\\\\\"'` even if they occur in value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1510,13,2,\"test\",\"should throw on invalid quotes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1414,11,1,\"test\",\"should support `quote`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1522,13,2,\"test\",\"should quote attribute values with primary quotes by default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1543,13,2,\"test\",\"should quote attribute values with primary quotes if the alternative occurs\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1564,13,2,\"test\",\"should quote attribute values with primary quotes if they occur less than the alternative\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1585,13,2,\"test\",\"should quote attribute values with primary quotes if they occur as much as alternatives (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1606,13,2,\"test\",\"should quote attribute values with primary quotes if they occur as much as alternatives (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1627,13,2,\"test\",\"should quote attribute values with alternative quotes if the primary occurs\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1648,13,2,\"test\",\"should quote attribute values with alternative quotes if they occur less than the primary\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1521,11,1,\"test\",\"should support `quoteSmart`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1671,13,2,\"test\",\"should omit quotes in `preferUnquoted`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1683,13,2,\"test\",\"should keep quotes in `preferUnquoted` and impossible\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1703,13,2,\"test\",\"should not add `=` when omitting quotes on empty values\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1670,11,1,\"test\",\"should support `preferUnquoted`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1720,13,2,\"test\",\"should encode entities in attribute names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1735,13,2,\"test\",\"should encode entities in attribute values\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1750,13,2,\"test\",\"should not encode characters in attribute names which cause parse errors, but work, in `allowParseErrors` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1770,13,2,\"test\",\"should not encode characters in attribute values which cause parse errors, but work, in `allowParseErrors` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1790,13,2,\"test\",\"should not encode characters which cause XSS issues in older browsers, in `allowDangerousCharacters` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",1719,11,1,\"test\",\"should support entities in attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/attribute.js\",6,1,0,\"test\",\"`element` attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",6,11,1,\"test\",\"should serialize `comment`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",10,11,1,\"test\",\"should not encode `comment`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",14,11,1,\"test\",\"should serialize bogus comments (`bogusComments`)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",24,11,1,\"test\",\"should prevent breaking out of bogus comments (`bogusComments`)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should prevent `>a` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should prevent `->a` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should prevent `a<!--b` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should prevent `a-->b` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should prevent `a--!>b` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should prevent `a<!-` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should allow `a>` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should allow `a->` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",54,13,1,\"test\",\"should allow `a<!-b` (security)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/comment.js\",5,1,0,\"test\",\"`comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",7,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",13,11,1,\"test\",\"should throw on non-nodes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",20,11,1,\"test\",\"should throw on unknown nodes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",27,11,1,\"test\",\"should support a node\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",31,11,1,\"test\",\"should support an array\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",6,1,0,\"test\",\"toHtml()\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/doctype.js\",6,11,1,\"test\",\"should serialize doctypes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/doctype.js\",10,11,1,\"test\",\"should serialize doctypes tightly in `tightDoctype` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/doctype.js\",20,11,1,\"test\",\"should serialize uppercase doctypes in `upperDoctype` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/doctype.js\",5,1,0,\"test\",\"`doctype`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",7,11,1,\"test\",\"should serialize `element`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",11,11,1,\"test\",\"should serialize unknown `element`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",15,11,1,\"test\",\"should serialize void `element`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",19,11,1,\"test\",\"should serialize given void `element`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",23,11,1,\"test\",\"should serialize with ` /` in `closeSelfClosing` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",30,11,1,\"test\",\"should serialize voids with `/` in `closeSelfClosing` and `tightSelfClosing` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",40,11,1,\"test\",\"should serialize voids with `/` in `closeSelfClosing` and `tightSelfClosing` mode, w/ space after an unquoted attribute (1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",54,11,1,\"test\",\"should serialize voids with `/` in `closeSelfClosing` and `tightSelfClosing` mode, w/ space after an unquoted attribute (2)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",68,11,1,\"test\",\"should serialize voids with a ` /` in if an unquoted attribute ends with `/`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",82,11,1,\"test\",\"should support `<template>`s content\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/element.js\",6,1,0,\"test\",\"`element`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission.js\",7,11,1,\"test\",\"should omit opening and closing tags\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission.js\",11,11,1,\"test\",\"should not omit opening tags with attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission.js\",21,11,1,\"test\",\"should ignore whitespace when determining whether tags can be omitted (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission.js\",33,11,1,\"test\",\"should ignore whitespace when determining whether tags can be omitted (#2)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission.js\",6,1,0,\"test\",\"`omitOptionalTags` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",7,11,1,\"test\",\"should omit tag without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",11,11,1,\"test\",\"should not omit tag if the head is a `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",23,11,1,\"test\",\"should not omit tag if the head starts with whitespace\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",33,11,1,\"test\",\"should not omit tag if head is `meta`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",40,11,1,\"test\",\"should not omit tag if head is `link`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",47,11,1,\"test\",\"should not omit tag if head is `script`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",54,11,1,\"test\",\"should not omit tag if head is `style`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",61,11,1,\"test\",\"should not omit tag if head is `template`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",68,11,1,\"test\",\"should omit tag if head is something else\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-body.js\",6,1,0,\"test\",\"`body` (opening)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",7,11,1,\"test\",\"should not omit tag without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",14,11,1,\"test\",\"should omit tag with `col` child\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",21,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",28,11,1,\"test\",\"should not omit tag followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",37,11,1,\"test\",\"should not omit tag followed by whitespace\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",44,11,1,\"test\",\"should omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-colgroup.js\",6,1,0,\"test\",\"`colgroup` (opening)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",7,11,1,\"test\",\"should omit tag with children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",14,11,1,\"test\",\"should omit tag without children (could be fine in `srcdoc`)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",21,11,1,\"test\",\"should omit tag with `title`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",28,11,1,\"test\",\"should omit tag with `base`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",35,11,1,\"test\",\"should not omit tag with multiple `title`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",42,11,1,\"test\",\"should not omit tag with multiple `base`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-head.js\",6,1,0,\"test\",\"`head` (opening)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-html.js\",7,11,1,\"test\",\"should omit tag without first child\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-html.js\",11,11,1,\"test\",\"should not omit tag if head is `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-html.js\",20,11,1,\"test\",\"should omit tag if head is not `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-html.js\",6,1,0,\"test\",\"`html` (opening)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-tbody.js\",7,11,1,\"test\",\"should not omit tag without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-tbody.js\",11,11,1,\"test\",\"should omit tag if head is `tr`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-tbody.js\",18,11,1,\"test\",\"should not omit tag preceded by an omitted `thead` closing tag\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-tbody.js\",30,11,1,\"test\",\"should not omit tag preceded by an omitted `tbody` closing tag\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-opening-tbody.js\",6,1,0,\"test\",\"`tbody` (opening)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-body.js\",7,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-body.js\",11,11,1,\"test\",\"should not omit tag if followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-body.js\",23,11,1,\"test\",\"should omit tag if not followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-body.js\",6,1,0,\"test\",\"`body` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-caption.js\",7,11,1,\"test\",\"should not omit tag without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-caption.js\",14,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-caption.js\",21,11,1,\"test\",\"should not omit tag followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-caption.js\",30,11,1,\"test\",\"should not omit tag followed by whitespace\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-caption.js\",37,11,1,\"test\",\"should omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-caption.js\",6,1,0,\"test\",\"`caption` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-colgroup.js\",7,11,1,\"test\",\"should not omit tag without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-colgroup.js\",14,11,1,\"test\",\"should omit tag if head is `col`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-colgroup.js\",21,11,1,\"test\",\"should not omit tag if head is not `col`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-colgroup.js\",30,11,1,\"test\",\"should not omit tag if previous is `colgroup` whose closing tag is omitted\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-colgroup.js\",6,1,0,\"test\",\"`colgroup` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dd.js\",7,11,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dd.js\",11,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dd.js\",18,11,1,\"test\",\"should omit tag followed by `dd`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dd.js\",25,11,1,\"test\",\"should omit tag followed by `dt`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dd.js\",32,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dd.js\",6,1,0,\"test\",\"`dd` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dt.js\",7,11,1,\"test\",\"should not omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dt.js\",11,11,1,\"test\",\"should not omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dt.js\",18,11,1,\"test\",\"should omit tag followed by `dt`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dt.js\",25,11,1,\"test\",\"should omit tag followed by `dd`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dt.js\",32,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-dt.js\",6,1,0,\"test\",\"`dt` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-head.js\",7,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-head.js\",11,11,1,\"test\",\"should not omit tag if followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-head.js\",23,11,1,\"test\",\"should not omit tag if the next sibling starts with whitespace\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-head.js\",33,11,1,\"test\",\"should omit tag if not followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-head.js\",6,1,0,\"test\",\"`head` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-html.js\",7,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-html.js\",11,11,1,\"test\",\"should not omit tag if followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-html.js\",27,11,1,\"test\",\"should omit tag if not followed by `comment`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-html.js\",6,1,0,\"test\",\"`html` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-li.js\",7,11,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-li.js\",11,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-li.js\",18,11,1,\"test\",\"should omit tag followed by `li`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-li.js\",25,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-li.js\",6,1,0,\"test\",\"`li` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",7,11,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",14,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",21,11,1,\"test\",\"should omit tag followed by `menuitem`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",30,11,1,\"test\",\"should omit tag followed by `hr`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",39,11,1,\"test\",\"should omit tag followed by `menu`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",48,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",57,11,1,\"test\",\"should omit tag when without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-menuitem.js\",6,1,0,\"test\",\"`menuitem` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-optgroup.js\",7,11,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-optgroup.js\",14,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-optgroup.js\",21,11,1,\"test\",\"should omit tag followed by `optgroup`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-optgroup.js\",30,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-optgroup.js\",6,1,0,\"test\",\"`optgroup` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-option.js\",7,11,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-option.js\",11,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-option.js\",18,11,1,\"test\",\"should omit tag followed by `option`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-option.js\",25,11,1,\"test\",\"should omit tag followed by `optgroup`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-option.js\",34,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-option.js\",6,1,0,\"test\",\"`option` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",7,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",14,11,1,\"test\",\"should omit tag if followed by `address`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",24,11,1,\"test\",\"should omit tag if followed by `ul`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",34,11,1,\"test\",\"should not omit tag if followed by `a`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",44,11,1,\"test\",\"should not omit tag if followed by `xmp`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",54,11,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",58,11,1,\"test\",\"should not omit tag if parent is `a`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",65,11,1,\"test\",\"should not omit tag if parented by `video`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",72,11,1,\"test\",\"should not omit tag if parent is `article`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",79,11,1,\"test\",\"should not omit tag if parented by `section`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-p.js\",6,1,0,\"test\",\"`p` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",13,13,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",20,13,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",27,13,1,\"test\",\"should omit tag followed by `rp`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",37,13,1,\"test\",\"should omit tag followed by `rt`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",47,13,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",12,3,0,\"test\",\"`rp` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",13,13,1,\"test\",\"should omit tag without parent\",2]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",20,13,1,\"test\",\"should omit tag without following\",2]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",27,13,1,\"test\",\"should omit tag followed by `rt`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",37,13,1,\"test\",\"should omit tag followed by `rp`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",47,13,1,\"test\",\"should not omit tag followed by others\",2]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-rp-rt.js\",12,3,0,\"test\",\"`rt` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tbody.js\",7,11,1,\"test\",\"should omit tag without siblings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tbody.js\",11,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tbody.js\",18,11,1,\"test\",\"should omit tag followed by `tbody`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tbody.js\",25,11,1,\"test\",\"should omit tag followed by `tfoot`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tbody.js\",32,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tbody.js\",6,1,0,\"test\",\"`tbody` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",13,13,1,\"test\",\"should omit tag without parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",20,13,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",27,13,1,\"test\",\"should omit tag followed by `td`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",37,13,1,\"test\",\"should omit tag followed by `th`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",47,13,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",12,3,0,\"test\",\"`td` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",13,13,1,\"test\",\"should omit tag without parent\",2]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",20,13,1,\"test\",\"should omit tag without following\",2]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",27,13,1,\"test\",\"should omit tag followed by `th`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",37,13,1,\"test\",\"should omit tag followed by `td`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",47,13,1,\"test\",\"should not omit tag followed by others\",2]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-td-th.js\",12,3,0,\"test\",\"`th` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tfoot.js\",7,11,1,\"test\",\"should omit tag without siblings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tfoot.js\",11,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tfoot.js\",18,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tfoot.js\",6,1,0,\"test\",\"`tfoot` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-thead.js\",7,11,1,\"test\",\"should not omit tag without siblings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-thead.js\",14,11,1,\"test\",\"should not omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-thead.js\",21,11,1,\"test\",\"should omit tag followed by `tbody`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-thead.js\",28,11,1,\"test\",\"should omit tag followed by `tfoot`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-thead.js\",35,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-thead.js\",6,1,0,\"test\",\"`thead` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tr.js\",7,11,1,\"test\",\"should omit tag without siblings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tr.js\",11,11,1,\"test\",\"should omit tag without following\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tr.js\",18,11,1,\"test\",\"should not omit tag followed by others\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/omission-closing-tr.js\",6,1,0,\"test\",\"`tr` (closing)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/raw.js\",10,11,1,\"test\",\"should encode `raw`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/raw.js\",17,11,1,\"test\",\"should not encode `raw`s in `allowDangerousHtml` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/raw.js\",9,1,0,\"test\",\"`raw`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/security.js\",7,11,1,\"test\",\"should make sure comments cannot break out of their context (safe)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/security.js\",22,11,1,\"test\",\"should make sure scripts render (unsafe)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/security.js\",29,11,1,\"test\",\"should make sure event attributes render (unsafe)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/security.js\",39,11,1,\"test\",\"should make sure texts are encoded (safe)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/security.js\",6,1,0,\"test\",\"security\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",7,11,1,\"test\",\"should serialize `element`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",11,11,1,\"test\",\"should serialize unknown `element`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",15,11,1,\"test\",\"should serialize `element`s with content\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",22,11,1,\"test\",\"should serialize with ` /` in `closeEmptyElements` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",32,11,1,\"test\",\"should serialize empties with `/` in `closeEmptyElements` and `tightSelfClosing` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",46,11,1,\"test\",\"should serialize empties with `/` in `closeEmptyElements` and `tightSelfClosing` mode, *with* a space after an unquoted attribute\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",64,11,1,\"test\",\"should serialize properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",71,11,1,\"test\",\"should serialize special properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",78,11,1,\"test\",\"should collapse empty string attributes in `collapseEmptyAttributes` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",91,11,1,\"test\",\"should serialize multiple properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",100,11,1,\"test\",\"should serialize multiple properties tightly in `tightAttributes` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",113,11,1,\"test\",\"should serialize space-separated attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",125,11,1,\"test\",\"should serialize comma-separated attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",135,11,1,\"test\",\"should serialize comma-separated attributes tighly in `tightCommaSeparatedLists` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",148,11,1,\"test\",\"should serialize unknown lists as space-separated\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",158,11,1,\"test\",\"should serialize known boolean attributes set to `true`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",168,11,1,\"test\",\"should ignore known boolean attributes set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",178,11,1,\"test\",\"should serialize truthy known boolean attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",188,11,1,\"test\",\"should ignore falsey known boolean attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",198,11,1,\"test\",\"should ignore unknown attributes set to `false`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",208,11,1,\"test\",\"should serialize unknown attributes set to `true`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",218,11,1,\"test\",\"should serialize positive known numeric attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",228,11,1,\"test\",\"should serialize negative known numeric attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",238,11,1,\"test\",\"should serialize known numeric attributes set to `0`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",248,11,1,\"test\",\"should ignore known numeric attributes set to `NaN`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",258,11,1,\"test\",\"should serialize known numeric attributes set to non-numeric values\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",269,11,1,\"test\",\"should serialize other attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",276,11,1,\"test\",\"should serialize other falsey attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",283,11,1,\"test\",\"should serialize other non-string attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",293,11,1,\"test\",\"should quote attribute values with single quotes if `quote: \\\"'\\\"`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",303,11,1,\"test\",\"should quote attribute values with double quotes if `quote: '\\\"'`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",313,11,1,\"test\",\"should quote smartly if the other quote is less prominent (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",327,11,1,\"test\",\"should quote smartly if the other quote is less prominent (#2)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",341,11,1,\"test\",\"should omit quotes in `preferUnquoted`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",348,11,1,\"test\",\"should encode entities in attribute names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",355,11,1,\"test\",\"should encode entities in attribute values\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",362,11,1,\"test\",\"should encode characters in attribute names which cause parse errors, work, even though `allowParseErrors` mode is on\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",375,11,1,\"test\",\"should encode characters in attribute values which cause parse errors, work, even though `allowParseErrors` mode is on\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",388,11,1,\"test\",\"should not encode characters which cause XSS issues in older browsers, in `allowDangerousCharacters` mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",401,11,1,\"test\",\"should ignore attributes set to `null`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",413,11,1,\"test\",\"should ignore attributes set to `undefined`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",428,11,1,\"test\",\"should serialize an SVG tree\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",456,11,1,\"test\",\"should serialize SVG props on an `svg` element in HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",479,11,1,\"test\",\"should serialize an HTML tree with embedded HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/svg.js\",6,1,0,\"test\",\"svg\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",7,11,1,\"test\",\"should serialize `root`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",21,11,1,\"test\",\"should serialize `root`s w/o children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",6,1,0,\"test\",\"`root`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",7,11,1,\"test\",\"should serialize `text`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",11,11,1,\"test\",\"should encode `text`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",18,11,1,\"test\",\"should not encode `text`s in `style`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",27,11,1,\"test\",\"should not encode `text`s in `script`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",34,11,1,\"test\",\"should encode `text`s in other nodes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",6,1,0,\"test\",\"`text`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",19,3,1,\"test\",\"exports toHtml\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",24,3,1,\"test\",\"keeps pinned option and tree keys in the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",32,3,1,\"test\",\"serializes a hast fixture to html\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",37,3,1,\"test\",\"escapes text and attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",50,3,1,\"test\",\"joins className and emits boolean and void markup\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",79,3,1,\"test\",\"emits raw only when allowDangerousHtml is set\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",18,1,0,\"suite\",\"@itslil/hast-util-to-html library\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",87,3,1,\"test\",\"exists and still serializes a tree\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-html.test.mjs\",86,1,0,\"suite\",\"@itslil/hast-util-to-html closed lane\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 1.971,
+  "completed": "2026-09-20T23:35:51.301Z",
+  "fingerprint": "e778a594f89a95686085c036037938364706e2dcd1fb610924e8d51e8678a9ec"
+}

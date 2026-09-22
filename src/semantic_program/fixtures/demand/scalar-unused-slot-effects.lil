@@ -1,0 +1,1 @@
+extern int argument(int n);Record<int> state=record{used:1,dead:argument(2)};state.dead=argument(3);print(state.used??0);

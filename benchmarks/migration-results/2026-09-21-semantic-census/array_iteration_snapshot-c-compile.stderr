@@ -1,0 +1,5 @@
+error: unsupported semantic source: missing checked call signature
+ --> /home/azureuser/lilscript/tests/cases/array_iteration_snapshot.lil:10:16
+  |
+10 | int[] mapped = mapSource.map(mapValue);
+  |                ^^^^^^^^^^^^^

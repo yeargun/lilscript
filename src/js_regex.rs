@@ -7,23 +7,9 @@
 
 const MAX_GROUP_DEPTH: usize = 128;
 
-/// Return an ES2022 regular-expression literal for source-encoded LilScript
-/// string bodies. Invalid strings, invalid patterns, and valid patterns outside
-/// the proven subset return `None`.
-///
-/// The caller still decides whether the candidate is worthwhile for its
-/// selected complete-artifact cost model.
-pub(crate) fn es2022_regex_literal(pattern_source: &str, flags_source: &str) -> Option<String> {
-    let pattern = decode_source_string_fragment(pattern_source)?;
-    let flags = decode_source_string_fragment(flags_source)?;
-    literal_from_decoded(&pattern, &flags)
-}
-
-fn decode_source_string_fragment(value: &str) -> Option<String> {
-    serde_json::from_str(&format!("\"{value}\"")).ok()
-}
-
-fn literal_from_decoded(pattern: &str, flags: &str) -> Option<String> {
+/// Return a literal for decoded pattern/flag values in the proven ES2022
+/// subset. Rejection preserves the runtime constructor and its syntax errors.
+pub(crate) fn literal_from_decoded(pattern: &str, flags: &str) -> Option<String> {
     let parsed_flags = RegexFlags::parse(flags)?;
     if !PatternValidator::new(pattern, parsed_flags.unicode).validate() {
         return None;
@@ -462,7 +448,7 @@ fn serialize_literal_body(pattern: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{es2022_regex_literal, literal_from_decoded};
+    use super::literal_from_decoded;
 
     fn literal(pattern: &str, flags: &str) -> Option<String> {
         literal_from_decoded(pattern, flags)
@@ -543,11 +529,9 @@ mod tests {
     }
 
     #[test]
-    fn rejects_source_fragments_that_cannot_be_decoded_exactly() {
-        assert_eq!(es2022_regex_literal(r"\v", ""), None);
-        assert_eq!(
-            es2022_regex_literal(r"\\d{2,4}", "gi"),
-            Some(r"/\d{2,4}/gi".to_string())
-        );
+    fn decoded_patterns_are_not_interpreted_as_source_string_escapes() {
+        assert_eq!(literal(r"\d{2,4}", "gi"), Some(r"/\d{2,4}/gi".to_owned()));
+        // This valid control remains outside the literal admission subset.
+        assert_eq!(literal("\u{b}", ""), None);
     }
 }

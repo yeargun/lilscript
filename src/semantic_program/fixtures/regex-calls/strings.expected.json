@@ -1,0 +1,14 @@
+[
+ ["trim","A","A \t","\t A"],
+ ["repeat",[0,55296,0,55296],"","😀😀"],
+ ["raw-repeat",["text","get-repeat","count",["call"," x ",1,2]],"alias"],
+ ["replaced-during-count",["text","get-repeat","count",["call"," x ",1,2]],"alias"],
+ ["getter-throws",["text","get-repeat"],["throw","Error","lookup"]],
+ ["native-count-coercion",["text","get-repeat","count","count-coerce"]," x  x "],
+ ["unused-negative-repeat",["text","get-repeat","count"],["throw","RangeError","native"]],
+ ["unused-infinite-repeat",["text","get-repeat","count"],["throw","RangeError","native"]],
+ ["raw-trim",["text","get-trim",["call"," x ",0]],"alias"],
+ ["trim-coercion",["text","get-trim",["call"," x ",0],["coerce","default"]],"raw!"],
+ ["trim-coercion-throws",["text","get-trim",["call"," x ",0],["coerce","default"]],["throw","Error","coercion"]],
+ ["unused-trim",["text","get-trim",["call"," x ",0]],"undefined"]
+]

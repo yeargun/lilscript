@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "status": "unresolved",
+  "scope": "Read-only availability audit; not archive recovery or compiler qualification",
+  "missingRoot": "/home/azureuser/lilscript-planning-archive",
+  "expected": ["2026-09-18-reset", "2026-09-19-consolidation/before"],
+  "observations": [
+    "The September 18 archive was readable at 2026-09-19 10:23:21 UTC.",
+    "The September 19 archive creation and copy commands completed successfully at 10:25:46 UTC.",
+    "A 10:40:10 UTC check confirmed sixteen removed documents remained preserved and compiler-design.md was unchanged.",
+    "The archive root was first observed missing at 13:26:24 UTC.",
+    "Bounded home and LilScript-related temporary-directory searches found no relocated directory with either expected name.",
+    "Both compiler-design.md and lilscript-migration public symlinks still resolve correctly."
+  ],
+  "auditLog": {
+    "path": "/home/azureuser/.codex/sessions/2026/09/19/rollout-2026-09-19T10-18-47-01a0b92c-fa60-79b2-8c35-0ca6e0d52de3.jsonl",
+    "recordHashScope": "UTF-8 JSONL record excluding newline",
+    "records": [
+      {"line": 163, "sha256": "1508ed8fbed83c0a4c657489113d3718180fef694a0db38a2dfed92ed631140b"},
+      {"line": 168, "sha256": "4a22c5151953378673e0c1fccd2ba869fbe72ce337936e01277d96695893d9cb"},
+      {"line": 267, "sha256": "3740c9de948c97afb91ca511b17b9b9b8b43c6b915499e1f8354415aca2e3831"},
+      {"line": 270, "sha256": "a0ba6a69634af40713dcd17938fbdf41c416c36c065e6ab11f21a3dd6d449904"}
+    ]
+  },
+  "partialHistory": [
+    {"path": "/tmp/lilscript-deep-research-20260912/agent-migration-before", "files": 15, "existingHashesVerify": true},
+    {"path": "/tmp/lilscript-architecture-iteration-20260912/lilscript-finer-structured/migration", "files": 17},
+    {"path": "/tmp/lilscript-source-performance-20260910/compiler/migration", "files": 25},
+    {"gitCommit": "06b8da20d417b1ca9f78efb32552fe70d2b41cc4", "retiredTrackedDocuments": 53}
+  ],
+  "limitations": [
+    "Cause and destination, if moved, are unknown.",
+    "Partial older copies do not establish preservation of the latest uncommitted archived versions.",
+    "Former fourteen step files and cleanup-manifest.json were not located.",
+    "No missing content was reconstructed or substituted; owner was asked whether the archive moved."
+  ]
+}

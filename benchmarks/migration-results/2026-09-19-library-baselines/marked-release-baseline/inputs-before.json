@@ -1,0 +1,100 @@
+{
+  "files": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/qualify-marked-release.mjs",
+      "sha256": "7f016323acb3a297ba65a0c41d9d90b36a0babfabb293eb5385c8bb7173a0914",
+      "bytes": 17294
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript",
+      "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+      "bytes": 17828488
+    },
+    {
+      "path": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+      "sha256": "d55c6f33119cb11153f21145f45058ef3ed188c04554cc198af242f4b12e1ef9",
+      "bytes": 2601824
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-36-23.430Z/receipt.json",
+      "sha256": "020c288f5b0e6bafc016e12cbb6d5a7a7ab53b9b28a32444c584c9781abbf533",
+      "bytes": 42567
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-36-23.430Z/inputs-before.json",
+      "sha256": "b14a583dbd5a2dcfc4132d187f3610d6e7ff7bfa57a0bf6e11a5558e1e09bacb",
+      "bytes": 175303
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-36-23.430Z/inputs-after.json",
+      "sha256": "b14a583dbd5a2dcfc4132d187f3610d6e7ff7bfa57a0bf6e11a5558e1e09bacb",
+      "bytes": 175303
+    },
+    {
+      "path": "/home/azureuser/lilscript/.nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/maintained-workloads.json",
+      "sha256": "3c48ee5262c9107587ea62e42ac993cb459d84e17762c6f7310b7cedc96e4716",
+      "bytes": 100928
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/markedlil.profiles.tests.json",
+      "sha256": "513e0c12316d445476e05af8ed65d83dd760f635eac720c1b4c070f5adc17ecb",
+      "bytes": 12346
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/port-adapters/marked-profiles.test.mjs",
+      "sha256": "01615e2df144de28cfa6ab3b0720ca39097835cef404799e2a65c6632d5f8641",
+      "bytes": 3359
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/portgate.mjs",
+      "sha256": "eb7d2474af4c0d08ad0825db53413aef506ad6f2f97b043a138c8156ff3c83b2",
+      "bytes": 28554
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/compiler-receipt.mjs",
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "9cc8b18ac0ea6447020ac8197fd35de0fd56c855940091b415f4a5caad3a33a5",
+      "bytes": 6735
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/vitest-test-evidence.mjs",
+      "sha256": "a1c78215b4b7e2f185f74abdfe78c45db59cc8389d0f7eaa85f8c7e6dd94f4c7",
+      "bytes": 9116
+    }
+  ],
+  "sha256": "0fbaa63a594a51c90d746afbdcfbdc21d1be263d1a05dc0ee3cf22ae8272503c"
+}

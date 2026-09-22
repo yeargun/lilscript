@@ -1,0 +1,1 @@
+extern bool enabled();extern int argument(int n);bool even(int value){return (value&1)==0;}print(enabled()&&even(argument(2)));

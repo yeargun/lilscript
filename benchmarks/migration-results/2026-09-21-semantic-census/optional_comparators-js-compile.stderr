@@ -1,0 +1,5 @@
+error: direct module checking does not yet support source parameter defaults
+ --> /home/azureuser/lilscript/tests/cases/optional_comparators.lil:4:31
+  |
+ 4 |   (func(T,T)->bool)? equals = null
+  |                               ^^^^

@@ -1,0 +1,29 @@
+int findClosingBracket(string str, string openCh, string closeCh) {
+  if (str.indexOf(closeCh) < 0) {
+    return -1;
+  }
+  int level = 0;
+  int i = 0;
+  while (i < str.length) {
+    string ch = str.charAt(i);
+    if (ch == "\\") {
+      i = i + 1;
+    } else if (ch == openCh) {
+      level = level + 1;
+    } else if (ch == closeCh) {
+      level = level - 1;
+      if (level < 0) {
+        return i;
+      }
+    }
+    i = i + 1;
+  }
+  if (level > 0) {
+    return -2;
+  }
+  return -1;
+}
+
+extern string sample(int index);
+int index=0;
+while(index<6){print(findClosingBracket(sample(index),"(",")"));index=index+1;}

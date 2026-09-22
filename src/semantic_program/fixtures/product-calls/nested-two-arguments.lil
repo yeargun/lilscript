@@ -1,0 +1,10 @@
+struct Leaf { int x; int y; }
+struct Packet { Leaf leaf; int[] items; }
+int step(Packet local, Packet other) {
+    local.leaf.x=7;
+    other.leaf.y=9;
+    local.items[0]+=1;
+    return local.leaf.y+other.leaf.x+other.items[0];
+}
+Packet state=Packet{Leaf{1,2},[3]};
+print(step(state,state));print(state.leaf.x);print(state.leaf.y);print(state.items[0]);

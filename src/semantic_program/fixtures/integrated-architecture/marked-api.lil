@@ -1,0 +1,24 @@
+// Authored API consumer; the imported Marked declarations are archived separately.
+import {expandTabs,removeCodeIndent,splitLines,joinLines,execRe} from "./marked/str-slice.lil";
+import {otherTabCharGlobal} from "./marked/rules.lil";
+extern void textEvent(string label,string text);
+extern void demandSeen(JsValue value);
+extern JsValue demandFallback(string label);
+
+export int normalizeInput(string text) {
+    string normalized=joinLines(splitLines(removeCodeIndent(text)));
+    textEvent("marked-normalized",normalized);
+    string expanded=expandTabs("\t"+normalized,0);
+    textEvent("marked-expanded",expanded);
+    return expanded.length;
+}
+
+export void inspectMatch() {
+    otherTabCharGlobal.lastIndex=0;
+    JsValue matched=execRe(otherTabCharGlobal,"\tA");
+    JsValue? nullable=matched;
+    demandSeen(matched);
+    JS.and(matched,demandFallback("and"));
+    nullable??demandFallback("nullish");
+    matched;
+}

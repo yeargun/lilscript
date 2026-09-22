@@ -1,0 +1,47 @@
+
+running 42 tests
+test semantic_program::search_opportunities::tests::partial_construction_denial_releases_new_buffers_and_preserves_baseline ... ok
+test semantic_program::search_opportunities::tests::automatic_hints_use_semantic_occurrences_and_keep_unknown_strings_for_proof ... ok
+test semantic_program::search_opportunities::tests::bounded_inventory_is_an_exact_prefix_independent_of_its_owner ... ok
+test semantic_program::search_entries::tests::rejected_disposal_returns_all_owned_entries_then_empty_release_succeeds ... ok
+test semantic_program::search_entries::tests::denied_growth_and_aggregate_overflow_preserve_existing_artifacts ... ok
+test semantic_program::search_entries::tests::backing_growth_charges_coexisting_buffers_and_releases_original_domain ... ok
+test semantic_program::search_entries::tests::real_artifact_slots_reuse_without_copying_text_or_codec_scores ... ok
+test semantic_program::search_opportunities::tests::product_hints_share_scalar_policy_and_need_no_local_facts ... ok
+test semantic_program::search_opportunities::tests::private_function_hints_are_body_scoped_and_independent_of_storage_and_inlining ... ok
+test semantic_program::search_opportunities::tests::tactic_filters_avoid_unneeded_facts_and_definition_storage ... ok
+test semantic_program::search_opportunities::tests::wrong_owner_returns_intact_inventory_until_original_domain_discard ... ok
+test semantic_program::search_staged_tests::queue_pressure_scores_an_old_trial_without_losing_the_incoming_trial ... ok
+test semantic_program::search_staged_tests::raw_only_search_bypasses_the_codec_queue_under_both_schedules ... ok
+test semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled ... ok
+test semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work ... ok
+test semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis ... ok
+test semantic_program::search_staged_tests::requested_codecs_keep_separate_winners_and_diversity_reaches_a_real_raw_loser ... ok
+test semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline ... ok
+test semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts ... ok
+test semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets ... ok
+test semantic_program::search_tests::artifact_identity::qualified_winner_keeps_complete_recipe_after_search_and_source_disposal ... ok
+test semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets ... ok
+test semantic_program::search_string_group_tests::manual_joint_string_pool_has_a_qualified_finite_oracle_beyond_singleton_discovery ... ok
+test semantic_program::search_staged_tests::finite_factory_union_and_exact_winners_match_immediate_and_staged_schedules ... ok
+test semantic_program::search_tests::discovery::one_artifact_attempt_can_reach_a_literal_after_many_unavailable_helpers ... ok
+test semantic_program::search_naming_neighborhood_tests::source_name_overrides_have_a_qualified_finite_structural_neighborhood ... ok
+test semantic_program::search_tests::discovery::cold_low_search_and_high_warmed_low_search_keep_exact_winners_and_request_charges ... ok
+test semantic_program::search_tests::invalid_ledger_and_missing_runtime_evidence_reject_before_search_work_or_storage ... ok
+test semantic_program::search_tests::discovery::private_product_transport_search_is_independent_and_retries_under_stronger_caps ... ok
+test semantic_program::search_tests::discovery::one_closed_product_proof_covers_its_copy_hints_without_a_facts_cache ... ok
+test semantic_program::search_tests::panicking_observer_releases_losing_artifact_provenance_and_search_storage ... ok
+test semantic_program::search_tests::one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union ... ok
+test semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes ... ok
+test semantic_program::search_tests::taking_one_shared_winner_moves_its_buffer_and_consumes_all_objective_aliases ... ok
+test semantic_program::search_tests::real_gzip_and_brotli_winners_survive_independently ... ok
+test semantic_program::search_tests::optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents ... ok
+test semantic_program::search_tests::zero_optional_work_seals_a_completely_scored_direct_baseline ... ok
+test semantic_program::search_staged_tests::fixed_schedule_probe_prefixes_are_deterministic_and_additional_probes_do_not_regress ... ok
+test semantic_program::search_reference_runtime_tests::reference_oracle_and_small_cap_finalization_execute_exact_observations ... ok
+test semantic_program::search_tests::structural_discovery_matches_independent_twelve_state_oracle_and_measured_union ... ok
+test semantic_program::search_tests::discovery::truncated_queries_are_skipped_within_the_request_and_retried_with_stronger_bounds ... ok
+test semantic_program::search_reference_runtime_tests::reference_search_reaches_mixed_fields_and_inline_under_larger_fixed_cap ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 2820 filtered out; finished in 3.74s
+

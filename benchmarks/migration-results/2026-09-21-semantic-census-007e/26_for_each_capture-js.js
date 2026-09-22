@@ -1,0 +1,1 @@
+let a;let b;let c;let total=0;let values=[2,3,5,7];b=values.forEach((a=(0,(value)=>{total=total+ value|0;}),a));c=void console.log(total);

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "kind": "qualification-build-receipt-extract",
+  "sourceReceipt": {
+    "path": "/tmp/lilscript-internal-provenance-20260914/qualification-v3/receipt.json",
+    "sha256": "d9e3287abfc8182249963c3ce33802a3eb9c6569ccd0b809cf567b936e854a71",
+    "bytes": 208438
+  },
+  "sourceArtifacts": {
+    "path": "/tmp/lilscript-internal-provenance-20260914/qualification-v3/runs/20260918T135157-1789739517233568690/all-targets-compiler-artifacts.json",
+    "sha256": "62074d7356eadce01f6e9646622124827110ea7ddb1c6851cdb31579d6112dce",
+    "bytes": 14211
+  },
+  "check": {
+    "after_sha256": "39b236777c510b7a9a829c080d1a682dead48ced45f7bbd66c9e19018d87bb91",
+    "before_sha256": "2bbdeb5ee19ab210a163b335ad26bdbcf73ca3f8e42b1f0580e2cc1af25bab16",
+    "command": [
+      "cargo",
+      "test",
+      "--all-targets",
+      "--no-run",
+      "--message-format=json-render-diagnostics"
+    ],
+    "compiler_artifacts_sha256": "62074d7356eadce01f6e9646622124827110ea7ddb1c6851cdb31579d6112dce",
+    "cwd": "/home/azureuser/lilscript",
+    "elapsed_ns": 101499421825,
+    "environment_overrides": {
+      "CARGO_TARGET_DIR": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3",
+      "CARGO_TERM_COLOR": "never",
+      "LILSCRIPT_NATIVE_CC": "/usr/bin/cc",
+      "LILSCRIPT_NATIVE_CLANG": "/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18",
+      "RUST_BACKTRACE": "0"
+    },
+    "exit_code": 0,
+    "finished": "2026-09-18T13:53:50.065389+00:00",
+    "label": "all-targets",
+    "log_sha256": "da810b1db2a0002386779af6d1edc63ad7e17a1f9e453fb9f54dc993ce711431",
+    "source_unchanged": true,
+    "started": "2026-09-18T13:52:08.567405+00:00",
+    "summary": []
+  },
+  "artifact": {
+    "dep_info": [
+      "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9.d"
+    ],
+    "fresh": false,
+    "outputs": [
+      {
+        "path": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+        "sha256": "ee469d7176533a075ee7b4ee48696cb4f624567955a386232f639339cc4976ed"
+      }
+    ],
+    "package_id": "path+file:///home/azureuser/lilscript#0.1.0",
+    "profile": {
+      "debug_assertions": true,
+      "debuginfo": 2,
+      "opt_level": "0",
+      "overflow_checks": true,
+      "test": true
+    },
+    "target": {
+      "crate_types": [
+        "lib"
+      ],
+      "doc": true,
+      "doctest": true,
+      "edition": "2021",
+      "kind": [
+        "lib"
+      ],
+      "name": "lilscript",
+      "src_path": "/home/azureuser/lilscript/src/lib.rs",
+      "test": true
+    }
+  },
+  "preservedBinary": {
+    "path": "/tmp/lilscript-search-baseline-20260919/baseline-test-binary",
+    "sha256": "ee469d7176533a075ee7b4ee48696cb4f624567955a386232f639339cc4976ed",
+    "bytes": 381962400
+  }
+}

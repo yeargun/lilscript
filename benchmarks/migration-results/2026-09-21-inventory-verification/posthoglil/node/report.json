@@ -1,0 +1,1942 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/posthoglil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/compat.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+      "bytes": 2827
+    },
+    {
+      "path": "test/compat.test.mjs",
+      "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+      "bytes": 17595
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/compat.test.mjs",
+      "test/api.test.mjs"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/compat.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/posthoglil/node/observe.mjs",
+    "sha256": "430de0eeca350cea604c404ac1280dae54fd640be56acd7fb805c510d2555556",
+    "bytes": 1167,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/.nvmrc",
+        "expected": {
+          "path": ".nvmrc",
+          "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
+          "bytes": 3
+        },
+        "actual": {
+          "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
+          "bytes": 3
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.bytes.toml",
+        "expected": {
+          "path": "lilscript.bytes.toml",
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+          "bytes": 293
+        },
+        "actual": {
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+          "bytes": 293
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+          "bytes": 297
+        },
+        "actual": {
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+          "bytes": 297
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.dev.toml",
+        "expected": {
+          "path": "lilscript.dev.toml",
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+          "bytes": 261
+        },
+        "actual": {
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+          "bytes": 261
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.gzip.toml",
+        "expected": {
+          "path": "lilscript.gzip.toml",
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+          "bytes": 294
+        },
+        "actual": {
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+          "bytes": 294
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.packs-safe.toml",
+        "expected": {
+          "path": "lilscript.packs-safe.toml",
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+          "bytes": 285
+        },
+        "actual": {
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+          "bytes": 285
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+          "bytes": 1400
+        },
+        "actual": {
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+          "bytes": 1400
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "ab8c6c4396d6997adbc7fc193bca58aa4c63ccb4512daa2f7c23f66139fb44cf",
+          "bytes": 41882
+        },
+        "actual": {
+          "sha256": "ab8c6c4396d6997adbc7fc193bca58aa4c63ccb4512daa2f7c23f66139fb44cf",
+          "bytes": 41882
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "c457ed17924f6eba8fe36ef0681e830f6457676a6314945d1c180cc7a58f10af",
+          "bytes": 4401
+        },
+        "actual": {
+          "sha256": "c457ed17924f6eba8fe36ef0681e830f6457676a6314945d1c180cc7a58f10af",
+          "bytes": 4401
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build-packs.mjs",
+        "expected": {
+          "path": "scripts/build-packs.mjs",
+          "sha256": "bdb4bae58ff3c1b53cc052c10b986d0d7a8c671f399af0f24aaba685fc673a70",
+          "bytes": 4867
+        },
+        "actual": {
+          "sha256": "bdb4bae58ff3c1b53cc052c10b986d0d7a8c671f399af0f24aaba685fc673a70",
+          "bytes": 4867
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "ba97c7a4c92ff7fe6a9ec024354d216e61ae57034d3c1e9fdd5d7e73cc069dc8",
+          "bytes": 1635
+        },
+        "actual": {
+          "sha256": "ba97c7a4c92ff7fe6a9ec024354d216e61ae57034d3c1e9fdd5d7e73cc069dc8",
+          "bytes": 1635
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "b97b4e2a7d67eebc521c61bb11013f45b9065c0506e11a5249c68f9521eb5da6",
+          "bytes": 3438
+        },
+        "actual": {
+          "sha256": "b97b4e2a7d67eebc521c61bb11013f45b9065c0506e11a5249c68f9521eb5da6",
+          "bytes": 3438
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/codec.mjs",
+        "expected": {
+          "path": "scripts/codec.mjs",
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        "actual": {
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/measure-packs.mjs",
+        "expected": {
+          "path": "scripts/measure-packs.mjs",
+          "sha256": "dadcd4d67dd995ec4b4303e4688b7e7f4567762a8cddf5a2f825134700a63827",
+          "bytes": 5775
+        },
+        "actual": {
+          "sha256": "dadcd4d67dd995ec4b4303e4688b7e7f4567762a8cddf5a2f825134700a63827",
+          "bytes": 5775
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/measure.mjs",
+        "expected": {
+          "path": "scripts/measure.mjs",
+          "sha256": "d3a6b875c0fe605e8547510623fb8eaffa70fcee48258f5eda7cab505ee320a5",
+          "bytes": 5966
+        },
+        "actual": {
+          "sha256": "d3a6b875c0fe605e8547510623fb8eaffa70fcee48258f5eda7cab505ee320a5",
+          "bytes": 5966
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/minify-lanes.mjs",
+        "expected": {
+          "path": "scripts/minify-lanes.mjs",
+          "sha256": "e90c613150467fb104c71017c55e0c8fc7fd877372911787717fa4a1e6edec2b",
+          "bytes": 2951
+        },
+        "actual": {
+          "sha256": "e90c613150467fb104c71017c55e0c8fc7fd877372911787717fa4a1e6edec2b",
+          "bytes": 2951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/official-bundle.mjs",
+        "expected": {
+          "path": "scripts/official-bundle.mjs",
+          "sha256": "4fc86df80e9ae74bba8ad557aea86d45ba591305becd3c9fd3a18876823198f3",
+          "bytes": 4492
+        },
+        "actual": {
+          "sha256": "4fc86df80e9ae74bba8ad557aea86d45ba591305becd3c9fd3a18876823198f3",
+          "bytes": 4492
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/write-results.mjs",
+        "expected": {
+          "path": "scripts/write-results.mjs",
+          "sha256": "414c7fdc25316e8941e47a2e0f61fe7b160f6e777ba220ddf0908e10683f045b",
+          "bytes": 3004
+        },
+        "actual": {
+          "sha256": "414c7fdc25316e8941e47a2e0f61fe7b160f6e777ba220ddf0908e10683f045b",
+          "bytes": 3004
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "5c9b0d3d7b94ee0013e696b6e19556e847c0fa627c58e68fb19eff13091b0f9b",
+          "bytes": 15162
+        },
+        "actual": {
+          "sha256": "5c9b0d3d7b94ee0013e696b6e19556e847c0fa627c58e68fb19eff13091b0f9b",
+          "bytes": 15162
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "f8dab18526a8853dc62bc6aa66a394b143c59184518b44473899cd774158d1d7",
+          "bytes": 18060
+        },
+        "actual": {
+          "sha256": "f8dab18526a8853dc62bc6aa66a394b143c59184518b44473899cd774158d1d7",
+          "bytes": 18060
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "9d62881cb91a4e825f27ea9ed385a17eeb8b0571e525565d8d921fe263d494db",
+          "bytes": 27818
+        },
+        "actual": {
+          "sha256": "9d62881cb91a4e825f27ea9ed385a17eeb8b0571e525565d8d921fe263d494db",
+          "bytes": 27818
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "d46bb84ea94886bc8354e2108df63c575e166c113d22c5adca8539229256ddf9",
+          "bytes": 13344
+        },
+        "actual": {
+          "sha256": "d46bb84ea94886bc8354e2108df63c575e166c113d22c5adca8539229256ddf9",
+          "bytes": 13344
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+          "bytes": 2827
+        },
+        "actual": {
+          "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+          "bytes": 2827
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/autocapture.compat.test.mjs",
+        "expected": {
+          "path": "test/autocapture.compat.test.mjs",
+          "sha256": "10cf2d1a61a0faf5a04fe59029acaf7581ed10941e2d37b202bc7e92d203fec8",
+          "bytes": 7925
+        },
+        "actual": {
+          "sha256": "10cf2d1a61a0faf5a04fe59029acaf7581ed10941e2d37b202bc7e92d203fec8",
+          "bytes": 7925
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/compat.test.mjs",
+        "expected": {
+          "path": "test/compat.test.mjs",
+          "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+          "bytes": 17595
+        },
+        "actual": {
+          "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+          "bytes": 17595
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/error-tracking.compat.test.mjs",
+        "expected": {
+          "path": "test/error-tracking.compat.test.mjs",
+          "sha256": "c1d726662f4f13d82e45a5c31ac211481157f94763da78107924e951cd5a6584",
+          "bytes": 12055
+        },
+        "actual": {
+          "sha256": "c1d726662f4f13d82e45a5c31ac211481157f94763da78107924e951cd5a6584",
+          "bytes": 12055
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/otlp.compat.test.mjs",
+        "expected": {
+          "path": "test/otlp.compat.test.mjs",
+          "sha256": "a41fe179aa3d5a58c44739556629360b89cac4cbdb55287bfc7e538ae6936139",
+          "bytes": 10270
+        },
+        "actual": {
+          "sha256": "a41fe179aa3d5a58c44739556629360b89cac4cbdb55287bfc7e538ae6936139",
+          "bytes": 10270
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/packs.api.test.mjs",
+        "expected": {
+          "path": "test/packs.api.test.mjs",
+          "sha256": "576a07afbd13fa78015d82b0456ab7b07bba2517ac1ebeaa4ee91e370dd1fe23",
+          "bytes": 3847
+        },
+        "actual": {
+          "sha256": "576a07afbd13fa78015d82b0456ab7b07bba2517ac1ebeaa4ee91e370dd1fe23",
+          "bytes": 3847
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/replay-core.compat.test.mjs",
+        "expected": {
+          "path": "test/replay-core.compat.test.mjs",
+          "sha256": "1c0c5e4e334f383ae415ae5d47593400577ae8f90e6c578c136a298d003cecb4",
+          "bytes": 9789
+        },
+        "actual": {
+          "sha256": "1c0c5e4e334f383ae415ae5d47593400577ae8f90e6c578c136a298d003cecb4",
+          "bytes": 9789
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "6a085666da5cc14c40e7e6211b807659bd31273867f59a4a6b4c302b5ba59370",
+          "bytes": 5861
+        },
+        "actual": {
+          "sha256": "6a085666da5cc14c40e7e6211b807659bd31273867f59a4a6b4c302b5ba59370",
+          "bytes": 5861
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/surveys.compat.test.mjs",
+        "expected": {
+          "path": "test/surveys.compat.test.mjs",
+          "sha256": "b0bf5c43365d617cbb12c05e5555c37a0e7650bc758f25723cfbafe1f2a9fe4c",
+          "bytes": 9293
+        },
+        "actual": {
+          "sha256": "b0bf5c43365d617cbb12c05e5555c37a0e7650bc758f25723cfbafe1f2a9fe4c",
+          "bytes": 9293
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/autocapture.d.ts",
+        "expected": {
+          "path": "types/autocapture.d.ts",
+          "sha256": "d63efe81f0f3815bc7f96f8d96b847835c9590f166fad38393e7cb9d94b37e8f",
+          "bytes": 2277
+        },
+        "actual": {
+          "sha256": "d63efe81f0f3815bc7f96f8d96b847835c9590f166fad38393e7cb9d94b37e8f",
+          "bytes": 2277
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/error-tracking.d.ts",
+        "expected": {
+          "path": "types/error-tracking.d.ts",
+          "sha256": "378a8592fd5a02d48b2a64ccb3f48180045af3682241a0a385a22504c8646594",
+          "bytes": 6005
+        },
+        "actual": {
+          "sha256": "378a8592fd5a02d48b2a64ccb3f48180045af3682241a0a385a22504c8646594",
+          "bytes": 6005
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/otlp.d.ts",
+        "expected": {
+          "path": "types/otlp.d.ts",
+          "sha256": "3c99d332710a039f741a3a16362e1df5080c00b9d78bef895f0f0aee106c8e98",
+          "bytes": 3304
+        },
+        "actual": {
+          "sha256": "3c99d332710a039f741a3a16362e1df5080c00b9d78bef895f0f0aee106c8e98",
+          "bytes": 3304
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/posthog.d.ts",
+        "expected": {
+          "path": "types/posthog.d.ts",
+          "sha256": "1283302c5ab49bc4a55a9b06dce9a490065da67b2f9866a9fba268025bd41571",
+          "bytes": 10665
+        },
+        "actual": {
+          "sha256": "1283302c5ab49bc4a55a9b06dce9a490065da67b2f9866a9fba268025bd41571",
+          "bytes": 10665
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/replay-core.d.ts",
+        "expected": {
+          "path": "types/replay-core.d.ts",
+          "sha256": "f0ae6071f959d18b62c55f855fcbf6f5b72a8e7fb7cc518c5dbe294827f401da",
+          "bytes": 2718
+        },
+        "actual": {
+          "sha256": "f0ae6071f959d18b62c55f855fcbf6f5b72a8e7fb7cc518c5dbe294827f401da",
+          "bytes": 2718
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/surveys.d.ts",
+        "expected": {
+          "path": "types/surveys.d.ts",
+          "sha256": "e682428263c4657ce6c48eb34c234c5ee32d60791d9012def7172b69615e5807",
+          "bytes": 4401
+        },
+        "actual": {
+          "sha256": "e682428263c4657ce6c48eb34c234c5ee32d60791d9012def7172b69615e5807",
+          "bytes": 4401
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/.nvmrc",
+        "expected": {
+          "path": ".nvmrc",
+          "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
+          "bytes": 3
+        },
+        "actual": {
+          "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
+          "bytes": 3
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.bytes.toml",
+        "expected": {
+          "path": "lilscript.bytes.toml",
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+          "bytes": 293
+        },
+        "actual": {
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+          "bytes": 293
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+          "bytes": 297
+        },
+        "actual": {
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+          "bytes": 297
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.dev.toml",
+        "expected": {
+          "path": "lilscript.dev.toml",
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+          "bytes": 261
+        },
+        "actual": {
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+          "bytes": 261
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.gzip.toml",
+        "expected": {
+          "path": "lilscript.gzip.toml",
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+          "bytes": 294
+        },
+        "actual": {
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+          "bytes": 294
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.packs-safe.toml",
+        "expected": {
+          "path": "lilscript.packs-safe.toml",
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+          "bytes": 285
+        },
+        "actual": {
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+          "bytes": 285
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+          "bytes": 1400
+        },
+        "actual": {
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+          "bytes": 1400
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "ab8c6c4396d6997adbc7fc193bca58aa4c63ccb4512daa2f7c23f66139fb44cf",
+          "bytes": 41882
+        },
+        "actual": {
+          "sha256": "ab8c6c4396d6997adbc7fc193bca58aa4c63ccb4512daa2f7c23f66139fb44cf",
+          "bytes": 41882
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "c457ed17924f6eba8fe36ef0681e830f6457676a6314945d1c180cc7a58f10af",
+          "bytes": 4401
+        },
+        "actual": {
+          "sha256": "c457ed17924f6eba8fe36ef0681e830f6457676a6314945d1c180cc7a58f10af",
+          "bytes": 4401
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build-packs.mjs",
+        "expected": {
+          "path": "scripts/build-packs.mjs",
+          "sha256": "bdb4bae58ff3c1b53cc052c10b986d0d7a8c671f399af0f24aaba685fc673a70",
+          "bytes": 4867
+        },
+        "actual": {
+          "sha256": "bdb4bae58ff3c1b53cc052c10b986d0d7a8c671f399af0f24aaba685fc673a70",
+          "bytes": 4867
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "ba97c7a4c92ff7fe6a9ec024354d216e61ae57034d3c1e9fdd5d7e73cc069dc8",
+          "bytes": 1635
+        },
+        "actual": {
+          "sha256": "ba97c7a4c92ff7fe6a9ec024354d216e61ae57034d3c1e9fdd5d7e73cc069dc8",
+          "bytes": 1635
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "b97b4e2a7d67eebc521c61bb11013f45b9065c0506e11a5249c68f9521eb5da6",
+          "bytes": 3438
+        },
+        "actual": {
+          "sha256": "b97b4e2a7d67eebc521c61bb11013f45b9065c0506e11a5249c68f9521eb5da6",
+          "bytes": 3438
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/codec.mjs",
+        "expected": {
+          "path": "scripts/codec.mjs",
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        "actual": {
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/measure-packs.mjs",
+        "expected": {
+          "path": "scripts/measure-packs.mjs",
+          "sha256": "dadcd4d67dd995ec4b4303e4688b7e7f4567762a8cddf5a2f825134700a63827",
+          "bytes": 5775
+        },
+        "actual": {
+          "sha256": "dadcd4d67dd995ec4b4303e4688b7e7f4567762a8cddf5a2f825134700a63827",
+          "bytes": 5775
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/measure.mjs",
+        "expected": {
+          "path": "scripts/measure.mjs",
+          "sha256": "d3a6b875c0fe605e8547510623fb8eaffa70fcee48258f5eda7cab505ee320a5",
+          "bytes": 5966
+        },
+        "actual": {
+          "sha256": "d3a6b875c0fe605e8547510623fb8eaffa70fcee48258f5eda7cab505ee320a5",
+          "bytes": 5966
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/minify-lanes.mjs",
+        "expected": {
+          "path": "scripts/minify-lanes.mjs",
+          "sha256": "e90c613150467fb104c71017c55e0c8fc7fd877372911787717fa4a1e6edec2b",
+          "bytes": 2951
+        },
+        "actual": {
+          "sha256": "e90c613150467fb104c71017c55e0c8fc7fd877372911787717fa4a1e6edec2b",
+          "bytes": 2951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/official-bundle.mjs",
+        "expected": {
+          "path": "scripts/official-bundle.mjs",
+          "sha256": "4fc86df80e9ae74bba8ad557aea86d45ba591305becd3c9fd3a18876823198f3",
+          "bytes": 4492
+        },
+        "actual": {
+          "sha256": "4fc86df80e9ae74bba8ad557aea86d45ba591305becd3c9fd3a18876823198f3",
+          "bytes": 4492
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/write-results.mjs",
+        "expected": {
+          "path": "scripts/write-results.mjs",
+          "sha256": "414c7fdc25316e8941e47a2e0f61fe7b160f6e777ba220ddf0908e10683f045b",
+          "bytes": 3004
+        },
+        "actual": {
+          "sha256": "414c7fdc25316e8941e47a2e0f61fe7b160f6e777ba220ddf0908e10683f045b",
+          "bytes": 3004
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "5c9b0d3d7b94ee0013e696b6e19556e847c0fa627c58e68fb19eff13091b0f9b",
+          "bytes": 15162
+        },
+        "actual": {
+          "sha256": "5c9b0d3d7b94ee0013e696b6e19556e847c0fa627c58e68fb19eff13091b0f9b",
+          "bytes": 15162
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "f8dab18526a8853dc62bc6aa66a394b143c59184518b44473899cd774158d1d7",
+          "bytes": 18060
+        },
+        "actual": {
+          "sha256": "f8dab18526a8853dc62bc6aa66a394b143c59184518b44473899cd774158d1d7",
+          "bytes": 18060
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "9d62881cb91a4e825f27ea9ed385a17eeb8b0571e525565d8d921fe263d494db",
+          "bytes": 27818
+        },
+        "actual": {
+          "sha256": "9d62881cb91a4e825f27ea9ed385a17eeb8b0571e525565d8d921fe263d494db",
+          "bytes": 27818
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "d46bb84ea94886bc8354e2108df63c575e166c113d22c5adca8539229256ddf9",
+          "bytes": 13344
+        },
+        "actual": {
+          "sha256": "d46bb84ea94886bc8354e2108df63c575e166c113d22c5adca8539229256ddf9",
+          "bytes": 13344
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+          "bytes": 2827
+        },
+        "actual": {
+          "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+          "bytes": 2827
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/autocapture.compat.test.mjs",
+        "expected": {
+          "path": "test/autocapture.compat.test.mjs",
+          "sha256": "10cf2d1a61a0faf5a04fe59029acaf7581ed10941e2d37b202bc7e92d203fec8",
+          "bytes": 7925
+        },
+        "actual": {
+          "sha256": "10cf2d1a61a0faf5a04fe59029acaf7581ed10941e2d37b202bc7e92d203fec8",
+          "bytes": 7925
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/compat.test.mjs",
+        "expected": {
+          "path": "test/compat.test.mjs",
+          "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+          "bytes": 17595
+        },
+        "actual": {
+          "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+          "bytes": 17595
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/error-tracking.compat.test.mjs",
+        "expected": {
+          "path": "test/error-tracking.compat.test.mjs",
+          "sha256": "c1d726662f4f13d82e45a5c31ac211481157f94763da78107924e951cd5a6584",
+          "bytes": 12055
+        },
+        "actual": {
+          "sha256": "c1d726662f4f13d82e45a5c31ac211481157f94763da78107924e951cd5a6584",
+          "bytes": 12055
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/otlp.compat.test.mjs",
+        "expected": {
+          "path": "test/otlp.compat.test.mjs",
+          "sha256": "a41fe179aa3d5a58c44739556629360b89cac4cbdb55287bfc7e538ae6936139",
+          "bytes": 10270
+        },
+        "actual": {
+          "sha256": "a41fe179aa3d5a58c44739556629360b89cac4cbdb55287bfc7e538ae6936139",
+          "bytes": 10270
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/packs.api.test.mjs",
+        "expected": {
+          "path": "test/packs.api.test.mjs",
+          "sha256": "576a07afbd13fa78015d82b0456ab7b07bba2517ac1ebeaa4ee91e370dd1fe23",
+          "bytes": 3847
+        },
+        "actual": {
+          "sha256": "576a07afbd13fa78015d82b0456ab7b07bba2517ac1ebeaa4ee91e370dd1fe23",
+          "bytes": 3847
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/replay-core.compat.test.mjs",
+        "expected": {
+          "path": "test/replay-core.compat.test.mjs",
+          "sha256": "1c0c5e4e334f383ae415ae5d47593400577ae8f90e6c578c136a298d003cecb4",
+          "bytes": 9789
+        },
+        "actual": {
+          "sha256": "1c0c5e4e334f383ae415ae5d47593400577ae8f90e6c578c136a298d003cecb4",
+          "bytes": 9789
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "6a085666da5cc14c40e7e6211b807659bd31273867f59a4a6b4c302b5ba59370",
+          "bytes": 5861
+        },
+        "actual": {
+          "sha256": "6a085666da5cc14c40e7e6211b807659bd31273867f59a4a6b4c302b5ba59370",
+          "bytes": 5861
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/surveys.compat.test.mjs",
+        "expected": {
+          "path": "test/surveys.compat.test.mjs",
+          "sha256": "b0bf5c43365d617cbb12c05e5555c37a0e7650bc758f25723cfbafe1f2a9fe4c",
+          "bytes": 9293
+        },
+        "actual": {
+          "sha256": "b0bf5c43365d617cbb12c05e5555c37a0e7650bc758f25723cfbafe1f2a9fe4c",
+          "bytes": 9293
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/autocapture.d.ts",
+        "expected": {
+          "path": "types/autocapture.d.ts",
+          "sha256": "d63efe81f0f3815bc7f96f8d96b847835c9590f166fad38393e7cb9d94b37e8f",
+          "bytes": 2277
+        },
+        "actual": {
+          "sha256": "d63efe81f0f3815bc7f96f8d96b847835c9590f166fad38393e7cb9d94b37e8f",
+          "bytes": 2277
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/error-tracking.d.ts",
+        "expected": {
+          "path": "types/error-tracking.d.ts",
+          "sha256": "378a8592fd5a02d48b2a64ccb3f48180045af3682241a0a385a22504c8646594",
+          "bytes": 6005
+        },
+        "actual": {
+          "sha256": "378a8592fd5a02d48b2a64ccb3f48180045af3682241a0a385a22504c8646594",
+          "bytes": 6005
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/otlp.d.ts",
+        "expected": {
+          "path": "types/otlp.d.ts",
+          "sha256": "3c99d332710a039f741a3a16362e1df5080c00b9d78bef895f0f0aee106c8e98",
+          "bytes": 3304
+        },
+        "actual": {
+          "sha256": "3c99d332710a039f741a3a16362e1df5080c00b9d78bef895f0f0aee106c8e98",
+          "bytes": 3304
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/posthog.d.ts",
+        "expected": {
+          "path": "types/posthog.d.ts",
+          "sha256": "1283302c5ab49bc4a55a9b06dce9a490065da67b2f9866a9fba268025bd41571",
+          "bytes": 10665
+        },
+        "actual": {
+          "sha256": "1283302c5ab49bc4a55a9b06dce9a490065da67b2f9866a9fba268025bd41571",
+          "bytes": 10665
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/replay-core.d.ts",
+        "expected": {
+          "path": "types/replay-core.d.ts",
+          "sha256": "f0ae6071f959d18b62c55f855fcbf6f5b72a8e7fb7cc518c5dbe294827f401da",
+          "bytes": 2718
+        },
+        "actual": {
+          "sha256": "f0ae6071f959d18b62c55f855fcbf6f5b72a8e7fb7cc518c5dbe294827f401da",
+          "bytes": 2718
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/surveys.d.ts",
+        "expected": {
+          "path": "types/surveys.d.ts",
+          "sha256": "e682428263c4657ce6c48eb34c234c5ee32d60791d9012def7172b69615e5807",
+          "bytes": 4401
+        },
+        "actual": {
+          "sha256": "e682428263c4657ce6c48eb34c234c5ee32d60791d9012def7172b69615e5807",
+          "bytes": 4401
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/.nvmrc",
+        "expected": {
+          "path": ".nvmrc",
+          "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
+          "bytes": 3
+        },
+        "actual": {
+          "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
+          "bytes": 3
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.bytes.toml",
+        "expected": {
+          "path": "lilscript.bytes.toml",
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+          "bytes": 293
+        },
+        "actual": {
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+          "bytes": 293
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+          "bytes": 297
+        },
+        "actual": {
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+          "bytes": 297
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.dev.toml",
+        "expected": {
+          "path": "lilscript.dev.toml",
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+          "bytes": 261
+        },
+        "actual": {
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+          "bytes": 261
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.gzip.toml",
+        "expected": {
+          "path": "lilscript.gzip.toml",
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+          "bytes": 294
+        },
+        "actual": {
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+          "bytes": 294
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.packs-safe.toml",
+        "expected": {
+          "path": "lilscript.packs-safe.toml",
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+          "bytes": 285
+        },
+        "actual": {
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+          "bytes": 285
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+          "bytes": 1400
+        },
+        "actual": {
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+          "bytes": 1400
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "ab8c6c4396d6997adbc7fc193bca58aa4c63ccb4512daa2f7c23f66139fb44cf",
+          "bytes": 41882
+        },
+        "actual": {
+          "sha256": "ab8c6c4396d6997adbc7fc193bca58aa4c63ccb4512daa2f7c23f66139fb44cf",
+          "bytes": 41882
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "c457ed17924f6eba8fe36ef0681e830f6457676a6314945d1c180cc7a58f10af",
+          "bytes": 4401
+        },
+        "actual": {
+          "sha256": "c457ed17924f6eba8fe36ef0681e830f6457676a6314945d1c180cc7a58f10af",
+          "bytes": 4401
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build-packs.mjs",
+        "expected": {
+          "path": "scripts/build-packs.mjs",
+          "sha256": "bdb4bae58ff3c1b53cc052c10b986d0d7a8c671f399af0f24aaba685fc673a70",
+          "bytes": 4867
+        },
+        "actual": {
+          "sha256": "bdb4bae58ff3c1b53cc052c10b986d0d7a8c671f399af0f24aaba685fc673a70",
+          "bytes": 4867
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "ba97c7a4c92ff7fe6a9ec024354d216e61ae57034d3c1e9fdd5d7e73cc069dc8",
+          "bytes": 1635
+        },
+        "actual": {
+          "sha256": "ba97c7a4c92ff7fe6a9ec024354d216e61ae57034d3c1e9fdd5d7e73cc069dc8",
+          "bytes": 1635
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "b97b4e2a7d67eebc521c61bb11013f45b9065c0506e11a5249c68f9521eb5da6",
+          "bytes": 3438
+        },
+        "actual": {
+          "sha256": "b97b4e2a7d67eebc521c61bb11013f45b9065c0506e11a5249c68f9521eb5da6",
+          "bytes": 3438
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/codec.mjs",
+        "expected": {
+          "path": "scripts/codec.mjs",
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        "actual": {
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/measure-packs.mjs",
+        "expected": {
+          "path": "scripts/measure-packs.mjs",
+          "sha256": "dadcd4d67dd995ec4b4303e4688b7e7f4567762a8cddf5a2f825134700a63827",
+          "bytes": 5775
+        },
+        "actual": {
+          "sha256": "dadcd4d67dd995ec4b4303e4688b7e7f4567762a8cddf5a2f825134700a63827",
+          "bytes": 5775
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/measure.mjs",
+        "expected": {
+          "path": "scripts/measure.mjs",
+          "sha256": "d3a6b875c0fe605e8547510623fb8eaffa70fcee48258f5eda7cab505ee320a5",
+          "bytes": 5966
+        },
+        "actual": {
+          "sha256": "d3a6b875c0fe605e8547510623fb8eaffa70fcee48258f5eda7cab505ee320a5",
+          "bytes": 5966
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/minify-lanes.mjs",
+        "expected": {
+          "path": "scripts/minify-lanes.mjs",
+          "sha256": "e90c613150467fb104c71017c55e0c8fc7fd877372911787717fa4a1e6edec2b",
+          "bytes": 2951
+        },
+        "actual": {
+          "sha256": "e90c613150467fb104c71017c55e0c8fc7fd877372911787717fa4a1e6edec2b",
+          "bytes": 2951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/official-bundle.mjs",
+        "expected": {
+          "path": "scripts/official-bundle.mjs",
+          "sha256": "4fc86df80e9ae74bba8ad557aea86d45ba591305becd3c9fd3a18876823198f3",
+          "bytes": 4492
+        },
+        "actual": {
+          "sha256": "4fc86df80e9ae74bba8ad557aea86d45ba591305becd3c9fd3a18876823198f3",
+          "bytes": 4492
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/scripts/write-results.mjs",
+        "expected": {
+          "path": "scripts/write-results.mjs",
+          "sha256": "414c7fdc25316e8941e47a2e0f61fe7b160f6e777ba220ddf0908e10683f045b",
+          "bytes": 3004
+        },
+        "actual": {
+          "sha256": "414c7fdc25316e8941e47a2e0f61fe7b160f6e777ba220ddf0908e10683f045b",
+          "bytes": 3004
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "5c9b0d3d7b94ee0013e696b6e19556e847c0fa627c58e68fb19eff13091b0f9b",
+          "bytes": 15162
+        },
+        "actual": {
+          "sha256": "5c9b0d3d7b94ee0013e696b6e19556e847c0fa627c58e68fb19eff13091b0f9b",
+          "bytes": 15162
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "f8dab18526a8853dc62bc6aa66a394b143c59184518b44473899cd774158d1d7",
+          "bytes": 18060
+        },
+        "actual": {
+          "sha256": "f8dab18526a8853dc62bc6aa66a394b143c59184518b44473899cd774158d1d7",
+          "bytes": 18060
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "9d62881cb91a4e825f27ea9ed385a17eeb8b0571e525565d8d921fe263d494db",
+          "bytes": 27818
+        },
+        "actual": {
+          "sha256": "9d62881cb91a4e825f27ea9ed385a17eeb8b0571e525565d8d921fe263d494db",
+          "bytes": 27818
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "d46bb84ea94886bc8354e2108df63c575e166c113d22c5adca8539229256ddf9",
+          "bytes": 13344
+        },
+        "actual": {
+          "sha256": "d46bb84ea94886bc8354e2108df63c575e166c113d22c5adca8539229256ddf9",
+          "bytes": 13344
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+          "bytes": 2827
+        },
+        "actual": {
+          "sha256": "d994da37abc696aa619c7f43dca2b11a5b8537730edb8f9e68eb5825e1cc67aa",
+          "bytes": 2827
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/autocapture.compat.test.mjs",
+        "expected": {
+          "path": "test/autocapture.compat.test.mjs",
+          "sha256": "10cf2d1a61a0faf5a04fe59029acaf7581ed10941e2d37b202bc7e92d203fec8",
+          "bytes": 7925
+        },
+        "actual": {
+          "sha256": "10cf2d1a61a0faf5a04fe59029acaf7581ed10941e2d37b202bc7e92d203fec8",
+          "bytes": 7925
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/compat.test.mjs",
+        "expected": {
+          "path": "test/compat.test.mjs",
+          "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+          "bytes": 17595
+        },
+        "actual": {
+          "sha256": "177dfda0befd1c71489ac995134656615f67775cb1fc2e71bfa92bfd4737c87d",
+          "bytes": 17595
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/error-tracking.compat.test.mjs",
+        "expected": {
+          "path": "test/error-tracking.compat.test.mjs",
+          "sha256": "c1d726662f4f13d82e45a5c31ac211481157f94763da78107924e951cd5a6584",
+          "bytes": 12055
+        },
+        "actual": {
+          "sha256": "c1d726662f4f13d82e45a5c31ac211481157f94763da78107924e951cd5a6584",
+          "bytes": 12055
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/otlp.compat.test.mjs",
+        "expected": {
+          "path": "test/otlp.compat.test.mjs",
+          "sha256": "a41fe179aa3d5a58c44739556629360b89cac4cbdb55287bfc7e538ae6936139",
+          "bytes": 10270
+        },
+        "actual": {
+          "sha256": "a41fe179aa3d5a58c44739556629360b89cac4cbdb55287bfc7e538ae6936139",
+          "bytes": 10270
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/packs.api.test.mjs",
+        "expected": {
+          "path": "test/packs.api.test.mjs",
+          "sha256": "576a07afbd13fa78015d82b0456ab7b07bba2517ac1ebeaa4ee91e370dd1fe23",
+          "bytes": 3847
+        },
+        "actual": {
+          "sha256": "576a07afbd13fa78015d82b0456ab7b07bba2517ac1ebeaa4ee91e370dd1fe23",
+          "bytes": 3847
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/replay-core.compat.test.mjs",
+        "expected": {
+          "path": "test/replay-core.compat.test.mjs",
+          "sha256": "1c0c5e4e334f383ae415ae5d47593400577ae8f90e6c578c136a298d003cecb4",
+          "bytes": 9789
+        },
+        "actual": {
+          "sha256": "1c0c5e4e334f383ae415ae5d47593400577ae8f90e6c578c136a298d003cecb4",
+          "bytes": 9789
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "6a085666da5cc14c40e7e6211b807659bd31273867f59a4a6b4c302b5ba59370",
+          "bytes": 5861
+        },
+        "actual": {
+          "sha256": "6a085666da5cc14c40e7e6211b807659bd31273867f59a4a6b4c302b5ba59370",
+          "bytes": 5861
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/test/surveys.compat.test.mjs",
+        "expected": {
+          "path": "test/surveys.compat.test.mjs",
+          "sha256": "b0bf5c43365d617cbb12c05e5555c37a0e7650bc758f25723cfbafe1f2a9fe4c",
+          "bytes": 9293
+        },
+        "actual": {
+          "sha256": "b0bf5c43365d617cbb12c05e5555c37a0e7650bc758f25723cfbafe1f2a9fe4c",
+          "bytes": 9293
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/autocapture.d.ts",
+        "expected": {
+          "path": "types/autocapture.d.ts",
+          "sha256": "d63efe81f0f3815bc7f96f8d96b847835c9590f166fad38393e7cb9d94b37e8f",
+          "bytes": 2277
+        },
+        "actual": {
+          "sha256": "d63efe81f0f3815bc7f96f8d96b847835c9590f166fad38393e7cb9d94b37e8f",
+          "bytes": 2277
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/error-tracking.d.ts",
+        "expected": {
+          "path": "types/error-tracking.d.ts",
+          "sha256": "378a8592fd5a02d48b2a64ccb3f48180045af3682241a0a385a22504c8646594",
+          "bytes": 6005
+        },
+        "actual": {
+          "sha256": "378a8592fd5a02d48b2a64ccb3f48180045af3682241a0a385a22504c8646594",
+          "bytes": 6005
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/otlp.d.ts",
+        "expected": {
+          "path": "types/otlp.d.ts",
+          "sha256": "3c99d332710a039f741a3a16362e1df5080c00b9d78bef895f0f0aee106c8e98",
+          "bytes": 3304
+        },
+        "actual": {
+          "sha256": "3c99d332710a039f741a3a16362e1df5080c00b9d78bef895f0f0aee106c8e98",
+          "bytes": 3304
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/posthog.d.ts",
+        "expected": {
+          "path": "types/posthog.d.ts",
+          "sha256": "1283302c5ab49bc4a55a9b06dce9a490065da67b2f9866a9fba268025bd41571",
+          "bytes": 10665
+        },
+        "actual": {
+          "sha256": "1283302c5ab49bc4a55a9b06dce9a490065da67b2f9866a9fba268025bd41571",
+          "bytes": 10665
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/replay-core.d.ts",
+        "expected": {
+          "path": "types/replay-core.d.ts",
+          "sha256": "f0ae6071f959d18b62c55f855fcbf6f5b72a8e7fb7cc518c5dbe294827f401da",
+          "bytes": 2718
+        },
+        "actual": {
+          "sha256": "f0ae6071f959d18b62c55f855fcbf6f5b72a8e7fb7cc518c5dbe294827f401da",
+          "bytes": 2718
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/types/surveys.d.ts",
+        "expected": {
+          "path": "types/surveys.d.ts",
+          "sha256": "e682428263c4657ce6c48eb34c234c5ee32d60791d9012def7172b69615e5807",
+          "bytes": 4401
+        },
+        "actual": {
+          "sha256": "e682428263c4657ce6c48eb34c234c5ee32d60791d9012def7172b69615e5807",
+          "bytes": 4401
+        },
+        "matches": true
+      }
+    ]
+  },
+  "supervision": {
+    "timeoutMs": 593427,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",85,3,1,\"test\",\"keeps every public kernel name exact in the compiler output\",1]",
+        "file": "test/api.test.mjs",
+        "name": "keeps every public kernel name exact in the compiler output",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",92,3,1,\"test\",\"exposes the same named surface as default\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exposes the same named surface as default",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",84,1,0,\"suite\",\"@itslil/posthog-js JS library API\",1]",
+        "file": "test/api.test.mjs",
+        "name": "@itslil/posthog-js JS library API",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",24,3,1,\"test\",\"parses the official hyphenated, hex, brace, and urn forms\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "parses the official hyphenated, hex, brace, and urn forms",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",37,3,1,\"test\",\"matches official fromFieldsV7\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches official fromFieldsV7",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"generates version-7 and version-4 strings\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "generates version-7 and version-4 strings",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",23,1,0,\"suite\",\"uuid\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "uuid",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",84,3,1,\"test\",\"normalizes v2 flags the same way\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "normalizes v2 flags the same way",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",88,3,1,\"test\",\"normalizes v1 flags the same way\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "normalizes v1 flags the same way",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",100,3,1,\"test\",\"minimizes $feature_flag_called properties from the same allowlist\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "minimizes $feature_flag_called properties from the same allowlist",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",54,1,0,\"suite\",\"feature flags\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "feature flags",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",118,3,1,\"test\",\"sanitizes cookie names\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "sanitizes cookie names",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",124,3,1,\"test\",\"parses official cookie fixtures\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "parses official cookie fixtures",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",141,3,1,\"test\",\"roundtrips serialize → parse as anonymous\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "roundtrips serialize → parse as anonymous",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",149,3,1,\"test\",\"reads cookies from a header store\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "reads cookies from a header store",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",155,3,1,\"test\",\"matches consent cookie names and opt-out\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches consent cookie names and opt-out",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",117,1,0,\"suite\",\"cookies and consent\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "cookies and consent",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",169,3,1,\"test\",\"routes US, EU, custom, and app hosts\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "routes US, EU, custom, and app hosts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",188,3,1,\"test\",\"matches the token-bucket updates\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches the token-bucket updates",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",197,3,1,\"test\",\"batches, offsets, and sorts unload requests\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "batches, offsets, and sorts unload requests",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",168,1,0,\"suite\",\"router, rate limit, queue\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "router, rate limit, queue",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",218,3,1,\"test\",\"matches the default blocked UA list and lookups\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches the default blocked UA list and lookups",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",217,1,0,\"suite\",\"bot detection\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "bot detection",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",245,3,1,\"test\",\"matches string helpers and person-property hashes\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches string helpers and person-property hashes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",264,3,1,\"test\",\"matches clamp, remote config, and sample-rate checks\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches clamp, remote config, and sample-rate checks",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",304,3,1,\"test\",\"matches portable type, json, and url helpers\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches portable type, json, and url helpers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",244,1,0,\"suite\",\"strings, numbers, types, json, url\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "strings, numbers, types, json, url",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",337,3,1,\"test\",\"resolves config and consumes tokens the same way\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "resolves config and consumes tokens the same way",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",336,1,0,\"suite\",\"bucketed rate limiter\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "bucketed rate limiter",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/autocapture.cjs",
+        "sha256": "de7e9870cd27085d9929f52268cb699b6b1049edd8f6e172124ce79849a9fab9",
+        "bytes": 9950
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/autocapture.esm.js",
+        "sha256": "8bb2709aadc1facc42907bd8963d4810b2d1c1977202f762ba5264cb4411da33",
+        "bytes": 8792
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/error-tracking.cjs",
+        "sha256": "7a569b8e89d51135189a9f771114392e02456714b48e452835b0ec35410b2164",
+        "bytes": 20089
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/error-tracking.esm.js",
+        "sha256": "14a01470e899d89f012c466c758611c20b00b428d9e034b117a51fbd3f3207e5",
+        "bytes": 19455
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/otlp.cjs",
+        "sha256": "9eb0e6ce3c1fedcf66dc4852e04b7dc94c8dc9d8889899ae69b31a25b0b87b45",
+        "bytes": 7826
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/otlp.esm.js",
+        "sha256": "5c3bb0957f53d062cb9017ac50a76c1286778f0ba52543980d9f82d0e1bf0f4e",
+        "bytes": 7633
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.cjs",
+        "sha256": "83f64f1ed3dae1461149f64c7d31083648942b8ddf8909954d82700c1866ce45",
+        "bytes": 18434
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+        "sha256": "e3b95f5d7710853a37817534297486a7d469c3dea5642ffbfdbdc1efea4904c4",
+        "bytes": 16359
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/replay-core.cjs",
+        "sha256": "ef8dd84f59a060173ae6e0c14bfa61d533c4dca5575f8840a41cfb2de5ef6027",
+        "bytes": 9840
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/replay-core.esm.js",
+        "sha256": "c8567c2d9610c3d2d3e17b2aa298368f82decb55db7f9c01ee09f9f29b337341",
+        "bytes": 8529
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/surveys.cjs",
+        "sha256": "6538fa61fd930d7f5c0dd5c291f8c4526af76971c9bad7a9f4577fcf84fb1a2f",
+        "bytes": 6451
+      },
+      {
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/surveys.esm.js",
+        "sha256": "2186da2adc35ab76058890aa7eba8771846900f46f0596f735b5ba3996b7726b",
+        "bytes": 5524
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+        "url": "file:///tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+        "format": "module",
+        "sha256": "e3b95f5d7710853a37817534297486a7d469c3dea5642ffbfdbdc1efea4904c4",
+        "bytes": 16359,
+        "pid": 484010
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+        "url": "file:///tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.esm.js",
+        "format": "module",
+        "sha256": "e3b95f5d7710853a37817534297486a7d469c3dea5642ffbfdbdc1efea4904c4",
+        "bytes": 16359,
+        "pid": 484011
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/autocapture.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/autocapture.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/error-tracking.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/error-tracking.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/otlp.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/otlp.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/posthog.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/replay-core.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/replay-core.esm.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/surveys.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-posthoglil-OJ6ehr/posthoglil/dist/surveys.esm.js"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",85,3,1,\"test\",\"keeps every public kernel name exact in the compiler output\",1]",
+    "[\"test/api.test.mjs\",92,3,1,\"test\",\"exposes the same named surface as default\",1]",
+    "[\"test/api.test.mjs\",84,1,0,\"suite\",\"@itslil/posthog-js JS library API\",1]",
+    "[\"test/compat.test.mjs\",24,3,1,\"test\",\"parses the official hyphenated, hex, brace, and urn forms\",1]",
+    "[\"test/compat.test.mjs\",37,3,1,\"test\",\"matches official fromFieldsV7\",1]",
+    "[\"test/compat.test.mjs\",44,3,1,\"test\",\"generates version-7 and version-4 strings\",1]",
+    "[\"test/compat.test.mjs\",23,1,0,\"suite\",\"uuid\",1]",
+    "[\"test/compat.test.mjs\",84,3,1,\"test\",\"normalizes v2 flags the same way\",1]",
+    "[\"test/compat.test.mjs\",88,3,1,\"test\",\"normalizes v1 flags the same way\",1]",
+    "[\"test/compat.test.mjs\",100,3,1,\"test\",\"minimizes $feature_flag_called properties from the same allowlist\",1]",
+    "[\"test/compat.test.mjs\",54,1,0,\"suite\",\"feature flags\",1]",
+    "[\"test/compat.test.mjs\",118,3,1,\"test\",\"sanitizes cookie names\",1]",
+    "[\"test/compat.test.mjs\",124,3,1,\"test\",\"parses official cookie fixtures\",1]",
+    "[\"test/compat.test.mjs\",141,3,1,\"test\",\"roundtrips serialize → parse as anonymous\",1]",
+    "[\"test/compat.test.mjs\",149,3,1,\"test\",\"reads cookies from a header store\",1]",
+    "[\"test/compat.test.mjs\",155,3,1,\"test\",\"matches consent cookie names and opt-out\",1]",
+    "[\"test/compat.test.mjs\",117,1,0,\"suite\",\"cookies and consent\",1]",
+    "[\"test/compat.test.mjs\",169,3,1,\"test\",\"routes US, EU, custom, and app hosts\",1]",
+    "[\"test/compat.test.mjs\",188,3,1,\"test\",\"matches the token-bucket updates\",1]",
+    "[\"test/compat.test.mjs\",197,3,1,\"test\",\"batches, offsets, and sorts unload requests\",1]",
+    "[\"test/compat.test.mjs\",168,1,0,\"suite\",\"router, rate limit, queue\",1]",
+    "[\"test/compat.test.mjs\",218,3,1,\"test\",\"matches the default blocked UA list and lookups\",1]",
+    "[\"test/compat.test.mjs\",217,1,0,\"suite\",\"bot detection\",1]",
+    "[\"test/compat.test.mjs\",245,3,1,\"test\",\"matches string helpers and person-property hashes\",1]",
+    "[\"test/compat.test.mjs\",264,3,1,\"test\",\"matches clamp, remote config, and sample-rate checks\",1]",
+    "[\"test/compat.test.mjs\",304,3,1,\"test\",\"matches portable type, json, and url helpers\",1]",
+    "[\"test/compat.test.mjs\",244,1,0,\"suite\",\"strings, numbers, types, json, url\",1]",
+    "[\"test/compat.test.mjs\",337,3,1,\"test\",\"resolves config and consumes tokens the same way\",1]",
+    "[\"test/compat.test.mjs\",336,1,0,\"suite\",\"bucketed rate limiter\",1]"
+  ]
+}

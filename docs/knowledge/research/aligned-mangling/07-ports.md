@@ -204,7 +204,7 @@ variable it reads**. `a(token, 2)` is not `"@"`, so the `mailto:` branch never
 runs.
 
 That is not a cost-model bug. It is
-[`ident-01`](../../migration/board/notes/ident-01.md)'s invariant — *a saved
+`ident-01` (archived: `repository/docs/knowledge/migration/board/notes/ident-01.md`)'s invariant — *a saved
 value must stay readable across its own update* — and exactly the class
 `ident-02` exists to generalise: a rematerialisation/sinking fold that does not
 check whether its receiver was rebound in between. The raw cost model does not

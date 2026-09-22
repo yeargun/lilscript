@@ -1,0 +1,1 @@
+extern JsValue object();extern int argument();JsValue value=object();print(value["go"](argument()));

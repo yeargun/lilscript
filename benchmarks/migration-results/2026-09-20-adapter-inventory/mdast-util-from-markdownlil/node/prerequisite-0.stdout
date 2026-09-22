@@ -1,0 +1,4 @@
+
+> @itslil/mdast-util-from-markdown@2.0.4 check:types
+> tsc --project tsconfig.json
+

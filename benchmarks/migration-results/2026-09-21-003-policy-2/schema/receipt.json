@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T11:21:36.908Z",
+  "completed": "2026-09-21T11:21:36.958Z",
+  "wallSeconds": 0.049,
+  "command": "node",
+  "args": [
+    "finer/tools/config-schema.mjs",
+    "--check"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "compiler": null,
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript/finer/tools/config-schema.mjs",
+        "sha256": "d8aacf5e00186494fbfd9b798b0bc744d94a9ebf1f0eed608e4231406db80d72",
+        "bytes": 7230
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/config.rs",
+        "sha256": "f4639577b76917d9cb176cbdcf05861079fd2d44f82d02970c6190da37a2a6aa",
+        "bytes": 174987
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/compilation_policy.rs",
+        "sha256": "edb505d7f3427288ea1ff539960683b34ffd9ccc01a39ef0ac07a3cd509be6ae",
+        "bytes": 84451
+      },
+      {
+        "path": "/home/azureuser/lilscript/docs/knowledge/config/schema.md",
+        "sha256": "b22ad63107326d2e7710ae871874fa6365ea2e7e2b8a6cfbabbc21a7230ced2d",
+        "bytes": 17409
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "9598eb64a9c8538f970fb49c9d346e66a946c72d9e99f7b0361d60b4b40b0356",
+    "bytes": 73
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "passed": true,
+  "fingerprint": "fa2472064996acd00126856a88fc9c21b005d08628d073db9fc4617406b300ed"
+}

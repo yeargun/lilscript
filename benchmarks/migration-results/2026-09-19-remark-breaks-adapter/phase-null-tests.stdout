@@ -1,0 +1,11 @@
+✔ portgate default phase bounds inherit --timeout and each override reaches its owner (1160.259795ms)
+✔ invalid portgate phase bounds fail before creating the arm workspace (229.286371ms)
+✔ portgate rejects explicit null prerequisites instead of silently skipping their schema (179.310225ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1629.131175

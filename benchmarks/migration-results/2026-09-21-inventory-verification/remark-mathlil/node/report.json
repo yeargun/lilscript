@@ -1,0 +1,1741 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/closed.test.mjs",
+    "test/official/test.js",
+    "test/site.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+      "bytes": 3098
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+      "bytes": 978
+    },
+    {
+      "path": "test/official/test.js",
+      "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+      "bytes": 24680
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/test.js"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/closed.test.mjs",
+      "test/official/test.js",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/node/observe.mjs",
+    "sha256": "4675e3d9eb949d72e239339e2c9b38b0186248ad72bd3632fa1d12dcec13eae0",
+    "bytes": 535,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+          "bytes": 393
+        },
+        "actual": {
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+          "bytes": 393
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        },
+        "actual": {
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        "actual": {
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+          "bytes": 949
+        },
+        "actual": {
+          "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+          "bytes": 949
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+          "bytes": 3189
+        },
+        "actual": {
+          "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+          "bytes": 3189
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+          "bytes": 1074
+        },
+        "actual": {
+          "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+          "bytes": 1074
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+          "bytes": 9269
+        },
+        "actual": {
+          "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+          "bytes": 9269
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+          "bytes": 15294
+        },
+        "actual": {
+          "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+          "bytes": 15294
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+          "bytes": 2160
+        },
+        "actual": {
+          "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+          "bytes": 2160
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+          "bytes": 3098
+        },
+        "actual": {
+          "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+          "bytes": 3098
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+          "bytes": 978
+        },
+        "actual": {
+          "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+          "bytes": 978
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+          "bytes": 24680
+        },
+        "actual": {
+          "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+          "bytes": 24680
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+          "bytes": 701
+        },
+        "actual": {
+          "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+          "bytes": 701
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/types/remark-math.d.ts",
+        "expected": {
+          "path": "types/remark-math.d.ts",
+          "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+          "bytes": 1007
+        },
+        "actual": {
+          "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+          "bytes": 1007
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+          "bytes": 393
+        },
+        "actual": {
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+          "bytes": 393
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        },
+        "actual": {
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        "actual": {
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+          "bytes": 949
+        },
+        "actual": {
+          "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+          "bytes": 949
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+          "bytes": 3189
+        },
+        "actual": {
+          "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+          "bytes": 3189
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+          "bytes": 1074
+        },
+        "actual": {
+          "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+          "bytes": 1074
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+          "bytes": 9269
+        },
+        "actual": {
+          "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+          "bytes": 9269
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+          "bytes": 15294
+        },
+        "actual": {
+          "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+          "bytes": 15294
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+          "bytes": 2160
+        },
+        "actual": {
+          "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+          "bytes": 2160
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+          "bytes": 3098
+        },
+        "actual": {
+          "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+          "bytes": 3098
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+          "bytes": 978
+        },
+        "actual": {
+          "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+          "bytes": 978
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+          "bytes": 24680
+        },
+        "actual": {
+          "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+          "bytes": 24680
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+          "bytes": 701
+        },
+        "actual": {
+          "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+          "bytes": 701
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/types/remark-math.d.ts",
+        "expected": {
+          "path": "types/remark-math.d.ts",
+          "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+          "bytes": 1007
+        },
+        "actual": {
+          "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+          "bytes": 1007
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+          "bytes": 393
+        },
+        "actual": {
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+          "bytes": 393
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        },
+        "actual": {
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        "actual": {
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+          "bytes": 949
+        },
+        "actual": {
+          "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+          "bytes": 949
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+          "bytes": 3189
+        },
+        "actual": {
+          "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+          "bytes": 3189
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+          "bytes": 1074
+        },
+        "actual": {
+          "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+          "bytes": 1074
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+          "bytes": 9269
+        },
+        "actual": {
+          "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+          "bytes": 9269
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+          "bytes": 15294
+        },
+        "actual": {
+          "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+          "bytes": 15294
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+          "bytes": 2160
+        },
+        "actual": {
+          "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+          "bytes": 2160
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+          "bytes": 3098
+        },
+        "actual": {
+          "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+          "bytes": 3098
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+          "bytes": 978
+        },
+        "actual": {
+          "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+          "bytes": 978
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+          "bytes": 24680
+        },
+        "actual": {
+          "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+          "bytes": 24680
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+          "bytes": 701
+        },
+        "actual": {
+          "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+          "bytes": 701
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/types/remark-math.d.ts",
+        "expected": {
+          "path": "types/remark-math.d.ts",
+          "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+          "bytes": 1007
+        },
+        "actual": {
+          "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+          "bytes": 1007
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-check:types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:types"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          "actual": {
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          },
+          "actual": {
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/node/prerequisite-0.stdout",
+        "sha256": "61152b145f6c3ddf51269628c6199486bee55b4677e49c218e337c903197eaf0",
+        "bytes": 176
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-mathlil/node/prerequisite-0.stderr",
+        "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+        "bytes": 211
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          "actual": {
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          },
+          "actual": {
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          "actual": {
+            "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+            "bytes": 2381
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          },
+          "actual": {
+            "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+            "bytes": 67566
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin"
+  },
+  "supervision": {
+    "timeoutMs": 598005,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"exposes the upstream public API\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exposes the upstream public API",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",37,3,1,\"test\",\"keeps official extension keys in the library lane\",1]",
+        "file": "test/api.test.mjs",
+        "name": "keeps official extension keys in the library lane",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",45,3,1,\"test\",\"pushes micromark and mdast extensions onto the processor\",1]",
+        "file": "test/api.test.mjs",
+        "name": "pushes micromark and mdast extensions onto the processor",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",61,3,1,\"test\",\"creates missing extension arrays\",1]",
+        "file": "test/api.test.mjs",
+        "name": "creates missing extension arrays",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",70,3,1,\"test\",\"does not over-escape a lone dollar with default options\",1]",
+        "file": "test/api.test.mjs",
+        "name": "does not over-escape a lone dollar with default options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",29,1,0,\"suite\",\"@itslil/remark-math\",1]",
+        "file": "test/api.test.mjs",
+        "name": "@itslil/remark-math",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "ships a closed artifact whose exports stay callable",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-math closed lane\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "@itslil/remark-math closed lane",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",19,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/test.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should parse inline and block math\",1]",
+        "file": "test/official/test.js",
+        "name": "should parse inline and block math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",71,11,1,\"test\",\"should ignore an escaped opening dollar sign\",1]",
+        "file": "test/official/test.js",
+        "name": "should ignore an escaped opening dollar sign",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",90,11,1,\"test\",\"should *not* ignore an escaped closing dollar sign\",1]",
+        "file": "test/official/test.js",
+        "name": "should *not* ignore an escaped closing dollar sign",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",123,11,1,\"test\",\"should support a escaped escape before a dollar sign\",1]",
+        "file": "test/official/test.js",
+        "name": "should support a escaped escape before a dollar sign",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",156,11,1,\"test\",\"should ignore dollar signs in inline code (#1)\",1]",
+        "file": "test/official/test.js",
+        "name": "should ignore dollar signs in inline code (#1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",181,11,1,\"test\",\"should allow backticks in math\",1]",
+        "file": "test/official/test.js",
+        "name": "should allow backticks in math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",208,11,1,\"test\",\"should support backticks in inline math\",1]",
+        "file": "test/official/test.js",
+        "name": "should support backticks in inline math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",238,11,1,\"test\",\"should support a super factorial in inline math\",1]",
+        "file": "test/official/test.js",
+        "name": "should support a super factorial in inline math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",270,11,1,\"test\",\"should support a super factorial in block math\",1]",
+        "file": "test/official/test.js",
+        "name": "should support a super factorial in block math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",305,11,1,\"test\",\"should support a math block right after a paragraph\",1]",
+        "file": "test/official/test.js",
+        "name": "should support a math block right after a paragraph",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",347,11,1,\"test\",\"should support inline math with double dollars\",1]",
+        "file": "test/official/test.js",
+        "name": "should support inline math with double dollars",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",380,11,1,\"test\",\"should support block math with triple dollars\",1]",
+        "file": "test/official/test.js",
+        "name": "should support block math with triple dollars",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",415,11,1,\"test\",\"should support indented block math\",1]",
+        "file": "test/official/test.js",
+        "name": "should support indented block math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",446,11,1,\"test\",\"should stringify inline and block math\",1]",
+        "file": "test/official/test.js",
+        "name": "should stringify inline and block math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",459,11,1,\"test\",\"should support `singleDollarTextMath: false` (1)\",1]",
+        "file": "test/official/test.js",
+        "name": "should support `singleDollarTextMath: false` (1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",475,11,1,\"test\",\"should support `singleDollarTextMath: false` (2)\",1]",
+        "file": "test/official/test.js",
+        "name": "should support `singleDollarTextMath: false` (2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",493,11,1,\"test\",\"should stringify math in a blockquote\",1]",
+        "file": "test/official/test.js",
+        "name": "should stringify math in a blockquote",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",506,11,1,\"test\",\"should support an opening fence w/ meta, w/o closing fence\",1]",
+        "file": "test/official/test.js",
+        "name": "should support an opening fence w/ meta, w/o closing fence",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",516,11,1,\"test\",\"should support `meta`\",1]",
+        "file": "test/official/test.js",
+        "name": "should support `meta`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",523,11,1,\"test\",\"should include values after the opening fence\",1]",
+        "file": "test/official/test.js",
+        "name": "should include values after the opening fence",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",533,11,1,\"test\",\"should not support values before the closing fence\",1]",
+        "file": "test/official/test.js",
+        "name": "should not support values before the closing fence",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",543,11,1,\"test\",\"should include values before the closing fence (except for spacing #2)\",1]",
+        "file": "test/official/test.js",
+        "name": "should include values before the closing fence (except for spacing #2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",553,11,1,\"test\",\"should exclude spacing after the closing fence\",1]",
+        "file": "test/official/test.js",
+        "name": "should exclude spacing after the closing fence",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",563,11,1,\"test\",\"should not affect the next block\",1]",
+        "file": "test/official/test.js",
+        "name": "should not affect the next block",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",595,11,1,\"test\",\"should support two dollar signs on inline math\",1]",
+        "file": "test/official/test.js",
+        "name": "should support two dollar signs on inline math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",627,11,1,\"test\",\"should stringify a tree\",1]",
+        "file": "test/official/test.js",
+        "name": "should stringify a tree",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",651,11,1,\"test\",\"should stringify inline math with double dollars using one dollar by default\",1]",
+        "file": "test/official/test.js",
+        "name": "should stringify inline math with double dollars using one dollar by default",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",667,11,1,\"test\",\"should stringify inline math with double dollars using one dollar\",1]",
+        "file": "test/official/test.js",
+        "name": "should stringify inline math with double dollars using one dollar",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",683,11,1,\"test\",\"should do markdown-it-katex#01\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#01",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",690,11,1,\"test\",\"should do markdown-it-katex#02 (deviation)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#02 (deviation)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",697,11,1,\"test\",\"should do markdown-it-katex#03: no whitespace before and after is fine\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#03: no whitespace before and after is fine",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",707,11,1,\"test\",\"should do markdown-it-katex#04: even when it starts with a negative sign\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#04: even when it starts with a negative sign",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",717,11,1,\"test\",\"should do markdown-it-katex#05: shouldn’t render empty content\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#05: shouldn’t render empty content",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",727,11,1,\"test\",\"should do markdown-it-katex#06: should require a closing delimiter\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#06: should require a closing delimiter",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",737,11,1,\"test\",\"should do markdown-it-katex#07: paragraph break in inline math is not allowed\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#07: paragraph break in inline math is not allowed",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",747,11,1,\"test\",\"should do markdown-it-katex#08: inline math with apparent markup should not be processed\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#08: inline math with apparent markup should not be processed",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",757,11,1,\"test\",\"should do markdown-it-katex#09: block math can be indented up to 3 spaces\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#09: block math can be indented up to 3 spaces",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",767,11,1,\"test\",\"should do markdown-it-katex#10: …but 4 means a code block\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#10: …but 4 means a code block",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",777,11,1,\"test\",\"should do markdown-it-katex#11: multiline inline math\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#11: multiline inline math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",787,11,1,\"test\",\"should do markdown-it-katex#12: multiline display math\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#12: multiline display math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",797,11,1,\"test\",\"should do markdown-it-katex#13: text can immediately follow inline math\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#13: text can immediately follow inline math",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",807,11,1,\"test\",\"should do markdown-it-katex#14: display math self-closes at the end of document\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#14: display math self-closes at the end of document",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",817,11,1,\"test\",\"should do markdown-it-katex#15: display and inline math can appear in lists\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#15: display and inline math can appear in lists",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",827,11,1,\"test\",\"should do markdown-it-katex#16: display math can be written in one line (deviation)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#16: display math can be written in one line (deviation)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",837,11,1,\"test\",\"should do markdown-it-katex#17: …or on multiple lines with expression starting and ending on delimited lines (deviation)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#17: …or on multiple lines with expression starting and ending on delimited lines (deviation)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",848,11,1,\"test\",\"should do markdown-it-katex#18: escaped delimiters should not render math (deviated)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#18: escaped delimiters should not render math (deviated)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",858,11,1,\"test\",\"should do markdown-it-katex#19: numbers can not follow closing inline math (deviated)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#19: numbers can not follow closing inline math (deviated)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",872,11,1,\"test\",\"should do markdown-it-katex#20: require non whitespace to right of opening inline math (deviated)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#20: require non whitespace to right of opening inline math (deviated)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",882,11,1,\"test\",\"should do markdown-it-katex#21: require non whitespace to left of closing inline math (deviated)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#21: require non whitespace to left of closing inline math (deviated)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",896,11,1,\"test\",\"should do markdown-it-katex#23: escaped delimiters in math mode (deviated)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#23: escaped delimiters in math mode (deviated)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",907,11,1,\"test\",\"should do markdown-it-katex#24: multiple escaped delimiters in math module (deviated)\",1]",
+        "file": "test/official/test.js",
+        "name": "should do markdown-it-katex#24: multiple escaped delimiters in math module (deviated)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",11,1,0,\"test\",\"remarkMath\",1]",
+        "file": "test/official/test.js",
+        "name": "remarkMath",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.cjs",
+        "sha256": "469c4791ee810dff1b37b3be30809838112776335b5a0362f057a3beda42dba5",
+        "bytes": 7798
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.closed.js",
+        "sha256": "a93ccc4630b32ad272600e9014de31112fe9ac60ed06ed61de0ced8c66a98419",
+        "bytes": 6606
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+        "sha256": "55c59dbdcd9b40a59de0d5f84e9efeadba77e1804979bf9dad2231a7b07f4151",
+        "bytes": 6569
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.cjs",
+        "url": "file:///tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.cjs",
+        "format": "commonjs",
+        "sha256": "469c4791ee810dff1b37b3be30809838112776335b5a0362f057a3beda42dba5",
+        "bytes": 7798,
+        "pid": 484976
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+        "format": "module",
+        "sha256": "55c59dbdcd9b40a59de0d5f84e9efeadba77e1804979bf9dad2231a7b07f4151",
+        "bytes": 6569,
+        "pid": 484976
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.closed.js",
+        "url": "file:///tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.closed.js",
+        "format": "module",
+        "sha256": "a93ccc4630b32ad272600e9014de31112fe9ac60ed06ed61de0ced8c66a98419",
+        "bytes": 6606,
+        "pid": 484977
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-mathlil-ioWcp0/remark-mathlil/dist/remark-math.esm.js",
+        "format": "module",
+        "sha256": "55c59dbdcd9b40a59de0d5f84e9efeadba77e1804979bf9dad2231a7b07f4151",
+        "bytes": 6569,
+        "pid": 484978
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",30,3,1,\"test\",\"exposes the upstream public API\",1]",
+    "[\"test/api.test.mjs\",37,3,1,\"test\",\"keeps official extension keys in the library lane\",1]",
+    "[\"test/api.test.mjs\",45,3,1,\"test\",\"pushes micromark and mdast extensions onto the processor\",1]",
+    "[\"test/api.test.mjs\",61,3,1,\"test\",\"creates missing extension arrays\",1]",
+    "[\"test/api.test.mjs\",70,3,1,\"test\",\"does not over-escape a lone dollar with default options\",1]",
+    "[\"test/api.test.mjs\",29,1,0,\"suite\",\"@itslil/remark-math\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-math closed lane\",1]",
+    "[\"test/official/test.js\",19,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/test.js\",25,11,1,\"test\",\"should parse inline and block math\",1]",
+    "[\"test/official/test.js\",71,11,1,\"test\",\"should ignore an escaped opening dollar sign\",1]",
+    "[\"test/official/test.js\",90,11,1,\"test\",\"should *not* ignore an escaped closing dollar sign\",1]",
+    "[\"test/official/test.js\",123,11,1,\"test\",\"should support a escaped escape before a dollar sign\",1]",
+    "[\"test/official/test.js\",156,11,1,\"test\",\"should ignore dollar signs in inline code (#1)\",1]",
+    "[\"test/official/test.js\",181,11,1,\"test\",\"should allow backticks in math\",1]",
+    "[\"test/official/test.js\",208,11,1,\"test\",\"should support backticks in inline math\",1]",
+    "[\"test/official/test.js\",238,11,1,\"test\",\"should support a super factorial in inline math\",1]",
+    "[\"test/official/test.js\",270,11,1,\"test\",\"should support a super factorial in block math\",1]",
+    "[\"test/official/test.js\",305,11,1,\"test\",\"should support a math block right after a paragraph\",1]",
+    "[\"test/official/test.js\",347,11,1,\"test\",\"should support inline math with double dollars\",1]",
+    "[\"test/official/test.js\",380,11,1,\"test\",\"should support block math with triple dollars\",1]",
+    "[\"test/official/test.js\",415,11,1,\"test\",\"should support indented block math\",1]",
+    "[\"test/official/test.js\",446,11,1,\"test\",\"should stringify inline and block math\",1]",
+    "[\"test/official/test.js\",459,11,1,\"test\",\"should support `singleDollarTextMath: false` (1)\",1]",
+    "[\"test/official/test.js\",475,11,1,\"test\",\"should support `singleDollarTextMath: false` (2)\",1]",
+    "[\"test/official/test.js\",493,11,1,\"test\",\"should stringify math in a blockquote\",1]",
+    "[\"test/official/test.js\",506,11,1,\"test\",\"should support an opening fence w/ meta, w/o closing fence\",1]",
+    "[\"test/official/test.js\",516,11,1,\"test\",\"should support `meta`\",1]",
+    "[\"test/official/test.js\",523,11,1,\"test\",\"should include values after the opening fence\",1]",
+    "[\"test/official/test.js\",533,11,1,\"test\",\"should not support values before the closing fence\",1]",
+    "[\"test/official/test.js\",543,11,1,\"test\",\"should include values before the closing fence (except for spacing #2)\",1]",
+    "[\"test/official/test.js\",553,11,1,\"test\",\"should exclude spacing after the closing fence\",1]",
+    "[\"test/official/test.js\",563,11,1,\"test\",\"should not affect the next block\",1]",
+    "[\"test/official/test.js\",595,11,1,\"test\",\"should support two dollar signs on inline math\",1]",
+    "[\"test/official/test.js\",627,11,1,\"test\",\"should stringify a tree\",1]",
+    "[\"test/official/test.js\",651,11,1,\"test\",\"should stringify inline math with double dollars using one dollar by default\",1]",
+    "[\"test/official/test.js\",667,11,1,\"test\",\"should stringify inline math with double dollars using one dollar\",1]",
+    "[\"test/official/test.js\",683,11,1,\"test\",\"should do markdown-it-katex#01\",1]",
+    "[\"test/official/test.js\",690,11,1,\"test\",\"should do markdown-it-katex#02 (deviation)\",1]",
+    "[\"test/official/test.js\",697,11,1,\"test\",\"should do markdown-it-katex#03: no whitespace before and after is fine\",1]",
+    "[\"test/official/test.js\",707,11,1,\"test\",\"should do markdown-it-katex#04: even when it starts with a negative sign\",1]",
+    "[\"test/official/test.js\",717,11,1,\"test\",\"should do markdown-it-katex#05: shouldn’t render empty content\",1]",
+    "[\"test/official/test.js\",727,11,1,\"test\",\"should do markdown-it-katex#06: should require a closing delimiter\",1]",
+    "[\"test/official/test.js\",737,11,1,\"test\",\"should do markdown-it-katex#07: paragraph break in inline math is not allowed\",1]",
+    "[\"test/official/test.js\",747,11,1,\"test\",\"should do markdown-it-katex#08: inline math with apparent markup should not be processed\",1]",
+    "[\"test/official/test.js\",757,11,1,\"test\",\"should do markdown-it-katex#09: block math can be indented up to 3 spaces\",1]",
+    "[\"test/official/test.js\",767,11,1,\"test\",\"should do markdown-it-katex#10: …but 4 means a code block\",1]",
+    "[\"test/official/test.js\",777,11,1,\"test\",\"should do markdown-it-katex#11: multiline inline math\",1]",
+    "[\"test/official/test.js\",787,11,1,\"test\",\"should do markdown-it-katex#12: multiline display math\",1]",
+    "[\"test/official/test.js\",797,11,1,\"test\",\"should do markdown-it-katex#13: text can immediately follow inline math\",1]",
+    "[\"test/official/test.js\",807,11,1,\"test\",\"should do markdown-it-katex#14: display math self-closes at the end of document\",1]",
+    "[\"test/official/test.js\",817,11,1,\"test\",\"should do markdown-it-katex#15: display and inline math can appear in lists\",1]",
+    "[\"test/official/test.js\",827,11,1,\"test\",\"should do markdown-it-katex#16: display math can be written in one line (deviation)\",1]",
+    "[\"test/official/test.js\",837,11,1,\"test\",\"should do markdown-it-katex#17: …or on multiple lines with expression starting and ending on delimited lines (deviation)\",1]",
+    "[\"test/official/test.js\",848,11,1,\"test\",\"should do markdown-it-katex#18: escaped delimiters should not render math (deviated)\",1]",
+    "[\"test/official/test.js\",858,11,1,\"test\",\"should do markdown-it-katex#19: numbers can not follow closing inline math (deviated)\",1]",
+    "[\"test/official/test.js\",872,11,1,\"test\",\"should do markdown-it-katex#20: require non whitespace to right of opening inline math (deviated)\",1]",
+    "[\"test/official/test.js\",882,11,1,\"test\",\"should do markdown-it-katex#21: require non whitespace to left of closing inline math (deviated)\",1]",
+    "[\"test/official/test.js\",896,11,1,\"test\",\"should do markdown-it-katex#23: escaped delimiters in math mode (deviated)\",1]",
+    "[\"test/official/test.js\",907,11,1,\"test\",\"should do markdown-it-katex#24: multiple escaped delimiters in math module (deviated)\",1]",
+    "[\"test/official/test.js\",11,1,0,\"test\",\"remarkMath\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

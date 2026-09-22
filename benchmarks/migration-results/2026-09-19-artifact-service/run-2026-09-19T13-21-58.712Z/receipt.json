@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "scope": "focused debug artifact admission, shared recipe ownership, public scoped service and original example consumers; not milestone certification",
+  "started": "2026-09-19T13:21:58.712Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 5.847424000000004
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 21.937072999999998
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 13.410153999999991
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 3.1068459999999902
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--lib",
+        "--bin",
+        "lilscript",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 68844.60219
+    },
+    {
+      "label": "tests-0",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler_service::"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 2457.9137559999945
+    },
+    {
+      "label": "tests-1",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compilation_policy::"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 36.435087000005296
+    },
+    {
+      "label": "tests-2",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compilation_policy_evidence_tests::"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 21.73493600000802
+    },
+    {
+      "label": "tests-3",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::artifacts::"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 32.513000000006286
+    },
+    {
+      "label": "tests-4",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::artifact_provenance::"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 27.5695379999961
+    },
+    {
+      "label": "tests-5",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::artifact_lifetime_tests::"
+      ],
+      "status": 101,
+      "signal": null,
+      "ms": 53.1424560000014
+    }
+  ],
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack"
+  ],
+  "inputSha256": "c1103660e6f6b68c52f6ee4162920767d9f99f62f5e3bf9ef1590b62dc37ea2c",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "testBinaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "sha256": "1524b384afe87a343a7c59e9af9de792d0df210f527fd386187b19396edc00c4",
+      "bytes": 386990480
+    },
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-88c9d4a211b5d4f5",
+      "sha256": "99b5c93ba6ec6bf93dda7206f8b9316fe1a06f0d978138d046e4803309670a2a",
+      "bytes": 198199120
+    }
+  ],
+  "focusedTests": [
+    {
+      "filter": "compiler_service::",
+      "passed": 14
+    },
+    {
+      "filter": "compilation_policy::",
+      "passed": 31
+    },
+    {
+      "filter": "compilation_policy_evidence_tests::",
+      "passed": 8
+    },
+    {
+      "filter": "semantic_program::artifacts::",
+      "passed": 15
+    },
+    {
+      "filter": "semantic_program::artifact_provenance::",
+      "passed": 6
+    }
+  ],
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: tests-5: \n\nrunning 5 tests\ntest semantic_program::artifact_lifetime_tests::scoped_artifacts_release_on_success_returned_error_and_unwind ... FAILED\ntest semantic_program::artifact_lifetime_tests::optional_denial_preserves_incumbent_and_baseline_output_allowance ... ok\ntest semantic_program::artifact_lifetime_tests::retained_and_scoped_handles_cannot_cross_owner_boundaries_or_revive ... FAILED\ntest semantic_program::artifact_lifetime_tests::complete_artifact_scores_are_cached_across_scoped_to_retained_transfer ... ok\ntest semantic_program::artifact_lifetime_tests::explicit_retention_survives_callback_unwind_and_releases_at_terminal_handoff ... ok\n\nfailures:\n\n---- semantic_program::artifact_lifetime_tests::scoped_artifacts_release_on_success_returned_error_and_unwind stdout ----\n\nthread 'semantic_program::artifact_lifetime_tests::scoped_artifacts_release_on_success_returned_error_and_unwind' (251396) panicked at src/semantic_program/artifact_lifetime_tests.rs:75:9:\nassertion `left == right` failed\n  left: 6206\n right: 6046\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n---- semantic_program::artifact_lifetime_tests::retained_and_scoped_handles_cannot_cross_owner_boundaries_or_revive stdout ----\n\nthread 'semantic_program::artifact_lifetime_tests::retained_and_scoped_handles_cannot_cross_owner_boundaries_or_revive' (251395) panicked at src/semantic_program/artifact_lifetime_tests.rs:202:13:\nassertion `left == right` failed\n  left: 6206\n right: 6046\n\n\nfailures:\n    semantic_program::artifact_lifetime_tests::retained_and_scoped_handles_cannot_cross_owner_boundaries_or_revive\n    semantic_program::artifact_lifetime_tests::scoped_artifacts_release_on_success_returned_error_and_unwind\n\ntest result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 2724 filtered out; finished in 0.03s\n\n\n\n101 !== 0\n\n    at run (file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:51:10)\n    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:85:20\n    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+  "inputsStable": true,
+  "completed": "2026-09-19T13:23:11.498Z"
+}

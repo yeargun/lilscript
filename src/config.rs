@@ -15,6 +15,27 @@ use crate::js_syntax_target::{resolve_ecmascript_target, EcmaScriptEdition, JsSy
 use crate::optimizer::OptimizationOptions;
 use crate::profile::{JavaScriptPerformanceWeights, OptimizationProfile};
 
+/// The values the sibling line's `name_ordering` knob accepts. Parsed so a
+/// misspelled value is still a configuration error; none of them changes this
+/// line's output (see `JavaScriptConfig::name_ordering`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SiblingNameOrdering {
+    EmissionWalk,
+    FrequencyDesc,
+    IdiomConverged,
+}
+
+impl SiblingNameOrdering {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::EmissionWalk => "emission-walk",
+            Self::FrequencyDesc => "frequency-desc",
+            Self::IdiomConverged => "idiom-converged",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PublicAggregateAbi {
@@ -38,6 +59,7 @@ pub enum AggregateLayout {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CompilerConfig {
+    /// Worker threads and codec workers the compiler may use; the CLI flags `--jobs` and `--codec-jobs` override these.
     pub resources: CompilerResourceConfig,
 }
 
@@ -71,6 +93,8 @@ impl CompilerResourceConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ProjectConfig {
+    /// Schema-v2 policy overlay; absent values use the centralized legacy translator.
+    pub policy: Option<crate::compilation_policy::PolicyConfig>,
     pub package: Option<PackageMetadata>,
     pub dependencies: BTreeMap<String, DependencyConfig>,
     pub compiler: CompilerConfig,
@@ -87,6 +111,279 @@ pub struct ProjectConfig {
 }
 
 impl ProjectConfig {
+    /// Resolve configuration once at a public compilation boundary. Old raw
+    /// clients are compatibility paths until migrated to this policy's
+    /// candidate admission and ledger.
+    pub fn resolve_policy(
+        &self,
+        request: crate::compilation_policy::CompilationRequest,
+    ) -> Result<crate::compilation_policy::ResolvedPolicy, String> {
+        use crate::compilation_contract::{
+            JavaScriptAbiContract, JavaScriptCompilationContract, JavaScriptEffectPolicy,
+            JavaScriptExecution, JavaScriptUnsafeAssumptions, JavaScriptWorld,
+        };
+        use crate::compilation_policy::{
+            CompilationContract, CompilationRequest, ObjectiveRank, OptimizationObjective,
+            PolicyConfig, ResolvedPolicy, ResolvedTactic, TacticId, TacticPermission,
+        };
+        self.validate()?;
+        let defaults = PolicyConfig::default();
+        let policy = self.policy.as_ref().unwrap_or(&defaults);
+        let javascript = matches!(request, CompilationRequest::JavaScript { .. });
+        let effort = if javascript {
+            self.javascript.optimization_level
+        } else {
+            0
+        };
+        let mut diagnostics = Vec::new();
+        if self.policy.is_none() {
+            diagnostics.push(format!("legacy optimizer configuration translated to policy schema {}; translation retires at schema {}", crate::compilation_policy::POLICY_SCHEMA_VERSION, crate::compilation_policy::LEGACY_TRANSLATOR_RETIREMENT_SCHEMA));
+        }
+        let mut tactics = [ResolvedTactic {
+            permission: TacticPermission::Auto,
+            enabled: false,
+        }; TacticId::ALL.len()];
+        let optimizer = self.optimization.resolve();
+        for tactic in TacticId::ALL {
+            let spec = tactic.spec();
+            if spec.javascript_only && !javascript {
+                continue;
+            }
+            let (legacy_explicit, legacy_default) =
+                self.legacy_tactic_setting(tactic, javascript, &optimizer);
+            let configured = policy
+                .tactics
+                .get(&tactic)
+                .copied()
+                .unwrap_or(TacticPermission::Auto);
+            if let Some(legacy) = legacy_explicit {
+                if matches!(
+                    (configured, legacy),
+                    (TacticPermission::On, false) | (TacticPermission::Off, true)
+                ) {
+                    return Err(format!("`policy.tactics.{}` contradicts its explicit legacy setting; remove the legacy setting or use the same permission", spec.name));
+                }
+            }
+            let permission = match (configured, legacy_explicit) {
+                (TacticPermission::Auto, Some(true)) => TacticPermission::On,
+                (TacticPermission::Auto, Some(false)) => TacticPermission::Off,
+                _ => configured,
+            };
+            let enabled = (!spec.javascript_only || javascript)
+                && match permission {
+                    TacticPermission::Off => false,
+                    TacticPermission::On => true,
+                    TacticPermission::Auto => legacy_default && effort >= spec.minimum_effort,
+                };
+            tactics[tactic as usize] = ResolvedTactic {
+                permission,
+                enabled,
+            };
+        }
+        let (contract, objective) = match request {
+            CompilationRequest::Native => (
+                CompilationContract::Native {
+                    abi_version: crate::package::LILSCRIPT_ABI_VERSION,
+                },
+                None,
+            ),
+            CompilationRequest::JavaScript {
+                preserve_root_exports,
+            } => {
+                // Do not call js_options here: its historical preserved-name
+                // adapter leaks a boxed set and constructs unrelated emit data.
+                let language = JavaScriptCompilationContract {
+                    // Compatibility adapter: this request's export flag was
+                    // historically also the module-output selector. Record
+                    // that execution promise explicitly; world/visibility is
+                    // not proof that an artifact executes in strict mode.
+                    execution: if preserve_root_exports {
+                        JavaScriptExecution::Module
+                    } else {
+                        JavaScriptExecution::Script
+                    },
+                    world: if preserve_root_exports {
+                        JavaScriptWorld::ReusableLibrary
+                    } else {
+                        JavaScriptWorld::ClosedApplication
+                    },
+                    ecmascript: self.javascript.resolved_ecmascript(),
+                    abi: JavaScriptAbiContract {
+                        preserve_root_exports,
+                        public_aggregate_abi: self.javascript.public_aggregate_abi,
+                        preserve_extern_fields: self.mangle.extern_fields.unwrap_or(true),
+                        internal_export_bindings_may_mangle: self.mangle.exports.unwrap_or_else(
+                            || {
+                                self.javascript
+                                    .compression_enabled(CompressionDecision::ExportMangling)
+                            },
+                        ),
+                        // D2: an export keeps the callable kind its *source* declares —
+                        // a function declaration is an ordinary constructible
+                        // `function`, an exported arrow stays an arrow. The
+                        // `function_spelling` knob governs private functions only.
+                        public_function_spelling: None,
+                    },
+                    assumptions: JavaScriptUnsafeAssumptions {
+                        pristine_builtins: self.javascript.assume_pristine_builtins,
+                        pure_property_reads: self.javascript.assume_pure_property_reads,
+                    },
+                    effects: JavaScriptEffectPolicy {
+                        strip_console: self.javascript.strip_console,
+                    },
+                };
+                let mut preserved_properties =
+                    self.mangle.preserve_properties.clone().unwrap_or_default();
+                preserved_properties.sort();
+                preserved_properties.dedup();
+                let objective = OptimizationObjective {
+                    codec: self.javascript.cost_model,
+                    rank: ObjectiveRank {
+                        priority: self.javascript.priority,
+                        realistic_performance_limit_percent: self
+                            .javascript
+                            .performance
+                            .max_regression_percent,
+                    },
+                    optional_alternatives: self.javascript.effective_candidate_proposal_limit(),
+                    optional_codec_probes: self.javascript.effective_terminal_codec_probe_limit(),
+                    cleanup_finalists: self.javascript.terminal_cleanup_finalists(),
+                    retained_candidates: self.javascript.effective_candidate_limit(),
+                    retained_candidate_bytes: self.javascript.effective_candidate_byte_budget(),
+                    beam_width: self.javascript.effective_candidate_beam_width(),
+                    search: policy.search,
+                };
+                (
+                    CompilationContract::JavaScript {
+                        language,
+                        preserved_properties,
+                        owned_properties: self
+                            .mangle
+                            .internal_properties
+                            .unwrap_or(InternalProperties::UnderscoreSuffix),
+                        bundle_mode: self.bundle.mode,
+                    },
+                    Some(objective),
+                )
+            }
+        };
+        // The schema owns explicit hard limits. Historical performance scores
+        // remain ranking estimates, not newly invented runtime guarantees.
+        Ok(ResolvedPolicy::new(
+            contract,
+            objective,
+            effort,
+            tactics,
+            policy.resources,
+            policy.constraints,
+            diagnostics,
+        ))
+    }
+
+    /// The sole bridge from historical flags/allowlists into the new tactic
+    /// registry. Explicit omission from a legacy allowlist means off; it must
+    /// not reappear through a different aggregate producer.
+    fn legacy_tactic_setting(
+        &self,
+        tactic: crate::compilation_policy::TacticId,
+        javascript: bool,
+        optimizer: &OptimizationOptions,
+    ) -> (Option<bool>, bool) {
+        use crate::compilation_policy::TacticId as T;
+        let compression = |decision| {
+            (
+                self.javascript
+                    .compression
+                    .as_ref()
+                    .map(|list| list.contains(&decision)),
+                self.javascript.compression_enabled(decision),
+            )
+        };
+        match tactic {
+            T::DeadCodeElimination => (
+                self.optimization.dead_code_elimination,
+                optimizer.dead_code_elimination,
+            ),
+            T::ConstantFolding => (
+                self.optimization.constant_folding,
+                optimizer.constant_folding,
+            ),
+            T::Inlining => (self.optimization.inlining, optimizer.inlining),
+            T::ScalarReplacement => (
+                self.optimization.scalar_replacement,
+                optimizer.scalar_replacement,
+            ),
+            T::CallSpecialization => {
+                let explicit = self.optimization.call_site_specialization.or_else(|| {
+                    if javascript {
+                        self.javascript
+                            .optimizations
+                            .as_ref()
+                            .map(|v| v.contains(&JavaScriptOptimization::CallSiteSpecialization))
+                    } else {
+                        None
+                    }
+                });
+                (
+                    explicit,
+                    optimizer.call_site_specialization
+                        && (!javascript
+                            || self.javascript.optimization_enabled(
+                                JavaScriptOptimization::CallSiteSpecialization,
+                                None,
+                            )),
+                )
+            }
+            T::HelperSharing => {
+                let (legacy, _) = compression(CompressionDecision::ParameterizedFunctionMerging);
+                (
+                    self.optimization.parameterized_function_merging.or(legacy),
+                    self.js_parameterized_function_merging_enabled(),
+                )
+            }
+            T::TargetCompaction => (
+                (!self.javascript.operand_order_fusion).then_some(false),
+                self.javascript.operand_order_fusion,
+            ),
+            T::IdentifierMangling => {
+                let (legacy, default) = compression(CompressionDecision::IdentifierMangling);
+                (
+                    self.mangle.identifiers.or(legacy),
+                    self.mangle.identifiers.unwrap_or(default),
+                )
+            }
+            T::PropertyMangling => {
+                let (legacy, default) = compression(CompressionDecision::PropertyMangling);
+                (
+                    self.mangle.properties.or(legacy),
+                    self.mangle.properties.unwrap_or(default),
+                )
+            }
+            T::StringPooling => {
+                let (legacy, default) = compression(CompressionDecision::StringPooling);
+                (
+                    self.mangle.pool_strings.or(legacy),
+                    self.mangle.pool_strings.unwrap_or(default),
+                )
+            }
+            T::StringArrayPacking => compression(CompressionDecision::StringArrayPacking),
+            T::StartupReconstruction => (None, true),
+            T::RecurringReconstruction => (None, false),
+            T::NamingSearch => {
+                let explicit = self
+                    .javascript
+                    .optimizations
+                    .as_ref()
+                    .map(|v| v.contains(&JavaScriptOptimization::EntropyCrossScopeReuse));
+                (
+                    explicit,
+                    self.javascript
+                        .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
+                )
+            }
+        }
+    }
+
     pub fn optimizer_options(&self) -> OptimizationOptions {
         self.optimization.resolve()
     }
@@ -445,10 +742,12 @@ impl ProjectConfig {
                     FunctionSpelling::Arrow
                 },
             ),
-            public_function_arrows: matches!(
-                self.javascript.function_spelling,
-                Some(FunctionSpelling::Arrow)
-            ),
+            // An exported function keeps the callable kind the original library
+            // publishes — an ordinary `function`, constructible, with its own
+            // `prototype` — whatever `function_spelling` chooses for private
+            // functions. That spelling was a combined public/private knob; the
+            // ABI freezes the public half (D2, javascript-shape-abi).
+            public_function_arrows: false,
             loop_spelling: LoopSpelling::Auto,
             mutation_spelling: MutationSpelling::Assignment,
             identifier_alphabet: IdentifierAlphabet::canonical(),
@@ -717,7 +1016,42 @@ impl ProjectConfig {
                 .compression_enabled(CompressionDecision::ParameterizedFunctionMerging)
     }
 
+    /// Accepted knobs this compiler does not implement, one message each. The
+    /// CLI prints them as warnings; an empty list means every setting in the
+    /// configuration is honoured.
+    pub fn unimplemented_knobs(&self) -> Vec<String> {
+        let javascript = &self.javascript;
+        let mut notes = Vec::new();
+        if let Some(ordering) = javascript.name_ordering {
+            if ordering != SiblingNameOrdering::EmissionWalk {
+                notes.push(format!(
+                    "`javascript.name_ordering = \"{}\"` selects a naming strategy this compiler does not implement; \
+                     it is accepted and has no effect, and the default naming is used",
+                    ordering.as_str()
+                ));
+            }
+        }
+        if javascript.terminal_cleanup_chain == Some(true) {
+            notes.push(
+                "`javascript.terminal_cleanup_chain = true` enables a cleanup this compiler does not implement; \
+                 it is accepted and has no effect"
+                    .to_string(),
+            );
+        }
+        if javascript.wide_single_use_collapse == Some(true) {
+            notes.push(
+                "`javascript.wide_single_use_collapse = true` enables a collapse this compiler does not implement; \
+                 it is accepted and has no effect"
+                    .to_string(),
+            );
+        }
+        notes
+    }
+
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(policy) = &self.policy {
+            policy.validate()?;
+        }
         if self.bundle.min_chunk_bytes == 0 {
             return Err("`bundle.min_chunk_bytes` must be greater than zero".to_string());
         }
@@ -809,8 +1143,8 @@ impl ProjectConfig {
         if self.javascript.startup.max_nesting == Some(0) {
             return Err("`javascript.startup.max_nesting` must be greater than zero".to_string());
         }
-        if self.javascript.optimization_level > 15 {
-            return Err("`javascript.optimization_level` must be between 0 and 15".to_string());
+        if self.javascript.optimization_level > 16 {
+            return Err("`javascript.optimization_level` must be between 0 and 16".to_string());
         }
         if let Some(features) = &self.javascript.optimizations {
             let mut unique = HashSet::with_capacity(features.len());
@@ -1274,6 +1608,8 @@ pub struct JavaScriptConfig {
     /// body has run, which only an import cycle can observe. A port turns it on
     /// against its own measure.
     pub function_scope: Option<bool>,
+    /// Emit pure-call annotations for checked pure exports in the final module.
+    pub emit_pure_annotations: bool,
     /// Spell `x != null` on a nullable whose present values are always truthy
     /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests
     /// an object for truthiness in about 3.8 ns against 2.6 for `x!==null`
@@ -1293,6 +1629,29 @@ pub struct JavaScriptConfig {
     /// two hundred and fifty-six +130. The knob exists so the next context can
     /// re-measure it in one flag rather than rebuild the experiment.
     pub idiom_directed_naming: bool,
+    /// Optimizer knobs that maintained ports set for the `migration/target-tree`
+    /// line of the compiler, which this line does not implement.
+    ///
+    /// They are strategy choices, not language semantics: each one decides how
+    /// the output is spelled, never what the program does. Twelve of the
+    /// twenty-seven maintained ports set at least one of them, and refusing the
+    /// whole configuration made those ports impossible to build from source at
+    /// all (migration 001). So they are accepted, their values are validated,
+    /// and the CLI warns that they have no effect here -- the port builds with
+    /// this line's default strategy, and whether a knob is worth porting is
+    /// then a measured byte difference rather than a guess.
+    ///
+    /// `name_ordering = "idiom-converged"` is *not* `idiom_directed_naming`:
+    /// the sibling knob re-spells repeated token shapes from the tree, this
+    /// line's knob only offers a candidate beside the canonical naming. Mapping
+    /// one onto the other would silently change what the port asked for.
+    pub name_ordering: Option<SiblingNameOrdering>,
+    /// See `name_ordering`. On the sibling line: re-open the canonical peephole
+    /// on each finalist's text during cleanup.
+    pub terminal_cleanup_chain: Option<bool>,
+    /// See `name_ordering`. On the sibling line: the port-fixed wide single-use
+    /// collapse, constant across every plan of a compile.
+    pub wide_single_use_collapse: Option<bool>,
     /// Wrap exclusive callees of a named root in a once-run IIFE so those
     /// helpers can reuse short names. Off only for oracles that need the
     /// three-address helper spelling their fixture was written against.
@@ -1350,6 +1709,7 @@ pub struct JavaScriptConfig {
     /// builds do not ship `console.log`. Test oracles set false. Does not strip
     /// `console.warn` (observable library behavior).
     pub strip_console: bool,
+    /// Limits on the startup cost an emitted artifact may add (parse, compile and initialization work); a candidate over them is not admitted.
     pub startup: StartupCostConfig,
     pub performance: JavaScriptPerformanceConfig,
 }
@@ -1393,8 +1753,12 @@ impl Default for JavaScriptConfig {
             stable_local_names: true,
             local_name_coalescing: true,
             function_scope: None,
+            emit_pure_annotations: false,
             truthy_nullable_checks: None,
             idiom_directed_naming: false,
+            name_ordering: None,
+            terminal_cleanup_chain: None,
+            wide_single_use_collapse: None,
             iife_private_callee_clusters: true,
             nested_once_run_helpers: true,
             operand_order_fusion: true,
@@ -2240,6 +2604,7 @@ pub struct BundleConfig {
     pub max_chunks: usize,
     pub shared_min_imports: usize,
     pub preload: PreloadPolicy,
+    /// Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions.
     pub cost: ChunkCostConfig,
 }
 
@@ -2308,11 +2673,28 @@ pub fn load_project_config(
     })
 }
 
+/// The directory a project-config search starts from, for an input that is a
+/// file rather than a directory.
+///
+/// `Path::parent()` of a bare relative filename is `Some("")`, not `None`, and
+/// the empty path does not canonicalize. Treating that as "no project config"
+/// made `lilscript main.lil` silently drop every setting in the
+/// `lilscript.toml` sitting beside it while `lilscript ./main.lil` honoured it —
+/// two different programs from one source, with no diagnostic. Every key was
+/// affected, including `function_spelling` (which rebinds `this`) and
+/// `strip_console` (which decides whether the program produces output at all).
+fn config_search_parent(input: &Path) -> &Path {
+    match input.parent() {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => Path::new("."),
+    }
+}
+
 fn discover(input: &Path) -> Option<PathBuf> {
     let start = if input.is_dir() {
         input
     } else {
-        input.parent().unwrap_or_else(|| Path::new("."))
+        config_search_parent(input)
     };
     let mut directory = start.canonicalize().ok()?;
     loop {
@@ -2329,6 +2711,26 @@ fn discover(input: &Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A bare relative filename must find the same project config as the same
+    /// file spelled `./name`. `Path::parent()` returns `Some("")` for the bare
+    /// spelling, and the empty path does not canonicalize, so treating it as
+    /// "no config" silently dropped every setting -- including the two that
+    /// change what the program *means*: `function_spelling`, which rebinds
+    /// `this`, and `strip_console`, which decides whether it produces output.
+    #[test]
+    fn a_bare_filename_searches_the_same_directory_as_a_dotted_one() {
+        assert_eq!(config_search_parent(Path::new("main.lil")), Path::new("."));
+        assert_eq!(config_search_parent(Path::new("./main.lil")), Path::new("."));
+        assert_eq!(
+            config_search_parent(Path::new("ports/main.lil")),
+            Path::new("ports")
+        );
+        assert_eq!(
+            config_search_parent(Path::new("/abs/ports/main.lil")),
+            Path::new("/abs/ports")
+        );
+    }
 
     #[test]
     fn parses_typed_compiler_resource_limits() {
@@ -2390,6 +2792,37 @@ shared_min_imports = 3
         assert_eq!(config.bundle.mode, BundleMode::Split);
         assert_eq!(config.bundle.min_chunk_bytes, 4096);
         config.validate().unwrap();
+    }
+
+    #[test]
+    fn sibling_line_optimizer_knobs_are_accepted_and_reported() {
+        let config: ProjectConfig = toml::from_str(
+            "[javascript]\nname_ordering = \"idiom-converged\"\nterminal_cleanup_chain = true\nwide_single_use_collapse = true\n",
+        )
+        .unwrap();
+        assert_eq!(config.javascript.name_ordering, Some(SiblingNameOrdering::IdiomConverged));
+        let notes = config.unimplemented_knobs();
+        assert_eq!(notes.len(), 3, "{notes:?}");
+        assert!(notes[0].contains("idiom-converged"), "{notes:?}");
+        assert!(notes[1].contains("terminal_cleanup_chain"), "{notes:?}");
+        assert!(notes[2].contains("wide_single_use_collapse"), "{notes:?}");
+    }
+
+    #[test]
+    fn sibling_line_knobs_at_their_anchor_values_are_silent() {
+        let config: ProjectConfig = toml::from_str(
+            "[javascript]\nname_ordering = \"emission-walk\"\nterminal_cleanup_chain = false\nwide_single_use_collapse = false\n",
+        )
+        .unwrap();
+        assert!(config.unimplemented_knobs().is_empty());
+        assert!(ProjectConfig::default().unimplemented_knobs().is_empty());
+    }
+
+    #[test]
+    fn a_misspelled_sibling_knob_value_is_still_an_error() {
+        assert!(toml::from_str::<ProjectConfig>("[javascript]\nname_ordering = \"idom-converged\"\n").is_err());
+        assert!(toml::from_str::<ProjectConfig>("[javascript]\nterminal_cleanup_chain = \"yes\"\n").is_err());
+        assert!(toml::from_str::<ProjectConfig>("[javascript]\nno_such_knob = true\n").is_err());
     }
 
     #[test]
@@ -3406,11 +3839,11 @@ optimization_level = 0
                 .unwrap();
         assert!(duplicate.validate().unwrap_err().contains("duplicate"));
         let invalid_level: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=16\n").unwrap();
+            toml::from_str("[javascript]\noptimization_level=17\n").unwrap();
         assert!(invalid_level
             .validate()
             .unwrap_err()
-            .contains("between 0 and 15"));
+            .contains("between 0 and 16"));
         let zero_beam: ProjectConfig =
             toml::from_str("[javascript]\ncandidate_beam_width=0\n").unwrap();
         assert!(zero_beam

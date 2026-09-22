@@ -1,0 +1,3335 @@
+{
+  "schemaVersion": 1,
+  "kind": "cost-and-qualification-policy",
+  "generated": "2026-09-20T18:44:01.807Z",
+  "passed": true,
+  "codecs": [
+    "raw",
+    "gzip",
+    "brotli"
+  ],
+  "profileRoles": {
+    "": "release-default",
+    "closed": "release-closed-world",
+    "closed-world": "release-closed-world",
+    "open-world": "release-open-world",
+    "app": "release-application",
+    "public": "release-public-api",
+    "raw": "release-raw-objective",
+    "bytes": "release-raw-objective",
+    "gzip": "release-gzip-objective",
+    "production.min": "release-minified",
+    "reactivity-production": "release-variant",
+    "mhchem": "release-optional-extension",
+    "dev": "diagnostic-development",
+    "debug": "diagnostic-debug",
+    "none": "diagnostic-no-optimization",
+    "check": "diagnostic-check-only",
+    "nomangle": "diagnostic-mangling-fairness",
+    "perf": "diagnostic-performance",
+    "performance": "diagnostic-performance",
+    "memory-parity": "diagnostic-memory-parity",
+    "packs-safe": "diagnostic-packaging-variant",
+    "sourcemap-analysis": "diagnostic-source-map",
+    "sourcemap-hidden": "diagnostic-source-map",
+    "sourcemap-inline": "diagnostic-source-map",
+    "sourcemap-linked": "diagnostic-source-map"
+  },
+  "envelopes": {
+    "compileWallSecondsPerProfile": {
+      "ceiling": 300,
+      "basis": "benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/README.md: the first Brotli-profile compile of Marked finished in 244.740 seconds and the four-profile build reached its 300-second limit during the next profile.",
+      "note": "Per profile, not per library. A library with four profiles needs four budgets, which is why whole-library builds are scheduled per profile."
+    },
+    "compileWallSecondsPerLibrary": {
+      "ceiling": 1500,
+      "basis": "Four release profiles at the per-profile ceiling, plus one profile's worth of packaging and measurement.",
+      "note": "Unqualified above this; the run is preserved with its partial artifacts marked ineligible."
+    },
+    "compilerResidentMegabytes": {
+      "ceiling": 6144,
+      "basis": "Host is a burstable 8-vCPU, 16 GiB machine; two concurrent compiles must fit with the test runner alongside.",
+      "note": "Measured as peak process RSS by GNU time, recorded per invocation."
+    },
+    "firstValidArtifactMilliseconds": {
+      "ceiling": 60000,
+      "basis": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/README.md: on the 12-module fixture the first qualified artifact appears internally after about 26 ms while the service takes 1,965 ms total.",
+      "note": "Time to the first eligible artifact, separate from time to the admitted incumbent."
+    },
+    "codecShareOfCompileWall": {
+      "ceiling": 0.95,
+      "basis": "Same study: canonical Brotli accounted for 1,877.934 ms of a 1,965.194 ms service wall, which is 95.6% and already at the ceiling.",
+      "note": "Above this, added probe budget is buying codec time rather than search. Reported per invocation; it bounds where effort may be added, not whether a build passes."
+    },
+    "runtimeRegressionRatio": {
+      "ceiling": 1.1,
+      "basis": "finer/status.md records cnlil shipping at 0.96-1.06 of upstream across nine harness lanes; a port slower than 1.10 on any lane is not a complete win.",
+      "note": "Per harness lane against the upstream library, median of interleaved rounds."
+    }
+  },
+  "timing": {
+    "cold": "First invocation after the page cache has not seen the binary or inputs in this session: no warmup run, caches not primed.",
+    "warm": "After at least one discarded warmup invocation of the same binary on the same inputs, with the OS page cache holding them.",
+    "samples": 5,
+    "discardedWarmups": 1,
+    "statistic": "median",
+    "interleaving": "Alternate arms within one session rather than running all of one arm first; a host under changing load otherwise assigns its drift to whichever arm ran later.",
+    "threads": "RAYON_NUM_THREADS pinned for every timed comparison; recorded in the receipt.",
+    "noise": [
+      "Deterministic codec byte differences are real at any magnitude; a byte delta needs no repetition.",
+      "Timing needs repetition. A wall-clock difference smaller than the interquartile range of either arm is not a result.",
+      "This host is a burstable instance whose throughput halves once CPU credits drain, so timed comparisons record the host and the elapsed session time.",
+      "Instruction alignment moves hot-loop timings by up to 17% on this host, so a timing delta from a single build is compared against a no-op perturbation build before it is believed."
+    ]
+  },
+  "delivery": {
+    "counts": [
+      "The scored artifact itself.",
+      "Every adapter, helper, shim and runtime support file the artifact needs to run.",
+      "Every chunk a consumer must fetch to use the public API, including dynamically imported ones.",
+      "Bundled dependencies. A dependency that is left external is counted only when the competitor also leaves it external.",
+      "Initialization code that runs before the public API is usable.",
+      "Required non-JavaScript resources the artifact loads at startup."
+    ],
+    "excludes": [
+      "Source maps, type declarations and documentation, which are not fetched to run the library.",
+      "Development-only files that no release entry point reaches."
+    ],
+    "rules": [
+      "The competitor and the candidate must leave the same specifiers external, verified by comparing the published name sets of both artifacts.",
+      "A reduced export set is its own boundary, not a whole-library win; the boundary is named by the names it publishes.",
+      "An artifact that fails its boundary's required cases is ineligible at any size.",
+      "Cross-codec wins do not transfer: each of raw, gzip and Brotli is selected independently."
+    ],
+    "openDecision": "D4's numeric strict-win threshold remains open: this policy fixes what is measured and counted, not how many bytes constitute a win."
+  },
+  "matrix": {
+    "cells": 228,
+    "requiredCells": 186,
+    "boundaries": 29,
+    "releaseProfiles": [
+      "config/closed-world.toml",
+      "config/open-world.toml",
+      "config/production.min.toml",
+      "config/reactivity-production.toml",
+      "lilscript.app.toml",
+      "lilscript.bytes.toml",
+      "lilscript.closed.toml",
+      "lilscript.gzip.toml",
+      "lilscript.mhchem.toml",
+      "lilscript.toml",
+      "src/lilscript.app.toml",
+      "src/lilscript.closed.toml",
+      "src/lilscript.toml"
+    ],
+    "diagnosticProfiles": [
+      "config/dev.toml",
+      "config/perf.toml",
+      "lilscript.check.toml",
+      "lilscript.dev.toml",
+      "lilscript.nomangle.toml",
+      "lilscript.packs-safe.toml",
+      "lilscript.sourcemap-analysis.toml",
+      "lilscript.sourcemap-hidden.toml",
+      "lilscript.sourcemap-inline.toml",
+      "lilscript.sourcemap-linked.toml",
+      "src/lilscript.memory-parity.toml",
+      "src/lilscript.performance.toml"
+    ],
+    "fixtureConfigurations": [
+      "test/parse5-modules.toml",
+      "test/upstream/dom-web-oracle.toml",
+      "test/upstream/exact-production.toml"
+    ],
+    "rows": [
+      {
+        "boundary": "cnlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "cnlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "cnlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "cnlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "cnlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "cnlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "hast-util-to-htmllil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "hast-util-to-htmllil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "hast-util-to-htmllil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "hast-util-to-htmllil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "hast-util-to-htmllil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "hast-util-to-htmllil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "jquerylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.app.toml",
+        "role": "release-application",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "jquerylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.app.toml",
+        "role": "release-application",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "jquerylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.app.toml",
+        "role": "release-application",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "jquerylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "jquerylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "jquerylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.check.toml",
+        "role": "diagnostic-check-only",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.check.toml",
+        "role": "diagnostic-check-only",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.check.toml",
+        "role": "diagnostic-check-only",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.mhchem.toml",
+        "role": "release-optional-extension",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.mhchem.toml",
+        "role": "release-optional-extension",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.mhchem.toml",
+        "role": "release-optional-extension",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-analysis.toml",
+        "role": "diagnostic-source-map",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-analysis.toml",
+        "role": "diagnostic-source-map",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-analysis.toml",
+        "role": "diagnostic-source-map",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-hidden.toml",
+        "role": "diagnostic-source-map",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-hidden.toml",
+        "role": "diagnostic-source-map",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-hidden.toml",
+        "role": "diagnostic-source-map",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-inline.toml",
+        "role": "diagnostic-source-map",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-inline.toml",
+        "role": "diagnostic-source-map",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-inline.toml",
+        "role": "diagnostic-source-map",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-linked.toml",
+        "role": "diagnostic-source-map",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-linked.toml",
+        "role": "diagnostic-source-map",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.sourcemap-linked.toml",
+        "role": "diagnostic-source-map",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "markedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-from-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-from-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-from-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-from-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-from-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-from-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-to-hastlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-to-hastlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-to-hastlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-to-hastlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-to-hastlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mdast-util-to-hastlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "micromarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "micromarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "micromarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "micromarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "micromarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "micromarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/dev.toml",
+        "role": "diagnostic-development",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/dev.toml",
+        "role": "diagnostic-development",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/dev.toml",
+        "role": "diagnostic-development",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/perf.toml",
+        "role": "diagnostic-performance",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/perf.toml",
+        "role": "diagnostic-performance",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/perf.toml",
+        "role": "diagnostic-performance",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/production.min.toml",
+        "role": "release-minified",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/production.min.toml",
+        "role": "release-minified",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "config/production.min.toml",
+        "role": "release-minified",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "mobxlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "lilscript.app.toml",
+        "role": "release-application",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "lilscript.app.toml",
+        "role": "release-application",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "lilscript.app.toml",
+        "role": "release-application",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.app.toml",
+        "role": "release-application",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.app.toml",
+        "role": "release-application",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.app.toml",
+        "role": "release-application",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "monacolil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "motionlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.memory-parity.toml",
+        "role": "diagnostic-memory-parity",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "motionlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.memory-parity.toml",
+        "role": "diagnostic-memory-parity",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "motionlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.memory-parity.toml",
+        "role": "diagnostic-memory-parity",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "motionlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "motionlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "motionlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "playcanvaslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "playcanvaslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "playcanvaslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.packs-safe.toml",
+        "role": "diagnostic-packaging-variant",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.packs-safe.toml",
+        "role": "diagnostic-packaging-variant",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.packs-safe.toml",
+        "role": "diagnostic-packaging-variant",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "posthoglil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "react-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "react-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "react-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "react-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "react-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "react-markdownlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-katexlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-stringifylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-stringifylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-stringifylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-stringifylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-stringifylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehype-stringifylil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-breakslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-breakslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-breakslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-breakslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-breakslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-breakslil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-gfmlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-gfmlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-gfmlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-gfmlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-gfmlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-gfmlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-mathlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-mathlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-mathlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-mathlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-mathlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-mathlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-parselil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-parselil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-parselil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-parselil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-parselil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-parselil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remark-rehypelil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "remarklil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.performance.toml",
+        "role": "diagnostic-performance",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.performance.toml",
+        "role": "diagnostic-performance",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.performance.toml",
+        "role": "diagnostic-performance",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "solidlil",
+        "kind": "maintained-library",
+        "profile": "src/lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "unifiedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "unifiedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "unifiedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.closed.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "unifiedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "unifiedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "unifiedlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/closed-world.toml",
+        "role": "release-closed-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/closed-world.toml",
+        "role": "release-closed-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/closed-world.toml",
+        "role": "release-closed-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/open-world.toml",
+        "role": "release-open-world",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/open-world.toml",
+        "role": "release-open-world",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/open-world.toml",
+        "role": "release-open-world",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/reactivity-production.toml",
+        "role": "release-variant",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/reactivity-production.toml",
+        "role": "release-variant",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "vuelil",
+        "kind": "maintained-library",
+        "profile": "config/reactivity-production.toml",
+        "role": "release-variant",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.bytes.toml",
+        "role": "release-raw-objective",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.dev.toml",
+        "role": "diagnostic-development",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.gzip.toml",
+        "role": "release-gzip-objective",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.nomangle.toml",
+        "role": "diagnostic-mangling-fairness",
+        "codec": "raw",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.nomangle.toml",
+        "role": "diagnostic-mangling-fairness",
+        "codec": "gzip",
+        "primary": false,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.nomangle.toml",
+        "role": "diagnostic-mangling-fairness",
+        "codec": "brotli",
+        "primary": true,
+        "required": false,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "zodlil",
+        "kind": "maintained-library",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open",
+          "closed"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "probelil",
+        "kind": "feature-canary",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "probelil",
+        "kind": "feature-canary",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "probelil",
+        "kind": "feature-canary",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "lil-solidjs",
+        "kind": "related-checkout",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "raw",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "lil-solidjs",
+        "kind": "related-checkout",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "gzip",
+        "primary": false,
+        "required": true,
+        "worlds": [
+          "open"
+        ],
+        "workspacePresent": true
+      },
+      {
+        "boundary": "lil-solidjs",
+        "kind": "related-checkout",
+        "profile": "lilscript.toml",
+        "role": "release-default",
+        "codec": "brotli",
+        "primary": true,
+        "required": true,
+        "worlds": [
+          "open"
+        ],
+        "workspacePresent": true
+      }
+    ]
+  },
+  "findings": [],
+  "fingerprint": "914077df9afbf0f72acc00da8b0a633a6e0055bc088c0f3c42e3ce253c33cbfe"
+}

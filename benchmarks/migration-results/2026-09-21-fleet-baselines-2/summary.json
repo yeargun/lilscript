@@ -1,0 +1,247 @@
+{
+  "schema": 1,
+  "kind": "source-baseline-batch",
+  "runId": "2026-09-21-fleet-baselines-2",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "started": "2026-09-21T09:34:42.646Z",
+  "qualified": [
+    {
+      "library": "posthoglil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 177.667,
+      "artifacts": 7,
+      "cases": {
+        "required": 29,
+        "executed": 29,
+        "failed": []
+      },
+      "measurements": {
+        "dist/posthog.bytes.js": {
+          "raw": 15892,
+          "gzip": 6410,
+          "brotli": 5679
+        },
+        "dist/posthog.cjs": {
+          "raw": 18675,
+          "gzip": 6846,
+          "brotli": 6065
+        },
+        "dist/posthog.closed.js": {
+          "raw": 16775,
+          "gzip": 6510,
+          "brotli": 5680
+        },
+        "dist/posthog.esm.js": {
+          "raw": 16557,
+          "gzip": 6442,
+          "brotli": 5720
+        },
+        "dist/posthog.gzip.js": {
+          "raw": 16298,
+          "gzip": 6375,
+          "brotli": 5689
+        },
+        "dist/posthog.raw.js": {
+          "raw": 16466,
+          "gzip": 6385,
+          "brotli": 5622
+        },
+        "dist/posthog.umd.js": {
+          "raw": 18747,
+          "gzip": 6870,
+          "brotli": 6104
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "rehypelil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 1438.446,
+      "artifacts": 4,
+      "cases": {
+        "required": 164,
+        "executed": 164,
+        "failed": []
+      },
+      "measurements": {
+        "dist/rehype.cjs": {
+          "raw": 172091,
+          "gzip": 61122,
+          "brotli": 51120
+        },
+        "dist/rehype.closed.js": {
+          "raw": 167088,
+          "gzip": 60603,
+          "brotli": 50958
+        },
+        "dist/rehype.esm.js": {
+          "raw": 171605,
+          "gzip": 60936,
+          "brotli": 50960
+        },
+        "dist/rehype.umd.js": {
+          "raw": 172455,
+          "gzip": 61274,
+          "brotli": 51278
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "katexlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 979.132,
+      "artifacts": 11,
+      "cases": {
+        "required": 26,
+        "executed": 26,
+        "failed": []
+      },
+      "measurements": {
+        "dist/fontMetricsData.js": {
+          "raw": 57656,
+          "gzip": 11320,
+          "brotli": 9209
+        },
+        "dist/katex.cjs": {
+          "raw": 276803,
+          "gzip": 78454,
+          "brotli": 65121
+        },
+        "dist/katex.closed.js": {
+          "raw": 275187,
+          "gzip": 78693,
+          "brotli": 64996
+        },
+        "dist/katex.closed.raw.js": {
+          "raw": 217627,
+          "gzip": 66828,
+          "brotli": 55565
+        },
+        "dist/katex.contrib-test.js": {
+          "raw": 719,
+          "gzip": 424,
+          "brotli": 373
+        },
+        "dist/katex.esm.js": {
+          "raw": 274768,
+          "gzip": 78623,
+          "brotli": 64848
+        },
+        "dist/katex.min.js": {
+          "raw": 276813,
+          "gzip": 78458,
+          "brotli": 65197
+        },
+        "dist/katex.mjs": {
+          "raw": 274768,
+          "gzip": 78623,
+          "brotli": 64848
+        },
+        "dist/katex.raw.js": {
+          "raw": 217206,
+          "gzip": 66743,
+          "brotli": 55469
+        },
+        "dist/katex.test.js": {
+          "raw": 274946,
+          "gzip": 78706,
+          "brotli": 64945
+        },
+        "dist/katex.umd.js": {
+          "raw": 276813,
+          "gzip": 78458,
+          "brotli": 65197
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    }
+  ],
+  "unqualified": [
+    {
+      "library": "mobxlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 149.821,
+      "artifacts": 12,
+      "cases": null,
+      "measurements": {
+        "dist/index.js": {
+          "raw": 185,
+          "gzip": 142,
+          "brotli": 111
+        },
+        "dist/mobx.cjs.development.js": {
+          "raw": 168276,
+          "gzip": 39222,
+          "brotli": 32115
+        },
+        "dist/mobx.cjs.production.js": {
+          "raw": 77984,
+          "gzip": 19221,
+          "brotli": 17085
+        },
+        "dist/mobx.cjs.production.min.js": {
+          "raw": 84156,
+          "gzip": 20266,
+          "brotli": 17979
+        },
+        "dist/mobx.dev.esm.js": {
+          "raw": 132654,
+          "gzip": 35197,
+          "brotli": 29449
+        },
+        "dist/mobx.esm.development.js": {
+          "raw": 132654,
+          "gzip": 35197,
+          "brotli": 29449
+        },
+        "dist/mobx.esm.js": {
+          "raw": 56464,
+          "gzip": 16813,
+          "brotli": 15187
+        },
+        "dist/mobx.esm.production.min.js": {
+          "raw": 58884,
+          "gzip": 17320,
+          "brotli": 15570
+        },
+        "dist/mobx.mjs": {
+          "raw": 56464,
+          "gzip": 16813,
+          "brotli": 15187
+        },
+        "dist/mobx.umd.development.js": {
+          "raw": 178106,
+          "gzip": 39696,
+          "brotli": 32390
+        },
+        "dist/mobx.umd.production.js": {
+          "raw": 83008,
+          "gzip": 19454,
+          "brotli": 17251
+        },
+        "dist/mobx.umd.production.min.js": {
+          "raw": 89644,
+          "gzip": 20563,
+          "brotli": 18153
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": null
+    }
+  ],
+  "completed": "2026-09-21T10:21:02.774Z"
+}

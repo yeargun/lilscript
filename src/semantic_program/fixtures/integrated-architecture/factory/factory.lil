@@ -1,0 +1,24 @@
+import {bump} from "./state.lil";
+import {boots} from "./boot.lil";
+extern void emit(string label,int value);
+extern int seedEffect(int seed);
+extern void keep(int seed,func()->int read,func(int)->void write);
+extern void visit(int seed,int value,string label);
+export int late=41;
+emit("factory",late);
+export int readLate(){emit("read-late",0);return late;}
+export func(int)->int make(int seed){
+    Record<int> state=record{count:seed,dead:seedEffect(seed)};
+    auto step=(int delta)=>{state.count=(state.count??0)+delta;return state.count??0;};
+    auto makeLabel=()=>"counter/"+"ready";
+    keep(seed,()=>state.count??0,(int next)=>{state.count=next;});
+    return (int delta)=>{
+        string label=makeLabel();
+        try {
+            int result=step(delta);
+            bump();
+            visit(seed,result,label);
+            return result;
+        } finally { emit("finally",state.count??0); }
+    };
+}

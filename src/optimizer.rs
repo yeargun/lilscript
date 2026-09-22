@@ -1,3 +1,5 @@
+use crate::literal::StringValue;
+use crate::semantic::StructType;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -484,10 +486,14 @@ fn typed_ordinary_array_operation(intrinsic: Intrinsic) -> bool {
 
 fn collect_untyped_aggregate_owners<'src>(ty: &Type<'src>, owners: &mut AHashSet<&'src str>) {
     match ty {
-        Type::Struct(name) | Type::Class(name) => {
+        Type::Struct(StructType { name, .. }) | Type::Class(name) => {
             owners.insert(name);
         }
-        Type::StructInstance { name, args } | Type::ClassInstance { name, args } => {
+        Type::StructInstance {
+            declaration: StructType { name, .. },
+            args,
+        }
+        | Type::ClassInstance { name, args } => {
             owners.insert(name);
             for argument in args {
                 collect_untyped_aggregate_owners(argument, owners);
@@ -510,13 +516,13 @@ fn collect_untyped_aggregate_owners<'src>(ty: &Type<'src>, owners: &mut AHashSet
         }
         Type::Function(signature) => {
             for parameter in &signature.params {
-                collect_untyped_aggregate_owners(parameter, owners);
+                collect_untyped_aggregate_owners(&parameter.ty, owners);
             }
             collect_untyped_aggregate_owners(&signature.return_type, owners);
         }
         Type::GenericFunction(function) => {
             for parameter in &function.signature.params {
-                collect_untyped_aggregate_owners(parameter, owners);
+                collect_untyped_aggregate_owners(&parameter.ty, owners);
             }
             collect_untyped_aggregate_owners(&function.signature.return_type, owners);
         }
@@ -2168,7 +2174,7 @@ fn rewrite_document_create_comment(
         ControlFlowInstruction {
             out: Some(empty),
             ty: Some(Type::String),
-            op: ControlFlowOp::Const(ConstValue::String(String::new())),
+            op: ControlFlowOp::Const(ConstValue::String(StringValue::default())),
             lowering_obligation: crate::ir::LoweringObligation::Free,
             origin: crate::ir::OperationOrigin::Generated,
             node_id: None,
@@ -2482,7 +2488,7 @@ fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> Optimiza
                 }
                 pairs.remainder().is_empty().then_some((out, fields))
             })
-            .collect::<AHashMap<_, AHashMap<String, ValueId>>>();
+            .collect::<AHashMap<_, AHashMap<StringValue, ValueId>>>();
         let object_blocks = function
             .blocks
             .iter()
@@ -2529,7 +2535,9 @@ fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> Optimiza
                             ControlFlowOp::HostFieldGet {
                                 object: receiver,
                                 property,
-                            } if *receiver == object => objects[&object].contains_key(*property),
+                            } if *receiver == object => {
+                                objects[&object].contains_key(&StringValue::from(*property))
+                            }
                             ControlFlowOp::Intrinsic {
                                 intrinsic: Intrinsic::JsPlainObject,
                                 ..
@@ -2569,7 +2577,7 @@ fn fold_owned_plain_object_reads(module: &mut ControlFlowModule<'_>) -> Optimiza
                         .map(|value| (out, value)),
                     (ControlFlowOp::HostFieldGet { object, property }, Some(out)) => objects
                         .get(object)
-                        .and_then(|fields| fields.get(*property))
+                        .and_then(|fields| fields.get(&StringValue::from(*property)))
                         .copied()
                         .map(|value| (out, value)),
                     _ => None,
@@ -2878,7 +2886,7 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
         }
         let uses = control_flow_use_counts(function);
         let mut stringify = AHashMap::default();
-        let mut invoke_keys = AHashMap::<ValueId, String>::default();
+        let mut invoke_keys = AHashMap::<ValueId, StringValue>::default();
         for (block_index, block) in function.blocks.iter().enumerate() {
             for (instruction_index, instruction) in block.instructions.iter().enumerate() {
                 match (instruction.out, &instruction.op) {
@@ -2936,7 +2944,7 @@ fn elide_single_use_stringify(module: &mut ControlFlowModule<'_>) -> Optimizatio
                     {
                         let invoke_name =
                             args.first().and_then(|key| invoke_keys.get(key)).cloned();
-                        match invoke_name.as_deref() {
+                        match invoke_name.as_ref().and_then(StringValue::as_unicode) {
                             Some(name) if is_string_prototype_method(name) => {
                                 if let Some(receiver) = receiver.as_mut() {
                                     if rewrite_stringify_slot(receiver, &available, &mut consumed) {
@@ -3804,7 +3812,7 @@ fn runtime_type_predicate_key(
         let ControlFlowOp::Const(ConstValue::String(name)) = definitions.get(&name)? else {
             return None;
         };
-        runtime_type_predicate_for_name(name).map(|predicate| (*value, predicate))
+        runtime_type_predicate_for_name(name.as_unicode()?).map(|predicate| (*value, predicate))
     };
     predicate(*lhs, *rhs).or_else(|| predicate(*rhs, *lhs))
 }
@@ -3887,7 +3895,7 @@ enum ConstantNumber {
     Int(i64),
     Float(u64),
     Bool(bool),
-    String(String),
+    String(StringValue),
     Null,
 }
 
@@ -4218,7 +4226,7 @@ enum ConstantKey {
     Int(i64),
     Float(u64),
     Bool(bool),
-    String(String),
+    String(StringValue),
     Null,
 }
 
@@ -5162,11 +5170,14 @@ fn fold_and_propagate_control_flow(
                                 let Some(ConstValue::Int(radix @ 2..=36)) = radix else {
                                     return None;
                                 };
-                                Some(ConstValue::String(format_i32_radix(
-                                    *value as i32,
-                                    *radix as u32,
-                                    matches!(intrinsic, Intrinsic::IntToUnsignedString),
-                                )))
+                                Some(ConstValue::String(
+                                    format_i32_radix(
+                                        *value as i32,
+                                        *radix as u32,
+                                        matches!(intrinsic, Intrinsic::IntToUnsignedString),
+                                    )
+                                    .into(),
+                                ))
                             });
                             if let Some(folded) = folded {
                                 instruction.op = ControlFlowOp::Const(folded.clone());
@@ -5287,7 +5298,7 @@ fn fold_and_propagate_control_flow(
                             ..
                         } => {
                             if let Some(name) = js_typeof.get(receiver).copied() {
-                                let folded = ConstValue::String(name.to_string());
+                                let folded = ConstValue::String(name.into());
                                 instruction.op = ControlFlowOp::Const(folded.clone());
                                 constants.insert(out, folded);
                                 js_typeof.insert(out, "string");
@@ -5386,10 +5397,10 @@ fn fold_and_propagate_control_flow(
                                 .iter()
                                 .all(|part| matches!(part, TemplateOperand::String(_)))
                             {
-                                let mut value = String::new();
+                                let mut value = StringValue::default();
                                 for part in &folded_parts {
                                     if let TemplateOperand::String(part) = part {
-                                        value.push_str(part);
+                                        value.push(part);
                                     }
                                 }
                                 let folded = ConstValue::String(value);
@@ -6869,7 +6880,10 @@ fn type_has_type_parameter(ty: &Type<'_>) -> bool {
             args.iter().any(type_has_type_parameter)
         }
         Type::Function(signature) => {
-            signature.params.iter().any(type_has_type_parameter)
+            signature
+                .params
+                .iter()
+                .any(|parameter| type_has_type_parameter(&parameter.ty))
                 || type_has_type_parameter(&signature.return_type)
         }
         Type::GenericFunction(_) => true,
@@ -7431,7 +7445,7 @@ fn default_scalar_constant(ty: &Type<'_>) -> Option<ConstValue> {
         Type::Int => Some(ConstValue::Int(0)),
         Type::Float => Some(ConstValue::Float(0.0)),
         Type::Bool => Some(ConstValue::Bool(false)),
-        Type::String => Some(ConstValue::String(String::new())),
+        Type::String => Some(ConstValue::String(StringValue::default())),
         _ => None,
     }
 }
@@ -7444,7 +7458,7 @@ enum EscapeNode {
     AggregateField(u32),
 }
 
-fn aggregate_field_slot_ids<'src>(
+pub(crate) fn aggregate_field_slot_ids<'src>(
     module: &ControlFlowModule<'src>,
 ) -> AHashMap<(&'src str, usize), u32> {
     let layouts = module
@@ -9002,14 +9016,14 @@ fn mark_escape_node(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct KnownRecordShape<'src> {
-    /// Source-encoded keys in insertion order. JavaScript array-index ordering
+struct KnownRecordShape {
+    /// Canonical string keys in insertion order. JavaScript array-index ordering
     /// is applied only when an observer asks for the own-key order.
-    entries: Vec<(&'src str, ValueId)>,
+    entries: Vec<(StringValue, ValueId)>,
 }
 
-fn try_decode_ir_source_string(value: &str) -> Option<String> {
-    serde_json::from_str(&format!("\"{value}\"")).ok()
+fn decode_record_key(value: &str) -> Option<StringValue> {
+    StringValue::decode_source(value).ok()
 }
 
 /// Return record allocations whose identity never reaches a write, aliasing
@@ -9120,10 +9134,10 @@ fn immutable_closed_record_shapes<'src>(
     function: &ControlFlowFunction<'src>,
     immutable: &AHashSet<ValueId>,
 ) -> (
-    AHashMap<ValueId, KnownRecordShape<'src>>,
+    AHashMap<ValueId, KnownRecordShape>,
     AHashMap<ValueId, usize>,
 ) {
-    let mut shapes = AHashMap::<ValueId, KnownRecordShape<'src>>::default();
+    let mut shapes = AHashMap::<ValueId, KnownRecordShape>::default();
     let mut definition_blocks = AHashMap::<ValueId, usize>::default();
     for (block_index, block) in function.blocks.iter().enumerate() {
         for instruction in &block.instructions {
@@ -9173,7 +9187,7 @@ fn immutable_closed_record_shapes<'src>(
                                         break;
                                     };
                                     for (key, value) in &source.entries {
-                                        complete &= known_record_set(&mut shape, key, *value);
+                                        known_record_set_value(&mut shape, key.clone(), *value);
                                     }
                                 }
                             }
@@ -9400,7 +9414,7 @@ fn project_closed_record_observations(module: &mut ControlFlowModule<'_>) -> Opt
                                         break;
                                     };
                                     for (key, value) in &source.entries {
-                                        complete &= known_record_set(&mut shape, key, *value);
+                                        known_record_set_value(&mut shape, key.clone(), *value);
                                     }
                                 }
                             }
@@ -9466,7 +9480,7 @@ fn project_closed_record_observations(module: &mut ControlFlowModule<'_>) -> Opt
                                 next_value += 1;
                                 function.value_escapes.push(EscapeState::LocalOnly);
                                 function.value_local_hints.push(None);
-                                let constant = ConstValue::String(key.to_string());
+                                let constant = ConstValue::String(key.clone());
                                 constants.insert(value, constant.clone());
                                 rewritten.push(ControlFlowInstruction {
                                     out: Some(value),
@@ -9573,32 +9587,32 @@ pub fn project_closed_record_observations_for_javascript(
     project_closed_record_observations(module)
 }
 
-fn known_record_set<'src>(
-    shape: &mut KnownRecordShape<'src>,
-    key: &'src str,
-    value: ValueId,
-) -> bool {
-    let Some(decoded) = try_decode_ir_source_string(key) else {
+fn known_record_set(shape: &mut KnownRecordShape, source_key: &str, value: ValueId) -> bool {
+    let Some(key) = decode_record_key(source_key) else {
         return false;
     };
+    known_record_set_value(shape, key, value);
+    true
+}
+
+fn known_record_set_value(shape: &mut KnownRecordShape, key: StringValue, value: ValueId) {
     if let Some((_, slot)) = shape
         .entries
         .iter_mut()
-        .find(|(candidate, _)| try_decode_ir_source_string(candidate).as_deref() == Some(&decoded))
+        .find(|(candidate, _)| *candidate == key)
     {
         *slot = value;
     } else {
         shape.entries.push((key, value));
     }
-    true
 }
 
-fn known_record_get(shape: &KnownRecordShape<'_>, key: &str) -> Option<ValueId> {
-    let decoded = try_decode_ir_source_string(key)?;
+fn known_record_get(shape: &KnownRecordShape, source_key: &str) -> Option<ValueId> {
+    let key = decode_record_key(source_key)?;
     shape
         .entries
         .iter()
-        .find(|(candidate, _)| try_decode_ir_source_string(candidate).as_deref() == Some(&decoded))
+        .find(|(candidate, _)| *candidate == key)
         .map(|(_, value)| *value)
 }
 
@@ -9613,14 +9627,14 @@ fn record_array_index(key: &str) -> Option<u32> {
     (value < u64::from(u32::MAX)).then_some(value as u32)
 }
 
-fn known_record_ordered_entries<'src>(shape: &KnownRecordShape<'src>) -> Vec<(&'src str, ValueId)> {
+fn known_record_ordered_entries(shape: &KnownRecordShape) -> Vec<(&StringValue, ValueId)> {
     let mut indices = shape
         .entries
         .iter()
         .filter_map(|(key, value)| {
-            try_decode_ir_source_string(key)
-                .and_then(|key| record_array_index(&key))
-                .map(|index| (index, *key, *value))
+            key.as_unicode()
+                .and_then(record_array_index)
+                .map(|index| (index, key, *value))
         })
         .collect::<Vec<_>>();
     indices.sort_unstable_by_key(|(index, _, _)| *index);
@@ -9628,15 +9642,16 @@ fn known_record_ordered_entries<'src>(shape: &KnownRecordShape<'src>) -> Vec<(&'
         .into_iter()
         .map(|(_, key, value)| (key, value))
         .chain(shape.entries.iter().filter_map(|(key, value)| {
-            try_decode_ir_source_string(key)
-                .filter(|key| record_array_index(key).is_none())
-                .map(|_| (*key, *value))
+            key.as_unicode()
+                .and_then(record_array_index)
+                .is_none()
+                .then_some((key, *value))
         }))
         .collect()
 }
 
 fn known_record_json(
-    shape: &KnownRecordShape<'_>,
+    shape: &KnownRecordShape,
     constants: &AHashMap<ValueId, ConstValue>,
     aliases: &AHashMap<ValueId, ValueId>,
 ) -> Option<ConstValue> {
@@ -9645,14 +9660,14 @@ fn known_record_json(
         if index != 0 {
             json.push(',');
         }
-        json.push_str(&serde_json::to_string(&try_decode_ir_source_string(key)?).ok()?);
+        json.push_str(&serde_json::to_string(key.as_unicode()?).ok()?);
         json.push(':');
         let value = constants.get(&resolve_alias(value, aliases))?;
         match value {
             ConstValue::Int(value) => json.push_str(&value.to_string()),
             ConstValue::Bool(value) => json.push_str(if *value { "true" } else { "false" }),
             ConstValue::String(value) => {
-                json.push_str(&serde_json::to_string(&try_decode_ir_source_string(value)?).ok()?)
+                json.push_str(&serde_json::to_string(value.as_unicode()?).ok()?)
             }
             ConstValue::Null => json.push_str("null"),
             // JavaScript number formatting, especially `-0`, exponent
@@ -9664,10 +9679,7 @@ fn known_record_json(
     }
     json.push('}');
 
-    let encoded = serde_json::to_string(&json).ok()?;
-    Some(ConstValue::String(
-        encoded.strip_prefix('"')?.strip_suffix('"')?.to_string(),
-    ))
+    Some(ConstValue::String(json.into()))
 }
 
 fn scalar_replace_control_flow_aggregates(
@@ -10646,7 +10658,10 @@ fn function_matches_signature(
             .params
             .iter()
             .zip(&signature.params)
-            .all(|(parameter, expected)| parameter.ty == *expected)
+            .all(|(parameter, expected)| {
+                parameter.ty == expected.ty
+                    && expected.passing == crate::primitive::ParameterPassing::Value
+            })
         && function.return_type == *signature.return_type
 }
 
@@ -12930,12 +12945,12 @@ fn fold_string_intrinsic(
         args.first()
             .and_then(|value| constants.get(value))
             .and_then(|value| match value {
-                ConstValue::String(value) => Some(value.as_str()),
+                ConstValue::String(value) => Some(value),
                 _ => None,
             })
     };
     match intrinsic {
-        Intrinsic::StringLength => Some(ConstValue::Int(receiver.encode_utf16().count() as i64)),
+        Intrinsic::StringLength => Some(ConstValue::Int(receiver.code_units().count() as i64)),
         Intrinsic::StringCharCodeAt => {
             let index = args
                 .first()
@@ -12945,7 +12960,7 @@ fn fold_string_intrinsic(
                     _ => None,
                 })?;
             Some(ConstValue::Int(i64::from(
-                receiver.encode_utf16().nth(index).unwrap_or(0),
+                receiver.code_units().nth(index).unwrap_or(0),
             )))
         }
         Intrinsic::StringCharAt => {
@@ -12956,15 +12971,14 @@ fn fold_string_intrinsic(
                     ConstValue::Int(value) => usize::try_from(*value).ok(),
                     _ => None,
                 })?;
-            match receiver.encode_utf16().nth(index) {
-                None => Some(ConstValue::String(String::new())),
-                Some(unit) => char::decode_utf16([unit])
-                    .next()
-                    .and_then(Result::ok)
-                    .map(|value| ConstValue::String(value.to_string())),
+            match receiver.code_units().nth(index) {
+                None => Some(ConstValue::String(StringValue::default())),
+                Some(unit) => Some(ConstValue::String(StringValue::from_utf16(vec![unit]))),
             }
         }
-        Intrinsic::StringIncludes => Some(ConstValue::Bool(receiver.contains(string_argument()?))),
+        Intrinsic::StringIncludes => Some(ConstValue::Bool(
+            receiver.index_of(string_argument()?, 0, false) >= 0,
+        )),
         Intrinsic::StringIndexOf | Intrinsic::StringLastIndexOf => {
             let position = match args.get(1) {
                 Some(value) => match constants.get(value) {
@@ -12974,8 +12988,7 @@ fn fold_string_intrinsic(
                 None if intrinsic == Intrinsic::StringIndexOf => 0,
                 None => i32::MAX,
             };
-            Some(ConstValue::Int(i64::from(const_utf16_string_index(
-                receiver,
+            Some(ConstValue::Int(i64::from(receiver.index_of(
                 string_argument()?,
                 position,
                 intrinsic == Intrinsic::StringLastIndexOf,
@@ -12989,50 +13002,34 @@ fn fold_string_intrinsic(
                     ConstValue::Int(value) => usize::try_from(*value).ok(),
                     _ => None,
                 })?;
-            let length = receiver.len().checked_mul(count)?;
+            let length = receiver.code_units().count().checked_mul(count)?;
             (length <= 4096).then(|| ConstValue::String(receiver.repeat(count)))
         }
-        Intrinsic::StringStartsWith => {
-            Some(ConstValue::Bool(receiver.starts_with(string_argument()?)))
+        Intrinsic::StringStartsWith => Some(ConstValue::Bool(
+            receiver
+                .code_units()
+                .take(string_argument()?.code_units().count())
+                .eq(string_argument()?.code_units()),
+        )),
+        Intrinsic::StringEndsWith => {
+            let needle = string_argument()?;
+            let length = receiver.code_units().count();
+            let count = needle.code_units().count();
+            Some(ConstValue::Bool(
+                length >= count
+                    && receiver
+                        .code_units()
+                        .skip(length - count)
+                        .eq(needle.code_units()),
+            ))
         }
-        Intrinsic::StringEndsWith => Some(ConstValue::Bool(receiver.ends_with(string_argument()?))),
-        Intrinsic::StringToUpperCase if receiver.is_ascii() => {
-            Some(ConstValue::String(receiver.to_ascii_uppercase()))
-        }
-        Intrinsic::StringToLowerCase if receiver.is_ascii() => {
-            Some(ConstValue::String(receiver.to_ascii_lowercase()))
-        }
+        Intrinsic::StringToUpperCase if receiver.as_unicode().is_some_and(str::is_ascii) => Some(
+            ConstValue::String(receiver.as_unicode()?.to_ascii_uppercase().into()),
+        ),
+        Intrinsic::StringToLowerCase if receiver.as_unicode().is_some_and(str::is_ascii) => Some(
+            ConstValue::String(receiver.as_unicode()?.to_ascii_lowercase().into()),
+        ),
         _ => None,
-    }
-}
-
-fn const_utf16_string_index(receiver: &str, needle: &str, position: i32, last: bool) -> i32 {
-    let receiver = receiver.encode_utf16().collect::<Vec<_>>();
-    let needle = needle.encode_utf16().collect::<Vec<_>>();
-    let position = if position < 0 {
-        0
-    } else {
-        usize::try_from(position)
-            .unwrap_or(usize::MAX)
-            .min(receiver.len())
-    };
-    if needle.is_empty() {
-        return position as i32;
-    }
-    if needle.len() > receiver.len() {
-        return -1;
-    }
-    if last {
-        (0..=position.min(receiver.len() - needle.len()))
-            .rev()
-            .find(|index| receiver[*index..*index + needle.len()] == needle)
-            .map_or(-1, |index| index as i32)
-    } else if position + needle.len() > receiver.len() {
-        -1
-    } else {
-        (position..=receiver.len() - needle.len())
-            .find(|index| receiver[*index..*index + needle.len()] == needle)
-            .map_or(-1, |index| index as i32)
     }
 }
 
@@ -13095,21 +13092,24 @@ fn js_max(lhs: f64, rhs: f64) -> f64 {
     }
 }
 
-fn constant_string_value(value: &ConstValue) -> Option<String> {
+fn constant_string_value(value: &ConstValue) -> Option<StringValue> {
     Some(match value {
-        ConstValue::Int(value) => value.to_string(),
-        ConstValue::Float(value) => value.to_string(),
-        ConstValue::Bool(value) => value.to_string(),
+        ConstValue::Int(value) => value.to_string().into(),
+        // Rust's Display is not ECMAScript Number::toString (notably -0 and
+        // exponent thresholds). Preserve the runtime conversion until its
+        // exact language operation has a shared constant evaluator.
+        ConstValue::Float(_) => return None,
+        ConstValue::Bool(value) => value.to_string().into(),
         ConstValue::String(value) => value.clone(),
-        ConstValue::Null => "null".to_string(),
+        ConstValue::Null => "null".into(),
     })
 }
 
-fn push_template_string(parts: &mut Vec<TemplateOperand>, value: &str) {
+fn push_template_string(parts: &mut Vec<TemplateOperand>, value: &StringValue) {
     if let Some(TemplateOperand::String(previous)) = parts.last_mut() {
-        previous.push_str(value);
+        previous.push(value);
     } else if !value.is_empty() {
-        parts.push(TemplateOperand::String(value.to_string()));
+        parts.push(TemplateOperand::String(value.clone()));
     }
 }
 
@@ -13219,7 +13219,7 @@ fn fold_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<Con
         (Mul, Float(lhs), Float(rhs)) => Some(Float(lhs * rhs)),
         (Div, Float(_), Float(rhs)) if *rhs == 0.0 => None,
         (Div, Float(lhs), Float(rhs)) => Some(Float(lhs / rhs)),
-        (Add, String(lhs), String(rhs)) => Some(String(format!("{lhs}{rhs}"))),
+        (Add, String(lhs), String(rhs)) => Some(String(lhs.concat(rhs))),
         (Eq, lhs, rhs) => Some(Bool(lhs == rhs)),
         (NotEq, lhs, rhs) => Some(Bool(lhs != rhs)),
         (Less, Int(lhs), Int(rhs)) => Some(Bool(lhs < rhs)),
@@ -15027,6 +15027,51 @@ mod tests {
     }
 
     #[test]
+    fn inherited_field_summaries_preserve_subclass_hooks_and_integer_overflow() {
+        for inlining in [false, true] {
+            let arena = Bump::new();
+            let program = parse_source(&arena, r#"
+                class Base {
+                    (func()->float)? hook;
+                    int count;
+                    string label;
+                    init() { this.hook = null; this.count = 1; this.label = "base"; }
+                    float sample() {
+                        (func()->float)? callback = this.hook;
+                        if (callback != null) { return callback(); }
+                        return -1.0;
+                    }
+                    int next() { return this.count + 1; }
+                    string name() { return this.label; }
+                }
+                class Child extends Base {
+                    init() { super(); this.hook = () => 42.0; this.count = 2147483647; this.label = "child"; }
+                }
+                class Grandchild extends Child { init() { super(); } }
+                Base plain = new Base();
+                Grandchild derived = new Grandchild();
+                print(plain.sample()); print(derived.sample());
+                print(plain.next()); print(derived.next());
+                print(plain.name()); print(derived.name());
+            "#).unwrap();
+            let semantics = analyze(&program).unwrap();
+            let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+            let options = OptimizationOptions {
+                inlining,
+                scalar_replacement: false,
+                ..OptimizationOptions::default()
+            };
+            optimize_control_flow_with_options(&mut ir, &options, false).unwrap();
+            let output = crate::codegen_ir_js::emit_optimized_ir_js(&ir).unwrap();
+            assert_eq!(
+                run_javascript(&output),
+                "-1\n42\n2\n-2147483648\nbase\nchild\n",
+                "{output}"
+            );
+        }
+    }
+
+    #[test]
     fn folds_optional_access_guard_for_a_proven_non_null_receiver() {
         let arena = Bump::new();
         let program = parse_source(
@@ -16756,7 +16801,7 @@ mod tests {
                     .ty
                     .as_ref()
                     .is_some_and(|ty| {
-                        matches!(ty, Type::Array(element) if matches!(element.as_ref(), Type::Struct("SpreadEntry")))
+                        matches!(ty, Type::Array(element) if matches!(element.as_ref(), Type::Struct(StructType { name: "SpreadEntry", .. })))
                     })
                     .then_some(instruction.out)
                     .flatten()
@@ -18350,7 +18395,7 @@ mod tests {
     }
 
     #[test]
-    fn closed_record_projection_rejects_non_json_source_escapes() {
+    fn closed_record_projection_uses_decoded_identity_escapes() {
         let arena = Bump::new();
         let program = parse_source(
             &arena,
@@ -18363,9 +18408,8 @@ mod tests {
         project_closed_record_observations_for_javascript(&mut module);
         let output = crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap();
 
-        assert!(output.contains("__proto__"), "{output}");
-        assert!(output.contains("Object.keys"), "{output}");
-        assert!(output.contains("JSON.stringify"), "{output}");
+        assert_eq!(run_javascript(&output), "q\nq\n{\"q\":\"q\"}\n", "{output}");
+        assert!(!output.contains("JSON.stringify"), "{output}");
     }
 
     #[test]

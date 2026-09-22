@@ -1,0 +1,5 @@
+error: unsupported semantic source: semantic constructor call contract
+ --> /home/azureuser/lilscript/tests/cases/float_array_union.lil:3:12
+  |
+ 3 |     return new Float32Array(2);
+  |            ^^^^^^^^^^^^^^^^^^^

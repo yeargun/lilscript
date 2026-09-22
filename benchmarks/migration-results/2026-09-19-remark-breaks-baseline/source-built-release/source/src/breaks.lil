@@ -1,0 +1,12 @@
+import { findAndReplace } from "./find.lil";
+
+JsValue breakNode(JsValue _self, JsValue _found) {
+  return JS.object("type", "break");
+}
+
+export void newlineToBreak(JsValue tree) {
+  JsValue tuple = JS.array();
+  JS.push(tuple, new Regex("\\r?\\n|\\r", "g"));
+  JS.push(tuple, JS.method1(breakNode));
+  findAndReplace(tree, tuple);
+}

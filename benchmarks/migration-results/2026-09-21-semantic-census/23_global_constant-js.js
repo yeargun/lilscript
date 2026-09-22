@@ -1,0 +1,1 @@
+let a;let b;a=(0,{scale:function(value){return value*factor|0;}}.scale);let scale=a;let factor=6;b=void console.log(scale(7));

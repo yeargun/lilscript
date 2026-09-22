@@ -1,0 +1,335 @@
+{
+  "schema": 1,
+  "kind": "boundary-conformance",
+  "boundary": "mdast-util-to-hastlil",
+  "started": "2026-09-20T22:36:36.127Z",
+  "passed": false,
+  "decisions": {
+    "D1": "Value structs; mutation of caller storage requires explicit mutable references. Aliasing, partial mutation and evaluation order are observable.",
+    "D2": "Explicitly declared boundaries with compatible adapters. Identity, mutation, enumeration, descriptors, serialization, callback retention and function observations survive the boundary.",
+    "D3": "Results, explicit throws, argument errors, host effects and divergence are preserved. Engine-dependent resource timing is not."
+  },
+  "upstream": {
+    "path": "/home/azureuser/mdast-util-to-hastlil/node_modules/mdast-util-to-hast/index.js",
+    "sha256": "681480f0d8fcae35643e8bbcc81085827be1a663106453d9549232d9b6a27721",
+    "bytes": 239
+  },
+  "candidate": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-source-baselines/mdast-util-to-hastlil/to-hast.esm.js",
+    "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+    "bytes": 13965
+  },
+  "limitations": [
+    "Each case observes exactly what it states. Passing does not generalize to arbitrary getters, proxies or reflection.",
+    "The oracle is the upstream library as installed. Where upstream itself does not promise an observation, the case says so in `promised`.",
+    "These are behavior observations. They carry no size, speed or delivery claim.",
+    "Candidate is the source-built artifact from benchmarks/migration-results/2026-09-20-source-baselines/mdast-util-to-hastlil."
+  ],
+  "cases": [
+    {
+      "id": "d2/function/public-name-and-arity",
+      "decision": "D2",
+      "rule": "A declared public function keeps the name, arity and constructibility its callers can reflect on.",
+      "promised": "upstream exports a named function; name reflection is not an explicit promise, which is the open part of D2",
+      "callers": [
+        "001-MH mdast-util-to-hastlil type boundary",
+        "001 HAST public-boundary diagnostic, which found toHtml.name reported as `kb`"
+      ],
+      "oracle": {
+        "kind": "function",
+        "name": "toHast",
+        "length": 2,
+        "constructible": false,
+        "hasPrototype": true
+      },
+      "candidate": {
+        "kind": "function",
+        "name": "Ce",
+        "length": 2,
+        "constructible": false,
+        "hasPrototype": false
+      },
+      "oracleMatches": true,
+      "agree": false,
+      "status": "fail"
+    },
+    {
+      "id": "d2/identity/input-tree-is-not-mutated",
+      "decision": "D2",
+      "rule": "Converting a caller's tree does not write to it.",
+      "promised": "upstream behavior relied on by every caller that reuses a parsed tree",
+      "callers": [
+        "remark-rehypelil",
+        "react-markdownlil"
+      ],
+      "oracle": {
+        "unchanged": true
+      },
+      "candidate": {
+        "unchanged": true
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/identity/result-does-not-alias-the-input",
+      "decision": "D2",
+      "rule": "Nodes in the result are the boundary's own objects, so a caller mutating the result cannot reach back into its input.",
+      "promised": "upstream behavior",
+      "callers": [
+        "remark-rehypelil",
+        "rehypelil"
+      ],
+      "oracle": {
+        "converted": true,
+        "sharesLeaf": false
+      },
+      "candidate": {
+        "converted": true,
+        "sharesLeaf": false
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d1/aliasing/one-node-used-twice-converts-twice",
+      "decision": "D1",
+      "rule": "A node the caller places at two positions is observed at both, and neither conversion is skipped or shared by accident.",
+      "promised": "upstream behavior; an aliasing case D1 must keep observable",
+      "callers": [
+        "Motion overlapping-destination evidence in 002",
+        "micromarklil retained token/context tuples"
+      ],
+      "oracle": {
+        "bothPresent": true,
+        "distinctObjects": true,
+        "sameText": true
+      },
+      "candidate": {
+        "bothPresent": true,
+        "distinctObjects": true,
+        "sameText": true
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d3/effects/caller-getter-is-read-and-its-order-is-observable",
+      "decision": "D3",
+      "rule": "Reads of a caller's accessors are preserved: the boundary reads what it needs, and the order is what upstream produces.",
+      "promised": "upstream behavior; D3 preserves host effects",
+      "callers": [
+        "micromarklil numeric point fields read once in order"
+      ],
+      "oracle": {
+        "log": [
+          "read:one",
+          "read:two"
+        ]
+      },
+      "candidate": {
+        "log": [
+          "read:one",
+          "read:two"
+        ]
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d3/throws/a-caller-getter-that-throws-propagates",
+      "decision": "D3",
+      "rule": "An ordinary throw from a caller's accessor reaches the caller with the same constructor and message.",
+      "promised": "upstream behavior; D3 preserves explicit throws",
+      "callers": [
+        "Motion partial-mutation evidence in 002"
+      ],
+      "oracle": {
+        "threw": {
+          "name": "TypeError",
+          "message": "caller getter exploded"
+        }
+      },
+      "candidate": {
+        "threw": {
+          "name": "TypeError",
+          "message": "caller getter exploded"
+        }
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/enumeration/result-key-order",
+      "decision": "D2",
+      "rule": "The key order of a returned node is the order upstream produces, because callers enumerate and serialize it.",
+      "promised": "upstream behavior; jQuery's 001-JQ evidence shows property insertion order is observed",
+      "callers": [
+        "remark-parselil `matches upstream property insertion order`",
+        "rehype-stringifylil"
+      ],
+      "oracle": {
+        "rootKeys": [
+          "type",
+          "children"
+        ],
+        "elementKeys": [
+          "type",
+          "tagName",
+          "properties",
+          "children"
+        ]
+      },
+      "candidate": {
+        "rootKeys": [
+          "type",
+          "children"
+        ],
+        "elementKeys": [
+          "type",
+          "tagName",
+          "properties",
+          "children"
+        ]
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/descriptors/result-properties-are-plain-data",
+      "decision": "D2",
+      "rule": "Returned properties are ordinary writable, enumerable, configurable data, not accessors or frozen slots.",
+      "promised": "upstream behavior relied on by every caller that edits a returned tree",
+      "callers": [
+        "rehypelil plugins that mutate the tree in place"
+      ],
+      "oracle": {
+        "kind": "object",
+        "keys": [
+          "type",
+          "tagName",
+          "properties",
+          "children"
+        ],
+        "descriptors": {
+          "type": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          },
+          "tagName": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          },
+          "properties": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          },
+          "children": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          }
+        }
+      },
+      "candidate": {
+        "kind": "object",
+        "keys": [
+          "type",
+          "tagName",
+          "properties",
+          "children"
+        ],
+        "descriptors": {
+          "type": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          },
+          "tagName": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          },
+          "properties": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          },
+          "children": {
+            "enumerable": true,
+            "writable": true,
+            "configurable": true,
+            "accessor": false
+          }
+        }
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/serialization/round-trips-through-json",
+      "decision": "D2",
+      "rule": "The whole result serializes to the same JSON upstream produces.",
+      "promised": "upstream behavior; the unist ecosystem passes trees as JSON",
+      "callers": [
+        "remark-rehypelil",
+        "react-markdownlil"
+      ],
+      "oracle": {
+        "json": "{\"type\":\"root\",\"children\":[{\"type\":\"element\",\"tagName\":\"p\",\"properties\":{},\"children\":[{\"type\":\"text\",\"value\":\"a\"},{\"type\":\"element\",\"tagName\":\"em\",\"properties\":{},\"children\":[{\"type\":\"text\",\"value\":\"b\"}]}]}]}"
+      },
+      "candidate": {
+        "json": "{\"type\":\"root\",\"children\":[{\"type\":\"element\",\"tagName\":\"p\",\"properties\":{},\"children\":[{\"type\":\"text\",\"value\":\"a\"},{\"type\":\"element\",\"tagName\":\"em\",\"properties\":{},\"children\":[{\"type\":\"text\",\"value\":\"b\"}]}]}]}"
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/callbacks/a-handler-receives-the-callers-own-node",
+      "decision": "D2",
+      "rule": "A caller-supplied handler is called with the caller's own node object, not a copy of it.",
+      "promised": "upstream behavior; the handler contract is documented",
+      "callers": [
+        "remark-rehypelil custom handlers",
+        "react-markdownlil"
+      ],
+      "oracle": {
+        "sameObject": true,
+        "argumentCount": 3
+      },
+      "candidate": {
+        "sameObject": true,
+        "argumentCount": 3
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "total": 10,
+    "pass": 9,
+    "fail": 1,
+    "broken": 0
+  },
+  "completed": "2026-09-20T22:36:36.179Z",
+  "fingerprint": "b2d2dae1630ca77b1e36df89656adccc437babee279ee0feb3e6b3fd06c0c236"
+}

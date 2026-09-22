@@ -232,7 +232,7 @@ fn type_has_dynamic_runtime_shape(ty: &Type<'_>) -> bool {
             type_has_dynamic_runtime_shape(key) || type_has_dynamic_runtime_shape(value)
         }
         Type::Function(signature) => {
-            signature.params.iter().any(type_has_dynamic_runtime_shape)
+            signature.params.iter().any(|parameter| type_has_dynamic_runtime_shape(&parameter.ty))
                 || type_has_dynamic_runtime_shape(&signature.return_type)
         }
         _ => false,

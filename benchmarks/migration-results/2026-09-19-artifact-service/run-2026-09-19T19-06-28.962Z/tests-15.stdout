@@ -1,0 +1,13 @@
+
+running 8 tests
+test lint::tests::rule_inventory_has_stable_unique_ids ... ok
+test lint::tests::reports_unhandled_dynamic_module_tasks ... ok
+test lint::tests::wildcard_exclusions_and_suppressions_are_deterministic ... ok
+test lint::tests::pluggable_rule_providers_use_exact_namespaces_and_configured_severity ... ok
+test lint::tests::lint_presets_and_static_chunk_policy_are_effective ... ok
+test lint::tests::unreachable_code_has_a_machine_applicable_fix ... ok
+test lint::tests::web_provider_reports_eager_host_access_and_can_be_disabled ... ok
+test lint::tests::reports_surviving_collection_allocations_and_indirect_calls_in_loops ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 2879 filtered out; finished in 0.00s
+

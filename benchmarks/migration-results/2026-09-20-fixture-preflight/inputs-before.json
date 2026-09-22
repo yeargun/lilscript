@@ -1,0 +1,97 @@
+{
+  "root": "/home/azureuser/lilscript",
+  "files": [
+    {
+      "path": ".nvmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d99adcd3ea27897fd63fd0cba2d0329a766b34d9fe26ce79490b8ee112a309ed",
+      "bytes": 3794
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4ebf5a13ce99a8a4ee0f6c5e0348b5b1d7c9f029bafc99a69f93177771f47bb9",
+      "bytes": 3897
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "finer/tools/artifact-evidence.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7c0c8eab5d5bc465964e83bcd90c4ca7055ab0a9b1d97f68bcbbec66c76cb871",
+      "bytes": 12021
+    },
+    {
+      "path": "finer/tools/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "finer/tools/compiler-receipt.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "finer/tools/node-test-evidence.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fa7ccec855cdd0ab33e4e8eee9f7432212305d36c97326fd44dc824f94b29fe7",
+      "bytes": 20694
+    },
+    {
+      "path": "finer/tools/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "finer/tools/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "finer/tools/qualify-node-library.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a4ee02d8b7b08460c7d32ecd286dc9bdaeb7dd76323b71789186e835326084fb",
+      "bytes": 22861
+    },
+    {
+      "path": "finer/tools/qualify-node-library.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f907e3c632d06c1474549e088b29167100cb43d9e06b476d724e8806eacaddb9",
+      "bytes": 11416
+    }
+  ],
+  "sha256": "3ea83d9ddeb394b683366f837114f3663d66da4e05f70a751346ba52ff9a0ff9"
+}

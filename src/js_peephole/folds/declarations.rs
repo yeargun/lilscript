@@ -2087,10 +2087,151 @@ pub(crate) fn fold_void_initializers_off_fresh_vars(
             if identifier_occurs(&tokens, scope_start, name_at, name) {
                 continue;
             }
+            // A loop whose body has no braces (`for(k in o)if(c){var d=void 0;…}`)
+            // is invisible to `statement_runs_in_loop`, which walks braces. The
+            // reset then matters on every pass after the first: remark-gfm's
+            // extension merger kept one hook's object for the next and later
+            // called `.call` on undefined. Any loop keyword between the function
+            // start and the declaration keeps the initializer.
+            if declaration_may_run_in_loop(&tokens, &matching_close, &matching_open, scope_start, var_index) {
+                continue;
+            }
+            // A function declared after the declaration is hoisted, so it can
+            // run before it and write the binding; the reset is then observable.
+            // Function expressions after it do not exist yet and cannot. Keep the
+            // initializer when a later hoisted declaration (or anything nested in
+            // one) names the binding, even if minification reused the spelling.
+            let own_function = enclosing_function_span(&tokens, &matching_close, var_index);
+            let scope_end = own_function.map_or(tokens.len(), |(_, close)| close);
+            if (name_at + 4..scope_end).any(|at| {
+                tokens[at].kind == TokenKind::Identifier
+                    && tokens[at].text == name
+                    && inside_later_hoisted_declaration(&tokens, &matching_close, &matching_open, at, own_function)
+            }) {
+                continue;
+            }
             replacements.push((tokens[name_at].end, tokens[name_at + 3].end, String::new()));
         }
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Whether `at` sits inside a function *declaration* (hoisted) nested in
+/// `own_function`, directly or through further nesting.
+fn inside_later_hoisted_declaration(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    at: usize,
+    own_function: Option<(usize, usize)>,
+) -> bool {
+    let mut span = enclosing_function_span(tokens, matching_close, at);
+    let mut guard = 0usize;
+    while span != own_function {
+        guard += 1;
+        let Some((open, _)) = span else { return false };
+        if guard > 64 {
+            return true;
+        }
+        if function_body_is_declaration(tokens, matching_open, open) {
+            return true;
+        }
+        span = enclosing_function_span(tokens, matching_close, open);
+    }
+    false
+}
+
+/// `function name(...){` at a statement boundary: a hoisted declaration, as
+/// opposed to a function expression or an arrow.
+fn function_body_is_declaration(tokens: &[Token<'_>], matching_open: &[Option<usize>], open: usize) -> bool {
+    let Some(close_paren) = open.checked_sub(1).filter(|index| tokens[*index].text == ")") else {
+        return false;
+    };
+    let Some(mut index) = matching_open[close_paren].and_then(|paren| paren.checked_sub(1)) else {
+        return false;
+    };
+    if tokens[index].kind == TokenKind::Identifier {
+        let Some(previous) = index.checked_sub(1) else { return false };
+        index = previous;
+    }
+    if tokens[index].text == "*" {
+        let Some(previous) = index.checked_sub(1) else { return false };
+        index = previous;
+    }
+    if tokens[index].text != "function" {
+        return false;
+    }
+    let head = if index
+        .checked_sub(1)
+        .is_some_and(|previous| tokens[previous].text == "async")
+    {
+        index - 1
+    } else {
+        index
+    };
+    is_statement_boundary(tokens, head)
+}
+
+/// Whether a loop between the enclosing function's start and `var_index` can
+/// run the declaration more than once.
+///
+/// A braced body is exact: the declaration is inside iff it precedes the body's
+/// closing brace. A brace-less body (`for(k in o)if(c){var d=void 0;…}`) cannot
+/// be bounded from tokens without parsing statements, so it is assumed to
+/// contain the declaration. Loops inside nested functions are ignored: they run
+/// in another activation and cannot re-run this statement.
+fn declaration_may_run_in_loop(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    matching_open: &[Option<usize>],
+    scope_start: usize,
+    var_index: usize,
+) -> bool {
+    let own_function = enclosing_function_span(tokens, matching_close, var_index);
+    for at in scope_start..var_index {
+        let token = &tokens[at];
+        if token.kind != TokenKind::Keyword || !matches!(token.text, "for" | "while" | "do") {
+            continue;
+        }
+        if enclosing_function_span(tokens, matching_close, at) != own_function {
+            continue;
+        }
+        let body_start = match token.text {
+            "do" => at + 1,
+            _ => {
+                // `}while(c)` closing a `do` body is the tail of that loop,
+                // already bounded by the `do` it belongs to.
+                if token.text == "while"
+                    && at.checked_sub(1).is_some_and(|previous| {
+                        tokens[previous].text == "}"
+                            && matching_open[previous]
+                                .and_then(|open| open.checked_sub(1))
+                                .is_some_and(|keyword| tokens[keyword].text == "do")
+                    })
+                {
+                    continue;
+                }
+                if tokens.get(at + 1).map(|next| next.text) != Some("(") {
+                    return true;
+                }
+                match matching_close.get(at + 1).copied().flatten() {
+                    Some(close) => close + 1,
+                    None => return true,
+                }
+            }
+        };
+        if tokens.get(body_start).map(|next| next.text) == Some("{") {
+            match matching_close.get(body_start).copied().flatten() {
+                Some(close) if var_index < close => return true,
+                Some(_) => continue,
+                None => return true,
+            }
+        }
+        // A brace-less loop body cannot be bounded here; assume it may hold
+        // the declaration.
+        return true;
+    }
+    false
 }
 
 /// Whether the statement starting at `index` sits in a loop body somewhere

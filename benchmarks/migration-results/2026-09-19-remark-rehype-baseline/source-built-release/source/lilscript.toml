@@ -1,0 +1,23 @@
+# reusable ESM — host-visible names stay
+[javascript]
+# 8.103: local phi expression regions, measured -40 Brotli on this port against the current
+# compiler. Swept fleet-wide the knob is net positive, so it lands per port.
+# The earlier sweep of it predates live-17..23; a refused measurement has a
+# shelf life when the compiler moves under it.
+local_phi_expression_regions = true
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+assume_pristine_builtins = true
+strip_console = true
+local_name_reserve = 48
+candidate_search = "always"
+function_spelling = "arrow"
+public_aggregate_abi = "named"
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+extern_fields = true
+pool_strings = true

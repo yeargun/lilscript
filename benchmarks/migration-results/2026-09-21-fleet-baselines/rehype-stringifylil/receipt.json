@@ -1,0 +1,274 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "rehype-stringifylil",
+  "started": "2026-09-21T00:09:37.885Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/rehype-stringifylil",
+  "workspace": "/tmp/lilscript-baseline-rehype-stringifylil-8okvs1/rehype-stringifylil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/rehype-stringifylil",
+    "candidates": [
+      "/home/azureuser/rehype-stringifylil",
+      "/home/azureuser/rehype-stringifylil",
+      "/tmp/lilscript-page-refresh-20260910/current/rehype-stringifylil"
+    ],
+    "recorded": "/home/azureuser/rehype-stringifylil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [
+    {
+      "name": "hast-util-to-htmllil",
+      "root": "/home/azureuser/hast-util-to-htmllil",
+      "files": 17,
+      "sha256": "b3b0ca6a204638d3b688806df1c0897824f4ce090f734320068646ec0f045b6e"
+    }
+  ],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/rehype-stringifylil",
+    "files": 30,
+    "sha256": "195a59058dd364e87362d22d444114f47ad837ac761e22f3cc96814c993e862c"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/rehype-stringifylil/lilscript.closed.toml",
+        "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+        "bytes": 407
+      },
+      {
+        "path": "/home/azureuser/rehype-stringifylil/lilscript.toml",
+        "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+        "bytes": 966
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/rehype-stringify.cjs",
+    "dist/rehype-stringify.closed.js",
+    "dist/rehype-stringify.esm.js",
+    "dist/rehype-stringify.raw.js",
+    "dist/rehype-stringify.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.594,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/rehype-stringify.cjs",
+      "sha256": "5036c808f4af2237f70ce932dfd0b9243b979c6204d7404c9ea0a5814438aed5",
+      "bytes": 31430,
+      "sizes": {
+        "raw": 31430,
+        "gzip": 10590,
+        "brotli": 9364
+      }
+    },
+    {
+      "path": "dist/rehype-stringify.closed.js",
+      "sha256": "b3ee1110299be8b4297700a87c84e54f402b54f0cfd74901c1d58e6ef845b52e",
+      "bytes": 30259,
+      "sizes": {
+        "raw": 30259,
+        "gzip": 10117,
+        "brotli": 8941
+      }
+    },
+    {
+      "path": "dist/rehype-stringify.esm.js",
+      "sha256": "a8537860fb615d8be3edbbb53a3cbc6859061039628e64ce8af8ce05eb5e0112",
+      "bytes": 30377,
+      "sizes": {
+        "raw": 30377,
+        "gzip": 10312,
+        "brotli": 9093
+      }
+    },
+    {
+      "path": "dist/rehype-stringify.raw.js",
+      "sha256": "3ad03e94c5a702f3cf43310727bf925d042956b937885fc175984d97e4692f03",
+      "bytes": 30282,
+      "sizes": {
+        "raw": 30282,
+        "gzip": 10244,
+        "brotli": 9045
+      }
+    },
+    {
+      "path": "dist/rehype-stringify.umd.js",
+      "sha256": "8be46f26306d445d017c7722f0b847c692412be3fa26a44459ce9dfed3b92e60",
+      "bytes": 31555,
+      "sizes": {
+        "raw": 31555,
+        "gzip": 10618,
+        "brotli": 9398
+      }
+    }
+  ],
+  "measurements": {
+    "dist/rehype-stringify.cjs": {
+      "raw": 31430,
+      "gzip": 10590,
+      "brotli": 9364
+    },
+    "dist/rehype-stringify.closed.js": {
+      "raw": 30259,
+      "gzip": 10117,
+      "brotli": 8941
+    },
+    "dist/rehype-stringify.esm.js": {
+      "raw": 30377,
+      "gzip": 10312,
+      "brotli": 9093
+    },
+    "dist/rehype-stringify.raw.js": {
+      "raw": 30282,
+      "gzip": 10244,
+      "brotli": 9045
+    },
+    "dist/rehype-stringify.umd.js": {
+      "raw": 31555,
+      "gzip": 10618,
+      "brotli": 9398
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 0.969,
+  "cases": {
+    "required": 13,
+    "executed": 13,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/rehype-stringify.esm.js",
+      "sha256": "a8537860fb615d8be3edbbb53a3cbc6859061039628e64ce8af8ce05eb5e0112",
+      "bytes": 30377
+    },
+    {
+      "path": "dist/rehype-stringify.closed.js",
+      "sha256": "b3ee1110299be8b4297700a87c84e54f402b54f0cfd74901c1d58e6ef845b52e",
+      "bytes": 30259
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"exports only the default plugin\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",35,3,1,\"test\",\"compiles a paragraph hast node to html\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",43,3,1,\"test\",\"emits input type from properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",57,3,1,\"test\",\"escapes text and joins className arrays\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",70,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",78,3,1,\"test\",\"merges processor settings before explicit options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",88,3,1,\"test\",\"passes all character-reference options to the serializer\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",118,3,1,\"test\",\"copies own settings without prototype pollution\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",29,1,0,\"suite\",\"rehype-stringify\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype-stringify closed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 1.568,
+  "completed": "2026-09-21T00:09:39.421Z",
+  "fingerprint": "c494a3cbd60d3a101d2060f769c8c929b718301ff0a9c67636656aafc47a8516"
+}

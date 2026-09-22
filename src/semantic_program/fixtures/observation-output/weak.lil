@@ -1,0 +1,13 @@
+extern JsValue event(string label);
+export void run(bool which){
+    string truth="truth-only-payload";
+    string empty="";
+    string? present="nullish-only-payload";
+    string? missing=null;
+    string choice=if(which){"yes-literal-payload"}else{"no-literal-payload"};
+    JS.and(truth,event("truth-effect"));
+    JS.or(empty,event("empty-effect"));
+    present??event("unreachable-nullish");
+    missing??event("missing-effect");
+    JS.and(choice,event("branch-effect"));
+}

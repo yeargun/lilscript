@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "bounded-public-feature-evidence-inventory",
+  "workload": "micromarklil",
+  "scope": "Read-only mapping of original existing-dist observations, not new assertions or a D2 decision",
+  "report": {
+    "path": "benchmarks/migration-results/2026-09-19-micromark-adapter/existing-dist/node/report.json",
+    "sha256": "3ca7f78d21c3ee046f64c016cd3927dadd37c059a75f53022727072e2494b658",
+    "bytes": 895370
+  },
+  "pins": [
+    {
+      "path": "/home/azureuser/micromarklil/src/create-tokenizer.lil",
+      "sha256": "bcf4ce93df4e32d89585011992b760fa910c6b88a69f206dd2e09e751052d6f9",
+      "bytes": 13595
+    },
+    {
+      "path": "/home/azureuser/micromarklil/test/public-api.test.mjs",
+      "sha256": "2b55f46565c0d378d4ea997f0a7d33ac096cab4176c5a1137d90e4c9007ecb01",
+      "bytes": 3371
+    },
+    {
+      "path": "/home/azureuser/micromarklil/test/stream-api.test.mjs",
+      "sha256": "78527f12d93c9a04e0603bb4b14ff682e786a948ce335412dddd6e415b6f2b14",
+      "bytes": 13492
+    },
+    {
+      "path": "/home/azureuser/micromarklil/test/official/misc/slice-chunks.js",
+      "sha256": "284f381d04083b00809d6186c3862eeef577853f343e0af458370df4b58cd8d0",
+      "bytes": 2562
+    },
+    {
+      "path": "/home/azureuser/micromarklil/node_modules/micromark-extension-gfm-table/lib/syntax.js",
+      "sha256": "45aac9771cc150aa2e3b62ae12fc370c07b72732d84e847b47e09dd17b3a7bfe",
+      "bytes": 20730
+    }
+  ],
+  "features": [
+    {
+      "id": "numeric-point-field-access-order",
+      "caseIds": [
+        "[\"test/public-api.test.mjs\",59,11,1,\"test\",\"reads each initial point field once\",1]"
+      ],
+      "observed": "Numeric line/column/offset read once in that order; now() returns the expected point fields.",
+      "notProven": "Successive snapshot identity, arbitrary truthy values, coercion-hook order, proxies beyond this case."
+    },
+    {
+      "id": "inherited-hooks-and-ordinary-errors",
+      "caseIds": [
+        "[\"test/public-api.test.mjs\",81,11,1,\"test\",\"accepts an inherited tokenize hook\",1]",
+        "[\"test/public-api.test.mjs\",90,11,1,\"test\",\"calls a truthy resolver and preserves its error\",1]"
+      ],
+      "observed": "Inherited tokenize hooks work; a truthy noncallable resolver throws TypeError.",
+      "constraint": "A closed typed adapter must not silently replace inherited lookup or suppress ordinary call errors."
+    },
+    {
+      "id": "live-extension-and-token-context-path",
+      "caseIds": [
+        "[\"test/public-api.test.mjs\",40,11,1,\"test\",\"accepts real syntax and HTML extension objects\",1]",
+        "[\"test/official/misc/slice-chunks.js\",6,11,1,\"test\",\"should support `sliceSerialize` on a setext heading (#1)\",1]",
+        "[\"test/official/misc/slice-chunks.js\",26,11,1,\"test\",\"should support `sliceSerialize` on a setext heading (#2)\",1]"
+      ],
+      "observed": "Real GFM table hooks produce table output; retained event tokens and contexts serialize exact original slices.",
+      "sourceInspected": "create-tokenizer.lil enters supplied token fields directly, mutates that token at exit, and stores context in events; GFM table hooks read and mutate event structure.",
+      "notProven": "These output assertions do not independently assert every token/context identity or all proxy/aliasing/throw paths."
+    },
+    {
+      "id": "retained-callback-and-runtime-object-identity",
+      "caseIds": [
+        "[\"test/stream-api.test.mjs\",13,11,1,\"test\",\"uses the upstream runtime dependency in ESM and CJS\",1]",
+        "[\"test/stream-api.test.mjs\",74,11,1,\"test\",\"uses snapshots while emitting and removes latest duplicates\",1]",
+        "[\"test/stream-api.test.mjs\",95,11,1,\"test\",\"implements once wrappers and listener introspection\",1]",
+        "[\"test/stream-api.test.mjs\",48,11,1,\"test\",\"supports string and symbol names and variadic arguments\",1]"
+      ],
+      "observed": "ESM/CJS expose actual EventEmitter prototype/method identity; ESM tests retain callbacks, inspect once-wrapper identity and removal, and require emitter this with variadic/symbol arguments.",
+      "constraint": "The Node EventEmitter dependency and these public identities belong to the boundary, not value-struct storage."
+    }
+  ],
+  "open": [
+    "D2 remains unresolved; explicit boundaries are still a recommendation, not an owner decision.",
+    "Source uses jsNum for truthy initial fields; arbitrary-input compatibility discrepancy remains source-inspected, not executed by this original numeric-only test.",
+    "No new compiler route or production repair is qualified."
+  ]
+}

@@ -1,0 +1,27 @@
+
+running 22 tests
+test semantic_program::publication::search::function_support_tests::inactive_transport_query_refusal_is_not_a_negative_proof_or_allocation ... ok
+test semantic_program::publication::search::function_support_tests::inactive_transport_keeps_stale_and_script_guards_at_their_owners ... ok
+test semantic_program::publication::search::cursor_tests::refused_cursor_scan_preserves_progress_and_exact_incumbent ... ok
+test semantic_program::publication::search::cursor_tests::structural_age_turns_preserve_quality_turns_and_use_canonical_ties ... ok
+test semantic_program::publication::search::cursor_tests::width_one_keeps_a_waiting_cursor_but_never_an_exhausted_tail ... ok
+test semantic_program::publication::search::function_support_tests::shared_transport_requires_every_exact_creator_and_survives_compatible_children ... ok
+test semantic_program::publication::search::selection::resource_tests::final_package_cost_uses_merged_risk_and_never_fabricates_unknown_runtime_evidence ... ok
+test semantic_program::publication::search::selection::memory_tests::zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed ... ok
+test semantic_program::publication::search::selection::resource_tests::complete_package_qualification_owns_both_streams_and_retains_dependency_provenance ... ok
+test semantic_program::publication::search::selection::resource_tests::invalid_producer_seed_preserves_baseline_and_zero_optional_does_not_consume_inputs ... ok
+test semantic_program::publication::search::selection::memory_tests::refused_facts_session_releases_prepared_proof_but_keeps_owned_cache ... ok
+test semantic_program::publication::search::selection::resource_tests::shared_producer_text_counts_once_and_package_handoff_is_atomic ... ok
+test semantic_program::publication::search::selection::resource_tests::sparse_pool_scan_is_admitted_and_whole_pool_keeps_constant_work ... ok
+test semantic_program::publication::search::selection::resource_tests::stale_supplied_input_is_not_a_choice_conflict_and_fragment_root_is_refused ... ok
+test semantic_program::publication::search::selection::reuse_tests::staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission ... ok
+test semantic_program::publication::search::selection::resource_tests::required_consumer_root_preserves_delivery_in_zero_and_optional_search ... ok
+test semantic_program::publication::search::selection::memory_tests::cold_memory_refusal_scores_existing_names_and_preserves_fixed_probe_prefixes ... ok
+test semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners ... ok
+test semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union ... ok
+test semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper ... ok
+test semantic_program::publication::search::selection::resource_tests::preexisting_consumers_share_complete_codec_selection_and_execute_every_observation ... ok
+test semantic_program::publication::search::selection::resource_tests::required_consumer_search_selects_exact_distinct_product_and_function_families ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 2687 filtered out; finished in 3.17s
+

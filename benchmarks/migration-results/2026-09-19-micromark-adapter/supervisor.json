@@ -1,0 +1,17 @@
+{
+  "pid": 1507373,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": "{\"output\":\"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-micromark-adapter/existing-dist\",\"passed\":true,\"inputsStable\":true,\"cases\":1963}\n",
+  "stderr": "",
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  }
+}

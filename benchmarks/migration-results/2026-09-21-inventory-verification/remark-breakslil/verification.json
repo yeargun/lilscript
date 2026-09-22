@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "remark-breakslil",
+  "inventory": {
+    "path": "benchmarks/libraries/remark-breakslil.required-tests.json",
+    "sha256": "987262fcb998ca3baa405066544ef2637ef30f11ca3d546ec4f2621c84617b42",
+    "bytes": 18276
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/remark-breakslil/receipt.json",
+    "sha256": "56375c15232f4d38b88fc189ad4674fcc00fb509c212971802aea8e9cd6ed2ac",
+    "bytes": 17062
+  },
+  "frozenCases": 23,
+  "observedCases": 23,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",17,3,1,\"test\",\"exposes the upstream public API and arity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",26,3,1,\"test\",\"splits text on newlines into text / break / text\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",40,3,1,\"test\",\"does not split inside code or inlineCode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",54,3,1,\"test\",\"works through processor.use(plugin)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",16,1,0,\"suite\",\"@itslil/remark-breaks\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-breaks closed lane\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",9,1,0,\"test\",\"remarkBreaks\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"no space\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"one space\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"two spaces\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"three spaces\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"carriage return\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"carriage return + line feed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"after phrasing\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"before phrasing\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"multiple\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"none\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"document\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",17,1,0,\"test\",\"fixtures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

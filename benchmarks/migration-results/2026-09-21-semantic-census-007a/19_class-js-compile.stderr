@@ -1,0 +1,16 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/19_class.lil:1:1
+  |
+ 1 | class Counter {
+  int value;
+
+  init(int initial) {
+    this.value = initial;
+  }
+
+  int add(int amount) {
+    this.value += amount;
+    return this.value;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

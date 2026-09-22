@@ -1,0 +1,9 @@
+struct Pair { int x; int y; }
+extern int opaque();
+extern void keep(func()->void replace);
+extern int late();
+int step(Pair local, int delta) { local.y += delta; local.x; return local.y; }
+Pair state = Pair{opaque(),1};
+keep(()=>{state=Pair{7,9};});
+try { print(step(state,late())); } catch { print(99); }
+print(state.y);

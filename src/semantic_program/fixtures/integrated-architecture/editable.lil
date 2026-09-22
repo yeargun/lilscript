@@ -1,0 +1,2 @@
+// This public result is the paired retained/exclusive owner edit observation.
+export int editTarget(){return 11;}

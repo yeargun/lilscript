@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-baseline-jquerylil-PEXxBz/jquerylil/dist/jquery.esm.js","/tmp/lilscript-baseline-jquerylil-PEXxBz/jquerylil/dist/jquery.cjs"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-fleet-baselines/jquerylil/node/loaded"});

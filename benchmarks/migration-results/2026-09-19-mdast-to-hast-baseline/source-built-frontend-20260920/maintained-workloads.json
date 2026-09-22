@@ -1,0 +1,2570 @@
+{
+  "schemaVersion": 1,
+  "inventoryDate": "2026-09-11",
+  "status": "historical-workload-inventory-retained-during-design-reset",
+  "sourceRecord": {
+    "path": "/tmp/lilscript-source-performance-20260910/jobs.json",
+    "sha256": "d4870b73a4f9a35308feac17ce56c4c5441c900b670227e9cd584ae4eb99d548"
+  },
+  "objective": "For each maintained library and raw/gzip/Brotli objective, tie or beat the strongest eligible competitor while preserving behavior and public APIs within agreed compilation/runtime budgets. Aim for strict wins almost always; the numerical win-rate threshold remains open.",
+  "libraries": [
+    {
+      "id": "cnlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/cnlil",
+      "workspaceCandidates": [
+        "/home/azureuser/cnlil",
+        "/tmp/lilscript-page-refresh-20260910/current/cnlil"
+      ],
+      "portHeadAtInventory": "76a975fdbfdcd4b07752bb6462510bcc8a359812",
+      "package": {
+        "name": "@itslil/cn",
+        "version": "0.2.4",
+        "declaredEntryFiles": [
+          "./dist/index.cjs",
+          "./dist/index.js",
+          "./dist/lite.cjs",
+          "./dist/lite.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/shadcn-ui/cn.git",
+        "commit": "989c25ecfaed76dcf05e1f9996b6dfcbed157d7f",
+        "package": "cn",
+        "version": "0.2.4",
+        "directory": "packages/cn"
+      },
+      "recordedComparisonScope": "cn@0.2.4 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/cn/dist/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node scripts/test-upstream.mjs",
+        "packageScripts": {
+          "test": "npm run build && node scripts/test-upstream.mjs"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.dev.toml",
+          "sha256": "e9abbb7c33dabb6b8d05d23f21bc8e050c2a8315f3ebb76cdce948f421aa3e57"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "22da7e32c70c8caabab216e75d18e95f3a35e872e1f87a423a5ca951213b1856"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "cnlil"
+      }
+    },
+    {
+      "id": "hast-util-to-htmllil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/hast-util-to-htmllil",
+      "workspaceCandidates": [
+        "/home/azureuser/hast-util-to-htmllil",
+        "/tmp/lilscript-page-refresh-20260910/current/hast-util-to-htmllil"
+      ],
+      "portHeadAtInventory": "167105bec6d9756591d210442aee53594224730d",
+      "package": {
+        "name": "@itslil/hast-util-to-html",
+        "version": "9.0.7",
+        "declaredEntryFiles": [
+          "./dist/to-html.cjs",
+          "./dist/to-html.closed.js",
+          "./dist/to-html.esm.js",
+          "./dist/to-html.umd.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/syntax-tree/hast-util-to-html.git",
+        "commit": "d115f5beab200c819699e1db9d7eb7b5b1009a21",
+        "package": "hast-util-to-html",
+        "version": "9.0.5",
+        "directory": "."
+      },
+      "recordedComparisonScope": "hast-util-to-html@9.0.5 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "node --test test/*.test.mjs test/official/index.js"
+        },
+        "adapterStatus": "original-node-suite-esm-closed-inventory-existing-dist-diagnostic-only",
+        "requiredCaseInventory": "hast-util-to-htmllil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/character-references.test.mjs",
+            "test/site.test.mjs",
+            "test/to-html.test.mjs",
+            "test/official/index.js"
+          ],
+          "artifacts": [
+            "dist/to-html.esm.js",
+            "dist/to-html.closed.js"
+          ],
+          "caseInventory": "hast-util-to-htmllil.required-tests.json",
+          "scope": "Original npm test command, including every matching top-level test and imported official suite. ESM and closed artifacts only; CJS, UMD, package delivery and source-built site remain unverified."
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "41ada36aca53e769f897c9fb1dbfefc7061d0eaf2a47b82caa9735f4f6be1d1c"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "hast-util-to-htmllil"
+      }
+    },
+    {
+      "id": "jquerylil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/jquerylil",
+      "workspaceCandidates": [
+        "/home/azureuser/jquerylil",
+        "/tmp/lilscript-page-refresh-20260910/current/jquerylil"
+      ],
+      "portHeadAtInventory": "36fabe84aa41aa630b504c7e84d3758a63fb0375",
+      "package": {
+        "name": "@itslil/jquery",
+        "version": "3.7.1",
+        "declaredEntryFiles": [
+          "./dist/jquery.cjs",
+          "./dist/jquery.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/jquery/jquery.git",
+        "commit": "f79d5f1a337528940ab7029d4f8bbba72326f269",
+        "package": "jquery",
+        "version": "3.7.1",
+        "directory": "."
+      },
+      "recordedComparisonScope": "jquery@3.7.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "dist/jquery.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-single-invocation-build-audited-config-compatibility-pending"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/compat.test.mjs",
+        "packageScripts": {
+          "test": "node --test test/compat.test.mjs"
+        },
+        "adapterStatus": "original-node-esm-cjs-inventory-existing-dist-diagnostic-only",
+        "requiredCaseInventory": "jquerylil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/compat.test.mjs"
+          ],
+          "artifacts": [
+            "dist/jquery.esm.js",
+            "dist/jquery.cjs"
+          ],
+          "caseInventory": "jquerylil.required-tests.json",
+          "scope": "Original compatibility command unchanged: candidate ESM behavior and CJS version/export aliases in JSDOM, with upstream jquery as a separate expected oracle. No source-built, full upstream/browser, installed-package, declaration, or broader CJS qualification."
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.app.toml",
+          "sha256": "108ff61c171b95c58e4659f37f219829ed24668e5467c58dd0645bfb28efebbb"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "cf90474a61ee3b75bf94e93e6cd8e28b51535de31b76b128242ac0dc3ef2ec2b"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "jquerylil"
+      }
+    },
+    {
+      "id": "katexlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/katexlil",
+      "workspaceCandidates": [
+        "/home/azureuser/katexlil",
+        "/tmp/lilscript-page-refresh-20260910/current/katexlil"
+      ],
+      "portHeadAtInventory": "13cd81b9f47d9038112daf5aefea480e82e15f2b",
+      "package": {
+        "name": "@itslil/katex",
+        "version": "0.16.24",
+        "declaredEntryFiles": [
+          "./dist/contrib/auto-render.cjs",
+          "./dist/contrib/auto-render.mjs",
+          "./dist/contrib/copy-tex.cjs",
+          "./dist/contrib/copy-tex.mjs",
+          "./dist/contrib/mathtex-script-type.cjs",
+          "./dist/contrib/mathtex-script-type.mjs",
+          "./dist/contrib/mhchem.cjs",
+          "./dist/contrib/mhchem.mjs",
+          "./dist/contrib/render-a11y-string.cjs",
+          "./dist/contrib/render-a11y-string.mjs",
+          "./dist/katex.cjs",
+          "./dist/katex.closed.js",
+          "./dist/katex.mjs",
+          "./katex.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/KaTeX/KaTeX.git",
+        "commit": "613c3da85b083f602c0d5265da0f735ddb728dbb",
+        "package": "katex",
+        "version": "0.16.22",
+        "directory": "."
+      },
+      "recordedComparisonScope": "katex@0.16.22 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "dist/katex.mjs",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+        "packageScripts": {
+          "test": "node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+          "test:official": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs",
+          "check": "npm run build && npm run check:type && npm test && npm run check:pack && npm run check:site && npm run audit",
+          "test:browser": "node --test test/browser-perf.test.mjs"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.check.toml",
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8"
+        },
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd"
+        },
+        {
+          "path": "lilscript.mhchem.toml",
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "katexlil"
+      }
+    },
+    {
+      "id": "markedlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/markedlil",
+      "workspaceCandidates": [
+        "/home/azureuser/markedlil",
+        "/tmp/lilscript-page-refresh-20260910/current/markedlil"
+      ],
+      "portHeadAtInventory": "dbfaf30fb162a0f100e5d97c232d263b84d1cfd3",
+      "package": {
+        "name": "@itslil/marked",
+        "version": "18.0.14",
+        "declaredEntryFiles": [
+          "./dist/marked.cjs",
+          "./dist/marked.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/markedjs/marked.git",
+        "commit": "8698d35b84c17f86ea8a299a6183d47ccb3d2bd7",
+        "package": "marked",
+        "version": "18.0.10",
+        "directory": "."
+      },
+      "recordedComparisonScope": "Pinned Marked parse-only source graph via scripts/official-parse-bundle.mjs; excludes extension API",
+      "recordedUpstreamEntry": "lib/marked.esm.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "source-qualified-representative-invocations-archived"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/compat.test.mjs test/options.test.mjs test/official-parse.test.mjs test/api.test.mjs test/closed.test.mjs",
+        "packageScripts": {
+          "test": "node --test test/compat.test.mjs test/options.test.mjs test/official-parse.test.mjs test/api.test.mjs test/closed.test.mjs"
+        },
+        "adapterStatus": "frozen-75-node-incumbent-replay-archived-raw-config-failure-retained",
+        "requiredCaseInventory": "markedlil.profiles.tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/compat.test.mjs",
+            "test/options.test.mjs",
+            "test/official-parse.test.mjs",
+            "test/api.test.mjs",
+            "test/closed.test.mjs"
+          ],
+          "artifacts": [
+            "dist/marked.esm.js",
+            "dist/marked.cjs",
+            "dist/marked.closed.js",
+            "dist/marked.gzip.js",
+            "dist/marked.bytes.js"
+          ],
+          "caseInventory": "markedlil.profiles.tests.json",
+          "sharedFixture": "marked-profiles.test.mjs"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.bytes.toml",
+          "sha256": "2a3b9c59ab21829bb6aeac4974f171629e75336292abcaa2e7e09e37d67bb412"
+        },
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "991e1f117c085f0028c8607f1f86812a79464d80c25002d2130bf3c676858a0e"
+        },
+        {
+          "path": "lilscript.gzip.toml",
+          "sha256": "7edbbb56eb269296e0e907857141b4f59afe86f49634fc041383e4a23613bb74"
+        },
+        {
+          "path": "lilscript.sourcemap-analysis.toml",
+          "sha256": "b31d7f35c2f812eba6da5b82a92b75788523341300b3250a91f2cdde7700da3c"
+        },
+        {
+          "path": "lilscript.sourcemap-hidden.toml",
+          "sha256": "70801e39b0cf90a81f8ce35541263d782985e9eb5630907b26bbe88b44472f21"
+        },
+        {
+          "path": "lilscript.sourcemap-inline.toml",
+          "sha256": "9bdbdedd9aefa5aea71d93a48aa332959f5a95e959eddee0e86560f78d5bc81b"
+        },
+        {
+          "path": "lilscript.sourcemap-linked.toml",
+          "sha256": "2bc7f73bff76b116afcaa72ba60f261188481919a82e37a0e53a6323550757c1"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "5295859e6b49be4dd54553e16c29adc988f14bb656db79ccb75c7f09779973bb"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Keep the rejected fresh raw-config artifact as a failure; its retained Brotli-generated fallback is the valid raw incumbent.",
+        "The12 eligible minified references cover39 reviewed ESM consumer nodes, not the extension API, CJS/UMD or closed mangled-key world.",
+        "Freeze remaining representative profile acceptance fields and recover missing eligible integrated competitor rows.",
+        "Extend production adapters and complete dependency identity before broader package/fleet promotion."
+      ],
+      "comparisons": [
+        {
+          "artifact": "dist/marked.esm.js",
+          "objective": "brotli",
+          "world": "open",
+          "scope": "declared parse API; packaged ESM"
+        },
+        {
+          "artifact": "dist/marked.closed.js",
+          "objective": "brotli",
+          "world": "closed",
+          "scope": "current closed diagnostic entry; full consumer coverage pending"
+        },
+        {
+          "artifact": "dist/marked.gzip.js",
+          "objective": "gzip",
+          "world": "open",
+          "scope": "reviewed ESM consumer profile; configured gzip artifact passes the frozen incumbent inventory"
+        },
+        {
+          "artifact": "dist/marked.bytes.js",
+          "objective": "raw",
+          "world": "open",
+          "scope": "reviewed ESM consumer profile; retained Brotli-generated raw incumbent passes, original raw-config build remains failed"
+        }
+      ],
+      "currentDisposition": {
+        "status": "scoped-incumbent-and-esm-references-archived",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "markedlil"
+      }
+    },
+    {
+      "id": "mdast-util-from-markdownlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/mdast-util-from-markdownlil",
+      "workspaceCandidates": [
+        "/home/azureuser/mdast-util-from-markdownlil",
+        "/tmp/lilscript-page-refresh-20260910/current/mdast-util-from-markdownlil"
+      ],
+      "portHeadAtInventory": "d4aa854ca8e32fb3ca97d20b24e83ba3fe85d8d9",
+      "package": {
+        "name": "@itslil/mdast-util-from-markdown",
+        "version": "2.0.4",
+        "declaredEntryFiles": [
+          "./dist/from-markdown.cjs",
+          "./dist/from-markdown.closed.js",
+          "./dist/from-markdown.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/syntax-tree/mdast-util-from-markdown.git",
+        "commit": "f9ef1b396227466c4d54ffbd581dfc702dac0cf6",
+        "package": "mdast-util-from-markdown",
+        "version": "2.0.3",
+        "directory": "."
+      },
+      "recordedComparisonScope": "mdast-util-from-markdown@2.0.3 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --project tsconfig.json"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "7dc9d4049fcb02abaa66bed3dca35bc0d5885dcec962e49cb4381cbdd113b24f"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "e69942f51301ce8c541713011a661bed74b731a9b37b37cb6b7d40406b76cece"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "mdast-util-from-markdownlil"
+      }
+    },
+    {
+      "id": "mdast-util-to-hastlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/mdast-util-to-hastlil",
+      "workspaceCandidates": [
+        "/home/azureuser/mdast-util-to-hastlil",
+        "/tmp/lilscript-page-refresh-20260910/current/mdast-util-to-hastlil"
+      ],
+      "portHeadAtInventory": "1c0fd2c5e19f2bf9b4d7a269365bcaa5b126c94f",
+      "package": {
+        "name": "@itslil/mdast-util-to-hast",
+        "version": "13.2.1",
+        "declaredEntryFiles": [
+          "./dist/to-hast.cjs",
+          "./dist/to-hast.closed.js",
+          "./dist/to-hast.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/syntax-tree/mdast-util-to-hast.git",
+        "commit": "174795b21f7757fffb54dd8d5fb4012f4751f791",
+        "package": "mdast-util-to-hast",
+        "version": "13.2.1",
+        "directory": "."
+      },
+      "recordedComparisonScope": "mdast-util-to-hast@13.2.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-two-invocation-build-audited-source-replay-pending"
+      },
+      "tests": {
+        "recordedCommand": "npm run test:types && node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "npm run test:types && node --test test/*.test.mjs test/official/index.js",
+          "test:types": "tsc --noEmit"
+        },
+        "adapterStatus": "original-node-and-type-boundary-inventoried-source-replay-pending",
+        "requiredCaseInventory": "mdast-util-to-hastlil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/site.test.mjs",
+            "test/to-hast.test.mjs",
+            "test/official/index.js"
+          ],
+          "artifacts": [
+            "dist/to-hast.esm.js",
+            "dist/to-hast.closed.js"
+          ],
+          "caseInventory": "mdast-util-to-hastlil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "fc6418e6f09ff260f0fcddeb4c617903228a9443b0dbd9e00040f2afb64c4c7c"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "mdast-util-to-hastlil"
+      }
+    },
+    {
+      "id": "micromarklil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/micromarklil",
+      "workspaceCandidates": [
+        "/home/azureuser/micromarklil",
+        "/tmp/lilscript-page-refresh-20260910/current/micromarklil"
+      ],
+      "portHeadAtInventory": "2d673ff23be844b9ba9781a85e16cbbbe5f6bafd",
+      "package": {
+        "name": "@itslil/micromark",
+        "version": "4.0.3",
+        "declaredEntryFiles": [
+          "./dist/micromark.cjs",
+          "./dist/micromark.closed.js",
+          "./dist/micromark.esm.js",
+          "./dist/micromark.stream.cjs",
+          "./dist/micromark.stream.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/micromark/micromark.git",
+        "commit": "3fae15528f69dfaf2a8865a7f7d92bfb4abd7bc9",
+        "package": "micromark",
+        "version": "4.0.2",
+        "directory": "packages/micromark"
+      },
+      "recordedComparisonScope": "micromark@4.0.2 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/micromark/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-four-invocation-build-inspected-source-replay-pending"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+        "packageScripts": {
+          "test": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+          "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "original-existing-dist-cases-frozen-source-replay-pending",
+        "requiredCaseInventory": "micromarklil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/official/index.js",
+            "test/public-api.test.mjs",
+            "test/stream-api.test.mjs"
+          ],
+          "artifacts": [
+            "dist/micromark.esm.js",
+            "dist/micromark.cjs",
+            "dist/micromark.closed.js",
+            "dist/micromark.stream.js",
+            "dist/micromark.stream.cjs",
+            "dist/micromark.umd.js",
+            "dist/micromark.test.js"
+          ],
+          "caseInventory": "micromarklil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "micromarklil"
+      }
+    },
+    {
+      "id": "mobxlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/mobxlil",
+      "workspaceCandidates": [
+        "/home/azureuser/mobxlil",
+        "/tmp/lilscript-page-refresh-20260910/current/mobxlil"
+      ],
+      "portHeadAtInventory": "69c47f127fbe96e63e5ace4bfe08e6f35367f719",
+      "package": {
+        "name": "@itslil/mobx",
+        "version": "7.0.1",
+        "declaredEntryFiles": [
+          "./dist/index.js",
+          "./dist/mobx.esm.js",
+          "./dist/mobx.mjs"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/mobxjs/mobx.git",
+        "commit": "c9f2e3f8e95bd7b1836bd02734fdcde46800fb6d",
+        "package": "mobx",
+        "version": "7.0.0",
+        "directory": "packages/mobx"
+      },
+      "recordedComparisonScope": "mobx@7.0.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/mobx/dist/mobx.esm.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:dev": "node scripts/build.mjs --dev",
+          "build:min": "node scripts/build.mjs --min",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs --runInBand",
+        "packageScripts": {
+          "test": "node scripts/build.mjs --dev && node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+          "test:types": "tsc --noEmit -p tests/tsconfig.types.json",
+          "test:mixed-versions": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.mixed.config.cjs --runInBand",
+          "test:perf": "node scripts/perf.mjs",
+          "test:e2e": "node e2e/run.mjs",
+          "check": "node scripts/check.mjs"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "config/dev.toml",
+          "sha256": "a0676a8c30c8b9cfc9c6f2fe15a677d89209c5338e4f8df470e99b1220cdfcd1"
+        },
+        {
+          "path": "config/perf.toml",
+          "sha256": "15c1dec745765dc87eb9fca0cbd3423f917091dd21d2ef0caf305dc332b51cbe"
+        },
+        {
+          "path": "config/production.min.toml",
+          "sha256": "25e3f6f7b59d8aac62434d64b0b1f48d39fe3ef85ae41ef23c9a0ba272e86991"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "dac309765067eb2a72bdf618917f06c126a75b68c1744122ec88d4378b26c6e4"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "mobxlil"
+      }
+    },
+    {
+      "id": "monacolil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/monacolil",
+      "workspaceCandidates": [
+        "/home/azureuser/monacolil",
+        "/tmp/lilscript-page-refresh-20260910/current/monacolil"
+      ],
+      "portHeadAtInventory": "e7d810ba65940d55aabd659f5d7bb08eb97cc52b",
+      "package": {
+        "name": "@itslil/monaco-editor",
+        "version": "0.56.1",
+        "declaredEntryFiles": [
+          "./dist/monaco.cjs",
+          "./dist/monaco.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/microsoft/monaco-editor.git",
+        "commit": "13f0c872dcf352815cc28d92dfff496c9839ea5c",
+        "package": "monaco-editor",
+        "version": "0.56.0",
+        "directory": "."
+      },
+      "recordedComparisonScope": "monaco-editor@0.56.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "out/monaco-editor/esm/vs/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:site": "node scripts/write-results.mjs && node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": null,
+        "packageScripts": {},
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.app.toml",
+          "sha256": "1421bbb21dfcf34409752554f9ce99820658a0d17c3f17832990a723924db5ef"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "e4de13f4e34438461efd96e3ec1995634c77bc1e1cd14887b8576dfb2891b1de"
+        },
+        {
+          "path": "src/lilscript.app.toml",
+          "sha256": "1421bbb21dfcf34409752554f9ce99820658a0d17c3f17832990a723924db5ef"
+        },
+        {
+          "path": "src/lilscript.toml",
+          "sha256": "e4de13f4e34438461efd96e3ec1995634c77bc1e1cd14887b8576dfb2891b1de"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "No recorded test command; supply a real behavioral adapter.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "monacolil"
+      }
+    },
+    {
+      "id": "motionlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/tmp/motionlil-cost-audit-20260911/current",
+      "workspaceCandidates": [
+        "/tmp/motionlil-cost-audit-20260911/current",
+        "/home/azureuser/motionlil",
+        "/tmp/lilscript-source-performance-20260910/motion-work"
+      ],
+      "portHeadAtInventory": "d4e7a9c2261c8b4b3e264fec5717e970eaed1729",
+      "package": {
+        "name": "motionlil",
+        "version": "0.1.5",
+        "declaredEntryFiles": [
+          "./dist/debug.cjs",
+          "./dist/debug.js",
+          "./dist/full.cjs",
+          "./dist/full.js",
+          "./dist/index.cjs",
+          "./dist/index.js",
+          "./dist/mini.cjs",
+          "./dist/mini.js",
+          "./dist/motionlil.global.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/motiondivision/motion.git",
+        "commit": "adaf7a4e5368d704ea350669f6ac674fb26ff270",
+        "package": "motion",
+        "version": "13.1.0",
+        "directory": "packages/motion"
+      },
+      "recordedComparisonScope": "motion@13.1.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/motion/dist/es/index.mjs",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-nine-invocation-build-inspected-source-replay-pending"
+      },
+      "tests": {
+        "recordedCommand": "npm test && npm run check:types && npm run test:browser",
+        "packageScripts": {
+          "check": "npm run test && npm run check:types && npm run check:site && npm run check:pack",
+          "check:types": "tsc -p test/types/tsconfig.json",
+          "test": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+          "test:size": "node scripts/measure-size.mjs",
+          "test:browser": "node --test test/browser-controls.test.mjs test/browser-runtime.test.mjs test/browser-backends.test.mjs test/browser-lifecycle.test.mjs",
+          "test:performance": "node scripts/measure-performance.mjs site/performance"
+        },
+        "adapterStatus": "original-node-cases-frozen-recovered-dependencies-browser-and-source-replay-pending",
+        "requiredCaseInventory": "motionlil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/node.test.mjs",
+            "test/terser.test.mjs",
+            "test/vite.test.mjs",
+            "test/shake.test.mjs"
+          ],
+          "artifacts": [
+            "dist/index.js",
+            "dist/index.cjs",
+            "dist/animate.js",
+            "dist/animate-mini.js",
+            "dist/scroll.js",
+            "dist/gestures.js",
+            "dist/viewport.js",
+            "dist/resize.js",
+            "dist/full.js",
+            "dist/mini.js",
+            "dist/debug.js"
+          ],
+          "caseInventory": "motionlil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "src/lilscript.memory-parity.toml",
+          "sha256": "1da8a634f07359b375b13970b39874f9aeb3d5e8142e463e0973e9a89ce4dcff"
+        },
+        {
+          "path": "src/lilscript.toml",
+          "sha256": "f52ee0d997baadd39170780db522f4b810a1869abb4970f32e80d6c925c30864"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Keep full 312-export scope separate from 52-export default; constructor/layout coverage incomplete in recorded evidence.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "motionlil"
+      }
+    },
+    {
+      "id": "playcanvaslil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/playcanvaslil",
+      "workspaceCandidates": [
+        "/home/azureuser/playcanvaslil",
+        "/tmp/lilscript-page-refresh-20260910/current/playcanvaslil"
+      ],
+      "portHeadAtInventory": "93b94c605684e0a6dd89da09fe217e6f1b5036c9",
+      "package": {
+        "name": "playcanvaslil",
+        "version": "0.1.0",
+        "declaredEntryFiles": []
+      },
+      "upstream": {
+        "repository": "https://github.com/playcanvas/engine.git",
+        "commit": "dbd2f580915273d50cfb12936af25d45ae636a04",
+        "package": "playcanvas",
+        "version": "2.22.0-beta.24",
+        "directory": "."
+      },
+      "recordedComparisonScope": null,
+      "recordedUpstreamEntry": "build/playcanvas/src/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run test:artifact",
+        "packageScripts": {
+          "test": "npm run build && npm run test:artifact",
+          "test:artifact": "npm run test:upstream && npm run test:differential && node --test test/shader-processing.test.mjs",
+          "test:upstream": "node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js",
+          "test:differential": "node src/shader-processing/shader-processor-glsl.differential.mjs && node src/shader-processing/shader-definition-utils.differential.mjs",
+          "check": "npm test && npm run measure && npm run analyze && npm run benchmark && npm run check:site"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.toml",
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Recorded comparison is scoped; do not promote it as an unverified whole-package win.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "playcanvaslil"
+      }
+    },
+    {
+      "id": "posthoglil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/posthoglil",
+      "workspaceCandidates": [
+        "/home/azureuser/posthoglil",
+        "/tmp/lilscript-page-refresh-20260910/current/posthoglil"
+      ],
+      "portHeadAtInventory": "673f757a7a25247d2238198132149cc30ecd5a80",
+      "package": {
+        "name": "@itslil/posthog-js",
+        "version": "1.418.11",
+        "declaredEntryFiles": [
+          "./dist/autocapture.cjs",
+          "./dist/autocapture.esm.js",
+          "./dist/error-tracking.cjs",
+          "./dist/error-tracking.esm.js",
+          "./dist/otlp.cjs",
+          "./dist/otlp.esm.js",
+          "./dist/posthog.cjs",
+          "./dist/posthog.esm.js",
+          "./dist/replay-core.cjs",
+          "./dist/replay-core.esm.js",
+          "./dist/surveys.cjs",
+          "./dist/surveys.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/PostHog/posthog-js.git",
+        "commit": "3508c05bf4c70e99c4029c0638e00dd0d7949ec0",
+        "package": "posthog-js",
+        "version": "1.418.10",
+        "directory": "packages/browser"
+      },
+      "recordedComparisonScope": "Pinned PostHog selected kernel source modules via scripts/official-bundle.mjs; not the complete SDK",
+      "recordedUpstreamEntry": "packages/browser/lib/src/posthog.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:dev": "node scripts/build.mjs --dev",
+          "build:packs": "node scripts/build-packs.mjs --compile",
+          "build:packs:dev": "node scripts/build-packs.mjs --dev",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/compat.test.mjs test/api.test.mjs",
+        "packageScripts": {
+          "test": "node --test test/compat.test.mjs test/api.test.mjs",
+          "test:packs": "npm run build:packs:dev && node --test test/surveys.compat.test.mjs test/error-tracking.compat.test.mjs test/otlp.compat.test.mjs test/autocapture.compat.test.mjs test/replay-core.compat.test.mjs",
+          "test:packs:raw": "POSTHOGLIL_SURVEYS_ARTIFACT=dist/surveys.raw.js POSTHOGLIL_ERROR_TRACKING_ARTIFACT=dist/error-tracking.raw.js POSTHOGLIL_OTLP_ARTIFACT=dist/otlp.raw.js POSTHOGLIL_AUTOCAPTURE_ARTIFACT=dist/autocapture.raw.js POSTHOGLIL_REPLAY_CORE_ARTIFACT=dist/replay-core.raw.js node --test test/surveys.compat.test.mjs test/error-tracking.compat.test.mjs test/otlp.compat.test.mjs test/autocapture.compat.test.mjs test/replay-core.compat.test.mjs",
+          "test:packs:release": "POSTHOGLIL_SURVEYS_ARTIFACT=dist/surveys.esm.js POSTHOGLIL_ERROR_TRACKING_ARTIFACT=dist/error-tracking.esm.js POSTHOGLIL_OTLP_ARTIFACT=dist/otlp.esm.js POSTHOGLIL_AUTOCAPTURE_ARTIFACT=dist/autocapture.esm.js POSTHOGLIL_REPLAY_CORE_ARTIFACT=dist/replay-core.esm.js node --test test/surveys.compat.test.mjs test/error-tracking.compat.test.mjs test/otlp.compat.test.mjs test/autocapture.compat.test.mjs test/replay-core.compat.test.mjs",
+          "test:packs:package": "node --test test/packs.api.test.mjs",
+          "test:all": "npm test && npm run test:packs:release && npm run test:packs:package"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.bytes.toml",
+          "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502"
+        },
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d"
+        },
+        {
+          "path": "lilscript.dev.toml",
+          "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec"
+        },
+        {
+          "path": "lilscript.gzip.toml",
+          "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f"
+        },
+        {
+          "path": "lilscript.packs-safe.toml",
+          "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Recorded comparison is scoped; do not promote it as an unverified whole-package win.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "posthoglil"
+      }
+    },
+    {
+      "id": "react-markdownlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/react-markdownlil",
+      "workspaceCandidates": [
+        "/home/azureuser/react-markdownlil",
+        "/tmp/lilscript-page-refresh-20260910/current/react-markdownlil"
+      ],
+      "portHeadAtInventory": "c052c32fb9e63bb21543aa5f48b60c23596dccd9",
+      "package": {
+        "name": "@itslil/react-markdown",
+        "version": "10.1.0",
+        "declaredEntryFiles": [
+          "./dist/react-markdown.cjs",
+          "./dist/react-markdown.closed.js",
+          "./dist/react-markdown.development.cjs",
+          "./dist/react-markdown.development.js",
+          "./dist/react-markdown.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/react-markdown.git",
+        "commit": "44d2e4a44b37461ab7778d6870c1a9eb36393ad2",
+        "package": "react-markdown",
+        "version": "10.1.0",
+        "directory": "."
+      },
+      "recordedComparisonScope": "react-markdown@10.1.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [
+        "react",
+        "react/jsx-runtime",
+        "react-dom"
+      ],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx && npm run check:types",
+        "packageScripts": {
+          "test": "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx && npm run check:types",
+          "check:types": "tsc --noEmit --strict --preserveSymlinks --module node16 --moduleResolution node16 --target es2022 test/types.ts"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "92c5f81df1286a81d59ba066f0f5ac286832e2b4c2334d91448432528611fec0"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "2609234a227cc139a68a40a8ede77c514a903ad2806f00c1b45aad387fa4db6c"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Reproduce and resolve reported repository-check failures.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "react-markdownlil"
+      }
+    },
+    {
+      "id": "rehype-katexlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/rehype-katexlil",
+      "workspaceCandidates": [
+        "/home/azureuser/rehype-katexlil",
+        "/tmp/lilscript-page-refresh-20260910/current/rehype-katexlil"
+      ],
+      "portHeadAtInventory": "462b256a2766719aa132e2b84c4cd1837837a550",
+      "package": {
+        "name": "@itslil/rehype-katex",
+        "version": "7.0.3",
+        "declaredEntryFiles": [
+          "./dist/rehype-katex.cjs",
+          "./dist/rehype-katex.closed.js",
+          "./dist/rehype-katex.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-math.git",
+        "commit": "88a9497e1ede93b958237c85edbf5651faeca7af",
+        "package": "rehype-katex",
+        "version": "7.0.1",
+        "directory": "packages/rehype-katex"
+      },
+      "recordedComparisonScope": "rehype-katex@7.0.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/rehype-katex/index.js",
+      "recordedExternalDependencies": [
+        "katex"
+      ],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/official/test.js test/*.test.mjs",
+        "packageScripts": {
+          "test": "npm run check:types && node --test test/official/test.js test/*.test.mjs",
+          "check:types": "tsc --noEmit --strict --skipLibCheck --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "rehype-katexlil"
+      }
+    },
+    {
+      "id": "rehype-stringifylil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/rehype-stringifylil",
+      "workspaceCandidates": [
+        "/home/azureuser/rehype-stringifylil",
+        "/tmp/lilscript-page-refresh-20260910/current/rehype-stringifylil"
+      ],
+      "portHeadAtInventory": "bf3b41f92103f23c05f0d76694fbf3776b81ad2f",
+      "package": {
+        "name": "@itslil/rehype-stringify",
+        "version": "10.0.3",
+        "declaredEntryFiles": [
+          "./dist/rehype-stringify.cjs",
+          "./dist/rehype-stringify.closed.js",
+          "./dist/rehype-stringify.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/rehypejs/rehype.git",
+        "commit": "06fd4dc9b13538ece27bce1999a85d396a646817",
+        "package": "rehype-stringify",
+        "version": "10.0.1",
+        "directory": "packages/rehype-stringify",
+        "releaseTag": "13.0.2 (monorepo; rehype-stringify 10.0.1)"
+      },
+      "recordedComparisonScope": "rehype-stringify@10.0.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/rehype-stringify/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/*.test.mjs",
+        "packageScripts": {
+          "test": "node --test test/*.test.mjs"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "rehype-stringifylil"
+      }
+    },
+    {
+      "id": "rehypelil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/rehypelil",
+      "workspaceCandidates": [
+        "/home/azureuser/rehypelil",
+        "/tmp/lilscript-page-refresh-20260910/current/rehypelil"
+      ],
+      "portHeadAtInventory": "18092d446404134707385f6ba13d52b5b3a3a92a",
+      "package": {
+        "name": "@itslil/rehype",
+        "version": "13.0.4",
+        "declaredEntryFiles": [
+          "./dist/rehype.cjs",
+          "./dist/rehype.closed.js",
+          "./dist/rehype.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/rehypejs/rehype.git",
+        "commit": "06fd4dc9b13538ece27bce1999a85d396a646817",
+        "package": "rehype",
+        "version": "13.0.2",
+        "directory": "packages/rehype"
+      },
+      "recordedComparisonScope": "rehype@13.0.2 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/rehype/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/api.js test/official/parse-error.js",
+        "packageScripts": {
+          "test": "npm run check:types && node --test test/*.test.mjs test/official/api.js test/official/parse-error.js",
+          "test:parse5-corpus": "node scripts/check-parse5-corpus.mjs",
+          "test:parse5-parser": "node scripts/check-parse5-parser.mjs",
+          "test:parse5-tokenizer": "node scripts/check-parse5-tokenizer.mjs",
+          "check:types": "tsc --noEmit"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "ab6ca4fbeb381a60880c96d2eb249883b745d14df4aff7f1094bc0ef796916b1"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "dbdf4f63e643aafbf51631851736f24f1dd171cc99fadbe09cb53161dfc28c23"
+        },
+        {
+          "path": "test/parse5-modules.toml",
+          "sha256": "b9a8049002589190608b8b85c61ce5cb990dd426048e0b4538d4314f060dd210"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "rehypelil"
+      }
+    },
+    {
+      "id": "remark-breakslil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remark-breakslil",
+      "workspaceCandidates": [
+        "/home/azureuser/remark-breakslil",
+        "/tmp/lilscript-page-refresh-20260910/current/remark-breakslil"
+      ],
+      "portHeadAtInventory": "d7f4ff70bd1fc77a949e28d682ea67dc453d4ae4",
+      "package": {
+        "name": "@itslil/remark-breaks",
+        "version": "4.0.2",
+        "declaredEntryFiles": [
+          "./dist/remark-breaks.cjs",
+          "./dist/remark-breaks.closed.js",
+          "./dist/remark-breaks.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-breaks.git",
+        "commit": "71f4ff3ca9f08b685dccf2fdb9882d8bbaea3388",
+        "package": "remark-breaks",
+        "version": "4.0.0",
+        "directory": "."
+      },
+      "recordedComparisonScope": "remark-breaks@4.0.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-open-closed-build-audited-source-qualified-run-pending"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "original-node-suite-with-pinned-typecheck-existing-dist-inventory-only",
+        "requiredCaseInventory": "remark-breakslil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/api.test.mjs",
+            "test/closed.test.mjs",
+            "test/site.test.mjs",
+            "test/official/index.js"
+          ],
+          "artifacts": [
+            "dist/remark-breaks.esm.js",
+            "dist/remark-breaks.cjs",
+            "dist/remark-breaks.closed.js"
+          ],
+          "caseInventory": "remark-breakslil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "73d262cf9ed46379f368613b61ec83295a9204328b0005f30417e33fbfb40dc9"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remark-breakslil"
+      }
+    },
+    {
+      "id": "remark-gfmlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remark-gfmlil",
+      "workspaceCandidates": [
+        "/home/azureuser/remark-gfmlil",
+        "/tmp/lilscript-page-refresh-20260910/current/remark-gfmlil"
+      ],
+      "portHeadAtInventory": "cb2550734ffc39296c9fb87d77665ec4ea06eba0",
+      "package": {
+        "name": "@itslil/remark-gfm",
+        "version": "4.0.3",
+        "declaredEntryFiles": [
+          "./dist/remark-gfm.cjs",
+          "./dist/remark-gfm.closed.js",
+          "./dist/remark-gfm.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-gfm.git",
+        "commit": "109972e8a773bf5dac1d6d2da0776557f36971aa",
+        "package": "remark-gfm",
+        "version": "4.0.1",
+        "directory": "."
+      },
+      "recordedComparisonScope": "remark-gfm@4.0.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --noEmit --strict --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remark-gfmlil"
+      }
+    },
+    {
+      "id": "remark-mathlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remark-mathlil",
+      "workspaceCandidates": [
+        "/home/azureuser/remark-mathlil",
+        "/tmp/lilscript-page-refresh-20260910/current/remark-mathlil"
+      ],
+      "portHeadAtInventory": "93638861104d17d628ebd00debb272c52abb6b68",
+      "package": {
+        "name": "@itslil/remark-math",
+        "version": "6.0.2",
+        "declaredEntryFiles": [
+          "./dist/remark-math.cjs",
+          "./dist/remark-math.closed.js",
+          "./dist/remark-math.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-math.git",
+        "commit": "d5d0660b150810a535bbb07eac6cc96a4510aa24",
+        "package": "remark-math",
+        "version": "6.0.0",
+        "directory": "packages/remark-math"
+      },
+      "recordedComparisonScope": "remark-math@6.0.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/remark-math/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/test.js",
+        "packageScripts": {
+          "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/test.js",
+          "check:types": "tsc --noEmit --strict --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remark-mathlil"
+      }
+    },
+    {
+      "id": "remark-parselil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remark-parselil",
+      "workspaceCandidates": [
+        "/home/azureuser/remark-parselil",
+        "/tmp/lilscript-page-refresh-20260910/current/remark-parselil"
+      ],
+      "portHeadAtInventory": "e85337286c51d44ce2bd85a645de1734befe1ced",
+      "package": {
+        "name": "@itslil/remark-parse",
+        "version": "11.0.2",
+        "declaredEntryFiles": [
+          "./dist/remark-parse.cjs",
+          "./dist/remark-parse.closed.js",
+          "./dist/remark-parse.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark.git",
+        "commit": "de740c7d52c0278bbc36d8eac218ab74995c6420",
+        "package": "remark-parse",
+        "version": "11.0.0",
+        "directory": "packages/remark-parse"
+      },
+      "recordedComparisonScope": "remark-parse@11.0.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/remark-parse/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --project tsconfig.json"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remark-parselil"
+      }
+    },
+    {
+      "id": "remark-rehypelil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remark-rehypelil",
+      "workspaceCandidates": [
+        "/home/azureuser/remark-rehypelil",
+        "/tmp/lilscript-page-refresh-20260910/current/remark-rehypelil"
+      ],
+      "portHeadAtInventory": "ff657cdbd08b82c116b13a371fad51a46ff996cf",
+      "package": {
+        "name": "@itslil/remark-rehype",
+        "version": "11.1.4",
+        "declaredEntryFiles": [
+          "./dist/remark-rehype.cjs",
+          "./dist/remark-rehype.closed.js",
+          "./dist/remark-rehype.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-rehype.git",
+        "commit": "b5a2e5bb0f14607b6fc79ccbfdf0d518a4f304de",
+        "package": "remark-rehype",
+        "version": "11.1.2",
+        "directory": "."
+      },
+      "recordedComparisonScope": "remark-rehype@11.1.2 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-two-invocation-build-audited-source-replay-pending"
+      },
+      "tests": {
+        "recordedCommand": "npm run test:types && node --test test/*.test.mjs test/official/test.js",
+        "packageScripts": {
+          "test": "npm run test:types && node --test test/*.test.mjs test/official/test.js",
+          "test:types": "tsc --noEmit"
+        },
+        "adapterStatus": "original-node-and-type-boundary-inventoried-source-replay-pending",
+        "requiredCaseInventory": "remark-rehypelil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/api.test.mjs",
+            "test/closed.test.mjs",
+            "test/site.test.mjs",
+            "test/official/test.js"
+          ],
+          "artifacts": [
+            "dist/remark-rehype.esm.js",
+            "dist/remark-rehype.closed.js"
+          ],
+          "caseInventory": "remark-rehypelil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remark-rehypelil"
+      }
+    },
+    {
+      "id": "remarklil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remarklil",
+      "workspaceCandidates": [
+        "/home/azureuser/remarklil",
+        "/tmp/lilscript-page-refresh-20260910/current/remarklil"
+      ],
+      "portHeadAtInventory": "eba54a85e201d3955dc2a833a1b3646f270c845d",
+      "package": {
+        "name": "@itslil/remark",
+        "version": "15.0.2",
+        "declaredEntryFiles": [
+          "./dist/remark.cjs",
+          "./dist/remark.closed.js",
+          "./dist/remark.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark.git",
+        "commit": "5017a27db024db6feec85a3e1e19f8d78a485680",
+        "package": "remark",
+        "version": "15.0.1",
+        "directory": "packages/remark"
+      },
+      "recordedComparisonScope": "remark@15.0.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/remark/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:sources && npm run test:types && node --test test/*.test.mjs test/official/*.js",
+        "packageScripts": {
+          "test": "npm run check:sources && npm run test:types && node --test test/*.test.mjs test/official/*.js",
+          "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "c5c414ff585e90b7a88ec6e0bed61a6b892a5b5e6d8bdf107d60eb21f316856a"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "a9d868ee0c5b43e335a12d1e67efe7e7315ab2a053cd46996bf6251b7674449e"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Reproduce and resolve reported repository-check failures.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remarklil"
+      }
+    },
+    {
+      "id": "solidlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/solidlil",
+      "workspaceCandidates": [
+        "/home/azureuser/solidlil",
+        "/tmp/lilscript-page-refresh-20260910/current/solidlil"
+      ],
+      "portHeadAtInventory": "ad2a0442c418ea4feecba44074a92f0583970d14",
+      "package": {
+        "name": "@itslil/solidjs",
+        "version": "0.1.1",
+        "declaredEntryFiles": [
+          "./dist/full.cjs",
+          "./dist/full.js",
+          "./dist/index.cjs",
+          "./dist/index.js",
+          "./dist/solidlil.global.js",
+          "./dist/web.cjs",
+          "./dist/web.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/solidjs/solid.git",
+        "commit": "ff4d3c4479163fbdd3327f5b22d0c3ea7bd1a2c5",
+        "package": "solid-js",
+        "version": "2.0.0-rc.0",
+        "directory": "packages/solid"
+      },
+      "recordedComparisonScope": "solid-js@2.0.0-rc.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/solid/dist/solid.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs",
+          "build:apps": "node scripts/build-apps.mjs",
+          "build:site": "node scripts/build-site.mjs",
+          "build:jfb": "npm --prefix benchmarks/js-framework-benchmark/keyed/solid-v2 run build-prod && npm --prefix benchmarks/js-framework-benchmark/keyed/solidlil run build-prod",
+          "build:all": "npm run build && npm run build:apps && npm run build:jfb && npm run measure:jfb && npm run bench:perf && npm run build:site"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/node.test.mjs test/vite.test.mjs test/coverage.test.mjs test/jfb.test.mjs test/apps-e2e.test.mjs",
+        "packageScripts": {
+          "check": "npm run test && npm run check:types && npm run check:site && npm run check:pack",
+          "check:types": "tsc -p test/types/tsconfig.json",
+          "test": "node --test test/node.test.mjs test/vite.test.mjs test/coverage.test.mjs test/jfb.test.mjs test/apps-e2e.test.mjs",
+          "test:size": "node scripts/measure-size.mjs && node scripts/measure-runtime.mjs"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "src/lilscript.closed.toml",
+          "sha256": "e373084843bad87bd2fec826e2da86ebb716376db7b382599cca14eb9b15eaff"
+        },
+        {
+          "path": "src/lilscript.performance.toml",
+          "sha256": "3ade1e6361ce18520e81673e9a764b0b1573d918dcf81d0ab3f95638bbbac2a0"
+        },
+        {
+          "path": "src/lilscript.toml",
+          "sha256": "dd32efa99d7316e0471bfcd98dad69138f30c122522bbc3c4e3165d5ccd96ddf"
+        },
+        {
+          "path": "test/upstream/dom-web-oracle.toml",
+          "sha256": "ae5e855d9458ab65ed8666ae2e0a96fe55c460e0e857ffd7c4cb9ba60a14d6b0"
+        },
+        {
+          "path": "test/upstream/exact-production.toml",
+          "sha256": "c172d71b0aeb42dbb1a64d031e3c515d3de19f77ac0ce83dbb8fdd2337e668d0"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "solidlil"
+      }
+    },
+    {
+      "id": "unifiedlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/unifiedlil",
+      "workspaceCandidates": [
+        "/home/azureuser/unifiedlil",
+        "/tmp/lilscript-page-refresh-20260910/current/unifiedlil"
+      ],
+      "portHeadAtInventory": "4d5e4c8e9a42adfa1873d1753b70d1963a77c0de",
+      "package": {
+        "name": "@itslil/unified",
+        "version": "11.0.6",
+        "declaredEntryFiles": [
+          "./dist/unified.cjs",
+          "./dist/unified.closed.js",
+          "./dist/unified.esm.js",
+          "./dist/vfile.cjs",
+          "./dist/vfile.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/unifiedjs/unified.git",
+        "commit": "242105bd6e18c61ca10f37d99529b89f1be37518",
+        "package": "unified",
+        "version": "11.0.5",
+        "directory": "."
+      },
+      "recordedComparisonScope": "unified@11.0.5 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:sources && node --test test/*.test.mjs test/official/index.js && npm run check:types",
+        "packageScripts": {
+          "test": "npm run check:sources && node --test test/*.test.mjs test/official/index.js && npm run check:types",
+          "check:types": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext test/types.test.ts"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "unifiedlil"
+      }
+    },
+    {
+      "id": "vuelil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/tmp/lilscript-page-refresh-20260910/current/vuelil",
+      "workspaceCandidates": [
+        "/home/azureuser/vuelil",
+        "/tmp/lilscript-page-refresh-20260910/current/vuelil"
+      ],
+      "portHeadAtInventory": "472d660aae51b000efc30aa3317acd20d43a2c9e",
+      "package": {
+        "name": "lilscript-vue-lab",
+        "version": "0.1.0",
+        "declaredEntryFiles": []
+      },
+      "upstream": {
+        "repository": "https://github.com/vuejs/core.git",
+        "commit": "d63616ca17de965ed32dcb449a4c5cd9982f15d2",
+        "package": "vue",
+        "version": "3.5.42",
+        "directory": "packages/vue"
+      },
+      "recordedComparisonScope": "vue@3.5.42 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/vue/dist/vue.runtime.esm-bundler.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "npm run build:shared && npm run build:reactivity && npm run build:runtime-core && npm run build:runtime-dom && npm run build:runtime-test && npm run build:compiler-core && npm run build:compiler-dom && npm run build:vue-compat && npm run build:compiler-ssr && npm run build:server-renderer && npm run build:vue && npm run build:compiler-sfc && npm run build:compatibility",
+        "packageScripts": {
+          "build:shared": "node scripts/build-shared.mjs",
+          "build:reactivity": "node scripts/build-reactivity.mjs",
+          "build:runtime-core": "node scripts/build-runtime-core.mjs",
+          "build:runtime-dom": "node scripts/build-runtime-dom.mjs",
+          "build:runtime-test": "node scripts/build-runtime-test.mjs",
+          "build:server-renderer": "node scripts/build-server-renderer.mjs",
+          "build:compiler-core": "node scripts/build-compiler-core.mjs",
+          "build:compiler-dom": "node scripts/build-compiler-dom.mjs",
+          "build:vue-compat": "node scripts/build-vue-compat.mjs",
+          "build:vue": "node scripts/build-vue.mjs",
+          "build:compatibility": "npx --yes node@24 scripts/build-compatibility.mjs",
+          "build:compiler-ssr": "node scripts/build-compiler-ssr.mjs",
+          "build:compiler-sfc": "node scripts/build-compiler-sfc.mjs",
+          "build:project-comparison": "node scripts/build-project-comparison.mjs",
+          "build:pages": "node scripts/build-pages.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node --test tests/*.test.mjs",
+        "packageScripts": {
+          "test": "node --test tests/*.test.mjs",
+          "test:shared": "node --test tests/shared.test.mjs",
+          "test:reactivity": "node --test tests/reactivity-core.test.mjs",
+          "test:runtime-core": "node --test tests/runtime-core-core.test.mjs",
+          "test:runtime-test": "node --test tests/runtime-test.test.mjs",
+          "test:server-renderer": "node --test tests/server-renderer.test.mjs",
+          "test:compiler-core": "node --test tests/compiler-core.test.mjs",
+          "test:compiler-dom": "node --test tests/compiler-dom.test.mjs",
+          "test:compiler-ssr": "node --test tests/compiler-ssr.test.mjs",
+          "test:compiler-sfc": "npm run build:compiler-sfc && node --test tests/compiler-sfc.test.mjs",
+          "test:declarations": "npm run build:compatibility && npx --yes node@24 --test tests/package-parity.test.mjs",
+          "test:package-parity": "npx --yes node@24 --test tests/package-parity.test.mjs",
+          "test:compiler-dom:nesting": "node --test tests/compiler-dom-html-nesting.test.mjs",
+          "test:source-parity": "node --test tests/source-parity.test.mjs",
+          "test:upstream:shared": "npx --yes node@24 scripts/test-upstream-candidate.mjs --suite shared",
+          "test:upstream:shared:reference": "node scripts/test-upstream-reference.mjs --suite shared",
+          "test:upstream:reactivity": "node tests/reactivity-upstream.runner.mjs",
+          "test:upstream:runtime-core": "node tests/runtime-core-upstream.runner.mjs",
+          "test:upstream:runtime-dom": "node tests/runtime-dom-upstream.runner.mjs",
+          "test:upstream:runtime-test": "node tests/runtime-test-upstream.runner.mjs",
+          "test:upstream:server-renderer": "node tests/server-renderer-upstream.runner.mjs",
+          "test:upstream:compiler-core": "node tests/compiler-core-upstream.runner.mjs",
+          "test:upstream:compiler-dom": "node tests/compiler-dom-upstream.runner.mjs",
+          "test:upstream:vue-compat": "npx --yes node@24 tests/vue-compat-upstream.runner.mjs",
+          "test:upstream:vue": "npx --yes node@24 tests/vue-upstream.runner.mjs",
+          "test:upstream:compiler-ssr": "node tests/compiler-ssr-upstream.runner.mjs",
+          "test:upstream:compiler-sfc": "node tests/compiler-sfc-upstream.runner.mjs",
+          "test:scope": "node --test tests/scope.test.mjs",
+          "check": "node scripts/check-complete.mjs",
+          "test:performance": "node --test tests/performance-protocol.test.mjs"
+        },
+        "adapterStatus": "pending-exact-artifact-and-case-inventory",
+        "requiredCaseInventory": null
+      },
+      "configurations": [
+        {
+          "path": "config/closed-world.toml",
+          "sha256": "e4ed08c8f70bdd31acf743cacc0e08863857247be88405a6c3e3d567422bcaa9"
+        },
+        {
+          "path": "config/open-world.toml",
+          "sha256": "269d6ac355a521de6aa9ee082612a416c6a008b1047c98889a51911898653e79"
+        },
+        {
+          "path": "config/reactivity-production.toml",
+          "sha256": "194f8cb42e1bb9531d0a74ed8658f4d8250ea9515ed58b5902653b931ea7bbdb"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Checkout recovered from recorded snapshot; reproduce reported compilation gaps.",
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "vuelil"
+      }
+    },
+    {
+      "id": "zodlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/zodlil",
+      "workspaceCandidates": [
+        "/home/azureuser/zodlil",
+        "/tmp/lilscript-page-refresh-20260910/current/zodlil"
+      ],
+      "portHeadAtInventory": "b80748e784c5b40d6dd50d6f1ef220cd640ca0b2",
+      "package": {
+        "name": "@itslil/zod",
+        "version": "4.4.4",
+        "declaredEntryFiles": [
+          "./dist/core.cjs",
+          "./dist/core.js",
+          "./dist/index.cjs",
+          "./dist/index.js",
+          "./dist/locales.js",
+          "./dist/mini.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/colinhacks/zod.git",
+        "commit": "f3c9ec03ba7a28ae72d25cc295f38674bee0f559",
+        "package": "zod",
+        "version": "4.4.3",
+        "directory": "packages/zod"
+      },
+      "recordedComparisonScope": "zod@4.4.3 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/zod/v4/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force --prod",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "node scripts/test.mjs",
+        "packageScripts": {
+          "test": "node scripts/build.mjs --compile && node scripts/test.mjs",
+          "test:e2e": "node e2e/run.mjs"
+        },
+        "adapterStatus": "vitest-native-artifact-observation-original-import-bypasses-unverified",
+        "requiredCaseInventory": "zodlil.required-tests.json",
+        "vitestAdapter": {
+          "config": "vitest.config.ts",
+          "caseInventory": "zodlil.required-tests.json",
+          "artifacts": [
+            "dist/index.js",
+            "dist/zod.core.js",
+            "dist/compat.js",
+            "dist/visit.js",
+            "dist/async-api.js",
+            "dist/official-json-schema.js",
+            "dist/regexes.js",
+            "dist/core.js",
+            "dist/mini.js"
+          ],
+          "forbiddenSources": [
+            {
+              "root": "vendor/zod/packages/zod/src",
+              "except": [
+                "vendor/zod/packages/zod/src/v4/classic/tests"
+              ]
+            }
+          ],
+          "scope": "Original configured classic runtime suite only; all declared cases retained; upstream implementation bypasses reject qualification. Package, CJS, locales, e2e, and original excluded type coverage remain required and unverified."
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.bytes.toml",
+          "sha256": "768a70996f57bbf19698983f8c633c98ab4f03eebf1193bf626d81c7fb911455"
+        },
+        {
+          "path": "lilscript.dev.toml",
+          "sha256": "ac4f4eca2aa831e5cd802d820da352d18099d502a13dac4056bdaefcdd1496e7"
+        },
+        {
+          "path": "lilscript.gzip.toml",
+          "sha256": "92738c675b9247966a096946ca3d79c64d92aae9db8fb32b15000fc4f534b925"
+        },
+        {
+          "path": "lilscript.nomangle.toml",
+          "sha256": "8abdf26f3b9ad7f9ee36fda3c1c1a99a601c3affdc5c30a6529bd8488fe6e30d"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "09843acb2144c0625b5e338ff8572c6d93922b766d697a4034799896a36bf012"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "zodlil"
+      }
+    }
+  ],
+  "additionalCoverage": [
+    {
+      "id": "probelil",
+      "kind": "feature-canary",
+      "workspace": "/home/azureuser/probelil",
+      "required": true,
+      "upstreamComparison": "not a library-size claim",
+      "status": "source-qualified-22-profile-recovery-archived",
+      "tests": {
+        "nodeAdapter": {
+          "sharedFixture": "probe.test.mjs",
+          "artifacts": [
+            "dist/probe.js",
+            "dist/probe.none.js"
+          ],
+          "caseInventory": "probelil.required-tests.json"
+        },
+        "adapterStatus": "reviewed-base-inventory-and22-profile-replay-archived",
+        "requiredCaseInventory": "probelil.required-tests.json"
+      },
+      "comparisons": [
+        {
+          "artifact": "dist/probe.js",
+          "objective": "brotli",
+          "world": "closed",
+          "scope": "feature canary; not a competitive library claim"
+        }
+      ],
+      "currentDisposition": {
+        "status": "source-qualified-22-profile-recovery-archived",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "probelil"
+      }
+    },
+    {
+      "id": "lil-solidjs",
+      "kind": "related-checkout",
+      "workspace": "/home/azureuser/lil-solidjs",
+      "relatedTo": "solidlil",
+      "required": true,
+      "separateCompetitiveRow": false,
+      "status": "distinct Git checkout and revision; reconcile source and extra consumer tests before marking superseded",
+      "currentDisposition": {
+        "status": "required-related-coverage-reconciliation-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "lil-solidjs"
+      }
+    }
+  ],
+  "dispositionReview": {
+    "date": "2026-09-13",
+    "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+    "scope": "Immutable evidence reconciliation, not a fresh workspace scan or new compiler execution. All29 required IDs retained."
+  }
+}

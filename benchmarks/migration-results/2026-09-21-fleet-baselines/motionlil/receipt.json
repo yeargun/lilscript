@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "motionlil",
+  "started": "2026-09-21T01:11:40.062Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/motionlil",
+  "workspace": "/tmp/lilscript-baseline-motionlil-MKnhVx/motionlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/motionlil",
+    "candidates": [
+      "/home/azureuser/motionlil",
+      "/home/azureuser/motionlil",
+      "/tmp/motionlil-cost-audit-20260911/current",
+      "/tmp/lilscript-source-performance-20260910/motion-work"
+    ],
+    "recorded": "/home/azureuser/motionlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/motionlil",
+    "files": 415,
+    "sha256": "121a652e263e5ae482c5ac98b704a01562ba7f1a38f8d1f7c15703f2118acd14"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/motionlil/src/lilscript.memory-parity.toml",
+        "sha256": "1da8a634f07359b375b13970b39874f9aeb3d5e8142e463e0973e9a89ce4dcff",
+        "bytes": 205
+      },
+      {
+        "path": "/home/azureuser/motionlil/src/lilscript.toml",
+        "sha256": "56ffcfd019e233b6f76c43fdfd999735aa0012e481ace3230b92af5d29b2359c",
+        "bytes": 709
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/animate-mini.cjs",
+    "dist/animate-mini.js",
+    "dist/animate.cjs",
+    "dist/animate.js",
+    "dist/debug.cjs",
+    "dist/debug.js",
+    "dist/full.cjs",
+    "dist/full.js",
+    "dist/gestures.cjs",
+    "dist/gestures.js",
+    "dist/index.bundle.js",
+    "dist/index.cjs",
+    "dist/index.js",
+    "dist/mini.cjs",
+    "dist/mini.js",
+    "dist/motionlil.global.js",
+    "dist/resize.cjs",
+    "dist/resize.js",
+    "dist/scroll.cjs",
+    "dist/scroll.js",
+    "dist/viewport.cjs",
+    "dist/viewport.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "MOTIONLIL_KEEP_COMPILER_OUTPUT",
+    "MOTIONLIL_LILSCRIPT_BIN"
+  ],
+  "build": {
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 141.932,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=1 signal=null"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 143.332,
+  "completed": "2026-09-21T01:14:03.359Z",
+  "fingerprint": "c025d5b10f4a4e4693d5f13a30a8aec877de2cb659134b813c2f9a6e08fcb371"
+}

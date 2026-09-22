@@ -1,0 +1,1 @@
+func()->int helper(int value){return ()=>value;}auto a=helper(3);auto b=helper(8);print(a());print(b());print(a());

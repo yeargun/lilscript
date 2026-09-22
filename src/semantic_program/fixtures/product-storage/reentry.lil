@@ -1,0 +1,10 @@
+struct Leaf { int x; int y; }
+struct State { Leaf leaf; int sibling; }
+extern void keep(func()->void replace);
+extern int rhs();
+State state = State{Leaf{1,2},3};
+State saved = state;
+keep(()=>{state = State{Leaf{10,20},30};});
+try { state.leaf.x = rhs(); } catch { print(99); }
+print(state.leaf.x); print(state.leaf.y); print(state.sibling);
+print(saved.leaf.x); print(saved.leaf.y); print(saved.sibling);

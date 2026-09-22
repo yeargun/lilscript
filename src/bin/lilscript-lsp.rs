@@ -553,7 +553,7 @@ fn semantic_tokens_result(params: &Value, documents: &HashMap<String, Document>)
         return json!({ "data": [] });
     };
     let mut absolute = Vec::<(u32, u32, u32, u32)>::new();
-    for element in elements {
+    for element in &elements {
         match element {
             SyntaxElement::Token(token) => {
                 let Some(token_type) = semantic_token_type(&token.kind) else {
@@ -1098,6 +1098,14 @@ fn document_symbol_result(params: &Value, documents: &HashMap<String, Document>)
                             6,
                             method.span,
                             method.name.span,
+                            Vec::new(),
+                        ),
+                        ExternClassMember::Constructor(constructor) => document_symbol(
+                            &document.text,
+                            "init",
+                            9,
+                            constructor.span,
+                            constructor.span,
                             Vec::new(),
                         ),
                     })

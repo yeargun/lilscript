@@ -1,17 +1,7 @@
 # Compiler architecture
 
-Parent: [compilation](README.md). Product intent: [mission](../mission.md).
-Decisions: [design records](../decisions/README.md).
+Parent: [compilation](README.md). Intent: [mission](../mission.md).
 
-- [Current architecture](current-architecture.md) describes what this checkout
-  implements and names its remaining gaps.
-- [Planned architecture](planned-architecture.md) defines the smallest intended
-  contract/proof/decision/search/target-JS system.
-- [Planned migration](../migration/planned-migration.md) orders the work.
-- [Decision registry](decision-registry.md) catalogs implemented choices;
-  [objectives](objectives.md) defines ranking and codec measurement.
+[Current architecture](current-architecture.md) describes an existing implementation. The [decision registry](decision-registry.md), [objectives](objectives.md) and other topic pages explain current code and historical rationale.
 
-Live state is [`docs/current-status.md`](../../current-status.md) and the
-[ledger](../migration/board/LEDGER.md). Historical
-[goal architecture](goal-architecture.md) and
-[phase 07](../migration/07-global-compressor.md) preserve rationale only.
+[Compiler and language design](../../compiler-design.md) is the single proposed target. The consolidated [migration plan](../../migration/index.md) contains all bounded tasks, dependencies and progress in one file. Open language choices remain explicit. Former proposals, sequences and boards are archived outside the repository and do not authorize implementation.

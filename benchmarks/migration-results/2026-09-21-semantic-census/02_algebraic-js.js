@@ -1,0 +1,1 @@
+let a;let b;let value=0;{let a;let index=0;for(;index<5;a=index,index=a+ 1|0,a){value=value+ index|0;}}a=void console.log((value+ 0|0)*1);b=void console.log(value- value|0);

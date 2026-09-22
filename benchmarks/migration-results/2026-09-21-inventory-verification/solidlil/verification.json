@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "solidlil",
+  "inventory": {
+    "path": "benchmarks/libraries/solidlil.required-tests.json",
+    "sha256": "bb3bbb23cda4aa7026847f9e57a475e761ee26ee1591d84742a51d0e852e9d58",
+    "bytes": 948334
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/solidlil/receipt.json",
+    "sha256": "a3215dbb70a1cd156f84be6f5835ba6fafbe91d8dd5c48e52df5ace3fb3e3c52",
+    "bytes": 25854
+  },
+  "frozenCases": 50,
+  "observedCases": 50,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"counter: Counter\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"effects: Split effects\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"form-binding: Form binding\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"context-theme: Context\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"async-profile: Async memo\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"optimistic-save: Optimistic action\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"reveal-feed: Reveal feed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"projection-filter: Projection\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"show-switch: Show / Switch\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"repeat-grid: Repeat grid\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"nested-tree: Nested tree\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"error-reset: Error reset\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"todolist: Todo list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"store-cart: Store cart\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"kanban: Kanban board\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"inbox: Inbox\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"marketplace: Lil marketplace\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"keyed: Keyed table\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"spreadsheet: Spreadsheet\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"svg-clock: SVG clock\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"portal-modal: Portal modal\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",12,1,0,\"test\",\"every solid-js export exists on @itslil/solidjs\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",17,1,0,\"test\",\"every @solidjs/web export exists on @itslil/solidjs/web\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",22,1,0,\"test\",\"createProjection and reconcile keep keyed identity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",41,1,0,\"test\",\"mapArray and For map a list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",52,1,0,\"test\",\"Reveal holds later Loading slots until earlier ones settle\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",77,1,0,\"test\",\"ssr helpers and renderToString produce HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",85,1,0,\"test\",\"hydrate claims existing nodes and does not wipe the root\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",103,1,0,\"test\",\"mapArray reuses mapped nodes by identity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",116,1,0,\"test\",\"createStore setter can replace by returning a new value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",126,1,0,\"test\",\"createMemo lazy waits for the first read\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",140,1,0,\"test\",\"createEffect defer skips the first apply\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",153,1,0,\"test\",\"default-less createContext throws outside a provider\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/jfb.test.mjs\",64,1,0,\"test\",\"the source-aligned keyed bundles have the same observable behavior\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",7,1,0,\"test\",\"queued writes stay invisible until flush\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",18,1,0,\"test\",\"tuple createSignal matches the Solid 2.0 consumer shape\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",32,1,0,\"test\",\"createMemo is allocated once and tracks the source\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",43,1,0,\"test\",\"split createEffect applies after compute\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",61,1,0,\"test\",\"createSelector only notifies matching keys\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",85,1,0,\"test\",\"createStore mutates a draft\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",97,1,0,\"test\",\"fan-out subscribe notifies every observer and forgets recycled slots\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",129,1,0,\"test\",\"dropping a dependency stops updates from that signal\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",151,1,0,\"test\",\"disposing a root recycles effect slots\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",161,1,0,\"test\",\"public entries export createSelector\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",166,1,0,\"test\",\"NotReady from a nested effect wakes the parent Loading effect\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",196,1,0,\"test\",\"createMemo settles a thenable and flips isPending\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",214,1,0,\"test\",\"action reverts createOptimistic writes on failure\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",228,1,0,\"test\",\"createUniqueId is stable per call and children flattens\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",238,1,0,\"test\",\"CommonJS entry exposes the same public names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

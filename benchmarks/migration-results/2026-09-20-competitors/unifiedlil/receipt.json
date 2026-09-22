@@ -1,0 +1,185 @@
+{
+  "schema": 1,
+  "kind": "competitor-recipe-run",
+  "boundary": "unifiedlil",
+  "started": "2026-09-20T22:30:37.523Z",
+  "passed": true,
+  "ourArtifact": {
+    "path": "/home/azureuser/unifiedlil/dist/unified.esm.js",
+    "sha256": "135731a87b44827d4143d98d1b13762029cc4969be3d8f0f23f39d6ac687a40a",
+    "bytes": 14490
+  },
+  "upstream": {
+    "directory": "/home/azureuser/unifiedlil/node_modules/unified",
+    "name": "unified",
+    "version": "11.0.5",
+    "entry": "index.js",
+    "externals": []
+  },
+  "competitors": [
+    {
+      "id": "terser@5.51.2/terser",
+      "recipe": "terser",
+      "tool": {
+        "name": "terser",
+        "version": "5.51.2",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/terser/package.json",
+          "sha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+          "bytes": 3334
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/terser",
+          "sha256": "312a3f9b37d3f5316ee384bfdc347313dae6f0f9056c44b3cae56c8e4e9f4496",
+          "bytes": 444
+        }
+      },
+      "renames": "locals and top-level module bindings (`-m --module`); property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/unifiedlil/terser.min.js",
+      "sha256": "e5cc0654add21821b22eb9bcce0a4d8e2ea3088fc4458648e0357b33c410fa4f",
+      "bytes": 13391,
+      "sizes": {
+        "raw": 13391,
+        "gzip": 4799,
+        "brotli": 4347
+      },
+      "exports": [
+        "unified"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 0.924,
+      "massMatches": true,
+      "comparable": true
+    },
+    {
+      "id": "esbuild@0.28.1/esbuild",
+      "recipe": "esbuild",
+      "tool": {
+        "name": "esbuild",
+        "version": "0.28.1",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+          "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+          "bytes": 3980
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+          "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+          "bytes": 11407472
+        }
+      },
+      "renames": "locals and top-level bindings; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/unifiedlil/esbuild.min.js",
+      "sha256": "23ba021669e46a1948b90f3ecfeb47a80a8d5172c98346f4c9fdc610e38f7f8b",
+      "bytes": 13793,
+      "sizes": {
+        "raw": 13793,
+        "gzip": 5044,
+        "brotli": 4617
+      },
+      "exports": [
+        "unified"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 0.952,
+      "massMatches": true,
+      "comparable": true
+    },
+    {
+      "id": "rolldown@1.2.5/oxc",
+      "recipe": "oxc",
+      "tool": {
+        "name": "rolldown",
+        "version": "1.2.5",
+        "home": "/home/azureuser/markedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/markedlil/node_modules/rolldown/package.json",
+          "sha256": "6be75efa1a51c115f17375d1fc4713f70392bff70335045ec5cf7eeaf1228c96",
+          "bytes": 6127
+        },
+        "binary": {
+          "path": "/home/azureuser/markedlil/node_modules/.bin/rolldown",
+          "sha256": "4f32d8fafabe786e739f8be56df684e56def00e63a32858ad9d5ede57406bc6c",
+          "bytes": 46
+        }
+      },
+      "renames": "locals and top-level bindings through Rolldown's Oxc minifier; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/unifiedlil/oxc.min.js",
+      "sha256": "bf80900dd978e8b54bf55458f9889ab661a3ec654631a385b54e5194f83ab8ca",
+      "bytes": 13465,
+      "sizes": {
+        "raw": 13465,
+        "gzip": 4850,
+        "brotli": 4427
+      },
+      "exports": [
+        "unified"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 0.929,
+      "massMatches": true,
+      "comparable": true
+    }
+  ],
+  "refused": [],
+  "limitations": [
+    "Byte construction only. These artifacts are not executed, so this receipt is not behavior evidence.",
+    "Each recipe states its own renaming policy; the comparison is only as fair as that statement.",
+    "The bundle leaves external exactly what our artifact imports. A boundary that bundles a different dependency graph is not comparable and says so."
+  ],
+  "bundle": {
+    "tool": {
+      "name": "esbuild",
+      "version": "0.28.1",
+      "home": "/home/azureuser/unifiedlil/node_modules",
+      "package": {
+        "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      },
+      "binary": {
+        "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      }
+    },
+    "args": [
+      "/home/azureuser/unifiedlil/node_modules/unified/index.js",
+      "--bundle",
+      "--format=esm",
+      "--target=es2020",
+      "--outfile=/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/unifiedlil/upstream.bundle.mjs"
+    ],
+    "output": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/unifiedlil/upstream.bundle.mjs",
+      "sha256": "526b022c4c9e0cd6ca7ce9916f40ec93b434c68753515e53fc8fd434321a1556",
+      "bytes": 55844
+    }
+  },
+  "ourSizes": {
+    "raw": 14490,
+    "gzip": 5128,
+    "brotli": 4642
+  },
+  "bundleSizes": {
+    "raw": 55844,
+    "gzip": 11914,
+    "brotli": 10440
+  },
+  "publicSurface": {
+    "ours": [
+      "unified"
+    ]
+  },
+  "comparable": true,
+  "completed": "2026-09-20T22:30:38.269Z",
+  "fingerprint": "296b6f1a527a77c4e40ebf561ae59a0721bda5fb0eeb2f20fb611aa1433a133d"
+}

@@ -1,0 +1,55 @@
+{
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--test",
+    "finer/tools/artifact-evidence.test.mjs"
+  ],
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "inputs": [
+    {
+      "path": "finer/tools/artifact-evidence.test.mjs",
+      "sha256": "c71d5642d9e5ae4f13b3f17057096e3b2d5d622934139c660c81af77202f0344",
+      "bytes": 9626
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/compiler-receipt.mjs",
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 33554432,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "ddbad9fb09dcf386033d783b8cb32a4345c5b36777a796b024871bca73534e30",
+    "bytes": 1292
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

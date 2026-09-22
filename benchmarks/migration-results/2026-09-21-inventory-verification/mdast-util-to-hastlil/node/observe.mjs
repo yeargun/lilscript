@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-adapter-mdast-util-to-hastlil-nmYD34/mdast-util-to-hastlil/dist/to-hast.cjs","/tmp/lilscript-adapter-mdast-util-to-hastlil-nmYD34/mdast-util-to-hastlil/dist/to-hast.closed.js","/tmp/lilscript-adapter-mdast-util-to-hastlil-nmYD34/mdast-util-to-hastlil/dist/to-hast.esm.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/mdast-util-to-hastlil/node/loaded"});

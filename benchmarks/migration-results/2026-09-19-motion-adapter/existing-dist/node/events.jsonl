@@ -1,0 +1,19 @@
+{"kind":"test-case","id":"[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]","file":"test/node.test.mjs","name":"ESM entry points load without a browser global","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]","file":"test/node.test.mjs","name":"pure utilities and MotionValue behavior work","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]","file":"test/node.test.mjs","name":"CommonJS entry points expose the same public names","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]","file":"test/node.test.mjs","name":"every Motion DOM export is present on the full entry","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]","file":"test/node.test.mjs","name":"default entry keeps the JS consumer API","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]","file":"test/node.test.mjs","name":"public constructor compatibility covers common direct usage","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]","file":"test/node.test.mjs","name":"MotionValue uses its public prototype and preserves method defaults","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]","file":"test/node.test.mjs","name":"group compatibility preserves existing native accessors and completion promises","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]","file":"test/shake.test.mjs","name":"named imports do not pull the whole consumer graph","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]","file":"test/terser.test.mjs","name":"the distributed animate module survives a second Terser pass","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]","file":"test/vite.test.mjs","name":"Vite bundles the public package entry","type":"test","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 11"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 11"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 3491.513437"}

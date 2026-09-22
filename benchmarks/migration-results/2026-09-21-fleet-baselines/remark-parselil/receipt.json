@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "remark-parselil",
+  "started": "2026-09-21T00:53:33.838Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/remark-parselil",
+  "workspace": "/tmp/lilscript-baseline-remark-parselil-ZCZKvo/remark-parselil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/remark-parselil",
+    "candidates": [
+      "/home/azureuser/remark-parselil",
+      "/home/azureuser/remark-parselil",
+      "/tmp/lilscript-page-refresh-20260910/current/remark-parselil"
+    ],
+    "recorded": "/home/azureuser/remark-parselil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "This library has no frozen required-case inventory, so these bytes are measured but not qualified by any test."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/remark-parselil",
+    "files": 93,
+    "sha256": "c94135a76651b1f67d9af588b9bb2c8eb4d1ab208470bde6a5852439aa634bb5"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/remark-parselil/lilscript.closed.toml",
+        "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+        "bytes": 386
+      },
+      {
+        "path": "/home/azureuser/remark-parselil/lilscript.toml",
+        "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+        "bytes": 803
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/remark-parse.cjs",
+    "dist/remark-parse.closed.js",
+    "dist/remark-parse.esm.js",
+    "dist/remark-parse.raw.js",
+    "dist/remark-parse.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 134.436,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/remark-parse.cjs",
+      "sha256": "16bb24ce3773d39e8ffa7bcd7b7e0774e4bf9136f41afd8f3dee95c30daa811b",
+      "bytes": 101963,
+      "sizes": {
+        "raw": 101963,
+        "gzip": 32182,
+        "brotli": 27276
+      }
+    },
+    {
+      "path": "dist/remark-parse.closed.js",
+      "sha256": "2e891509d8f0e4f1a05f4e210c8ffe74c4cd25b2d43dc7f28e3f4bf775dc47f6",
+      "bytes": 88343,
+      "sizes": {
+        "raw": 88343,
+        "gzip": 30768,
+        "brotli": 26154
+      }
+    },
+    {
+      "path": "dist/remark-parse.esm.js",
+      "sha256": "03464f65f6dd954372148e0ddca83e051838f18776f62b2fc9de353a71194664",
+      "bytes": 87350,
+      "sizes": {
+        "raw": 87350,
+        "gzip": 30393,
+        "brotli": 25906
+      }
+    },
+    {
+      "path": "dist/remark-parse.raw.js",
+      "sha256": "ad6d9285e3e38119452e0d1506f297a1463a554b3d1b4d7a06dd67cb9dec8fc0",
+      "bytes": 87263,
+      "sizes": {
+        "raw": 87263,
+        "gzip": 30323,
+        "brotli": 25773
+      }
+    },
+    {
+      "path": "dist/remark-parse.umd.js",
+      "sha256": "c4537d53d272a82a4f8303151d7c18223ce2e4af5b6e5c700155c6858d32e6bf",
+      "bytes": 102039,
+      "sizes": {
+        "raw": 102039,
+        "gzip": 32237,
+        "brotli": 27283
+      }
+    }
+  ],
+  "measurements": {
+    "dist/remark-parse.cjs": {
+      "raw": 101963,
+      "gzip": 32182,
+      "brotli": 27276
+    },
+    "dist/remark-parse.closed.js": {
+      "raw": 88343,
+      "gzip": 30768,
+      "brotli": 26154
+    },
+    "dist/remark-parse.esm.js": {
+      "raw": 87350,
+      "gzip": 30393,
+      "brotli": 25906
+    },
+    "dist/remark-parse.raw.js": {
+      "raw": 87263,
+      "gzip": 30323,
+      "brotli": 25773
+    },
+    "dist/remark-parse.umd.js": {
+      "raw": 102039,
+      "gzip": 32237,
+      "brotli": 27283
+    }
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 136.143,
+  "completed": "2026-09-21T00:55:49.944Z",
+  "fingerprint": "3e49e42ee44b73f12945fed093d9e8d025a28644f77c28bc3416e1ec0f3934eb"
+}

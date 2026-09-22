@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-baseline-remark-gfmlil-hybQNo/remark-gfmlil/dist/remark-gfm.esm.js","/tmp/lilscript-baseline-remark-gfmlil-hybQNo/remark-gfmlil/dist/remark-gfm.cjs","/tmp/lilscript-baseline-remark-gfmlil-hybQNo/remark-gfmlil/dist/remark-gfm.closed.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-remark-gfm-fixed/remark-gfmlil/node/loaded"});

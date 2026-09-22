@@ -1,0 +1,1151 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/events.jsonl",
+    "test/shader-processing.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/shader-processing.test.mjs",
+      "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+      "bytes": 5772
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/shader-processing.test.mjs"
+    ],
+    "files": [
+      "test/shader-processing.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/observe.mjs",
+    "sha256": "e199a44f9494342f09ead499aedeefa2bfd2a4bdfd164d3e955ca7d0c22f78ba",
+    "bytes": 649,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": false,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+          "bytes": 418
+        },
+        "actual": {
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+          "bytes": 418
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        },
+        "actual": {
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        "actual": {
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/analyze-compression.mjs",
+        "expected": {
+          "path": "scripts/analyze-compression.mjs",
+          "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+          "bytes": 2990
+        },
+        "actual": {
+          "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+          "bytes": 2990
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/benchmark-worker.mjs",
+        "expected": {
+          "path": "scripts/benchmark-worker.mjs",
+          "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+          "bytes": 1320
+        },
+        "actual": {
+          "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+          "bytes": 1320
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/benchmark.mjs",
+        "expected": {
+          "path": "scripts/benchmark.mjs",
+          "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+          "bytes": 3430
+        },
+        "actual": {
+          "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+          "bytes": 3430
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+          "bytes": 1359
+        },
+        "actual": {
+          "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+          "bytes": 1359
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+          "bytes": 4487
+        },
+        "actual": {
+          "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+          "bytes": 4487
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/measure.mjs",
+        "expected": {
+          "path": "scripts/measure.mjs",
+          "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+          "bytes": 6700
+        },
+        "actual": {
+          "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+          "bytes": 6700
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/test-upstream.mjs",
+        "expected": {
+          "path": "scripts/test-upstream.mjs",
+          "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+          "bytes": 1187
+        },
+        "actual": {
+          "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+          "bytes": 1187
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+          "bytes": 3214
+        },
+        "actual": {
+          "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+          "bytes": 3214
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+          "bytes": 7614
+        },
+        "actual": {
+          "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+          "bytes": 7614
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+          "bytes": 10500
+        },
+        "actual": {
+          "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+          "bytes": 10500
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/redirect-loader.mjs",
+        "expected": {
+          "path": "test/redirect-loader.mjs",
+          "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+          "bytes": 1147
+        },
+        "actual": {
+          "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+          "bytes": 1147
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/register-loader.mjs",
+        "expected": {
+          "path": "test/register-loader.mjs",
+          "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+          "bytes": 93
+        },
+        "actual": {
+          "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+          "bytes": 93
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/shader-processing.test.mjs",
+        "expected": {
+          "path": "test/shader-processing.test.mjs",
+          "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+          "bytes": 5772
+        },
+        "actual": {
+          "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+          "bytes": 5772
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+          "bytes": 2237
+        },
+        "actual": {
+          "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+          "bytes": 2237
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+          "bytes": 418
+        },
+        "actual": {
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+          "bytes": 418
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        },
+        "actual": {
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        "actual": {
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/analyze-compression.mjs",
+        "expected": {
+          "path": "scripts/analyze-compression.mjs",
+          "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+          "bytes": 2990
+        },
+        "actual": {
+          "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+          "bytes": 2990
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/benchmark-worker.mjs",
+        "expected": {
+          "path": "scripts/benchmark-worker.mjs",
+          "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+          "bytes": 1320
+        },
+        "actual": {
+          "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+          "bytes": 1320
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/benchmark.mjs",
+        "expected": {
+          "path": "scripts/benchmark.mjs",
+          "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+          "bytes": 3430
+        },
+        "actual": {
+          "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+          "bytes": 3430
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+          "bytes": 1359
+        },
+        "actual": {
+          "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+          "bytes": 1359
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+          "bytes": 4487
+        },
+        "actual": {
+          "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+          "bytes": 4487
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/measure.mjs",
+        "expected": {
+          "path": "scripts/measure.mjs",
+          "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+          "bytes": 6700
+        },
+        "actual": {
+          "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+          "bytes": 6700
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/test-upstream.mjs",
+        "expected": {
+          "path": "scripts/test-upstream.mjs",
+          "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+          "bytes": 1187
+        },
+        "actual": {
+          "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+          "bytes": 1187
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+          "bytes": 3214
+        },
+        "actual": {
+          "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+          "bytes": 3214
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+          "bytes": 7614
+        },
+        "actual": {
+          "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+          "bytes": 7614
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+          "bytes": 10500
+        },
+        "actual": {
+          "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+          "bytes": 10500
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/redirect-loader.mjs",
+        "expected": {
+          "path": "test/redirect-loader.mjs",
+          "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+          "bytes": 1147
+        },
+        "actual": {
+          "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+          "bytes": 1147
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/register-loader.mjs",
+        "expected": {
+          "path": "test/register-loader.mjs",
+          "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+          "bytes": 93
+        },
+        "actual": {
+          "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+          "bytes": 93
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/shader-processing.test.mjs",
+        "expected": {
+          "path": "test/shader-processing.test.mjs",
+          "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+          "bytes": 5772
+        },
+        "actual": {
+          "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+          "bytes": 5772
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+          "bytes": 2237
+        },
+        "actual": {
+          "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+          "bytes": 2237
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+          "bytes": 418
+        },
+        "actual": {
+          "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+          "bytes": 418
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        },
+        "actual": {
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        "actual": {
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/analyze-compression.mjs",
+        "expected": {
+          "path": "scripts/analyze-compression.mjs",
+          "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+          "bytes": 2990
+        },
+        "actual": {
+          "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+          "bytes": 2990
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/benchmark-worker.mjs",
+        "expected": {
+          "path": "scripts/benchmark-worker.mjs",
+          "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+          "bytes": 1320
+        },
+        "actual": {
+          "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+          "bytes": 1320
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/benchmark.mjs",
+        "expected": {
+          "path": "scripts/benchmark.mjs",
+          "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+          "bytes": 3430
+        },
+        "actual": {
+          "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+          "bytes": 3430
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+          "bytes": 1359
+        },
+        "actual": {
+          "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+          "bytes": 1359
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+          "bytes": 4487
+        },
+        "actual": {
+          "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+          "bytes": 4487
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/measure.mjs",
+        "expected": {
+          "path": "scripts/measure.mjs",
+          "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+          "bytes": 6700
+        },
+        "actual": {
+          "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+          "bytes": 6700
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/scripts/test-upstream.mjs",
+        "expected": {
+          "path": "scripts/test-upstream.mjs",
+          "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+          "bytes": 1187
+        },
+        "actual": {
+          "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+          "bytes": 1187
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+          "bytes": 3214
+        },
+        "actual": {
+          "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+          "bytes": 3214
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+          "bytes": 7614
+        },
+        "actual": {
+          "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+          "bytes": 7614
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+          "bytes": 10500
+        },
+        "actual": {
+          "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+          "bytes": 10500
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/redirect-loader.mjs",
+        "expected": {
+          "path": "test/redirect-loader.mjs",
+          "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+          "bytes": 1147
+        },
+        "actual": {
+          "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+          "bytes": 1147
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/register-loader.mjs",
+        "expected": {
+          "path": "test/register-loader.mjs",
+          "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+          "bytes": 93
+        },
+        "actual": {
+          "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+          "bytes": 93
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/shader-processing.test.mjs",
+        "expected": {
+          "path": "test/shader-processing.test.mjs",
+          "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+          "bytes": 5772
+        },
+        "actual": {
+          "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+          "bytes": 5772
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+          "bytes": 2237
+        },
+        "actual": {
+          "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+          "bytes": 2237
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-test:upstream",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "test:upstream"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "test:upstream"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "actual": {
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "actual": {
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/prerequisite-0.stdout",
+        "sha256": "81ea321c8b3be33679bd3f0fbbd0f2b8e0030f1fa36ea81438087b5e4ffea592",
+        "bytes": 8480
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/prerequisite-0.stderr",
+        "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+        "bytes": 211
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "actual": {
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "actual": {
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "actual": {
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "actual": {
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "matches": true
+        }
+      ]
+    },
+    {
+      "declaration": {
+        "id": "original-test:differential",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "test:differential"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "test:differential"
+      ],
+      "attempted": true,
+      "status": 1,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "actual": {
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "actual": {
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/prerequisite-1.stdout",
+        "sha256": "c025e2382555fdfb076d9e5c165e6d4a4036029006cef6cf6b9dbe646edb340c",
+        "bytes": 181
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/prerequisite-1.stderr",
+        "sha256": "7ab122c5593ead8c318f983f16a63c03fad41c5e026ef2fad2fa8c190870c464",
+        "bytes": 1352
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "actual": {
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "actual": {
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "actual": {
+            "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+            "bytes": 1474
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "actual": {
+            "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+            "bytes": 60594
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin"
+  },
+  "supervision": null,
+  "evidence": {
+    "exitCode": null,
+    "requiredCases": [],
+    "cases": [],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.closed.js",
+        "sha256": "33cd3491e8a1dec29c420f9013ab487c823e09c839c2e25cdc6125db8f7c0b0f",
+        "bytes": 51642
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.closed.official.js",
+        "sha256": "3002b5e49f6a2671cc2b43a72f38600fa55ec43cbf51797a5d4ddee29dac067a",
+        "bytes": 67422
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.js",
+        "sha256": "6a9e416f8ef3b080676a510f3fbc3c1ddd10127cbb7a4a2446b688d45e535128",
+        "bytes": 54285
+      },
+      {
+        "path": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.official.js",
+        "sha256": "53ac18aca83067eac77e66d5acaf3343facbf9095ca707891b767e388d0f1796",
+        "bytes": 67112
+      }
+    ],
+    "loadedArtifacts": []
+  },
+  "errors": [
+    "prerequisite original-test:differential did not complete successfully",
+    "test command failed",
+    "required test inventory missing or ambiguous",
+    "executed test report missing",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.closed.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.closed.official.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.official.js",
+    "Node suite was not executed because a prerequisite did not pass"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": []
+}

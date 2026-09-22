@@ -1,0 +1,28 @@
+{
+  "args": [
+    "test",
+    "--lib",
+    "--no-run",
+    "--message-format=json-render-diagnostics"
+  ],
+  "environment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "CARGO_TARGET_DIR": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3",
+    "CARGO_TERM_COLOR": "never",
+    "LILSCRIPT_NATIVE_CC": "/usr/bin/cc",
+    "LILSCRIPT_NATIVE_CLANG": "/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18",
+    "RUST_BACKTRACE": "0"
+  },
+  "inputsSha256": "7c74c3def9cfb3cb5a6d9ad4ba994c499aee3357ff87fe0e03455f02ba333013",
+  "exitCode": 0,
+  "signal": null,
+  "elapsedMs": 15417.874764,
+  "stdout": {
+    "sha256": "09badc8b04aab636ff7f6f85bbd8a69fd21ce983356f65802a35ef59f8bb5c11",
+    "bytes": 136655
+  },
+  "stderr": {
+    "sha256": "d176d39a5f50f75edaeffaa75e1085e53c7f096b1c1a877513b9b96c0a916f5f",
+    "bytes": 6933
+  }
+}

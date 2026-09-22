@@ -1,0 +1,3426 @@
+{
+  "schema": 1,
+  "reviewer": "root read-only reconciliation; no independent agent review",
+  "passed": true,
+  "inputSha256": "742f203a45dfd5483ff2774291e29563abf9b5adb5b9e39c955bb8eb380d8dc8",
+  "inputCount": 981,
+  "qualification": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/receipt.json",
+    "sha256": "641909bc4747ba9c09a810d76b91d275de0673fb808a91dc59aebb6f5c7b2872",
+    "bytes": 44251
+  },
+  "priorSameBinaryTestQualification": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-00-06.766Z/receipt.json",
+    "sha256": "b1c5d415581dd99bdcb95b89ddde5b75b26a53cee7446dccb8b6175708dd3f0f",
+    "bytes": 13068
+  },
+  "currentFocusedLibraryChecks": 89,
+  "distinctAcceptedLibraryTests": 242,
+  "distinctNames": [
+    "compilation_policy::tests::absent_deadline_has_no_clock_owner_and_large_limits_do_not_overflow",
+    "compilation_policy::tests::baseline_entry_guard_checks_phase_and_deadline_without_mutating_allowances",
+    "compilation_policy::tests::baseline_first_deadline_seal_failure_and_clone_keep_cleanup_available",
+    "compilation_policy::tests::baseline_first_fixed_partition_compatibility_and_extreme_caps",
+    "compilation_policy::tests::baseline_first_limits_cap_plans_and_reject_unavailable_terminal_reserve",
+    "compilation_policy::tests::baseline_first_phase_gates_are_atomic_including_zero_admissions",
+    "compilation_policy::tests::baseline_first_seal_opens_only_actual_remaining_headroom",
+    "compilation_policy::tests::baseline_first_terminal_work_is_reserved_before_and_after_seal",
+    "compilation_policy::tests::cloned_ledgers_keep_the_compilation_deadline_origin",
+    "compilation_policy::tests::deadline_blocks_memory_admission_but_always_allows_cleanup",
+    "compilation_policy::tests::deadline_checks_all_work_admissions_without_partial_charges",
+    "compilation_policy::tests::deadlines_are_explicit_cooperative_limits",
+    "compilation_policy::tests::every_schedule_field_changes_the_receipt_without_changing_contract_or_caps",
+    "compilation_policy::tests::every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner",
+    "compilation_policy::tests::exact_size_ranking_does_not_quantize_away_real_bytes",
+    "compilation_policy::tests::explicit_codec_budgets_are_part_of_the_resolved_identity",
+    "compilation_policy::tests::explicit_search_schedules_round_trip_through_the_common_config_owner",
+    "compilation_policy::tests::hard_constraints_precede_size_and_explicit_tactic_permissions",
+    "compilation_policy::tests::invalid_search_cadences_and_unknown_schedule_controls_are_rejected",
+    "compilation_policy::tests::legacy_and_new_permissions_have_the_same_resolved_identity",
+    "compilation_policy::tests::legacy_lists_cannot_reenable_off_through_another_producer",
+    "compilation_policy::tests::logging_and_boundaries_are_independent_of_effort_and_codec",
+    "compilation_policy::tests::native_policy_has_no_search_objective_or_schedule_identity",
+    "compilation_policy::tests::native_policy_ignores_javascript_effort_and_build_choices",
+    "compilation_policy::tests::optional_work_and_memory_cannot_consume_the_direct_artifact_reserve",
+    "compilation_policy::tests::search_schedule_defaults_and_partial_configuration_are_resolved_once",
+    "compilation_policy::tests::startup_effort_and_recurring_permissions_are_candidate_specific",
+    "compilation_policy::tests::stronger_cached_analysis_cannot_leak_into_lower_effort",
+    "compilation_policy::tests::unavailable_baseline_and_overflow_fail_without_partial_charges",
+    "compilation_policy::tests::version_and_level_boundaries_are_explicit",
+    "compilation_policy::tests::zero_optional_work_still_has_a_measured_direct_route",
+    "compilation_policy_evidence_tests::a_performance_bound_requires_both_estimates_and_preserves_the_zero_baseline",
+    "compilation_policy_evidence_tests::each_absolute_runtime_bound_distinguishes_unknown_zero_and_over_limit",
+    "compilation_policy_evidence_tests::every_performance_priority_rejects_missing_required_admission_and_rank_inputs",
+    "compilation_policy_evidence_tests::known_legacy_costs_keep_their_existing_admission_and_priority_order",
+    "compilation_policy_evidence_tests::known_runtime_increases_still_require_their_own_declared_risk",
+    "compilation_policy_evidence_tests::mixed_known_and_unknown_size_ties_form_a_transitive_total_preorder",
+    "compilation_policy_evidence_tests::unconstrained_size_ranking_uses_exact_bytes_and_leaves_canonical_ties_to_the_owner",
+    "compilation_policy_evidence_tests::unknown_costs_never_bypass_explicit_tactic_permission",
+    "compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources",
+    "compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission",
+    "compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget",
+    "compiler_service::tests::deadline_at_adoption_discards_prepared_graph_before_releasing_its_charge",
+    "compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization",
+    "compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history",
+    "compiler_service::tests::explicit_zero_specialization_matches_omitted_source_and_module_compilation",
+    "compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service",
+    "compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence",
+    "compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work",
+    "compiler_service::tests::path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_copy",
+    "compiler_service::tests::path_checker_refusal_releases_source_buffers_but_preserves_owned_diagnostic",
+    "compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic",
+    "compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error",
+    "compiler_service::tests::path_factory_parses_each_canonical_module_once_and_releases_syntax_before_backend",
+    "compiler_service::tests::path_post_discovery_work_refusal_releases_sources_before_returning",
+    "compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects",
+    "compiler_service::tests::path_source_memory_refusal_is_typed_without_diagnostic_source_copy",
+    "compiler_service::tests::path_store_refusal_releases_prepared_graph_then_factory_source_buffers",
+    "compiler_service::tests::resource_owner_exists_before_discovery_and_parse",
+    "compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission",
+    "compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs",
+    "compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget",
+    "compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child",
+    "compiler_service::tests::semantic_service_rejects_legacy_ast_specialization_before_io_or_work",
+    "compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback",
+    "compiler_service::tests::shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger",
+    "compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api",
+    "compiler_service::tests::source_checker_and_conversion_work_refusals_remain_typed_at_the_public_boundary",
+    "compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release",
+    "compiler_service::tests::source_parser_memory_refusal_remains_typed_at_the_public_boundary",
+    "compiler_service::tests::source_service_returns_independently_scored_qualified_winners",
+    "compiler_service::tests::store_construction_refusal_returns_the_owner_for_prepared_graph_cleanup",
+    "compression::tests::admitted_codecs_match_pinned_convenience_scores_without_retaining_encoded_output",
+    "compression::tests::encoder_admission_failures_release_scratch_and_preserve_the_other_domain",
+    "compression::tests::late_brotli_denial_does_not_exit_the_process",
+    "compression::tests::raw_has_no_codec_work_or_scratch_even_under_zero_admission",
+    "semantic_program::formation_budget_tests::completed_formation_unwinds_after_actual_module_drop_in_the_original_domain",
+    "semantic_program::formation_budget_tests::formation_charges_exact_live_module_capacity_and_releases_all_planning_scratch",
+    "semantic_program::formation_budget_tests::late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_partial_module",
+    "semantic_program::formation_budget_tests::observed_literal_payloads_share_formation_admission_and_unwind_after_payload_drop",
+    "semantic_program::integrated_javascript_tests::integrated_observation_tests::document_consumer_literal_modes_compose_with_the_existing_portfolio_and_fixed_search",
+    "semantic_program::integrated_javascript_tests::integrated_observation_tests::document_consumer_runs_with_live_observed_literals_and_zero_optional_work",
+    "semantic_program::integrated_javascript_tests::integrated_original_modules_deliver_the_complete_api_with_zero_optional_work",
+    "semantic_program::integrated_javascript_tests::integrated_private_edit_changes_the_public_observation_and_reuses_unrelated_facts",
+    "semantic_program::integrated_javascript_tests::integrated_record_helper_string_product_and_call_portfolio_preserves_one_event_oracle",
+    "semantic_program::integrated_javascript_tests::integrated_search_winners_belong_to_the_exact_executed_measured_union",
+    "semantic_program::integrated_javascript_tests::integrated_value_reference_module_executes_unchanged_through_native_and_javascript",
+    "semantic_program::integrated_javascript_tests::public_factory_qualifies_combined_recipes_with_exact_scores_and_original_observations",
+    "semantic_program::native_tests::closure_tests::callable_identity_and_prepared_callee_survive_later_argument_replacement",
+    "semantic_program::native_tests::closure_tests::callback_output_header_handoff_refusal_and_unwind_release_the_same_owner",
+    "semantic_program::native_tests::closure_tests::iteration_boxes_continue_break_and_temporary_owners_do_not_accumulate",
+    "semantic_program::native_tests::closure_tests::managed_select_and_nested_returns_transfer_before_cleanup",
+    "semantic_program::native_tests::closure_tests::module_tests::original_product_module_composes_with_retained_factory_callbacks_in_one_program",
+    "semantic_program::native_tests::closure_tests::overlapping_reference_paths_and_reentrant_host_clear_keep_live_owners",
+    "semantic_program::native_tests::closure_tests::plain_struct_captures_keep_independent_values_and_shared_sibling_cells",
+    "semantic_program::native_tests::closure_tests::public_path_factory_qualified_reentrant_callbacks_compile_as_separate_translation_units",
+    "semantic_program::native_tests::closure_tests::public_source_factory_qualified_callbacks_compile_as_separate_translation_units",
+    "semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union",
+    "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults",
+    "semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper",
+    "semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners",
+    "semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled",
+    "semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work",
+    "semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis",
+    "semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts",
+    "semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline",
+    "semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets",
+    "semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets",
+    "structured_js::naming::allocation_tests::installed_lazy_caches_survive_failed_prints_and_release_with_output",
+    "structured_js::naming::allocation_tests::large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation",
+    "structured_js::naming::allocation_tests::name_index_checks_exact_scope_and_name_even_in_a_collision_cluster",
+    "structured_js::naming::allocation_tests::partial_lazy_cache_admission_failure_does_not_install_or_leak_it",
+    "structured_js::naming::allocation_tests::preparation_exhaustion_and_invalid_target_release_every_partial_buffer",
+    "structured_js::naming::allocation_tests::prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity",
+    "structured_js::output_policy_tests::enabled_search_retains_alternatives_and_prepared_permissions_do_not_change",
+    "structured_js::output_policy_tests::identifier_mangling_off_restricts_render_and_search_to_source",
+    "structured_js::output_policy_tests::naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides",
+    "structured_js::output_policy_tests::policy_free_research_output_stays_explicit_and_native_policy_is_rejected",
+    "structured_js::output_policy_tests::target_edition_backstop_checks_reachable_optional_catch_binding",
+    "structured_js::output_policy_tests::target_edition_backstop_rejects_live_nullish_but_allows_unused_arena_nodes",
+    "structured_js::print::budget_tests::a_failed_optional_render_preserves_the_already_rendered_incumbent",
+    "structured_js::print::budget_tests::admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text",
+    "structured_js::print::budget_tests::byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget",
+    "structured_js::tests::a_constant_result_does_not_erase_effects_or_prove_raw_normalization_redundant",
+    "structured_js::tests::a_shared_value_cannot_accidentally_duplicate_a_call_or_an_expression_graph",
+    "structured_js::tests::anonymous_callable_values_do_not_acquire_object_property_names",
+    "structured_js::tests::array_length_places_and_receiver_calls_cannot_be_scalar_observations",
+    "structured_js::tests::binary_memory_construction_preserves_probe_views_and_shared_storage",
+    "structured_js::tests::binary_memory_uses_the_checked_kinds_and_keeps_store_rounding",
+    "structured_js::tests::binding_updates_preserve_signed_arithmetic_and_rhs_observation_order",
+    "structured_js::tests::both_analysis_modes_apply_the_same_legal_transformations",
+    "structured_js::tests::callable_name_materialization_preserves_anonymity_descriptors_and_construction",
+    "structured_js::tests::callable_source_occurrences_do_not_alias_at_the_same_span",
+    "structured_js::tests::catch_bindings_have_fresh_scope_cells_and_survive_escaping_closures",
+    "structured_js::tests::checked_collection_result_identity_attaches_to_the_language_value",
+    "structured_js::tests::class_callable_fields_remain_replaceable_and_generic_methods_erase_types",
+    "structured_js::tests::class_calls_and_updates_capture_the_receiver_before_argument_effects",
+    "structured_js::tests::class_initializers_share_super_defaults_and_keep_fresh_fields_after_arguments",
+    "structured_js::tests::collection_receiver_lookup_arguments_and_language_results_stay_ordered",
+    "structured_js::tests::constant_language_operations_match_independent_evaluation_at_i32_boundaries",
+    "structured_js::tests::construction_is_a_value_observation_even_when_the_body_is_pure",
+    "structured_js::tests::constructor_and_property_resolution_survive_optional_access_fusion",
+    "structured_js::tests::constructor_from_a_call_or_a_member_of_a_call_preserves_the_reference",
+    "structured_js::tests::constructor_results_keep_allocation_identity_when_this_is_rebound",
+    "structured_js::tests::defaults_distinguish_omission_supplied_undefined_and_function_arity",
+    "structured_js::tests::detached_facts_reject_edits_and_independently_edited_branches",
+    "structured_js::tests::direct_eval_invalidates_target_normalization_proofs_as_well_as_names",
+    "structured_js::tests::direct_eval_keeps_lexical_names_and_indirect_eval_stays_global",
+    "structured_js::tests::discardable_cell_reads_remain_nonrepeatable_and_tdz_reads_still_throw",
+    "structured_js::tests::distinct_target_cells_share_provenance_without_aliasing_and_remap_together",
+    "structured_js::tests::each_query_visits_shared_value_dependencies_at_most_once",
+    "structured_js::tests::empty_control_retains_condition_effects_and_repeated_loop_execution",
+    "structured_js::tests::equivalent_escaped_record_keys_have_one_semantic_identity",
+    "structured_js::tests::erased_type_parameters_preserve_callback_bindings_and_invocations",
+    "structured_js::tests::escaped_names_and_observing_calls_keep_function_name_requirements",
+    "structured_js::tests::escaped_record_keys_and_inferred_names_preserve_code_units",
+    "structured_js::tests::escaping_callable_names_survive_storage_elimination_and_alias_renaming",
+    "structured_js::tests::exact_string_knowledge_is_bounded_and_literal_payloads_stay_owned_by_the_program",
+    "structured_js::tests::exact_string_values_cross_cells_joins_and_utf16_operations",
+    "structured_js::tests::exception_predecessors_do_not_inherit_values_from_unreached_body_tails",
+    "structured_js::tests::exception_region_verification_enforces_ownership_scope_and_control_boundaries",
+    "structured_js::tests::explicit_exports_survive_cleanup_compaction_and_name_extraction",
+    "structured_js::tests::explicit_print_policy_is_reentrant_and_preserves_provenance",
+    "structured_js::tests::exports_reject_missing_bindings_duplicate_names_and_nested_cells",
+    "structured_js::tests::expression_grammar_preserves_association_signs_negative_zero_and_object_keys",
+    "structured_js::tests::finalizers_preserve_and_override_loop_transfers_without_copying_bodies",
+    "structured_js::tests::for_control_keeps_continue_update_break_and_initializer_effects",
+    "structured_js::tests::for_initializer_cells_are_shared_and_body_cells_are_fresh",
+    "structured_js::tests::for_update_facts_do_not_assume_code_after_continue_executed",
+    "structured_js::tests::for_updates_participate_in_scope_verification_and_late_naming",
+    "structured_js::tests::implicit_constructor_lookup_precedes_arguments_and_preserves_throws",
+    "structured_js::tests::indexed_compounds_capture_receiver_key_and_old_value_before_rhs",
+    "structured_js::tests::indexed_nullish_callable_creation_keeps_its_anonymous_name",
+    "structured_js::tests::indexed_updates_preserve_proxy_get_set_order_and_lazy_nullish_writes",
+    "structured_js::tests::invocation_observations_release_private_names_only_in_the_matching_world",
+    "structured_js::tests::later_storage_decisions_follow_transferred_statement_owners_and_depth",
+    "structured_js::tests::lexical_ownership_distinguishes_nested_blocks_from_captured_writes",
+    "structured_js::tests::marked_bracket_scanner_preserves_its_real_control_and_utf16_operations",
+    "structured_js::tests::materialization_keeps_long_statement_chains_within_the_target_depth_budget",
+    "structured_js::tests::nested_closures_keep_binding_identity_after_renaming",
+    "structured_js::tests::normalized_strings_preserve_utf16_values_and_javascript_escape_semantics",
+    "structured_js::tests::nullish_binding_assignment_preserves_lazy_callable_named_evaluation",
+    "structured_js::tests::nullish_evaluation_preserves_falsy_values_and_conditional_writes",
+    "structured_js::tests::omitted_defaults_preserve_literals_global_bindings_and_fresh_callables",
+    "structured_js::tests::opaque_private_arguments_keep_coercion_and_throws_after_optimization",
+    "structured_js::tests::output_search_bounds_text_and_rejects_invalid_measurement_services",
+    "structured_js::tests::output_search_keeps_budget_prefixes_and_scores_the_complete_union",
+    "structured_js::tests::owned_compaction_removes_dead_closures_and_names_without_losing_source_identity",
+    "structured_js::tests::parameter_defaults_snapshot_arguments_inside_the_ordered_call",
+    "structured_js::tests::planned_dead_reads_do_not_authorize_uninitialized_stores",
+    "structured_js::tests::planned_observations_close_storage_without_another_semantic_round",
+    "structured_js::tests::postfix_snapshots_survive_captured_mutation_and_short_circuiting",
+    "structured_js::tests::primitive_construction_verification_rejects_invalid_operators_and_arity",
+    "structured_js::tests::primitive_identity_is_resolved_before_backend_selection",
+    "structured_js::tests::primitive_integer_results_use_emitted_normalization_without_assuming_host_range",
+    "structured_js::tests::primitive_method_values_require_a_supported_receiver_contract",
+    "structured_js::tests::private_array_observations_keep_initialization_effects_at_their_original_site",
+    "structured_js::tests::private_parameter_domains_require_complete_actual_argument_evidence",
+    "structured_js::tests::projection::literal_projection_keeps_effects_and_absent_or_coercing_keys",
+    "structured_js::tests::projection::literal_projection_preserves_raw_values_and_uses_no_new_target_storage",
+    "structured_js::tests::projection::literal_projection_respects_the_existing_work_ledger_without_allocating",
+    "structured_js::tests::range_proofs_preserve_overflow_negative_zero_and_explicit_bitwise_operations",
+    "structured_js::tests::receiver_lookup_precedes_arguments_and_value_calls_stay_unbound",
+    "structured_js::tests::record_function_values_keep_named_creation_separate_from_assignment",
+    "structured_js::tests::reference_construction_preserves_order_without_loading_a_write_target",
+    "structured_js::tests::region_planning_consumes_child_results_without_assuming_arena_execution_order",
+    "structured_js::tests::region_value_barriers_follow_getters_and_property_key_coercion_order",
+    "structured_js::tests::region_values_do_not_promote_one_loop_iteration_or_one_short_circuit_path",
+    "structured_js::tests::region_values_keep_captured_writes_and_reentrant_calls_observable",
+    "structured_js::tests::region_versions_preserve_assignment_values_and_merge_all_branch_inputs",
+    "structured_js::tests::removing_unobserved_stores_requires_initialization_and_the_declared_public_boundary",
+    "structured_js::tests::renaming_cannot_capture_host_names_or_another_lexical_binding",
+    "structured_js::tests::requested_objectives_own_codec_work_and_unmeasured_scores_stay_absent",
+    "structured_js::tests::scope_dependencies_and_loop_transfers_are_verified",
+    "structured_js::tests::scoped_names_constrain_references_across_each_intervening_scope",
+    "structured_js::tests::scoped_naming_reuses_siblings_and_preserves_nested_captures",
+    "structured_js::tests::shared_value_dependencies_preserve_initialization_effects_and_cells",
+    "structured_js::tests::signed_offset_reassociation_preserves_rounding_effects_and_materialization",
+    "structured_js::tests::source_classes_preserve_probe_inheritance_aliases_and_lexical_receivers",
+    "structured_js::tests::source_collections_preserve_probe_behavior_aliases_and_nullable_values",
+    "structured_js::tests::source_eval_waits_for_a_declared_binding_contract",
+    "structured_js::tests::source_exception_regions_preserve_probe_recovery_and_finalizer_completions",
+    "structured_js::tests::source_functions_branches_and_loops_match_the_independent_interpreter",
+    "structured_js::tests::source_integer_operations_follow_the_language_contract",
+    "structured_js::tests::source_operations_with_one_diagnostic_span_keep_distinct_resolution",
+    "structured_js::tests::source_records_and_arrays_preserve_aliases_keys_and_absent_values",
+    "structured_js::tests::source_short_circuit_and_mutable_closures_match_the_interpreter",
+    "structured_js::tests::source_templates_cook_escapes_without_losing_surrogates_or_creating_substitutions",
+    "structured_js::tests::source_templates_keep_probe_bindings_and_string_operations_visible",
+    "structured_js::tests::source_types_bindings_and_builtin_identity_survive_target_naming",
+    "structured_js::tests::structural_proofs_belong_to_their_immutable_program_state",
+    "structured_js::tests::target_template_constants_preserve_null_undefined_and_negative_zero_distinctions",
+    "structured_js::tests::template_conversions_keep_observable_function_names",
+    "structured_js::tests::template_conversions_preserve_string_hint_order_reentry_and_abrupt_completion",
+    "structured_js::tests::typed_array_stores_do_not_redefine_prefix_postfix_or_compound_results",
+    "structured_js::tests::typed_primitive_values_keep_utf16_effects_and_mutable_collection_observations",
+    "structured_js::tests::unchanged_optimization_reuses_structure_and_compaction_preserves_it",
+    "structured_js::tests::unchanged_pass_hands_current_facts_to_target_selection",
+    "structured_js::tests::unobserved_cells_disappear_without_losing_initializer_effects_or_assignment_values",
+    "structured_js::tests::unused_collection_construction_retains_lookup_allocation_and_reentry",
+    "structured_js::tests::unused_template_results_preserve_target_tdz_reads",
+    "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal"
+  ],
+  "cliChecks": 1,
+  "acceptedReceipts": [
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/receipt.json",
+      "sha256": "c5f3908179701ad31e7c51c7cfeee677d054fe8a039f8b190333d57439c4c4ad",
+      "bytes": 306728
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/receipt.json",
+      "sha256": "8a41fdfb0fe79fccb60a50e035d2beac4a953fc59d9b64b0c1fa109df164bb1a",
+      "bytes": 920254
+    }
+  ],
+  "failedReceipt": {
+    "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/receipt.json",
+    "sha256": "ec48203590a22e18a5b848f58a2274ee716c873b776dce0dcf5b33c036a6bcfe",
+    "bytes": 256274
+  },
+  "preservedScripts": [
+    {
+      "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/initial-measure.mjs",
+      "sha256": "4bac0ad04c9dc4c8f57f137efd020fa322a02bf36b9938bf237da7cb1d01be0f",
+      "bytes": 9323
+    },
+    {
+      "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/paired-measure.mjs",
+      "sha256": "31c6a5f0f6773675025080e808734cdfe535db66e4558922c2cac21c4a9074d3",
+      "bytes": 9433
+    },
+    {
+      "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/final-measure.mjs",
+      "sha256": "56e7604dc3c0f31f16e93e8bf58879b3ab037a47aa437ad4d56028e072c5beb8",
+      "bytes": 13551
+    }
+  ],
+  "currentRunner": {
+    "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/measure.mjs",
+    "sha256": "56e7604dc3c0f31f16e93e8bf58879b3ab037a47aa437ad4d56028e072c5beb8",
+    "bytes": 13551
+  },
+  "preservedBinaries": [
+    {
+      "source": {
+        "path": "target/qualification-internal-provenance-20260918-v3/release/lilscript",
+        "sha256": "009ceb63ed654308706c2802f309b12def368a501a9d4cad498e9262b040ef65",
+        "bytes": 17858576
+      },
+      "preserved": {
+        "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/lilscript",
+        "sha256": "009ceb63ed654308706c2802f309b12def368a501a9d4cad498e9262b040ef65",
+        "bytes": 17858576
+      }
+    },
+    {
+      "source": {
+        "path": "target/qualification-internal-provenance-20260918-v3/release/lilscript-codec",
+        "sha256": "65315cd3fe3cf2d0151677043309f153a060919c28ea94393cedc51164c20442",
+        "bytes": 2602120
+      },
+      "preserved": {
+        "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/lilscript-codec",
+        "sha256": "65315cd3fe3cf2d0151677043309f153a060919c28ea94393cedc51164c20442",
+        "bytes": 2602120
+      }
+    },
+    {
+      "source": {
+        "path": "target/qualification-internal-provenance-20260918-v3/release/examples/semantic-integrated",
+        "sha256": "5b43fcd61daec0344ac24447c3cefc4e75bd331d4a05c80c1c922bc23f80cbe8",
+        "bytes": 8905768
+      },
+      "preserved": {
+        "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/semantic-integrated",
+        "sha256": "5b43fcd61daec0344ac24447c3cefc4e75bd331d4a05c80c1c922bc23f80cbe8",
+        "bytes": 8905768
+      }
+    },
+    {
+      "source": {
+        "path": "target/qualification-internal-provenance-20260918-v3/release/deps/lilscript-118f13b3560da7bd",
+        "sha256": "9c65b05499cc73e51212afc343b01dfa1493ade88a018f8ea6b42a5a49d5078a",
+        "bytes": 39990288
+      },
+      "preserved": {
+        "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/library-tests",
+        "sha256": "9c65b05499cc73e51212afc343b01dfa1493ade88a018f8ea6b42a5a49d5078a",
+        "bytes": 39990288
+      }
+    },
+    {
+      "source": {
+        "path": "target/qualification-internal-provenance-20260918-v3/release/deps/lilscript-0f1288c2f91c3043",
+        "sha256": "5468618489ee3f838d4ef3e9c2afb39a1a4ad63c0c6b1244a601e540c67bfe51",
+        "bytes": 1758832
+      },
+      "preserved": {
+        "path": "../../../tmp/lilscript-semantic-cli-cost-20260920/cli-tests",
+        "sha256": "5468618489ee3f838d4ef3e9c2afb39a1a4ad63c0c6b1244a601e540c67bfe51",
+        "bytes": 1758832
+      }
+    }
+  ],
+  "qualifiedMeasuredAndWarmupArtifacts": 42,
+  "comparedOriginalDeliveries": 15,
+  "comparison": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/semantic-cli-delivery-20260920/receipt.json",
+    "sha256": "a32aa1f36d23c84c36a3291b81a05c3bda0ce00917cf72cd7530d938b7711c30",
+    "bytes": 8092
+  },
+  "compilerDesign": {
+    "path": "docs/compiler-design.md",
+    "sha256": "659911967aa490b1e7db340b7d76399307aa86baa3c7761ef252508d0b5a5bbb",
+    "bytes": 16688
+  },
+  "outputs": [
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-off.stderr",
+      "sha256": "a62d17a43fff6692bbd86b8c065f9a63d8f13138f616c68b0056677dcd782888",
+      "bytes": 15339
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-off.time",
+      "sha256": "dbba6ae6341455106b5e18b62013923782cbacbcef5335b6f7ecae7c8fe17e96",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-on.stderr",
+      "sha256": "9ba632910c4af8665b8f458ed56306d7cfd336fa29eda0aff59f96367764fdb3",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-0-on.time",
+      "sha256": "c4272b357ae0b74128d5728d11d701d9b51d381b41bc527966b1edc7062e74cb",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-off.stderr",
+      "sha256": "b41778cd22a03d1a9850089fb8abc3277e9340e3b7a05c5e0110c1df75c7a0f7",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-off.time",
+      "sha256": "488bd569ab897525adf0830656eda670b8bb1501a5bc97a57ca84390659849ba",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-on.stderr",
+      "sha256": "18dfe6777aa63730434f559caabf900be87e1b9536c4f426247aac68fca172c5",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-1-on.time",
+      "sha256": "2c1639927a5a85104a897a0a3de0cdb9fc1db9faa0c74b51f9fc4dbdd279da6a",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-off.stderr",
+      "sha256": "a08466e643efbdf3edeb60cfe3d5ad1e5b51e9f3be0d4121773d92739e411bbb",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-off.time",
+      "sha256": "5f82a7a741dc8d69aab7d3d6ebd7934f711083b7a235ac11a3785fc3e49bbc3b",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-on.stderr",
+      "sha256": "2bd80c24836b8efc76651431d29088723a533caf9c5fddd7ab1da674e54d94cd",
+      "bytes": 18190
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-2-on.time",
+      "sha256": "fe632e81a5bcf6688e2621d653d677a0f9ad76f6a7521d9703715bb436c3e945",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-off.stderr",
+      "sha256": "8951d891704934bb78dc75351b1cd10e3f05f1ef97cbb45c1e57d4becca17a1d",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-off.time",
+      "sha256": "b16890b2562bb20b06c2e8c07f3ad44bbf973f2ebb307cb32097da580bf15437",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-on.stderr",
+      "sha256": "0ae19519805a5084622b0d4fd4f91af8d96b041ffd9a4cee9425b151b8b3fce0",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-3-on.time",
+      "sha256": "1d9401ebd02f7a07bcb34454041e579699910fd81cd6f1d068ca2aa1634ebf53",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-off.stderr",
+      "sha256": "3329f0bc5095b853210d4d4b6d131a202dc582032e615dd4b4155248163ca0ea",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-off.time",
+      "sha256": "f81580cb00cfa9b2530032269736f7f280bd8fa670bf458dbbe2ebf8bb3f1772",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-on.stderr",
+      "sha256": "5ae783ec3caee2155d631d8eae472791cc65a2e727fe75aad73a6a8337deac36",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/pair-4-on.time",
+      "sha256": "ca63db7452da7d8d69c3b254f16e2368946d731bd69f1e2d21c4ce88eb68a521",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/receipt.json",
+      "sha256": "ec48203590a22e18a5b848f58a2274ee716c873b776dce0dcf5b33c036a6bcfe",
+      "bytes": 256274
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup-rescore.stdout",
+      "sha256": "383af6e6e19fe9a03127994ccdd0bf519889ab6634ec065a5c9bba6479841638",
+      "bytes": 547
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup.stderr",
+      "sha256": "21ba46b6c631d6bdbfe42e9303642175951700a3394ec6c154c4b2676368069f",
+      "bytes": 15341
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-21-47.960Z/warmup.time",
+      "sha256": "338e0e4a0481d530a8c6c8fa813887c3b1d567bc1a715be9473577ba84ac7539",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off-rescore.stdout",
+      "sha256": "b4725d66e930e16b69da98253430969463a67db38dd0ee6dcb728e2fea7be65b",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off.stderr",
+      "sha256": "87129a49f7348de16b6f87f1b1d7128a26c81bb5aaccb3a253a0e1bc8e8ed31f",
+      "bytes": 15339
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-off.time",
+      "sha256": "c90e9e165868b05c75c63134e6c0bd652d99d46f94ac4230a4e6228115ce968e",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on-rescore.stdout",
+      "sha256": "ef341ebed659854b97e88c7232cb13ee959728d3173940abfd3a397e2f8c32e1",
+      "bytes": 550
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on.stderr",
+      "sha256": "b102d152dd5ab984d968fb84d18b35d39221e206e99394d0c32b711f545a406b",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-0-on.time",
+      "sha256": "a1274c6a1791e54888d282e76f5df0a7b08f92397567456b6ce97a1791b92f87",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off-rescore.stdout",
+      "sha256": "fc429e9d8bc620bd7f4106d2fc702f57009cd32c435d262a5e4f5ed9d1a11b3a",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off.stderr",
+      "sha256": "91ca1bb6504df6e524c65295c2e3304dc1019333298830a33aa1e250ab08dcd3",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-off.time",
+      "sha256": "880d60fe463df43ff54f2b0bb722b31e52b354dba721bd7fc50c674f2969df12",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on-rescore.stdout",
+      "sha256": "df9f4995964f16c2172aa6823a8c27b89c3b35bbc661ac365cdc7b29f0e4903e",
+      "bytes": 550
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on.stderr",
+      "sha256": "32481224d65b3e9c507e51b94a2e78d25d9b60c0c814f3da2b8893947e3c884b",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-1-on.time",
+      "sha256": "830cd5a594faa68975e2b19724b855b83cbf6c8709723cd116889dc7f49848de",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off-rescore.stdout",
+      "sha256": "9fe1b30c959badcef83c2637f9f65b030fb29c47d6a536e245f2a0457ef45fa5",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off.stderr",
+      "sha256": "dbec334e7d36fbda62cb275e3d66b6efa15480ec2fcccbacba55f45f29b21e14",
+      "bytes": 15339
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-off.time",
+      "sha256": "fc0e5c5526866f6d040b7d94e7e7fc4d89d5a3eaf8a32536d7f1ee190d369b61",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on-rescore.stdout",
+      "sha256": "3291dff0dca1931c444d4aefea779c05926c3accb7d14242615c24030c720a7b",
+      "bytes": 550
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on.stderr",
+      "sha256": "72c1a15487d3424c6a95e2921e552e9d0dc27ef167b45f8fe711aa52b08c644a",
+      "bytes": 18190
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-2-on.time",
+      "sha256": "1fd6c054ce477a032f0d74ac2e37942ea82f4ff413f0ebb0220fd05d51f891f0",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off-rescore.stdout",
+      "sha256": "5532190d39a0b95b58a3ee112febbe8dc3666fdcec42161e5da252b1368d2752",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off.stderr",
+      "sha256": "c28e67b67e95430d577d5be2406eb29f3fdba0861c61b2c68ab5b21a328d64d6",
+      "bytes": 15339
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-off.time",
+      "sha256": "33b593a8007815121c70e00199042bb726daf4c35bcd8c532ee71caab003ddf5",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on-rescore.stdout",
+      "sha256": "80a6c27248a82d0843a1a5b8d3688c05cbaaca579d54321c4919de68a00f32e2",
+      "bytes": 550
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on.stderr",
+      "sha256": "8eb124d2147a0f55361d99ef88d7d6223abba3e2bcb71e11bdfcde91d81718a8",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-3-on.time",
+      "sha256": "bdcab3e3e644ae54d7f6c3575caba40509d4a0e9e53f79141fa44df6f81ffbf1",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off-rescore.stdout",
+      "sha256": "47b4231b08f840fe4c8c86e6067bbab8d999529d1e6fc468dcfe59501c857d54",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off.stderr",
+      "sha256": "88863c180d52e42307cd5d84d7ab8f3a0b2b7b70cba298053653922ff15e84a3",
+      "bytes": 15339
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-off.time",
+      "sha256": "a0bde23d9e8db6ec1b66527fb5e0c32f01a0b310b8ebbefa613f3bbb602489f4",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on-rescore.stdout",
+      "sha256": "e03f81102b4a4dea1f6bedc9a81ca9495d3a6f5ea32f8ba0897986355211cc0a",
+      "bytes": 550
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on.stderr",
+      "sha256": "113ff92da76746cbbfa71a764683586795a4bd5ec8b398d52f951bdefb96851f",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/pair-4-on.time",
+      "sha256": "72c8b2fa988354869974f411463ddb317549032f692bdc58d6b4bf4a3666e615",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/receipt.json",
+      "sha256": "c5f3908179701ad31e7c51c7cfeee677d054fe8a039f8b190333d57439c4c4ad",
+      "bytes": 306728
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/summary.json",
+      "sha256": "98dfe16ed898b02936d86edff54142541fcd872f82a693dbc505db5d38b219c0",
+      "bytes": 13143
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup-rescore.stdout",
+      "sha256": "8e1f6ee373e481ebb777b555c961a6e45317c4dc012b4669a11734ca4366a3dc",
+      "bytes": 547
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup.stderr",
+      "sha256": "9a751a568002ba96a5fa5dc85b41cd1a9d5d5a895bee1396f49bf8c8ccc869a7",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-22-50.724Z/warmup.time",
+      "sha256": "b3cd152d667022aef478c426875e07f22a05c32fa3718d4c8a4defc1cd927907",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192-rescore.stdout",
+      "sha256": "ff2a998bc6f30615abf406255cea03081d946b9029b3a9a14cba4e71934f9948",
+      "bytes": 556
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192.stderr",
+      "sha256": "e6bb302b2f7195e88b2a00196a0b41d8f80ed2a839951336d23e9e9d5d25df8b",
+      "bytes": 18187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-192.time",
+      "sha256": "cc379a7f9857324141cc6fd4936508d115d1297954e14b9d31f7900207857ee0",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24-rescore.stdout",
+      "sha256": "153494b2c29531db4ef4befcd53fa53b7530b3a7dae04998e67daac6e92c4245",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24.mjs",
+      "sha256": "46b9cacd17ee8be44dff1c69a35b92271cad7ee2aba94cbddf804b292629a0ae",
+      "bytes": 17563
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24.stderr",
+      "sha256": "841b12d4f55b3612243d0111da930d7bc82340e781fedf13bf4cbd2af58ed6af",
+      "bytes": 17981
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-24.time",
+      "sha256": "15e81d63c34229a882ac4903e769502df445a7120f9216f6063f4590488c248f",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48-rescore.stdout",
+      "sha256": "a7183157a551814236b4048059e5f7b9f68c2fb6882ec4aa9bc55bbbf0beb19d",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48.mjs",
+      "sha256": "46b9cacd17ee8be44dff1c69a35b92271cad7ee2aba94cbddf804b292629a0ae",
+      "bytes": 17563
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48.stderr",
+      "sha256": "af98f08ac82f343aa53fba07e954b1a4c0ca14cdb4a1e207cf579c58097138bc",
+      "bytes": 17986
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-48.time",
+      "sha256": "fcc79bb4743f3aefcc08791f73cc6ec43a59f39dce69707c37d9a0a8aeff0fbf",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8-rescore.stdout",
+      "sha256": "1ad993ea629de202193fc269ef6c409e5337d1ff7cddfd164b5260e593ec83b2",
+      "bytes": 554
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8.mjs",
+      "sha256": "730c7f8fbfe2001cd4f1e5f313fa443991e8d3e5622e272af29d77b32ea692da",
+      "bytes": 17643
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8.stderr",
+      "sha256": "c60890c4fc9da71112ae05e4704f2e9eb1f8da145b601660237800ad9692afa8",
+      "bytes": 17912
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-8.time",
+      "sha256": "8cda29627446251175674a2959f14aff665c42257ac26bfcd84bfa7a02679870",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96-rescore.stdout",
+      "sha256": "989cfd40ed29a7878cdc06e0d7d112e7bd7b6705312c911b1429097184d03d6b",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96.stderr",
+      "sha256": "912e77e86e971d66bf654a2588746ff26cb071d1a95a050abc27f2de4475dc88",
+      "bytes": 18191
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-immediate-96.time",
+      "sha256": "bf8d545e17d885e91ce77c64cf77f422178b6f845ff1acaa8cc4c477f1121eb5",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192-rescore.stdout",
+      "sha256": "5fdc249b8148e38b3d6eb0e74c70dfedc27e4cbb0f295b9606fb1cc11a536f20",
+      "bytes": 553
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192.stderr",
+      "sha256": "50c86a847d9d13a84ae1390db583c01d64465c2531f0ff3fedbdfddb5fff8f76",
+      "bytes": 18190
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-192.time",
+      "sha256": "f28bf811451c870d4a64a110ae3358ebc1c097eeab29cf36951858172e382705",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24-rescore.stdout",
+      "sha256": "e579f8c40d6ef84432734946a10dafcb0d5963d31cd00bf8dd523e07b2145908",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24.stderr",
+      "sha256": "18785728ba3a932aeb9f1bfb9b48b20155540cdd8e9bf7d6613c3a51212d7d4c",
+      "bytes": 18174
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-24.time",
+      "sha256": "20873408f07e941c90de77f46b06038ae393fecb9b6f1d449da77d16f996d161",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48-rescore.stdout",
+      "sha256": "40ca5e7aff588b062a543642692407a0ecef190845575c2dbdcfa0b6c0954e7e",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48.stderr",
+      "sha256": "21372a285de2dcb9521792d38512af0b4c5a7a6c0cf278983e413ea347a32535",
+      "bytes": 18179
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-48.time",
+      "sha256": "e0c6f11556caaf330f0920f6403f40bcbfd4fffb50c8b9fa715ae54d809389a4",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8-rescore.stdout",
+      "sha256": "37f33abddb8be25b0b582b90648880e794e98beda98db9f62030082773289138",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8.mjs",
+      "sha256": "35f330a3235716ae36e61d03f7f230aaa5c8a4305a198e6b4b976ea9e00ee603",
+      "bytes": 17483
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8.stderr",
+      "sha256": "d45cd116a2016ca93b9929ea45997ae1e34deef16bad15a2e7b8cef15f91626e",
+      "bytes": 18027
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-8.time",
+      "sha256": "bca90b74fb4c199feebaeb1abb48ea49f0fe81257f62f65d039d9ae650bcf481",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96-rescore.stdout",
+      "sha256": "2ea4c7fba0dac041b863fc47a9e72914277856ccaef3b0e6cb958c4209c266fa",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96.stderr",
+      "sha256": "1c39cb5d48189ad86711561f294d9a1afa7ad281f43ef5358ab7de8813b6d6f3",
+      "bytes": 18186
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/0-staged-96.time",
+      "sha256": "297454124735b3c9c98bd13c10421d9aa6804a3dba3eb9283f58cbe0ee6ae59f",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192-rescore.stdout",
+      "sha256": "c84eafb93418805e67b98d886e8610b4ad8a70947dfacede170a8a3c8380d5c4",
+      "bytes": 556
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192.stderr",
+      "sha256": "2ebc9268d258c2fd7ed90f0c352d3133eef1729246c833e17fbf49753cfacf97",
+      "bytes": 18187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-192.time",
+      "sha256": "2304c4ee068e7f8b052338ee7ac3f0f0c4e410abc9376ffea2a130d47d867054",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24-rescore.stdout",
+      "sha256": "33cc8a4f72be25933c84fc5c2ff6c6ac3bda33cdd3ca2b12b3915c7fbe0f6c9b",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24.mjs",
+      "sha256": "46b9cacd17ee8be44dff1c69a35b92271cad7ee2aba94cbddf804b292629a0ae",
+      "bytes": 17563
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24.stderr",
+      "sha256": "8e57bff018dfafbc89ccfa010704af562826c0da5e7a2d8a0604b7ca7dd9483a",
+      "bytes": 17981
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-24.time",
+      "sha256": "52b59500707808fa6db0961fe9ee03fce0dc3cbb276952ed99ae25a559f2da18",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48-rescore.stdout",
+      "sha256": "f3c8ef0e3b09314e82886ebb8fbbffddb7f0233c9fb8a21e8da840be337963e1",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48.mjs",
+      "sha256": "46b9cacd17ee8be44dff1c69a35b92271cad7ee2aba94cbddf804b292629a0ae",
+      "bytes": 17563
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48.stderr",
+      "sha256": "bca6088ce1e8123c2a3da29db00172b60e74e7d88cdbca77530773e1ea310940",
+      "bytes": 17984
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-48.time",
+      "sha256": "7ad08e21671be0cdc877aa8db45564e0a873196e4ab93e8ff5618398cd65b390",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8-rescore.stdout",
+      "sha256": "324a0e777c97650fe54676562cb2818696759103c477c86a6b734131019d206a",
+      "bytes": 554
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8.mjs",
+      "sha256": "730c7f8fbfe2001cd4f1e5f313fa443991e8d3e5622e272af29d77b32ea692da",
+      "bytes": 17643
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8.stderr",
+      "sha256": "ad88faac692f41e2fb7dc22f6de92320c6a502cd87a29ad82213c696cc063f9e",
+      "bytes": 17912
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-8.time",
+      "sha256": "39e0529ce4b8867facf6a973895615c27bd278f8a860e34e7516c9b91cc39584",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96-rescore.stdout",
+      "sha256": "fc3f2f89014bb153d8547bd16f278b4eb52d08a2cdd0a289c02c2c235a647df2",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96.stderr",
+      "sha256": "ce97b2a7250c91f8ecbf2ff43eac67d840d51a3c2d08250d5e30152cf9de58a4",
+      "bytes": 18191
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-immediate-96.time",
+      "sha256": "2366729fbbbe0a8de81687df3c759f0b451a5c81f0ae20a231c2728aae242f84",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192-rescore.stdout",
+      "sha256": "4116a2ed7c3c013c1787eb24906a527b7ee9c1dff0779d5f316e249489c4668c",
+      "bytes": 553
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192.stderr",
+      "sha256": "185e66e487c855fbe268f45af16f7516ca3b82573552027fb2e6c073075c6a88",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-192.time",
+      "sha256": "84eafd97d451dde80617282d785ea6f257b2fde6bd8c384fc495505403427c6a",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24-rescore.stdout",
+      "sha256": "8a893bc271e767db00715cab8bd2d1e97691df3129bddda62f33bd156cd12e9e",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24.stderr",
+      "sha256": "47ef8934d0a2f5ff9e68e4354343dae1cd2f6b8450b9a67abe1744ddf04d00eb",
+      "bytes": 18173
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-24.time",
+      "sha256": "baece508c1673c732471e5de9833c676577dbae8418b7b9658cf36d6ffea6487",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48-rescore.stdout",
+      "sha256": "a32e41a767e729c6189e3dba65ea339a5e134facbb7aa380d0a04080fed44d98",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48.stderr",
+      "sha256": "9d027c26604d6b689f4518964cd9895b61a8b37260588cd84221cbe482c4283b",
+      "bytes": 18178
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-48.time",
+      "sha256": "2703ce10bbe39a744e035e8efb1374f091dd69c9c3167f02e30e237008aaceb7",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8-rescore.stdout",
+      "sha256": "33e25953a94948c8a3abf8eff2a5c0ac710dd0bbeb06cb75bc5669d7f15fd036",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8.mjs",
+      "sha256": "35f330a3235716ae36e61d03f7f230aaa5c8a4305a198e6b4b976ea9e00ee603",
+      "bytes": 17483
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8.stderr",
+      "sha256": "bdb6bdff85530ed461216829ab9d9dc124d94ff34fe96792ee1c59ff2c5ef231",
+      "bytes": 18027
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-8.time",
+      "sha256": "aecd19d04a354642cc6f274244b64fc50db96474a85ec83ec314821f37f2848e",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96-rescore.stdout",
+      "sha256": "ddf0b7a548c9a313cc3b3c1df79a6d9ab9cde66bdaf8005141a4e04d3a1e2d8c",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96.stderr",
+      "sha256": "eb21ca34eb38c6736b906090a9fb0f9fd75fdc160c33b9193ceab9bf05b64be3",
+      "bytes": 18186
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/1-staged-96.time",
+      "sha256": "5984d6d05b0866d919d57bc40f181234a3c71e095470d6547ed9f82b5864b151",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192-rescore.stdout",
+      "sha256": "c4574c24ffa4f6944ee10bed14c07e0535fb6fcd46552e2162ddb44efe498343",
+      "bytes": 556
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192.stderr",
+      "sha256": "3896a0728b5227f615c6282c74283cf9c625323d54dd8e41877f75b030543fca",
+      "bytes": 18187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-192.time",
+      "sha256": "0830a53649dc701b2f8671ce1d8e0c7d6a51481512eed243644277974bde930a",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24-rescore.stdout",
+      "sha256": "39470bca7661249d28e6d543f0e69beaa39ca0107172d5c996642e6d0f33e341",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24.mjs",
+      "sha256": "46b9cacd17ee8be44dff1c69a35b92271cad7ee2aba94cbddf804b292629a0ae",
+      "bytes": 17563
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24.stderr",
+      "sha256": "40faacd1f79649ae41fa1c80fee2d4baa95e733acb5ec62b74a0b20c7f694ca4",
+      "bytes": 17982
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-24.time",
+      "sha256": "e926ad491459caeaadd733d554c8d33d6909021585aad57cfb81b002ccb39a20",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48-rescore.stdout",
+      "sha256": "9aec802ec8e9563e8ba3a22a3319926003c123425774350219b2e977ee7fe382",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48.mjs",
+      "sha256": "46b9cacd17ee8be44dff1c69a35b92271cad7ee2aba94cbddf804b292629a0ae",
+      "bytes": 17563
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48.stderr",
+      "sha256": "b0a845a5758377ac608b7fe64fc4f0d7030b0484d69e694a4ba86af4bcbf39e0",
+      "bytes": 17986
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-48.time",
+      "sha256": "bf56dc1fb67fc7678cccbc059585905e9bf7d741e42710a3335079586dcaa004",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8-rescore.stdout",
+      "sha256": "5f1dad210ff4c889130a2245ab19bedf0955d4d045ad1813188c9b74ec45ca5b",
+      "bytes": 554
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8.mjs",
+      "sha256": "730c7f8fbfe2001cd4f1e5f313fa443991e8d3e5622e272af29d77b32ea692da",
+      "bytes": 17643
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8.stderr",
+      "sha256": "a3ef88be6e96812f72df2714ed3c0ca7f7b0b9c6b9558e6305f1d6c7b0758614",
+      "bytes": 17912
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-8.time",
+      "sha256": "ce651e91e75e69a3c977015990890361fb1841811a854498aa9620ab3bcb9097",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96-rescore.stdout",
+      "sha256": "2f94072b19d359c13cca9024d61915e40c030721001a49ebbbeabc558fed4bf2",
+      "bytes": 555
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96.stderr",
+      "sha256": "263c10121b0cefe892d92b0ce256407e1485640e89f6653f43033c7eceb0c5e0",
+      "bytes": 18191
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-immediate-96.time",
+      "sha256": "383453fd442eb3c1adc1856f372df36fa6def86f8bd7f5b188c18e01ca7bec24",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192-rescore.stdout",
+      "sha256": "9bba0923b2dbd09f141820e49bccf4ce02347d789bd71ef3975dfa5054f53351",
+      "bytes": 553
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192.stderr",
+      "sha256": "132437d39cc46cac1fc85688d88cdfdb74ac072aa8ecec9481e8598d369996f2",
+      "bytes": 18189
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-192.time",
+      "sha256": "01cfb3ca2306cdddaaef84ec9385b456e4914c8639c7976838e6f3ff9ae7ed11",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24-rescore.stdout",
+      "sha256": "ba3634b349a4d0b0e58cd28fcd7933d23d72e01362a25b907de9d619c1d9b97e",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24.stderr",
+      "sha256": "f41d2cdba05f70963ec06729658d807f8a36f0ccedf5a33dbd476d8d68e2c362",
+      "bytes": 18173
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-24.time",
+      "sha256": "4bd431bb372ebcdbacd372186ef95449d26753c43b8fb38a87a49450d9fd403a",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48-rescore.stdout",
+      "sha256": "35f86ca07da367848c3245a27c2f5d377083de5ee033670ee785f3e282b9903e",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48.stderr",
+      "sha256": "3daffe00a9360e575c372ec783dbcfeca148abf742d7ed33486e25d2fa40df5a",
+      "bytes": 18177
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-48.time",
+      "sha256": "00d8e9d4b08de627551f8a9f1c5483f19a6c3deadb96c1bc07472adc6a064627",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8-rescore.stdout",
+      "sha256": "ecb2707eaf3f5a349dc6d72e885acccf868f3d69d67c916f82d039f1d7a8690f",
+      "bytes": 551
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8.mjs",
+      "sha256": "35f330a3235716ae36e61d03f7f230aaa5c8a4305a198e6b4b976ea9e00ee603",
+      "bytes": 17483
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8.stderr",
+      "sha256": "6991d22216f552231141a031960e5ec53845f5ccf203eb1b5cd55087153c7736",
+      "bytes": 18027
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-8.time",
+      "sha256": "e3d7a1b8fadb677bb5ec4399bd63e9e28a003fb5c60cbe0a1d12b777e2da94f6",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96-rescore.stdout",
+      "sha256": "aedb536895286efb0798d50700b1db74ef77ffdd9090670e898bfff882f10770",
+      "bytes": 552
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96.stderr",
+      "sha256": "e63bf4bb867da7a308fc620dd72d3a779aa39646a395d9f5dfdd639a742fd504",
+      "bytes": 18186
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/2-staged-96.time",
+      "sha256": "56d4dfdc9b8ccb2d30a4f08c3033ea004ef7602b78570a8774cad12ff3fbe66e",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/immediate-192.toml",
+      "sha256": "9ecf3f98b719df20d7095e1c502706536542be55f1b30f07ec6ab7d738dc194a",
+      "bytes": 269
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/immediate-24.toml",
+      "sha256": "804ca41d1fec729605116b6618e2372b549bbfa685218146bb9232944d439562",
+      "bytes": 268
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/immediate-48.toml",
+      "sha256": "271140f55886994cce5dcc67444b6fa3be7dff21b114b176fdd768e939c15228",
+      "bytes": 268
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/immediate-8.toml",
+      "sha256": "1bec378b92a01d2f54e9f371e57f41a266ae9b2727e3ce545b1ab323c90aae05",
+      "bytes": 267
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/immediate-96.toml",
+      "sha256": "4b3e651c410186469a338f72c7d263bff712b6d45c077960f6924f74c219a236",
+      "bytes": 268
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/original-config-parse.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/original-config-parse.stdout",
+      "sha256": "7856d6707111919b56ad8863368269560d7aaa2d18a0a040994603a61a4eb253",
+      "bytes": 245
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/receipt.json",
+      "sha256": "8a41fdfb0fe79fccb60a50e035d2beac4a953fc59d9b64b0c1fa109df164bb1a",
+      "bytes": 920254
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/staged-192.toml",
+      "sha256": "cfeb061db5aae3e4f307cd7504a81b91f474ee7a50a2d26073547dea8158090b",
+      "bytes": 266
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/staged-24.toml",
+      "sha256": "c59821c0cf52f973ac71abcaccee0fd94624280d01e395778cb134d3576c379c",
+      "bytes": 265
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/staged-48.toml",
+      "sha256": "b5b07efd860632564de8b08182c621d7a3a4bf6f172a7a3b56a2ff1d0fd36a0b",
+      "bytes": 265
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/staged-8.toml",
+      "sha256": "3b2da0d5746d8d489a7d5efc134515eb476fddb2ccb68bcdc7a070c83ba1b1ba",
+      "bytes": 264
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/staged-96.toml",
+      "sha256": "6ac1f551def4ded4c143053574f907d264dbb83c09941a5b0298339d9b34491c",
+      "bytes": 265
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/summary.json",
+      "sha256": "18c64e25473623827525bd2a1f68044345149bc03cea884049239bed18a9e2e6",
+      "bytes": 56485
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/variant-config-parse.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/variant-config-parse.stdout",
+      "sha256": "1d8cdbb2b46a23719233d6a5eed0fe5dc9899b2bfb01004d9c304f28898b13d5",
+      "bytes": 2966
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup-observe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup-observe.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup-rescore.stdout",
+      "sha256": "17c548010dff811fd778c78a92bc6ea9558d5388aa28d72d9aafae1b1e491eab",
+      "bytes": 547
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup.mjs",
+      "sha256": "8d2ea214d1f0fcc014e6aca5823bf2c820bfd46ca80662635f5620078f675466",
+      "bytes": 17476
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup.stderr",
+      "sha256": "3e569617109d078f2965ce1ac02c8d52a4161db4f9fd3b9f7163fb3141ee7dff",
+      "bytes": 15340
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-20-semantic-cli-cost/run-2026-09-20T02-25-40.668Z/warmup.time",
+      "sha256": "3651e3b7bb65a2fbcf362d4cfddafb711a628f55a6003841a2770deb932abfa1",
+      "bytes": 79
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/build-cli.stderr",
+      "sha256": "26e9c9a339848e4272a6e4928f7de9b4d6fbf5bf44e28ad9a1f4e26f95e75210",
+      "bytes": 120
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/build-cli.stdout",
+      "sha256": "7ff876fd6fea759b6a36687c9ed46a358d3739cd5e08e53e9f186918350b24d6",
+      "bytes": 258388
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/build-tests.stderr",
+      "sha256": "bc701981fdbb8ffc1397a9ec2a4724421f3136c4afa10baea8bb157c4da740bd",
+      "bytes": 121
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/build-tests.stdout",
+      "sha256": "e9aa37f9b92f283c8e33014e20ed1fb44917668f4e73d42fb916d00ef1d55a68",
+      "bytes": 299197
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cargo-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cargo-version.stdout",
+      "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+      "bytes": 36
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cc-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cc-version.stdout",
+      "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+      "bytes": 245
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-all-js-execute.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-all-js-execute.stdout",
+      "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+      "bytes": 3
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-all.stderr",
+      "sha256": "298f7a74b76bcf84f6b249fc52ad17725ba368025783e0296fecb6966d967aa5",
+      "bytes": 14247
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-all.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-development.stderr",
+      "sha256": "799f74b1af026cc85bcde2c0d0076058a16c9a369392b8a8c6ac53b905c5ab32",
+      "bytes": 11301
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-development.stdout",
+      "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+      "bytes": 75
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-execute.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-execute.stdout",
+      "sha256": "47f29af0331a901fc16b3def9baeab232e97de5657b01b63b7469b4bd239b0f8",
+      "bytes": 19
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-file.stderr",
+      "sha256": "5b0349cecb1d67adcf5cd4a826fc198f19c12208a5c08b8a4f18ac716a012a90",
+      "bytes": 11331
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-file.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-legacy-family-unsupported.stderr",
+      "sha256": "4361460ca42f165c2b461a3299045f40aefd05dd0c636aeae9eed0f5d16201c7",
+      "bytes": 126
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-legacy-family-unsupported.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-native-execute.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-native-execute.stdout",
+      "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+      "bytes": 3
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-parse.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-parse.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-rescore.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-rescore.stdout",
+      "sha256": "5a59a16a23074ee61a0fae839929fa1dd1a82cca6e32f28d978b520de60680ce",
+      "bytes": 538
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-stdout.stderr",
+      "sha256": "cc6b43328068c573b2cc196f547c778d8d1f81ad68d2fe33cdb1aac4c0b5db13",
+      "bytes": 11332
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-stdout.stdout",
+      "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+      "bytes": 75
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-unit-tests.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-unit-tests.stdout",
+      "sha256": "6526b76500645382d387ff727180be1a97192f188162c952b4b750ccb1303683",
+      "bytes": 191
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-unsupported.stderr",
+      "sha256": "6d28cc8740a8f2337c77a69eddde2f3b5a056e165d3520e9d26a3296fb39a548",
+      "bytes": 306
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/cli-unsupported.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/entry.lil",
+      "sha256": "1be9ce2d2aa8f8cff051b57ffbb970d02b6bab10cc7af7db336e1ca4fea973aa",
+      "bytes": 49
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/entry.mjs",
+      "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+      "bytes": 75
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/canonical-codecs.command.json",
+      "sha256": "91519704712702dbdf6ceea359f39bc7fd66f1ef35fd894404f1af6619c7d1ea",
+      "bytes": 521
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/canonical-codecs.stdout",
+      "sha256": "0708843180f266958745b579113d3c9000396de55267a6d451b19c70335a7bd3",
+      "bytes": 573
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/execute-baseline.command.json",
+      "sha256": "f95a707655775ed53589d89e01104283f7bb4f299be0fbdeb44a35c56e6e3e15",
+      "bytes": 3089
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct/report.json",
+      "sha256": "4db029668f3f0e45ad49fc74dc57cce9cf69412d8ae03233b2b9761e1102f118",
+      "bytes": 24718
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct-driver.command.json",
+      "sha256": "d36de67ec45758c6564a6aaeee6dfb357071478655d7d9ce78b3003d9e111f85",
+      "bytes": 1108
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct.json",
+      "sha256": "68772c9811a458ad9e5fb2c47b1309f7766579b596f1d720b803ed0cd3aa3116",
+      "bytes": 5778
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/00-direct.time",
+      "sha256": "c6252fc2131cb3a76ad62fd5607febae53c211b06c50e0f97f155a2f9c478898",
+      "bytes": 63
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/contract.json",
+      "sha256": "f90e01da7d9ee9a6411831f605aac499ce3da6222f73be36b9adeff9c32994bf",
+      "bytes": 11352
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct/summary.json",
+      "sha256": "95cf99905e1eeb4a44828fbd4f60660b826ec2115dd5425466d03cff7f6bbf07",
+      "bytes": 6198
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-direct.stdout",
+      "sha256": "673d24dfcdfe82893722eada0915e0660de59187f17ea156101e5a8ede4cf028",
+      "bytes": 66
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native",
+      "sha256": "0ec601211fe9b3d5640254d87b00538b13bd6d2e5752b1c367874054b658b844",
+      "bytes": 16104
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-compile.command.json",
+      "sha256": "ee62afcd78405878c73b8d8cdb51112952af8d75106ed718aafc533207b4313d",
+      "bytes": 679
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-compile.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-compiler-version.command.json",
+      "sha256": "826f7c78f6547799405ce374431d68e4a1f51222af48333de1d82339d22e21f2",
+      "bytes": 296
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-compiler-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-compiler-version.stdout",
+      "sha256": "ae487f55927d605284a32711e4ecf6bc3be2bcd5a9de414ace0936264b741f85",
+      "bytes": 266
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-execute.command.json",
+      "sha256": "07b863b9cc8670ff09534f62bcd7f6b128984d3d2a5df80f9d569c778eeaf117",
+      "bytes": 389
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-execute.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native-execute.stdout",
+      "sha256": "68f4d5c1ad9d0be1b5ce3e717704b8fc99329e2ff866edc88e60c22f7f5c5f5d",
+      "bytes": 24
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/native.c",
+      "sha256": "8f5a3c5e5d9b2f88b51ec157990cd84036642fc60fb45b01ebb812f2d6ed0849",
+      "bytes": 5606
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native/report.json",
+      "sha256": "b5c202985f823ed4f8b625a6ce40335aaf600a539c49492d34b8461578535d63",
+      "bytes": 14435
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native-driver.command.json",
+      "sha256": "b50c544287a0092fdeeb82bde3d4ea12dda9023ee85e4f1915ea77474f4fb579",
+      "bytes": 1114
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native.json",
+      "sha256": "47b67e1de597e8ffa03e00588b922fb5eef11d9f14e960eef4274ed5a85fe849",
+      "bytes": 4311
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/00-native.time",
+      "sha256": "c54a244f63c0ea7cd8601591af9c4046d60efd01ad67b1353a08588c9a289f5a",
+      "bytes": 63
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/contract.json",
+      "sha256": "e889a4e8339f9753cf92ab398c33f2340b000a6c1a30b3822ffd76a4a15dd673",
+      "bytes": 10049
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native/summary.json",
+      "sha256": "91e58d517df11c5ec540dc86d3df5396107ff35345e13857e1707a577cad9deb",
+      "bytes": 4795
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-native.stdout",
+      "sha256": "8aee531e3cc6a6530201d1739d18375580802fa70fc2ac59dce401a4a3652da4",
+      "bytes": 66
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/canonical-codecs.command.json",
+      "sha256": "ba12ba1efb4ee61e3c793c57a1a7caa9428b8cfeee1199592aa7f7708307bac5",
+      "bytes": 1181
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/canonical-codecs.stdout",
+      "sha256": "f8d928002e15d81db2e395284f00c270ec91687ee02d263e2a10bd54c568a97c",
+      "bytes": 1413
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-baseline-recheck.command.json",
+      "sha256": "0077d94c9257713ba4ecd01ddbd965012809b1d40afb06a2e872a2b3e1b9be0a",
+      "bytes": 3098
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-baseline.command.json",
+      "sha256": "27a003b57468dfb6441a99fa83c96ab134c9a9b26612a6fe841f3f14f5de6a5f",
+      "bytes": 3090
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-final.command.json",
+      "sha256": "24d9642360956d3ccf238c29c20aaafc6eb6d42496b66edc175c31703c090fb6",
+      "bytes": 3087
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-retained-branch-recheck.command.json",
+      "sha256": "4d7da64a5b7edee0903626fdaebc360d1772eb7655fb732def2b36d7daf2b62d",
+      "bytes": 3105
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-retained-branch.command.json",
+      "sha256": "0d4a79c2c6b0830cad682223bd1f62c23bba61b2a9c8710e5c222d9e7646af2a",
+      "bytes": 3097
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/report.json",
+      "sha256": "e6be4c4a5274c8541efaaf3d5dc01912d823eecba8d5f3988e292ba7c0d46c49",
+      "bytes": 33679
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance-driver.command.json",
+      "sha256": "09877b61ac9919c909d02586a2358047cf05da10640058fd1b19d78273507ff5",
+      "bytes": 1140
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance.json",
+      "sha256": "f2894d61983912b7758cdd9d84540cc59065a0e2e2529f1bbe401c8fef85c6bc",
+      "bytes": 19541
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance.time",
+      "sha256": "3976cc40478eb02941ffb4c0db830ff3b225512390bf24158b1d527b5654a7c0",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/baseline-recheck.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/baseline.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/canonical-codecs.command.json",
+      "sha256": "3b13963f732055ecd2bd36b809416f80be3b66913e003b5085dabfc19b05db7a",
+      "bytes": 1176
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/canonical-codecs.stdout",
+      "sha256": "0e69973cea047d6f1f04c95166d3ff1795a3b9a94419cec6475c1a47ca956ab4",
+      "bytes": 1408
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-baseline-recheck.command.json",
+      "sha256": "87fa724dd82ef35841bfb6e648ccf53a84da008c92701c9a2650af327120fd5e",
+      "bytes": 3097
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-baseline-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-baseline-recheck.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-baseline.command.json",
+      "sha256": "49ba2bf7f7f9c02da7cb9dc8dc9cad0fd264f630da48e51e96dd04cb4f76a25f",
+      "bytes": 3089
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-baseline.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-baseline.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-final.command.json",
+      "sha256": "a64a927777763fede32e62ac04ca7c14b8cbcd89be5e603e0dad396167e3df93",
+      "bytes": 3086
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-final.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-final.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-retained-branch-recheck.command.json",
+      "sha256": "871c2000f11838b9a69432bd4b0442f413b09cc1ba15b594b75875adb902962a",
+      "bytes": 3104
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-retained-branch-recheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-retained-branch-recheck.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-retained-branch.command.json",
+      "sha256": "2180ee0125f6d623bd4559fbc8cff17cef3f9da3169a6aa6893764abf56114f9",
+      "bytes": 3096
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-retained-branch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/execute-retained-branch.stdout",
+      "sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/expected-baseline-recheck.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/expected-baseline.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/expected-final.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/expected-retained-branch-recheck.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/expected-retained-branch.json",
+      "sha256": "c2406933440c4ef1df5b3418dafdfb80c1e1b3c949b45ead753fccdedd78ce76",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/final.mjs",
+      "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/report.json",
+      "sha256": "950856372e6ae2283a94ea34a5f09b2f9ebb6b0120643d7b6925bb9f889e78f7",
+      "bytes": 33697
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/retained-branch-recheck.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/retained-branch.mjs",
+      "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9",
+      "bytes": 18232
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain-driver.command.json",
+      "sha256": "934ae2bc430ee58a75d7c56b5fa3fbfef6c8695ddce71cf3b12507ca3eae1c7f",
+      "bytes": 1137
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain.json",
+      "sha256": "4112427a5e366f66166fec578c2c31d8e46668af20257a02b1af047182b61e4a",
+      "bytes": 19526
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain.time",
+      "sha256": "d863ae97aa343d78c90911bf213a20d885063759c0936be00dc59dac4365426a",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/contract.json",
+      "sha256": "cee3da9e085b72e4c36437d8d73e709b252a80761b89626ea8e35c8baa6ce8c4",
+      "bytes": 11349
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/summary.json",
+      "sha256": "3bc57e53285d91f5ccd5100e436b66e7b37cc9f1f2bb9addcfbcc0aa4f470c8f",
+      "bytes": 40843
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired.stdout",
+      "sha256": "e51483a5817bd771aa4619a4178621e921db861854836bebb6d8f7bea92b91c3",
+      "bytes": 133
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/canonical-codecs.command.json",
+      "sha256": "c2b15290b8d65d991becbf51a947f6140ba13880ab86f853c82e5fd6e88365d9",
+      "bytes": 845
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/canonical-codecs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/canonical-codecs.stdout",
+      "sha256": "e0368aec32f7baffe262c24fa211136505c6858a0905f84036d4a5774757171e",
+      "bytes": 987
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Brotli.command.json",
+      "sha256": "5b1ba373a703068b532400f770d3998650f048e3882979ee52b759090f433a47",
+      "bytes": 3094
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Brotli.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Brotli.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Gzip.command.json",
+      "sha256": "dadf980a64b3d7c2cce8477fa34b944aae52188e2d81ce0e94164adf4f563654",
+      "bytes": 3092
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Gzip.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Gzip.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Raw.command.json",
+      "sha256": "a1db6fee640a9bf5fd53c3a6dcdc26a6d1ea043120c1d9cc86202e3d8ce5c544",
+      "bytes": 3091
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Raw.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/execute-winner-Raw.stdout",
+      "sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33",
+      "bytes": 1187
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/expected-winner-Brotli.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/expected-winner-Gzip.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/expected-winner-Raw.json",
+      "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+      "bytes": 2346
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/observe.mjs",
+      "sha256": "71f049170a6b8ca90e13e18c957956235a98c20a82ef4c54dc8a01824fc4bf1c",
+      "bytes": 2580
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/report.json",
+      "sha256": "e33066a94214e97dbb15a41aa6e5aa4bf7b6ed730b8bc723a12bb9e151bd7b86",
+      "bytes": 29879
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/winner-Brotli.mjs",
+      "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb",
+      "bytes": 17472
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/winner-Gzip.mjs",
+      "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb",
+      "bytes": 17472
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search/winner-Raw.mjs",
+      "sha256": "c905606e21e89ba0a1ae31fd182fb5e397ca496f78eea81d9e8849413d6a8dbf",
+      "bytes": 17463
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search-driver.command.json",
+      "sha256": "70388fbf167d39dc36e40afc34ce6496a28e5719607c7822a7ecf1151ac91b26",
+      "bytes": 1110
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search-driver.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search-driver.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search.json",
+      "sha256": "82932f1529211c7ac292d822a351d3dcf04688e3ff5c7b882359a015d2feede5",
+      "bytes": 12626
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/00-search.time",
+      "sha256": "a1af4966e5933ec6c9459335837371b140d9219732febe452a4171f12b6b2c37",
+      "bytes": 64
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/contract.json",
+      "sha256": "cafe488cce87c4ea91f6fcb0b91d05646e54b6d5acecaf4cb7e35e6aef729c6e",
+      "bytes": 11352
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search/summary.json",
+      "sha256": "3db39be6e77dfa3dc93d650f3756a7481e072c69a027008afa9230a1bc508789",
+      "bytes": 13190
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-search.stdout",
+      "sha256": "a23962a8d6f4f10a3cb2ace3b9fd84c09199f7af6bced843c75cbb28330e790f",
+      "bytes": 66
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/file.mjs",
+      "sha256": "d5d336deb0ad0d39c94d48b36b0a63ba50da1553ae37eacaf596152231a94644",
+      "bytes": 75
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/inputs-after.json",
+      "sha256": "33d829af6566293083027f50e496f020057a30fcdc727eb58b5c1705c0511703",
+      "bytes": 177741
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/inputs-before.json",
+      "sha256": "33d829af6566293083027f50e496f020057a30fcdc727eb58b5c1705c0511703",
+      "bytes": 177741
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/legacy-family.toml",
+      "sha256": "b740d042133e1ce69813b76e86fce9173ae1a496942e42424202bfbe371a43a2",
+      "bytes": 42
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/lilscript.toml",
+      "sha256": "0ac0d0f2bb0ede928c2e3ce2cbe29a004accf986ae42e6cd4fda601f557d138a",
+      "bytes": 111
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/native-public-factory.json",
+      "sha256": "0480824bbee3d5822aca892aaf12f1ab3d48551b0ea1c53456e31e5f2bedc074",
+      "bytes": 157932
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/node-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/node-version.stdout",
+      "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+      "bytes": 9
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/portable",
+      "sha256": "163fe7085dd3dc3a5e6333752b73622a81e41175b0e73d2c9c4c64879b970b48",
+      "bytes": 16104
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/portable.c",
+      "sha256": "b5fd3b4ed1e605d01ffe8f59c43a51313096e5ed5f3fae67894da3b039fd7d74",
+      "bytes": 3686
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/portable.js",
+      "sha256": "58fb64f73d81677da9c7e2007d9a51b4b2b66882ef94e52eb4bda0ea5ef7ca46",
+      "bytes": 49
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/portable.lil",
+      "sha256": "bc615024aed3879f11ffb34d84cefd726bc47eaf181cb59671d9ce8f233d2349",
+      "bytes": 55
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/public-combined-oracle.json",
+      "sha256": "53a60d4d53dfc3eb46bae6938a575d8010ae055cd8d4ed829948b516b6e571e9",
+      "bytes": 175913
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/receipt.json",
+      "sha256": "641909bc4747ba9c09a810d76b91d275de0673fb808a91dc59aebb6f5c7b2872",
+      "bytes": 44251
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/rust-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/rust-version.stdout",
+      "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+      "bytes": 196
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-0.stderr",
+      "sha256": "786c54cf3ef39e5205eeea5795d6c9f08a1273b8cd80d19c8fbac04da09879ea",
+      "bytes": 256
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-0.stdout",
+      "sha256": "5a8315486717b4862f283bcd40aa114fa373addecf3e8025bae2ae4632331faf",
+      "bytes": 3686
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-1.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-1.stdout",
+      "sha256": "d00fea9ce305fa06b868e649f68f019f04af428f6f55d2e7cf19f9c2e10ffdb5",
+      "bytes": 3225
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-2.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-2.stdout",
+      "sha256": "8e7c1d12384216ec14c407d78e611d8b79966ddb0326fd2fc28ae383e4d42e44",
+      "bytes": 1050
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-3.stderr",
+      "sha256": "c7b0a31b4e8b3f2411434b7d8bb74f0d7978a7172ff0206a889e8dd9a0a84121",
+      "bytes": 21536749
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-3.stdout",
+      "sha256": "c1fa35455f523a4d8838506b7b5a223053a2a6b636acc41ed65ec18be115dd57",
+      "bytes": 1292
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-4.stderr",
+      "sha256": "e4ff41e66decf94e6af8e03fb0ba24e450bd3e1d7fcb52edf4d874d0c7253d48",
+      "bytes": 469195
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/tests-4.stdout",
+      "sha256": "27f8e109a37fcc31b9a72ca46f625099df8fc11860dc3b298576d0ecef577c93",
+      "bytes": 1324
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/unsupported.lil",
+      "sha256": "c871d7a7f4e679cd16a40aa251055287b4dcd61d4b1c08748571f1062994cb55",
+      "bytes": 47
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/semantic-cli-delivery-20260920/receipt.json",
+      "sha256": "a32aa1f36d23c84c36a3291b81a05c3bda0ce00917cf72cd7530d938b7711c30",
+      "bytes": 8092
+    }
+  ],
+  "limitations": [
+    "One integrated fixture, not whole Marked, held-out fleet or completed migration",
+    "Brotli-only optimization; other codecs independently score its winner",
+    "Timing and explicit effort ablations, no default or compiler algorithm change",
+    "Failed first benchmark assertion retained; its external qualification is incomplete",
+    "Frontend allocation accounting partial; charged peak differs from RSS"
+  ]
+}

@@ -1,0 +1,320 @@
+{
+  "schema": 1,
+  "kind": "finite-search-schedule-ablation-audit",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "qualification": [
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-26-08.310Z/receipt.json",
+        "sha256": "7b8f9a32c1fc5aa46154d81a339df36c5c03b6c6ad954b9f4fba10b2d6cb730f",
+        "bytes": 6195
+      },
+      "inputSha256": "77f4458c7b69666bade4bb744498d92efaefbc0f854d043bff94b91f56bad0a8",
+      "binary": {
+        "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+        "sha256": "16e3d817b7af00089ef92992ae7b18493a9d7f254788b00b7f07db8a478bcc98",
+        "bytes": 416036688
+      },
+      "cargoFresh": false,
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "788ec40c1a1dd0c3a3f145929e2698a5ae7e45dbd0317115a920d72273c7ad74",
+          "bytes": 132
+        },
+        {
+          "path": "build-tests.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "94f76fd523938b17d0b3bfb53cf5250c2cd07fe506a828b8818de9b446c6d90a",
+          "bytes": 178163
+        },
+        {
+          "path": "cargo-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "83a9342dfd0de13caca0fd3af7b88b065d95c2705a94d9b012ce414233766513",
+          "bytes": 177585
+        },
+        {
+          "path": "inputs-before.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "83a9342dfd0de13caca0fd3af7b88b065d95c2705a94d9b012ce414233766513",
+          "bytes": 177585
+        },
+        {
+          "path": "node-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7b8f9a32c1fc5aa46154d81a339df36c5c03b6c6ad954b9f4fba10b2d6cb730f",
+          "bytes": 6195
+        },
+        {
+          "path": "rust-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "2a0682917b8dcb99aef77cf0fdbd35091211ce5afe84443d44c876d929a9e737",
+          "bytes": 116
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-27-16.430Z/receipt.json",
+        "sha256": "172eebff10917e908fb1b2ae83ffae6182d91174684e454614f48227434ba3d6",
+        "bytes": 5837
+      },
+      "inputSha256": "77f4458c7b69666bade4bb744498d92efaefbc0f854d043bff94b91f56bad0a8",
+      "binary": {
+        "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+        "sha256": "16e3d817b7af00089ef92992ae7b18493a9d7f254788b00b7f07db8a478bcc98",
+        "bytes": 416036688
+      },
+      "cargoFresh": true,
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ef0547cecc35e2c60de5b2c4431238ead445f5106492b8426b9493a2160b2f76",
+          "bytes": 73
+        },
+        {
+          "path": "build-tests.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "98cd622c0af6799d4d92bc58b9a671d7b822faf1f3c2fd534f34f3274a3f0f41",
+          "bytes": 178162
+        },
+        {
+          "path": "cargo-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "83a9342dfd0de13caca0fd3af7b88b065d95c2705a94d9b012ce414233766513",
+          "bytes": 177585
+        },
+        {
+          "path": "inputs-before.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "83a9342dfd0de13caca0fd3af7b88b065d95c2705a94d9b012ce414233766513",
+          "bytes": 177585
+        },
+        {
+          "path": "node-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "172eebff10917e908fb1b2ae83ffae6182d91174684e454614f48227434ba3d6",
+          "bytes": 5837
+        },
+        {
+          "path": "rust-version.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "kind": "file",
+          "executable": false,
+          "sha256": "dd22a8bc358053e83abd1b5578cfa689017d8b4b18d2d382a7a9fa3544fde548",
+          "bytes": 697
+        }
+      ]
+    }
+  ],
+  "diagnosticReceipt": {
+    "path": "benchmarks/migration-results/2026-09-20-search-schedule/receipt.json",
+    "sha256": "4a76cebf8ec49149f9c9ae5fffa49cb6a4224783da121ce1ca40680baaae0831",
+    "bytes": 12976
+  },
+  "outputsVerified": 30,
+  "beforeSource": {
+    "path": "/tmp/lilscript-search-schedule-before-20260920/search_fairness_tests.rs",
+    "sha256": "d444609791acbe50d3f737ed806d5ab29e7047c8805308cff35769a6904fbc1a",
+    "bytes": 23983
+  },
+  "preservedBinary": {
+    "path": "/tmp/lilscript-search-schedule-baseline-20260920/lilscript-c737e884cfca95f9",
+    "sha256": "16e3d817b7af00089ef92992ae7b18493a9d7f254788b00b7f07db8a478bcc98",
+    "bytes": 416036688
+  },
+  "changedFromPrerequisite": [
+    "src/semantic_program/search_fairness_tests.rs"
+  ],
+  "currentInputSha256": "77f4458c7b69666bade4bb744498d92efaefbc0f854d043bff94b91f56bad0a8",
+  "currentInputCount": 980,
+  "rows": 32,
+  "oracleArtifacts": 24,
+  "uniqueArtifactCodecReplays": 24,
+  "winnerObservations": 64,
+  "minima": [
+    243,
+    167,
+    143
+  ],
+  "probeConstrainedTradeoffs": [
+    {
+      "probeLimit": 2,
+      "immediate": {
+        "brotli": 162,
+        "renders": 3,
+        "optionalWork": 6178
+      },
+      "staged": {
+        "brotli": 161,
+        "renders": 9,
+        "optionalWork": 31180
+      }
+    },
+    {
+      "probeLimit": 8,
+      "immediate": {
+        "brotli": 162,
+        "renders": 9,
+        "optionalWork": 34188
+      },
+      "staged": {
+        "brotli": 151,
+        "renders": 16,
+        "optionalWork": 67053
+      }
+    }
+  ],
+  "design": {
+    "path": "docs/compiler-design.md",
+    "sha256": "659911967aa490b1e7db340b7d76399307aa86baa3c7761ef252508d0b5a5bbb",
+    "bytes": 16688
+  },
+  "limits": [
+    "Only test source changes; no production heuristic or policy change.",
+    "One existing constructed structural interaction fixture, not held-out libraries or fleet evidence.",
+    "WorkKind totals include baseline and optional work; optional_work is the optional-domain total. Logical tariffs are not CPU/wall timings.",
+    "More probe allowance cannot recover branches evicted by width one in these rows; not a universal beam guarantee.",
+    "Rediscovery after equivalent rewrites still requires revision-qualified inventories and proofs in the same scheduler; never combine stale snapshot proofs."
+  ]
+}

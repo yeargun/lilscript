@@ -1,7 +1,7 @@
 # Compression verification
 
 Parent: [knowledge tree](../README.md). Execution order:
-[planned migration](../migration/planned-migration.md). Evidence:
+[single migration plan](../../migration/index.md). Evidence:
 [evidence](../evidence/README.md). Current gates:
 [`docs/current-status.md`](../../current-status.md).
 
@@ -56,7 +56,7 @@ it must not be relabelled as direct compiler output.
   release-wired. Durable reviewed cases live in
   [`comparison/cases/canonical/`](../../../comparison/cases/canonical/). The
   generated catalog remains a parameterized regression net with a checked-in oracle
-  digest. See the [planned migration](../migration/planned-migration.md).
+  digest. See the [support inventory](../../migration/index.md#001-baselines-and-support-inventory).
 - The micro catalog is not structural whole-program evidence. The separate
   [algorithm lane](algorithm-challenges.md) owns multi-function/module interaction,
   runtime vectors, and codec-window scaling.

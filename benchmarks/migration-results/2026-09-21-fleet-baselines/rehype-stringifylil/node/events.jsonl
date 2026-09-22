@@ -1,0 +1,21 @@
+{"kind":"test-case","id":"[\"test/api.test.mjs\",30,3,1,\"test\",\"exports only the default plugin\",1]","file":"test/api.test.mjs","name":"exports only the default plugin","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",35,3,1,\"test\",\"compiles a paragraph hast node to html\",1]","file":"test/api.test.mjs","name":"compiles a paragraph hast node to html","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",43,3,1,\"test\",\"emits input type from properties\",1]","file":"test/api.test.mjs","name":"emits input type from properties","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",57,3,1,\"test\",\"escapes text and joins className arrays\",1]","file":"test/api.test.mjs","name":"escapes text and joins className arrays","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",70,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]","file":"test/api.test.mjs","name":"keeps pinned keys in the library artifact","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",78,3,1,\"test\",\"merges processor settings before explicit options\",1]","file":"test/api.test.mjs","name":"merges processor settings before explicit options","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",88,3,1,\"test\",\"passes all character-reference options to the serializer\",1]","file":"test/api.test.mjs","name":"passes all character-reference options to the serializer","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",118,3,1,\"test\",\"copies own settings without prototype pollution\",1]","file":"test/api.test.mjs","name":"copies own settings without prototype pollution","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",29,1,0,\"suite\",\"rehype-stringify\",1]","file":"test/api.test.mjs","name":"rehype-stringify","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]","file":"test/closed.test.mjs","name":"ships a closed artifact with the default export","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype-stringify closed\",1]","file":"test/closed.test.mjs","name":"rehype-stringify closed","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 10"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 3"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 10"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 97.587964"}

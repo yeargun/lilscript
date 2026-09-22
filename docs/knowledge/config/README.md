@@ -57,7 +57,7 @@ name opts that representation in even if the profile would leave it off.
 listed names when the table is present. Size-first search-only spellings such as
 `indexed-char-at` still compete unless the list is empty.
 
-If `optimizations` is omitted, `optimization_level` (0–15) supplies the feature
+If `optimizations` is omitted, `optimization_level` (0–16) supplies the feature
 set. If present, it is an exact feature allowlist; the level still bounds count,
 byte, beam, structural-proposal, and terminal-codec effort.
 

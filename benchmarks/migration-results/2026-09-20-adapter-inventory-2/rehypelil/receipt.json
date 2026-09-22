@@ -1,0 +1,1807 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "rehypelil",
+  "started": "2026-09-20T18:25:09.742Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/rehypelil",
+  "workspace": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/rehypelil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/rehypelil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run check:types && node --test test/*.test.mjs test/official/api.js test/official/parse-error.js",
+  "derivation": {
+    "supported": true,
+    "script": "npm run check:types && node --test test/*.test.mjs test/official/api.js test/official/parse-error.js",
+    "originalSegments": [
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/api.js test/official/parse-error.js"
+    ],
+    "segments": [
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/api.js test/official/parse-error.js"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/api.js",
+      "test/official/parse-error.js"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/rehype.cjs",
+      "dist/rehype.closed.js",
+      "dist/rehype.esm.js"
+    ],
+    "absent": []
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/rehypelil/node/report.json",
+    "sha256": "738a876a08a1b194c3c92901f01fafe626b2c072d16f81b3c23c5ee5befdec06",
+    "bytes": 592083
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",15,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes the upstream public API",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",21,3,1,\"test\",\"processSync stringifies html\",1]",
+      "file": "test/api.test.mjs",
+      "name": "processSync stringifies html",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",28,3,1,\"test\",\"passes string input to the embedded parser and decodes Uint8Array input\",1]",
+      "file": "test/api.test.mjs",
+      "name": "passes string input to the embedded parser and decodes Uint8Array input",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",47,3,1,\"test\",\"returns a VFile-compatible artifact\",1]",
+      "file": "test/api.test.mjs",
+      "name": "returns a VFile-compatible artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",59,3,1,\"test\",\"keeps processor methods on the shared prototype\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps processor methods on the shared prototype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",68,3,1,\"test\",\"exposes and uses the same own processor state as unified\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes and uses the same own processor state as unified",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",99,3,1,\"test\",\"coerces parser files with String and Symbol.toPrimitive\",1]",
+      "file": "test/api.test.mjs",
+      "name": "coerces parser files with String and Symbol.toPrimitive",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",123,3,1,\"test\",\"applies character-reference settings to text and attributes\",1]",
+      "file": "test/api.test.mjs",
+      "name": "applies character-reference settings to text and attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",144,3,1,\"test\",\"keeps pinned processor keys in the library artifact\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps pinned processor keys in the library artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",156,3,1,\"test\",\"keeps upstream module paths and omits build intermediates\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps upstream module paths and omits build intermediates",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",180,3,1,\"test\",\"loads the UMD artifact as the rehype factory\",1]",
+      "file": "test/api.test.mjs",
+      "name": "loads the UMD artifact as the rehype factory",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",14,1,0,\"suite\",\"rehype\",1]",
+      "file": "test/api.test.mjs",
+      "name": "rehype",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with named exports\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact with named exports",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype closed\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "rehype closed",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",80,3,1,\"test\",\"matches malformed selectors and case-sensitive SVG tag names\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches malformed selectors and case-sensitive SVG tag names",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",88,3,1,\"test\",\"matches the installed upstream graph on every rehype fixture\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches the installed upstream graph on every rehype fixture",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",95,3,1,\"test\",\"matches the installed upstream graph on every parse-error fixture\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches the installed upstream graph on every parse-error fixture",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",101,3,1,\"test\",\"matches deterministic malformed HTML fuzz cases\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches deterministic malformed HTML fuzz cases",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",79,1,0,\"suite\",\"parse5 differential\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "parse5 differential",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",19,11,1,\"test\",\"should expose the public api of `rehype`\",1]",
+      "file": "test/official/api.js",
+      "name": "should expose the public api of `rehype`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",23,11,1,\"test\",\"should expose the public api of `rehype-parse`\",1]",
+      "file": "test/official/api.js",
+      "name": "should expose the public api of `rehype-parse`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",32,11,1,\"test\",\"should expose the public api of `rehype-stringify`\",1]",
+      "file": "test/official/api.js",
+      "name": "should expose the public api of `rehype-stringify`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",41,11,1,\"test\",\"should accept a `string`\",1]",
+      "file": "test/official/api.js",
+      "name": "should accept a `string`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",77,11,1,\"test\",\"should prefer options given to `rehypeParse` over `settings`\",1]",
+      "file": "test/official/api.js",
+      "name": "should prefer options given to `rehypeParse` over `settings`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",92,11,1,\"test\",\"should prefer options given to `rehypeStringify` over `settings`\",1]",
+      "file": "test/official/api.js",
+      "name": "should prefer options given to `rehypeStringify` over `settings`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",107,11,1,\"test\",\"should parse self-closing elements\",1]",
+      "file": "test/official/api.js",
+      "name": "should parse self-closing elements",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",143,11,1,\"test\",\"should not close unknown elements by default\",1]",
+      "file": "test/official/api.js",
+      "name": "should not close unknown elements by default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",185,11,1,\"test\",\"should throw when `tree` is not a valid node\",1]",
+      "file": "test/official/api.js",
+      "name": "should throw when `tree` is not a valid node",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",197,11,1,\"test\",\"should escape character references\",1]",
+      "file": "test/official/api.js",
+      "name": "should escape character references",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",209,11,1,\"test\",\"should encode character references (numbered by default)\",1]",
+      "file": "test/official/api.js",
+      "name": "should encode character references (numbered by default)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",224,11,1,\"test\",\"should encode character references (named)\",1]",
+      "file": "test/official/api.js",
+      "name": "should encode character references (named)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",238,11,1,\"test\",\"should not close self-closing elements\",1]",
+      "file": "test/official/api.js",
+      "name": "should not close self-closing elements",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",252,11,1,\"test\",\"should close self-closing elements if `closeSelfClosing` is given\",1]",
+      "file": "test/official/api.js",
+      "name": "should close self-closing elements if `closeSelfClosing` is given",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",269,11,1,\"test\",\"should not close unknown elements by default\",1]",
+      "file": "test/official/api.js",
+      "name": "should not close unknown elements by default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",286,11,1,\"test\",\"should close given `voids`\",1]",
+      "file": "test/official/api.js",
+      "name": "should close given `voids`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",300,11,1,\"test\",\"should not emit parse errors by default\",1]",
+      "file": "test/official/api.js",
+      "name": "should not emit parse errors by default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",307,11,1,\"test\",\"should emit parse errors when `emitParseErrors: true`\",1]",
+      "file": "test/official/api.js",
+      "name": "should emit parse errors when `emitParseErrors: true`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",320,11,1,\"test\",\"should ignore parse errors when the specific rule is turned off\",1]",
+      "file": "test/official/api.js",
+      "name": "should ignore parse errors when the specific rule is turned off",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",336,11,1,\"test\",\"should emit parse errors when the specific rule is turned on\",1]",
+      "file": "test/official/api.js",
+      "name": "should emit parse errors when the specific rule is turned on",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",352,11,1,\"test\",\"should emit fatal parse errors when the specific rule is `2`\",1]",
+      "file": "test/official/api.js",
+      "name": "should emit fatal parse errors when the specific rule is `2`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",367,11,1,\"test\",\"should emit warning parse errors when the specific rule is `1`\",1]",
+      "file": "test/official/api.js",
+      "name": "should emit warning parse errors when the specific rule is `1`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",18,1,0,\"test\",\"rehype\",1]",
+      "file": "test/official/api.js",
+      "name": "rehype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"adoption\",1]",
+      "file": "test/official/api.js",
+      "name": "adoption",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"aria\",1]",
+      "file": "test/official/api.js",
+      "name": "aria",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"body-body-attributes\",1]",
+      "file": "test/official/api.js",
+      "name": "body-body-attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"body-html-attributes\",1]",
+      "file": "test/official/api.js",
+      "name": "body-html-attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"character-data\",1]",
+      "file": "test/official/api.js",
+      "name": "character-data",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"comment\",1]",
+      "file": "test/official/api.js",
+      "name": "comment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"comments\",1]",
+      "file": "test/official/api.js",
+      "name": "comments",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"directive-in-fragment\",1]",
+      "file": "test/official/api.js",
+      "name": "directive-in-fragment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-almost-standards\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-almost-standards",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-legacy-double\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-legacy-double",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-legacy-single\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-legacy-single",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-nameless\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-nameless",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quirksmode-ibm\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-quirksmode-ibm",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quirksmode-xml\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-quirksmode-xml",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quotes-double\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-quotes-double",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quotes-single\",1]",
+      "file": "test/official/api.js",
+      "name": "doctype-quotes-single",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element\",1]",
+      "file": "test/official/api.js",
+      "name": "element",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-attributes\",1]",
+      "file": "test/official/api.js",
+      "name": "element-attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-attributes-names\",1]",
+      "file": "test/official/api.js",
+      "name": "element-attributes-names",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-auto-close-document\",1]",
+      "file": "test/official/api.js",
+      "name": "element-auto-close-document",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-auto-close-fragment\",1]",
+      "file": "test/official/api.js",
+      "name": "element-auto-close-fragment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-broken-close\",1]",
+      "file": "test/official/api.js",
+      "name": "element-broken-close",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-children\",1]",
+      "file": "test/official/api.js",
+      "name": "element-children",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-closing\",1]",
+      "file": "test/official/api.js",
+      "name": "element-closing",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-closing-attributes\",1]",
+      "file": "test/official/api.js",
+      "name": "element-closing-attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-empty\",1]",
+      "file": "test/official/api.js",
+      "name": "element-empty",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-loose-close-document\",1]",
+      "file": "test/official/api.js",
+      "name": "element-loose-close-document",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-loose-close-fragment\",1]",
+      "file": "test/official/api.js",
+      "name": "element-loose-close-fragment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-opening\",1]",
+      "file": "test/official/api.js",
+      "name": "element-opening",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-void\",1]",
+      "file": "test/official/api.js",
+      "name": "element-void",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-void-close\",1]",
+      "file": "test/official/api.js",
+      "name": "element-void-close",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"empty-document\",1]",
+      "file": "test/official/api.js",
+      "name": "empty-document",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"empty-fragment\",1]",
+      "file": "test/official/api.js",
+      "name": "empty-fragment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"entities\",1]",
+      "file": "test/official/api.js",
+      "name": "entities",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"entities-in-literals\",1]",
+      "file": "test/official/api.js",
+      "name": "entities-in-literals",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"html-in-svg-in-html\",1]",
+      "file": "test/official/api.js",
+      "name": "html-in-svg-in-html",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"mathml\",1]",
+      "file": "test/official/api.js",
+      "name": "mathml",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"noscript\",1]",
+      "file": "test/official/api.js",
+      "name": "noscript",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"processing-instruction\",1]",
+      "file": "test/official/api.js",
+      "name": "processing-instruction",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"quirksmode-off\",1]",
+      "file": "test/official/api.js",
+      "name": "quirksmode-off",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"quirksmode-on\",1]",
+      "file": "test/official/api.js",
+      "name": "quirksmode-on",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"svg\",1]",
+      "file": "test/official/api.js",
+      "name": "svg",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"svg-in-html\",1]",
+      "file": "test/official/api.js",
+      "name": "svg-in-html",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"verbose\",1]",
+      "file": "test/official/api.js",
+      "name": "verbose",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"xhtml\",1]",
+      "file": "test/official/api.js",
+      "name": "xhtml",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/api.js\",383,1,0,\"test\",\"fixtures\",1]",
+      "file": "test/official/api.js",
+      "name": "fixtures",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abandoned-head-element-child\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "abandoned-head-element-child",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abrupt-closing-of-empty-comment\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "abrupt-closing-of-empty-comment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abrupt-doctype-public-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "abrupt-doctype-public-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abrupt-doctype-system-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "abrupt-doctype-system-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"absence-of-digits-in-numeric-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "absence-of-digits-in-numeric-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"cdata-in-html-content\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "cdata-in-html-content",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"character-reference-outside-unicode-range\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "character-reference-outside-unicode-range",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"closing-of-element-with-open-child-elements\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "closing-of-element-with-open-child-elements",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"control-character-in-input-stream\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "control-character-in-input-stream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"control-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "control-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"disallowed-content-in-noscript-in-head\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "disallowed-content-in-noscript-in-head",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"duplicate-attribute\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "duplicate-attribute",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"end-tag-with-attributes\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "end-tag-with-attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"end-tag-with-trailing-solidus\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "end-tag-with-trailing-solidus",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"end-tag-without-matching-open-element\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "end-tag-without-matching-open-element",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-before-tag-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-before-tag-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-cdata\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-in-cdata",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-comment\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-in-comment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-doctype\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-in-doctype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-element-that-can-contain-only-text\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-in-element-that-can-contain-only-text",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-script-html-comment-like-text\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-in-script-html-comment-like-text",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-tag\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "eof-in-tag",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"incorrectly-closed-comment\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "incorrectly-closed-comment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"incorrectly-opened-comment\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "incorrectly-opened-comment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"invalid-character-sequence-after-doctype-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "invalid-character-sequence-after-doctype-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"invalid-first-character-of-tag-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "invalid-first-character-of-tag-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"misplaced-doctype\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "misplaced-doctype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"misplaced-start-tag-for-head-element\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "misplaced-start-tag-for-head-element",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-attribute-value\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-attribute-value",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-doctype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-doctype-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype-public-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-doctype-public-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype-system-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-doctype-system-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-end-tag-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-end-tag-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-quote-before-doctype-public-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-quote-before-doctype-public-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-quote-before-doctype-system-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-quote-before-doctype-system-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-semicolon-after-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-semicolon-after-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-after-doctype-public-keyword\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-whitespace-after-doctype-public-keyword",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-after-doctype-system-keyword\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-whitespace-after-doctype-system-keyword",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-before-doctype-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-whitespace-before-doctype-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-between-attributes\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-whitespace-between-attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-between-doctype-public-and-system-identifiers\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "missing-whitespace-between-doctype-public-and-system-identifiers",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"nested-comment\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "nested-comment",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"nested-noscript-in-head\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "nested-noscript-in-head",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"non-conforming-doctype\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "non-conforming-doctype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"non-void-html-element-start-tag-with-trailing-solidus\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "non-void-html-element-start-tag-with-trailing-solidus",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"noncharacter-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "noncharacter-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"noncharacter-in-input-stream\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "noncharacter-in-input-stream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"null-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "null-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"open-elements-left-after-eof\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "open-elements-left-after-eof",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"surrogate-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "surrogate-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-character-after-doctype-system-identifier\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-character-after-doctype-system-identifier",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-character-in-attribute-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-character-in-attribute-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-character-in-unquoted-attribute-value\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-character-in-unquoted-attribute-value",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-equals-sign-before-attribute-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-equals-sign-before-attribute-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-null-character\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-null-character",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-question-mark-instead-of-tag-name\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-question-mark-instead-of-tag-name",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-solidus-in-tag\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unexpected-solidus-in-tag",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unknown-named-character-reference\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "unknown-named-character-reference",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",57,11,1,\"test\",\"surrogate-in-input-stream\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "surrogate-in-input-stream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/parse-error.js\",9,1,0,\"test\",\"parse errors\",1]",
+      "file": "test/official/parse-error.js",
+      "name": "parse errors",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",58,3,1,\"test\",\"matches all parse-error codes and reverse attribute lookup\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches all parse-error codes and reverse attribute lookup",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",64,3,1,\"test\",\"matches HTML tag IDs and element sets\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches HTML tag IDs and element sets",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",85,3,1,\"test\",\"matches doctype conformance and document mode\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches doctype conformance and document mode",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",109,3,1,\"test\",\"matches Unicode and entity code-point handling\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches Unicode and entity code-point handling",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",123,3,1,\"test\",\"matches complete and incrementally supplied entity references\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches complete and incrementally supplied entity references",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",199,3,1,\"test\",\"matches foreign-content adjustment and integration rules\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches foreign-content adjustment and integration rules",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",251,3,1,\"test\",\"matches preprocessing across malformed input and chunk boundaries\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches preprocessing across malformed input and chunk boundaries",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",307,3,1,\"test\",\"matches preprocessor lookahead, insertion, and buffer dropping\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches preprocessor lookahead, insertion, and buffer dropping",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",336,3,1,\"test\",\"matches the default tree adapter's mutation semantics\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches the default tree adapter's mutation semantics",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",362,3,1,\"test\",\"matches active-formatting-list ordering and Noah's Ark enforcement\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches active-formatting-list ordering and Noah's Ark enforcement",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",392,3,1,\"test\",\"matches open-element-stack mutation, scope, and callback ordering\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "matches open-element-stack mutation, scope, and callback ordering",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parse5-modules.test.mjs\",57,1,0,\"suite\",\"isolated parse5 LilScript modules\",1]",
+      "file": "test/parse5-modules.test.mjs",
+      "name": "isolated parse5 LilScript modules",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil/dist/rehype.esm.js",
+      "sha256": "e2d1ceb9df39fb8f764e0d954d6eb32b456cbdd27458e69c665ef3730d1dd6dc",
+      "bytes": 168122
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil/dist/rehype.cjs",
+      "sha256": "6370f2462869d5254d8065c09a9bac3e081b134f178376b5dafa0ae0ac5e7582",
+      "bytes": 168608
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil/dist/rehype.closed.js",
+      "sha256": "35090fd8f5ca2c04a7117622cf1d71fa23253e4582c48e7bfbb17dd2f6f43e0e",
+      "bytes": 165772
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil/dist/rehype.esm.js",
+      "sha256": "e2d1ceb9df39fb8f764e0d954d6eb32b456cbdd27458e69c665ef3730d1dd6dc",
+      "bytes": 168122
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil/dist/rehype.esm.js",
+      "sha256": "e2d1ceb9df39fb8f764e0d954d6eb32b456cbdd27458e69c665ef3730d1dd6dc",
+      "bytes": 168122
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehypelil-Tb5sRB/rehypelil/dist/rehype.esm.js",
+      "sha256": "e2d1ceb9df39fb8f764e0d954d6eb32b456cbdd27458e69c665ef3730d1dd6dc",
+      "bytes": 168122
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/rehype.cjs",
+    "dist/rehype.closed.js",
+    "dist/rehype.esm.js"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 7173.873760999995,
+  "completed": "2026-09-20T18:25:16.900Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c8c5200acf3450ab3af5480ff31170edaa2830fcc831db900446a5aa21f34905",
+      "bytes": 1551792
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c8c5200acf3450ab3af5480ff31170edaa2830fcc831db900446a5aa21f34905",
+      "bytes": 1551792
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "412c5455647ed390c84d1f73290afcaa2fedc4b484971361814e77d9e9a39d74",
+      "bytes": 61697
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7eb81261e21b81077d64603f7ad1e0407f03f8688255cfb414d4ec35a6e35722",
+      "bytes": 14925
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "40088e9197e4d1447c886abc95a85a1c239c71ddfe2a5e6bab3ce63a260c3539",
+      "bytes": 38846
+    },
+    {
+      "path": "node/loaded/3415922-5b272308-d6b8-4c9c-a755-1ef41dd7ed2c.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "69360e779ad04bbf178c9f0f2ee72edd0efe38f743a6f2ad5f3345f832d0d1df",
+      "bytes": 330
+    },
+    {
+      "path": "node/loaded/3415922-8a239764-2fb2-4052-9c2d-9dfb51265843.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7d5497a79b0dccc62581bac3ddd087faeef6bd2806b2276c6a1e53001cf7e0d9",
+      "bytes": 326
+    },
+    {
+      "path": "node/loaded/3415923-eb9cd306-98f8-4d85-bde4-c97b9fe0ca1b.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8566e4952418083a5c9ce349ae736b0d89600b4603f3a71fa489675e6803f8d0",
+      "bytes": 336
+    },
+    {
+      "path": "node/loaded/3415924-5d923ca3-0c61-43d3-8bd7-af236002064a.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b7942042d3851cef3dbf959b3f23ccd29413fb8709cada10c07fa827d385d7fb",
+      "bytes": 330
+    },
+    {
+      "path": "node/loaded/3415930-51a23310-33aa-4af0-b5ab-796ef23fb784.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "40c3a7d3db2fb57065e85535189368c29dea9baab0baa6ace2f102c3697c84c5",
+      "bytes": 330
+    },
+    {
+      "path": "node/loaded/3415934-fc392f09-e78b-488d-830b-0bf617e896f2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f107833bfc037e5e3ace4575540b1d8634c26ef12a18066dcfd630600b96b4b8",
+      "bytes": 330
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "61b8fc64f1f4be856ff4f944906778c90e2c3ee52b43863a7d040f5bef87cc82",
+      "bytes": 482
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "89d2db125608dc3c2a18380f6a3c94d28d88f70be50dc9fb0e22cd117a2c4b3e",
+      "bytes": 53
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "738a876a08a1b194c3c92901f01fafe626b2c072d16f81b3c23c5ee5befdec06",
+      "bytes": 592083
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8d397c113d4b4a339a5845ac2bd5235519838b13e33e6c7cad227022a34892e0",
+      "bytes": 6699
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7eb81261e21b81077d64603f7ad1e0407f03f8688255cfb414d4ec35a6e35722",
+      "bytes": 14925
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+
+running 6 tests
+test structured_js::literal_output_tests::observed_output_checks_permission_even_if_the_recipe_is_inactive ... ok
+test structured_js::literal_output_tests::unreachable_rows_have_no_alternative_and_resolve_to_original ... ok
+test structured_js::literal_output_tests::malformed_sparse_locations_are_rejected_before_prepared_output_escapes ... ok
+test structured_js::literal_output_tests::failed_render_and_unwind_release_output_owners_and_leave_reusable_preparation ... ok
+test structured_js::literal_output_tests::selected_literal_shape_preserves_receiver_syntax_and_avoids_directives ... ok
+test structured_js::literal_output_tests::one_prepared_output_renders_original_and_observed_without_mutating_literals ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2856 filtered out; finished in 0.18s
+

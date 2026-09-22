@@ -1,0 +1,290 @@
+[
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 2,
+    "beforeOptionalWork": 6178,
+    "afterOptionalWork": 6178,
+    "removedAnalysisTariff": 0
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 8,
+    "beforeOptionalWork": 34171,
+    "afterOptionalWork": 34152,
+    "removedAnalysisTariff": 19
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 24,
+    "beforeOptionalWork": 48598,
+    "afterOptionalWork": 48561,
+    "removedAnalysisTariff": 37
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 48,
+    "beforeOptionalWork": 48598,
+    "afterOptionalWork": 48561,
+    "removedAnalysisTariff": 37
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 2,
+    "beforeOptionalWork": 271965,
+    "afterOptionalWork": 271965,
+    "removedAnalysisTariff": 0
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 8,
+    "beforeOptionalWork": 1092136,
+    "afterOptionalWork": 1092131,
+    "removedAnalysisTariff": 5
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 24,
+    "beforeOptionalWork": 3002955,
+    "afterOptionalWork": 3002886,
+    "removedAnalysisTariff": 69
+  },
+  {
+    "beam": 1,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 48,
+    "beforeOptionalWork": 3002955,
+    "afterOptionalWork": 3002886,
+    "removedAnalysisTariff": 69
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 2,
+    "beforeOptionalWork": 31965,
+    "afterOptionalWork": 31858,
+    "removedAnalysisTariff": 107
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 8,
+    "beforeOptionalWork": 48081,
+    "afterOptionalWork": 47774,
+    "removedAnalysisTariff": 307
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 24,
+    "beforeOptionalWork": 49436,
+    "afterOptionalWork": 49129,
+    "removedAnalysisTariff": 307
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 48,
+    "beforeOptionalWork": 49436,
+    "afterOptionalWork": 49129,
+    "removedAnalysisTariff": 307
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 2,
+    "beforeOptionalWork": 300020,
+    "afterOptionalWork": 299989,
+    "removedAnalysisTariff": 31
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 8,
+    "beforeOptionalWork": 1118302,
+    "afterOptionalWork": 1118195,
+    "removedAnalysisTariff": 107
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 24,
+    "beforeOptionalWork": 3003723,
+    "afterOptionalWork": 3003412,
+    "removedAnalysisTariff": 311
+  },
+  {
+    "beam": 1,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 48,
+    "beforeOptionalWork": 3003723,
+    "afterOptionalWork": 3003412,
+    "removedAnalysisTariff": 311
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 2,
+    "beforeOptionalWork": 6178,
+    "afterOptionalWork": 6178,
+    "removedAnalysisTariff": 0
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 8,
+    "beforeOptionalWork": 34188,
+    "afterOptionalWork": 34163,
+    "removedAnalysisTariff": 25
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 24,
+    "beforeOptionalWork": 73483,
+    "afterOptionalWork": 73410,
+    "removedAnalysisTariff": 73
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "One(Brotli)",
+    "probeLimit": 48,
+    "beforeOptionalWork": 73483,
+    "afterOptionalWork": 73410,
+    "removedAnalysisTariff": 73
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 2,
+    "beforeOptionalWork": 271965,
+    "afterOptionalWork": 271965,
+    "removedAnalysisTariff": 0
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 8,
+    "beforeOptionalWork": 1092136,
+    "afterOptionalWork": 1092131,
+    "removedAnalysisTariff": 5
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 24,
+    "beforeOptionalWork": 3277529,
+    "afterOptionalWork": 3277462,
+    "removedAnalysisTariff": 67
+  },
+  {
+    "beam": 2,
+    "schedule": "immediate",
+    "objectives": "All",
+    "probeLimit": 48,
+    "beforeOptionalWork": 4639209,
+    "afterOptionalWork": 4639078,
+    "removedAnalysisTariff": 131
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 2,
+    "beforeOptionalWork": 31180,
+    "afterOptionalWork": 31051,
+    "removedAnalysisTariff": 129
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 8,
+    "beforeOptionalWork": 67053,
+    "afterOptionalWork": 66536,
+    "removedAnalysisTariff": 517
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 24,
+    "beforeOptionalWork": 74563,
+    "afterOptionalWork": 73907,
+    "removedAnalysisTariff": 656
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "One(Brotli)",
+    "probeLimit": 48,
+    "beforeOptionalWork": 74563,
+    "afterOptionalWork": 73907,
+    "removedAnalysisTariff": 656
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 2,
+    "beforeOptionalWork": 299240,
+    "afterOptionalWork": 299201,
+    "removedAnalysisTariff": 39
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 8,
+    "beforeOptionalWork": 1117918,
+    "afterOptionalWork": 1117683,
+    "removedAnalysisTariff": 235
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 24,
+    "beforeOptionalWork": 3294595,
+    "afterOptionalWork": 3294079,
+    "removedAnalysisTariff": 516
+  },
+  {
+    "beam": 2,
+    "schedule": "staged",
+    "objectives": "All",
+    "probeLimit": 48,
+    "beforeOptionalWork": 4639540,
+    "afterOptionalWork": 4638873,
+    "removedAnalysisTariff": 667
+  }
+]

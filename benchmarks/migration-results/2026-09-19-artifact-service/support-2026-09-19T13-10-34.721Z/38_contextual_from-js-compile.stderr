@@ -1,0 +1,259 @@
+{
+  "schema": 1,
+  "backend": "semantic",
+  "source_sha256": "ecc43527d4e60c61a6a24d1a812db28314aadeaefd13c26674637f508df67c1b",
+  "request": {
+    "target": "JavaScript",
+    "preserve_root_exports": false,
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "effective_logical_work": 200000000,
+    "effective_retained_bytes": 256000000
+  },
+  "inputs": {
+    "root": 0,
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/tests/cases/38_contextual_from.lil",
+        "bytes": 61,
+        "sha256": "c74ab88f543ca58f5d6e97732b9baffa0fad5f41d545023ec92df08b49d7f9cb",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ]
+  },
+  "shape": {
+    "modules": 1,
+    "units": 2,
+    "operations": 12,
+    "cells": 2
+  },
+  "javascript_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "public_aggregate_abi": "Named",
+      "preserve_extern_fields": true,
+      "internal_exports_may_mangle": false,
+      "public_function_spelling": "None",
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "strip_console": false,
+      "preserved_properties": [],
+      "owned_properties": "UnderscoreSuffix",
+      "bundle_mode": "Single"
+    },
+    "objective": {
+      "codec": "Brotli",
+      "priority": "SizeFirst",
+      "realistic_performance_limit_percent": 25,
+      "optional_alternatives": 0,
+      "optional_codec_probes": 0,
+      "cleanup_finalists": 1,
+      "retained_candidates": 1,
+      "retained_candidate_bytes": 1,
+      "beam_width": 1,
+      "search": {
+        "version": 6,
+        "codec_schedule": "staged",
+        "render_batch": 8,
+        "diversity_interval": 4
+      }
+    },
+    "effort": 13,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "off",
+          "enabled": false
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "off",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "off",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "native_policy": null,
+  "artifacts": [
+    {
+      "sha256": "e98f8d443f09db49f7a6b66e921d935d819cca961b543df456ff059de2ffc65c",
+      "raw": 105,
+      "gzip9": null,
+      "brotli11": 79
+    }
+  ],
+  "winners": [
+    null,
+    null,
+    0
+  ],
+  "native_sha256": null,
+  "native_delivery": null,
+  "phases_ns": {
+    "policy_ns": 553043,
+    "discovery_ns": 277849,
+    "parse_ns": 51036,
+    "check_ns": 151884,
+    "convert_ns": 239367,
+    "frontend_release_ns": 8866,
+    "adopt_ns": 114093,
+    "javascript_ns": 3544357
+  },
+  "first_artifact_ns": 4976100,
+  "total_ns": 5491733,
+  "search": {
+    "request": {
+      "objectives": [
+        "Brotli"
+      ],
+      "scalar": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "helper": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "string": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "local_facts": {
+        "work": 1000000,
+        "result_bytes": 512000
+      },
+      "facts_cache": {
+        "entries": 128,
+        "bytes": 16000000,
+        "result_bytes": 512000
+      }
+    },
+    "proposals": 0,
+    "structures": 1,
+    "renders": 1,
+    "codec_probes": 0,
+    "proof_queries": 0,
+    "beam_evictions": 0,
+    "admitted_artifacts": 1,
+    "stop": null
+  },
+  "resources": {
+    "baseline_work": 3027,
+    "optional_work": 0,
+    "codec_work": 163,
+    "peak_retained_bytes": 764318,
+    "retained_bytes_after_handoff": 0,
+    "frontend_logical_work": 184,
+    "frontend_allocation_accounting": "not-yet-instrumented",
+    "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+    "scope": "admitted semantic/target/codec storage; frontend allocations, caller configuration I/O, returned buffers and process RSS are separate"
+  }
+}

@@ -1,0 +1,6769 @@
+{
+  "artifacts": [
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 0,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [],
+      "emitted_parameter_names": [
+        "b",
+        "c"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(b,c){observe(\"status/\"+ \"message/\"+ b+ c);marker();observe(\"status/\"+ \"message/\"+ c+ b);};let a=report;export{a as report};",
+      "sha256": "7846d90a450a9da8bef8af2c952102d13cba8ab1b18f36d7b089b9d1033268ae",
+      "sizes": {
+        "raw": 150,
+        "gzip9": 117,
+        "brotli11": 85
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 18111,
+        "analysis_work": 4182,
+        "render_work": 14212,
+        "codec_work": 0,
+        "retained_bytes": 1021703,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 286719,
+        "analysis_work": 4197,
+        "render_work": 14212,
+        "codec_work": 268545,
+        "retained_bytes": 1021543,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 0,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [],
+      "emitted_parameter_names": [
+        "a",
+        "b"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(a,b){observe(\"status/\"+ \"message/\"+ a+ b);marker();observe(\"status/\"+ \"message/\"+ b+ a);};let a=report;export{a as report};",
+      "sha256": "44c90502d886e84072e5f90ec5d1c771c68a25b60bdec9c2fc440d1ec6096427",
+      "sizes": {
+        "raw": 150,
+        "gzip9": 117,
+        "brotli11": 84
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 286719,
+        "analysis_work": 4197,
+        "render_work": 14212,
+        "codec_work": 268545,
+        "retained_bytes": 1021543,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 555330,
+        "analysis_work": 4215,
+        "render_work": 14212,
+        "codec_work": 537090,
+        "retained_bytes": 1021383,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 0,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/\"+ \"message/\"+ status+ message);marker();observe(\"status/\"+ \"message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "28ac17be22160c232c38b2e68d8952fd4eae365cc628a9e80a9b55d260c06cd9",
+      "sizes": {
+        "raw": 188,
+        "gzip9": 128,
+        "brotli11": 94
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 555330,
+        "analysis_work": 4215,
+        "render_work": 14212,
+        "codec_work": 537090,
+        "retained_bytes": 1021383,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 824014,
+        "analysis_work": 4230,
+        "render_work": 14212,
+        "codec_work": 805711,
+        "retained_bytes": 1021127,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 1,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "b"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,b){observe(\"status/\"+ \"message/\"+ status+ b);marker();observe(\"status/\"+ \"message/\"+ b+ status);};let a=report;export{a as report};",
+      "sha256": "5e65d36314b586561bd28ad12d7d8ac477916bff2e65b99df3eeb8b32bd86260",
+      "sizes": {
+        "raw": 165,
+        "gzip9": 119,
+        "brotli11": 89
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 824014,
+        "analysis_work": 4230,
+        "render_work": 14212,
+        "codec_work": 805711,
+        "retained_bytes": 1021127,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 1092655,
+        "analysis_work": 4248,
+        "render_work": 14212,
+        "codec_work": 1074286,
+        "retained_bytes": 1020803,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 1,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "a"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,a){observe(\"status/\"+ \"message/\"+ status+ a);marker();observe(\"status/\"+ \"message/\"+ a+ status);};let a=report;export{a as report};",
+      "sha256": "d77c284209af81db23b412d5dab8ce8c05c187f5d2fa4e49d0fe55fcdf97d6fe",
+      "sizes": {
+        "raw": 165,
+        "gzip9": 120,
+        "brotli11": 88
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 1092655,
+        "analysis_work": 4248,
+        "render_work": 14212,
+        "codec_work": 1074286,
+        "retained_bytes": 1020803,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 1361296,
+        "analysis_work": 4266,
+        "render_work": 14212,
+        "codec_work": 1342861,
+        "retained_bytes": 1020479,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 1,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/\"+ \"message/\"+ status+ message);marker();observe(\"status/\"+ \"message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "28ac17be22160c232c38b2e68d8952fd4eae365cc628a9e80a9b55d260c06cd9",
+      "sizes": {
+        "raw": 188,
+        "gzip9": 128,
+        "brotli11": 94
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 1361296,
+        "analysis_work": 4266,
+        "render_work": 14212,
+        "codec_work": 1342861,
+        "retained_bytes": 1020479,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 1629980,
+        "analysis_work": 4281,
+        "render_work": 14212,
+        "codec_work": 1611482,
+        "retained_bytes": 1020219,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 2,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        3
+      ],
+      "emitted_parameter_names": [
+        "b",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(b,message){observe(\"status/\"+ \"message/\"+ b+ message);marker();observe(\"status/\"+ \"message/\"+ message+ b);};let a=report;export{a as report};",
+      "sha256": "5646ad2b768c37babbea3519d54811aaf71eb8fcccf42e132988540a27116892",
+      "sizes": {
+        "raw": 168,
+        "gzip9": 119,
+        "brotli11": 89
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 1629980,
+        "analysis_work": 4281,
+        "render_work": 14212,
+        "codec_work": 1611482,
+        "retained_bytes": 1020219,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 1898627,
+        "analysis_work": 4299,
+        "render_work": 14212,
+        "codec_work": 1880063,
+        "retained_bytes": 1019895,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 2,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        3
+      ],
+      "emitted_parameter_names": [
+        "a",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(a,message){observe(\"status/\"+ \"message/\"+ a+ message);marker();observe(\"status/\"+ \"message/\"+ message+ a);};let a=report;export{a as report};",
+      "sha256": "f62d63d21a40ed8be5f645cda2e490c60fe6aa9f5b611ba87c89a4d20c049751",
+      "sizes": {
+        "raw": 168,
+        "gzip9": 119,
+        "brotli11": 88
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 1898627,
+        "analysis_work": 4299,
+        "render_work": 14212,
+        "codec_work": 1880063,
+        "retained_bytes": 1019895,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 2167274,
+        "analysis_work": 4317,
+        "render_work": 14212,
+        "codec_work": 2148644,
+        "retained_bytes": 1019571,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 2,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/\"+ \"message/\"+ status+ message);marker();observe(\"status/\"+ \"message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "28ac17be22160c232c38b2e68d8952fd4eae365cc628a9e80a9b55d260c06cd9",
+      "sizes": {
+        "raw": 188,
+        "gzip9": 128,
+        "brotli11": 94
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 2167274,
+        "analysis_work": 4317,
+        "render_work": 14212,
+        "codec_work": 2148644,
+        "retained_bytes": 1019571,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 2435958,
+        "analysis_work": 4332,
+        "render_work": 14212,
+        "codec_work": 2417265,
+        "retained_bytes": 1019311,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 3,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2,
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,message){observe(\"status/\"+ \"message/\"+ status+ message);marker();observe(\"status/\"+ \"message/\"+ message+ status);};let a=report;export{a as report};",
+      "sha256": "eb635d176949782d0653a51b4aa5870b851a6649d71c95ea1c0da2e14ea9f73d",
+      "sizes": {
+        "raw": 183,
+        "gzip9": 122,
+        "brotli11": 90
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 2435958,
+        "analysis_work": 4332,
+        "render_work": 14212,
+        "codec_work": 2417265,
+        "retained_bytes": 1019311,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 2704635,
+        "analysis_work": 4350,
+        "render_work": 14212,
+        "codec_work": 2685876,
+        "retained_bytes": 1018983,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 3,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2,
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,message){observe(\"status/\"+ \"message/\"+ status+ message);marker();observe(\"status/\"+ \"message/\"+ message+ status);};let a=report;export{a as report};",
+      "sha256": "eb635d176949782d0653a51b4aa5870b851a6649d71c95ea1c0da2e14ea9f73d",
+      "sizes": {
+        "raw": 183,
+        "gzip9": 122,
+        "brotli11": 90
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 2704635,
+        "analysis_work": 4350,
+        "render_work": 14212,
+        "codec_work": 2685876,
+        "retained_bytes": 1018983,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 2973312,
+        "analysis_work": 4368,
+        "render_work": 14212,
+        "codec_work": 2954487,
+        "retained_bytes": 1018655,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "computed",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 3,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2,
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/\"+ \"message/\"+ status+ message);marker();observe(\"status/\"+ \"message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "28ac17be22160c232c38b2e68d8952fd4eae365cc628a9e80a9b55d260c06cd9",
+      "sizes": {
+        "raw": 188,
+        "gzip9": 128,
+        "brotli11": 94
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 2973312,
+        "analysis_work": 4368,
+        "render_work": 14212,
+        "codec_work": 2954487,
+        "retained_bytes": 1018655,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 3241996,
+        "analysis_work": 4383,
+        "render_work": 14212,
+        "codec_work": 3223108,
+        "retained_bytes": 1018391,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 0,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [],
+      "emitted_parameter_names": [
+        "b",
+        "c"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(b,c){observe(\"status/message/\"+ b+ c);marker();observe(\"status/message/\"+ c+ b);};let a=report;export{a as report};",
+      "sha256": "e6e3c057ca91d2d57e73b567fa6d9c9b4df7925e2c04ff003ea565718988b03d",
+      "sizes": {
+        "raw": 142,
+        "gzip9": 115,
+        "brotli11": 83
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 3258377,
+        "analysis_work": 7462,
+        "render_work": 27498,
+        "codec_work": 3223108,
+        "retained_bytes": 1021275,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 3526972,
+        "analysis_work": 7480,
+        "render_work": 27498,
+        "codec_work": 3491637,
+        "retained_bytes": 1021115,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 0,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [],
+      "emitted_parameter_names": [
+        "a",
+        "b"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(a,b){observe(\"status/message/\"+ a+ b);marker();observe(\"status/message/\"+ b+ a);};let a=report;export{a as report};",
+      "sha256": "60f2f07130847af4e69eafe99978fc00db4b145465bddc6ed26a9335f42b917c",
+      "sizes": {
+        "raw": 142,
+        "gzip9": 114,
+        "brotli11": 82
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 3526972,
+        "analysis_work": 7480,
+        "render_work": 27498,
+        "codec_work": 3491637,
+        "retained_bytes": 1021115,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 3795570,
+        "analysis_work": 7501,
+        "render_work": 27498,
+        "codec_work": 3760166,
+        "retained_bytes": 1020955,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 0,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/message/\"+ status+ message);marker();observe(\"status/message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "3a0af152dda63a0154c52d40f0ecb831f2be38d599fc0a08ef141a6e7c70b929",
+      "sizes": {
+        "raw": 180,
+        "gzip9": 126,
+        "brotli11": 93
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 3795570,
+        "analysis_work": 7501,
+        "render_work": 27498,
+        "codec_work": 3760166,
+        "retained_bytes": 1020955,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 4064241,
+        "analysis_work": 7519,
+        "render_work": 27498,
+        "codec_work": 4028771,
+        "retained_bytes": 1020699,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 1,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "b"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,b){observe(\"status/message/\"+ status+ b);marker();observe(\"status/message/\"+ b+ status);};let a=report;export{a as report};",
+      "sha256": "4600861c46c0af320b9bf8604401b64e691a6452006cc2ded2272a4816dcab1e",
+      "sizes": {
+        "raw": 157,
+        "gzip9": 118,
+        "brotli11": 84
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 4064241,
+        "analysis_work": 7519,
+        "render_work": 27498,
+        "codec_work": 4028771,
+        "retained_bytes": 1020699,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 4332869,
+        "analysis_work": 7540,
+        "render_work": 27498,
+        "codec_work": 4297330,
+        "retained_bytes": 1020535,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 1,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "a"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,a){observe(\"status/message/\"+ status+ a);marker();observe(\"status/message/\"+ a+ status);};let a=report;export{a as report};",
+      "sha256": "40018acd8cdd7345b208bad577a28d7675c058a1a8080e300038f5c92472cad2",
+      "sizes": {
+        "raw": 157,
+        "gzip9": 117,
+        "brotli11": 83
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 4332869,
+        "analysis_work": 7540,
+        "render_work": 27498,
+        "codec_work": 4297330,
+        "retained_bytes": 1020535,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 4601497,
+        "analysis_work": 7561,
+        "render_work": 27498,
+        "codec_work": 4565889,
+        "retained_bytes": 1020371,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 1,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/message/\"+ status+ message);marker();observe(\"status/message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "3a0af152dda63a0154c52d40f0ecb831f2be38d599fc0a08ef141a6e7c70b929",
+      "sizes": {
+        "raw": 180,
+        "gzip9": 126,
+        "brotli11": 93
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 4601497,
+        "analysis_work": 7561,
+        "render_work": 27498,
+        "codec_work": 4565889,
+        "retained_bytes": 1020371,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 4870168,
+        "analysis_work": 7579,
+        "render_work": 27498,
+        "codec_work": 4834494,
+        "retained_bytes": 1020111,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 2,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        3
+      ],
+      "emitted_parameter_names": [
+        "b",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(b,message){observe(\"status/message/\"+ b+ message);marker();observe(\"status/message/\"+ message+ b);};let a=report;export{a as report};",
+      "sha256": "deaf7c94cd50f189559ba13b69e7ae0aa3c12c630712f10aa3efcb67e35c568a",
+      "sizes": {
+        "raw": 160,
+        "gzip9": 118,
+        "brotli11": 88
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 4870168,
+        "analysis_work": 7579,
+        "render_work": 27498,
+        "codec_work": 4834494,
+        "retained_bytes": 1020111,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 5138802,
+        "analysis_work": 7600,
+        "render_work": 27498,
+        "codec_work": 5103059,
+        "retained_bytes": 1019947,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 2,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        3
+      ],
+      "emitted_parameter_names": [
+        "a",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(a,message){observe(\"status/message/\"+ a+ message);marker();observe(\"status/message/\"+ message+ a);};let a=report;export{a as report};",
+      "sha256": "23c7f39a84e8699ab694256fcf926e32e24f8b0786ee95aab71f259b0cda426e",
+      "sizes": {
+        "raw": 160,
+        "gzip9": 118,
+        "brotli11": 86
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 5138802,
+        "analysis_work": 7600,
+        "render_work": 27498,
+        "codec_work": 5103059,
+        "retained_bytes": 1019947,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 5407436,
+        "analysis_work": 7621,
+        "render_work": 27498,
+        "codec_work": 5371624,
+        "retained_bytes": 1019783,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 2,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/message/\"+ status+ message);marker();observe(\"status/message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "3a0af152dda63a0154c52d40f0ecb831f2be38d599fc0a08ef141a6e7c70b929",
+      "sizes": {
+        "raw": 180,
+        "gzip9": 126,
+        "brotli11": 93
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 5407436,
+        "analysis_work": 7621,
+        "render_work": 27498,
+        "codec_work": 5371624,
+        "retained_bytes": 1019783,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 5676107,
+        "analysis_work": 7639,
+        "render_work": 27498,
+        "codec_work": 5640229,
+        "retained_bytes": 1019523,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Global",
+      "source_name_mask": 3,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2,
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,message){observe(\"status/message/\"+ status+ message);marker();observe(\"status/message/\"+ message+ status);};let a=report;export{a as report};",
+      "sha256": "b257bd92757488d1ada0c00e9b0b3cb20d31f6ab62a4613cce7f0f0db4d97a28",
+      "sizes": {
+        "raw": 175,
+        "gzip9": 120,
+        "brotli11": 87
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 5676107,
+        "analysis_work": 7639,
+        "render_work": 27498,
+        "codec_work": 5640229,
+        "retained_bytes": 1019523,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 5944771,
+        "analysis_work": 7660,
+        "render_work": 27498,
+        "codec_work": 5908824,
+        "retained_bytes": 1019195,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Scoped",
+      "source_name_mask": 3,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2,
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let report;report=function(status,message){observe(\"status/message/\"+ status+ message);marker();observe(\"status/message/\"+ message+ status);};let a=report;export{a as report};",
+      "sha256": "b257bd92757488d1ada0c00e9b0b3cb20d31f6ab62a4613cce7f0f0db4d97a28",
+      "sizes": {
+        "raw": 175,
+        "gzip9": 120,
+        "brotli11": 87
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 5944771,
+        "analysis_work": 7660,
+        "render_work": 27498,
+        "codec_work": 5908824,
+        "retained_bytes": 1019195,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 6213435,
+        "analysis_work": 7681,
+        "render_work": 27498,
+        "codec_work": 6177419,
+        "retained_bytes": 1018867,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    },
+    {
+      "schema": 1,
+      "recipe": "literal-both",
+      "recipe_words": [
+        3,
+        0,
+        0,
+        1,
+        0,
+        0,
+        2,
+        1,
+        3,
+        1,
+        14,
+        0,
+        0
+      ],
+      "style": "Source",
+      "source_name_mask": 3,
+      "prepared_binding_ids": [
+        2,
+        3
+      ],
+      "selected_binding_ids": [
+        2,
+        3
+      ],
+      "emitted_parameter_names": [
+        "status",
+        "message"
+      ],
+      "policy_fingerprint": [
+        216,
+        56,
+        90,
+        226,
+        214,
+        158,
+        228,
+        203,
+        232,
+        1,
+        249,
+        99,
+        138,
+        152,
+        180,
+        122,
+        112,
+        237,
+        160,
+        235,
+        122,
+        19,
+        198,
+        209,
+        99,
+        215,
+        239,
+        219,
+        36,
+        121,
+        115,
+        90
+      ],
+      "javascript": "let a;a=(0,{report:function(status,message){observe(\"status/message/\"+ status+ message);marker();observe(\"status/message/\"+ message+ status);}}.report);let report=a;export{report};",
+      "sha256": "3a0af152dda63a0154c52d40f0ecb831f2be38d599fc0a08ef141a6e7c70b929",
+      "sizes": {
+        "raw": 180,
+        "gzip9": 126,
+        "brotli11": 93
+      },
+      "work_before_score": {
+        "baseline_work": 393,
+        "optional_work": 6213435,
+        "analysis_work": 7681,
+        "render_work": 27498,
+        "codec_work": 6177419,
+        "retained_bytes": 1018867,
+        "peak_retained_bytes": 2110940
+      },
+      "work_after_handoff": {
+        "baseline_work": 393,
+        "optional_work": 6482106,
+        "analysis_work": 7699,
+        "render_work": 27498,
+        "codec_work": 6446024,
+        "retained_bytes": 1018603,
+        "peak_retained_bytes": 2110940
+      },
+      "observations": [
+        [
+          "api",
+          [
+            "report"
+          ],
+          "report",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            114,
+            101,
+            97,
+            100,
+            121,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101
+          ]
+        ],
+        [
+          "marker",
+          1
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            114,
+            101,
+            97,
+            100,
+            121
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            55296
+          ]
+        ],
+        [
+          "marker",
+          2
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            55296,
+            115,
+            116,
+            97,
+            116,
+            117,
+            115
+          ]
+        ],
+        [
+          "return",
+          true
+        ],
+        [
+          "value",
+          [
+            115,
+            116,
+            97,
+            116,
+            117,
+            115,
+            47,
+            109,
+            101,
+            115,
+            115,
+            97,
+            103,
+            101,
+            47,
+            115,
+            116,
+            111,
+            112,
+            110,
+            111,
+            119
+          ]
+        ],
+        [
+          "marker",
+          3
+        ],
+        [
+          "caught",
+          "stop"
+        ]
+      ]
+    }
+  ],
+  "summary": {
+    "schema": 1,
+    "source": "extern void observe(string value);extern void marker();\nexport void report(string status,string message){\n    observe((\"status/\"+\"message/\")+status+message);\n    marker();\n    observe((\"status/\"+\"message/\")+message+status);\n}",
+    "source_sha256": "ad59aa8ee1ce1035553592ac57cb632594bdc3d30eac298a13613f3a742196fe",
+    "scope": "manual two-recipe x four-source-name-mask x three-style oracle; no automatic search execution",
+    "work_scope": "adoption through qualified handoff; frontend inspection, test-owned plans/receipts, runtime, OXC inspection and codec replay excluded; Render includes shared allocation/movement tariffs",
+    "policy": {
+      "schema": 2,
+      "algorithm": 1,
+      "contract": {
+        "target": "javascript",
+        "world": "ReusableLibrary",
+        "execution": "Module",
+        "ecmascript": "es2022",
+        "preserve_root_exports": true,
+        "public_aggregate_abi": "Named",
+        "preserve_extern_fields": true,
+        "internal_exports_may_mangle": false,
+        "public_function_spelling": "None",
+        "pristine_builtins": false,
+        "pure_property_reads": false,
+        "strip_console": false,
+        "preserved_properties": [],
+        "owned_properties": "UnderscoreSuffix",
+        "bundle_mode": "Single"
+      },
+      "objective": {
+        "codec": "Brotli",
+        "priority": "SizeFirst",
+        "realistic_performance_limit_percent": 25,
+        "optional_alternatives": 384,
+        "optional_codec_probes": 384,
+        "cleanup_finalists": 1,
+        "retained_candidates": 384,
+        "retained_candidate_bytes": 786432,
+        "beam_width": 10,
+        "search": {
+          "version": 11,
+          "codec_schedule": "staged",
+          "render_batch": 8,
+          "diversity_interval": 4
+        }
+      },
+      "effort": 13,
+      "tactics": [
+        {
+          "id": "dead-code-elimination",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "constant-folding",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "inlining",
+          "state": {
+            "permission": "off",
+            "enabled": false
+          }
+        },
+        {
+          "id": "scalar-replacement",
+          "state": {
+            "permission": "off",
+            "enabled": false
+          }
+        },
+        {
+          "id": "call-specialization",
+          "state": {
+            "permission": "off",
+            "enabled": false
+          }
+        },
+        {
+          "id": "helper-sharing",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "target-compaction",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "identifier-mangling",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "property-mangling",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "string-pooling",
+          "state": {
+            "permission": "off",
+            "enabled": false
+          }
+        },
+        {
+          "id": "string-array-packing",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "startup-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "recurring-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "naming-search",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        }
+      ],
+      "resources": {
+        "logical_work": null,
+        "retained_bytes": null,
+        "wall_time_ms": null
+      },
+      "constraints": {
+        "max_startup_work": null,
+        "max_recurring_work": null,
+        "max_runtime_memory_bytes": null,
+        "max_performance_regression_percent": null
+      }
+    },
+    "recipes": [
+      "computed",
+      "literal-both"
+    ],
+    "source_candidates": [
+      {
+        "recipe": "computed",
+        "binding_ids": [
+          2,
+          3
+        ],
+        "source_names": [
+          "status",
+          "message"
+        ],
+        "all_eligible_binding_ids": [
+          2,
+          3,
+          0
+        ],
+        "neighborhood_selection": "first two candidates in the existing reference-frequency order, independently verified to be the two parameters",
+        "candidate_origin": "queried from this recipe's single prepared target; IDs not reused across recipes",
+        "name_origin": "independent parser of delivered callable parameter spellings under each singleton Global override",
+        "work_before_prepare": {
+          "baseline_work": 393,
+          "optional_work": 933,
+          "analysis_work": 1221,
+          "render_work": 11,
+          "codec_work": 0,
+          "retained_bytes": 1011351,
+          "peak_retained_bytes": 2110940
+        },
+        "work_after_twelve_renders": {
+          "baseline_work": 393,
+          "optional_work": 18111,
+          "analysis_work": 4182,
+          "render_work": 14212,
+          "codec_work": 0,
+          "retained_bytes": 1021703,
+          "peak_retained_bytes": 2110940
+        }
+      },
+      {
+        "recipe": "literal-both",
+        "binding_ids": [
+          2,
+          3
+        ],
+        "source_names": [
+          "status",
+          "message"
+        ],
+        "all_eligible_binding_ids": [
+          2,
+          3,
+          0
+        ],
+        "neighborhood_selection": "first two candidates in the existing reference-frequency order, independently verified to be the two parameters",
+        "candidate_origin": "queried from this recipe's single prepared target; IDs not reused across recipes",
+        "name_origin": "independent parser of delivered callable parameter spellings under each singleton Global override",
+        "work_before_prepare": {
+          "baseline_work": 393,
+          "optional_work": 3242013,
+          "analysis_work": 4399,
+          "render_work": 14213,
+          "codec_work": 3223108,
+          "retained_bytes": 1018603,
+          "peak_retained_bytes": 2110940
+        },
+        "work_after_twelve_renders": {
+          "baseline_work": 393,
+          "optional_work": 3258377,
+          "analysis_work": 7462,
+          "render_work": 27498,
+          "codec_work": 3223108,
+          "retained_bytes": 1021275,
+          "peak_retained_bytes": 2110940
+        }
+      }
+    ],
+    "summary_mask_bit_source_names": [
+      "status",
+      "message"
+    ],
+    "outputs": 24,
+    "prepared_targets": 2,
+    "style_minima_by_recipe_mask_raw_gzip_brotli": [
+      [
+        [
+          150,
+          117,
+          84
+        ],
+        [
+          165,
+          119,
+          88
+        ],
+        [
+          168,
+          119,
+          88
+        ],
+        [
+          183,
+          122,
+          90
+        ]
+      ],
+      [
+        [
+          142,
+          114,
+          82
+        ],
+        [
+          157,
+          117,
+          83
+        ],
+        [
+          160,
+          118,
+          86
+        ],
+        [
+          175,
+          120,
+          87
+        ]
+      ]
+    ],
+    "override_outputs_absent_from_zero_mask_styles_by_recipe_attempts_and_distinct": [
+      [
+        6,
+        5
+      ],
+      [
+        6,
+        5
+      ]
+    ],
+    "zero_mask_style_minima_by_recipe_raw_gzip_brotli": [
+      [
+        150,
+        117,
+        84
+      ],
+      [
+        142,
+        114,
+        82
+      ]
+    ],
+    "all_mask_style_minima_by_recipe_raw_gzip_brotli": [
+      [
+        150,
+        117,
+        84
+      ],
+      [
+        142,
+        114,
+        82
+      ]
+    ],
+    "best_source_name_mask_by_recipe_raw_gzip_brotli": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strict_two_toggle_brotli_valley_by_recipe": [
+      false,
+      false
+    ],
+    "strict_structure_naming_brotli_valley_by_nonempty_mask": [
+      false,
+      false,
+      false
+    ],
+    "structure_changes_best_brotli_override_mask": false,
+    "semantic_scheduler_neighborhood": "current semantic search evaluates Plan::new(style), equivalent to mask zero; these source-name overrides are not structural family union",
+    "work_before_families": {
+      "baseline_work": 375,
+      "optional_work": 0,
+      "analysis_work": 313,
+      "render_work": 5,
+      "codec_work": 0,
+      "retained_bytes": 1010256,
+      "peak_retained_bytes": 1010256
+    },
+    "work_after_families": {
+      "baseline_work": 393,
+      "optional_work": 924,
+      "analysis_work": 1213,
+      "render_work": 10,
+      "codec_work": 0,
+      "retained_bytes": 1011167,
+      "peak_retained_bytes": 2110940
+    },
+    "work_after_outputs": {
+      "baseline_work": 393,
+      "optional_work": 6482106,
+      "analysis_work": 7699,
+      "render_work": 27498,
+      "codec_work": 6446024,
+      "retained_bytes": 1018603,
+      "peak_retained_bytes": 2110940
+    },
+    "retained_bytes_after_finish": 0,
+    "limitations": "finite style minima, not arbitrary naming optimum; no guaranteed override win or valley, no heuristic changes, no whole-library or compiler-speed claim; callable source text is inspection, not a preserved observation"
+  }
+}

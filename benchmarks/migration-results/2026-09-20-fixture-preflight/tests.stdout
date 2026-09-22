@@ -1,0 +1,68 @@
+✔ a real fast invocation produces a complete receipt without a duration floor (40.305299ms)
+✔ timing text cannot substitute for a compiler invocation (0.234267ms)
+✔ the production wrapper forwards explicit arguments and records its actual cwd (31.613814ms)
+✔ an exit-zero compiler that writes nothing cannot inherit old dist bytes (29.139355ms)
+✔ a failed compiler cannot be accepted even if it writes output (36.665939ms)
+✔ the exact intended compiler is required before touching an old output (1.782337ms)
+✔ changes to inputs during compilation reject the receipt (37.503365ms)
+✔ post-build output substitution and changed contracts are detected (31.625555ms)
+✔ source identity includes configuration and generated files without git (2.795518ms)
+✔ an explicit configuration outside the port is captured as an input (30.644667ms)
+✔ dependency snapshots include nested installed code and file and directory symlink destinations (4.710984ms)
+✔ dependency snapshots enforce exact byte and entry caps and reject invalid bounds (2.300094ms)
+✖ dependency snapshots reject ancestor cycles and missing symlink destinations (1.715843ms)
+✔ output declarations cannot move source inputs or escape via a symlink (1.828082ms)
+✔ all required tests must execute and pass against the production bytes (2.271891ms)
+✔ unknown or ambiguous test evidence fails closed (1.750788ms)
+✔ canonical measurements reject missing, duplicated, or incomplete rows (1.991788ms)
+✔ production tests capture exact ESM and CommonJS bytes without changing loaders (986.282177ms)
+✔ a failed runtime version probe cannot certify otherwise passing original tests (636.174054ms)
+✔ runtime replacement during passing tests invalidates the pinned evidence (589.469872ms)
+✔ removing a required case cannot turn a passing subset into certification (779.280354ms)
+✔ tests loading a development artifact cannot certify the production artifact (780.931456ms)
+✔ an empty test file cannot establish a case inventory (369.710581ms)
+✔ inventory discovery retains failed and skipped declarations (390.143416ms)
+✔ artifacts executed by a nested Node process are observed as well (416.449987ms)
+✔ unchanged case names cannot conceal changed required test source (786.312658ms)
+✔ new files selected by the original glob cannot disappear from a frozen adapter (792.882251ms)
+✔ imported test source identities cannot change behind stable entry files and case names (676.746113ms)
+✔ missing or changed expectations cannot run self-updating tests or prerequisites (1273.529767ms)
+✔ a prerequisite changing an initially valid expectation prevents suite execution (913.981928ms)
+✔ expectation mutation by an executed suite remains a failing final identity check (401.653576ms)
+✔ malformed or duplicate fixture declarations reject before creating evidence (3.0269ms)
+✔ pinned prerequisites run before the unchanged Node case inventory (1358.109066ms)
+✔ prerequisite failure retains logs and skips later commands and the original Node suite (1586.774181ms)
+✔ prerequisite timeout cannot turn unexecuted tests into a pass (888.280747ms)
+✔ changed pinned prerequisite scripts are refused before command execution (695.87445ms)
+✔ a prerequisite mutating a pinned input blocks the Node suite even with exit zero (859.163625ms)
+✔ passing Node tests cannot conceal a changed prerequisite input (1353.557775ms)
+✔ prerequisite schema rejects empty, unpinned, ambiguous and unbounded commands (143.401572ms)
+✔ importing the shared qualification owner has no CLI or filesystem effects (44.779927ms)
+✔ invalid data-only recipes are rejected before creating an output directory (7.947816ms)
+✔ malformed CLI options are rejected before creating an output directory (4.336735ms)
+✔ both real thin clients validate their recipe and CLI before refusing an existing output (89.456645ms)
+✔ parent rejection retains both caller and owner evidence without invoking producers (1763.889853ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 43
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16751.01327
+
+✖ failing tests:
+
+test at finer/tools/artifact-evidence.test.mjs:157:1
+✖ dependency snapshots reject ancestor cycles and missing symlink destinations (1.715843ms)
+  Error: Path is a directory: /tmp/lilscript-evidence-test-gUSwx2/dependencies/cycle
+      at rmSync (node:fs:1236:18)
+      at TestContext.<anonymous> (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.test.mjs:162:3)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    code: 'ERR_FS_EISDIR'
+  }

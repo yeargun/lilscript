@@ -28,7 +28,7 @@ pub enum TypeKind<'ast, 'src> {
     Nullable(&'ast TypeRef<'ast, 'src>),
     Union(&'ast [TypeRef<'ast, 'src>]),
     Function {
-        params: &'ast [TypeRef<'ast, 'src>],
+        params: &'ast [ParameterType<'ast, 'src>],
         return_type: &'ast TypeRef<'ast, 'src>,
     },
 }
@@ -48,6 +48,36 @@ impl<'ast, 'src> TypeRef<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program<'ast, 'src> {
+    source: SourceIdentity,
+    data: ProgramData<'ast, 'src>,
+}
+
+impl<'ast, 'src> Program<'ast, 'src> {
+    pub(crate) fn new(source: SourceIdentity, data: ProgramData<'ast, 'src>) -> Self {
+        Self { source, data }
+    }
+
+    pub fn source_identity(&self) -> &SourceIdentity {
+        &self.source
+    }
+
+    pub(crate) fn with_items(self, nodes: &SourceNodes, items: &'ast [Item<'ast, 'src>]) -> Self {
+        Self::new(nodes.finish(), ProgramData { items, ..self.data })
+    }
+}
+
+// The completed syntax has no mutable dereference. Replacing its items must
+// pass through a construction boundary that also replaces source ownership.
+impl<'ast, 'src> std::ops::Deref for Program<'ast, 'src> {
+    type Target = ProgramData<'ast, 'src>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProgramData<'ast, 'src> {
     pub imports: &'ast [ImportDecl<'ast, 'src>],
     pub foreign_imports: &'ast [ForeignImportDecl<'ast, 'src>],
     pub dynamic_imports: &'ast [DynamicImportDecl<'ast, 'src>],
@@ -184,6 +214,16 @@ pub struct ExternClassDecl<'ast, 'src> {
 pub enum ExternClassMember<'ast, 'src> {
     Field(FieldDecl<'ast, 'src>),
     Method(ExternDecl<'ast, 'src>),
+    /// `init(params);` — the host constructor's parameters. It exists only so an
+    /// internal subclass can type-check `super(...)`; a host class is still never
+    /// constructed with `new` from LilScript.
+    Constructor(ExternConstructorDecl<'ast, 'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExternConstructorDecl<'ast, 'src> {
+    pub params: &'ast [Param<'ast, 'src>],
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -207,8 +247,42 @@ pub struct FieldDecl<'ast, 'src> {
     pub span: Span,
 }
 
+/// Behaviour the author pinned to one region of the program with an `@`
+/// attribute, kept when the project-wide objective would decide otherwise.
+///
+/// The objective (`javascript.priority`, `javascript.cost_model`) answers for
+/// the artifact as a whole. It cannot answer for a function whose cost is not
+/// the artifact's cost — a parser's inner loop inside a size-first library, a
+/// literal table the author wrote *to be* pooled under an objective whose
+/// admission model refuses it (finer/hypotheses/011). A region policy is how
+/// that intent survives the objective, and it only ever pins behaviour on:
+/// the default for every field is "let the objective decide".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct RegionPolicy {
+    /// `@pool` — string constants authored in this region are admitted to the
+    /// string pool whatever the objective's savings threshold would say.
+    pub pool_strings: bool,
+}
+
+impl RegionPolicy {
+    pub const fn is_default(self) -> bool {
+        !self.pool_strings
+    }
+
+    /// Policy for a function synthesized from two others. Pinned behaviour is
+    /// kept if either source asked for it: a transform that fuses or outlines
+    /// code must not be the reason an author's `@pool` silently stops applying
+    /// to the literals it moved.
+    pub const fn union(self, other: Self) -> Self {
+        Self {
+            pool_strings: self.pool_strings || other.pool_strings,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl<'ast, 'src> {
+    pub region: RegionPolicy,
     pub declared_pure: bool,
     pub is_async: bool,
     pub is_generator: bool,
@@ -239,9 +313,23 @@ pub struct ExternGlobalDecl<'ast, 'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Param<'ast, 'src> {
-    pub ty: TypeRef<'ast, 'src>,
+    pub parameter: ParameterType<'ast, 'src>,
     pub name: Ident<'src>,
     pub default: Option<Expr<'ast, 'src>>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParameterType<'ast, 'src> {
+    pub ty: TypeRef<'ast, 'src>,
+    pub passing: crate::primitive::ParameterPassing,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Argument<'ast, 'src> {
+    pub expression: Expr<'ast, 'src>,
+    pub passing: crate::primitive::ParameterPassing,
     pub span: Span,
 }
 
@@ -283,7 +371,7 @@ pub enum Stmt<'ast, 'src> {
         span: Span,
     },
     SuperCall {
-        args: &'ast [Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
     },
     Yield {
@@ -346,7 +434,11 @@ pub enum ForInitializer<'ast, 'src> {
 
 impl<'ast, 'src> Expr<'ast, 'src> {
     pub fn const_list_literals(&self) -> Option<Vec<&Expr<'ast, 'src>>> {
-        let Expr::ArrayLiteral { elements, .. } = self else {
+        let Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } = self
+        else {
             return None;
         };
         let mut values = Vec::with_capacity(elements.len());
@@ -361,8 +453,12 @@ impl<'ast, 'src> Expr<'ast, 'src> {
 
     pub const fn is_const_scalar(&self) -> bool {
         matches!(
-            self,
-            Self::Int(..) | Self::Float(..) | Self::String(..) | Self::Bool(..) | Self::Null(..)
+            self.kind,
+            ExprKind::Int(..)
+                | ExprKind::Float(..)
+                | ExprKind::String(..)
+                | ExprKind::Bool(..)
+                | ExprKind::Null(..)
         )
     }
 }
@@ -421,8 +517,166 @@ pub struct VarDecl<'ast, 'src> {
     pub span: Span,
 }
 
+/// An index is meaningful only within the source program that owns it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SourceNodeId(std::num::NonZeroU32);
+
+impl SourceNodeId {
+    pub const fn index(self) -> usize {
+        self.0.get() as usize - 1
+    }
+}
+
+/// Immutable source ownership. Clones retain the same opaque stamp; syntax
+/// expansion and linking finish a distinct state before facts are produced.
+#[derive(Clone)]
+pub struct SourceIdentity {
+    stamp: std::num::NonZeroU64,
+    nodes: u32,
+}
+
+impl SourceIdentity {
+    pub fn len(&self) -> usize {
+        self.nodes as usize
+    }
+
+    pub fn same(&self, other: &Self) -> bool {
+        self.stamp == other.stamp
+    }
+}
+
+impl std::fmt::Debug for SourceIdentity {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("SourceIdentity")
+            .field(&self.len())
+            .finish()
+    }
+}
+
+impl PartialEq for SourceIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        self.same(other)
+    }
+}
+
+impl Eq for SourceIdentity {}
+
+/// Construction owns the sequence. Template fragments share this counter;
+/// only finishing a source issues a process-wide stamp, never individual nodes.
+#[derive(Debug, Default)]
+pub(crate) struct SourceNodes(std::cell::Cell<u32>);
+
+impl SourceNodes {
+    pub(crate) fn continuing(source: &SourceIdentity) -> Self {
+        Self(std::cell::Cell::new(source.len() as u32))
+    }
+
+    pub(crate) fn expression<'ast, 'src>(&self, kind: ExprKind<'ast, 'src>) -> Expr<'ast, 'src> {
+        let next = self
+            .0
+            .get()
+            .checked_add(1)
+            .expect("source expression identity limit");
+        self.0.set(next);
+        Expr {
+            id: SourceNodeId(std::num::NonZeroU32::new(next).unwrap()),
+            kind,
+        }
+    }
+
+    pub(crate) fn finish(&self) -> SourceIdentity {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT_SOURCE: AtomicU64 = AtomicU64::new(1);
+        let stamp = NEXT_SOURCE
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
+                next.checked_add(1)
+            })
+            .expect("source identity capacity exceeded");
+        SourceIdentity {
+            stamp: std::num::NonZeroU64::new(stamp).expect("source identities start at one"),
+            nodes: self.0.get(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod source_identity_tests {
+    use super::*;
+
+    #[test]
+    fn clones_preserve_identity_without_heap_ownership() {
+        let nodes = SourceNodes::default();
+        let expression = nodes.expression(ExprKind::Int(7, Span::default()));
+        let source = nodes.finish();
+        let clone = source.clone();
+        assert!(source.same(&clone));
+        assert_eq!(source, clone);
+        assert_eq!(source.len(), 1);
+        assert_eq!(expression.id.index(), 0);
+        assert_eq!(format!("{source:?}"), "SourceIdentity(1)");
+        assert!(!std::mem::needs_drop::<SourceIdentity>());
+        assert!(std::mem::size_of::<SourceIdentity>() <= 2 * std::mem::size_of::<u64>());
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(std::mem::size_of::<SourceIdentity>(), 16);
+        drop(source);
+        assert_eq!(clone.len(), 1);
+    }
+
+    #[test]
+    fn each_finished_state_is_fresh_even_without_new_nodes() {
+        let nodes = SourceNodes::default();
+        let empty = nodes.finish();
+        assert_eq!(empty.len(), 0);
+        assert_ne!(empty, nodes.finish());
+        let continued = SourceNodes::continuing(&empty);
+        assert_ne!(empty, continued.finish());
+        let first = continued.expression(ExprKind::Bool(true, Span::default()));
+        let source = continued.finish();
+        let next = SourceNodes::continuing(&source);
+        let second = next.expression(ExprKind::Bool(false, Span::default()));
+        let extended = next.finish();
+        assert_eq!((first.id.index(), second.id.index()), (0, 1));
+        assert_eq!((source.len(), extended.len()), (1, 2));
+        assert_ne!(source, extended);
+    }
+
+    #[test]
+    fn independently_finished_sources_do_not_alias_across_threads() {
+        let workers: Vec<_> = (0..4)
+            .map(|_| {
+                std::thread::spawn(|| {
+                    (0..32)
+                        .map(|_| SourceNodes::default().finish())
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        let mut identities = std::collections::HashSet::new();
+        for worker in workers {
+            for source in worker.join().unwrap() {
+                assert!(identities.insert(source.stamp));
+                assert_eq!(source.len(), 0);
+            }
+        }
+        assert_eq!(identities.len(), 128);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expr<'ast, 'src> {
+pub struct Expr<'ast, 'src> {
+    pub id: SourceNodeId,
+    pub kind: ExprKind<'ast, 'src>,
+}
+
+impl Expr<'_, '_> {
+    pub const fn span(&self) -> Span {
+        self.kind.span()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExprKind<'ast, 'src> {
     Int(i64, Span),
     Float(f64, Span),
     String(&'src str, Span),
@@ -449,7 +703,7 @@ pub enum Expr<'ast, 'src> {
     New {
         class: Ident<'src>,
         type_args: &'ast [TypeRef<'ast, 'src>],
-        args: &'ast [Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
     },
     DynamicImport {
@@ -468,7 +722,7 @@ pub enum Expr<'ast, 'src> {
     },
     Call {
         callee: &'ast Expr<'ast, 'src>,
-        args: &'ast [Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
     },
     ArrowFunction {
@@ -584,7 +838,7 @@ impl<'ast, 'src> RecordElement<'ast, 'src> {
         }
     }
 }
-impl<'ast, 'src> Expr<'ast, 'src> {
+impl<'ast, 'src> ExprKind<'ast, 'src> {
     pub const fn span(&self) -> Span {
         match self {
             Self::Int(_, span)

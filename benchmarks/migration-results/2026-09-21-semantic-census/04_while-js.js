@@ -1,0 +1,1 @@
+let a;let index=0;let total=0;while(index<6){total=total+ index|0;index=index+ 1|0;}a=void console.log(total);

@@ -1,5 +1,13 @@
 # Class identity vs instance lowering
 
+Exported constructors and their methods use the public JavaScript calling
+convention. Their parameter defaults are emitted in the formal parameter list,
+including nullable defaults, and unused required parameters remain present.
+This preserves direct JavaScript calls and method `Function.length` without
+per-instance wrapper functions. A default that requires materialization by a
+typed caller is rejected on these public class members, just as it is on an
+exported function.
+
 Parent: [Compilation](README.md). Instance layouts:
 [aggregate lowering](aggregate-lowering.md). Search:
 [candidate search](candidate-search.md). ABI:
@@ -156,8 +164,8 @@ codec.
 
 ### 0. Unblock Brotli search — **landed 2026-08-25**
 
-Recorded in [ident-07](../migration/board/notes/ident-07.md) and
-[search-03](../migration/board/notes/search-03.md). Compiler output for the pack
+Recorded in ident-07 (archived: `repository/docs/knowledge/migration/board/notes/ident-07.md`) and
+search-03 (archived: `repository/docs/knowledge/migration/board/notes/search-03.md`). Compiler output for the pack
 is now raw 15,332 / gzip-9 5,659 / **Brotli-11 5,156** against Oxc's 14,662 /
 5,700 / 5,224 — Brotli and gzip win, raw does not, and the LilScript artifact
 keeps the eleven class names Oxc mangles away. Compat 5/5. What it took, beyond

@@ -1,0 +1,22 @@
+✔ a real fast invocation produces a complete receipt without a duration floor (36.168063ms)
+✔ timing text cannot substitute for a compiler invocation (0.259374ms)
+✔ the production wrapper forwards explicit arguments and records its actual cwd (29.56539ms)
+✔ an exit-zero compiler that writes nothing cannot inherit old dist bytes (32.806122ms)
+✔ a failed compiler cannot be accepted even if it writes output (29.89188ms)
+✔ the exact intended compiler is required before touching an old output (1.802767ms)
+✔ changes to inputs during compilation reject the receipt (29.299283ms)
+✔ post-build output substitution and changed contracts are detected (29.275489ms)
+✔ source identity includes configuration and generated files without git (2.947846ms)
+✔ an explicit configuration outside the port is captured as an input (30.044617ms)
+✔ output declarations cannot move source inputs or escape via a symlink (1.411947ms)
+✔ all required tests must execute and pass against the production bytes (1.723328ms)
+✔ unknown or ambiguous test evidence fails closed (1.253822ms)
+✔ canonical measurements reject missing, duplicated, or incomplete rows (1.330826ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 297.462702

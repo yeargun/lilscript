@@ -1,0 +1,7 @@
+struct Pair { int x; int y; }
+int step(Pair local, int count) {
+    if(count>0){local.x+=1;return step(local,count-1);}
+    return local.x+local.y;
+}
+Pair state=Pair{1,2};
+print(step(state,3));print(state.x);

@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "playcanvaslil",
+  "started": "2026-09-20T18:24:50.846Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/playcanvaslil",
+  "workspace": "/tmp/lilscript-adapter-playcanvaslil-gSeKD1/playcanvaslil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/playcanvaslil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/playcanvaslil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-playcanvaslil-gSeKD1/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run build && npm run test:artifact",
+  "derivation": {
+    "supported": true,
+    "script": "npm run build && npm run test:artifact",
+    "originalSegments": [
+      "npm run build",
+      "npm run test:artifact"
+    ],
+    "segments": [
+      "npm run build",
+      "npm run test:artifact",
+      "test:artifact: npm run test:upstream",
+      "test:artifact: npm run test:differential",
+      "test:artifact: node --test test/shader-processing.test.mjs",
+      "test:artifact: test:upstream: node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js",
+      "test:artifact: test:differential: node src/shader-processing/shader-processor-glsl.differential.mjs",
+      "test:artifact: test:differential: node src/shader-processing/shader-definition-utils.differential.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/shader-processing.test.mjs"
+    ],
+    "deviations": [
+      "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task",
+      "original command also runs `node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js`, which is not the built-in test runner; this observation does not cover those cases",
+      "original command also runs `node src/shader-processing/shader-processor-glsl.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases",
+      "original command also runs `node src/shader-processing/shader-definition-utils.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases",
+      "followed `npm run test:artifact` to its own script to reach the test runner: npm run test:upstream && npm run test:differential && node --test test/shader-processing.test.mjs",
+      "original command also runs `node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js`, which is not the built-in test runner; this observation does not cover those cases",
+      "original command also runs `node src/shader-processing/shader-processor-glsl.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases",
+      "original command also runs `node src/shader-processing/shader-definition-utils.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases"
+    ],
+    "uncovered": [
+      "node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js",
+      "node src/shader-processing/shader-processor-glsl.differential.mjs",
+      "node src/shader-processing/shader-definition-utils.differential.mjs"
+    ],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [],
+    "absent": []
+  },
+  "failure": {
+    "message": "no declared entry file exists in the workspace",
+    "stack": "AssertionError [ERR_ASSERTION]: no declared entry file exists in the workspace\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:128:5)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:128:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:178:85"
+  },
+  "inputsStable": false,
+  "validationFailure": {
+    "message": "ENOENT: no such file or directory, lstat '/tmp/lilscript-adapter-playcanvaslil-gSeKD1/playcanvaslil'",
+    "stack": "Error: ENOENT: no such file or directory, lstat '/tmp/lilscript-adapter-playcanvaslil-gSeKD1/playcanvaslil'\n    at realpathSync (node:fs:2776:29)\n    at snapshotInputs (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:36:10)\n    at full (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:93:26)\n    at capture (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:95:92)\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:186:21)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:128:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:178:85"
+  },
+  "elapsedMs": 4066.2665039999993,
+  "completed": "2026-09-20T18:24:54.892Z",
+  "outputs": [
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

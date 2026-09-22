@@ -1,5 +1,7 @@
+use crate::ast::ExprKind;
 use std::collections::hash_map::Entry;
 use std::fs;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
@@ -7,24 +9,106 @@ use bumpalo::collections::Vec as BumpVec;
 use bumpalo::Bump;
 
 use crate::ast::{
-    ArrayBinding, ArrayElement, ArrowBody, CatchBinding, CatchClause, ClassDecl, ClassMember,
-    ConstructorDecl, DynamicExport, DynamicImportDecl, EnumDecl, ExportDecl, Expr, ExternClassDecl,
-    ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer, ForeignImportDecl,
-    FunctionDecl, Ident, ImportSpecifier, Item, MatchArm, MatchPattern, ModuleBinding, Param,
-    Program, RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl, TemplatePart, TypeKind,
-    TypeRef, VarDecl,
+    Argument, ArrayBinding, ArrayElement, ArrowBody, CatchBinding, CatchClause, ClassDecl,
+    ClassMember, ConstructorDecl, DynamicExport, DynamicImportDecl, EnumDecl, ExportDecl, Expr,
+    ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer,
+    ForeignImportDecl, FunctionDecl, Ident, ImportSpecifier, Item, MatchArm, MatchPattern,
+    ModuleBinding, Param, ParameterType, Program, RecordBinding, RecordElement, RecordEntry, Stmt,
+    StructDecl, TemplatePart, TypeKind, TypeRef, VarDecl,
 };
+use crate::compilation_policy::{BudgetLedger, WorkDomain, WorkKind};
 use crate::config::ProjectConfig;
+use crate::output_budget::{
+    AllocationBudget, AllocationClass::Retained, AllocationError, RetainedCharge,
+};
 use crate::package::{load_package_resolver, PackageResolver};
-use crate::parser::{parse_source, ParseError};
+use crate::parser::{parse_source, AdmittedArena, AdmittedParseError, ParseError, ParsedSources};
 use crate::span::Span;
+
+#[path = "module_source_arena.rs"]
+mod source_arena;
+pub(crate) use source_arena::StableSourceArena;
 
 pub type ModuleId = usize;
 
+/// Dependency-first evaluation order over the caller's canonical static graph.
+/// Active edges close import cycles; each reachable module finishes once. The
+/// stack borrows neighbor iterators instead of copying edges or using the Rust
+/// call stack, so source checking and semantic publication share one schedule.
+pub(crate) fn static_evaluation_order<I: IntoIterator<Item = usize>>(
+    root: usize,
+    module_count: usize,
+    dependencies: impl Fn(usize) -> I,
+) -> Result<Vec<usize>, &'static str> {
+    static_evaluation_order_admitted(
+        root,
+        module_count,
+        dependencies,
+        &mut AllocationBudget::new(None),
+    )
+    .map_err(|error| match error {
+        StaticOrderError::Invalid(reason) => reason,
+        StaticOrderError::Resources(_) => "static module schedule exceeds capacity",
+    })
+}
+
+#[derive(Debug)]
+pub(crate) enum StaticOrderError {
+    Invalid(&'static str),
+    Resources(AllocationError),
+}
+
+impl From<AllocationError> for StaticOrderError {
+    fn from(error: AllocationError) -> Self {
+        Self::Resources(error)
+    }
+}
+
+pub(crate) fn static_evaluation_order_admitted<I: IntoIterator<Item = usize>>(
+    root: usize,
+    module_count: usize,
+    dependencies: impl Fn(usize) -> I,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<usize>, StaticOrderError> {
+    use crate::output_budget::AllocationClass::Scratch;
+    budget.work(WorkKind::Analysis, 1)?;
+    if root >= module_count {
+        return Err(StaticOrderError::Invalid(
+            "static module root is out of bounds",
+        ));
+    }
+    let mut order = budget.vector(Scratch, module_count)?;
+    let mut scope = budget.scope();
+    let mut states = scope.filled(Scratch, module_count, 0u8)?;
+    let mut stack = scope.vector(Scratch, module_count)?;
+    states[root] = 1;
+    stack.push((root, dependencies(root).into_iter()));
+    while let Some((module, neighbors)) = stack.last_mut() {
+        scope.work(WorkKind::Analysis, 1)?;
+        if let Some(child) = neighbors.next() {
+            if child >= module_count {
+                return Err(StaticOrderError::Invalid(
+                    "static module dependency is out of bounds",
+                ));
+            }
+            if states[child] == 0 {
+                states[child] = 1;
+                stack.push((child, dependencies(child).into_iter()));
+            }
+        } else {
+            let module = *module;
+            stack.pop();
+            states[module] = 2;
+            order.push(module);
+        }
+    }
+    Ok(order)
+}
+
 #[derive(Debug, Clone)]
-pub struct ModuleSource {
+pub struct ModuleSource<S = String> {
     pub path: PathBuf,
-    pub source: String,
+    pub source: S,
     pub dependencies: Vec<ModuleId>,
     pub foreign_dependencies: Vec<ForeignModuleSource>,
     pub dynamic_dependencies: Vec<ModuleId>,
@@ -38,8 +122,8 @@ pub struct ForeignModuleSource {
 }
 
 #[derive(Debug, Clone)]
-pub struct ModuleSet {
-    pub modules: Vec<ModuleSource>,
+pub struct ModuleSet<S = String> {
+    pub modules: Vec<ModuleSource<S>>,
     pub dependency_order: Vec<ModuleId>,
     pub root: ModuleId,
     pub eager: Vec<bool>,
@@ -88,19 +172,67 @@ enum VisitState {
     Complete,
 }
 
+#[derive(Debug)]
+pub(crate) enum ModuleDiscoveryError {
+    Module(ModuleError),
+    Resources(AllocationError),
+}
+
+impl From<ModuleError> for ModuleDiscoveryError {
+    fn from(error: ModuleError) -> Self {
+        Self::Module(error)
+    }
+}
+
+impl From<AllocationError> for ModuleDiscoveryError {
+    fn from(error: AllocationError) -> Self {
+        Self::Resources(error)
+    }
+}
+
+impl ModuleDiscoveryError {
+    fn into_module(self, root: &Path) -> ModuleError {
+        match self {
+            Self::Module(error) => error,
+            Self::Resources(error) => ModuleError::new(root, "", Span::empty(0), error.to_string()),
+        }
+    }
+}
+
+/// Only source String capacities, not module metadata or parser allocations.
+/// The admitting factory drops its ModuleSet before releasing this charge.
+#[derive(Debug)]
+#[must_use = "retain until source buffers drop, then release into the admitting ledger"]
+pub(crate) struct SourceBufferCharge(RetainedCharge<()>);
+
+impl SourceBufferCharge {
+    pub(crate) fn bytes(&self) -> u64 {
+        self.0.bytes()
+    }
+
+    pub(crate) fn release(self, ledger: &mut BudgetLedger) -> Result<(), (Self, AllocationError)> {
+        self.0
+            .discard(&(), ledger)
+            .map_err(|(charge, error)| (Self(charge), error))
+    }
+}
+
 pub fn discover_modules(root: &Path) -> Result<ModuleSet, ModuleError> {
-    discover_modules_inner(root, None, None)
+    discover_modules_inner(root, None, None, &mut AllocationBudget::new(None))
+        .map_err(|error| error.into_module(root))
 }
 
 pub fn discover_modules_with_source(root: &Path, source: &str) -> Result<ModuleSet, ModuleError> {
-    discover_modules_inner(root, Some(source), None)
+    discover_modules_inner(root, Some(source), None, &mut AllocationBudget::new(None))
+        .map_err(|error| error.into_module(root))
 }
 
 pub fn discover_modules_configured(
     root: &Path,
     config: &ProjectConfig,
 ) -> Result<ModuleSet, ModuleError> {
-    discover_modules_configured_inner(root, None, config)
+    discover_modules_configured_inner(root, None, config, &mut AllocationBudget::new(None))
+        .map_err(|error| error.into_module(root))
 }
 
 pub fn discover_modules_configured_with_source(
@@ -108,14 +240,59 @@ pub fn discover_modules_configured_with_source(
     source: &str,
     config: &ProjectConfig,
 ) -> Result<ModuleSet, ModuleError> {
-    discover_modules_configured_inner(root, Some(source), config)
+    discover_modules_configured_inner(root, Some(source), config, &mut AllocationBudget::new(None))
+        .map_err(|error| error.into_module(root))
+}
+
+pub(crate) fn discover_modules_configured_admitted(
+    root: &Path,
+    config: &ProjectConfig,
+    ledger: &mut BudgetLedger,
+) -> Result<(ModuleSet, SourceBufferCharge), ModuleDiscoveryError> {
+    let mut budget = AllocationBudget::new(Some((ledger, WorkDomain::Baseline)));
+    let modules = discover_modules_configured_inner(root, None, config, &mut budget)?;
+    let bytes = budget.retained_bytes(Retained);
+    let charge = SourceBufferCharge(budget.detach_retained((), bytes)?);
+    Ok((modules, charge))
 }
 
 fn discover_modules_configured_inner(
     root: &Path,
     root_source: Option<&str>,
     config: &ProjectConfig,
-) -> Result<ModuleSet, ModuleError> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<ModuleSet, ModuleDiscoveryError> {
+    discover_configured_with_storage(root, root_source, config, OwnedSources { budget })
+        .map(|(modules, ())| modules)
+}
+
+/// The factory owns both arenas. Original discovery ASTs are retained in
+/// canonical module order; no source or syntax storage lives inside the graph.
+pub(crate) fn discover_parsed_modules_admitted<'ast, 'src>(
+    root: &Path,
+    config: &ProjectConfig,
+    sources: &'src StableSourceArena,
+    syntax: &'ast AdmittedArena<'_>,
+) -> Result<(ModuleSet<&'src str>, ParsedSources<'ast, 'src>), ModuleDiscoveryError> {
+    discover_configured_with_storage(
+        root,
+        None,
+        config,
+        RetainedSources {
+            sources,
+            syntax,
+            parsed: syntax.parsed_sources(),
+        },
+    )
+}
+
+fn discover_configured_with_storage<S: DiscoveryStorage>(
+    root: &Path,
+    root_source: Option<&str>,
+    config: &ProjectConfig,
+    mut storage: S,
+) -> Result<(ModuleSet<S::Source>, S::Parsed), ModuleDiscoveryError> {
+    storage.work(1)?;
     let resolver = load_package_resolver(config).map_err(|error| {
         ModuleError::new(
             error.path,
@@ -124,22 +301,34 @@ fn discover_modules_configured_inner(
             error.message,
         )
     })?;
-    let mut modules = discover_modules_inner(root, root_source, resolver)?;
+    let (mut modules, parsed) = discover_with_storage(root, root_source, resolver, storage)?;
     modules.for_of_specialize_family = config.optimization.for_of_specialize_family();
-    Ok(modules)
+    Ok((modules, parsed))
 }
 
 fn discover_modules_inner(
     root: &Path,
     root_source: Option<&str>,
     package_resolver: Option<PackageResolver>,
-) -> Result<ModuleSet, ModuleError> {
+    budget: &mut AllocationBudget<'_>,
+) -> Result<ModuleSet, ModuleDiscoveryError> {
+    discover_with_storage(root, root_source, package_resolver, OwnedSources { budget })
+        .map(|(modules, ())| modules)
+}
+
+fn discover_with_storage<S: DiscoveryStorage>(
+    root: &Path,
+    root_source: Option<&str>,
+    package_resolver: Option<PackageResolver>,
+    mut storage: S,
+) -> Result<(ModuleSet<S::Source>, S::Parsed), ModuleDiscoveryError> {
+    storage.work(1)?;
     let root_path = canonical_module_path(root).map_err(|message| {
         ModuleError::new(root, root_source.unwrap_or(""), Span::empty(0), message)
     })?;
     let mut overrides = AHashMap::default();
     if let Some(source) = root_source {
-        overrides.insert(root_path.clone(), source.to_string());
+        overrides.insert(root_path.clone(), storage.copy_override(source)?);
     }
     let mut loader = ModuleLoader {
         modules: Vec::new(),
@@ -148,49 +337,256 @@ fn discover_modules_inner(
         dependency_order: Vec::new(),
         overrides,
         package_resolver,
+        storage,
     };
     let root = loader.visit(&root_path, None)?;
     let mut offset = 0usize;
     for module in &mut loader.modules {
+        loader.storage.work(1)?;
         module.offset = offset;
-        offset = offset.saturating_add(module.source.len()).saturating_add(1);
+        offset = offset
+            .saturating_add(module.source.as_ref().len())
+            .saturating_add(1);
     }
     let mut eager = vec![false; loader.modules.len()];
     let mut pending = vec![root];
     while let Some(module) = pending.pop() {
+        loader.storage.work(1)?;
         if std::mem::replace(&mut eager[module], true) {
             continue;
         }
         pending.extend(loader.modules[module].dependencies.iter().copied());
     }
-    Ok(ModuleSet {
-        modules: loader.modules,
-        dependency_order: loader.dependency_order,
-        root,
-        eager,
-        for_of_specialize_family: 0,
+    Ok((
+        ModuleSet {
+            modules: loader.modules,
+            dependency_order: loader.dependency_order,
+            root,
+            eager,
+            for_of_specialize_family: 0,
+        },
+        loader.storage.into_parsed(),
+    ))
+}
+
+#[cfg(test)]
+#[path = "module_admission_tests.rs"]
+mod admission_tests;
+
+#[cfg(test)]
+#[path = "module_parse_once_tests.rs"]
+mod parse_once_tests;
+
+fn read_module_source(
+    path: &Path,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<String, ModuleDiscoveryError> {
+    let read_error = |error: io::Error| {
+        ModuleError::new(
+            path,
+            "",
+            Span::empty(0),
+            format!("failed to read module {}: {error}", path.display()),
+        )
+    };
+    budget.work(WorkKind::Analysis, 1)?;
+    let mut file = fs::File::open(path).map_err(read_error)?;
+    let mut source = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        // The fixed stack buffer lets reads discover length without speculative
+        // heap growth. Every heap destination is admitted before bytes move.
+        budget.work(WorkKind::Analysis, 1)?;
+        let count = match file.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(count) => count,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(read_error(error).into()),
+        };
+        budget.work(WorkKind::Analysis, count as u64)?;
+        budget.extend_copy(Retained, &mut source, &chunk[..count])?;
+    }
+    String::from_utf8(source).map_err(|error| {
+        drop(error);
+        read_error(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "stream did not contain valid UTF-8",
+        ))
+        .into()
     })
 }
 
-struct ModuleLoader {
-    modules: Vec<ModuleSource>,
+type ImportSites = Vec<(String, Span)>;
+
+fn collect_imports(program: &Program<'_, '_>) -> (ImportSites, ImportSites, ImportSites) {
+    let imports = program
+        .imports
+        .iter()
+        .map(|import| (import.source.to_string(), import.span))
+        .collect();
+    let foreign = program
+        .foreign_imports
+        .iter()
+        .map(|import| (import.source.to_string(), import.span))
+        .collect();
+    let mut dynamic = Vec::new();
+    collect_program_dynamic_imports(program, &mut dynamic);
+    let dynamic = dynamic
+        .into_iter()
+        .map(|(source, span)| (source.to_string(), span))
+        .collect();
+    (imports, foreign, dynamic)
+}
+
+fn discovery_parse_error(
+    path: &Path,
+    source: &str,
+    error: AdmittedParseError,
+) -> ModuleDiscoveryError {
+    match error {
+        AdmittedParseError::Syntax(error) => ModuleError::from_parse(path, source, error).into(),
+        AdmittedParseError::Resource(error) => ModuleDiscoveryError::Resources(error),
+    }
+}
+
+fn discover_imports(
+    path: &Path,
+    source: &str,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(ImportSites, ImportSites, ImportSites), ModuleDiscoveryError> {
+    budget.with_ledger(|owner| match owner {
+        Some((ledger, domain)) => {
+            let arena = AdmittedArena::new(ledger, domain);
+            let program = arena
+                .parse(source)
+                .map_err(|error| discovery_parse_error(path, source, error))?;
+            Ok(collect_imports(&program))
+        }
+        None => {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source)
+                .map_err(|error| ModuleError::from_parse(path, source, error))?;
+            Ok(collect_imports(&program))
+        }
+    })
+}
+
+/// Only source/syntax ownership varies. Resolution, graph identities and
+/// traversal all remain in the one loader below.
+trait DiscoveryStorage {
+    type Source: AsRef<str>;
+    type Parsed;
+    fn work(&mut self, units: u64) -> Result<(), AllocationError>;
+    fn read(&mut self, path: &Path) -> Result<Self::Source, ModuleDiscoveryError>;
+    fn copy_override(&mut self, source: &str) -> Result<Self::Source, AllocationError>;
+    fn imports(
+        &mut self,
+        path: &Path,
+        source: &Self::Source,
+    ) -> Result<(ImportSites, ImportSites, ImportSites), ModuleDiscoveryError>;
+    fn into_parsed(self) -> Self::Parsed;
+}
+
+struct OwnedSources<'budget, 'ledger> {
+    budget: &'budget mut AllocationBudget<'ledger>,
+}
+
+impl DiscoveryStorage for OwnedSources<'_, '_> {
+    type Source = String;
+    type Parsed = ();
+    fn work(&mut self, units: u64) -> Result<(), AllocationError> {
+        self.budget.work(WorkKind::Analysis, units)
+    }
+    fn read(&mut self, path: &Path) -> Result<String, ModuleDiscoveryError> {
+        read_module_source(path, self.budget)
+    }
+    fn copy_override(&mut self, source: &str) -> Result<String, AllocationError> {
+        self.budget.string(Retained, source)
+    }
+    fn imports(
+        &mut self,
+        path: &Path,
+        source: &String,
+    ) -> Result<(ImportSites, ImportSites, ImportSites), ModuleDiscoveryError> {
+        discover_imports(path, source, self.budget)
+    }
+    fn into_parsed(self) {}
+}
+
+struct RetainedSources<'ast, 'src, 'ledger> {
+    sources: &'src StableSourceArena,
+    syntax: &'ast AdmittedArena<'ledger>,
+    parsed: ParsedSources<'ast, 'src>,
+}
+
+impl<'ast, 'src> DiscoveryStorage for RetainedSources<'ast, 'src, '_> {
+    type Source = &'src str;
+    type Parsed = ParsedSources<'ast, 'src>;
+    fn work(&mut self, units: u64) -> Result<(), AllocationError> {
+        self.syntax.with_ledger(|ledger, domain| {
+            ledger
+                .charge(domain, WorkKind::Analysis, units)
+                .map_err(Into::into)
+        })
+    }
+    fn read(&mut self, path: &Path) -> Result<&'src str, ModuleDiscoveryError> {
+        self.syntax.with_ledger(|ledger, domain| {
+            let mut budget = AllocationBudget::new(Some((ledger, domain)));
+            let text = read_module_source(path, &mut budget)?;
+            let stored = budget.with_ledger(|owner| {
+                let (ledger, _) = owner.expect("retained discovery owns the factory ledger");
+                self.sources.store(&text, ledger)
+            });
+            // Source backing has its own persistent owner. Only the temporary
+            // read buffer is released when this short allocation scope ends.
+            drop(text);
+            stored.map_err(Into::into)
+        })
+    }
+    fn copy_override(&mut self, source: &str) -> Result<&'src str, AllocationError> {
+        self.syntax
+            .with_ledger(|ledger, _| self.sources.store(source, ledger))
+    }
+    fn imports(
+        &mut self,
+        path: &Path,
+        source: &&'src str,
+    ) -> Result<(ImportSites, ImportSites, ImportSites), ModuleDiscoveryError> {
+        // Parsing and list growth happen outside any with_ledger callback.
+        let program = self
+            .syntax
+            .parse(*source)
+            .map_err(|error| discovery_parse_error(path, source, error))?;
+        let imports = collect_imports(&program);
+        self.parsed
+            .push(program)
+            .map_err(|error| discovery_parse_error(path, source, error))?;
+        Ok(imports)
+    }
+    fn into_parsed(self) -> Self::Parsed {
+        self.parsed
+    }
+}
+
+struct ModuleLoader<S: DiscoveryStorage> {
+    modules: Vec<ModuleSource<S::Source>>,
     by_path: AHashMap<PathBuf, ModuleId>,
     states: Vec<VisitState>,
     dependency_order: Vec<ModuleId>,
-    overrides: AHashMap<PathBuf, String>,
+    overrides: AHashMap<PathBuf, S::Source>,
     package_resolver: Option<PackageResolver>,
+    storage: S,
 }
 
-impl ModuleLoader {
+impl<S: DiscoveryStorage> ModuleLoader<S> {
     fn visit(
         &mut self,
         requested: &Path,
-        import_site: Option<(&Path, &str, Span)>,
-    ) -> Result<ModuleId, ModuleError> {
-        let path = canonical_module_path(requested).map_err(|message| {
-            let (path, source, span) = import_site.unwrap_or((requested, "", Span::empty(0)));
-            ModuleError::new(path, source, span, message)
-        })?;
+        import_site: Option<(ModuleId, Span)>,
+    ) -> Result<ModuleId, ModuleDiscoveryError> {
+        self.storage.work(1)?;
+        let path = canonical_module_path(requested)
+            .map_err(|message| self.import_error(import_site, requested, message))?;
         if let Some(&id) = self.by_path.get(&path) {
             if self.states[id] == VisitState::Visiting {
                 // Module interfaces are linked to a fixed point below. Keep the
@@ -200,40 +596,17 @@ impl ModuleLoader {
             return Ok(id);
         }
 
-        let source = self
-            .overrides
-            .get(&path)
-            .cloned()
-            .map_or_else(|| fs::read_to_string(&path), Ok)
-            .map_err(|error| {
-                let (site_path, site_source, span) =
-                    import_site.unwrap_or((&path, "", Span::empty(0)));
-                ModuleError::new(
-                    site_path,
-                    site_source,
-                    span,
-                    format!("failed to read module {}: {error}", path.display()),
-                )
-            })?;
-        let arena = Bump::new();
-        let program = parse_source(&arena, &source)
-            .map_err(|error| ModuleError::from_parse(&path, &source, error))?;
-        let imports = program
-            .imports
-            .iter()
-            .map(|import| (import.source.to_string(), import.span))
-            .collect::<Vec<_>>();
-        let foreign_imports = program
-            .foreign_imports
-            .iter()
-            .map(|import| (import.source.to_string(), import.span))
-            .collect::<Vec<_>>();
-        let mut dynamic_imports = Vec::new();
-        collect_program_dynamic_imports(&program, &mut dynamic_imports);
-        let dynamic_imports = dynamic_imports
-            .into_iter()
-            .map(|(source, span)| (source.to_string(), span))
-            .collect::<Vec<_>>();
+        let source = match self.overrides.remove(&path) {
+            Some(source) => source,
+            None => self.storage.read(&path).map_err(|error| match error {
+                ModuleDiscoveryError::Module(error) => {
+                    self.import_error(import_site, &path, error.message).into()
+                }
+                resource => resource,
+            })?,
+        };
+        self.storage.work(0)?;
+        let (imports, foreign_imports, dynamic_imports) = self.storage.imports(&path, &source)?;
 
         let id = self.modules.len();
         self.by_path.insert(path.clone(), id);
@@ -247,24 +620,25 @@ impl ModuleLoader {
             offset: 0,
         });
         let parent = path.parent().unwrap_or_else(|| Path::new("."));
-        let site_source = self.modules[id].source.clone();
         let mut dependencies = Vec::with_capacity(imports.len());
         for (specifier, span) in imports {
+            self.storage.work(1)?;
             let dependency_path =
                 self.resolve_import_path(parent, &specifier)
                     .map_err(|message| {
-                        ModuleError::new(&path, &self.modules[id].source, span, message)
+                        ModuleError::new(&path, self.modules[id].source.as_ref(), span, message)
                     })?;
-            let dependency = self.visit(&dependency_path, Some((&path, &site_source, span)))?;
+            let dependency = self.visit(&dependency_path, Some((id, span)))?;
             dependencies.push(dependency);
         }
         self.modules[id].dependencies = dependencies;
         let mut foreign_dependencies = Vec::with_capacity(foreign_imports.len());
         for (specifier, span) in foreign_imports {
+            self.storage.work(1)?;
             let resolved = self
                 .resolve_foreign_import_path(parent, &specifier)
                 .map_err(|message| {
-                    ModuleError::new(&path, &self.modules[id].source, span, message)
+                    ModuleError::new(&path, self.modules[id].source.as_ref(), span, message)
                 })?;
             foreign_dependencies.push(ForeignModuleSource {
                 specifier,
@@ -274,12 +648,13 @@ impl ModuleLoader {
         self.modules[id].foreign_dependencies = foreign_dependencies;
         let mut dynamic_dependencies = Vec::with_capacity(dynamic_imports.len());
         for (specifier, span) in dynamic_imports {
+            self.storage.work(1)?;
             let dependency_path =
                 self.resolve_import_path(parent, &specifier)
                     .map_err(|message| {
-                        ModuleError::new(&path, &self.modules[id].source, span, message)
+                        ModuleError::new(&path, self.modules[id].source.as_ref(), span, message)
                     })?;
-            let dependency = self.visit(&dependency_path, Some((&path, &site_source, span)))?;
+            let dependency = self.visit(&dependency_path, Some((id, span)))?;
             dynamic_dependencies.push(dependency);
         }
         self.modules[id].dynamic_dependencies = dynamic_dependencies;
@@ -288,6 +663,20 @@ impl ModuleLoader {
         Ok(id)
     }
 
+    fn import_error(
+        &self,
+        site: Option<(ModuleId, Span)>,
+        requested: &Path,
+        message: String,
+    ) -> ModuleError {
+        match site {
+            Some((parent, span)) => {
+                let parent = &self.modules[parent];
+                ModuleError::new(&parent.path, parent.source.as_ref(), span, message)
+            }
+            None => ModuleError::new(requested, "", Span::empty(0), message),
+        }
+    }
     fn resolve_import_path(&self, parent: &Path, specifier: &str) -> Result<PathBuf, String> {
         if specifier.starts_with('.') {
             return Ok(parent.join(specifier));
@@ -447,7 +836,7 @@ fn collect_stmt_dynamic_imports<'ast, 'src>(
             Stmt::Throw { value, .. } => collect_expr_dynamic_imports(value, imports),
             Stmt::SuperCall { args, .. } => {
                 for argument in *args {
-                    collect_expr_dynamic_imports(argument, imports);
+                    collect_expr_dynamic_imports(&argument.expression, imports);
                 }
             }
             Stmt::Yield { value, .. } => collect_expr_dynamic_imports(value, imports),
@@ -529,96 +918,187 @@ fn collect_expr_dynamic_imports<'ast, 'src>(
     imports: &mut Vec<(&'src str, Span)>,
 ) {
     match expression {
-        Expr::DynamicImport { source, span } => imports.push((source, *span)),
-        Expr::ArrayLiteral { elements, .. } => {
+        Expr {
+            kind: ExprKind::DynamicImport { source, span },
+            ..
+        } => imports.push((source, *span)),
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => {
             for element in *elements {
                 collect_expr_dynamic_imports(element.value(), imports);
             }
         }
-        Expr::RecordLiteral { entries, .. } | Expr::ObjectLiteral { entries, .. } => {
+        Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::ObjectLiteral { entries, .. },
+            ..
+        } => {
             for entry in *entries {
                 collect_expr_dynamic_imports(entry.value(), imports);
             }
         }
-        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
+        Expr {
+            kind: ExprKind::StructLiteral { values, .. },
+            ..
+        } => {
             for value in *values {
                 collect_expr_dynamic_imports(value, imports);
             }
         }
-        Expr::Member { object, .. }
-        | Expr::OptionalMember { object, .. }
-        | Expr::Unary { expr: object, .. }
-        | Expr::Await { task: object, .. }
-        | Expr::TypeCheck { value: object, .. }
-        | Expr::Update { target: object, .. } => collect_expr_dynamic_imports(object, imports),
-        Expr::Call { callee, args, .. } => {
-            collect_expr_dynamic_imports(callee, imports);
+        Expr {
+            kind: ExprKind::New { args, .. },
+            ..
+        } => {
             for argument in *args {
-                collect_expr_dynamic_imports(argument, imports);
+                collect_expr_dynamic_imports(&argument.expression, imports);
             }
         }
-        Expr::ArrowFunction { params, body, .. } => {
+        Expr {
+            kind: ExprKind::Member { object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::OptionalMember { object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Unary { expr: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Await { task: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::TypeCheck { value: object, .. },
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Update { target: object, .. },
+            ..
+        } => collect_expr_dynamic_imports(object, imports),
+        Expr {
+            kind: ExprKind::Call { callee, args, .. },
+            ..
+        } => {
+            collect_expr_dynamic_imports(callee, imports);
+            for argument in *args {
+                collect_expr_dynamic_imports(&argument.expression, imports);
+            }
+        }
+        Expr {
+            kind: ExprKind::ArrowFunction { params, body, .. },
+            ..
+        } => {
             collect_param_dynamic_imports(params, imports);
             match body {
                 ArrowBody::Expr(expression) => collect_expr_dynamic_imports(expression, imports),
                 ArrowBody::Block(statements) => collect_stmt_dynamic_imports(statements, imports),
             }
         }
-        Expr::Binary { lhs, rhs, .. }
-        | Expr::Index {
-            object: lhs,
-            index: rhs,
+        Expr {
+            kind: ExprKind::Binary { lhs, rhs, .. },
             ..
         }
-        | Expr::OptionalIndex {
-            object: lhs,
-            index: rhs,
+        | Expr {
+            kind:
+                ExprKind::Index {
+                    object: lhs,
+                    index: rhs,
+                    ..
+                },
             ..
         }
-        | Expr::Assignment {
-            target: lhs,
-            value: rhs,
+        | Expr {
+            kind:
+                ExprKind::OptionalIndex {
+                    object: lhs,
+                    index: rhs,
+                    ..
+                },
+            ..
+        }
+        | Expr {
+            kind:
+                ExprKind::Assignment {
+                    target: lhs,
+                    value: rhs,
+                    ..
+                },
             ..
         } => {
             collect_expr_dynamic_imports(lhs, imports);
             collect_expr_dynamic_imports(rhs, imports);
         }
-        Expr::Template { parts, .. } => {
+        Expr {
+            kind: ExprKind::Template { parts, .. },
+            ..
+        } => {
             for part in *parts {
                 if let TemplatePart::Expr(expression) = part {
                     collect_expr_dynamic_imports(expression, imports);
                 }
             }
         }
-        Expr::Match { value, arms, .. } => {
+        Expr {
+            kind: ExprKind::Match { value, arms, .. },
+            ..
+        } => {
             collect_expr_dynamic_imports(value, imports);
             for arm in *arms {
                 collect_expr_dynamic_imports(&arm.value, imports);
             }
         }
-        Expr::If {
-            condition,
-            then_value,
-            else_value,
+        Expr {
+            kind:
+                ExprKind::If {
+                    condition,
+                    then_value,
+                    else_value,
+                    ..
+                },
             ..
         } => {
             collect_expr_dynamic_imports(condition, imports);
             collect_expr_dynamic_imports(then_value, imports);
             collect_expr_dynamic_imports(else_value, imports);
         }
-        Expr::Int(..)
-        | Expr::Float(..)
-        | Expr::String(..)
-        | Expr::Bool(..)
-        | Expr::Null(..)
-        | Expr::Ident(..) => {}
+        Expr {
+            kind: ExprKind::Int(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Float(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::String(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Bool(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Null(..),
+            ..
+        }
+        | Expr {
+            kind: ExprKind::Ident(..),
+            ..
+        } => {}
     }
 }
 
-pub fn parse_modules<'arena>(
+pub fn parse_modules<'arena, 'src>(
     arena: &'arena Bump,
-    modules: &'arena ModuleSet,
-) -> Result<Vec<Program<'arena, 'arena>>, ModuleError> {
+    modules: &'src ModuleSet,
+) -> Result<Vec<Program<'arena, 'src>>, ModuleError> {
     modules
         .modules
         .iter()
@@ -641,6 +1121,7 @@ pub fn link_modules<'arena>(
     modules: &'arena ModuleSet,
     programs: &'arena [Program<'arena, 'arena>],
 ) -> Result<Program<'arena, 'arena>, ModuleError> {
+    let source = crate::ast::SourceNodes::default();
     for (module_id, program) in programs.iter().enumerate() {
         if modules.eager[module_id] {
             continue;
@@ -865,6 +1346,7 @@ pub fn link_modules<'arena>(
     let mut seen_externs = AHashMap::<&str, ExternDecl<'arena, 'arena>>::default();
     for &module_id in &modules.dependency_order {
         let mut cloner = ModuleCloner::new(
+            &source,
             arena,
             &bindings[module_id],
             modules.modules[module_id].offset,
@@ -1065,19 +1547,22 @@ pub fn link_modules<'arena>(
         .map_or(Span::empty(0), |(first, last)| {
             first.span().merge(last.span())
         });
-    Ok(Program {
-        imports: &[],
-        foreign_imports: linked_foreign_imports.into_bump_slice(),
-        dynamic_imports: linked_dynamic_imports.into_bump_slice(),
-        module_bindings: module_bindings.into_bump_slice(),
-        constructor_values: constructor_values.into_bump_slice(),
-        exports: linked_exports.into_bump_slice(),
-        items,
-        span,
-    })
+    Ok(Program::new(
+        source.finish(),
+        crate::ast::ProgramData {
+            imports: &[],
+            foreign_imports: linked_foreign_imports.into_bump_slice(),
+            dynamic_imports: linked_dynamic_imports.into_bump_slice(),
+            module_bindings: module_bindings.into_bump_slice(),
+            constructor_values: constructor_values.into_bump_slice(),
+            exports: linked_exports.into_bump_slice(),
+            items,
+            span,
+        },
+    ))
 }
 
-fn relative_module_specifier(from: &Path, to: &Path) -> String {
+pub(crate) fn relative_module_specifier(from: &Path, to: &Path) -> String {
     let from = from.components().collect::<Vec<_>>();
     let to = to.components().collect::<Vec<_>>();
     let common = from
@@ -1104,11 +1589,10 @@ fn extern_contracts_match(left: &ExternDecl<'_, '_>, right: &ExternDecl<'_, '_>)
     left.declared_pure == right.declared_pure
         && type_contracts_match(left.return_type, right.return_type)
         && left.params.len() == right.params.len()
-        && left
-            .params
-            .iter()
-            .zip(right.params)
-            .all(|(left, right)| type_contracts_match(left.ty, right.ty))
+        && left.params.iter().zip(right.params).all(|(left, right)| {
+            left.parameter.passing == right.parameter.passing
+                && type_contracts_match(left.parameter.ty, right.parameter.ty)
+        })
 }
 
 fn type_contracts_match(left: TypeRef<'_, '_>, right: TypeRef<'_, '_>) -> bool {
@@ -1151,10 +1635,9 @@ fn type_contracts_match(left: TypeRef<'_, '_>, right: TypeRef<'_, '_>) -> bool {
             },
         ) => {
             left_params.len() == right_params.len()
-                && left_params
-                    .iter()
-                    .zip(right_params)
-                    .all(|(left, right)| type_contracts_match(*left, *right))
+                && left_params.iter().zip(right_params).all(|(left, right)| {
+                    left.passing == right.passing && type_contracts_match(left.ty, right.ty)
+                })
                 && type_contracts_match(*left_return, *right_return)
         }
         _ => false,
@@ -1218,6 +1701,7 @@ pub fn locate_linked_span(modules: &ModuleSet, span: Span) -> (&ModuleSource, Sp
 }
 
 struct ModuleCloner<'arena, 'map> {
+    source: &'map crate::ast::SourceNodes,
     arena: &'arena Bump,
     globals: &'map AHashMap<&'arena str, &'arena str>,
     scopes: Vec<AHashSet<&'arena str>>,
@@ -1226,11 +1710,13 @@ struct ModuleCloner<'arena, 'map> {
 
 impl<'arena, 'map> ModuleCloner<'arena, 'map> {
     fn new(
+        source: &'map crate::ast::SourceNodes,
         arena: &'arena Bump,
         globals: &'map AHashMap<&'arena str, &'arena str>,
         offset: usize,
     ) -> Self {
         Self {
+            source,
             arena,
             globals,
             scopes: Vec::new(),
@@ -1324,6 +1810,12 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                     params: self.clone_params(method.params),
                     span: self.span(method.span),
                 }),
+                ExternClassMember::Constructor(constructor) => {
+                    ExternClassMember::Constructor(crate::ast::ExternConstructorDecl {
+                        params: self.clone_params(constructor.params),
+                        span: self.span(constructor.span),
+                    })
+                }
             });
         }
         ExternClassDecl {
@@ -1345,6 +1837,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
         let body = self.clone_statements(decl.body);
         self.pop_scope();
         FunctionDecl {
+            region: decl.region,
             declared_pure: decl.declared_pure,
             is_async: decl.is_async,
             is_generator: decl.is_generator,
@@ -1384,7 +1877,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
     ) -> &'arena [Param<'arena, 'arena>] {
         let mut cloned = BumpVec::new_in(self.arena);
         cloned.extend(params.iter().map(|param| Param {
-            ty: self.clone_type(param.ty),
+            parameter: self.clone_parameter_type(param.parameter),
             name: self.plain_ident(param.name),
             default: param.default.as_ref().map(|value| self.clone_expr(value)),
             span: self.span(param.span),
@@ -1489,7 +1982,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
             Stmt::SuperCall { args, span } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for argument in *args {
-                    cloned.push(self.clone_expr(argument));
+                    cloned.push(self.clone_argument(argument));
                 }
                 Stmt::SuperCall {
                     args: cloned.into_bump_slice(),
@@ -1698,13 +2191,44 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
 
     fn clone_expr(&mut self, expr: &Expr<'arena, 'arena>) -> Expr<'arena, 'arena> {
         match expr {
-            Expr::Int(value, span) => Expr::Int(*value, self.span(*span)),
-            Expr::Float(value, span) => Expr::Float(*value, self.span(*span)),
-            Expr::String(value, span) => Expr::String(value, self.span(*span)),
-            Expr::Bool(value, span) => Expr::Bool(*value, self.span(*span)),
-            Expr::Null(span) => Expr::Null(self.span(*span)),
-            Expr::Ident(ident) => Expr::Ident(self.reference_ident(*ident)),
-            Expr::ArrayLiteral { elements, span } => {
+            Expr {
+                kind: ExprKind::Int(value, span),
+                ..
+            } => self
+                .source
+                .expression(ExprKind::Int(*value, self.span(*span))),
+            Expr {
+                kind: ExprKind::Float(value, span),
+                ..
+            } => self
+                .source
+                .expression(ExprKind::Float(*value, self.span(*span))),
+            Expr {
+                kind: ExprKind::String(value, span),
+                ..
+            } => self
+                .source
+                .expression(ExprKind::String(value, self.span(*span))),
+            Expr {
+                kind: ExprKind::Bool(value, span),
+                ..
+            } => self
+                .source
+                .expression(ExprKind::Bool(*value, self.span(*span))),
+            Expr {
+                kind: ExprKind::Null(span),
+                ..
+            } => self.source.expression(ExprKind::Null(self.span(*span))),
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
+            } => self
+                .source
+                .expression(ExprKind::Ident(self.reference_ident(*ident))),
+            Expr {
+                kind: ExprKind::ArrayLiteral { elements, span },
+                ..
+            } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for element in *elements {
                     cloned.push(match element {
@@ -1715,12 +2239,15 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                         },
                     });
                 }
-                Expr::ArrayLiteral {
+                self.source.expression(ExprKind::ArrayLiteral {
                     elements: cloned.into_bump_slice(),
                     span: self.span(*span),
-                }
+                })
             }
-            Expr::RecordLiteral { entries, span } => {
+            Expr {
+                kind: ExprKind::RecordLiteral { entries, span },
+                ..
+            } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for entry in *entries {
                     cloned.push(match entry {
@@ -1735,12 +2262,15 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                         },
                     });
                 }
-                Expr::RecordLiteral {
+                self.source.expression(ExprKind::RecordLiteral {
                     entries: cloned.into_bump_slice(),
                     span: self.span(*span),
-                }
+                })
             }
-            Expr::ObjectLiteral { entries, span } => {
+            Expr {
+                kind: ExprKind::ObjectLiteral { entries, span },
+                ..
+            } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for entry in *entries {
                     cloned.push(match entry {
@@ -1755,55 +2285,79 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                         },
                     });
                 }
-                Expr::ObjectLiteral {
+                self.source.expression(ExprKind::ObjectLiteral {
                     entries: cloned.into_bump_slice(),
                     span: self.span(*span),
-                }
+                })
             }
-            Expr::StructLiteral { name, values, span } => Expr::StructLiteral {
+            Expr {
+                kind: ExprKind::StructLiteral { name, values, span },
+                ..
+            } => self.source.expression(ExprKind::StructLiteral {
                 name: self.global_ident(*name),
                 values: self.clone_exprs(values),
                 span: self.span(*span),
-            },
-            Expr::New {
-                class,
-                type_args,
-                args,
-                span,
-            } => Expr::New {
+            }),
+            Expr {
+                kind:
+                    ExprKind::New {
+                        class,
+                        type_args,
+                        args,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::New {
                 class: self.global_ident(*class),
                 type_args: self.clone_types(type_args),
-                args: self.clone_exprs(args),
+                args: self.clone_arguments(args),
                 span: self.span(*span),
-            },
-            Expr::DynamicImport { source, span } => Expr::DynamicImport {
+            }),
+            Expr {
+                kind: ExprKind::DynamicImport { source, span },
+                ..
+            } => self.source.expression(ExprKind::DynamicImport {
                 source,
                 span: self.span(*span),
-            },
-            Expr::Member {
-                object,
-                property,
-                span,
-            } => Expr::Member {
+            }),
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::Member {
                 object: self.arena.alloc(self.clone_expr(object)),
                 property: self.plain_ident(*property),
                 span: self.span(*span),
-            },
-            Expr::OptionalMember {
-                object,
-                property,
-                span,
-            } => Expr::OptionalMember {
+            }),
+            Expr {
+                kind:
+                    ExprKind::OptionalMember {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::OptionalMember {
                 object: self.arena.alloc(self.clone_expr(object)),
                 property: self.plain_ident(*property),
                 span: self.span(*span),
-            },
-            Expr::Call { callee, args, span } => Expr::Call {
+            }),
+            Expr {
+                kind: ExprKind::Call { callee, args, span },
+                ..
+            } => self.source.expression(ExprKind::Call {
                 callee: self.arena.alloc(self.clone_expr(callee)),
-                args: self.clone_exprs(args),
+                args: self.clone_arguments(args),
                 span: self.span(*span),
-            },
-            Expr::ArrowFunction { params, body, span } => {
+            }),
+            Expr {
+                kind: ExprKind::ArrowFunction { params, body, span },
+                ..
+            } => {
                 self.push_scope();
                 let params = self.clone_arrow_params_and_declare(params);
                 let body = match body {
@@ -1813,66 +2367,94 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                     ArrowBody::Block(body) => ArrowBody::Block(self.clone_statements(body)),
                 };
                 self.pop_scope();
-                Expr::ArrowFunction {
+                self.source.expression(ExprKind::ArrowFunction {
                     params,
                     body,
                     span: self.span(*span),
-                }
+                })
             }
-            Expr::Unary { op, expr, span } => Expr::Unary {
+            Expr {
+                kind: ExprKind::Unary { op, expr, span },
+                ..
+            } => self.source.expression(ExprKind::Unary {
                 op: *op,
                 expr: self.arena.alloc(self.clone_expr(expr)),
                 span: self.span(*span),
-            },
-            Expr::Await { task, span } => Expr::Await {
+            }),
+            Expr {
+                kind: ExprKind::Await { task, span },
+                ..
+            } => self.source.expression(ExprKind::Await {
                 task: self.arena.alloc(self.clone_expr(task)),
                 span: self.span(*span),
-            },
-            Expr::Binary { op, lhs, rhs, span } => Expr::Binary {
+            }),
+            Expr {
+                kind: ExprKind::Binary { op, lhs, rhs, span },
+                ..
+            } => self.source.expression(ExprKind::Binary {
                 op: *op,
                 lhs: self.arena.alloc(self.clone_expr(lhs)),
                 rhs: self.arena.alloc(self.clone_expr(rhs)),
                 span: self.span(*span),
-            },
-            Expr::TypeCheck {
-                value,
-                target,
-                span,
-            } => Expr::TypeCheck {
+            }),
+            Expr {
+                kind:
+                    ExprKind::TypeCheck {
+                        value,
+                        target,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::TypeCheck {
                 value: self.arena.alloc(self.clone_expr(value)),
                 target: self.clone_type(*target),
                 span: self.span(*span),
-            },
-            Expr::Index {
-                object,
-                index,
-                span,
-            } => Expr::Index {
+            }),
+            Expr {
+                kind:
+                    ExprKind::Index {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::Index {
                 object: self.arena.alloc(self.clone_expr(object)),
                 index: self.arena.alloc(self.clone_expr(index)),
                 span: self.span(*span),
-            },
-            Expr::OptionalIndex {
-                object,
-                index,
-                span,
-            } => Expr::OptionalIndex {
+            }),
+            Expr {
+                kind:
+                    ExprKind::OptionalIndex {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::OptionalIndex {
                 object: self.arena.alloc(self.clone_expr(object)),
                 index: self.arena.alloc(self.clone_expr(index)),
                 span: self.span(*span),
-            },
-            Expr::If {
-                condition,
-                then_value,
-                else_value,
-                span,
-            } => Expr::If {
+            }),
+            Expr {
+                kind:
+                    ExprKind::If {
+                        condition,
+                        then_value,
+                        else_value,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::If {
                 condition: self.arena.alloc(self.clone_expr(condition)),
                 then_value: self.arena.alloc(self.clone_expr(then_value)),
                 else_value: self.arena.alloc(self.clone_expr(else_value)),
                 span: self.span(*span),
-            },
-            Expr::Match { value, arms, span } => {
+            }),
+            Expr {
+                kind: ExprKind::Match { value, arms, span },
+                ..
+            } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for arm in *arms {
                     let pattern = match arm.pattern {
@@ -1900,35 +2482,46 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                         span: self.span(arm.span),
                     });
                 }
-                Expr::Match {
+                self.source.expression(ExprKind::Match {
                     value: self.arena.alloc(self.clone_expr(value)),
                     arms: cloned.into_bump_slice(),
                     span: self.span(*span),
-                }
+                })
             }
-            Expr::Assignment {
-                op,
-                target,
-                value,
-                span,
-            } => Expr::Assignment {
+            Expr {
+                kind:
+                    ExprKind::Assignment {
+                        op,
+                        target,
+                        value,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::Assignment {
                 op: *op,
                 target: self.arena.alloc(self.clone_expr(target)),
                 value: self.arena.alloc(self.clone_expr(value)),
                 span: self.span(*span),
-            },
-            Expr::Update {
-                op,
-                target,
-                prefix,
-                span,
-            } => Expr::Update {
+            }),
+            Expr {
+                kind:
+                    ExprKind::Update {
+                        op,
+                        target,
+                        prefix,
+                        span,
+                    },
+                ..
+            } => self.source.expression(ExprKind::Update {
                 op: *op,
                 target: self.arena.alloc(self.clone_expr(target)),
                 prefix: *prefix,
                 span: self.span(*span),
-            },
-            Expr::Template { parts, span } => {
+            }),
+            Expr {
+                kind: ExprKind::Template { parts, span },
+                ..
+            } => {
                 let mut cloned = BumpVec::new_in(self.arena);
                 for part in *parts {
                     cloned.push(match part {
@@ -1938,12 +2531,44 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                         TemplatePart::Expr(expr) => TemplatePart::Expr(self.clone_expr(expr)),
                     });
                 }
-                Expr::Template {
+                self.source.expression(ExprKind::Template {
                     parts: cloned.into_bump_slice(),
                     span: self.span(*span),
-                }
+                })
             }
         }
+    }
+
+    fn clone_parameter_type(
+        &self,
+        parameter: ParameterType<'arena, 'arena>,
+    ) -> ParameterType<'arena, 'arena> {
+        ParameterType {
+            ty: self.clone_type(parameter.ty),
+            passing: parameter.passing,
+            span: self.span(parameter.span),
+        }
+    }
+
+    fn clone_argument(&mut self, argument: &Argument<'arena, 'arena>) -> Argument<'arena, 'arena> {
+        Argument {
+            expression: self.clone_expr(&argument.expression),
+            passing: argument.passing,
+            span: self.span(argument.span),
+        }
+    }
+
+    fn clone_arguments(
+        &mut self,
+        arguments: &[Argument<'arena, 'arena>],
+    ) -> &'arena [Argument<'arena, 'arena>] {
+        let mut cloned = BumpVec::new_in(self.arena);
+        cloned.extend(
+            arguments
+                .iter()
+                .map(|argument| self.clone_argument(argument)),
+        );
+        cloned.into_bump_slice()
     }
 
     fn clone_exprs(
@@ -1975,7 +2600,7 @@ impl<'arena, 'map> ModuleCloner<'arena, 'map> {
                 return_type,
             } => {
                 let mut cloned = BumpVec::new_in(self.arena);
-                cloned.extend(params.iter().map(|param| self.clone_type(*param)));
+                cloned.extend(params.iter().map(|param| self.clone_parameter_type(*param)));
                 TypeKind::Function {
                     params: cloned.into_bump_slice(),
                     return_type: self.arena.alloc(self.clone_type(*return_type)),
@@ -2052,6 +2677,88 @@ mod tests {
     use super::*;
 
     #[test]
+    fn module_cloning_keeps_reference_modes_and_fresh_argument_occurrences() {
+        use crate::primitive::ParameterPassing::MutableReference;
+        let arena = Bump::new();
+        let syntax = parse_source(
+            &arena,
+            "void forward(ref int value,func(ref int)->void action){action(ref value);}",
+        )
+        .unwrap();
+        let Item::Function(original) = &syntax.items[0] else {
+            panic!("function")
+        };
+        let source = crate::ast::SourceNodes::continuing(syntax.source_identity());
+        let globals = AHashMap::default();
+        let mut cloner = ModuleCloner::new(&source, &arena, &globals, 31);
+        let cloned = cloner.clone_function(original, false);
+        assert_eq!(cloned.params[0].parameter.passing, MutableReference);
+        let TypeKind::Function { params, .. } = cloned.params[1].parameter.ty.kind else {
+            panic!("callable type")
+        };
+        assert_eq!(params[0].passing, MutableReference);
+        let Stmt::Expr(Expr {
+            kind:
+                ExprKind::Call {
+                    args: original_args,
+                    ..
+                },
+            ..
+        }) = &original.body[0]
+        else {
+            panic!("original call")
+        };
+        let Stmt::Expr(Expr {
+            kind: ExprKind::Call { args, .. },
+            ..
+        }) = &cloned.body[0]
+        else {
+            panic!("cloned call")
+        };
+        assert_eq!(args[0].passing, MutableReference);
+        assert_ne!(args[0].expression.id, original_args[0].expression.id);
+        assert_eq!(args[0].span.start, original_args[0].span.start + 31);
+        assert_eq!(
+            args[0].expression.span().start,
+            original_args[0].expression.span().start + 31
+        );
+    }
+
+    #[test]
+    fn static_order_preserves_edges_cycles_and_single_initialization() {
+        let edges = [vec![1, 2, 1], vec![0, 3], vec![3], vec![]];
+        let visited = std::cell::RefCell::new(Vec::new());
+        let order = static_evaluation_order(0, edges.len(), |module| {
+            visited.borrow_mut().push(module);
+            edges[module].iter().copied()
+        })
+        .unwrap();
+        assert_eq!(order, [3, 1, 2, 0]);
+        assert_eq!(*visited.borrow(), [0, 1, 3, 2]);
+        assert_eq!(
+            static_evaluation_order(2, edges.len(), |module| edges[module].iter().copied())
+                .unwrap(),
+            [3, 2]
+        );
+        assert!(
+            static_evaluation_order(4, edges.len(), |module| edges[module].iter().copied())
+                .is_err()
+        );
+        assert!(static_evaluation_order(0, 1, |_| [1]).is_err());
+    }
+
+    #[test]
+    fn static_order_uses_an_iterative_stack_for_deep_import_chains() {
+        let count = 20_000;
+        let order = static_evaluation_order(0, count, |module| {
+            (module + 1 < count).then_some(module + 1)
+        })
+        .unwrap();
+        assert_eq!(order.len(), count);
+        assert!(order.into_iter().eq((0..count).rev()));
+    }
+
+    #[test]
     fn resolves_extensionless_relative_imports() {
         assert_eq!(
             resolve_import_path(Path::new("/tmp/project"), "./math").unwrap(),
@@ -2104,8 +2811,16 @@ mod tests {
             .expect("linked dependency function");
         let Some(Stmt::Return {
             value:
-                Some(Expr::Call {
-                    callee: Expr::ArrowFunction { params, .. },
+                Some(Expr {
+                    kind:
+                        ExprKind::Call {
+                            callee:
+                                Expr {
+                                    kind: ExprKind::ArrowFunction { params, .. },
+                                    ..
+                                },
+                            ..
+                        },
                     ..
                 }),
             ..
@@ -2113,7 +2828,11 @@ mod tests {
         else {
             panic!("expected returned immediate arrow call")
         };
-        let Some(Expr::Ident(default)) = &params[1].default else {
+        let Some(Expr {
+            kind: ExprKind::Ident(default),
+            ..
+        }) = &params[1].default
+        else {
             panic!("expected identifier default")
         };
         assert_eq!(default.name, "seed");
@@ -2121,8 +2840,7 @@ mod tests {
 
     #[test]
     fn exported_objects_keep_source_names_and_merge_across_modules() {
-        let root_source =
-            "import {Api} from \"./core.lil\";import \"./ajax.lil\";print(Api.add(1,2)+Api.mul(3,4));";
+        let root_source = "import {Api} from \"./core.lil\";import \"./ajax.lil\";print(Api.add(1,2)+Api.mul(3,4));";
         let core_source = "export object Api{int add(int left,int right){return left+right;}}";
         let ajax_source = "export object Api{int mul(int left,int right){return left*right;}}";
         let modules = ModuleSet {

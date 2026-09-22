@@ -1,0 +1,15 @@
+
+running 10 tests
+test semantic_program::publication::edits::tests::advance_reuses_one_slot_and_unique_arenas_without_changing_unrelated_facts ... ok
+test semantic_program::publication::edits::tests::operand_rebuild_keeps_unedited_shared_ranges_and_rolls_back_every_original_range ... ok
+test semantic_program::publication::edits::tests::advancing_reference_place_updates_both_negative_exposure_facts_and_execution ... ok
+test semantic_program::publication::edits::tests::work_memory_and_deadline_refusals_preserve_valid_source_and_release_partial_owners ... ok
+test semantic_program::publication::edits::tests::retained_candidate_forces_copy_and_original_charge_domains_survive_both_drop_orders ... ok
+test semantic_program::publication::edits::tests::same_edits_preserve_a_retained_baseline_and_copy_only_shared_successors ... ok
+test semantic_program::publication::edits::tests::multi_unit_batch_invalid_second_replacement_restores_both_mutated_units ... ok
+test semantic_program::publication::edits::tests::invalid_edits_and_unwind_restore_the_original_checkpoint_after_mutation ... ok
+test semantic_program::publication::edits::tests::multi_unit_batch_fork_and_advance_preserve_old_outputs_and_unaffected_facts ... ok
+test semantic_program::publication::edits::tests::multi_unit_batch_resource_refusal_and_unwind_preserve_all_original_owners ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 2833 filtered out; finished in 0.33s
+

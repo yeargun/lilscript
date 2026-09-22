@@ -1,0 +1,14 @@
+import {make,readLate,exposed,total,liveTotal,bootCount} from "./factory/entry.lil";
+import {normalizeInput,inspectMatch} from "./marked-api.lil";
+import {otherTabCharGlobal as tabRule} from "./marked/rules.lil";
+import {productScore} from "./products.lil";
+import {editTarget} from "./editable.lil";
+export {make,readLate,exposed,total,liveTotal,bootCount,inspectMatch,tabRule,editTarget};
+
+export int runIntegrated(int seed,int delta,string text) {
+    auto counter=make(seed);
+    int width=normalizeInput(text);
+    inspectMatch();
+    int current=counter(delta);
+    return productScore(current,width);
+}

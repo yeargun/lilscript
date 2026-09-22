@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "kind": "boundary-conformance",
+  "boundary": "hast-util-to-htmllil",
+  "started": "2026-09-21T11:20:00.986Z",
+  "passed": true,
+  "decisions": {
+    "D1": "Value structs; mutation of caller storage requires explicit mutable references. Aliasing, partial mutation and evaluation order are observable.",
+    "D2": "Explicitly declared boundaries with compatible adapters. Identity, mutation, enumeration, descriptors, serialization, callback retention and function observations survive the boundary.",
+    "D3": "Results, explicit throws, argument errors, host effects and divergence are preserved. Engine-dependent resource timing is not."
+  },
+  "upstream": {
+    "path": "/home/azureuser/hast-util-to-htmllil/node_modules/hast-util-to-html/index.js",
+    "sha256": "10984d1819cb0c036fe2fbb47047d2b3b670c38634680f346df4882674877450",
+    "bytes": 283
+  },
+  "candidate": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-d2-exports/hast-util-to-htmllil/to-html.esm.js",
+    "sha256": "e5265c56847366de2cffd7950ade0274623ef4723ec877b0fd40434a93b266ec",
+    "bytes": 30109
+  },
+  "limitations": [
+    "Each case observes exactly what it states. Passing does not generalize to arbitrary getters, proxies or reflection.",
+    "The oracle is the upstream library as installed. Where upstream itself does not promise an observation, the case says so in `promised`.",
+    "These are behavior observations. They carry no size, speed or delivery claim.",
+    "Candidate is the source-built artifact from benchmarks/migration-results/2026-09-21-d2-exports/hast-util-to-htmllil."
+  ],
+  "cases": [
+    {
+      "id": "d2/function/public-name-and-arity",
+      "decision": "D2",
+      "rule": "A declared public function keeps the name, arity and constructibility its callers can reflect on.",
+      "promised": "upstream documents the named export but does not explicitly promise function-name reflection; 001's installed-CJS supplement already fails on exactly this",
+      "callers": [
+        "001 HAST source-built-package-cjs receipt, where the unchanged public-name expectation failed with `kb` against `toHtml`"
+      ],
+      "oracle": {
+        "kind": "function",
+        "name": "toHtml",
+        "length": 2,
+        "constructible": false,
+        "hasPrototype": true
+      },
+      "candidate": {
+        "kind": "function",
+        "name": "toHtml",
+        "length": 2,
+        "constructible": false,
+        "hasPrototype": true
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/identity/input-tree-is-not-mutated",
+      "decision": "D2",
+      "rule": "Serializing a caller's tree does not write to it.",
+      "promised": "upstream behavior relied on by every caller that serializes twice",
+      "callers": [
+        "rehype-stringifylil",
+        "rehypelil"
+      ],
+      "oracle": {
+        "unchanged": true
+      },
+      "candidate": {
+        "unchanged": true
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d3/effects/caller-getter-is-read-and-its-order-is-observable",
+      "decision": "D3",
+      "rule": "Reads of a caller's accessors are preserved in upstream's order.",
+      "promised": "upstream behavior",
+      "callers": [
+        "micromarklil numeric point fields"
+      ],
+      "oracle": {
+        "log": [
+          "read:one",
+          "read:two"
+        ]
+      },
+      "candidate": {
+        "log": [
+          "read:one",
+          "read:two"
+        ]
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d3/throws/a-caller-getter-that-throws-propagates",
+      "decision": "D3",
+      "rule": "An ordinary throw from a caller's accessor reaches the caller unchanged.",
+      "promised": "upstream behavior",
+      "callers": [
+        "Motion partial-mutation evidence in 002"
+      ],
+      "oracle": {
+        "threw": {
+          "name": "RangeError",
+          "message": "caller getter exploded"
+        }
+      },
+      "candidate": {
+        "threw": {
+          "name": "RangeError",
+          "message": "caller getter exploded"
+        }
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d3/errors/unknown-node-type",
+      "decision": "D3",
+      "rule": "An argument error for an unusable node is the same error upstream raises.",
+      "promised": "upstream behavior; D3 preserves argument errors",
+      "callers": [
+        "rehype-stringifylil",
+        "hast-util-to-htmllil official suite"
+      ],
+      "oracle": {
+        "threw": {
+          "name": "Error",
+          "message": "Cannot compile unknown node `no-such-node-type`"
+        }
+      },
+      "candidate": {
+        "threw": {
+          "name": "Error",
+          "message": "Cannot compile unknown node `no-such-node-type`"
+        }
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/serialization/character-references-and-quotes",
+      "decision": "D2",
+      "rule": "Escaping decisions are byte-for-byte upstream's, because output is the whole contract here.",
+      "promised": "documented; the official suite asserts it",
+      "callers": [
+        "hast-util-to-htmllil official suite",
+        "rehype-stringifylil"
+      ],
+      "oracle": {
+        "escaped": "<p title=\"a&#x22;b&#x27;c<d>e&#x26;f\">&#x3C;&#x26;>\"' </p>"
+      },
+      "candidate": {
+        "escaped": "<p title=\"a&#x22;b&#x27;c<d>e&#x26;f\">&#x3C;&#x26;>\"' </p>"
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/options/an-unknown-option-is-ignored-not-rejected",
+      "decision": "D2",
+      "rule": "An option the boundary does not know is ignored, as upstream ignores it, so a caller passing a newer option is not broken.",
+      "promised": "upstream behavior",
+      "callers": [
+        "rehypelil",
+        "rehype-stringifylil"
+      ],
+      "oracle": {
+        "html": "a"
+      },
+      "candidate": {
+        "html": "a"
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    },
+    {
+      "id": "d2/arguments/an-array-of-nodes-is-accepted",
+      "decision": "D2",
+      "rule": "The documented array form of the first argument works identically.",
+      "promised": "documented",
+      "callers": [
+        "hast-util-to-htmllil official suite"
+      ],
+      "oracle": {
+        "html": "ab"
+      },
+      "candidate": {
+        "html": "ab"
+      },
+      "oracleMatches": true,
+      "agree": true,
+      "status": "pass"
+    }
+  ],
+  "counts": {
+    "total": 8,
+    "pass": 8,
+    "fail": 0,
+    "broken": 0
+  },
+  "completed": "2026-09-21T11:20:01.077Z",
+  "fingerprint": "d2c7d49f13d6fe6f04a0229efe0a2a2d62b0d08cdd81c39e35a3920d6f024417"
+}

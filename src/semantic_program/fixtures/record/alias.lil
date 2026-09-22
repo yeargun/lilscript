@@ -1,0 +1,1 @@
+func()->int make(){Record<int> state=record{x:1};Record<int> other=state;return ()=>{other.x=9;return state.x??0;};}print(make()());

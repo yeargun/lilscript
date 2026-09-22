@@ -1,0 +1,20 @@
+
+running 6 tests
+test semantic_program::artifacts::reuse_tests::discarded_donors_leave_no_score_history_or_retained_bytes ... ok
+test semantic_program::artifacts::reuse_tests::refused_reuse_does_not_publish_a_partially_found_codec ... ok
+test semantic_program::artifacts::reuse_tests::retained_equal_bytes_reuse_requested_codecs_without_merging_records ... ok
+test semantic_program::artifacts::reuse_tests::score_identity_preserves_dependency_bytes_and_separate_streams ... ok
+test semantic_program::publication::search::selection::reuse_tests::staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission ... ok
+test semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes ... FAILED
+
+failures:
+
+failures:
+    semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 2692 filtered out; finished in 0.04s
+
+
+thread 'semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes' (104725) panicked at src/semantic_program/search_tests.rs:353:17:
+immediate
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

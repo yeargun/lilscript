@@ -1,0 +1,146 @@
+[
+  {
+    "id": "@itslil/hast-util-to-html@9.0.7",
+    "name": "@itslil/hast-util-to-html",
+    "version": "9.0.7",
+    "size": 30862,
+    "unpackedSize": 182865,
+    "shasum": "278ca634d652eabdff23d168bc1648bace5cf3e2",
+    "integrity": "sha512-qwKAMNjhKk4Yfae1BAX3/kpM/DP9ePc1mDM2yboEIi5nNqiFqU6JqnO3m2pkDcnOlYyykCbeQIeYwB/3TKiLIg==",
+    "filename": "itslil-hast-util-to-html-9.0.7.tgz",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 1091,
+        "mode": 420
+      },
+      {
+        "path": "NOTICE.md",
+        "size": 493,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 887,
+        "mode": 420
+      },
+      {
+        "path": "dist/to-html.cjs",
+        "size": 31100,
+        "mode": 420
+      },
+      {
+        "path": "dist/to-html.closed.js",
+        "size": 29952,
+        "mode": 420
+      },
+      {
+        "path": "dist/to-html.d.ts",
+        "size": 1005,
+        "mode": 420
+      },
+      {
+        "path": "dist/to-html.esm.js",
+        "size": 30101,
+        "mode": 420
+      },
+      {
+        "path": "dist/to-html.umd.js",
+        "size": 31171,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 1884,
+        "mode": 420
+      },
+      {
+        "path": "src/index.lil",
+        "size": 164,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/entities.lil",
+        "size": 5781,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/comment.lil",
+        "size": 499,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/doctype.lil",
+        "size": 339,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/element.lil",
+        "size": 6032,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/index.lil",
+        "size": 1257,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/raw.lil",
+        "size": 294,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/root.lil",
+        "size": 181,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/handle/text.lil",
+        "size": 567,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/index.lil",
+        "size": 2486,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/omission/closing.lil",
+        "size": 4116,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/omission/omission.lil",
+        "size": 513,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/omission/opening.lil",
+        "size": 3550,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/omission/util/siblings.lil",
+        "size": 932,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/schema-data.lil",
+        "size": 18501,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/schema.lil",
+        "size": 3621,
+        "mode": 420
+      },
+      {
+        "path": "src/lib/types.lil",
+        "size": 6348,
+        "mode": 420
+      }
+    ],
+    "entryCount": 26,
+    "bundled": []
+  }
+]

@@ -1,0 +1,43 @@
+--- a/src/shader-processing/preprocessor.lil
++++ b/src/shader-processing/preprocessor.lil
+@@ -404,8 +404,7 @@
+       ENDIF.lastIndex = keywordIndex;
+       JsValue endifMatch = ENDIF.exec(source);
+ 
+-      JsValue maybeBlockInfo = JS.invoke(JS.assume(stack), "pop");
+-      if (JS.isNullish(maybeBlockInfo)) {
++      if (stack.length == 0) {
+         consoleError(
+           "Shader preprocessing encountered \"#" + capture(endifMatch, 1) +
+             "\" without a preceding #if #ifdef #ifndef while preprocessing " +
+@@ -416,7 +415,7 @@
+         error = true;
+         continue;
+       }
+-      BlockInfo blockInfo = JS.assume(maybeBlockInfo);
++      BlockInfo blockInfo = stack.pop();
+ 
+       string blockCode = "";
+       if (blockInfo.keep) {
+--- a/src/shader-processing/shader-definition-utils.lil
++++ b/src/shader-processing/shader-definition-utils.lil
+@@ -107,7 +107,7 @@
+ }
+ 
+ extern class ShaderDefinitionUtilsHost {
+-  string getWGSLEnables(GraphicsDeviceHost device, string shaderType, bool useDualSourceBlending);
++  string getWGSLEnables(GraphicsDeviceHost device, string shaderType, JsValue useDualSourceBlending);
+   string getDefinesCode(GraphicsDeviceHost device, JsValue defines);
+   string getShaderNameCode(string name);
+   string versionCode(GraphicsDeviceHost device);
+@@ -182,7 +182,9 @@
+   string code = processor.getWGSLEnables(
+     device,
+     shaderType,
+-    !isVertex && options.useDualSourceBlending.truthy()
++    // Upstream passes `!isVertex && options.useDualSourceBlending`: the
++    // option's own value when it is a fragment shader, not a boolean.
++    JS.and(!isVertex, options.useDualSourceBlending)
+   );
+ 
+   if (!isVertex) {

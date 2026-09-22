@@ -1,0 +1,1 @@
+auto a=()=>0;auto b=()=>0;int i=0;while(i<2){Record<int> state=record{x:i};if(i==0){a=()=>{state.x=(state.x??0)+1;return state.x??0;};}else{b=()=>{state.x=(state.x??0)+1;return state.x??0;};}i+=1;}print(a());print(b());print(a());

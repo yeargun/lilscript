@@ -1,0 +1,2444 @@
+{
+  "artifacts": [
+    {
+      "case": "factories",
+      "factory": "with_checked_source",
+      "source_sha256": "a6a33bba2037f8d8e54c5d9af4aef0b5fde0ed8f90ce5d5f3d8a9e9c815efc5d",
+      "expected_sha256": "20ffbcc8b8726c713930b319f046645fbca25152397001fe2c672c44deba09c4",
+      "c_source": "#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <inttypes.h>\n#include <limits.h>\n#include <float.h>\n#include <fenv.h>\n#include <math.h>\n#include <stdio.h>\n#include <string.h>\n#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"LilScript native requires C11\"\n#endif\n#if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ != 0)\n#error \"LilScript native forbids fast-math and finite-only arithmetic\"\n#endif\n#if FLT_EVAL_METHOD != 0\n#error \"LilScript native requires evaluation in the declared floating type\"\n#endif\n#pragma STDC FP_CONTRACT OFF\n_Static_assert(CHAR_BIT == 8, \"LilScript native requires 8-bit bytes\");\n_Static_assert(sizeof(uint16_t) == 2 && sizeof(uint32_t) == 4 && sizeof(uint64_t) == 8,\n               \"LilScript native requires exact integer widths\");\n_Static_assert(SIZE_MAX >= UINT32_MAX, \"LilScript native requires at least 32-bit object sizes\");\n_Static_assert(sizeof(double) == 8 && FLT_RADIX == 2 && DBL_MANT_DIG == 53 &&\n               DBL_MIN_EXP == -1021 && DBL_MAX_EXP == 1024 && DBL_HAS_SUBNORM == 1,\n               \"LilScript native requires binary64 with subnormals\");\ntypedef struct { const uint16_t *data; size_t length; } ls_string;\nstatic int ls_runtime_init(void) {\n    double one = 1.0, negative_zero = -0.0;\n    uint64_t one_bits, zero_bits;\n    memcpy(&one_bits, &one, sizeof one_bits);\n    memcpy(&zero_bits, &negative_zero, sizeof zero_bits);\n    if (fegetround() != FE_TONEAREST || one_bits != UINT64_C(0x3ff0000000000000) ||\n        zero_bits != UINT64_C(0x8000000000000000)) {\n        fputs(\"unsupported LilScript native floating-point environment\\n\", stderr);\n        return 0;\n    }\n    /* FE_TONEAREST does not exclude flush-to-zero or denormals-are-zero. */\n    uint64_t tiny_bits = UINT64_C(1), doubled_bits;\n    double tiny;\n    memcpy(&tiny, &tiny_bits, sizeof tiny);\n    volatile double input = tiny, factor = 2.0;\n    volatile double doubled = input * factor;\n    double observed = doubled;\n    memcpy(&doubled_bits, &observed, sizeof doubled_bits);\n    if (doubled_bits != UINT64_C(2)) {\n        fputs(\"LilScript native requires gradual binary64 underflow\\n\", stderr);\n        return 0;\n    }\n    return 1;\n}\nstatic inline int32_t ls_from_u32(uint32_t value) {\n    return value <= INT32_MAX ? (int32_t)value : (int32_t)((int64_t)value - INT64_C(4294967296));\n}\n#include <stdlib.h>\ntypedef struct ls_native_object {\n    size_t references;\n    void (*destroy)(struct ls_native_object *);\n} ls_native_object;\n\nstatic uint64_t ls_native_identity_counter;\n#ifdef LS_NATIVE_QUALIFICATION\nstatic size_t ls_native_live_objects;\n#endif\n\nstatic void ls_native_resource_failure(void) {\n    fputs(\"LilScript native runtime resource exhaustion\\n\", stderr);\n    abort();\n}\n\nstatic void *ls_native_allocate(size_t bytes,\n                               void (*destroy)(ls_native_object *)) {\n    if (bytes < sizeof(ls_native_object)) ls_native_resource_failure();\n    ls_native_object *object = malloc(bytes);\n    if (!object) ls_native_resource_failure();\n    object->references = 1;\n    object->destroy = destroy;\n#ifdef LS_NATIVE_QUALIFICATION\n    if (ls_native_live_objects == SIZE_MAX) ls_native_resource_failure();\n    ++ls_native_live_objects;\n#endif\n    return object;\n}\n\nvoid ls_native_retain(void *environment) {\n    ls_native_object *object = environment;\n    if (!object) return;\n    if (object->references == SIZE_MAX) ls_native_resource_failure();\n    ++object->references;\n}\n\nvoid ls_native_release(void *environment) {\n    ls_native_object *object = environment;\n    if (!object) return;\n    if (--object->references != 0) return;\n    if (object->destroy) object->destroy(object);\n#ifdef LS_NATIVE_QUALIFICATION\n    --ls_native_live_objects;\n#endif\n    free(object);\n}\n\nstatic uint64_t ls_native_fresh_identity(void) {\n    if (ls_native_identity_counter == UINT64_MAX) ls_native_resource_failure();\n    return ++ls_native_identity_counter;\n}\ntypedef struct {\nint32_t ls_f0;\nint32_t ls_f1;\n} ls_t0;\n#include <stddef.h>\n#include <stdint.h>\nvoid ls_native_retain(void *environment);\nvoid ls_native_release(void *environment);\n#ifdef LS_NATIVE_QUALIFICATION\nsize_t ls_native_owned_objects(void) {\n    return ls_native_live_objects;\n}\n#endif\ntypedef struct {\nint32_t (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable0;\nstatic inline ls_callable0 ls_callable0_retain(ls_callable0 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable0_release(ls_callable0 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable0_copy(ls_callable0 *destination, ls_callable0 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_take(ls_callable0 *destination, ls_callable0 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_clear(ls_callable0 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable0){0};\n}\nstatic inline int32_t ls_callable0_call(ls_callable0 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t,ls_callable0);\nvoid *environment;\nuint64_t identity;\n} ls_callable1;\nstatic inline ls_callable1 ls_callable1_retain(ls_callable1 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable1_release(ls_callable1 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable1_copy(ls_callable1 *destination, ls_callable1 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_take(ls_callable1 *destination, ls_callable1 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_clear(ls_callable1 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable1){0};\n}\nstatic inline void ls_callable1_call(ls_callable1 value,int32_t ls_p0,ls_callable0 ls_p1) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\n}\ntypedef struct {\nint32_t (*code)(void *,int32_t,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable2;\nstatic inline ls_callable2 ls_callable2_retain(ls_callable2 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable2_release(ls_callable2 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable2_copy(ls_callable2 *destination, ls_callable2 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_take(ls_callable2 *destination, ls_callable2 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_clear(ls_callable2 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable2){0};\n}\nstatic inline int32_t ls_callable2_call(ls_callable2 value,int32_t ls_p0,int32_t ls_p1) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable3;\nstatic inline ls_callable3 ls_callable3_retain(ls_callable3 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable3_release(ls_callable3 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable3_copy(ls_callable3 *destination, ls_callable3 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_take(ls_callable3 *destination, ls_callable3 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_clear(ls_callable3 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable3){0};\n}\nstatic inline void ls_callable3_call(ls_callable3 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0);\nls_native_release(value.environment);\n}\ntypedef struct {\nvoid (*code)(void *);\nvoid *environment;\nuint64_t identity;\n} ls_callable4;\nstatic inline ls_callable4 ls_callable4_retain(ls_callable4 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable4_release(ls_callable4 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable4_copy(ls_callable4 *destination, ls_callable4 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_take(ls_callable4 *destination, ls_callable4 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_clear(ls_callable4 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable4){0};\n}\nstatic inline void ls_callable4_call(ls_callable4 value) {\nls_native_retain(value.environment);\nvalue.code(value.environment);\nls_native_release(value.environment);\n}\ntypedef struct {\nls_callable0 (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable5;\nstatic inline ls_callable5 ls_callable5_retain(ls_callable5 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable5_release(ls_callable5 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable5_copy(ls_callable5 *destination, ls_callable5 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_take(ls_callable5 *destination, ls_callable5 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_clear(ls_callable5 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable5){0};\n}\nstatic inline ls_callable0 ls_callable5_call(ls_callable5 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nls_callable0 result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef int32_t host_keep_arg0;\ntypedef ls_callable0 host_keep_arg1;\nstatic inline ls_callable0 host_keep_arg1_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_keep_arg1_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_keep_arg1_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\ntypedef void host_keep_result;\nvoid host_keep(int32_t,ls_callable0);\ntypedef int32_t host_invoke_arg0;\ntypedef int32_t host_invoke_arg1;\ntypedef int32_t host_invoke_result;\nint32_t host_invoke(int32_t,int32_t);\ntypedef int32_t host_clear_arg0;\ntypedef void host_clear_result;\nvoid host_clear(int32_t);\ntypedef void host_clear_all_result;\nvoid host_clear_all(void);\ntypedef int32_t host_take_arg0;\ntypedef ls_callable0 host_take_result;\nstatic inline ls_callable0 host_take_result_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_take_result_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_take_result_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\nls_callable0 host_take(int32_t);\ntypedef int32_t host_expect_live_arg0;\ntypedef void host_expect_live_result;\nvoid host_expect_live(int32_t);\ntypedef void host_assert_empty_result;\nvoid host_assert_empty(void);\ntypedef struct { ls_native_object owner; ls_t0 value; } ls_box16;\nstatic ls_box16 *ls_box_new16(ls_t0 value) {\nls_box16 *box = ls_native_allocate(sizeof *box,NULL);\nbox->value = value;\nreturn box;\n}\ntypedef struct { ls_native_object owner; ls_t0 value; } ls_box18;\nstatic ls_box18 *ls_box_new18(ls_t0 value) {\nls_box18 *box = ls_native_allocate(sizeof *box,NULL);\nbox->value = value;\nreturn box;\n}\ntypedef struct {\nls_native_object owner;\nls_box16 *ls_e0;\nls_box18 *ls_e1;\n} ls_env3;\nstatic void ls_env_destroy3(ls_native_object *owner) {\nls_env3 *environment = (ls_env3 *)owner;\nls_native_release(environment->ls_e0);\nls_native_release(environment->ls_e1);\n}\ntypedef struct {\nls_native_object owner;\nls_box16 *ls_e0;\n} ls_env4;\nstatic void ls_env_destroy4(ls_native_object *owner) {\nls_env4 *environment = (ls_env4 *)owner;\nls_native_release(environment->ls_e0);\n}\nstatic void ls_init0(void);\nstatic void ls_fn1(ls_t0 ls_p16,int32_t ls_c17);\nstatic void ls_fn2(void);\nstatic int32_t ls_fn3(void *ls_env,int32_t ls_c19);\nstatic int32_t ls_fn4(void *ls_env,int32_t ls_c20);\nstatic ls_callable0 ls_closure3(ls_box16 *ls_e0,ls_box18 *ls_e1) {\nls_env3 *environment = ls_native_allocate(sizeof *environment,ls_env_destroy3);\nls_native_retain(ls_e0);\nenvironment->ls_e0 = ls_e0;\nls_native_retain(ls_e1);\nenvironment->ls_e1 = ls_e1;\nreturn (ls_callable0){ls_fn3,environment,ls_native_fresh_identity()};\n}\nstatic ls_callable0 ls_closure4(ls_box16 *ls_e0) {\nls_env4 *environment = ls_native_allocate(sizeof *environment,ls_env_destroy4);\nls_native_retain(ls_e0);\nenvironment->ls_e0 = ls_e0;\nreturn (ls_callable0){ls_fn4,environment,ls_native_fresh_identity()};\n}\nstatic void ls_init0(void) {\nls_fn2();\nhost_assert_empty();\n}\nstatic void ls_fn1(ls_t0 ls_p16,int32_t ls_c17) {\nls_box16 *ls_c16 = ls_box_new16(ls_p16);\nls_box18 *ls_c18 = NULL;\nls_t0 ls_v0;\nls_t0 ls_v1;\nint32_t ls_v3;\nls_callable0 ls_v4 = {0};\nint32_t ls_v7;\nint32_t ls_v8;\nint32_t ls_v9;\nls_callable0 ls_v10 = {0};\nls_v0 = ls_c16->value;\nls_v1 = ls_v0;\nls_native_release(ls_c18);\nls_c18 = ls_box_new18(ls_v1);\nls_v3 = ls_c17;\nls_callable0_take(&(ls_v4),ls_closure3(ls_c16,ls_c18));\nhost_keep(ls_v3,ls_v4);\nls_v7 = ls_c17;\nls_v8 = ls_from_u32(UINT32_C(1));\nls_v9 = ls_from_u32((uint32_t)((uint32_t)ls_v7 + (uint32_t)ls_v8));\nls_callable0_take(&(ls_v10),ls_closure4(ls_c16));\nhost_keep(ls_v9,ls_v10);\nls_callable0_clear(&ls_v10);\nls_callable0_clear(&ls_v4);\nls_native_release(ls_c18);\nls_c18 = NULL;\nls_native_release(ls_c16);\nls_c16 = NULL;\n}\nstatic void ls_fn2(void) {\nls_t0 ls_c21;\nls_callable0 ls_c22 = {0};\nint32_t ls_v0;\nint32_t ls_v1;\nls_t0 ls_v2;\nls_t0 ls_v3;\nls_t0 ls_v5;\nls_t0 ls_v6;\nint32_t ls_v7;\nint32_t ls_v9;\nint32_t ls_v11;\nint32_t ls_v12;\nls_t0 ls_v13;\nls_t0 ls_v14;\nint32_t ls_v15;\nint32_t ls_v18;\nint32_t ls_v19;\nint32_t ls_v20;\nint32_t ls_v23;\nint32_t ls_v24;\nint32_t ls_v25;\nint32_t ls_v28;\nint32_t ls_v29;\nint32_t ls_v30;\nint32_t ls_v33;\nint32_t ls_v34;\nint32_t ls_v35;\nint32_t ls_v38;\nint32_t ls_v39;\nint32_t ls_v40;\nint32_t ls_v42;\nint32_t ls_v45;\nls_callable0 ls_v46 = {0};\nint32_t ls_v48;\nint32_t ls_v51;\nls_callable0 ls_v53 = {0};\nint32_t ls_v54;\nint32_t ls_v55;\nint32_t ls_v58;\nls_callable0 ls_v59 = {0};\nint32_t ls_v62;\nls_callable0 ls_v63 = {0};\nint32_t ls_v66;\nint32_t ls_v67;\nint32_t ls_v68;\nint32_t ls_v71;\nls_v0 = ls_from_u32(UINT32_C(2));\nls_v1 = ls_from_u32(UINT32_C(3));\nls_v2 = (ls_t0){ls_v0,ls_v1};\nls_v3 = ls_v2;\nls_c21 = ls_v3;\nls_v5 = ls_c21;\nls_v6 = ls_v5;\nls_v7 = ls_from_u32(UINT32_C(0));\nls_fn1(ls_v6,ls_v7);\nls_v9 = ls_from_u32(UINT32_C(50));\nls_c21.ls_f0 = ls_v9;\nls_v11 = ls_from_u32(UINT32_C(10));\nls_v12 = ls_from_u32(UINT32_C(11));\nls_v13 = (ls_t0){ls_v11,ls_v12};\nls_v14 = ls_v13;\nls_v15 = ls_from_u32(UINT32_C(2));\nls_fn1(ls_v14,ls_v15);\nls_v18 = ls_from_u32(UINT32_C(0));\nls_v19 = ls_from_u32(UINT32_C(3));\nls_v20 = host_invoke(ls_v18,ls_v19);\nprintf(\"%ld\\n\",(long)ls_v20);\nls_v23 = ls_from_u32(UINT32_C(2));\nls_v24 = ls_from_u32(UINT32_C(4));\nls_v25 = host_invoke(ls_v23,ls_v24);\nprintf(\"%ld\\n\",(long)ls_v25);\nls_v28 = ls_from_u32(UINT32_C(1));\nls_v29 = ls_from_u32(UINT32_C(20));\nls_v30 = host_invoke(ls_v28,ls_v29);\nprintf(\"%ld\\n\",(long)ls_v30);\nls_v33 = ls_from_u32(UINT32_C(0));\nls_v34 = ls_from_u32(UINT32_C(1));\nls_v35 = host_invoke(ls_v33,ls_v34);\nprintf(\"%ld\\n\",(long)ls_v35);\nls_v38 = ls_from_u32(UINT32_C(2));\nls_v39 = ls_from_u32(UINT32_C(1));\nls_v40 = host_invoke(ls_v38,ls_v39);\nprintf(\"%ld\\n\",(long)ls_v40);\nls_v42 = ls_c21.ls_f0;\nprintf(\"%ld\\n\",(long)ls_v42);\nls_v45 = ls_from_u32(UINT32_C(0));\nls_callable0_take(&(ls_v46),host_take(ls_v45));\nls_callable0_copy(&(ls_c22),ls_v46);\nls_v48 = ls_from_u32(UINT32_C(0));\nhost_clear(ls_v48);\nls_v51 = ls_from_u32(UINT32_C(1));\nhost_clear(ls_v51);\nls_callable0_copy(&(ls_v53),ls_c22);\nls_v54 = ls_from_u32(UINT32_C(2));\nls_v55 = ls_v53.code(ls_v53.environment,ls_v54);\nprintf(\"%ld\\n\",(long)ls_v55);\nls_v58 = ls_from_u32(UINT32_C(4));\nls_callable0_copy(&(ls_v59),ls_c22);\nhost_keep(ls_v58,ls_v59);\nls_v62 = ls_from_u32(UINT32_C(4));\nls_callable0_copy(&(ls_v63),ls_c22);\nhost_keep(ls_v62,ls_v63);\nls_v66 = ls_from_u32(UINT32_C(4));\nls_v67 = ls_from_u32(UINT32_C(1));\nls_v68 = host_invoke(ls_v66,ls_v67);\nprintf(\"%ld\\n\",(long)ls_v68);\nls_v71 = ls_from_u32(UINT32_C(4));\nhost_clear(ls_v71);\nhost_clear_all();\nls_callable0_clear(&ls_v63);\nls_callable0_clear(&ls_v59);\nls_callable0_clear(&ls_v53);\nls_callable0_clear(&ls_c22);\nls_callable0_clear(&ls_v46);\n}\nstatic int32_t ls_fn3(void *ls_env,int32_t ls_c19) {\nint32_t ls_v0;\nint32_t ls_v1;\nint32_t ls_v2;\nint32_t ls_v3;\nint32_t ls_v4;\nint32_t ls_v5;\nls_v0 = ((ls_env3 *)ls_env)->ls_e0->value.ls_f0;\nls_v1 = ls_c19;\nls_v2 = ls_from_u32((uint32_t)((uint32_t)ls_v0 + (uint32_t)ls_v1));\n((ls_env3 *)ls_env)->ls_e0->value.ls_f0 = ls_v2;\nls_v3 = ((ls_env3 *)ls_env)->ls_e0->value.ls_f0;\nls_v4 = ((ls_env3 *)ls_env)->ls_e1->value.ls_f0;\nls_v5 = ls_from_u32((uint32_t)((uint32_t)ls_v3 + (uint32_t)ls_v4));\n{\nint32_t ls_return = ls_v5;\nreturn ls_return;\n}\n}\nstatic int32_t ls_fn4(void *ls_env,int32_t ls_c20) {\nint32_t ls_v0;\nint32_t ls_v1;\nint32_t ls_v2;\nint32_t ls_v3;\nls_t0 ls_v4;\nls_t0 ls_v5;\nint32_t ls_v6;\nls_v0 = ls_c20;\nls_v1 = ls_c20;\nls_v2 = ls_from_u32(UINT32_C(1));\nls_v3 = ls_from_u32((uint32_t)((uint32_t)ls_v1 + (uint32_t)ls_v2));\nls_v4 = (ls_t0){ls_v0,ls_v3};\nls_v5 = ls_v4;\n((ls_env4 *)ls_env)->ls_e0->value = ls_v5;\nls_v6 = ((ls_env4 *)ls_env)->ls_e0->value.ls_f1;\n{\nint32_t ls_return = ls_v6;\nreturn ls_return;\n}\n}\nint main(void) {\nif (!ls_runtime_init()) return 1;\nls_native_identity_counter = UINT64_C(5);\nls_init0();\nreturn 0;\n}\n",
+      "header_source": "#ifndef LILSCRIPT_NATIVE_CALLBACK_ABI_V1_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_V1_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 1\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\ntypedef struct { const uint16_t *data; size_t length; } ls_string;\ntypedef struct {\nint32_t ls_f0;\nint32_t ls_f1;\n} ls_t0;\n#include <stddef.h>\n#include <stdint.h>\nvoid ls_native_retain(void *environment);\nvoid ls_native_release(void *environment);\n#ifdef LS_NATIVE_QUALIFICATION\nsize_t ls_native_owned_objects(void);\n#endif\ntypedef struct {\nint32_t (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable0;\nstatic inline ls_callable0 ls_callable0_retain(ls_callable0 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable0_release(ls_callable0 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable0_copy(ls_callable0 *destination, ls_callable0 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_take(ls_callable0 *destination, ls_callable0 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_clear(ls_callable0 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable0){0};\n}\nstatic inline int32_t ls_callable0_call(ls_callable0 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t,ls_callable0);\nvoid *environment;\nuint64_t identity;\n} ls_callable1;\nstatic inline ls_callable1 ls_callable1_retain(ls_callable1 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable1_release(ls_callable1 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable1_copy(ls_callable1 *destination, ls_callable1 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_take(ls_callable1 *destination, ls_callable1 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_clear(ls_callable1 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable1){0};\n}\nstatic inline void ls_callable1_call(ls_callable1 value,int32_t ls_p0,ls_callable0 ls_p1) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\n}\ntypedef struct {\nint32_t (*code)(void *,int32_t,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable2;\nstatic inline ls_callable2 ls_callable2_retain(ls_callable2 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable2_release(ls_callable2 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable2_copy(ls_callable2 *destination, ls_callable2 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_take(ls_callable2 *destination, ls_callable2 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_clear(ls_callable2 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable2){0};\n}\nstatic inline int32_t ls_callable2_call(ls_callable2 value,int32_t ls_p0,int32_t ls_p1) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable3;\nstatic inline ls_callable3 ls_callable3_retain(ls_callable3 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable3_release(ls_callable3 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable3_copy(ls_callable3 *destination, ls_callable3 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_take(ls_callable3 *destination, ls_callable3 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_clear(ls_callable3 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable3){0};\n}\nstatic inline void ls_callable3_call(ls_callable3 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0);\nls_native_release(value.environment);\n}\ntypedef struct {\nvoid (*code)(void *);\nvoid *environment;\nuint64_t identity;\n} ls_callable4;\nstatic inline ls_callable4 ls_callable4_retain(ls_callable4 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable4_release(ls_callable4 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable4_copy(ls_callable4 *destination, ls_callable4 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_take(ls_callable4 *destination, ls_callable4 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_clear(ls_callable4 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable4){0};\n}\nstatic inline void ls_callable4_call(ls_callable4 value) {\nls_native_retain(value.environment);\nvalue.code(value.environment);\nls_native_release(value.environment);\n}\ntypedef struct {\nls_callable0 (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable5;\nstatic inline ls_callable5 ls_callable5_retain(ls_callable5 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable5_release(ls_callable5 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable5_copy(ls_callable5 *destination, ls_callable5 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_take(ls_callable5 *destination, ls_callable5 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_clear(ls_callable5 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable5){0};\n}\nstatic inline ls_callable0 ls_callable5_call(ls_callable5 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nls_callable0 result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef int32_t host_keep_arg0;\ntypedef ls_callable0 host_keep_arg1;\nstatic inline ls_callable0 host_keep_arg1_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_keep_arg1_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_keep_arg1_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\ntypedef void host_keep_result;\nvoid host_keep(int32_t,ls_callable0);\ntypedef int32_t host_invoke_arg0;\ntypedef int32_t host_invoke_arg1;\ntypedef int32_t host_invoke_result;\nint32_t host_invoke(int32_t,int32_t);\ntypedef int32_t host_clear_arg0;\ntypedef void host_clear_result;\nvoid host_clear(int32_t);\ntypedef void host_clear_all_result;\nvoid host_clear_all(void);\ntypedef int32_t host_take_arg0;\ntypedef ls_callable0 host_take_result;\nstatic inline ls_callable0 host_take_result_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_take_result_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_take_result_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\nls_callable0 host_take(int32_t);\ntypedef int32_t host_expect_live_arg0;\ntypedef void host_expect_live_result;\nvoid host_expect_live(int32_t);\ntypedef void host_assert_empty_result;\nvoid host_assert_empty(void);\n#endif\n",
+      "c_sha256": "49e874a9912e2e6efea76792c25d8dd3e4306192ec5eb52501e55ee91eb59a8a",
+      "header_sha256": "d6d73f08653cca7a26ce323844622d52b5ee4d78326e4a924069aa670492a74e",
+      "host_c_sha256": "15dd21841235aa948ec0291f2e7da84908d185c54b8385e75ec3767dec09c3ae",
+      "host_js_sha256": "4f5dbcf4f765feda9099ba16168712b2a47cea96c231e259ea749254acb48e5d",
+      "qualification": {
+        "host_bindings": [
+          {
+            "cell": 0,
+            "link_name": "host_keep"
+          },
+          {
+            "cell": 3,
+            "link_name": "host_invoke"
+          },
+          {
+            "cell": 6,
+            "link_name": "host_clear"
+          },
+          {
+            "cell": 8,
+            "link_name": "host_clear_all"
+          },
+          {
+            "cell": 9,
+            "link_name": "host_take"
+          },
+          {
+            "cell": 11,
+            "link_name": "host_expect_live"
+          },
+          {
+            "cell": 13,
+            "link_name": "host_assert_empty"
+          }
+        ],
+        "callback_abi_version": 1,
+        "abi_version": 1,
+        "policy_fingerprint": [
+          175,
+          191,
+          86,
+          199,
+          53,
+          148,
+          163,
+          142,
+          12,
+          145,
+          198,
+          73,
+          129,
+          18,
+          95,
+          175,
+          161,
+          213,
+          189,
+          16,
+          39,
+          25,
+          38,
+          71,
+          19,
+          225,
+          18,
+          227,
+          114,
+          197,
+          51,
+          151
+        ],
+        "c_source_bytes": 18386,
+        "header_source_bytes": 8101,
+        "metric": "exact emitted C plus header source bytes; native executable separately measured by harness",
+        "runtime_evidence": "unknown; runtime trace and sanitizer executions follow terminal handoff",
+        "retained_file_capacity": 44048
+      },
+      "native_report": {
+        "schema": 1,
+        "backend": "semantic",
+        "source_sha256": "d5c59609e5f1fd07b3c0a19b94385f7dc40f7e66a3559ff48ec50a5f7dfee57e",
+        "request": {
+          "target": "Native",
+          "preserve_root_exports": true,
+          "logical_work": 100000000,
+          "retained_bytes": 256000000,
+          "effective_logical_work": 100000000,
+          "effective_retained_bytes": 256000000
+        },
+        "inputs": {
+          "root": 0,
+          "modules": [
+            {
+              "path": "<source>",
+              "bytes": 924,
+              "sha256": "a6a33bba2037f8d8e54c5d9af4aef0b5fde0ed8f90ce5d5f3d8a9e9c815efc5d"
+            }
+          ]
+        },
+        "shape": {
+          "modules": 1,
+          "units": 5,
+          "operations": 145,
+          "cells": 23
+        },
+        "javascript_policy": null,
+        "native_policy": {
+          "schema": 2,
+          "algorithm": 1,
+          "contract": {
+            "target": "native",
+            "abi_version": 1
+          },
+          "objective": null,
+          "effort": 0,
+          "tactics": [
+            {
+              "id": "dead-code-elimination",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "constant-folding",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "inlining",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "scalar-replacement",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "call-specialization",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "helper-sharing",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "target-compaction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "identifier-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "property-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "string-pooling",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "string-array-packing",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "startup-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "recurring-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "naming-search",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            }
+          ],
+          "resources": {
+            "logical_work": null,
+            "retained_bytes": null,
+            "wall_time_ms": null
+          },
+          "constraints": {
+            "max_startup_work": null,
+            "max_recurring_work": null,
+            "max_runtime_memory_bytes": null,
+            "max_performance_regression_percent": null
+          }
+        },
+        "phases_ns": {
+          "policy_ns": 46597,
+          "parse_ns": 49292,
+          "check_ns": 52969,
+          "convert_ns": 205143,
+          "frontend_release_ns": 3897,
+          "adopt_ns": 24345,
+          "finish_ns": 8165,
+          "source_release_ns": null
+        },
+        "total_ns": 596443,
+        "ledger_before_finish": {
+          "baseline_work": 204364,
+          "optional_work": 0,
+          "retained_bytes": 40970,
+          "peak_retained_bytes": 174082,
+          "analysis_work": 128990,
+          "edit_work": 173,
+          "render_work": 75201,
+          "codec_work": 0
+        },
+        "resources": {
+          "baseline_work": 204364,
+          "optional_work": 0,
+          "codec_work": 0,
+          "peak_retained_bytes": 174082,
+          "frontend_logical_work": 123492,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "caller-owned text; excluded",
+          "source_buffer_capacity": null,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "not used",
+            "main_parse_arena": "pre-admitted arena backing",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "ledger_after_finish": {
+          "baseline_work": 204364,
+          "optional_work": 0,
+          "retained_bytes": 0,
+          "peak_retained_bytes": 174082,
+          "analysis_work": 128990,
+          "edit_work": 173,
+          "render_work": 75201,
+          "codec_work": 0
+        }
+      },
+      "evidence_storage": "test-only returned strings and serialized receipts; excluded from compiler ledger",
+      "javascript_sha256": "3eaba99ba0ff771ccb60cedb4cf67fb9de61a80bedcea461d51accb8f5d86df2",
+      "javascript_report": {
+        "schema": 1,
+        "backend": "semantic",
+        "source_sha256": "d5c59609e5f1fd07b3c0a19b94385f7dc40f7e66a3559ff48ec50a5f7dfee57e",
+        "request": {
+          "target": "JavaScript",
+          "preserve_root_exports": true,
+          "logical_work": 200000000,
+          "retained_bytes": 256000000,
+          "effective_logical_work": 200000000,
+          "effective_retained_bytes": 256000000
+        },
+        "inputs": {
+          "root": 0,
+          "modules": [
+            {
+              "path": "<source>",
+              "bytes": 924,
+              "sha256": "a6a33bba2037f8d8e54c5d9af4aef0b5fde0ed8f90ce5d5f3d8a9e9c815efc5d"
+            }
+          ]
+        },
+        "shape": {
+          "modules": 1,
+          "units": 5,
+          "operations": 145,
+          "cells": 23
+        },
+        "javascript_policy": {
+          "schema": 2,
+          "algorithm": 1,
+          "contract": {
+            "target": "javascript",
+            "world": "ReusableLibrary",
+            "execution": "Module",
+            "ecmascript": "es2022",
+            "preserve_root_exports": true,
+            "public_aggregate_abi": "Named",
+            "preserve_extern_fields": true,
+            "internal_exports_may_mangle": false,
+            "public_function_spelling": "None",
+            "pristine_builtins": false,
+            "pure_property_reads": false,
+            "strip_console": false,
+            "preserved_properties": [],
+            "owned_properties": "UnderscoreSuffix",
+            "bundle_mode": "Single"
+          },
+          "objective": {
+            "codec": "Brotli",
+            "priority": "SizeFirst",
+            "realistic_performance_limit_percent": 25,
+            "optional_alternatives": 384,
+            "optional_codec_probes": 384,
+            "cleanup_finalists": 1,
+            "retained_candidates": 384,
+            "retained_candidate_bytes": 786432,
+            "beam_width": 10,
+            "search": {
+              "version": 21,
+              "codec_schedule": "staged",
+              "render_batch": 8,
+              "diversity_interval": 4
+            }
+          },
+          "effort": 13,
+          "tactics": [
+            {
+              "id": "dead-code-elimination",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "constant-folding",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "inlining",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "scalar-replacement",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "call-specialization",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "helper-sharing",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "target-compaction",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "identifier-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "property-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "string-pooling",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "string-array-packing",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "startup-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "recurring-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "naming-search",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            }
+          ],
+          "resources": {
+            "logical_work": null,
+            "retained_bytes": null,
+            "wall_time_ms": null
+          },
+          "constraints": {
+            "max_startup_work": null,
+            "max_recurring_work": null,
+            "max_runtime_memory_bytes": null,
+            "max_performance_regression_percent": null
+          }
+        },
+        "native_policy": null,
+        "phases_ns": {
+          "policy_ns": 92252,
+          "parse_ns": 72205,
+          "check_ns": 109234,
+          "convert_ns": 261789,
+          "frontend_release_ns": 5179,
+          "adopt_ns": 37370,
+          "finish_ns": 12975,
+          "source_release_ns": null
+        },
+        "total_ns": 1224435,
+        "ledger_before_finish": {
+          "baseline_work": 149828,
+          "optional_work": 0,
+          "retained_bytes": 41506,
+          "peak_retained_bytes": 174082,
+          "analysis_work": 135112,
+          "edit_work": 222,
+          "render_work": 14493,
+          "codec_work": 1
+        },
+        "resources": {
+          "baseline_work": 149828,
+          "optional_work": 0,
+          "codec_work": 1,
+          "peak_retained_bytes": 174082,
+          "frontend_logical_work": 123492,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "caller-owned text; excluded",
+          "source_buffer_capacity": null,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "not used",
+            "main_parse_arena": "pre-admitted arena backing",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "ledger_after_finish": {
+          "baseline_work": 149828,
+          "optional_work": 0,
+          "retained_bytes": 0,
+          "peak_retained_bytes": 174082,
+          "analysis_work": 135112,
+          "edit_work": 222,
+          "render_work": 14493,
+          "codec_work": 1
+        }
+      },
+      "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+      "executions": [
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "O0",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O0-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.068085271
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O0-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.049070337
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O0-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O0-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O0\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.035771393
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O0\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005347668,
+          "native_executable_sha256": "c57aab4672fceae6bb04a2ecf6e128f96fb65594a9131ed5c09f366d143602d9",
+          "native_executable_bytes": 22176,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "O2",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O2-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.102232853
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O2-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.084449267
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O2-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O2-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O2\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.047237037
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-O2\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005347512,
+          "native_executable_sha256": "6a5500cc580e98573881a472ec6575746412b38fe82d0119ab32d860169d2d73",
+          "native_executable_bytes": 17368,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "ubsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-ubsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.2021922
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-ubsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.143291145
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-ubsan-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-ubsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-ubsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.068703399
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-ubsan\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005500448,
+          "native_executable_sha256": "8cb0d3e5ba30c94fbefdd1b6ebee62acc06d2255380c9c59efc7fe157b77e3eb",
+          "native_executable_bytes": 28616,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "asan-lsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-asan-lsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.140771541
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-asan-lsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.076579262
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-asan-lsan-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-asan-lsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-asan-lsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.035978435
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/gcc-asan-lsan\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.010565072,
+          "native_executable_sha256": "7b08859a5ca5e3397fe0abb8cc77120a13287920578ecf547db10952e8bd9980",
+          "native_executable_bytes": 40304,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "O0",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O0-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.077606782
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O0-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.051593285
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O0-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O0-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O0\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.06261505
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O0\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005506158,
+          "native_executable_sha256": "ce20a2352362af8635ce5c35097a7a2a1ec173166788753d24845815b37165ca",
+          "native_executable_bytes": 22280,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "O2",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O2-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.134362232
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O2-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.082021325
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O2-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O2-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O2\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.066608186
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-O2\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005498929,
+          "native_executable_sha256": "140b1a32eb594c3d71399800f5ea7caa1b5434de7128ee463ab9456d4515f4ef",
+          "native_executable_bytes": 17216,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "ubsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-ubsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.181707617
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-ubsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.085431828
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-ubsan-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-ubsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-ubsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.095407844
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-ubsan\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005487834,
+          "native_executable_sha256": "f440ef276a521678544634add8445a4efbab622dcd2037cae85503da74d708a4",
+          "native_executable_bytes": 418720,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "asan-lsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-asan-lsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.182122196
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-8-public-factories/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-asan-lsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.092528683
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-asan-lsan-program.o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-asan-lsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-asan-lsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.168198422
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-8-public-factories/clang-asan-lsan\"",
+          "run_status": 0,
+          "stdout": "7\n24\n21\n23\n25\n50\n25\n26\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.010585268,
+          "native_executable_sha256": "ca7aab49cda3c764856db54b8c0c0992e10480157cf1178f627ee4d5c43462d0",
+          "native_executable_bytes": 1662672,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        }
+      ]
+    },
+    {
+      "case": "reentry",
+      "factory": "with_checked_path",
+      "source_sha256": "01e8ed69cbe6796e1e1f6054acf9374d0b0ead04acd20b099210d0f75dd5b9b3",
+      "expected_sha256": "16ac76e70c59d906cf3ee8c150ca24ce9b8e90dc95b7476a984a713ad7e80fd6",
+      "c_source": "#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\n#include <inttypes.h>\n#include <limits.h>\n#include <float.h>\n#include <fenv.h>\n#include <math.h>\n#include <stdio.h>\n#include <string.h>\n#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"LilScript native requires C11\"\n#endif\n#if defined(__FAST_MATH__) || (defined(__FINITE_MATH_ONLY__) && __FINITE_MATH_ONLY__ != 0)\n#error \"LilScript native forbids fast-math and finite-only arithmetic\"\n#endif\n#if FLT_EVAL_METHOD != 0\n#error \"LilScript native requires evaluation in the declared floating type\"\n#endif\n#pragma STDC FP_CONTRACT OFF\n_Static_assert(CHAR_BIT == 8, \"LilScript native requires 8-bit bytes\");\n_Static_assert(sizeof(uint16_t) == 2 && sizeof(uint32_t) == 4 && sizeof(uint64_t) == 8,\n               \"LilScript native requires exact integer widths\");\n_Static_assert(SIZE_MAX >= UINT32_MAX, \"LilScript native requires at least 32-bit object sizes\");\n_Static_assert(sizeof(double) == 8 && FLT_RADIX == 2 && DBL_MANT_DIG == 53 &&\n               DBL_MIN_EXP == -1021 && DBL_MAX_EXP == 1024 && DBL_HAS_SUBNORM == 1,\n               \"LilScript native requires binary64 with subnormals\");\ntypedef struct { const uint16_t *data; size_t length; } ls_string;\nstatic int ls_runtime_init(void) {\n    double one = 1.0, negative_zero = -0.0;\n    uint64_t one_bits, zero_bits;\n    memcpy(&one_bits, &one, sizeof one_bits);\n    memcpy(&zero_bits, &negative_zero, sizeof zero_bits);\n    if (fegetround() != FE_TONEAREST || one_bits != UINT64_C(0x3ff0000000000000) ||\n        zero_bits != UINT64_C(0x8000000000000000)) {\n        fputs(\"unsupported LilScript native floating-point environment\\n\", stderr);\n        return 0;\n    }\n    /* FE_TONEAREST does not exclude flush-to-zero or denormals-are-zero. */\n    uint64_t tiny_bits = UINT64_C(1), doubled_bits;\n    double tiny;\n    memcpy(&tiny, &tiny_bits, sizeof tiny);\n    volatile double input = tiny, factor = 2.0;\n    volatile double doubled = input * factor;\n    double observed = doubled;\n    memcpy(&doubled_bits, &observed, sizeof doubled_bits);\n    if (doubled_bits != UINT64_C(2)) {\n        fputs(\"LilScript native requires gradual binary64 underflow\\n\", stderr);\n        return 0;\n    }\n    return 1;\n}\nstatic inline int32_t ls_from_u32(uint32_t value) {\n    return value <= INT32_MAX ? (int32_t)value : (int32_t)((int64_t)value - INT64_C(4294967296));\n}\n#include <stdlib.h>\ntypedef struct ls_native_object {\n    size_t references;\n    void (*destroy)(struct ls_native_object *);\n} ls_native_object;\n\nstatic uint64_t ls_native_identity_counter;\n#ifdef LS_NATIVE_QUALIFICATION\nstatic size_t ls_native_live_objects;\n#endif\n\nstatic void ls_native_resource_failure(void) {\n    fputs(\"LilScript native runtime resource exhaustion\\n\", stderr);\n    abort();\n}\n\nstatic void *ls_native_allocate(size_t bytes,\n                               void (*destroy)(ls_native_object *)) {\n    if (bytes < sizeof(ls_native_object)) ls_native_resource_failure();\n    ls_native_object *object = malloc(bytes);\n    if (!object) ls_native_resource_failure();\n    object->references = 1;\n    object->destroy = destroy;\n#ifdef LS_NATIVE_QUALIFICATION\n    if (ls_native_live_objects == SIZE_MAX) ls_native_resource_failure();\n    ++ls_native_live_objects;\n#endif\n    return object;\n}\n\nvoid ls_native_retain(void *environment) {\n    ls_native_object *object = environment;\n    if (!object) return;\n    if (object->references == SIZE_MAX) ls_native_resource_failure();\n    ++object->references;\n}\n\nvoid ls_native_release(void *environment) {\n    ls_native_object *object = environment;\n    if (!object) return;\n    if (--object->references != 0) return;\n    if (object->destroy) object->destroy(object);\n#ifdef LS_NATIVE_QUALIFICATION\n    --ls_native_live_objects;\n#endif\n    free(object);\n}\n\nstatic uint64_t ls_native_fresh_identity(void) {\n    if (ls_native_identity_counter == UINT64_MAX) ls_native_resource_failure();\n    return ++ls_native_identity_counter;\n}\ntypedef struct {\nint32_t ls_f0;\nint32_t ls_f1;\n} ls_t0;\n#include <stddef.h>\n#include <stdint.h>\nvoid ls_native_retain(void *environment);\nvoid ls_native_release(void *environment);\n#ifdef LS_NATIVE_QUALIFICATION\nsize_t ls_native_owned_objects(void) {\n    return ls_native_live_objects;\n}\n#endif\ntypedef struct {\nint32_t (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable0;\nstatic inline ls_callable0 ls_callable0_retain(ls_callable0 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable0_release(ls_callable0 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable0_copy(ls_callable0 *destination, ls_callable0 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_take(ls_callable0 *destination, ls_callable0 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_clear(ls_callable0 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable0){0};\n}\nstatic inline int32_t ls_callable0_call(ls_callable0 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t,ls_callable0);\nvoid *environment;\nuint64_t identity;\n} ls_callable1;\nstatic inline ls_callable1 ls_callable1_retain(ls_callable1 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable1_release(ls_callable1 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable1_copy(ls_callable1 *destination, ls_callable1 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_take(ls_callable1 *destination, ls_callable1 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_clear(ls_callable1 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable1){0};\n}\nstatic inline void ls_callable1_call(ls_callable1 value,int32_t ls_p0,ls_callable0 ls_p1) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\n}\ntypedef struct {\nint32_t (*code)(void *,int32_t,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable2;\nstatic inline ls_callable2 ls_callable2_retain(ls_callable2 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable2_release(ls_callable2 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable2_copy(ls_callable2 *destination, ls_callable2 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_take(ls_callable2 *destination, ls_callable2 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_clear(ls_callable2 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable2){0};\n}\nstatic inline int32_t ls_callable2_call(ls_callable2 value,int32_t ls_p0,int32_t ls_p1) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable3;\nstatic inline ls_callable3 ls_callable3_retain(ls_callable3 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable3_release(ls_callable3 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable3_copy(ls_callable3 *destination, ls_callable3 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_take(ls_callable3 *destination, ls_callable3 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_clear(ls_callable3 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable3){0};\n}\nstatic inline void ls_callable3_call(ls_callable3 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0);\nls_native_release(value.environment);\n}\ntypedef struct {\nvoid (*code)(void *);\nvoid *environment;\nuint64_t identity;\n} ls_callable4;\nstatic inline ls_callable4 ls_callable4_retain(ls_callable4 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable4_release(ls_callable4 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable4_copy(ls_callable4 *destination, ls_callable4 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_take(ls_callable4 *destination, ls_callable4 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_clear(ls_callable4 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable4){0};\n}\nstatic inline void ls_callable4_call(ls_callable4 value) {\nls_native_retain(value.environment);\nvalue.code(value.environment);\nls_native_release(value.environment);\n}\ntypedef struct {\nls_callable0 (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable5;\nstatic inline ls_callable5 ls_callable5_retain(ls_callable5 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable5_release(ls_callable5 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable5_copy(ls_callable5 *destination, ls_callable5 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_take(ls_callable5 *destination, ls_callable5 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_clear(ls_callable5 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable5){0};\n}\nstatic inline ls_callable0 ls_callable5_call(ls_callable5 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nls_callable0 result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef int32_t host_keep_arg0;\ntypedef ls_callable0 host_keep_arg1;\nstatic inline ls_callable0 host_keep_arg1_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_keep_arg1_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_keep_arg1_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\ntypedef void host_keep_result;\nvoid host_keep(int32_t,ls_callable0);\ntypedef int32_t host_invoke_arg0;\ntypedef int32_t host_invoke_arg1;\ntypedef int32_t host_invoke_result;\nint32_t host_invoke(int32_t,int32_t);\ntypedef int32_t host_clear_arg0;\ntypedef void host_clear_result;\nvoid host_clear(int32_t);\ntypedef void host_clear_all_result;\nvoid host_clear_all(void);\ntypedef int32_t host_take_arg0;\ntypedef ls_callable0 host_take_result;\nstatic inline ls_callable0 host_take_result_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_take_result_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_take_result_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\nls_callable0 host_take(int32_t);\ntypedef int32_t host_expect_live_arg0;\ntypedef void host_expect_live_result;\nvoid host_expect_live(int32_t);\ntypedef void host_assert_empty_result;\nvoid host_assert_empty(void);\ntypedef struct { ls_native_object owner; int32_t value; } ls_box20;\nstatic ls_box20 *ls_box_new20(int32_t value) {\nls_box20 *box = ls_native_allocate(sizeof *box,NULL);\nbox->value = value;\nreturn box;\n}\ntypedef struct { ls_native_object owner; ls_t0 value; } ls_box21;\nstatic ls_box21 *ls_box_new21(ls_t0 value) {\nls_box21 *box = ls_native_allocate(sizeof *box,NULL);\nbox->value = value;\nreturn box;\n}\ntypedef struct { ls_native_object owner; int32_t value; } ls_box25;\nstatic ls_box25 *ls_box_new25(int32_t value) {\nls_box25 *box = ls_native_allocate(sizeof *box,NULL);\nbox->value = value;\nreturn box;\n}\ntypedef struct { ls_native_object owner; int32_t value; } ls_box27;\nstatic ls_box27 *ls_box_new27(int32_t value) {\nls_box27 *box = ls_native_allocate(sizeof *box,NULL);\nbox->value = value;\nreturn box;\n}\ntypedef struct {\nls_native_object owner;\nls_box20 *ls_e1;\nls_box21 *ls_e2;\n} ls_env5;\nstatic void ls_env_destroy5(ls_native_object *owner) {\nls_env5 *environment = (ls_env5 *)owner;\nls_native_release(environment->ls_e1);\nls_native_release(environment->ls_e2);\n}\ntypedef struct {\nls_native_object owner;\nls_box21 *ls_e0;\n} ls_env6;\nstatic void ls_env_destroy6(ls_native_object *owner) {\nls_env6 *environment = (ls_env6 *)owner;\nls_native_release(environment->ls_e0);\n}\ntypedef struct {\nls_native_object owner;\nls_box21 *ls_e1;\n} ls_env7;\nstatic void ls_env_destroy7(ls_native_object *owner) {\nls_env7 *environment = (ls_env7 *)owner;\nls_native_release(environment->ls_e1);\n}\ntypedef struct {\nls_native_object owner;\nls_box25 *ls_e1;\nls_box27 *ls_e2;\n} ls_env8;\nstatic void ls_env_destroy8(ls_native_object *owner) {\nls_env8 *environment = (ls_env8 *)owner;\nls_native_release(environment->ls_e1);\nls_native_release(environment->ls_e2);\n}\nstatic void ls_init0(void);\nstatic void ls_fn1(ls_t0 *ls_c18,int32_t *ls_c19);\nstatic void ls_fn2(int32_t ls_p20);\nstatic void ls_fn3(int32_t ls_p25,int32_t ls_c26);\nstatic void ls_fn4(void);\nstatic int32_t ls_fn5(void *ls_env,int32_t ls_c22);\nstatic int32_t ls_fn6(void *ls_env,int32_t ls_c23);\nstatic int32_t ls_fn7(void *ls_env,int32_t ls_c24);\nstatic int32_t ls_fn8(void *ls_env,int32_t ls_c28);\nstatic ls_callable0 ls_closure5(ls_box20 *ls_e1,ls_box21 *ls_e2) {\nls_env5 *environment = ls_native_allocate(sizeof *environment,ls_env_destroy5);\nls_native_retain(ls_e1);\nenvironment->ls_e1 = ls_e1;\nls_native_retain(ls_e2);\nenvironment->ls_e2 = ls_e2;\nreturn (ls_callable0){ls_fn5,environment,ls_native_fresh_identity()};\n}\nstatic ls_callable0 ls_closure6(ls_box21 *ls_e0) {\nls_env6 *environment = ls_native_allocate(sizeof *environment,ls_env_destroy6);\nls_native_retain(ls_e0);\nenvironment->ls_e0 = ls_e0;\nreturn (ls_callable0){ls_fn6,environment,ls_native_fresh_identity()};\n}\nstatic ls_callable0 ls_closure7(ls_box21 *ls_e1) {\nls_env7 *environment = ls_native_allocate(sizeof *environment,ls_env_destroy7);\nls_native_retain(ls_e1);\nenvironment->ls_e1 = ls_e1;\nreturn (ls_callable0){ls_fn7,environment,ls_native_fresh_identity()};\n}\nstatic ls_callable0 ls_closure8(ls_box25 *ls_e1,ls_box27 *ls_e2) {\nls_env8 *environment = ls_native_allocate(sizeof *environment,ls_env_destroy8);\nls_native_retain(ls_e1);\nenvironment->ls_e1 = ls_e1;\nls_native_retain(ls_e2);\nenvironment->ls_e2 = ls_e2;\nreturn (ls_callable0){ls_fn8,environment,ls_native_fresh_identity()};\n}\nstatic void ls_init0(void) {\nls_fn4();\nhost_assert_empty();\n}\nstatic void ls_fn1(ls_t0 *ls_c18,int32_t *ls_c19) {\nint32_t ls_v0;\nint32_t ls_v1;\nls_t0 ls_v2;\nls_t0 ls_v3;\nint32_t ls_v4;\nint32_t ls_v5;\nint32_t ls_v6;\nls_v0 = ls_from_u32(UINT32_C(10));\nls_v1 = ls_from_u32(UINT32_C(20));\nls_v2 = (ls_t0){ls_v0,ls_v1};\nls_v3 = ls_v2;\n(*ls_c18) = ls_v3;\nls_v4 = (*ls_c19);\nls_v5 = ls_from_u32(UINT32_C(1));\nls_v6 = ls_from_u32((uint32_t)((uint32_t)ls_v4 + (uint32_t)ls_v5));\n(*ls_c19) = ls_v6;\n}\nstatic void ls_fn2(int32_t ls_p20) {\nls_box20 *ls_c20 = ls_box_new20(ls_p20);\nls_box21 *ls_c21 = NULL;\nint32_t ls_v0;\nint32_t ls_v1;\nls_t0 ls_v2;\nls_t0 ls_v3;\nint32_t ls_v5;\nls_callable0 ls_v6 = {0};\nint32_t ls_v9;\nint32_t ls_v10;\nint32_t ls_v11;\nls_callable0 ls_v12 = {0};\nint32_t ls_v15;\nint32_t ls_v16;\nint32_t ls_v17;\nls_callable0 ls_v18 = {0};\nls_v0 = ls_from_u32(UINT32_C(1));\nls_v1 = ls_from_u32(UINT32_C(2));\nls_v2 = (ls_t0){ls_v0,ls_v1};\nls_v3 = ls_v2;\nls_native_release(ls_c21);\nls_c21 = ls_box_new21(ls_v3);\nls_v5 = ls_c20->value;\nls_callable0_take(&(ls_v6),ls_closure5(ls_c20,ls_c21));\nhost_keep(ls_v5,ls_v6);\nls_v9 = ls_c20->value;\nls_v10 = ls_from_u32(UINT32_C(1));\nls_v11 = ls_from_u32((uint32_t)((uint32_t)ls_v9 + (uint32_t)ls_v10));\nls_callable0_take(&(ls_v12),ls_closure6(ls_c21));\nhost_keep(ls_v11,ls_v12);\nls_v15 = ls_c20->value;\nls_v16 = ls_from_u32(UINT32_C(2));\nls_v17 = ls_from_u32((uint32_t)((uint32_t)ls_v15 + (uint32_t)ls_v16));\nls_callable0_take(&(ls_v18),ls_closure7(ls_c21));\nhost_keep(ls_v17,ls_v18);\nls_callable0_clear(&ls_v18);\nls_callable0_clear(&ls_v12);\nls_callable0_clear(&ls_v6);\nls_native_release(ls_c21);\nls_c21 = NULL;\nls_native_release(ls_c20);\nls_c20 = NULL;\n}\nstatic void ls_fn3(int32_t ls_p25,int32_t ls_c26) {\nls_box25 *ls_c25 = ls_box_new25(ls_p25);\nls_box27 *ls_c27 = NULL;\nint32_t ls_v0;\nint32_t ls_v2;\nls_callable0 ls_v3 = {0};\nls_v0 = ls_c26;\nls_native_release(ls_c27);\nls_c27 = ls_box_new27(ls_v0);\nls_v2 = ls_c25->value;\nls_callable0_take(&(ls_v3),ls_closure8(ls_c25,ls_c27));\nhost_keep(ls_v2,ls_v3);\nls_callable0_clear(&ls_v3);\nls_native_release(ls_c27);\nls_c27 = NULL;\nls_native_release(ls_c25);\nls_c25 = NULL;\n}\nstatic void ls_fn4(void) {\nint32_t ls_v1;\nint32_t ls_v4;\nint32_t ls_v5;\nint32_t ls_v6;\nint32_t ls_v9;\nint32_t ls_v10;\nint32_t ls_v11;\nint32_t ls_v14;\nint32_t ls_v15;\nint32_t ls_v16;\nint32_t ls_v23;\nint32_t ls_v24;\nint32_t ls_v27;\nint32_t ls_v28;\nint32_t ls_v29;\nls_v1 = ls_from_u32(UINT32_C(0));\nls_fn2(ls_v1);\nls_v4 = ls_from_u32(UINT32_C(0));\nls_v5 = ls_from_u32(UINT32_C(3));\nls_v6 = host_invoke(ls_v4,ls_v5);\nprintf(\"%ld\\n\",(long)ls_v6);\nls_v9 = ls_from_u32(UINT32_C(2));\nls_v10 = ls_from_u32(UINT32_C(0));\nls_v11 = host_invoke(ls_v9,ls_v10);\nprintf(\"%ld\\n\",(long)ls_v11);\nls_v14 = ls_from_u32(UINT32_C(0));\nls_v15 = ls_from_u32(UINT32_C(1));\nls_v16 = host_invoke(ls_v14,ls_v15);\nprintf(\"%ld\\n\",(long)ls_v16);\nhost_clear_all();\nhost_assert_empty();\nls_v23 = ls_from_u32(UINT32_C(4));\nls_v24 = ls_from_u32(UINT32_C(30));\nls_fn3(ls_v23,ls_v24);\nls_v27 = ls_from_u32(UINT32_C(4));\nls_v28 = ls_from_u32(UINT32_C(7));\nls_v29 = host_invoke(ls_v27,ls_v28);\nprintf(\"%ld\\n\",(long)ls_v29);\nhost_assert_empty();\n}\nstatic int32_t ls_fn5(void *ls_env,int32_t ls_c22) {\nint32_t ls_v1;\nint32_t ls_v2;\nint32_t ls_v3;\nint32_t ls_v4;\nint32_t ls_v5;\nint32_t ls_v6;\nint32_t ls_v7;\nint32_t ls_v8;\nls_v1 = ((ls_env5 *)ls_env)->ls_e1->value;\nls_v2 = ls_from_u32(UINT32_C(1));\nls_v3 = ls_from_u32((uint32_t)((uint32_t)ls_v1 + (uint32_t)ls_v2));\nls_v4 = ls_c22;\nls_v5 = host_invoke(ls_v3,ls_v4);\n((ls_env5 *)ls_env)->ls_e2->value.ls_f0 = ls_v5;\nls_v6 = ((ls_env5 *)ls_env)->ls_e2->value.ls_f0;\nls_v7 = ((ls_env5 *)ls_env)->ls_e2->value.ls_f1;\nls_v8 = ls_from_u32((uint32_t)((uint32_t)ls_v6 + (uint32_t)ls_v7));\n{\nint32_t ls_return = ls_v8;\nreturn ls_return;\n}\n}\nstatic int32_t ls_fn6(void *ls_env,int32_t ls_c23) {\nint32_t ls_v0;\nint32_t ls_v1;\nint32_t ls_v2;\nint32_t ls_v3;\nint32_t ls_v4;\nint32_t ls_v5;\nls_t0 ls_v6;\nls_t0 ls_v7;\nint32_t ls_v8;\nint32_t ls_v9;\nint32_t ls_v10;\nls_v0 = ls_from_u32(UINT32_C(100));\nls_v1 = ls_c23;\nls_v2 = ls_from_u32((uint32_t)((uint32_t)ls_v0 + (uint32_t)ls_v1));\nls_v3 = ls_from_u32(UINT32_C(200));\nls_v4 = ls_c23;\nls_v5 = ls_from_u32((uint32_t)((uint32_t)ls_v3 + (uint32_t)ls_v4));\nls_v6 = (ls_t0){ls_v2,ls_v5};\nls_v7 = ls_v6;\n((ls_env6 *)ls_env)->ls_e0->value = ls_v7;\nls_v8 = ls_from_u32(UINT32_C(5));\nls_v9 = ls_c23;\nls_v10 = ls_from_u32((uint32_t)((uint32_t)ls_v8 + (uint32_t)ls_v9));\n{\nint32_t ls_return = ls_v10;\nreturn ls_return;\n}\n}\nstatic int32_t ls_fn7(void *ls_env,int32_t ls_c24) {\nint32_t ls_v2;\nint32_t ls_v3;\nint32_t ls_v4;\nls_t0 *ls_a0_0;\nint32_t *ls_a0_1;\nls_a0_0 = &(((ls_env7 *)ls_env)->ls_e1->value);\nls_a0_1 = &(((ls_env7 *)ls_env)->ls_e1->value.ls_f0);\nls_fn1(ls_a0_0,ls_a0_1);\nls_v2 = ((ls_env7 *)ls_env)->ls_e1->value.ls_f0;\nls_v3 = ((ls_env7 *)ls_env)->ls_e1->value.ls_f1;\nls_v4 = ls_from_u32((uint32_t)((uint32_t)ls_v2 + (uint32_t)ls_v3));\n{\nint32_t ls_return = ls_v4;\nreturn ls_return;\n}\n}\nstatic int32_t ls_fn8(void *ls_env,int32_t ls_c28) {\nint32_t ls_c29;\nint32_t ls_v0;\nint32_t ls_v2;\nint32_t ls_v4;\nint32_t ls_v5;\nint32_t ls_v6;\nint32_t ls_v7;\nint32_t ls_v9;\nls_v0 = ((ls_env8 *)ls_env)->ls_e2->value;\nls_c29 = ls_v0;\nls_v2 = ((ls_env8 *)ls_env)->ls_e1->value;\nhost_clear(ls_v2);\nls_v4 = ((ls_env8 *)ls_env)->ls_e2->value;\nls_v5 = ls_c28;\nls_v6 = ls_from_u32((uint32_t)((uint32_t)ls_v4 + (uint32_t)ls_v5));\n((ls_env8 *)ls_env)->ls_e2->value = ls_v6;\nls_v7 = ls_c29;\nprintf(\"%ld\\n\",(long)ls_v7);\nls_v9 = ((ls_env8 *)ls_env)->ls_e2->value;\n{\nint32_t ls_return = ls_v9;\nreturn ls_return;\n}\n}\nint main(void) {\nif (!ls_runtime_init()) return 1;\nls_native_identity_counter = UINT64_C(9);\nls_init0();\nreturn 0;\n}\n",
+      "header_source": "#ifndef LILSCRIPT_NATIVE_CALLBACK_ABI_V1_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_V1_H\n#define LILSCRIPT_NATIVE_CALLBACK_ABI_VERSION 1\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdint.h>\ntypedef struct { const uint16_t *data; size_t length; } ls_string;\ntypedef struct {\nint32_t ls_f0;\nint32_t ls_f1;\n} ls_t0;\n#include <stddef.h>\n#include <stdint.h>\nvoid ls_native_retain(void *environment);\nvoid ls_native_release(void *environment);\n#ifdef LS_NATIVE_QUALIFICATION\nsize_t ls_native_owned_objects(void);\n#endif\ntypedef struct {\nint32_t (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable0;\nstatic inline ls_callable0 ls_callable0_retain(ls_callable0 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable0_release(ls_callable0 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable0_copy(ls_callable0 *destination, ls_callable0 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_take(ls_callable0 *destination, ls_callable0 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable0_clear(ls_callable0 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable0){0};\n}\nstatic inline int32_t ls_callable0_call(ls_callable0 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t,ls_callable0);\nvoid *environment;\nuint64_t identity;\n} ls_callable1;\nstatic inline ls_callable1 ls_callable1_retain(ls_callable1 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable1_release(ls_callable1 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable1_copy(ls_callable1 *destination, ls_callable1 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_take(ls_callable1 *destination, ls_callable1 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable1_clear(ls_callable1 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable1){0};\n}\nstatic inline void ls_callable1_call(ls_callable1 value,int32_t ls_p0,ls_callable0 ls_p1) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\n}\ntypedef struct {\nint32_t (*code)(void *,int32_t,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable2;\nstatic inline ls_callable2 ls_callable2_retain(ls_callable2 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable2_release(ls_callable2 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable2_copy(ls_callable2 *destination, ls_callable2 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_take(ls_callable2 *destination, ls_callable2 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable2_clear(ls_callable2 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable2){0};\n}\nstatic inline int32_t ls_callable2_call(ls_callable2 value,int32_t ls_p0,int32_t ls_p1) {\nls_native_retain(value.environment);\nint32_t result = value.code(value.environment,ls_p0,ls_p1);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef struct {\nvoid (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable3;\nstatic inline ls_callable3 ls_callable3_retain(ls_callable3 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable3_release(ls_callable3 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable3_copy(ls_callable3 *destination, ls_callable3 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_take(ls_callable3 *destination, ls_callable3 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable3_clear(ls_callable3 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable3){0};\n}\nstatic inline void ls_callable3_call(ls_callable3 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nvalue.code(value.environment,ls_p0);\nls_native_release(value.environment);\n}\ntypedef struct {\nvoid (*code)(void *);\nvoid *environment;\nuint64_t identity;\n} ls_callable4;\nstatic inline ls_callable4 ls_callable4_retain(ls_callable4 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable4_release(ls_callable4 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable4_copy(ls_callable4 *destination, ls_callable4 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_take(ls_callable4 *destination, ls_callable4 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable4_clear(ls_callable4 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable4){0};\n}\nstatic inline void ls_callable4_call(ls_callable4 value) {\nls_native_retain(value.environment);\nvalue.code(value.environment);\nls_native_release(value.environment);\n}\ntypedef struct {\nls_callable0 (*code)(void *,int32_t);\nvoid *environment;\nuint64_t identity;\n} ls_callable5;\nstatic inline ls_callable5 ls_callable5_retain(ls_callable5 value) {\nls_native_retain(value.environment);\nreturn value;\n}\nstatic inline void ls_callable5_release(ls_callable5 value) { ls_native_release(value.environment); }\nstatic inline void ls_callable5_copy(ls_callable5 *destination, ls_callable5 value) {\nls_native_retain(value.environment);\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_take(ls_callable5 *destination, ls_callable5 value) {\nls_native_release(destination->environment);\n*destination = value;\n}\nstatic inline void ls_callable5_clear(ls_callable5 *destination) {\nls_native_release(destination->environment);\n*destination = (ls_callable5){0};\n}\nstatic inline ls_callable0 ls_callable5_call(ls_callable5 value,int32_t ls_p0) {\nls_native_retain(value.environment);\nls_callable0 result = value.code(value.environment,ls_p0);\nls_native_release(value.environment);\nreturn result;\n}\ntypedef int32_t host_keep_arg0;\ntypedef ls_callable0 host_keep_arg1;\nstatic inline ls_callable0 host_keep_arg1_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_keep_arg1_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_keep_arg1_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\ntypedef void host_keep_result;\nvoid host_keep(int32_t,ls_callable0);\ntypedef int32_t host_invoke_arg0;\ntypedef int32_t host_invoke_arg1;\ntypedef int32_t host_invoke_result;\nint32_t host_invoke(int32_t,int32_t);\ntypedef int32_t host_clear_arg0;\ntypedef void host_clear_result;\nvoid host_clear(int32_t);\ntypedef void host_clear_all_result;\nvoid host_clear_all(void);\ntypedef int32_t host_take_arg0;\ntypedef ls_callable0 host_take_result;\nstatic inline ls_callable0 host_take_result_retain(ls_callable0 value) { return ls_callable0_retain(value); }\nstatic inline void host_take_result_release(ls_callable0 value) { ls_callable0_release(value); }\nstatic inline int32_t host_take_result_call(ls_callable0 value,int32_t ls_p0) { return ls_callable0_call(value,ls_p0); }\nls_callable0 host_take(int32_t);\ntypedef int32_t host_expect_live_arg0;\ntypedef void host_expect_live_result;\nvoid host_expect_live(int32_t);\ntypedef void host_assert_empty_result;\nvoid host_assert_empty(void);\n#endif\n",
+      "c_sha256": "fd42014a4738ddcbe92b8158b90fad2f1f42ad2024db1f23b61e3b007e416f9e",
+      "header_sha256": "d6d73f08653cca7a26ce323844622d52b5ee4d78326e4a924069aa670492a74e",
+      "host_c_sha256": "15dd21841235aa948ec0291f2e7da84908d185c54b8385e75ec3767dec09c3ae",
+      "host_js_sha256": "4f5dbcf4f765feda9099ba16168712b2a47cea96c231e259ea749254acb48e5d",
+      "qualification": {
+        "host_bindings": [
+          {
+            "cell": 0,
+            "link_name": "host_keep"
+          },
+          {
+            "cell": 3,
+            "link_name": "host_invoke"
+          },
+          {
+            "cell": 6,
+            "link_name": "host_clear"
+          },
+          {
+            "cell": 8,
+            "link_name": "host_clear_all"
+          },
+          {
+            "cell": 9,
+            "link_name": "host_take"
+          },
+          {
+            "cell": 11,
+            "link_name": "host_expect_live"
+          },
+          {
+            "cell": 13,
+            "link_name": "host_assert_empty"
+          }
+        ],
+        "callback_abi_version": 1,
+        "abi_version": 1,
+        "policy_fingerprint": [
+          175,
+          191,
+          86,
+          199,
+          53,
+          148,
+          163,
+          142,
+          12,
+          145,
+          198,
+          73,
+          129,
+          18,
+          95,
+          175,
+          161,
+          213,
+          189,
+          16,
+          39,
+          25,
+          38,
+          71,
+          19,
+          225,
+          18,
+          227,
+          114,
+          197,
+          51,
+          151
+        ],
+        "c_source_bytes": 20849,
+        "header_source_bytes": 8101,
+        "metric": "exact emitted C plus header source bytes; native executable separately measured by harness",
+        "runtime_evidence": "unknown; runtime trace and sanitizer executions follow terminal handoff",
+        "retained_file_capacity": 44048
+      },
+      "native_report": {
+        "schema": 1,
+        "backend": "semantic",
+        "source_sha256": "4f20a4224eba296749c980ea1930a15ccb18460c476fd14aac829b7d7e862907",
+        "request": {
+          "target": "Native",
+          "preserve_root_exports": true,
+          "logical_work": 100000000,
+          "retained_bytes": 256000000,
+          "effective_logical_work": 100000000,
+          "effective_retained_bytes": 256000000
+        },
+        "inputs": {
+          "root": 0,
+          "modules": [
+            {
+              "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/native-closures/reentry.lil",
+              "bytes": 1047,
+              "sha256": "01e8ed69cbe6796e1e1f6054acf9374d0b0ead04acd20b099210d0f75dd5b9b3",
+              "dependencies": [],
+              "dynamic_dependencies": []
+            }
+          ]
+        },
+        "shape": {
+          "modules": 1,
+          "units": 9,
+          "operations": 151,
+          "cells": 30
+        },
+        "javascript_policy": null,
+        "native_policy": {
+          "schema": 2,
+          "algorithm": 1,
+          "contract": {
+            "target": "native",
+            "abi_version": 1
+          },
+          "objective": null,
+          "effort": 0,
+          "tactics": [
+            {
+              "id": "dead-code-elimination",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "constant-folding",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "inlining",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "scalar-replacement",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "call-specialization",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "helper-sharing",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "target-compaction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "identifier-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "property-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "string-pooling",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "string-array-packing",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "startup-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "recurring-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "naming-search",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            }
+          ],
+          "resources": {
+            "logical_work": null,
+            "retained_bytes": null,
+            "wall_time_ms": null
+          },
+          "constraints": {
+            "max_startup_work": null,
+            "max_recurring_work": null,
+            "max_runtime_memory_bytes": null,
+            "max_performance_regression_percent": null
+          }
+        },
+        "phases_ns": {
+          "policy_ns": 62838,
+          "discovery_parse_ns": 203760,
+          "check_ns": 84578,
+          "convert_ns": 307895,
+          "frontend_release_ns": 7064,
+          "adopt_ns": 34805,
+          "finish_ns": 8906,
+          "source_release_ns": 100
+        },
+        "total_ns": 2414317,
+        "ledger_before_finish": {
+          "baseline_work": 214240,
+          "optional_work": 0,
+          "retained_bytes": 49442,
+          "peak_retained_bytes": 180630,
+          "analysis_work": 133660,
+          "edit_work": 186,
+          "render_work": 80394,
+          "codec_work": 0
+        },
+        "resources": {
+          "baseline_work": 214240,
+          "optional_work": 0,
+          "codec_work": 0,
+          "peak_retained_bytes": 180630,
+          "frontend_logical_work": 128383,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+          "source_buffer_capacity": 1984,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+            "main_parse_arena": "not repeated; discovery programs reused",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "ledger_after_finish": {
+          "baseline_work": 214240,
+          "optional_work": 0,
+          "retained_bytes": 0,
+          "peak_retained_bytes": 180630,
+          "analysis_work": 133660,
+          "edit_work": 186,
+          "render_work": 80394,
+          "codec_work": 0
+        }
+      },
+      "evidence_storage": "test-only returned strings and serialized receipts; excluded from compiler ledger",
+      "javascript_sha256": "29a6ad54cfe79795af3161b4c42613bb26e47826b44b7188b69091d2c7525bb3",
+      "javascript_report": {
+        "schema": 1,
+        "backend": "semantic",
+        "source_sha256": "cf2ce4c026bf4b3115b17a5456835479923fdc524f4b16f34e6aec55169b69ce",
+        "request": {
+          "target": "JavaScript",
+          "preserve_root_exports": true,
+          "logical_work": 200000000,
+          "retained_bytes": 256000000,
+          "effective_logical_work": 200000000,
+          "effective_retained_bytes": 256000000
+        },
+        "inputs": {
+          "root": 0,
+          "modules": [
+            {
+              "path": "<source>",
+              "bytes": 1047,
+              "sha256": "01e8ed69cbe6796e1e1f6054acf9374d0b0ead04acd20b099210d0f75dd5b9b3"
+            }
+          ]
+        },
+        "shape": {
+          "modules": 1,
+          "units": 9,
+          "operations": 151,
+          "cells": 30
+        },
+        "javascript_policy": {
+          "schema": 2,
+          "algorithm": 1,
+          "contract": {
+            "target": "javascript",
+            "world": "ReusableLibrary",
+            "execution": "Module",
+            "ecmascript": "es2022",
+            "preserve_root_exports": true,
+            "public_aggregate_abi": "Named",
+            "preserve_extern_fields": true,
+            "internal_exports_may_mangle": false,
+            "public_function_spelling": "None",
+            "pristine_builtins": false,
+            "pure_property_reads": false,
+            "strip_console": false,
+            "preserved_properties": [],
+            "owned_properties": "UnderscoreSuffix",
+            "bundle_mode": "Single"
+          },
+          "objective": {
+            "codec": "Brotli",
+            "priority": "SizeFirst",
+            "realistic_performance_limit_percent": 25,
+            "optional_alternatives": 384,
+            "optional_codec_probes": 384,
+            "cleanup_finalists": 1,
+            "retained_candidates": 384,
+            "retained_candidate_bytes": 786432,
+            "beam_width": 10,
+            "search": {
+              "version": 21,
+              "codec_schedule": "staged",
+              "render_batch": 8,
+              "diversity_interval": 4
+            }
+          },
+          "effort": 13,
+          "tactics": [
+            {
+              "id": "dead-code-elimination",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "constant-folding",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "inlining",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "scalar-replacement",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "call-specialization",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "helper-sharing",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "target-compaction",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "identifier-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "property-mangling",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "string-pooling",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "string-array-packing",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            },
+            {
+              "id": "startup-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "recurring-reconstruction",
+              "state": {
+                "permission": "auto",
+                "enabled": false
+              }
+            },
+            {
+              "id": "naming-search",
+              "state": {
+                "permission": "auto",
+                "enabled": true
+              }
+            }
+          ],
+          "resources": {
+            "logical_work": null,
+            "retained_bytes": null,
+            "wall_time_ms": null
+          },
+          "constraints": {
+            "max_startup_work": null,
+            "max_recurring_work": null,
+            "max_runtime_memory_bytes": null,
+            "max_performance_regression_percent": null
+          }
+        },
+        "native_policy": null,
+        "phases_ns": {
+          "policy_ns": 113893,
+          "parse_ns": 83967,
+          "check_ns": 95238,
+          "convert_ns": 322141,
+          "frontend_release_ns": 6222,
+          "adopt_ns": 43451,
+          "finish_ns": 17403,
+          "source_release_ns": null
+        },
+        "total_ns": 1422596,
+        "ledger_before_finish": {
+          "baseline_work": 159376,
+          "optional_work": 0,
+          "retained_bytes": 47994,
+          "peak_retained_bytes": 177854,
+          "analysis_work": 137820,
+          "edit_work": 235,
+          "render_work": 21320,
+          "codec_work": 1
+        },
+        "resources": {
+          "baseline_work": 159376,
+          "optional_work": 0,
+          "codec_work": 1,
+          "peak_retained_bytes": 177854,
+          "frontend_logical_work": 124140,
+          "frontend_allocation_accounting": "partial",
+          "source_buffer_accounting": "caller-owned text; excluded",
+          "source_buffer_capacity": null,
+          "frontend_phase_accounting": {
+            "discovery_parse_arena": "not used",
+            "main_parse_arena": "pre-admitted arena backing",
+            "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+            "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+            "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+            "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+            "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+            "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+            "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+            "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+            "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+            "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+            "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+            "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+            "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+            "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+            "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+            "semantic_verification": "pre-admitted work and owned scratch",
+            "module_metadata": "uninstrumented"
+          },
+          "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+          "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+          "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+          "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+          "retained_bytes_after_handoff": 0
+        },
+        "ledger_after_finish": {
+          "baseline_work": 159376,
+          "optional_work": 0,
+          "retained_bytes": 0,
+          "peak_retained_bytes": 177854,
+          "analysis_work": 137820,
+          "edit_work": 235,
+          "render_work": 21320,
+          "codec_work": 1
+        }
+      },
+      "stdout": "211\n31\n207\n30\n37\n",
+      "executions": [
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "O0",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O0-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.063110534
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O0-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.052119729
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O0-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O0-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O0\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.03612707
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O0\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.00535597,
+          "native_executable_sha256": "205109ff649af2e135715060bd45c1f2ae23b18b26dfa62152f395673ed30edc",
+          "native_executable_bytes": 22480,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "O2",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O2-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.114472119
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O2-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.092683547
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O2-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O2-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O2\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.043296054
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-O2\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.00538752,
+          "native_executable_sha256": "f12ba15dad06643e1335e5c28a277d6e55a07edfcc1aa5316a91bc65e014c80a",
+          "native_executable_bytes": 17480,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "ubsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-ubsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.170509472
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-ubsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.103529122
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-ubsan-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-ubsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-ubsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.090570588
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-ubsan\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005352872,
+          "native_executable_sha256": "b0a115edc6e111217614f2d33a9e69f1459163d52584b0d01d58248e7b385309",
+          "native_executable_bytes": 29696,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "gcc",
+          "executable": {
+            "Unix": [
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              99
+            ]
+          },
+          "version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+          "profile": "asan-lsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-asan-lsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.155784705
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-asan-lsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.072502677
+            },
+            {
+              "phase": "link",
+              "command": "\"/usr/bin/cc\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-asan-lsan-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-asan-lsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-asan-lsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.043553364
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/gcc-asan-lsan\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.021606742,
+          "native_executable_sha256": "e47b29bb23cf5ebac56ddb2073de3773ea4b0d2a5d9a3f31a3c7675baff0f5bd",
+          "native_executable_bytes": 40416,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "O0",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O0-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.08202385
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O0-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.048505523
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O0\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O0-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O0-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O0\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.051600249
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O0\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005500438,
+          "native_executable_sha256": "fb977e29d6a045929ec45360854f9950c7e84c04b8566d5470f932caf4df90f3",
+          "native_executable_bytes": 22584,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "O2",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O2-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.170347364
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O2-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.085647103
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O2-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O2-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O2\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.062059528
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-O2\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005334458,
+          "native_executable_sha256": "40d3954831b0c1d45a21f5e12a599157ac1f4400fef52cfe43195ec114ebaebf",
+          "native_executable_bytes": 17328,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "ubsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-ubsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.216307813
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-ubsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.09289613
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O2\" \"-fsanitize=undefined\" \"-fno-sanitize-recover=all\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-ubsan-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-ubsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-ubsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.104402295
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-ubsan\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.005468769,
+          "native_executable_sha256": "55d496a3107e954864c3639ac3e35ece456c590241af57b563971983e86781b4",
+          "native_executable_bytes": 423584,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        },
+        {
+          "compiler": "clang",
+          "executable": {
+            "Unix": [
+              47,
+              116,
+              109,
+              112,
+              47,
+              108,
+              105,
+              108,
+              115,
+              99,
+              114,
+              105,
+              112,
+              116,
+              45,
+              110,
+              97,
+              116,
+              105,
+              118,
+              101,
+              45,
+              99,
+              111,
+              114,
+              101,
+              45,
+              50,
+              48,
+              50,
+              54,
+              48,
+              57,
+              49,
+              51,
+              47,
+              116,
+              111,
+              111,
+              108,
+              99,
+              104,
+              97,
+              105,
+              110,
+              47,
+              114,
+              111,
+              111,
+              116,
+              47,
+              117,
+              115,
+              114,
+              47,
+              98,
+              105,
+              110,
+              47,
+              99,
+              108,
+              97,
+              110,
+              103,
+              45,
+              49,
+              56
+            ]
+          },
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /tmp/lilscript-native-core-20260913/toolchain/root/usr/bin\n",
+          "profile": "asan-lsan",
+          "commands": [
+            {
+              "phase": "compile-program",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/program.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-asan-lsan-program.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.20961999
+            },
+            {
+              "phase": "compile-host",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"-c\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/host.c\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-asan-lsan-host.o\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.097135042
+            },
+            {
+              "phase": "link",
+              "command": "\"/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18\" \"-std=c11\" \"-fno-fast-math\" \"-ffp-contract=off\" \"-DLS_NATIVE_QUALIFICATION\" \"-O1\" \"-fsanitize=address,leak\" \"-fno-omit-frame-pointer\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-asan-lsan-program.o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-asan-lsan-host.o\" \"-lm\" \"-o\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-asan-lsan\"",
+              "status": 0,
+              "stdout": "",
+              "stderr": "",
+              "elapsed_seconds": 0.14788447
+            }
+          ],
+          "run_command": "ASAN_OPTIONS=\"detect_leaks=1:halt_on_error=1\" LSAN_OPTIONS=\"exitcode=23\" UBSAN_OPTIONS=\"halt_on_error=1\" \"/tmp/lilscript-native-test-1623038-7-public-reentry/clang-asan-lsan\"",
+          "run_status": 0,
+          "stdout": "211\n31\n207\n30\n37\n",
+          "stderr": "",
+          "run_elapsed_seconds": 0.011440896,
+          "native_executable_sha256": "1775f5c3f853e9b096acbb5e907b0d6ebee0a58876adb938283e32ed5ca011e7",
+          "native_executable_bytes": 1662784,
+          "memory_check": "actual runtime live objects at authored scope boundaries and process exit; ASan+LSan profile enabled",
+          "timing_scope": "subprocess wall time including existing spawn/wait polling; RSS unmeasured"
+        }
+      ]
+    }
+  ]
+}

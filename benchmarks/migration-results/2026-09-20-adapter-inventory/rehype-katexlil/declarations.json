@@ -1,0 +1,136 @@
+{
+  "patterns": [
+    "test/official/test.js",
+    "test/*.test.mjs"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/rehype-katex.cjs",
+    "dist/rehype-katex.closed.js",
+    "dist/rehype-katex.esm.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+      "bytes": 406
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+      "bytes": 1105
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+      "bytes": 64102
+    },
+    {
+      "path": "package.json",
+      "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+      "bytes": 2512
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "24cb59ef35e0b10c78e9083d7c5943a071f433f0996c78e74b80a9503f4d3eee",
+      "bytes": 950
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "df3eeebfedf7931d4996bdf4c3e0e35a4af8f27a36d555da3444c52d75ebe6b3",
+      "bytes": 6263
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "a6b6b22285e9d86daa77a3cd552be09804fd2fcd01c00a968ccfc4281799aa35",
+      "bytes": 1731
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "fa8a16c37e9c83e1e06843645a12baedc2462f9960d9ae7bd4b5d1c11581a00c",
+      "bytes": 9647
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "bd5d7d00623a856f50621bff26b075636e7bf2384c33a16b9145168129ff0604",
+      "bytes": 898046
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "2f400bf66ff4951e818dbc2bb7c432ec3d64223f35cfaface849ae020968d8eb",
+      "bytes": 2302
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "test/audit.test.mjs",
+      "sha256": "a1b3d3d70ad914514b33bd2c1a2013c2e45c592b990b1cb3d8d58db5d64b6f1c",
+      "bytes": 4580
+    },
+    {
+      "path": "test/official/test.js",
+      "sha256": "970264c97273e0b4f35ac219ee488183f6fb879508ec428e1eeb7c8bbd8e0db4",
+      "bytes": 7874
+    },
+    {
+      "path": "test/parity.test.mjs",
+      "sha256": "cb89176602dbdfd7db0adf672b95b9f5705eb96853b7fd0937a09b3f56a2b83f",
+      "bytes": 10603
+    },
+    {
+      "path": "test/rehype-katex.test.mjs",
+      "sha256": "48d21edaaea4111269249ef2ba073bb4038952663d5fc1234ba170097bda812b",
+      "bytes": 2098
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/types.test.ts",
+      "sha256": "03491094540436ab4d3f384f6e66c9f58c18b9d696e0e626c889ba91092a04b2",
+      "bytes": 318
+    },
+    {
+      "path": "types/rehype-katex.d.ts",
+      "sha256": "ca79baae8a93705bf1ed45d43392a1a0abb3a9660bf615d61823928bf58a6e0a",
+      "bytes": 328
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "cb305e3481653c02c1a58c38762e6effcd29ad2af40959b24b0fe3e72f2d5ad2",
+          "bytes": 2512
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "5e914e8b04e84f48e83539235a3095f6bb70823ea414a1c9b30496367b1424d0",
+          "bytes": 64102
+        }
+      ]
+    }
+  ]
+}

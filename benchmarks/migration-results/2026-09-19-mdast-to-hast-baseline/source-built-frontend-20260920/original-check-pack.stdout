@@ -1,0 +1,5 @@
+
+> @itslil/mdast-util-to-hast@13.2.1 check:pack
+> node scripts/check-pack.mjs
+
+npm pack: 12 files, 25248 bytes packed, 111372 bytes unpacked

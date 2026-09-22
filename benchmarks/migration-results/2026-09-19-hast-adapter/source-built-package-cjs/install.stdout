@@ -1,0 +1,16 @@
+{
+  "add": [
+    {
+      "name": "@itslil/hast-util-to-html",
+      "version": "9.0.7",
+      "path": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html"
+    }
+  ],
+  "added": 1,
+  "audited": 0,
+  "change": [],
+  "changed": 0,
+  "funding": 0,
+  "remove": [],
+  "removed": 0
+}

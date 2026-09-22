@@ -1,0 +1,4 @@
+
+> @itslil/remark@15.0.2 test:types
+> tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts
+

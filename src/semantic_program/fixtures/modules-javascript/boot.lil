@@ -1,0 +1,3 @@
+extern void emit(string label,int value);
+export int boots=1;
+emit("boot",boots);

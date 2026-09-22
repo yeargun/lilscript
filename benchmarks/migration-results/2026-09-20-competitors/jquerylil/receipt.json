@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "kind": "competitor-recipe-run",
+  "boundary": "jquerylil",
+  "started": "2026-09-20T22:30:03.307Z",
+  "passed": true,
+  "ourArtifact": {
+    "path": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+    "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+    "bytes": 81828
+  },
+  "upstream": {
+    "directory": "/home/azureuser/jquerylil/node_modules/jquery",
+    "name": "jquery",
+    "version": "3.7.1",
+    "entry": "dist/jquery.js",
+    "externals": [
+      "+t,y=e+("
+    ]
+  },
+  "competitors": [
+    {
+      "id": "terser@5.51.2/terser",
+      "recipe": "terser",
+      "tool": {
+        "name": "terser",
+        "version": "5.51.2",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/terser/package.json",
+          "sha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+          "bytes": 3334
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/terser",
+          "sha256": "312a3f9b37d3f5316ee384bfdc347313dae6f0f9056c44b3cae56c8e4e9f4496",
+          "bytes": 444
+        }
+      },
+      "renames": "locals and top-level module bindings (`-m --module`); property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/jquerylil/terser.min.js",
+      "sha256": "5b4a581b812d369d66bf935bddb1d363de7306c639768606d0e47ec40ff0110b",
+      "bytes": 87239,
+      "sizes": {
+        "raw": 87239,
+        "gzip": 30471,
+        "brotli": 27613
+      },
+      "exports": [
+        "default"
+      ],
+      "surfaceMatches": false,
+      "missingFromOurs": [],
+      "extraInOurs": [
+        "$",
+        "jQuery"
+      ],
+      "rawRatio": 1.066,
+      "massMatches": true,
+      "comparable": false
+    },
+    {
+      "id": "esbuild@0.28.1/esbuild",
+      "recipe": "esbuild",
+      "tool": {
+        "name": "esbuild",
+        "version": "0.28.1",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+          "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+          "bytes": 3980
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+          "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+          "bytes": 11407472
+        }
+      },
+      "renames": "locals and top-level bindings; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/jquerylil/esbuild.min.js",
+      "sha256": "bfe03449d33128ec289dcc0f1af433aa74ee78350490802d688c210d23dcda06",
+      "bytes": 88023,
+      "sizes": {
+        "raw": 88023,
+        "gzip": 31452,
+        "brotli": 28535
+      },
+      "exports": [
+        "default"
+      ],
+      "surfaceMatches": false,
+      "missingFromOurs": [],
+      "extraInOurs": [
+        "$",
+        "jQuery"
+      ],
+      "rawRatio": 1.076,
+      "massMatches": true,
+      "comparable": false
+    },
+    {
+      "id": "rolldown@1.2.5/oxc",
+      "recipe": "oxc",
+      "tool": {
+        "name": "rolldown",
+        "version": "1.2.5",
+        "home": "/home/azureuser/markedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/markedlil/node_modules/rolldown/package.json",
+          "sha256": "6be75efa1a51c115f17375d1fc4713f70392bff70335045ec5cf7eeaf1228c96",
+          "bytes": 6127
+        },
+        "binary": {
+          "path": "/home/azureuser/markedlil/node_modules/.bin/rolldown",
+          "sha256": "4f32d8fafabe786e739f8be56df684e56def00e63a32858ad9d5ede57406bc6c",
+          "bytes": 46
+        }
+      },
+      "renames": "locals and top-level bindings through Rolldown's Oxc minifier; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/jquerylil/oxc.min.js",
+      "sha256": "12bd2b4fa9f4ab496e98ac862b9ebdfccc65d10fa861bfd8c8452b074b93cd5b",
+      "bytes": 87151,
+      "sizes": {
+        "raw": 87151,
+        "gzip": 30540,
+        "brotli": 27751
+      },
+      "exports": [
+        "default"
+      ],
+      "surfaceMatches": false,
+      "missingFromOurs": [],
+      "extraInOurs": [
+        "$",
+        "jQuery"
+      ],
+      "rawRatio": 1.065,
+      "massMatches": true,
+      "comparable": false
+    }
+  ],
+  "refused": [],
+  "limitations": [
+    "Byte construction only. These artifacts are not executed, so this receipt is not behavior evidence.",
+    "Each recipe states its own renaming policy; the comparison is only as fair as that statement.",
+    "The bundle leaves external exactly what our artifact imports. A boundary that bundles a different dependency graph is not comparable and says so.",
+    "NOT COMPARABLE (public surface): our artifact publishes 3 names, the reconstructed upstream 1. Only in ours: $, jQuery. A reduced export set is its own boundary, not a whole-library win (001)."
+  ],
+  "bundle": {
+    "tool": {
+      "name": "esbuild",
+      "version": "0.28.1",
+      "home": "/home/azureuser/unifiedlil/node_modules",
+      "package": {
+        "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      },
+      "binary": {
+        "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      }
+    },
+    "args": [
+      "/home/azureuser/jquerylil/node_modules/jquery/dist/jquery.js",
+      "--bundle",
+      "--format=esm",
+      "--target=es2020",
+      "--outfile=/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/jquerylil/upstream.bundle.mjs",
+      "--external:+t,y=e+("
+    ],
+    "output": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/jquerylil/upstream.bundle.mjs",
+      "sha256": "7901a23fdc33c05ed55b1995c1f359e3cef339f85a03ba9beddf93b9c36e40e1",
+      "bytes": 245036
+    }
+  },
+  "ourSizes": {
+    "raw": 81828,
+    "gzip": 31260,
+    "brotli": 27898
+  },
+  "bundleSizes": {
+    "raw": 245036,
+    "gzip": 53062,
+    "brotli": 44867
+  },
+  "publicSurface": {
+    "ours": [
+      "$",
+      "default",
+      "jQuery"
+    ]
+  },
+  "comparable": false,
+  "completed": "2026-09-20T22:30:07.303Z",
+  "fingerprint": "e7099420a49645ba063f42b8f993635c6653a1f804088fcee1f3ae580066e9e8"
+}

@@ -1,0 +1,6 @@
+
+running 1 test
+test compiler::tests::extern_class_members_stay_exact_when_owned_fields_reuse_the_name ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2899 filtered out; finished in 0.02s
+

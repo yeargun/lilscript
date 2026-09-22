@@ -1,0 +1,516 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "katexlil",
+  "started": "2026-09-21T10:04:25.540Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/katexlil",
+  "workspace": "/tmp/lilscript-baseline-katexlil-jeympR/katexlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/katexlil",
+    "candidates": [
+      "/home/azureuser/katexlil",
+      "/home/azureuser/katexlil",
+      "/tmp/lilscript-page-refresh-20260910/current/katexlil"
+    ],
+    "recorded": "/home/azureuser/katexlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/58fd6838c70de508a5c44f22e4b7563c24001e22607ffbaa042b88fba3632a8e/lilscript",
+    "sha256": "58fd6838c70de508a5c44f22e4b7563c24001e22607ffbaa042b88fba3632a8e",
+    "bytes": 17897216,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The committed distribution also carried dist/data-host.js, dist/katex.check.js, dist/katex.closed.bundled.js, dist/katex.dev.raw.js, which this build does not produce; they are stale and are not measured."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/katexlil",
+    "files": 235,
+    "sha256": "0f744b0de8cab10d668a493c51644459260b52d749ad26a01aa7437fe71e567b"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/58fd6838c70de508a5c44f22e4b7563c24001e22607ffbaa042b88fba3632a8e/lilscript",
+        "sha256": "58fd6838c70de508a5c44f22e4b7563c24001e22607ffbaa042b88fba3632a8e",
+        "bytes": 17897216
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.check.toml",
+        "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+        "bytes": 164
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.closed.toml",
+        "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+        "bytes": 872
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.mhchem.toml",
+        "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+        "bytes": 587
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.toml",
+        "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+        "bytes": 1309
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/data-host.js",
+    "dist/fontMetricsData.js",
+    "dist/katex.check.js",
+    "dist/katex.cjs",
+    "dist/katex.closed.bundled.js",
+    "dist/katex.closed.js",
+    "dist/katex.closed.raw.js",
+    "dist/katex.contrib-test.js",
+    "dist/katex.dev.raw.js",
+    "dist/katex.esm.js",
+    "dist/katex.min.js",
+    "dist/katex.mjs",
+    "dist/katex.raw.js",
+    "dist/katex.test.js",
+    "dist/katex.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 979.132,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "notRebuilt": [
+    "dist/data-host.js",
+    "dist/katex.check.js",
+    "dist/katex.closed.bundled.js",
+    "dist/katex.dev.raw.js"
+  ],
+  "artifacts": [
+    {
+      "path": "dist/fontMetricsData.js",
+      "sha256": "0f095095723f7cdeef08ed3a8a0ee3b28be8a5421a165289c70f516dbbcc84d8",
+      "bytes": 57656,
+      "sizes": {
+        "raw": 57656,
+        "gzip": 11320,
+        "brotli": 9209
+      }
+    },
+    {
+      "path": "dist/katex.cjs",
+      "sha256": "02d2ea58e1515cb4a12c871ba856ab5d927e8f4c94a4efbf58e10096808cb4b3",
+      "bytes": 276803,
+      "sizes": {
+        "raw": 276803,
+        "gzip": 78454,
+        "brotli": 65121
+      }
+    },
+    {
+      "path": "dist/katex.closed.js",
+      "sha256": "352b764b5fde4ea7f9f6e1ad48385ccafe3e90a035e8839b225ee0439ad191ed",
+      "bytes": 275187,
+      "sizes": {
+        "raw": 275187,
+        "gzip": 78693,
+        "brotli": 64996
+      }
+    },
+    {
+      "path": "dist/katex.closed.raw.js",
+      "sha256": "20adbab9fd12649b1a78730b8828e98cfde4c70cdad0be57b4967fb3fcb88653",
+      "bytes": 217627,
+      "sizes": {
+        "raw": 217627,
+        "gzip": 66828,
+        "brotli": 55565
+      }
+    },
+    {
+      "path": "dist/katex.contrib-test.js",
+      "sha256": "57626eb093e3ff1a6c87c18485933f0663e66156cd30adbe73f7d3bdedd6c332",
+      "bytes": 719,
+      "sizes": {
+        "raw": 719,
+        "gzip": 424,
+        "brotli": 373
+      }
+    },
+    {
+      "path": "dist/katex.esm.js",
+      "sha256": "e627816248eca78b6144845bd239b231b06b855efd98f72ab3413fd4268e6823",
+      "bytes": 274768,
+      "sizes": {
+        "raw": 274768,
+        "gzip": 78623,
+        "brotli": 64848
+      }
+    },
+    {
+      "path": "dist/katex.min.js",
+      "sha256": "2e1a113c9271a58ca2fed4359eb8218342406b08434dd3d3bebc09569df91714",
+      "bytes": 276813,
+      "sizes": {
+        "raw": 276813,
+        "gzip": 78458,
+        "brotli": 65197
+      }
+    },
+    {
+      "path": "dist/katex.mjs",
+      "sha256": "e627816248eca78b6144845bd239b231b06b855efd98f72ab3413fd4268e6823",
+      "bytes": 274768,
+      "sizes": {
+        "raw": 274768,
+        "gzip": 78623,
+        "brotli": 64848
+      }
+    },
+    {
+      "path": "dist/katex.raw.js",
+      "sha256": "1ff4b0a5adc96c0018cadfd9ce635017db27b2f5d5a6003fa9d8fbfdc1e4b876",
+      "bytes": 217206,
+      "sizes": {
+        "raw": 217206,
+        "gzip": 66743,
+        "brotli": 55469
+      }
+    },
+    {
+      "path": "dist/katex.test.js",
+      "sha256": "5569e4ca2748f903604d7b4d7e4e142c63bade5f47fa0ead77a55916689f3bde",
+      "bytes": 274946,
+      "sizes": {
+        "raw": 274946,
+        "gzip": 78706,
+        "brotli": 64945
+      }
+    },
+    {
+      "path": "dist/katex.umd.js",
+      "sha256": "2e1a113c9271a58ca2fed4359eb8218342406b08434dd3d3bebc09569df91714",
+      "bytes": 276813,
+      "sizes": {
+        "raw": 276813,
+        "gzip": 78458,
+        "brotli": 65197
+      }
+    }
+  ],
+  "measurements": {
+    "dist/fontMetricsData.js": {
+      "raw": 57656,
+      "gzip": 11320,
+      "brotli": 9209
+    },
+    "dist/katex.cjs": {
+      "raw": 276803,
+      "gzip": 78454,
+      "brotli": 65121
+    },
+    "dist/katex.closed.js": {
+      "raw": 275187,
+      "gzip": 78693,
+      "brotli": 64996
+    },
+    "dist/katex.closed.raw.js": {
+      "raw": 217627,
+      "gzip": 66828,
+      "brotli": 55565
+    },
+    "dist/katex.contrib-test.js": {
+      "raw": 719,
+      "gzip": 424,
+      "brotli": 373
+    },
+    "dist/katex.esm.js": {
+      "raw": 274768,
+      "gzip": 78623,
+      "brotli": 64848
+    },
+    "dist/katex.min.js": {
+      "raw": 276813,
+      "gzip": 78458,
+      "brotli": 65197
+    },
+    "dist/katex.mjs": {
+      "raw": 274768,
+      "gzip": 78623,
+      "brotli": 64848
+    },
+    "dist/katex.raw.js": {
+      "raw": 217206,
+      "gzip": 66743,
+      "brotli": 55469
+    },
+    "dist/katex.test.js": {
+      "raw": 274946,
+      "gzip": 78706,
+      "brotli": 64945
+    },
+    "dist/katex.umd.js": {
+      "raw": 276813,
+      "gzip": 78458,
+      "brotli": 65197
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 18.35,
+  "cases": {
+    "required": 26,
+    "executed": 26,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/contrib/mhchem.mjs",
+      "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+      "bytes": 42015
+    },
+    {
+      "path": "dist/katex.mjs",
+      "sha256": "e627816248eca78b6144845bd239b231b06b855efd98f72ab3413fd4268e6823",
+      "bytes": 274768
+    },
+    {
+      "path": "dist/contrib/render-a11y-string.mjs",
+      "sha256": "054631d6f7229cab2b55430c290e2c0c1ae5e899a2c8b2c7e8ca6b50011cedd2",
+      "bytes": 6897
+    },
+    {
+      "path": "dist/katex.closed.js",
+      "sha256": "352b764b5fde4ea7f9f6e1ad48385ccafe3e90a035e8839b225ee0439ad191ed",
+      "bytes": 275187
+    },
+    {
+      "path": "katex.js",
+      "sha256": "053a4aa4fd160948275966aa51c70c30cc87c6bae7ed3460ae61e9dc50a6fe53",
+      "bytes": 76
+    },
+    {
+      "path": "dist/katex.cjs",
+      "sha256": "02d2ea58e1515cb4a12c871ba856ab5d927e8f4c94a4efbf58e10096808cb4b3",
+      "bytes": 276803
+    },
+    {
+      "path": "dist/contrib/mhchem.cjs",
+      "sha256": "98b156f088ea22810f5201353b7baf79eace1c666acf59e41a873697e0ccfa41",
+      "bytes": 43086
+    },
+    {
+      "path": "dist/contrib/mathtex-script-type.mjs",
+      "sha256": "14f4445d39c92864b6e7bfcb1767b4df31171e85166e6c384fd78569bcdd9005",
+      "bytes": 531
+    },
+    {
+      "path": "dist/contrib/mhchem.mjs",
+      "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+      "bytes": 42015
+    },
+    {
+      "path": "dist/contrib/copy-tex.mjs",
+      "sha256": "f583e81d9e20924e5023d383ad107846cc24295bce55adf95e672e9d96678135",
+      "bytes": 1309
+    },
+    {
+      "path": "dist/katex.closed.js",
+      "sha256": "352b764b5fde4ea7f9f6e1ad48385ccafe3e90a035e8839b225ee0439ad191ed",
+      "bytes": 275187
+    },
+    {
+      "path": "dist/contrib/render-a11y-string.mjs",
+      "sha256": "054631d6f7229cab2b55430c290e2c0c1ae5e899a2c8b2c7e8ca6b50011cedd2",
+      "bytes": 6897
+    },
+    {
+      "path": "dist/contrib/render-a11y-string.cjs",
+      "sha256": "c1b6d3c83d738f91ac6b1292bb220a7d20d0fb0b19bf852b2ba468d20d54491c",
+      "bytes": 8080
+    },
+    {
+      "path": "dist/contrib/auto-render.cjs",
+      "sha256": "0995cb8488e7e804fd8977217ba2c0b5b60a95b7ddd6a53bd3b2c473f9d23338",
+      "bytes": 4060
+    },
+    {
+      "path": "dist/katex.mjs",
+      "sha256": "e627816248eca78b6144845bd239b231b06b855efd98f72ab3413fd4268e6823",
+      "bytes": 274768
+    },
+    {
+      "path": "dist/contrib/auto-render.mjs",
+      "sha256": "9c0013bacdf9d7656741371dafe9cd637723eb980625a24b78fa762ffb329b82",
+      "bytes": 2744
+    },
+    {
+      "path": "dist/katex.mjs",
+      "sha256": "e627816248eca78b6144845bd239b231b06b855efd98f72ab3413fd4268e6823",
+      "bytes": 274768
+    },
+    {
+      "path": "dist/katex.mjs",
+      "sha256": "e627816248eca78b6144845bd239b231b06b855efd98f72ab3413fd4268e6823",
+      "bytes": 274768
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/browser-perf.test.mjs\",20,3,1,\"test\",\"renders the corpus identically and within the regression guard rail\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/browser-perf.test.mjs\",19,1,0,\"suite\",\"browser performance (Playwright, Chromium)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",18,3,1,\"test\",\"contains no runtime JavaScript host modules\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",25,3,1,\"test\",\"matches official render-a11y-string outputs and errors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",68,3,1,\"test\",\"matches official mhchem rendering across parser state machines\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",17,1,0,\"suite\",\"contrib LilScript parity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",38,3,1,\"test\",\"renders x^2 with MathML and HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",47,3,1,\"test\",\"renders frac\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",56,3,1,\"test\",\"matches the upstream root exports\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",82,3,1,\"test\",\"honors throwOnError and errorColor\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",90,3,1,\"test\",\"pins option keys on the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",98,3,1,\"test\",\"render appends a DOM tree and covers the TeX surface\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",124,3,1,\"test\",\"closed artifact performs the core call\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",37,1,0,\"suite\",\"@itslil/katex\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",14,3,1,\"test\",\"reports the pinned upstream version in ESM, CJS, and the CLI\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",27,3,1,\"test\",\"matches pinned upstream root and contrib export keys\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",49,3,1,\"test\",\"renders stdin through the CLI\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",59,3,1,\"test\",\"loads ESM and CommonJS contrib entry points\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",70,3,1,\"test\",\"loads browser builds as classic scripts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",100,3,1,\"test\",\"matches official mhchem output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",113,3,1,\"test\",\"matches official output across the screenshot corpus\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",13,1,0,\"suite\",\"published surface\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",25,3,1,\"test\",\"ships the benchmark page and the corpus it shares with Node\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",31,3,1,\"test\",\"publishes results that name their sources and both worlds\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 997.666,
+  "completed": "2026-09-21T10:21:02.771Z",
+  "fingerprint": "8abe56e313d9c649871b2f3276b953538d2ba6ece3768a484487aa26292e3d26"
+}

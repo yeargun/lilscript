@@ -1,0 +1,7 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/unions.lil:15:1
+  |
+15 | class Box {
+  string|int value;
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

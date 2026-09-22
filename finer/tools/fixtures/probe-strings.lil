@@ -1,0 +1,11 @@
+extern int read();
+int strings(int seed) {
+  string a = "probe";
+  string b = a + "-lil";
+  string t = `seed=${seed} len=${b.length}`;
+  int code = b.charCodeAt(1);
+  int found = t.indexOf("len");
+  string sliced = b.slice(0, 5);
+  return b.length + t.length + code + found + sliced.length;
+}
+print(strings(read()));print(strings(-3));print(strings(0));

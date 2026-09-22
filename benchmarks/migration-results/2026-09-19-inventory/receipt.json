@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "kind": "migration-inventory-validation",
+  "status": "inventory-valid-step-001-incomplete",
+  "complete": false,
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "version": "v24.11.1",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "inventoryCommand": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "finer/tools/migration-inventory.mjs",
+    "--out",
+    "benchmarks/migration-results/2026-09-19-inventory/inventory.json"
+  ],
+  "verificationCommand": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "finer/tools/migration-inventory.mjs",
+    "--verify",
+    "benchmarks/migration-results/2026-09-19-inventory/inventory.json"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "verification": {
+    "errors": [],
+    "elapsedMs": 1474.3621530000005,
+    "checks": [
+      "content fingerprint and current maintained manifest",
+      "all required identities and roles",
+      "no unsupported baseline/workload certification claim",
+      "summary agrees with rows",
+      "current source/configuration/frozen case inventory identities",
+      "current direct installed package content identities"
+    ]
+  },
+  "summary": {
+    "rows": 29,
+    "libraryRows": 27,
+    "additionalRows": 2,
+    "missingWorkspaces": [],
+    "rowsWithMissingDependencies": [
+      "motionlil",
+      "rehype-stringifylil",
+      "vuelil",
+      "lil-solidjs"
+    ],
+    "rowsWithFrozenTestInventory": [
+      "markedlil",
+      "probelil"
+    ],
+    "rowsWithInvalidTestInventory": [],
+    "installedPackageContents": 220,
+    "sourceFiles": 2725
+  },
+  "focusedTests": {
+    "passed": 31,
+    "failed": 0,
+    "receipt": "focused-tests.json"
+  },
+  "runnerDiscoveries": {
+    "mobxFiles": 37,
+    "katexFiles": 8,
+    "zodCases": 1353,
+    "zodFiles": 82,
+    "zodRepeatedEnumerationStable": true
+  },
+  "manifest": {
+    "path": "benchmarks/libraries/maintained-workloads.json",
+    "sha256": "e9cabfd09c007c0af6ce79524d7a69636e48ac1f92d744343596b27bba4e84bf",
+    "bytes": 99212
+  },
+  "tools": [
+    {
+      "path": "finer/tools/migration-inventory.mjs",
+      "sha256": "39964a26ebf4e2ca27c76d725d5cbf638d8d323bb8e03a175f66fdd051022a31",
+      "bytes": 23329
+    },
+    {
+      "path": "finer/tools/migration-inventory.test.mjs",
+      "sha256": "aea1837fb13978478f463c4ac7704e3615e0e66429700404250ba8248c32b7ad",
+      "bytes": 12415
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/artifact-evidence.test.mjs",
+      "sha256": "c71d5642d9e5ae4f13b3f17057096e3b2d5d622934139c660c81af77202f0344",
+      "bytes": 9626
+    },
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "sha256": "0989d1d03bf3255a3b358a69e93208279dce04a5cd2486c248af8fe8a6675c27",
+      "bytes": 4922
+    },
+    {
+      "path": "finer/tools/node-test-evidence.test.mjs",
+      "sha256": "77b84ab5e6b5b0bc997c485396b4f615af56b8f3933aef79aefa6b5a95dfabd1",
+      "bytes": 6135
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "focused-tests.json",
+      "sha256": "bb4833a6f9d9f450beec166bd1e77a60a0b7e876204d6a03012e9d56d72e10ad",
+      "bytes": 1891
+    },
+    {
+      "path": "focused-tests.log",
+      "sha256": "553cdea9c683fffaeaac729b93530e522edfa87635c5f41a0c69bd413f3b5911",
+      "bytes": 2810
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "82683c7782aab8d378b9a8591610d276fd44233de2e04becb0b2a1adc7b57e5a",
+      "bytes": 2070858
+    },
+    {
+      "path": "katexlil-discovery.json",
+      "sha256": "f128a02c9f64d0856349e2439045a66d6452cad1026f2d6de758c9dc9f00c27e",
+      "bytes": 2606
+    },
+    {
+      "path": "katexlil-list.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "katexlil-list.stdout",
+      "sha256": "0af73c8268cb0dbea9311787901a9b40e0df7c26f7f40b65737e7bc9c2efa02f",
+      "bytes": 487
+    },
+    {
+      "path": "mobxlil-discovery.json",
+      "sha256": "c31b912d3908645baa3d4dbb3bcf6d98d2433667afcc566fe62b1e931d0a3b38",
+      "bytes": 7464
+    },
+    {
+      "path": "mobxlil-list.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "mobxlil-list.stdout",
+      "sha256": "291ae2ebc8713a301abf3992316089403b45193e938afaf05dbad9e5399b1675",
+      "bytes": 2215
+    },
+    {
+      "path": "public-entrypoints.json",
+      "sha256": "7529c398efe222db865ed94b9d92c79ba8fbaba7ac86422e0ef746d3fd51ec66",
+      "bytes": 14075
+    },
+    {
+      "path": "remaining-gaps.json",
+      "sha256": "b81b9c701fb006287db85d7c049f748946299af6c0e62afcdcf0390b76cf7e6e",
+      "bytes": 25159
+    },
+    {
+      "path": "zodlil-discovery.json",
+      "sha256": "bff176f41b39d275f62a1919c0ff5d9eb6435b5be52a33a1dad296a0409615c0",
+      "bytes": 1554
+    },
+    {
+      "path": "zodlil-list-repeat.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "zodlil-list-repeat.stdout",
+      "sha256": "9c369bcb8dc18424fe06e78b149a5b8974792f7d4be613dd80964588c067f11b",
+      "bytes": 217943
+    },
+    {
+      "path": "zodlil-list.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "zodlil-list.stdout",
+      "sha256": "9c369bcb8dc18424fe06e78b149a5b8974792f7d4be613dd80964588c067f11b",
+      "bytes": 217943
+    },
+    {
+      "path": "zodlil.required-cases.json",
+      "sha256": "a70acbc6ee1c966d0c6f7737ce438ccf4740f4116afc627ff8c2520ab8cd6213",
+      "bytes": 179927
+    }
+  ],
+  "limitations": [
+    "No Rust builds, maintained-library test executions, full fleet or compiler performance claims.",
+    "File discovery is not case discovery; case discovery is not passing production execution.",
+    "Direct installed package contents exclude nested node_modules; complete transitive dependencies remain unqualified.",
+    "The inventory validator rejects unsupported completion and stale evidence; it does not establish milestone acceptance.",
+    "All 29 required identities and their existing suite exclusions, pending work and missing artifacts remain explicit."
+  ]
+}

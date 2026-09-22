@@ -1,0 +1,1 @@
+let a;let b;let c;let first=true;let second=false;a=void console.log(first&&!second);b=void console.log(first===true||second);c=void console.log(first!==second);

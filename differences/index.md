@@ -98,8 +98,8 @@ The remaining matrix focuses specifically on mangling.
   prototype extraction, pruning, polyfills, and chunks.
 - [Compression opportunities](compression-opportunities.md): ranked Closure-inspired work
   that fits LilScript's architecture and objective.
-- [Compression migration](../docs/knowledge/migration/compression-migration.md): design-first
-  implementation order, language surfaces, and progressive corpus gates.
+- [Single compiler migration plan](../docs/migration/index.md): implementation
+  order, ownership replacement and verified completion gates.
 - [Variable mangling](variable-mangling.md): name allocation, liveness, reuse, frequency,
   alphabets, and compressed-size heuristics.
 - [Property mangling](property-mangling.md): ordinary renaming, disambiguation,

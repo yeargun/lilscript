@@ -1,0 +1,416 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "posthoglil",
+  "started": "2026-09-21T09:34:42.702Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/posthoglil",
+  "workspace": "/tmp/lilscript-baseline-posthoglil-EEdTHF/posthoglil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/posthoglil",
+    "candidates": [
+      "/home/azureuser/posthoglil",
+      "/home/azureuser/posthoglil",
+      "/tmp/lilscript-page-refresh-20260910/current/posthoglil"
+    ],
+    "recorded": "/home/azureuser/posthoglil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The committed distribution also carried dist/autocapture.cjs, dist/autocapture.esm.js, dist/autocapture.raw.js, dist/error-tracking.cjs, dist/error-tracking.esm.js, dist/error-tracking.raw.js, dist/otlp.cjs, dist/otlp.esm.js, dist/otlp.raw.js, dist/replay-core.cjs, dist/replay-core.esm.js, dist/replay-core.raw.js, dist/surveys.cjs, dist/surveys.esm.js, dist/surveys.raw.js, which this build does not produce; they are stale and are not measured."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/posthoglil",
+    "files": 3856,
+    "sha256": "07317e3bd29a2ed3fd4d21695cdf12d34fd67f9d816541b15e8fae1f3f9e316a"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.bytes.toml",
+        "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+        "bytes": 293
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.closed.toml",
+        "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+        "bytes": 297
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.dev.toml",
+        "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+        "bytes": 261
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.gzip.toml",
+        "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+        "bytes": 294
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.packs-safe.toml",
+        "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+        "bytes": 285
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.toml",
+        "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+        "bytes": 1400
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/autocapture.cjs",
+    "dist/autocapture.esm.js",
+    "dist/autocapture.raw.js",
+    "dist/error-tracking.cjs",
+    "dist/error-tracking.esm.js",
+    "dist/error-tracking.raw.js",
+    "dist/otlp.cjs",
+    "dist/otlp.esm.js",
+    "dist/otlp.raw.js",
+    "dist/posthog.bytes.js",
+    "dist/posthog.cjs",
+    "dist/posthog.closed.js",
+    "dist/posthog.esm.js",
+    "dist/posthog.gzip.js",
+    "dist/posthog.raw.js",
+    "dist/posthog.umd.js",
+    "dist/replay-core.cjs",
+    "dist/replay-core.esm.js",
+    "dist/replay-core.raw.js",
+    "dist/surveys.cjs",
+    "dist/surveys.esm.js",
+    "dist/surveys.raw.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 177.667,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "notRebuilt": [
+    "dist/autocapture.cjs",
+    "dist/autocapture.esm.js",
+    "dist/autocapture.raw.js",
+    "dist/error-tracking.cjs",
+    "dist/error-tracking.esm.js",
+    "dist/error-tracking.raw.js",
+    "dist/otlp.cjs",
+    "dist/otlp.esm.js",
+    "dist/otlp.raw.js",
+    "dist/replay-core.cjs",
+    "dist/replay-core.esm.js",
+    "dist/replay-core.raw.js",
+    "dist/surveys.cjs",
+    "dist/surveys.esm.js",
+    "dist/surveys.raw.js"
+  ],
+  "artifacts": [
+    {
+      "path": "dist/posthog.bytes.js",
+      "sha256": "e3dacbeba9ad39c363acb14ad116658d16efb58c8a74908edd1657840cb66fc4",
+      "bytes": 15892,
+      "sizes": {
+        "raw": 15892,
+        "gzip": 6410,
+        "brotli": 5679
+      }
+    },
+    {
+      "path": "dist/posthog.cjs",
+      "sha256": "4506c4e3d75a90afbfb8005b1ee12c48a7d05f8c2eeb05ba37812490bfa818f0",
+      "bytes": 18675,
+      "sizes": {
+        "raw": 18675,
+        "gzip": 6846,
+        "brotli": 6065
+      }
+    },
+    {
+      "path": "dist/posthog.closed.js",
+      "sha256": "3c7ac48542a9391e77ffb5cd0144ee2f39b1760bc3cdcd069796b5cf6d621d4c",
+      "bytes": 16775,
+      "sizes": {
+        "raw": 16775,
+        "gzip": 6510,
+        "brotli": 5680
+      }
+    },
+    {
+      "path": "dist/posthog.esm.js",
+      "sha256": "045be325a7fae64ae150bae45ae3c7b42ce8e545dd16139ccbf36182517dd04a",
+      "bytes": 16557,
+      "sizes": {
+        "raw": 16557,
+        "gzip": 6442,
+        "brotli": 5720
+      }
+    },
+    {
+      "path": "dist/posthog.gzip.js",
+      "sha256": "880feab5853c1250c4144929b3462cc96d03a86c9ed64d40c283de1e2b071764",
+      "bytes": 16298,
+      "sizes": {
+        "raw": 16298,
+        "gzip": 6375,
+        "brotli": 5689
+      }
+    },
+    {
+      "path": "dist/posthog.raw.js",
+      "sha256": "70eab976a6397ea61ef6bfc806953168f6aa007a463cee9c3a6897c9548828da",
+      "bytes": 16466,
+      "sizes": {
+        "raw": 16466,
+        "gzip": 6385,
+        "brotli": 5622
+      }
+    },
+    {
+      "path": "dist/posthog.umd.js",
+      "sha256": "cc791203d2a534d0dd46f02c3c01c249ee0c3ed3eed56589e8ff584751fda75d",
+      "bytes": 18747,
+      "sizes": {
+        "raw": 18747,
+        "gzip": 6870,
+        "brotli": 6104
+      }
+    }
+  ],
+  "measurements": {
+    "dist/posthog.bytes.js": {
+      "raw": 15892,
+      "gzip": 6410,
+      "brotli": 5679
+    },
+    "dist/posthog.cjs": {
+      "raw": 18675,
+      "gzip": 6846,
+      "brotli": 6065
+    },
+    "dist/posthog.closed.js": {
+      "raw": 16775,
+      "gzip": 6510,
+      "brotli": 5680
+    },
+    "dist/posthog.esm.js": {
+      "raw": 16557,
+      "gzip": 6442,
+      "brotli": 5720
+    },
+    "dist/posthog.gzip.js": {
+      "raw": 16298,
+      "gzip": 6375,
+      "brotli": 5689
+    },
+    "dist/posthog.raw.js": {
+      "raw": 16466,
+      "gzip": 6385,
+      "brotli": 5622
+    },
+    "dist/posthog.umd.js": {
+      "raw": 18747,
+      "gzip": 6870,
+      "brotli": 6104
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 2.734,
+  "cases": {
+    "required": 29,
+    "executed": 29,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/posthog.esm.js",
+      "sha256": "045be325a7fae64ae150bae45ae3c7b42ce8e545dd16139ccbf36182517dd04a",
+      "bytes": 16557
+    },
+    {
+      "path": "dist/posthog.esm.js",
+      "sha256": "045be325a7fae64ae150bae45ae3c7b42ce8e545dd16139ccbf36182517dd04a",
+      "bytes": 16557
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",85,3,1,\"test\",\"keeps every public kernel name exact in the compiler output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",92,3,1,\"test\",\"exposes the same named surface as default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",84,1,0,\"suite\",\"@itslil/posthog-js JS library API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",24,3,1,\"test\",\"parses the official hyphenated, hex, brace, and urn forms\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",37,3,1,\"test\",\"matches official fromFieldsV7\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"generates version-7 and version-4 strings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",23,1,0,\"suite\",\"uuid\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",84,3,1,\"test\",\"normalizes v2 flags the same way\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",88,3,1,\"test\",\"normalizes v1 flags the same way\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",100,3,1,\"test\",\"minimizes $feature_flag_called properties from the same allowlist\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",54,1,0,\"suite\",\"feature flags\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",118,3,1,\"test\",\"sanitizes cookie names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",124,3,1,\"test\",\"parses official cookie fixtures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",141,3,1,\"test\",\"roundtrips serialize → parse as anonymous\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",149,3,1,\"test\",\"reads cookies from a header store\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",155,3,1,\"test\",\"matches consent cookie names and opt-out\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",117,1,0,\"suite\",\"cookies and consent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",169,3,1,\"test\",\"routes US, EU, custom, and app hosts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",188,3,1,\"test\",\"matches the token-bucket updates\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",197,3,1,\"test\",\"batches, offsets, and sorts unload requests\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",168,1,0,\"suite\",\"router, rate limit, queue\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",218,3,1,\"test\",\"matches the default blocked UA list and lookups\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",217,1,0,\"suite\",\"bot detection\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",245,3,1,\"test\",\"matches string helpers and person-property hashes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",264,3,1,\"test\",\"matches clamp, remote config, and sample-rate checks\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",304,3,1,\"test\",\"matches portable type, json, and url helpers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",244,1,0,\"suite\",\"strings, numbers, types, json, url\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",337,3,1,\"test\",\"resolves config and consumes tokens the same way\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",336,1,0,\"suite\",\"bucketed rate limiter\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 181.003,
+  "completed": "2026-09-21T09:37:43.653Z",
+  "fingerprint": "31a35285afb60af3bb05cd64d7377c971f8eef2943d9576d1b4451c091dc7d15"
+}

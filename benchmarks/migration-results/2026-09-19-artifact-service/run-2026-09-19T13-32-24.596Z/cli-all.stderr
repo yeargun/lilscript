@@ -1,0 +1,466 @@
+{
+  "schema": 1,
+  "backend": "semantic",
+  "source_sha256": "b7e7283bf723778ca41ce27ccf7003b0f056f869037ac08d81806c1494f9dba9",
+  "request": {
+    "target": "All",
+    "preserve_root_exports": false,
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "effective_logical_work": 200000000,
+    "effective_retained_bytes": 256000000
+  },
+  "inputs": {
+    "root": 0,
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-32-24.596Z/portable.lil",
+        "bytes": 55,
+        "sha256": "bc615024aed3879f11ffb34d84cefd726bc47eaf181cb59671d9ce8f233d2349",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ]
+  },
+  "shape": {
+    "modules": 1,
+    "units": 2,
+    "operations": 12,
+    "cells": 2
+  },
+  "javascript_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "javascript",
+      "world": "ClosedApplication",
+      "execution": "Script",
+      "ecmascript": "es2022",
+      "preserve_root_exports": false,
+      "public_aggregate_abi": "Named",
+      "preserve_extern_fields": true,
+      "internal_exports_may_mangle": false,
+      "public_function_spelling": "None",
+      "pristine_builtins": false,
+      "pure_property_reads": false,
+      "strip_console": false,
+      "preserved_properties": [],
+      "owned_properties": "UnderscoreSuffix",
+      "bundle_mode": "Single"
+    },
+    "objective": {
+      "codec": "Brotli",
+      "priority": "SizeFirst",
+      "realistic_performance_limit_percent": 25,
+      "optional_alternatives": 24,
+      "optional_codec_probes": 48,
+      "cleanup_finalists": 1,
+      "retained_candidates": 384,
+      "retained_candidate_bytes": 786432,
+      "beam_width": 10,
+      "search": {
+        "version": 7,
+        "codec_schedule": "staged",
+        "render_batch": 8,
+        "diversity_interval": 4
+      }
+    },
+    "effort": 13,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "native_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "native",
+      "abi_version": 1
+    },
+    "objective": null,
+    "effort": 0,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": true
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "phases_ns": {
+    "policy_ns": 869874,
+    "discovery_ns": 353600,
+    "parse_ns": 53209,
+    "check_ns": 164658,
+    "convert_ns": 220822,
+    "frontend_release_ns": 8776,
+    "adopt_ns": 128319,
+    "native_ns": 154388,
+    "javascript_ns": 13602365,
+    "finish_ns": 30376
+  },
+  "total_ns": 16371855,
+  "ledger_before_finish": {
+    "baseline_work": 8910,
+    "optional_work": 6452,
+    "retained_bytes": 16012331,
+    "peak_retained_bytes": 16773555,
+    "analysis_work": 4615,
+    "edit_work": 262,
+    "render_work": 9819,
+    "codec_work": 666
+  },
+  "ledger_after_finish": {
+    "baseline_work": 8910,
+    "optional_work": 6452,
+    "retained_bytes": 0,
+    "peak_retained_bytes": 16773555,
+    "analysis_work": 4615,
+    "edit_work": 262,
+    "render_work": 9819,
+    "codec_work": 666
+  },
+  "resources": {
+    "baseline_work": 8910,
+    "optional_work": 6452,
+    "codec_work": 666,
+    "peak_retained_bytes": 16773555,
+    "retained_bytes_after_handoff": 0,
+    "frontend_logical_work": 166,
+    "frontend_allocation_accounting": "not-yet-instrumented",
+    "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+    "scope": "admitted semantic/target/codec storage; frontend allocations, caller configuration I/O, returned buffers and process RSS are separate"
+  },
+  "artifacts": [
+    {
+      "sha256": "58fb64f73d81677da9c7e2007d9a51b4b2b66882ef94e52eb4bda0ea5ef7ca46",
+      "raw": 49,
+      "gzip9": null,
+      "brotli11": 53,
+      "details": {
+        "recipe_words": [
+          3,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "recipe_fingerprint": 16826669570303854662,
+        "resource": "whole",
+        "execution": "Script",
+        "style": "Global",
+        "source_names": [],
+        "output": {
+          "dead_code_elimination": true,
+          "target_compaction": true,
+          "literals": "Original"
+        },
+        "sizes": [
+          49,
+          null,
+          53
+        ],
+        "policy_fingerprint": [
+          9,
+          68,
+          146,
+          4,
+          55,
+          213,
+          149,
+          228,
+          18,
+          54,
+          208,
+          77,
+          199,
+          20,
+          239,
+          125,
+          10,
+          209,
+          90,
+          140,
+          237,
+          111,
+          148,
+          197,
+          161,
+          64,
+          49,
+          137,
+          66,
+          19,
+          251,
+          246
+        ]
+      }
+    }
+  ],
+  "winners": [
+    null,
+    null,
+    0
+  ],
+  "native_sha256": "b5fd3b4ed1e605d01ffe8f59c43a51313096e5ed5f3fae67894da3b039fd7d74",
+  "native_delivery": {
+    "c_bytes": 3686,
+    "header_bytes": 0,
+    "scope": "C and host-header delivery, not linked executable bytes"
+  },
+  "first_artifact_ns": 2141548,
+  "search": {
+    "request": {
+      "objectives": [
+        "Brotli"
+      ],
+      "scalar": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "helper": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "string": {
+        "work": 2000000,
+        "scratch_bytes": 4000000,
+        "output_bytes": 2000000
+      },
+      "local_facts": {
+        "work": 1000000,
+        "result_bytes": 512000
+      },
+      "facts_cache": {
+        "entries": 128,
+        "bytes": 16000000,
+        "result_bytes": 512000
+      }
+    },
+    "proposals": 5,
+    "structures": 2,
+    "renders": 6,
+    "codec_probes": 4,
+    "proof_queries": 1,
+    "beam_evictions": 0,
+    "admitted_artifacts": 6,
+    "stop": null
+  }
+}

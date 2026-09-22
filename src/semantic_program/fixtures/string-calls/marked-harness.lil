@@ -1,0 +1,3 @@
+// Test-only composition; the archived helper declarations remain unchanged.
+export string roundTrip(string value) { return joinLines(splitLines(value)); }
+export string[] splitUsing(string value, string separator) { return value.split(separator); }

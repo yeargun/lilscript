@@ -1,0 +1,302 @@
+{
+  "schema": 1,
+  "scope": "Wrapper argument refusal and syntax reachability only; no compiler/library/test-suite execution",
+  "started": "2026-09-19T19:50:41.839Z",
+  "runner": "import assert from \"node:assert/strict\";import fs from \"node:fs\";import os from \"node:os\";import path from \"node:path\";import{fileIdentity}from\"./finer/tools/artifact-evidence.mjs\";import{runBoundedCommand}from\"./finer/tools/bounded-command.mjs\";const dir=path.resolve(\"benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/parent-options-checks\");fs.mkdirSync(dir);const script=path.resolve(\"benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs\"),scratch=fs.mkdtempSync(path.join(os.tmpdir(),\"lilscript-mdast-parent-options-\")),paths=[script,process.execPath,path.resolve(\"finer/tools/bounded-command.mjs\"),path.resolve(\"finer/tools/artifact-evidence.mjs\")],pins=()=>paths.map(p=>({path:p,...fileIdentity(p)})),receipt={schema:1,scope:\"Wrapper argument refusal and syntax reachability only; no compiler/library/test-suite execution\",started:new Date().toISOString(),runner:process._eval,before:pins(),cases:[],passed:false};try{const variants=[[\"unknown\",[\"--unknown\",\"x\"],\"unknown option\"],[\"duplicate\",[\"--codec\",\"a\",\"--codec\",\"b\"],\"duplicate option\"],[\"missing-value\",[\"--compiler\"],\"nonempty value required\"],[\"empty-value\",[\"--compiler\",\"\"],\"nonempty value required\"],[\"option-as-value\",[\"--compiler\",\"--codec\",\"x\"],\"nonempty value required\"],[\"parent-only\",[\"--parent-receipt\",\"parent.json\"],\"must be provided together\"],[\"hash-only\",[\"--parent-sha256\",\"a\".repeat(64)],\"must be provided together\"],[\"bad-hash\",[\"--parent-receipt\",\"parent.json\",\"--parent-sha256\",\"bad\"],\"64 lowercase hexadecimal\"],[\"extra-positional\",[\"extra\"],\"unknown option\"]];for(const[label,args,error]of variants){const output=path.join(scratch,label),r=await runBoundedCommand(process.execPath,[script,output,...args],{cwd:process.cwd(),timeoutMs:10000,maxBuffer:1024*1024,encoding:\"utf8\"});fs.writeFileSync(path.join(dir,label+\".stdout\"),r.stdout);fs.writeFileSync(path.join(dir,label+\".stderr\"),r.stderr);receipt.cases.push({label,args:[output,...args],status:r.status,signal:r.signal,error:r.error?.message??null,supervision:r.supervision,expected:error,outputCreated:fs.existsSync(output)});assert.equal(r.status,1);assert(!r.signal&&!r.error&&!r.supervision.timedOut);assert(r.stderr.includes(error));assert(!fs.existsSync(output));}for(const[label,args]of[[\"default-reaches-output-guard\",[]],[\"overrides-reach-output-guard\",[\"--parent-receipt\",\"p.json\",\"--parent-sha256\",\"a\".repeat(64),\"--compiler\",\"c\",\"--codec\",\"z\"]]]){const r=await runBoundedCommand(process.execPath,[script,scratch,...args],{cwd:process.cwd(),timeoutMs:10000,maxBuffer:1024*1024,encoding:\"utf8\"});fs.writeFileSync(path.join(dir,label+\".stdout\"),r.stdout);fs.writeFileSync(path.join(dir,label+\".stderr\"),r.stderr);receipt.cases.push({label,args:[scratch,...args],status:r.status,signal:r.signal,error:r.error?.message??null,supervision:r.supervision,expected:\"EEXIST\"});assert.equal(r.status,1);assert(!r.error&&!r.signal&&!r.supervision.timedOut);assert(r.stderr.includes(\"EEXIST\"));}receipt.passed=true;}catch(error){receipt.failure={message:error.message,stack:error.stack};process.exitCode=1;}finally{receipt.after=pins();receipt.inputsStable=JSON.stringify(receipt.before)===JSON.stringify(receipt.after);if(!receipt.inputsStable){receipt.passed=false;process.exitCode=1;}receipt.completed=new Date().toISOString();fs.writeFileSync(path.join(dir,\"receipt.json\"),JSON.stringify(receipt,null,2)+\"\\n\");console.log(JSON.stringify({passed:receipt.passed,cases:receipt.cases.length,inputsStable:receipt.inputsStable,output:dir,failure:receipt.failure}));}",
+  "before": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "22295a25870a2248d497b270be81ddc046dbb82097dd717016f50810c7965363",
+      "bytes": 23324
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    }
+  ],
+  "cases": [
+    {
+      "label": "unknown",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/unknown",
+        "--unknown",
+        "x"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "unknown option",
+      "outputCreated": false
+    },
+    {
+      "label": "duplicate",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/duplicate",
+        "--codec",
+        "a",
+        "--codec",
+        "b"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "duplicate option",
+      "outputCreated": false
+    },
+    {
+      "label": "missing-value",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/missing-value",
+        "--compiler"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "nonempty value required",
+      "outputCreated": false
+    },
+    {
+      "label": "empty-value",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/empty-value",
+        "--compiler",
+        ""
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "nonempty value required",
+      "outputCreated": false
+    },
+    {
+      "label": "option-as-value",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/option-as-value",
+        "--compiler",
+        "--codec",
+        "x"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "nonempty value required",
+      "outputCreated": false
+    },
+    {
+      "label": "parent-only",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/parent-only",
+        "--parent-receipt",
+        "parent.json"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "must be provided together",
+      "outputCreated": false
+    },
+    {
+      "label": "hash-only",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/hash-only",
+        "--parent-sha256",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "must be provided together",
+      "outputCreated": false
+    },
+    {
+      "label": "bad-hash",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/bad-hash",
+        "--parent-receipt",
+        "parent.json",
+        "--parent-sha256",
+        "bad"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "64 lowercase hexadecimal",
+      "outputCreated": false
+    },
+    {
+      "label": "extra-positional",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6/extra-positional",
+        "extra"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "unknown option",
+      "outputCreated": false
+    },
+    {
+      "label": "default-reaches-output-guard",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "EEXIST"
+    },
+    {
+      "label": "overrides-reach-output-guard",
+      "args": [
+        "/tmp/lilscript-mdast-parent-options-pu95A6",
+        "--parent-receipt",
+        "p.json",
+        "--parent-sha256",
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "--compiler",
+        "c",
+        "--codec",
+        "z"
+      ],
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 10000,
+        "killAfterMs": 1000,
+        "maxBuffer": 1048576,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "expected": "EEXIST"
+    }
+  ],
+  "passed": true,
+  "after": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "22295a25870a2248d497b270be81ddc046dbb82097dd717016f50810c7965363",
+      "bytes": 23324
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    }
+  ],
+  "inputsStable": true,
+  "completed": "2026-09-19T19:50:42.780Z"
+}

@@ -1,0 +1,5 @@
+   Compiling libz-sys v1.1.24
+   Compiling compu-brotli-sys v1.1.0 (/home/azureuser/lilscript/vendor/compu-brotli-sys)
+   Compiling flate2 v1.1.9
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.59s

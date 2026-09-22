@@ -1,0 +1,1 @@
+let a;let b;a=(0,{operation:(value)=>{return value*2|0;}}.operation);let operation=a;b=void console.log(operation(9));

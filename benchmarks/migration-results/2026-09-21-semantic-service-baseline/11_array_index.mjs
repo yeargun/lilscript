@@ -1,0 +1,1 @@
+let a;let b;let values=[2,4,6];values[1]=(values[0]|0)+ (values[2]|0)|0;a=void console.log(values[1]|0);b=void console.log(values.length|0);

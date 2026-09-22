@@ -1,0 +1,11 @@
+
+running 6 tests
+test js_peephole::assignment_sink_tests::public_entries_preserve_literal_and_call_argument_observations ... ok
+test js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers ... ok
+test js_peephole::assignment_sink_tests::public_entries_preserve_prefix_effects_and_conditional_reachability ... ok
+test js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles ... ok
+test js_peephole::assignment_sink_tests::public_entries_preserve_assigned_values_and_later_nullish_truthiness ... ok
+test js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_postfix_consumers ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2924 filtered out; finished in 0.10s
+

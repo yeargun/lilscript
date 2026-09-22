@@ -1,0 +1,9 @@
+import {readLate} from "./factory.lil";
+import {boots} from "./boot.lil";
+extern void emit(string label,int value);
+extern void caughtEarly(JsValue error);
+export int total=0;
+try { emit("early-value",readLate()); }
+catch(auto error) { caughtEarly(error); }
+emit("state",boots);
+export int bump(){total+=1;return total;}

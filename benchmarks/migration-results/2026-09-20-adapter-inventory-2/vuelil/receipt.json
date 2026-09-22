@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "vuelil",
+  "started": "2026-09-20T18:25:41.319Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/tmp/lilscript-page-refresh-20260910/current/vuelil",
+  "workspace": "/tmp/lilscript-adapter-vuelil-xgl0Ui/vuelil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/vuelil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/vuelil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-vuelil-xgl0Ui/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test tests/*.test.mjs",
+  "derivation": {
+    "supported": true,
+    "script": "node --test tests/*.test.mjs",
+    "originalSegments": [
+      "node --test tests/*.test.mjs"
+    ],
+    "segments": [
+      "node --test tests/*.test.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "tests/*.test.mjs"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [],
+    "absent": []
+  },
+  "failure": {
+    "message": "no declared entry file exists in the workspace",
+    "stack": "AssertionError [ERR_ASSERTION]: no declared entry file exists in the workspace\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:128:5)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:128:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:178:85"
+  },
+  "inputsStable": false,
+  "validationFailure": {
+    "message": "ENOENT: no such file or directory, lstat '/tmp/lilscript-adapter-vuelil-xgl0Ui/vuelil'",
+    "stack": "Error: ENOENT: no such file or directory, lstat '/tmp/lilscript-adapter-vuelil-xgl0Ui/vuelil'\n    at realpathSync (node:fs:2776:29)\n    at snapshotInputs (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:36:10)\n    at full (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:93:26)\n    at capture (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:95:92)\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:186:21)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:128:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:178:85"
+  },
+  "elapsedMs": 1551.1575560000056,
+  "completed": "2026-09-20T18:25:42.852Z",
+  "outputs": [
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

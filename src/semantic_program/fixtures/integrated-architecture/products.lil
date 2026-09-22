@@ -1,0 +1,30 @@
+// Authored value/reference consumer, also compiled unchanged as a native module.
+struct Pair { int x; int y; }
+
+int productStep(Pair productLocal,int delta) {
+    productLocal.x+=delta;
+    return productLocal.x+productLocal.y;
+}
+
+void updateReference(ref Pair whole,ref int leaf,int delta) {
+    whole=Pair{whole.x+delta,whole.y+1};
+    leaf+=2;
+}
+
+export int productScore(int count,int width) {
+    Pair valueState=Pair{count,width};
+    Pair valueSaved=valueState;
+    int score=productStep(valueState,3);
+    // A separate constructor keeps this reference-exposed component packed.
+    Pair referenceState=Pair{count,width};
+    Pair referenceSaved=referenceState;
+    updateReference(ref referenceState,ref referenceState.x,4);
+    print(score);
+    print(valueSaved.x);
+    print(valueSaved.y);
+    print(referenceState.x);
+    print(referenceState.y);
+    print(referenceSaved.x);
+    print(referenceSaved.y);
+    return score+referenceState.x;
+}

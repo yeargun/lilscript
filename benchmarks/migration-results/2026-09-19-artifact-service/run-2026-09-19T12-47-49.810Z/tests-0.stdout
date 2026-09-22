@@ -1,0 +1,11 @@
+
+running 6 tests
+test compiler_service::tests::resource_owner_exists_before_discovery_and_parse ... ok
+test compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback ... ok
+test compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api ... ok
+test compiler_service::tests::source_service_returns_independently_scored_qualified_winners ... ok
+test compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work ... ok
+test compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2703 filtered out; finished in 0.24s
+

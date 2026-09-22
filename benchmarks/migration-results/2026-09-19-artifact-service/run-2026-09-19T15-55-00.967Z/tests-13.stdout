@@ -1,0 +1,6 @@
+
+running 1 test
+test compiler::tests::initializes_each_module_once_in_a_static_cycle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2836 filtered out; finished in 0.03s
+

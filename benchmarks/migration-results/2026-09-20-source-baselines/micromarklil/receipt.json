@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "micromarklil",
+  "started": "2026-09-20T18:40:45.714Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/micromarklil",
+  "workspace": "/tmp/lilscript-baseline-micromarklil-L2IBwQ/micromarklil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "sourceSnapshot": {
+    "root": "/home/azureuser/micromarklil",
+    "files": 137,
+    "sha256": "040319aa726707e0a41970767fce931384b1e0c6bc0520cfebdec9af5be97f56"
+  },
+  "committedArtifactsRemoved": [
+    "dist/micromark.cjs",
+    "dist/micromark.closed.js",
+    "dist/micromark.esm.js",
+    "dist/micromark.raw.js",
+    "dist/micromark.stream.cjs",
+    "dist/micromark.stream.js",
+    "dist/micromark.stream.raw.js",
+    "dist/micromark.test.js",
+    "dist/micromark.umd.js"
+  ],
+  "build": {
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.078,
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=1 signal=null"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 0.795,
+  "completed": "2026-09-20T18:40:46.508Z",
+  "fingerprint": "2e6de402d62135c6583c3eaa6ab06db5ade18feff774d1e2856ba59897dbc572"
+}

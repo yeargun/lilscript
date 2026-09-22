@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "scope": "explicit affected debug Rust test filters only; no CLI, delivery, library-fleet or speed qualification",
+  "started": "2026-09-19T19:43:24.569Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 8.025372000000004
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 19.361163999999974
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 96.42558000000002
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 8.304452999999967
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 35534.869371
+    },
+    {
+      "label": "tests-0",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "js_peephole::assignment_sink_tests::"
+      ],
+      "status": 101,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 157.26564199999848
+    }
+  ],
+  "profile": "debug",
+  "buildJobs": "2",
+  "semanticCore": false,
+  "moduleBoundary": false,
+  "publicIntegration": false,
+  "testsOnly": true,
+  "testFilters": [
+    "js_peephole::assignment_sink_tests::"
+  ],
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack",
+    "Only the recorded library test filters execute; prior production evidence is not rerun"
+  ],
+  "buildEnvironment": {},
+  "inputSha256": "ff83569af4948094cc010d4eb812ec6051d5d61560df29e632b5f6d29607e7a1",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "testBuildProfiles": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "target": "lilscript",
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 2,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": true
+      },
+      "features": []
+    }
+  ],
+  "testBinaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "sha256": "1ee0c91e2d060a2d426e111afbb518004481c896df003f04767da3b7697e2287",
+      "bytes": 413463296
+    }
+  ],
+  "focusedTests": [],
+  "focusedFailures": [
+    {
+      "filter": "js_peephole::assignment_sink_tests::",
+      "message": "tests-0: \n7],[1,true,7],[1,true,7],[1,true,1],[1,true,7],[1,true,7]]\\n\"\nactual: \"[[1,false,7],[1,false,7],[1,false,7],[1,false,1],[1,false,7],[1,false,7]]\\n\"\nstderr: \nsource:\nconst rows=[];{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().value);rows.push([calls,a===input,t]);}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()['value']);rows.push([calls,a===input,t]);}{const input=(function(value){return value+4});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()(3));rows.push([calls,a===input,t]);}{const input=(function(parts){return parts[0].length});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()`x`);rows.push([calls,a===input,t]);}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?.value);rows.push([calls,a===input,t]);}{const input=({value:7,method(){return this.value}});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().method());rows.push([calls,a===input,t]);}console.log(JSON.stringify(rows));\n\noptimize_generated_javascript: status=Some(0)\nexpected: \"[[1,true,7],[1,true,7],[1,true,7],[1,true,1],[1,true,7],[1,true,7]]\\n\"\nactual: \"[[1,false,7],[1,false,7],[1,false,7],[1,false,1],[1,false,7],[1,false,7]]\\n\"\nstderr: \nsource:\nconst rows=[];{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().value);rows.push([calls,a===input,t])}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().value);rows.push([calls,a===input,t])}{const input=(function(value){return value+4});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()(3));rows.push([calls,a===input,t])}{const input=(function(parts){return parts[0].length});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()`x`);rows.push([calls,a===input,t])}{const input=({value:7});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?.value);rows.push([calls,a===input,t])}{const input=({value:7,method(){return this.value}});let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce().method());rows.push([calls,a===input,t])}console.log(JSON.stringify(rows))\n\n---- js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers stdout ----\n\nthread 'js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers' (1162563) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:\nshape_declarations: status=Some(0)\nexpected: \"[[1,true,true],[1,true,true],[1,true,10],[1,true,21],[1,true,12],[1,true,0],[1,true,9],[1,true,9],[1,true,false]]\\n\"\nactual: \"[[1,false,true],[1,false,true],[1,false,10],[1,false,21],[1,false,12],[1,true,0],[1,false,9],[1,false,9],[1,true,false]]\\n\"\nstderr: \nsource:\nconst rows=[];{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()==null);rows.push([calls,a===input,t]);}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()===7);rows.push([calls,a===input,t]);}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()+3);rows.push([calls,a===input,t]);}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()*3);rows.push([calls,a===input,t]);}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?11:12);rows.push([calls,a===input,t]);}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()&&9);rows.push([calls,a===input,t]);}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()||9);rows.push([calls,a===input,t]);}{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t]);}{const input=false;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t]);}console.log(JSON.stringify(rows));\n\noptimize_generated_javascript: status=Some(0)\nexpected: \"[[1,true,true],[1,true,true],[1,true,10],[1,true,21],[1,true,12],[1,true,0],[1,true,9],[1,true,9],[1,true,false]]\\n\"\nactual: \"[[1,false,true],[1,false,true],[1,false,10],[1,false,21],[1,false,12],[1,true,0],[1,false,9],[1,false,9],[1,true,false]]\\n\"\nstderr: \nsource:\nconst rows=[];{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()==null);rows.push([calls,a===input,t])}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()===7);rows.push([calls,a===input,t])}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()+3);rows.push([calls,a===input,t])}{const input=7;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()*3);rows.push([calls,a===input,t])}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()?11:12);rows.push([calls,a===input,t])}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()&&9);rows.push([calls,a===input,t])}{const input=0;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()||9);rows.push([calls,a===input,t])}{const input=null;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t])}{const input=false;let calls=0,a='before',t=false;function produce(){calls++;return input}t=(a=produce()??9);rows.push([calls,a===input,t])}console.log(JSON.stringify(rows))\n\n---- js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles stdout ----\n\nthread 'js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles' (1162567) panicked at src/js_peephole/assignment_sink_tests.rs:37:5:\nshape_declarations: status=Some(1)\nexpected: \"[[2,2],[2,5,null],[2,2]]\\n\"\nactual: \"\"\nstderr: [eval]:5\n    d={(b=2)};\n       ^\nUnexpected token `(`. Expected identifier, string literal, numeric literal or [ for the computed key\n\nSyntaxError: Unexpected token '('\n    at makeContextifyScript (node:internal/vm:194:14)\n    at compileScript (node:internal/process/execution:388:10)\n    at evalTypeScript (node:internal/process/execution:260:22)\n    at node:internal/main/eval_string:71:3\n\nNode.js v24.11.1\n\nsource:\n\nconst rows=[];\n{\n    let b=0,d=0;\n    d={(b=2)};\n    rows.push([b,d.b]);\n}\n{\n    let b=0,d=0;\n    d=(b=2)=>b+1;\n    rows.push([b,d(4),d()]);\n}\n{\n    let b=0,d=0;\n    b=2,d=()=>b;\n    rows.push([b,d()]);\n}\nconsole.log(JSON.stringify(rows));\n\n\noptimize_generated_javascript: status=Some(0)\nexpected: \"[[2,2],[2,5,null],[2,2]]\\n\"\nactual: \"[[2,2],[0,5,3],[2,2]]\\n\"\nstderr: \nsource:\n\nconst rows=[];\n{\n    let b=0,d=0;\n    b=2,\n    rows.push([b,{b}.b])\n}\n{\n    let b=0,d=0;\n    d=(b=2)=>b+1,\n    rows.push([b,d(4),d()])\n}\n{\n    let b=0,d=0;\n    b=2,d=()=>b,\n    rows.push([b,d()])\n}\nconsole.log(JSON.stringify(rows))\n\n\n\nfailures:\n    js_peephole::assignment_sink_tests::public_entries_preserve_assigned_values_and_later_nullish_truthiness\n    js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_operator_consumers\n    js_peephole::assignment_sink_tests::public_entries_preserve_assignment_before_postfix_consumers\n    js_peephole::assignment_sink_tests::public_entries_preserve_prefix_effects_and_conditional_reachability\n    js_peephole::assignment_sink_tests::public_entries_preserve_shorthand_and_arrow_binding_roles\n\ntest result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 2892 filtered out; finished in 0.15s\n\n\n\n101 !== 0\n"
+    }
+  ],
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: 1 focused filters failed; see per-filter logs\n\n1 !== 0\n\n    at qualify (file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:180:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:277:3",
+  "inputsStable": true,
+  "completed": "2026-09-19T19:44:01.440Z"
+}

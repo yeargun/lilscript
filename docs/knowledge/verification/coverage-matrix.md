@@ -1,7 +1,7 @@
 # Coverage matrix
 
 Parent: [verification](README.md). Migration:
-[00–06 standing / 07 current](../migration/README.md).
+[support inventory and required coverage](../../migration/index.md#001-baselines-and-support-inventory).
 
 This is the ownership ledger. The executable report should eventually replace the
 status column; until then `required` means a family must own at least one semantic

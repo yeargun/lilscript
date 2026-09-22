@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/usr/bin/time",
+    "-o",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T14-47-06.382Z/example-native/00-native.time",
+    "-f",
+    "wall_s=%e\nuser_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nexit=%x",
+    "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+    "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+    "--config",
+    "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+    "--output",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T14-47-06.382Z/example-native/00-native",
+    "--mode",
+    "native",
+    "--edits",
+    "4",
+    "--work",
+    "200000000",
+    "--memory",
+    "256000000"
+  ],
+  "elapsed_ns": 10064624,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

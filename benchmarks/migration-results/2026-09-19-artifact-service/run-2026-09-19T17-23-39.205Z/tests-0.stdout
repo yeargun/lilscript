@@ -1,0 +1,8 @@
+
+running 3 tests
+test ast::source_identity_tests::each_finished_state_is_fresh_even_without_new_nodes ... ok
+test ast::source_identity_tests::clones_preserve_identity_without_heap_ownership ... ok
+test ast::source_identity_tests::independently_finished_sources_do_not_alias_across_threads ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2859 filtered out; finished in 0.00s
+

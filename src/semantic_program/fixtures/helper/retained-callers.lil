@@ -1,0 +1,1 @@
+extern int input();int add(int value,int delta){return value+delta;}func()->int make(int seed){return ()=>add(seed,1);}auto a=make(input());auto b=make(input()+10);print(a());print(b());print(a());

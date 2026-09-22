@@ -1,0 +1,439 @@
+import {
+  otherCodeRemoveIndent,
+  otherIndentCodeCompensation,
+  otherBeginningSpace,
+  otherSlashPipe,
+  otherBlankLine,
+  otherEscapeTest,
+  otherEscapeTestNoEncode,
+  otherPercentDecode
+} from "./rules.lil";
+
+export Regex pickRe(bool flag, Regex whenTrue, Regex whenFalse) {
+  if (flag) {
+    return whenTrue;
+  }
+  return whenFalse;
+}
+
+export Regex pickRe3(bool a, Regex ra, bool b, Regex rb, Regex rc) {
+  if (a) {
+    return ra;
+  }
+  if (b) {
+    return rb;
+  }
+  return rc;
+}
+
+export string slice(string s, int start, int end) {
+  return s.slice(start, end);
+}
+
+export string sliceFrom(string s, int start) {
+  return s.slice(start);
+}
+
+export string replaceRe(string s, Regex re, string replacement) {
+  return s.replace(re, replacement);
+}
+
+export JsValue execRe(Regex re, string src) {
+  return re.exec(src);
+}
+
+export bool matched(JsValue cap) {
+  return cap.truthy();
+}
+
+export string group0(JsValue cap) {
+  return JS.string(cap[0]);
+}
+
+export string groupN(JsValue cap, int index) {
+  JsValue value = cap[index];
+  if (JS.isUndefined(value) || JS.isNullish(value)) {
+    return "";
+  }
+  return JS.string(value);
+}
+
+export bool hasGroup(JsValue cap, int index) {
+  JsValue value = cap[index];
+  return !JS.isUndefined(value) && !JS.isNullish(value);
+}
+
+export int matchIndex(JsValue cap) {
+  return JS.number(cap["index"]).toInt();
+}
+
+export string joinLines(string[] lines) {
+  string out = "";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      out = out + "\n";
+    }
+    out = out + lines[i];
+    i = i + 1;
+  }
+  return out;
+}
+
+export string[] splitLines(string src) {
+  return src.split("\n");
+}
+
+export string firstLine(string src) {
+  int n = src.indexOf("\n");
+  if (n < 0) {
+    return src;
+  }
+  return slice(src, 0, n);
+}
+
+export string rtrimChar(string str, string c, bool invert) {
+  int l = str.length;
+  if (l == 0) {
+    return "";
+  }
+  int suffLen = 0;
+  while (suffLen < l) {
+    string currChar = str.charAt(l - suffLen - 1);
+    if (currChar == c && !invert) {
+      suffLen = suffLen + 1;
+    } else if (currChar != c && invert) {
+      suffLen = suffLen + 1;
+    } else {
+      break;
+    }
+  }
+  return slice(str, 0, l - suffLen);
+}
+
+export string rtrimNl(string str) {
+  return rtrimChar(str, "\n", false);
+}
+
+export string trimTrailingBlankLines(string str) {
+  string[] lines = splitLines(str);
+  int end = lines.length - 1;
+  while (end >= 0 && otherBlankLine.test(lines[end])) {
+    end = end - 1;
+  }
+  if (lines.length - end <= 2) {
+    return str;
+  }
+  string[] kept = [];
+  int i = 0;
+  while (i <= end) {
+    kept.push(lines[i]);
+    i = i + 1;
+  }
+  return joinLines(kept);
+}
+
+export int findClosingBracket(string str, string openCh, string closeCh) {
+  if (str.indexOf(closeCh) < 0) {
+    return -1;
+  }
+  int level = 0;
+  int i = 0;
+  while (i < str.length) {
+    string ch = str.charAt(i);
+    if (ch == "\\") {
+      i = i + 1;
+    } else if (ch == openCh) {
+      level = level + 1;
+    } else if (ch == closeCh) {
+      level = level - 1;
+      if (level < 0) {
+        return i;
+      }
+    }
+    i = i + 1;
+  }
+  if (level > 0) {
+    return -2;
+  }
+  return -1;
+}
+
+export string expandTabs(string line, int indent) {
+  int col = indent;
+  string expanded = "";
+  int i = 0;
+  while (i < line.length) {
+    string ch = line.charAt(i);
+    if (ch == "\t") {
+      int added = 4 - (col % 4);
+      expanded = expanded + " ".repeat(added);
+      col = col + added;
+    } else {
+      expanded = expanded + ch;
+      col = col + 1;
+    }
+    i = i + 1;
+  }
+  return expanded;
+}
+
+string[] splitCellsRaw(string tableRow, int count, bool limit) {
+  string row = "";
+  int i = 0;
+  while (i < tableRow.length) {
+    string ch = tableRow.charAt(i);
+    if (ch == "|") {
+      int curr = i;
+      bool escaped = false;
+      while (true) {
+        curr = curr - 1;
+        if (curr < 0) {
+          break;
+        }
+        if (tableRow.charAt(curr) != "\\") {
+          break;
+        }
+        escaped = !escaped;
+      }
+      if (escaped) {
+        row = row + "|";
+      } else {
+        row = row + " |";
+      }
+    } else {
+      row = row + ch;
+    }
+    i = i + 1;
+  }
+  string[] cells = row.split(" |");
+  if (cells.length > 0 && cells[0].trim().length == 0) {
+    cells.splice(0, 1);
+  }
+  if (cells.length > 0 && cells[cells.length - 1].trim().length == 0) {
+    cells.splice(cells.length - 1, 1);
+  }
+  if (limit) {
+    if (cells.length > count) {
+      int extra = cells.length - count;
+      cells.splice(count, extra);
+    } else {
+      while (cells.length < count) {
+        cells.push("");
+      }
+    }
+  }
+  int j = 0;
+  while (j < cells.length) {
+    cells[j] = replaceRe(cells[j].trim(), otherSlashPipe, "|");
+    j = j + 1;
+  }
+  return cells;
+}
+
+export string[] splitCells(string tableRow) {
+  return splitCellsRaw(tableRow, 0, false);
+}
+
+export string[] splitCellsCount(string tableRow, int count) {
+  return splitCellsRaw(tableRow, count, true);
+}
+
+export string indentCodeCompensation(string raw, string text) {
+  JsValue matchIndentToCode = execRe(otherIndentCodeCompensation, raw);
+  if (!matched(matchIndentToCode)) {
+    return text;
+  }
+  string indentToCode = groupN(matchIndentToCode, 1);
+  string[] nodes = splitLines(text);
+  string[] out = [];
+  int i = 0;
+  while (i < nodes.length) {
+    string node = nodes[i];
+    JsValue matchIndentInNode = execRe(otherBeginningSpace, node);
+    if (!matched(matchIndentInNode)) {
+      out.push(node);
+    } else {
+      string indentInNode = group0(matchIndentInNode);
+      if (indentInNode.length >= indentToCode.length) {
+        out.push(sliceFrom(node, indentToCode.length));
+      } else {
+        out.push(node);
+      }
+    }
+    i = i + 1;
+  }
+  return joinLines(out);
+}
+
+export string escapeHtml(string html, bool encode) {
+  if (encode) {
+    if (!otherEscapeTest.test(html)) {
+      return html;
+    }
+  } else {
+    if (!otherEscapeTestNoEncode.test(html)) {
+      return html;
+    }
+  }
+  string out = "";
+  int i = 0;
+  while (i < html.length) {
+    string ch = html.charAt(i);
+    if (ch == "&") {
+      if (encode) {
+        out = out + "&amp;";
+      } else {
+        int j = i + 1;
+        bool entity = false;
+        if (j < html.length && html.charAt(j) == "#") {
+          j = j + 1;
+          if (j < html.length && (html.charAt(j) == "x" || html.charAt(j) == "X")) {
+            j = j + 1;
+            int start = j;
+            while (j < html.length) {
+              int c = html.charCodeAt(j);
+              bool hex =
+                (c >= 48 && c <= 57) ||
+                (c >= 65 && c <= 70) ||
+                (c >= 97 && c <= 102);
+              if (!hex) {
+                break;
+              }
+              j = j + 1;
+            }
+            if (j > start && j - start <= 6 && j < html.length && html.charAt(j) == ";") {
+              entity = true;
+            }
+          } else {
+            int start = j;
+            while (j < html.length) {
+              int c = html.charCodeAt(j);
+              if (c < 48 || c > 57) {
+                break;
+              }
+              j = j + 1;
+            }
+            if (j > start && j - start <= 7 && j < html.length && html.charAt(j) == ";") {
+              entity = true;
+            }
+          }
+        } else {
+          int start = j;
+          while (j < html.length) {
+            int c = html.charCodeAt(j);
+            bool word =
+              (c >= 48 && c <= 57) ||
+              (c >= 65 && c <= 90) ||
+              (c >= 97 && c <= 122) ||
+              c == 95;
+            if (!word) {
+              break;
+            }
+            j = j + 1;
+          }
+          if (j > start && j < html.length && html.charAt(j) == ";") {
+            entity = true;
+          }
+        }
+        if (entity) {
+          out = out + "&";
+        } else {
+          out = out + "&amp;";
+        }
+      }
+    } else if (ch == "<") {
+      out = out + "&lt;";
+    } else if (ch == ">") {
+      out = out + "&gt;";
+    } else if (ch == "\"") {
+      out = out + "&quot;";
+    } else if (ch == "'") {
+      out = out + "&#39;";
+    } else {
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+export string? cleanUrl(string href) {
+  try {
+    href = replaceRe(JS.encodeURI(href), otherPercentDecode, "%");
+  } catch {
+    return null;
+  }
+  return href;
+}
+
+export string removeCodeIndent(string raw) {
+  otherCodeRemoveIndent.lastIndex = 0;
+  return replaceRe(raw, otherCodeRemoveIndent, "");
+}
+
+export int searchRe(string s, Regex re) {
+  return s.search(re);
+}
+
+export int points(string s) {
+  return s.codePointLength();
+}
+
+export int firstPointSize(string s) {
+  if (s.length == 0) {
+    return 0;
+  }
+  int lead = s.charCodeAt(0);
+  if (lead >= 55296 && lead <= 56319 && s.length > 1) {
+    int trail = s.charCodeAt(1);
+    if (trail >= 56320 && trail <= 57343) {
+      return 2;
+    }
+  }
+  return 1;
+}
+
+export string backpedalUrl(Regex re, string src) {
+  string prev = "";
+  string current = src;
+  while (prev != current) {
+    prev = current;
+    re.lastIndex = 0;
+    JsValue cap = execRe(re, current);
+    if (matched(cap)) {
+      current = group0(cap);
+    } else {
+      current = "";
+    }
+  }
+  return current;
+}
+
+export int parseStart(string bull) {
+  int n = 0;
+  int i = 0;
+  while (i < bull.length) {
+    int c = bull.charCodeAt(i);
+    if (c < 48 || c > 57) {
+      break;
+    }
+    n = n * 10 + (c - 48);
+    i = i + 1;
+  }
+  return n;
+}
+
+export string repeatA(int n) {
+  if (n <= 0) {
+    return "";
+  }
+  return "a".repeat(n);
+}
+
+export string repeatPlus(int n) {
+  if (n <= 0) {
+    return "";
+  }
+  return "+".repeat(n);
+}

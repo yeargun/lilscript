@@ -1,0 +1,1 @@
+extern void keep(func()->int read,func(int)->void write);extern int argument();func()->int make(int seed){Record<int> state=record{count:seed};auto step=(int delta)=>{state.count=(state.count??0)+delta;return state.count??0;};keep(()=>state.count??0,(int next)=>{state.count=next;});return ()=>step(argument());}auto run=make(2);print(run());print(run());

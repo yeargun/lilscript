@@ -1,0 +1,6 @@
+
+running 1 test
+test compiler::tests::inner_temps_do_not_clobber_module_bindings_used_as_exports ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2907 filtered out; finished in 0.81s
+

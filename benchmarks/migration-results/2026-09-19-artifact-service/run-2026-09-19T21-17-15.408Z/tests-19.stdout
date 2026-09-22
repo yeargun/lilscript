@@ -1,0 +1,6 @@
+
+running 1 test
+test codegen_native::tests::rejects_generators_and_inheritance_until_native_abis_are_exact ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2905 filtered out; finished in 0.01s
+

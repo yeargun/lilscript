@@ -1,0 +1,14 @@
+extern int read();
+int loopCaptures(int seed) {
+  (func()->int)[] thunks = [];
+  for (int i = 0; i < 3; i++) {
+    int captured = i * seed;
+    thunks.push(() => captured);
+  }
+  int total = 0;
+  for (int j = 0; j < thunks.length; j++) {
+    total += thunks[j]();
+  }
+  return total;
+}
+print(loopCaptures(read()));print(loopCaptures(0));print(loopCaptures(-3));

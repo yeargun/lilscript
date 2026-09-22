@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "scope": "Preserved pre-target-reuse exact artifact reference; no timing, current-source, full-suite or whole-compiler qualification",
+  "acceptedParent": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-31-37.931Z/receipt.json",
+    "sha256": "8bae37388c19b65f10ecfc99184192f264be3f9e2033f7ccd2d0cdca59c859a5",
+    "inputSha256": "06e5d55144f107d4f4acbad5896021211bc986e2ad69b8eecb7678b400994d8c",
+    "passed": true,
+    "inputsStable": true,
+    "scope": "Accepted 63-check focused receipt binds this old test binary; its recorded filters do not include the separately executed reference test"
+  },
+  "binary": {
+    "path": "/tmp/lilscript-multi-unit-baseline-20260919/lilscript-c737e884cfca95f9",
+    "sha256": "6c35b04eb852de3a061ab9e92f0a491bab9d96b5ae12845e5f63060f54ef7560",
+    "bytes": 401327184,
+    "profile": "debug"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "version": "v24.11.1"
+  },
+  "command": {
+    "program": "timeout",
+    "args": [
+      "30s",
+      "env",
+      "PATH=/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/bin:/bin",
+      "/tmp/lilscript-multi-unit-baseline-20260919/lilscript-c737e884cfca95f9",
+      "semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes",
+      "--exact",
+      "--nocapture"
+    ],
+    "cwd": "/home/azureuser/lilscript",
+    "test": "semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes"
+  },
+  "executions": {
+    "count": 2,
+    "first": "Passed inspection run; output was returned to the agent but not retained as separate evidence files",
+    "second": "Passed capture run with separately retained stdout and stderr; only this run supplies the comparison reference",
+    "retryAfterFailure": false,
+    "retainedRunStatus": 0,
+    "retainedRunTests": { "passed": 1, "failed": 0, "filteredOut": 2842 },
+    "retainedRunArtifactRows": 6,
+    "artifactRowScope": "Three naming styles for each of immediate and staged schedules, including exact JavaScript bytes and raw/gzip9/Brotli11 sizes"
+  },
+  "logs": [
+    {
+      "path": "naming-reference.stdout",
+      "copiedFrom": "/tmp/lilscript-target-reuse-before-20260919/naming-reference.stdout",
+      "sha256": "c42c5b0fd7212f0b79d7905bb879cc03ec19db555f77d91c08d8ade2029c85ff",
+      "bytes": 236
+    },
+    {
+      "path": "naming-reference.stderr",
+      "copiedFrom": "/tmp/lilscript-target-reuse-before-20260919/naming-reference.stderr",
+      "sha256": "437f31826adc2d72f56ed0f92b7d2e3a4e34ecccbf4df10123dbc52d715f6df1",
+      "bytes": 1775
+    }
+  ],
+  "archivalChecks": {
+    "copiedLogsByteIdentical": true,
+    "binaryMatchesAcceptedParent": true,
+    "acceptedParentHashVerified": true,
+    "newExecutionDuringArchival": false
+  },
+  "limitations": [
+    "The original test harness elapsed time is incidental and is not comparative performance evidence",
+    "No current compiler source identity or target-reuse mechanism claim comes from this old binary",
+    "This post-execution identity record does not claim a separately pinned pre-run wrapper or isolated host load"
+  ]
+}

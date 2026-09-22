@@ -1,0 +1,2876 @@
+{
+  "artifacts": [
+    {
+      "schema": 1,
+      "recipe": "shared-caller-callee-fields",
+      "descriptor": [
+        3,
+        1,
+        181,
+        14,
+        0,
+        5,
+        2,
+        183,
+        39,
+        184,
+        40,
+        1,
+        1,
+        40,
+        1,
+        40,
+        2,
+        2,
+        232,
+        0,
+        2,
+        1,
+        0,
+        1,
+        232,
+        1,
+        0,
+        0,
+        239,
+        0,
+        2,
+        2,
+        0,
+        1,
+        239,
+        0,
+        37,
+        4,
+        240,
+        0,
+        37,
+        7,
+        1,
+        35,
+        1,
+        0,
+        0,
+        1
+      ],
+      "selected_families": {
+        "record": 181,
+        "inline_helpers": [
+          183,
+          184
+        ],
+        "shared_string": {
+          "unit": 40,
+          "value": 2
+        },
+        "products": [
+          {
+            "root": 232,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              232
+            ]
+          },
+          {
+            "root": 239,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              239,
+              240
+            ]
+          }
+        ],
+        "field_call_body": 35,
+        "product_helper_inlined": false
+      },
+      "style": "Global",
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "literals": "Original"
+      },
+      "sha256": "5dad9717a03431aacdce9ec1afecfea4637f4f64a39c83e487357a13710e9ed4",
+      "javascript": "function ta(ua,va){while(va!==null){ua=ua[va[0]];va=va[2];}return ua;}function wa(xa,ya,za){if(ya===null){return za;}let Aa=wa(xa[ya[0]],ya[2],za);return (0,ya[1])(xa,ya[0],Aa);}function Qa(Ra,Sa,Ta){return [Sa===0?Ta:Ra[0],Sa===1?Ta:Ra[1]];}let Ua=[0,Qa,null];let bump;let readLate;let make;let exposed;let replaceRe;let execRe;let joinLines;let splitLines;let expandTabs;let removeCodeIndent;let normalizeInput;let inspectMatch;let productStep;let updateReference;let productScore;let editTarget;let runIntegrated;bump=function(){c=c+ 1|0;return c;};let b=bump;readLate=function(){emit(\"read-late\",0);return g;};let e=readLate;make=function(x){let z;let A;let B;let C;let D;z=x;seedEffect(x);let y=z;keep((A=x,B=(0,()=>{return y??null??0;}),C=(0,(E)=>{y=E;}),A),B,C);D=(0,(F)=>{let I;let L;I=(L=\"counter/ready\",L);let G=I;let M;try{let J;let K;K=(J=F,M=J,y=(y??null??0)+ M|0,y??null??0);let H=K;b();visit(x,H,G);return H;}finally{emit(\"finally\",y??null??0);}});return D;};let f=make;exposed=function(N){return {__proto__:null,[\"count\"]:N};};let h=exposed;replaceRe=function(O,P,Q){return O.replace(P,Q);};let k=replaceRe;execRe=function(R,S){return R.exec(S);};let l=execRe;joinLines=function(T){let U=\"\";let V=0;while(V<(T.length|0)){if(V>0){U=U+ \"\\n\";}U=U+ (T[V]??\"\");V=V+ 1|0;}return U;};let m=joinLines;splitLines=function(W){return W.split(\"\\n\");};let n=splitLines;expandTabs=function(X,Y){let Z=Y;let $=\"\";let _=0;while(_<(X.length|0)){let aa=X.charAt(_);if(aa===\"\\t\"){let ba=4- (Z%4|0)|0;$=$+ \" \".repeat(ba);Z=Z+ ba|0;}else{$=$+ aa;Z=Z+ 1|0;}_=_+ 1|0;}return $;};let o=expandTabs;removeCodeIndent=function(ca){i[\"lastIndex\"]=0;return k(ca,i,\"\");};let p=removeCodeIndent;normalizeInput=function(da){let ea=m(n(p(da)));textEvent(\"marked-normalized\",ea);let fa=o(\"\\t\"+ ea,0);textEvent(\"marked-expanded\",fa);return fa.length|0;};let q=normalizeInput;inspectMatch=function(){j[\"lastIndex\"]=0;let ga=l(j,\"\\tA\");let ha=ga;demandSeen(ga);ga&&demandFallback(\"and\");ha??demandFallback(\"nullish\");};let r=inspectMatch;productStep=function(ka,la,ia){let ja;ja=(ka|0)+ ia|0;ka=ja;return (ka|0)+ (la|0)|0;};let s=productStep;updateReference=function(ma,ra,na,sa,oa){let pa;let qa;ta(ma[0],ra);pa=[(ta(ma[0],ra)[0]|0)+ oa|0,(ta(ma[0],ra)[1]|0)+ 1|0];ma[0]=wa(ma[0],ra,pa);qa=(sa===null?ta(na[0],sa):ta(na[0],sa)|0)+ 2|0;na[0]=wa(na[0],sa,qa);};let t=updateReference;productScore=function(Ba,Ca){let Ka;let La;let Ma;let Na;let Oa;let Pa;Ka=Ba,La=Ca;let Ga=Ka;let Ha=La;let Ia=Ga;let Ja=Ha;let Da=s(Ga,Ha,3);let Ea=[[Ba,Ca]];let Fa=Ea[0];t(((Ma=Ea,Na=null,Ea[0]),(Oa=Ea,Pa=Ua,Ea[0][0]),Ma),Na,Oa,Pa,4);void console.log(Da);void console.log(Ia|0);void console.log(Ja|0);void console.log(Ea[0][0]|0);void console.log(Ea[0][1]|0);void console.log(Fa[0]|0);void console.log(Fa[1]|0);return Da+ (Ea[0][0]|0)|0;};let u=productScore;editTarget=function(){return 11;};let v=editTarget;runIntegrated=function(Va,Wa,Xa){let Ya=f(Va);let Za=q(Xa);r();let $a=Ya(Wa);return u($a,Za);};let w=runIntegrated;let a=1;emit(\"boot\",a);let c=0;try{emit(\"early-value\",e());}catch(d){caughtEarly(d);}emit(\"state\",a);let g=41;emit(\"factory\",g);emit(\"public-init\",a);emit(\"barrel\",a);emit(\"entry\",e());new RegExp(\"^(?:[ \\\\t]*(?:\\\\n|$))+\");new RegExp(\"^((?: {4}| {0,3}\\\\t)[^\\\\n]+(?:\\\\n(?:[ \\\\t]*(?:\\\\n|$))*)?)+\");new RegExp(\"^ {0,3}(`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~{3,})([^\\\\n]*)(?:\\\\n|$)(?:|([\\\\s\\\\S]*?)(?:\\\\n|$))(?: {0,3}\\\\1[~`]* *(?=\\\\n|$)|$)\");new RegExp(\"^ {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}(#{1,6})(?=\\\\s|$)(.*)(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^ {0,3}\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]: *(?:\\\\n[ \\\\t]*)?([^<\\\\s][^\\\\s]*|<.*?>)(?:(?: +(?:\\\\n[ \\\\t]*)?| *\\\\n[ \\\\t]*)((?:\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'[^'\\\\n]*(?:\\\\n[^'\\\\n]+)*\\\\n?'|\\\\([^()]*\\\\))))? *(?:\\\\n+|$)\");new RegExp(\"^( {0,3}(?:[*+-]|\\\\d{1,9}[.)]))([ \\\\t][^\\\\n]*?)?(?:\\\\n|$)\");new RegExp(\"^ {0,3}(?:<(script|pre|style|textarea)[\\\\s>][\\\\s\\\\S]*?(?:<\\\\/\\\\1>[^\\\\n]*\\\\n*|$)|<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$))[^\\\\n]*(\\\\n+|$)|<\\\\?[\\\\s\\\\S]*?(?:\\\\?>[^\\\\n]*\\\\n*|$)|<![A-Z][\\\\s\\\\S]*?(?:>[^\\\\n]*\\\\n*|$)|<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?(?:\\\\]\\\\]>[^\\\\n]*\\\\n*|$)|<\\\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<(?!script|pre|style|textarea)([a-z][\\\\w-]*)(?: +[a-zA-Z:_][\\\\w.:-]*(?: *= *\\\"[^\\\"\\\\n]*\\\"| *= *'[^'\\\\n]*'| *= *[^\\\\s\\\"'=<>`]+)?)*? *\\\\/?>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<\\\\/(?!script|pre|style|textarea)[a-z][\\\\w-]*\\\\s*>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$))\",\"i\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^( {0,3}> ?(([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|\\\\d{1,9}[.)])(?:[ \\\\t]|\\\\n|$)|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)|[^\\\\n]*)(?:\\\\n|$))+\");new RegExp(\"^ *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^[^\\\\n]+\");new RegExp(\"^ *(?:<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$)) *(?:\\\\n|\\\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b)[\\\\s\\\\S]+?<\\\\/\\\\1> *(?:\\\\n{2,}|\\\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b(?:\\\"[^\\\"]*\\\"|'[^']*'|\\\\s[^'\\\"/>\\\\s]*)*?\\\\/?> *(?:\\\\n{2,}|\\\\s*$))\");new RegExp(\"^ *\\\\[([^\\\\]]+)\\\\]: *<?([^\\\\s>]+)>?(?: +([\\\"(][^\\\\n]+[\\\")]))? *(?:\\\\n+|$)\");new RegExp(\"^(#{1,6})(.*)(?:\\\\n+|$)\");new RegExp(\"^(.+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| *#{1,6} *[^\\\\n]|(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)| {0,3}>|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^\\\\\\\\([!\\\"#$%&'()*+,\\\\-./:;<=>?@\\\\[\\\\]\\\\\\\\^_`{|}~])\");new RegExp(\"^(`+)([^`]|[^`][\\\\s\\\\S]*?[^`])\\\\1(?!`)\");new RegExp(\"^( {2,}|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|[^`])(?:(?= {2,}\\\\n)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*_]|\\\\b_|$)|[^ ](?= {2,}\\\\n)))\");new RegExp(\"^((?![*_])[\\\\s\\\\p{P}\\\\p{S}])\",\"u\");new RegExp(\"\\\\[(?:[^\\\\[\\\\]`]|(?<a>`+)[^`]+\\\\k<a>(?!`))*?\\\\]\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)]|\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)])*\\\\))*\\\\)|(?<!`)()(?<b>`+)[^`]+\\\\k<b>(?!`)|<(?! )[^<>]*?>\",\"g\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?!\\\\*)(?=(?!~)[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)(?!~)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))|[\\\\s](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?:(?!\\\\*)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(\\\\*+)(?!\\\\*)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s\\\\p{P}\\\\p{S}](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?:(?!_)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(_+)(?!_)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^~~?(?:((?!~)[\\\\p{P}\\\\p{S}])|[^\\\\s~])\",\"u\");new RegExp(\"^[^~]+(?=[^~])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!~)[\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"\\\\\\\\([\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\\\s\\\\x00-\\\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>\");new RegExp(\"^<!--(?:-?>|[\\\\s\\\\S]*?-->)|^<\\\\/[a-zA-Z][\\\\w:-]*\\\\s*>|^<[a-zA-Z][\\\\w-]*(?:\\\\s+[a-zA-Z:_][\\\\w.:-]*(?:\\\\s*=\\\\s*\\\"[^\\\"]*\\\"|\\\\s*=\\\\s*'[^']*'|\\\\s*=\\\\s*[^\\\\s\\\"'=<>`]+)?)*?\\\\s*\\\\/?>|^<\\\\?[\\\\s\\\\S]*?\\\\?>|^<![a-zA-Z]+\\\\s[\\\\s\\\\S]*?>|^<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?\\\\]\\\\]>\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\(\\\\s*(<(?:\\\\\\\\.|[^\\\\n<>\\\\\\\\])+>|[^ \\\\t\\\\n\\\\x00-\\\\x1f]+|(?=\\\\)))(?:(?:[ \\\\t]+(?:\\\\n[ \\\\t]*)?|\\\\n[ \\\\t]*)(\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'(?:\\\\\\\\'?|[^'\\\\\\\\])*'|\\\\((?:\\\\\\\\\\\\)?|[^)\\\\\\\\])*\\\\)))?\\\\s*\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]\");new RegExp(\"^!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?\");new RegExp(\"!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]|!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?(?!\\\\()\",\"g\");new RegExp(\"^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\\\/\\\\/|www\\\\.)(?:[a-zA-Z0-9\\\\-]+\\\\.?)+[^\\\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])\");new RegExp(\"(?:[^?!.,:;*_'\\\"~()&]+|\\\\([^)]*\\\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\\\"~)]+(?!$))+\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= {2,}\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^( *|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_| *\\\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= *\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\((.*?)\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\s*\\\\[([^\\\\]]*)\\\\]\");let i=new RegExp(\"^(?: {1,4}| {0,3}\\\\t)\",\"gm\");new RegExp(\"\\\\\\\\([\\\\[\\\\]])\",\"g\");new RegExp(\"^(\\\\s+)(?:```)\");new RegExp(\"^\\\\s+\");new RegExp(\"#$\");new RegExp(\"^ \");new RegExp(\" $\");new RegExp(\"[^ ]\");new RegExp(\"\\\\n\",\"g\");let j=new RegExp(\"\\\\t\",\"g\");new RegExp(\"\\\\s+\",\"g\");new RegExp(\"^[ \\\\t]*$\");new RegExp(\"\\\\n[ \\\\t]*\\\\n[ \\\\t]*$\");new RegExp(\"^ {0,3}>\");new RegExp(\"\\\\n {0,3}((?:=+|-+) *)(?=\\\\n|$)\",\"g\");new RegExp(\"^ {0,3}>[ \\\\t]?\",\"gm\");new RegExp(\"^ {1,4}(?=( {4})*[^ ])\",\"g\");new RegExp(\"^\\\\[[ xX]\\\\] +\\\\S\");new RegExp(\"^\\\\[[ xX]\\\\] +\");new RegExp(\"\\\\[[ xX]\\\\]\");new RegExp(\"\\\\n.*\\\\n\");new RegExp(\"^<(.*)>$\");new RegExp(\"[:|]\");new RegExp(\"^\\\\||\\\\| *$\",\"g\");new RegExp(\"\\\\n[ \\\\t]*$\");new RegExp(\"^ *-+: *$\");new RegExp(\"^ *:-+: *$\");new RegExp(\"^ *:-+ *$\");new RegExp(\"^<a \",\"i\");new RegExp(\"^<\\\\/a>\",\"i\");new RegExp(\"^<(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\\\\/(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\");new RegExp(\">$\");new RegExp(\"^([^'\\\"]*[^\\\\s])\\\\s+(['\\\"])(.*)\\\\2\");new RegExp(\"[\\\\p{L}\\\\p{N}]\",\"u\");new RegExp(\"[&<>\\\"']\");new RegExp(\"[<>\\\"']|&(?!(#\\\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\\\w+);)\");new RegExp(\"%25\",\"g\");new RegExp(\"\\\\\\\\\\\\|\",\"g\");new RegExp(\"\\\\r\\\\n|\\\\r\",\"g\");new RegExp(\"^ +$\",\"gm\");new RegExp(\"^\\\\S*\");new RegExp(\"^ {0,0}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,1}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,2}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,3}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,0}(?:```|~~~)\");new RegExp(\"^ {0,1}(?:```|~~~)\");new RegExp(\"^ {0,2}(?:```|~~~)\");new RegExp(\"^ {0,3}(?:```|~~~)\");new RegExp(\"^ {0,0}#\");new RegExp(\"^ {0,1}#\");new RegExp(\"^ {0,2}#\");new RegExp(\"^ {0,3}#\");new RegExp(\"^ {0,0}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,1}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,2}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,3}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,0}>\");new RegExp(\"^ {0,1}>\");new RegExp(\"^ {0,2}>\");new RegExp(\"^ {0,3}>\");export{f as make,e as readLate,h as exposed,c as total,c as liveTotal,a as bootCount,r as inspectMatch,j as tabRule,v as editTarget,w as runIntegrated};",
+      "sizes": {
+        "raw": 18125,
+        "gzip9": 4243,
+        "brotli11": 3876
+      },
+      "qualified_codecs": [
+        "Raw",
+        "Gzip",
+        "Brotli"
+      ],
+      "policy_fingerprint": [
+        252,
+        213,
+        202,
+        118,
+        75,
+        116,
+        99,
+        91,
+        98,
+        252,
+        113,
+        131,
+        126,
+        36,
+        229,
+        104,
+        136,
+        171,
+        22,
+        144,
+        88,
+        95,
+        179,
+        118,
+        203,
+        25,
+        154,
+        79,
+        138,
+        11,
+        20,
+        39
+      ],
+      "work_before_score": 977118,
+      "work_after_handoff": 1281868,
+      "observations": [
+        [
+          "boot",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "early-tdz",
+          1
+        ],
+        [
+          "state",
+          1
+        ],
+        [
+          "factory",
+          41
+        ],
+        [
+          "public-init",
+          1
+        ],
+        [
+          "barrel",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "entry",
+          41
+        ],
+        [
+          "unused",
+          3
+        ],
+        [
+          "keep",
+          3
+        ],
+        [
+          "unused",
+          10
+        ],
+        [
+          "keep",
+          10
+        ],
+        [
+          "visit",
+          3,
+          5,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          5
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "visit",
+          10,
+          11,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          11
+        ],
+        [
+          "b",
+          11
+        ],
+        [
+          "visit",
+          3,
+          6,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "reentered",
+          6
+        ],
+        [
+          "visit",
+          10,
+          13,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          50
+        ],
+        [
+          "caught",
+          "host"
+        ],
+        [
+          "retained",
+          40,
+          50
+        ],
+        [
+          "visit",
+          3,
+          9,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          9
+        ],
+        [
+          "saved",
+          9
+        ],
+        [
+          "live",
+          5,
+          5
+        ],
+        [
+          "public",
+          true,
+          true,
+          7,
+          2
+        ],
+        [
+          "exports",
+          [
+            "bootCount",
+            "editTarget",
+            "exposed",
+            "inspectMatch",
+            "liveTotal",
+            "make",
+            "readLate",
+            "runIntegrated",
+            "tabRule",
+            "total"
+          ]
+        ],
+        [
+          "unused",
+          30
+        ],
+        [
+          "keep",
+          30
+        ],
+        [
+          "marked-normalized",
+          "one\nsecond"
+        ],
+        [
+          "marked-expanded",
+          "    one\nsecond"
+        ],
+        [
+          "match",
+          [
+            "\t",
+            0
+          ]
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "visit",
+          30,
+          32,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "portable",
+          49
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "portable",
+          38
+        ],
+        [
+          "portable",
+          15
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "integrated",
+          87
+        ],
+        [
+          "integrated-live",
+          6,
+          40
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          0
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          null
+        ],
+        [
+          "fallback",
+          "nullish"
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          {
+            "marker": 7
+          }
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "edit",
+          11
+        ]
+      ],
+      "candidate_disposed_before_scoring": true
+    },
+    {
+      "schema": 1,
+      "recipe": "shared-caller-callee-fields",
+      "descriptor": [
+        3,
+        1,
+        181,
+        14,
+        0,
+        5,
+        2,
+        183,
+        39,
+        184,
+        40,
+        1,
+        1,
+        40,
+        1,
+        40,
+        2,
+        2,
+        232,
+        0,
+        2,
+        1,
+        0,
+        1,
+        232,
+        1,
+        0,
+        0,
+        239,
+        0,
+        2,
+        2,
+        0,
+        1,
+        239,
+        0,
+        37,
+        4,
+        240,
+        0,
+        37,
+        7,
+        1,
+        35,
+        1,
+        0,
+        0,
+        1
+      ],
+      "selected_families": {
+        "record": 181,
+        "inline_helpers": [
+          183,
+          184
+        ],
+        "shared_string": {
+          "unit": 40,
+          "value": 2
+        },
+        "products": [
+          {
+            "root": 232,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              232
+            ]
+          },
+          {
+            "root": 239,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              239,
+              240
+            ]
+          }
+        ],
+        "field_call_body": 35,
+        "product_helper_inlined": false
+      },
+      "style": "Scoped",
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "literals": "Original"
+      },
+      "sha256": "0d12f46c0ff9ebd43c60cc7217bf25dea0a8c1fc18508c3a6ee6bf83757bd609",
+      "javascript": "function w(a,b){while(b!==null){a=a[b[0]];b=b[2];}return a;}function x(a,b,c){if(b===null){return c;}let d=x(a[b[0]],b[2],c);return (0,b[1])(a,b[0],d);}function y(a,b,c){return [b===0?c:a[0],b===1?c:a[1]];}let z=[0,y,null];let bump;let readLate;let make;let exposed;let replaceRe;let execRe;let joinLines;let splitLines;let expandTabs;let removeCodeIndent;let normalizeInput;let inspectMatch;let productStep;let updateReference;let productScore;let editTarget;let runIntegrated;bump=function(){c=c+ 1|0;return c;};let b=bump;readLate=function(){emit(\"read-late\",0);return f;};let d=readLate;make=function(a){let d;let e;let f;let g;let h;d=a;seedEffect(a);let c=d;keep((e=a,f=(0,()=>{return c??null??0;}),g=(0,(a)=>{c=a;}),e),f,g);h=(0,(d)=>{let f;let g;f=(g=\"counter/ready\",g);let e=f;let h;try{let g;let i;i=(g=d,h=g,c=(c??null??0)+ h|0,c??null??0);let f=i;b();visit(a,f,e);return f;}finally{emit(\"finally\",c??null??0);}});return h;};let e=make;exposed=function(a){return {__proto__:null,[\"count\"]:a};};let g=exposed;replaceRe=function(a,b,c){return a.replace(b,c);};let j=replaceRe;execRe=function(a,b){return a.exec(b);};let k=execRe;joinLines=function(a){let b=\"\";let c=0;while(c<(a.length|0)){if(c>0){b=b+ \"\\n\";}b=b+ (a[c]??\"\");c=c+ 1|0;}return b;};let l=joinLines;splitLines=function(a){return a.split(\"\\n\");};let m=splitLines;expandTabs=function(a,b){let c=b;let d=\"\";let e=0;while(e<(a.length|0)){let b=a.charAt(e);if(b===\"\\t\"){let a=4- (c%4|0)|0;d=d+ \" \".repeat(a);c=c+ a|0;}else{d=d+ b;c=c+ 1|0;}e=e+ 1|0;}return d;};let n=expandTabs;removeCodeIndent=function(a){h[\"lastIndex\"]=0;return j(a,h,\"\");};let o=removeCodeIndent;normalizeInput=function(a){let b=l(m(o(a)));textEvent(\"marked-normalized\",b);let c=n(\"\\t\"+ b,0);textEvent(\"marked-expanded\",c);return c.length|0;};let p=normalizeInput;inspectMatch=function(){i[\"lastIndex\"]=0;let a=k(i,\"\\tA\");let b=a;demandSeen(a);a&&demandFallback(\"and\");b??demandFallback(\"nullish\");};let q=inspectMatch;productStep=function(c,d,a){let b;b=(c|0)+ a|0;c=b;return (c|0)+ (d|0)|0;};let r=productStep;updateReference=function(a,f,b,g,c){let d;let e;w(a[0],f);d=[(w(a[0],f)[0]|0)+ c|0,(w(a[0],f)[1]|0)+ 1|0];a[0]=x(a[0],f,d);e=(g===null?w(b[0],g):w(b[0],g)|0)+ 2|0;b[0]=x(b[0],g,e);};let s=updateReference;productScore=function(a,b){let j;let k;let l;let m;let n;let o;j=a,k=b;let f=j;let g=k;let h=f;let i=g;let c=r(f,g,3);let d=[[a,b]];let e=d[0];s(((l=d,m=null,d[0]),(n=d,o=z,d[0][0]),l),m,n,o,4);void console.log(c);void console.log(h|0);void console.log(i|0);void console.log(d[0][0]|0);void console.log(d[0][1]|0);void console.log(e[0]|0);void console.log(e[1]|0);return c+ (d[0][0]|0)|0;};let t=productScore;editTarget=function(){return 11;};let u=editTarget;runIntegrated=function(a,b,c){let d=e(a);let f=p(c);q();let g=d(b);return t(g,f);};let v=runIntegrated;let a=1;emit(\"boot\",a);let c=0;try{emit(\"early-value\",d());}catch(a){caughtEarly(a);}emit(\"state\",a);let f=41;emit(\"factory\",f);emit(\"public-init\",a);emit(\"barrel\",a);emit(\"entry\",d());new RegExp(\"^(?:[ \\\\t]*(?:\\\\n|$))+\");new RegExp(\"^((?: {4}| {0,3}\\\\t)[^\\\\n]+(?:\\\\n(?:[ \\\\t]*(?:\\\\n|$))*)?)+\");new RegExp(\"^ {0,3}(`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~{3,})([^\\\\n]*)(?:\\\\n|$)(?:|([\\\\s\\\\S]*?)(?:\\\\n|$))(?: {0,3}\\\\1[~`]* *(?=\\\\n|$)|$)\");new RegExp(\"^ {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}(#{1,6})(?=\\\\s|$)(.*)(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^ {0,3}\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]: *(?:\\\\n[ \\\\t]*)?([^<\\\\s][^\\\\s]*|<.*?>)(?:(?: +(?:\\\\n[ \\\\t]*)?| *\\\\n[ \\\\t]*)((?:\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'[^'\\\\n]*(?:\\\\n[^'\\\\n]+)*\\\\n?'|\\\\([^()]*\\\\))))? *(?:\\\\n+|$)\");new RegExp(\"^( {0,3}(?:[*+-]|\\\\d{1,9}[.)]))([ \\\\t][^\\\\n]*?)?(?:\\\\n|$)\");new RegExp(\"^ {0,3}(?:<(script|pre|style|textarea)[\\\\s>][\\\\s\\\\S]*?(?:<\\\\/\\\\1>[^\\\\n]*\\\\n*|$)|<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$))[^\\\\n]*(\\\\n+|$)|<\\\\?[\\\\s\\\\S]*?(?:\\\\?>[^\\\\n]*\\\\n*|$)|<![A-Z][\\\\s\\\\S]*?(?:>[^\\\\n]*\\\\n*|$)|<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?(?:\\\\]\\\\]>[^\\\\n]*\\\\n*|$)|<\\\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<(?!script|pre|style|textarea)([a-z][\\\\w-]*)(?: +[a-zA-Z:_][\\\\w.:-]*(?: *= *\\\"[^\\\"\\\\n]*\\\"| *= *'[^'\\\\n]*'| *= *[^\\\\s\\\"'=<>`]+)?)*? *\\\\/?>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<\\\\/(?!script|pre|style|textarea)[a-z][\\\\w-]*\\\\s*>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$))\",\"i\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^( {0,3}> ?(([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|\\\\d{1,9}[.)])(?:[ \\\\t]|\\\\n|$)|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)|[^\\\\n]*)(?:\\\\n|$))+\");new RegExp(\"^ *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^[^\\\\n]+\");new RegExp(\"^ *(?:<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$)) *(?:\\\\n|\\\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b)[\\\\s\\\\S]+?<\\\\/\\\\1> *(?:\\\\n{2,}|\\\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b(?:\\\"[^\\\"]*\\\"|'[^']*'|\\\\s[^'\\\"/>\\\\s]*)*?\\\\/?> *(?:\\\\n{2,}|\\\\s*$))\");new RegExp(\"^ *\\\\[([^\\\\]]+)\\\\]: *<?([^\\\\s>]+)>?(?: +([\\\"(][^\\\\n]+[\\\")]))? *(?:\\\\n+|$)\");new RegExp(\"^(#{1,6})(.*)(?:\\\\n+|$)\");new RegExp(\"^(.+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| *#{1,6} *[^\\\\n]|(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)| {0,3}>|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^\\\\\\\\([!\\\"#$%&'()*+,\\\\-./:;<=>?@\\\\[\\\\]\\\\\\\\^_`{|}~])\");new RegExp(\"^(`+)([^`]|[^`][\\\\s\\\\S]*?[^`])\\\\1(?!`)\");new RegExp(\"^( {2,}|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|[^`])(?:(?= {2,}\\\\n)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*_]|\\\\b_|$)|[^ ](?= {2,}\\\\n)))\");new RegExp(\"^((?![*_])[\\\\s\\\\p{P}\\\\p{S}])\",\"u\");new RegExp(\"\\\\[(?:[^\\\\[\\\\]`]|(?<a>`+)[^`]+\\\\k<a>(?!`))*?\\\\]\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)]|\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)])*\\\\))*\\\\)|(?<!`)()(?<b>`+)[^`]+\\\\k<b>(?!`)|<(?! )[^<>]*?>\",\"g\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?!\\\\*)(?=(?!~)[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)(?!~)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))|[\\\\s](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?:(?!\\\\*)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(\\\\*+)(?!\\\\*)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s\\\\p{P}\\\\p{S}](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?:(?!_)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(_+)(?!_)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^~~?(?:((?!~)[\\\\p{P}\\\\p{S}])|[^\\\\s~])\",\"u\");new RegExp(\"^[^~]+(?=[^~])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!~)[\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"\\\\\\\\([\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\\\s\\\\x00-\\\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>\");new RegExp(\"^<!--(?:-?>|[\\\\s\\\\S]*?-->)|^<\\\\/[a-zA-Z][\\\\w:-]*\\\\s*>|^<[a-zA-Z][\\\\w-]*(?:\\\\s+[a-zA-Z:_][\\\\w.:-]*(?:\\\\s*=\\\\s*\\\"[^\\\"]*\\\"|\\\\s*=\\\\s*'[^']*'|\\\\s*=\\\\s*[^\\\\s\\\"'=<>`]+)?)*?\\\\s*\\\\/?>|^<\\\\?[\\\\s\\\\S]*?\\\\?>|^<![a-zA-Z]+\\\\s[\\\\s\\\\S]*?>|^<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?\\\\]\\\\]>\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\(\\\\s*(<(?:\\\\\\\\.|[^\\\\n<>\\\\\\\\])+>|[^ \\\\t\\\\n\\\\x00-\\\\x1f]+|(?=\\\\)))(?:(?:[ \\\\t]+(?:\\\\n[ \\\\t]*)?|\\\\n[ \\\\t]*)(\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'(?:\\\\\\\\'?|[^'\\\\\\\\])*'|\\\\((?:\\\\\\\\\\\\)?|[^)\\\\\\\\])*\\\\)))?\\\\s*\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]\");new RegExp(\"^!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?\");new RegExp(\"!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]|!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?(?!\\\\()\",\"g\");new RegExp(\"^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\\\/\\\\/|www\\\\.)(?:[a-zA-Z0-9\\\\-]+\\\\.?)+[^\\\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])\");new RegExp(\"(?:[^?!.,:;*_'\\\"~()&]+|\\\\([^)]*\\\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\\\"~)]+(?!$))+\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= {2,}\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^( *|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_| *\\\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= *\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\((.*?)\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\s*\\\\[([^\\\\]]*)\\\\]\");let h=new RegExp(\"^(?: {1,4}| {0,3}\\\\t)\",\"gm\");new RegExp(\"\\\\\\\\([\\\\[\\\\]])\",\"g\");new RegExp(\"^(\\\\s+)(?:```)\");new RegExp(\"^\\\\s+\");new RegExp(\"#$\");new RegExp(\"^ \");new RegExp(\" $\");new RegExp(\"[^ ]\");new RegExp(\"\\\\n\",\"g\");let i=new RegExp(\"\\\\t\",\"g\");new RegExp(\"\\\\s+\",\"g\");new RegExp(\"^[ \\\\t]*$\");new RegExp(\"\\\\n[ \\\\t]*\\\\n[ \\\\t]*$\");new RegExp(\"^ {0,3}>\");new RegExp(\"\\\\n {0,3}((?:=+|-+) *)(?=\\\\n|$)\",\"g\");new RegExp(\"^ {0,3}>[ \\\\t]?\",\"gm\");new RegExp(\"^ {1,4}(?=( {4})*[^ ])\",\"g\");new RegExp(\"^\\\\[[ xX]\\\\] +\\\\S\");new RegExp(\"^\\\\[[ xX]\\\\] +\");new RegExp(\"\\\\[[ xX]\\\\]\");new RegExp(\"\\\\n.*\\\\n\");new RegExp(\"^<(.*)>$\");new RegExp(\"[:|]\");new RegExp(\"^\\\\||\\\\| *$\",\"g\");new RegExp(\"\\\\n[ \\\\t]*$\");new RegExp(\"^ *-+: *$\");new RegExp(\"^ *:-+: *$\");new RegExp(\"^ *:-+ *$\");new RegExp(\"^<a \",\"i\");new RegExp(\"^<\\\\/a>\",\"i\");new RegExp(\"^<(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\\\\/(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\");new RegExp(\">$\");new RegExp(\"^([^'\\\"]*[^\\\\s])\\\\s+(['\\\"])(.*)\\\\2\");new RegExp(\"[\\\\p{L}\\\\p{N}]\",\"u\");new RegExp(\"[&<>\\\"']\");new RegExp(\"[<>\\\"']|&(?!(#\\\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\\\w+);)\");new RegExp(\"%25\",\"g\");new RegExp(\"\\\\\\\\\\\\|\",\"g\");new RegExp(\"\\\\r\\\\n|\\\\r\",\"g\");new RegExp(\"^ +$\",\"gm\");new RegExp(\"^\\\\S*\");new RegExp(\"^ {0,0}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,1}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,2}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,3}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,0}(?:```|~~~)\");new RegExp(\"^ {0,1}(?:```|~~~)\");new RegExp(\"^ {0,2}(?:```|~~~)\");new RegExp(\"^ {0,3}(?:```|~~~)\");new RegExp(\"^ {0,0}#\");new RegExp(\"^ {0,1}#\");new RegExp(\"^ {0,2}#\");new RegExp(\"^ {0,3}#\");new RegExp(\"^ {0,0}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,1}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,2}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,3}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,0}>\");new RegExp(\"^ {0,1}>\");new RegExp(\"^ {0,2}>\");new RegExp(\"^ {0,3}>\");export{e as make,d as readLate,g as exposed,c as total,c as liveTotal,a as bootCount,q as inspectMatch,i as tabRule,u as editTarget,v as runIntegrated};",
+      "sizes": {
+        "raw": 17956,
+        "gzip9": 4036,
+        "brotli11": 3686
+      },
+      "qualified_codecs": [
+        "Raw",
+        "Gzip",
+        "Brotli"
+      ],
+      "policy_fingerprint": [
+        252,
+        213,
+        202,
+        118,
+        75,
+        116,
+        99,
+        91,
+        98,
+        252,
+        113,
+        131,
+        126,
+        36,
+        229,
+        104,
+        136,
+        171,
+        22,
+        144,
+        88,
+        95,
+        179,
+        118,
+        203,
+        25,
+        154,
+        79,
+        138,
+        11,
+        20,
+        39
+      ],
+      "work_before_score": 1281868,
+      "work_after_handoff": 1586153,
+      "observations": [
+        [
+          "boot",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "early-tdz",
+          1
+        ],
+        [
+          "state",
+          1
+        ],
+        [
+          "factory",
+          41
+        ],
+        [
+          "public-init",
+          1
+        ],
+        [
+          "barrel",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "entry",
+          41
+        ],
+        [
+          "unused",
+          3
+        ],
+        [
+          "keep",
+          3
+        ],
+        [
+          "unused",
+          10
+        ],
+        [
+          "keep",
+          10
+        ],
+        [
+          "visit",
+          3,
+          5,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          5
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "visit",
+          10,
+          11,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          11
+        ],
+        [
+          "b",
+          11
+        ],
+        [
+          "visit",
+          3,
+          6,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "reentered",
+          6
+        ],
+        [
+          "visit",
+          10,
+          13,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          50
+        ],
+        [
+          "caught",
+          "host"
+        ],
+        [
+          "retained",
+          40,
+          50
+        ],
+        [
+          "visit",
+          3,
+          9,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          9
+        ],
+        [
+          "saved",
+          9
+        ],
+        [
+          "live",
+          5,
+          5
+        ],
+        [
+          "public",
+          true,
+          true,
+          7,
+          2
+        ],
+        [
+          "exports",
+          [
+            "bootCount",
+            "editTarget",
+            "exposed",
+            "inspectMatch",
+            "liveTotal",
+            "make",
+            "readLate",
+            "runIntegrated",
+            "tabRule",
+            "total"
+          ]
+        ],
+        [
+          "unused",
+          30
+        ],
+        [
+          "keep",
+          30
+        ],
+        [
+          "marked-normalized",
+          "one\nsecond"
+        ],
+        [
+          "marked-expanded",
+          "    one\nsecond"
+        ],
+        [
+          "match",
+          [
+            "\t",
+            0
+          ]
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "visit",
+          30,
+          32,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "portable",
+          49
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "portable",
+          38
+        ],
+        [
+          "portable",
+          15
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "integrated",
+          87
+        ],
+        [
+          "integrated-live",
+          6,
+          40
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          0
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          null
+        ],
+        [
+          "fallback",
+          "nullish"
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          {
+            "marker": 7
+          }
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "edit",
+          11
+        ]
+      ],
+      "candidate_disposed_before_scoring": true
+    },
+    {
+      "schema": 1,
+      "recipe": "shared-caller-callee-fields",
+      "descriptor": [
+        3,
+        1,
+        181,
+        14,
+        0,
+        5,
+        2,
+        183,
+        39,
+        184,
+        40,
+        1,
+        1,
+        40,
+        1,
+        40,
+        2,
+        2,
+        232,
+        0,
+        2,
+        1,
+        0,
+        1,
+        232,
+        1,
+        0,
+        0,
+        239,
+        0,
+        2,
+        2,
+        0,
+        1,
+        239,
+        0,
+        37,
+        4,
+        240,
+        0,
+        37,
+        7,
+        1,
+        35,
+        1,
+        0,
+        0,
+        1
+      ],
+      "selected_families": {
+        "record": 181,
+        "inline_helpers": [
+          183,
+          184
+        ],
+        "shared_string": {
+          "unit": 40,
+          "value": 2
+        },
+        "products": [
+          {
+            "root": 232,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              232
+            ]
+          },
+          {
+            "root": 239,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              239,
+              240
+            ]
+          }
+        ],
+        "field_call_body": 35,
+        "product_helper_inlined": false
+      },
+      "style": "Source",
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "literals": "Original"
+      },
+      "sha256": "15e7d9346d575d1d320ac2e069893374db9a94a120240752d42de5e96955883c",
+      "javascript": "function r(a,b){while(b!==null){a=a[b[0]];b=b[2];}return a;}function s(a,b,c){if(b===null){return c;}let d=s(a[b[0]],b[2],c);return (0,b[1])(a,b[0],d);}function t(a,b,c){return [b===0?c:a[0],b===1?c:a[1]];}let u=[0,t,null];let a;let b;let c;let d;let e;let f;let g;let h;let i;let j;let k;let l;let m;let n;let o;let p;let q;a=(0,{bump:function(){total=total+ 1|0;return total;}}.bump);let bump=a;b=(0,{readLate:function(){emit(\"read-late\",0);return late;}}.readLate);let readLate=b;c=(0,{make:function(seed){let b;let c;let d;let e;let f;b=seed;seedEffect(seed);let a=b;keep((c=seed,d=(0,()=>{return a??null??0;}),e=(0,(next)=>{a=next;}),c),d,e);f=(0,(delta)=>{let b;let c;b=(c=\"counter/ready\",c);let label=b;let d;try{let b;let c;c=(b=delta,d=b,a=(a??null??0)+ d|0,a??null??0);let result=c;bump();visit(seed,result,label);return result;}finally{emit(\"finally\",a??null??0);}});return f;}}.make);let make=c;d=(0,{exposed:function(seed){return {__proto__:null,[\"count\"]:seed};}}.exposed);let exposed=d;e=(0,{replaceRe:function(s,re,replacement){return s.replace(re,replacement);}}.replaceRe);let replaceRe=e;f=(0,{execRe:function(re,src){return re.exec(src);}}.execRe);let execRe=f;g=(0,{joinLines:function(lines){let out=\"\";let i=0;while(i<(lines.length|0)){if(i>0){out=out+ \"\\n\";}out=out+ (lines[i]??\"\");i=i+ 1|0;}return out;}}.joinLines);let joinLines=g;h=(0,{splitLines:function(src){return src.split(\"\\n\");}}.splitLines);let splitLines=h;i=(0,{expandTabs:function(line,indent){let col=indent;let expanded=\"\";let i=0;while(i<(line.length|0)){let ch=line.charAt(i);if(ch===\"\\t\"){let added=4- (col%4|0)|0;expanded=expanded+ \" \".repeat(added);col=col+ added|0;}else{expanded=expanded+ ch;col=col+ 1|0;}i=i+ 1|0;}return expanded;}}.expandTabs);let expandTabs=i;j=(0,{removeCodeIndent:function(raw){otherCodeRemoveIndent[\"lastIndex\"]=0;return replaceRe(raw,otherCodeRemoveIndent,\"\");}}.removeCodeIndent);let removeCodeIndent=j;k=(0,{normalizeInput:function(text){let normalized=joinLines(splitLines(removeCodeIndent(text)));textEvent(\"marked-normalized\",normalized);let expanded=expandTabs(\"\\t\"+ normalized,0);textEvent(\"marked-expanded\",expanded);return expanded.length|0;}}.normalizeInput);let normalizeInput=k;l=(0,{inspectMatch:function(){otherTabCharGlobal[\"lastIndex\"]=0;let matched=execRe(otherTabCharGlobal,\"\\tA\");let nullable=matched;demandSeen(matched);matched&&demandFallback(\"and\");nullable??demandFallback(\"nullish\");}}.inspectMatch);let inspectMatch=l;m=(0,{productStep:function(b,c,delta){let a;a=(b|0)+ delta|0;b=a;return (b|0)+ (c|0)|0;}}.productStep);let productStep=m;n=(0,{updateReference:function(whole,c,leaf,d,delta){let a;let b;r(whole[0],c);a=[(r(whole[0],c)[0]|0)+ delta|0,(r(whole[0],c)[1]|0)+ 1|0];whole[0]=s(whole[0],c,a);b=(d===null?r(leaf[0],d):r(leaf[0],d)|0)+ 2|0;leaf[0]=s(leaf[0],d,b);}}.updateReference);let updateReference=n;o=(0,{productScore:function(count,width){let e;let f;let g;let h;let i;let j;e=count,f=width;let a=e;let b=f;let c=a;let d=b;let score=productStep(a,b,3);let referenceState=[[count,width]];let referenceSaved=referenceState[0];updateReference(((g=referenceState,h=null,referenceState[0]),(i=referenceState,j=u,referenceState[0][0]),g),h,i,j,4);void console.log(score);void console.log(c|0);void console.log(d|0);void console.log(referenceState[0][0]|0);void console.log(referenceState[0][1]|0);void console.log(referenceSaved[0]|0);void console.log(referenceSaved[1]|0);return score+ (referenceState[0][0]|0)|0;}}.productScore);let productScore=o;p=(0,{editTarget:function(){return 11;}}.editTarget);let editTarget=p;q=(0,{runIntegrated:function(seed,delta,text){let counter=make(seed);let width=normalizeInput(text);inspectMatch();let current=counter(delta);return productScore(current,width);}}.runIntegrated);let runIntegrated=q;let boots=1;emit(\"boot\",boots);let total=0;try{emit(\"early-value\",readLate());}catch(error){caughtEarly(error);}emit(\"state\",boots);let late=41;emit(\"factory\",late);emit(\"public-init\",boots);emit(\"barrel\",boots);emit(\"entry\",readLate());new RegExp(\"^(?:[ \\\\t]*(?:\\\\n|$))+\");new RegExp(\"^((?: {4}| {0,3}\\\\t)[^\\\\n]+(?:\\\\n(?:[ \\\\t]*(?:\\\\n|$))*)?)+\");new RegExp(\"^ {0,3}(`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~{3,})([^\\\\n]*)(?:\\\\n|$)(?:|([\\\\s\\\\S]*?)(?:\\\\n|$))(?: {0,3}\\\\1[~`]* *(?=\\\\n|$)|$)\");new RegExp(\"^ {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}(#{1,6})(?=\\\\s|$)(.*)(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^ {0,3}\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]: *(?:\\\\n[ \\\\t]*)?([^<\\\\s][^\\\\s]*|<.*?>)(?:(?: +(?:\\\\n[ \\\\t]*)?| *\\\\n[ \\\\t]*)((?:\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'[^'\\\\n]*(?:\\\\n[^'\\\\n]+)*\\\\n?'|\\\\([^()]*\\\\))))? *(?:\\\\n+|$)\");new RegExp(\"^( {0,3}(?:[*+-]|\\\\d{1,9}[.)]))([ \\\\t][^\\\\n]*?)?(?:\\\\n|$)\");new RegExp(\"^ {0,3}(?:<(script|pre|style|textarea)[\\\\s>][\\\\s\\\\S]*?(?:<\\\\/\\\\1>[^\\\\n]*\\\\n*|$)|<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$))[^\\\\n]*(\\\\n+|$)|<\\\\?[\\\\s\\\\S]*?(?:\\\\?>[^\\\\n]*\\\\n*|$)|<![A-Z][\\\\s\\\\S]*?(?:>[^\\\\n]*\\\\n*|$)|<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?(?:\\\\]\\\\]>[^\\\\n]*\\\\n*|$)|<\\\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<(?!script|pre|style|textarea)([a-z][\\\\w-]*)(?: +[a-zA-Z:_][\\\\w.:-]*(?: *= *\\\"[^\\\"\\\\n]*\\\"| *= *'[^'\\\\n]*'| *= *[^\\\\s\\\"'=<>`]+)?)*? *\\\\/?>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<\\\\/(?!script|pre|style|textarea)[a-z][\\\\w-]*\\\\s*>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$))\",\"i\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^( {0,3}> ?(([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|\\\\d{1,9}[.)])(?:[ \\\\t]|\\\\n|$)|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)|[^\\\\n]*)(?:\\\\n|$))+\");new RegExp(\"^ *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^[^\\\\n]+\");new RegExp(\"^ *(?:<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$)) *(?:\\\\n|\\\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b)[\\\\s\\\\S]+?<\\\\/\\\\1> *(?:\\\\n{2,}|\\\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b(?:\\\"[^\\\"]*\\\"|'[^']*'|\\\\s[^'\\\"/>\\\\s]*)*?\\\\/?> *(?:\\\\n{2,}|\\\\s*$))\");new RegExp(\"^ *\\\\[([^\\\\]]+)\\\\]: *<?([^\\\\s>]+)>?(?: +([\\\"(][^\\\\n]+[\\\")]))? *(?:\\\\n+|$)\");new RegExp(\"^(#{1,6})(.*)(?:\\\\n+|$)\");new RegExp(\"^(.+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| *#{1,6} *[^\\\\n]|(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)| {0,3}>|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^\\\\\\\\([!\\\"#$%&'()*+,\\\\-./:;<=>?@\\\\[\\\\]\\\\\\\\^_`{|}~])\");new RegExp(\"^(`+)([^`]|[^`][\\\\s\\\\S]*?[^`])\\\\1(?!`)\");new RegExp(\"^( {2,}|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|[^`])(?:(?= {2,}\\\\n)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*_]|\\\\b_|$)|[^ ](?= {2,}\\\\n)))\");new RegExp(\"^((?![*_])[\\\\s\\\\p{P}\\\\p{S}])\",\"u\");new RegExp(\"\\\\[(?:[^\\\\[\\\\]`]|(?<a>`+)[^`]+\\\\k<a>(?!`))*?\\\\]\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)]|\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)])*\\\\))*\\\\)|(?<!`)()(?<b>`+)[^`]+\\\\k<b>(?!`)|<(?! )[^<>]*?>\",\"g\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?!\\\\*)(?=(?!~)[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)(?!~)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))|[\\\\s](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?:(?!\\\\*)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(\\\\*+)(?!\\\\*)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s\\\\p{P}\\\\p{S}](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?:(?!_)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(_+)(?!_)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^~~?(?:((?!~)[\\\\p{P}\\\\p{S}])|[^\\\\s~])\",\"u\");new RegExp(\"^[^~]+(?=[^~])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!~)[\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"\\\\\\\\([\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\\\s\\\\x00-\\\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>\");new RegExp(\"^<!--(?:-?>|[\\\\s\\\\S]*?-->)|^<\\\\/[a-zA-Z][\\\\w:-]*\\\\s*>|^<[a-zA-Z][\\\\w-]*(?:\\\\s+[a-zA-Z:_][\\\\w.:-]*(?:\\\\s*=\\\\s*\\\"[^\\\"]*\\\"|\\\\s*=\\\\s*'[^']*'|\\\\s*=\\\\s*[^\\\\s\\\"'=<>`]+)?)*?\\\\s*\\\\/?>|^<\\\\?[\\\\s\\\\S]*?\\\\?>|^<![a-zA-Z]+\\\\s[\\\\s\\\\S]*?>|^<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?\\\\]\\\\]>\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\(\\\\s*(<(?:\\\\\\\\.|[^\\\\n<>\\\\\\\\])+>|[^ \\\\t\\\\n\\\\x00-\\\\x1f]+|(?=\\\\)))(?:(?:[ \\\\t]+(?:\\\\n[ \\\\t]*)?|\\\\n[ \\\\t]*)(\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'(?:\\\\\\\\'?|[^'\\\\\\\\])*'|\\\\((?:\\\\\\\\\\\\)?|[^)\\\\\\\\])*\\\\)))?\\\\s*\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]\");new RegExp(\"^!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?\");new RegExp(\"!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]|!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?(?!\\\\()\",\"g\");new RegExp(\"^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\\\/\\\\/|www\\\\.)(?:[a-zA-Z0-9\\\\-]+\\\\.?)+[^\\\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])\");new RegExp(\"(?:[^?!.,:;*_'\\\"~()&]+|\\\\([^)]*\\\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\\\"~)]+(?!$))+\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= {2,}\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^( *|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_| *\\\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= *\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\((.*?)\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\s*\\\\[([^\\\\]]*)\\\\]\");let otherCodeRemoveIndent=new RegExp(\"^(?: {1,4}| {0,3}\\\\t)\",\"gm\");new RegExp(\"\\\\\\\\([\\\\[\\\\]])\",\"g\");new RegExp(\"^(\\\\s+)(?:```)\");new RegExp(\"^\\\\s+\");new RegExp(\"#$\");new RegExp(\"^ \");new RegExp(\" $\");new RegExp(\"[^ ]\");new RegExp(\"\\\\n\",\"g\");let otherTabCharGlobal=new RegExp(\"\\\\t\",\"g\");new RegExp(\"\\\\s+\",\"g\");new RegExp(\"^[ \\\\t]*$\");new RegExp(\"\\\\n[ \\\\t]*\\\\n[ \\\\t]*$\");new RegExp(\"^ {0,3}>\");new RegExp(\"\\\\n {0,3}((?:=+|-+) *)(?=\\\\n|$)\",\"g\");new RegExp(\"^ {0,3}>[ \\\\t]?\",\"gm\");new RegExp(\"^ {1,4}(?=( {4})*[^ ])\",\"g\");new RegExp(\"^\\\\[[ xX]\\\\] +\\\\S\");new RegExp(\"^\\\\[[ xX]\\\\] +\");new RegExp(\"\\\\[[ xX]\\\\]\");new RegExp(\"\\\\n.*\\\\n\");new RegExp(\"^<(.*)>$\");new RegExp(\"[:|]\");new RegExp(\"^\\\\||\\\\| *$\",\"g\");new RegExp(\"\\\\n[ \\\\t]*$\");new RegExp(\"^ *-+: *$\");new RegExp(\"^ *:-+: *$\");new RegExp(\"^ *:-+ *$\");new RegExp(\"^<a \",\"i\");new RegExp(\"^<\\\\/a>\",\"i\");new RegExp(\"^<(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\\\\/(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\");new RegExp(\">$\");new RegExp(\"^([^'\\\"]*[^\\\\s])\\\\s+(['\\\"])(.*)\\\\2\");new RegExp(\"[\\\\p{L}\\\\p{N}]\",\"u\");new RegExp(\"[&<>\\\"']\");new RegExp(\"[<>\\\"']|&(?!(#\\\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\\\w+);)\");new RegExp(\"%25\",\"g\");new RegExp(\"\\\\\\\\\\\\|\",\"g\");new RegExp(\"\\\\r\\\\n|\\\\r\",\"g\");new RegExp(\"^ +$\",\"gm\");new RegExp(\"^\\\\S*\");new RegExp(\"^ {0,0}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,1}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,2}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,3}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,0}(?:```|~~~)\");new RegExp(\"^ {0,1}(?:```|~~~)\");new RegExp(\"^ {0,2}(?:```|~~~)\");new RegExp(\"^ {0,3}(?:```|~~~)\");new RegExp(\"^ {0,0}#\");new RegExp(\"^ {0,1}#\");new RegExp(\"^ {0,2}#\");new RegExp(\"^ {0,3}#\");new RegExp(\"^ {0,0}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,1}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,2}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,3}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,0}>\");new RegExp(\"^ {0,1}>\");new RegExp(\"^ {0,2}>\");new RegExp(\"^ {0,3}>\");export{make,readLate,exposed,total,total as liveTotal,boots as bootCount,inspectMatch,otherTabCharGlobal as tabRule,editTarget,runIntegrated};",
+      "sizes": {
+        "raw": 19010,
+        "gzip9": 4317,
+        "brotli11": 3939
+      },
+      "qualified_codecs": [
+        "Raw",
+        "Gzip",
+        "Brotli"
+      ],
+      "policy_fingerprint": [
+        252,
+        213,
+        202,
+        118,
+        75,
+        116,
+        99,
+        91,
+        98,
+        252,
+        113,
+        131,
+        126,
+        36,
+        229,
+        104,
+        136,
+        171,
+        22,
+        144,
+        88,
+        95,
+        179,
+        118,
+        203,
+        25,
+        154,
+        79,
+        138,
+        11,
+        20,
+        39
+      ],
+      "work_before_score": 1586153,
+      "work_after_handoff": 1892543,
+      "observations": [
+        [
+          "boot",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "early-tdz",
+          1
+        ],
+        [
+          "state",
+          1
+        ],
+        [
+          "factory",
+          41
+        ],
+        [
+          "public-init",
+          1
+        ],
+        [
+          "barrel",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "entry",
+          41
+        ],
+        [
+          "unused",
+          3
+        ],
+        [
+          "keep",
+          3
+        ],
+        [
+          "unused",
+          10
+        ],
+        [
+          "keep",
+          10
+        ],
+        [
+          "visit",
+          3,
+          5,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          5
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "visit",
+          10,
+          11,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          11
+        ],
+        [
+          "b",
+          11
+        ],
+        [
+          "visit",
+          3,
+          6,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "reentered",
+          6
+        ],
+        [
+          "visit",
+          10,
+          13,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          50
+        ],
+        [
+          "caught",
+          "host"
+        ],
+        [
+          "retained",
+          40,
+          50
+        ],
+        [
+          "visit",
+          3,
+          9,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          9
+        ],
+        [
+          "saved",
+          9
+        ],
+        [
+          "live",
+          5,
+          5
+        ],
+        [
+          "public",
+          true,
+          true,
+          7,
+          2
+        ],
+        [
+          "exports",
+          [
+            "bootCount",
+            "editTarget",
+            "exposed",
+            "inspectMatch",
+            "liveTotal",
+            "make",
+            "readLate",
+            "runIntegrated",
+            "tabRule",
+            "total"
+          ]
+        ],
+        [
+          "unused",
+          30
+        ],
+        [
+          "keep",
+          30
+        ],
+        [
+          "marked-normalized",
+          "one\nsecond"
+        ],
+        [
+          "marked-expanded",
+          "    one\nsecond"
+        ],
+        [
+          "match",
+          [
+            "\t",
+            0
+          ]
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "visit",
+          30,
+          32,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "portable",
+          49
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "portable",
+          38
+        ],
+        [
+          "portable",
+          15
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "integrated",
+          87
+        ],
+        [
+          "integrated-live",
+          6,
+          40
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          0
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          null
+        ],
+        [
+          "fallback",
+          "nullish"
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          {
+            "marker": 7
+          }
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "edit",
+          11
+        ]
+      ],
+      "candidate_disposed_before_scoring": true
+    },
+    {
+      "schema": 1,
+      "recipe": "shared-caller-callee-fields-inline",
+      "descriptor": [
+        3,
+        1,
+        181,
+        14,
+        0,
+        5,
+        3,
+        175,
+        35,
+        183,
+        39,
+        184,
+        40,
+        1,
+        1,
+        40,
+        1,
+        40,
+        2,
+        2,
+        232,
+        0,
+        2,
+        1,
+        0,
+        1,
+        232,
+        1,
+        0,
+        0,
+        239,
+        0,
+        2,
+        2,
+        0,
+        1,
+        239,
+        0,
+        37,
+        4,
+        240,
+        0,
+        37,
+        7,
+        1,
+        35,
+        1,
+        0,
+        0,
+        1
+      ],
+      "selected_families": {
+        "record": 181,
+        "inline_helpers": [
+          175,
+          183,
+          184
+        ],
+        "shared_string": {
+          "unit": 40,
+          "value": 2
+        },
+        "products": [
+          {
+            "root": 232,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              232
+            ]
+          },
+          {
+            "root": 239,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              239,
+              240
+            ]
+          }
+        ],
+        "field_call_body": 35,
+        "product_helper_inlined": true
+      },
+      "style": "Global",
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "literals": "Original"
+      },
+      "sha256": "17b30e90d5eb13cd8d7a12cac4c2bf74564dc5edb0c04639194a5b463e51a2c3",
+      "javascript": "function oa(pa,qa){while(qa!==null){pa=pa[qa[0]];qa=qa[2];}return pa;}function ra(sa,ta,ua){if(ta===null){return ua;}let va=ra(sa[ta[0]],ta[2],ua);return (0,ta[1])(sa,ta[0],va);}function Qa(Ra,Sa,Ta){return [Sa===0?Ta:Ra[0],Sa===1?Ta:Ra[1]];}let Ua=[0,Qa,null];let bump;let readLate;let make;let exposed;let replaceRe;let execRe;let joinLines;let splitLines;let expandTabs;let removeCodeIndent;let normalizeInput;let inspectMatch;let updateReference;let productScore;let editTarget;let runIntegrated;bump=function(){c=c+ 1|0;return c;};let b=bump;readLate=function(){emit(\"read-late\",0);return g;};let e=readLate;make=function(w){let y;let z;let A;let B;let C;y=w;seedEffect(w);let x=y;keep((z=w,A=(0,()=>{return x??null??0;}),B=(0,(D)=>{x=D;}),z),A,B);C=(0,(E)=>{let H;let K;H=(K=\"counter/ready\",K);let F=H;let L;try{let I;let J;J=(I=E,L=I,x=(x??null??0)+ L|0,x??null??0);let G=J;b();visit(w,G,F);return G;}finally{emit(\"finally\",x??null??0);}});return C;};let f=make;exposed=function(M){return {__proto__:null,[\"count\"]:M};};let h=exposed;replaceRe=function(N,O,P){return N.replace(O,P);};let k=replaceRe;execRe=function(Q,R){return Q.exec(R);};let l=execRe;joinLines=function(S){let T=\"\";let U=0;while(U<(S.length|0)){if(U>0){T=T+ \"\\n\";}T=T+ (S[U]??\"\");U=U+ 1|0;}return T;};let m=joinLines;splitLines=function(V){return V.split(\"\\n\");};let n=splitLines;expandTabs=function(W,X){let Y=X;let Z=\"\";let $=0;while($<(W.length|0)){let _=W.charAt($);if(_===\"\\t\"){let aa=4- (Y%4|0)|0;Z=Z+ \" \".repeat(aa);Y=Y+ aa|0;}else{Z=Z+ _;Y=Y+ 1|0;}$=$+ 1|0;}return Z;};let o=expandTabs;removeCodeIndent=function(ba){i[\"lastIndex\"]=0;return k(ba,i,\"\");};let p=removeCodeIndent;normalizeInput=function(ca){let da=m(n(p(ca)));textEvent(\"marked-normalized\",da);let ea=o(\"\\t\"+ da,0);textEvent(\"marked-expanded\",ea);return ea.length|0;};let q=normalizeInput;inspectMatch=function(){j[\"lastIndex\"]=0;let fa=l(j,\"\\tA\");let ga=fa;demandSeen(fa);fa&&demandFallback(\"and\");ga??demandFallback(\"nullish\");};let r=inspectMatch;updateReference=function(ha,ma,ia,na,ja){let ka;let la;oa(ha[0],ma);ka=[(oa(ha[0],ma)[0]|0)+ ja|0,(oa(ha[0],ma)[1]|0)+ 1|0];ha[0]=ra(ha[0],ma,ka);la=(na===null?oa(ia[0],na):oa(ia[0],na)|0)+ 2|0;ia[0]=ra(ia[0],na,la);};let s=updateReference;productScore=function(wa,xa){let Ba;let Ga;let Ha;let Ia;let Ja;let Ka;let La;Ga=wa,Ha=xa;let Ca=Ga;let Da=Ha;let Ea=Ca;let Fa=Da;let Ma;let Na;let Oa;let Pa;Ba=(Oa=Ca,Pa=Da,Ma=3,Na=(Oa|0)+ Ma|0,Oa=Na,(Oa|0)+ (Pa|0)|0);let ya=Ba;let za=[[wa,xa]];let Aa=za[0];s(((Ia=za,Ja=null,za[0]),(Ka=za,La=Ua,za[0][0]),Ia),Ja,Ka,La,4);void console.log(ya);void console.log(Ea|0);void console.log(Fa|0);void console.log(za[0][0]|0);void console.log(za[0][1]|0);void console.log(Aa[0]|0);void console.log(Aa[1]|0);return ya+ (za[0][0]|0)|0;};let t=productScore;editTarget=function(){return 11;};let u=editTarget;runIntegrated=function(Va,Wa,Xa){let Ya=f(Va);let Za=q(Xa);r();let $a=Ya(Wa);return t($a,Za);};let v=runIntegrated;let a=1;emit(\"boot\",a);let c=0;try{emit(\"early-value\",e());}catch(d){caughtEarly(d);}emit(\"state\",a);let g=41;emit(\"factory\",g);emit(\"public-init\",a);emit(\"barrel\",a);emit(\"entry\",e());new RegExp(\"^(?:[ \\\\t]*(?:\\\\n|$))+\");new RegExp(\"^((?: {4}| {0,3}\\\\t)[^\\\\n]+(?:\\\\n(?:[ \\\\t]*(?:\\\\n|$))*)?)+\");new RegExp(\"^ {0,3}(`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~{3,})([^\\\\n]*)(?:\\\\n|$)(?:|([\\\\s\\\\S]*?)(?:\\\\n|$))(?: {0,3}\\\\1[~`]* *(?=\\\\n|$)|$)\");new RegExp(\"^ {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}(#{1,6})(?=\\\\s|$)(.*)(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^ {0,3}\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]: *(?:\\\\n[ \\\\t]*)?([^<\\\\s][^\\\\s]*|<.*?>)(?:(?: +(?:\\\\n[ \\\\t]*)?| *\\\\n[ \\\\t]*)((?:\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'[^'\\\\n]*(?:\\\\n[^'\\\\n]+)*\\\\n?'|\\\\([^()]*\\\\))))? *(?:\\\\n+|$)\");new RegExp(\"^( {0,3}(?:[*+-]|\\\\d{1,9}[.)]))([ \\\\t][^\\\\n]*?)?(?:\\\\n|$)\");new RegExp(\"^ {0,3}(?:<(script|pre|style|textarea)[\\\\s>][\\\\s\\\\S]*?(?:<\\\\/\\\\1>[^\\\\n]*\\\\n*|$)|<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$))[^\\\\n]*(\\\\n+|$)|<\\\\?[\\\\s\\\\S]*?(?:\\\\?>[^\\\\n]*\\\\n*|$)|<![A-Z][\\\\s\\\\S]*?(?:>[^\\\\n]*\\\\n*|$)|<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?(?:\\\\]\\\\]>[^\\\\n]*\\\\n*|$)|<\\\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<(?!script|pre|style|textarea)([a-z][\\\\w-]*)(?: +[a-zA-Z:_][\\\\w.:-]*(?: *= *\\\"[^\\\"\\\\n]*\\\"| *= *'[^'\\\\n]*'| *= *[^\\\\s\\\"'=<>`]+)?)*? *\\\\/?>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<\\\\/(?!script|pre|style|textarea)[a-z][\\\\w-]*\\\\s*>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$))\",\"i\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^( {0,3}> ?(([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|\\\\d{1,9}[.)])(?:[ \\\\t]|\\\\n|$)|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)|[^\\\\n]*)(?:\\\\n|$))+\");new RegExp(\"^ *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^[^\\\\n]+\");new RegExp(\"^ *(?:<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$)) *(?:\\\\n|\\\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b)[\\\\s\\\\S]+?<\\\\/\\\\1> *(?:\\\\n{2,}|\\\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b(?:\\\"[^\\\"]*\\\"|'[^']*'|\\\\s[^'\\\"/>\\\\s]*)*?\\\\/?> *(?:\\\\n{2,}|\\\\s*$))\");new RegExp(\"^ *\\\\[([^\\\\]]+)\\\\]: *<?([^\\\\s>]+)>?(?: +([\\\"(][^\\\\n]+[\\\")]))? *(?:\\\\n+|$)\");new RegExp(\"^(#{1,6})(.*)(?:\\\\n+|$)\");new RegExp(\"^(.+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| *#{1,6} *[^\\\\n]|(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)| {0,3}>|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^\\\\\\\\([!\\\"#$%&'()*+,\\\\-./:;<=>?@\\\\[\\\\]\\\\\\\\^_`{|}~])\");new RegExp(\"^(`+)([^`]|[^`][\\\\s\\\\S]*?[^`])\\\\1(?!`)\");new RegExp(\"^( {2,}|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|[^`])(?:(?= {2,}\\\\n)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*_]|\\\\b_|$)|[^ ](?= {2,}\\\\n)))\");new RegExp(\"^((?![*_])[\\\\s\\\\p{P}\\\\p{S}])\",\"u\");new RegExp(\"\\\\[(?:[^\\\\[\\\\]`]|(?<a>`+)[^`]+\\\\k<a>(?!`))*?\\\\]\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)]|\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)])*\\\\))*\\\\)|(?<!`)()(?<b>`+)[^`]+\\\\k<b>(?!`)|<(?! )[^<>]*?>\",\"g\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?!\\\\*)(?=(?!~)[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)(?!~)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))|[\\\\s](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?:(?!\\\\*)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(\\\\*+)(?!\\\\*)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s\\\\p{P}\\\\p{S}](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?:(?!_)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(_+)(?!_)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^~~?(?:((?!~)[\\\\p{P}\\\\p{S}])|[^\\\\s~])\",\"u\");new RegExp(\"^[^~]+(?=[^~])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!~)[\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"\\\\\\\\([\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\\\s\\\\x00-\\\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>\");new RegExp(\"^<!--(?:-?>|[\\\\s\\\\S]*?-->)|^<\\\\/[a-zA-Z][\\\\w:-]*\\\\s*>|^<[a-zA-Z][\\\\w-]*(?:\\\\s+[a-zA-Z:_][\\\\w.:-]*(?:\\\\s*=\\\\s*\\\"[^\\\"]*\\\"|\\\\s*=\\\\s*'[^']*'|\\\\s*=\\\\s*[^\\\\s\\\"'=<>`]+)?)*?\\\\s*\\\\/?>|^<\\\\?[\\\\s\\\\S]*?\\\\?>|^<![a-zA-Z]+\\\\s[\\\\s\\\\S]*?>|^<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?\\\\]\\\\]>\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\(\\\\s*(<(?:\\\\\\\\.|[^\\\\n<>\\\\\\\\])+>|[^ \\\\t\\\\n\\\\x00-\\\\x1f]+|(?=\\\\)))(?:(?:[ \\\\t]+(?:\\\\n[ \\\\t]*)?|\\\\n[ \\\\t]*)(\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'(?:\\\\\\\\'?|[^'\\\\\\\\])*'|\\\\((?:\\\\\\\\\\\\)?|[^)\\\\\\\\])*\\\\)))?\\\\s*\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]\");new RegExp(\"^!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?\");new RegExp(\"!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]|!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?(?!\\\\()\",\"g\");new RegExp(\"^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\\\/\\\\/|www\\\\.)(?:[a-zA-Z0-9\\\\-]+\\\\.?)+[^\\\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])\");new RegExp(\"(?:[^?!.,:;*_'\\\"~()&]+|\\\\([^)]*\\\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\\\"~)]+(?!$))+\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= {2,}\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^( *|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_| *\\\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= *\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\((.*?)\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\s*\\\\[([^\\\\]]*)\\\\]\");let i=new RegExp(\"^(?: {1,4}| {0,3}\\\\t)\",\"gm\");new RegExp(\"\\\\\\\\([\\\\[\\\\]])\",\"g\");new RegExp(\"^(\\\\s+)(?:```)\");new RegExp(\"^\\\\s+\");new RegExp(\"#$\");new RegExp(\"^ \");new RegExp(\" $\");new RegExp(\"[^ ]\");new RegExp(\"\\\\n\",\"g\");let j=new RegExp(\"\\\\t\",\"g\");new RegExp(\"\\\\s+\",\"g\");new RegExp(\"^[ \\\\t]*$\");new RegExp(\"\\\\n[ \\\\t]*\\\\n[ \\\\t]*$\");new RegExp(\"^ {0,3}>\");new RegExp(\"\\\\n {0,3}((?:=+|-+) *)(?=\\\\n|$)\",\"g\");new RegExp(\"^ {0,3}>[ \\\\t]?\",\"gm\");new RegExp(\"^ {1,4}(?=( {4})*[^ ])\",\"g\");new RegExp(\"^\\\\[[ xX]\\\\] +\\\\S\");new RegExp(\"^\\\\[[ xX]\\\\] +\");new RegExp(\"\\\\[[ xX]\\\\]\");new RegExp(\"\\\\n.*\\\\n\");new RegExp(\"^<(.*)>$\");new RegExp(\"[:|]\");new RegExp(\"^\\\\||\\\\| *$\",\"g\");new RegExp(\"\\\\n[ \\\\t]*$\");new RegExp(\"^ *-+: *$\");new RegExp(\"^ *:-+: *$\");new RegExp(\"^ *:-+ *$\");new RegExp(\"^<a \",\"i\");new RegExp(\"^<\\\\/a>\",\"i\");new RegExp(\"^<(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\\\\/(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\");new RegExp(\">$\");new RegExp(\"^([^'\\\"]*[^\\\\s])\\\\s+(['\\\"])(.*)\\\\2\");new RegExp(\"[\\\\p{L}\\\\p{N}]\",\"u\");new RegExp(\"[&<>\\\"']\");new RegExp(\"[<>\\\"']|&(?!(#\\\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\\\w+);)\");new RegExp(\"%25\",\"g\");new RegExp(\"\\\\\\\\\\\\|\",\"g\");new RegExp(\"\\\\r\\\\n|\\\\r\",\"g\");new RegExp(\"^ +$\",\"gm\");new RegExp(\"^\\\\S*\");new RegExp(\"^ {0,0}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,1}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,2}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,3}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,0}(?:```|~~~)\");new RegExp(\"^ {0,1}(?:```|~~~)\");new RegExp(\"^ {0,2}(?:```|~~~)\");new RegExp(\"^ {0,3}(?:```|~~~)\");new RegExp(\"^ {0,0}#\");new RegExp(\"^ {0,1}#\");new RegExp(\"^ {0,2}#\");new RegExp(\"^ {0,3}#\");new RegExp(\"^ {0,0}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,1}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,2}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,3}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,0}>\");new RegExp(\"^ {0,1}>\");new RegExp(\"^ {0,2}>\");new RegExp(\"^ {0,3}>\");export{f as make,e as readLate,h as exposed,c as total,c as liveTotal,a as bootCount,r as inspectMatch,j as tabRule,u as editTarget,v as runIntegrated};",
+      "sizes": {
+        "raw": 18090,
+        "gzip9": 4234,
+        "brotli11": 3866
+      },
+      "qualified_codecs": [
+        "Raw",
+        "Gzip",
+        "Brotli"
+      ],
+      "policy_fingerprint": [
+        252,
+        213,
+        202,
+        118,
+        75,
+        116,
+        99,
+        91,
+        98,
+        252,
+        113,
+        131,
+        126,
+        36,
+        229,
+        104,
+        136,
+        171,
+        22,
+        144,
+        88,
+        95,
+        179,
+        118,
+        203,
+        25,
+        154,
+        79,
+        138,
+        11,
+        20,
+        39
+      ],
+      "work_before_score": 1892543,
+      "work_after_handoff": 2197223,
+      "observations": [
+        [
+          "boot",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "early-tdz",
+          1
+        ],
+        [
+          "state",
+          1
+        ],
+        [
+          "factory",
+          41
+        ],
+        [
+          "public-init",
+          1
+        ],
+        [
+          "barrel",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "entry",
+          41
+        ],
+        [
+          "unused",
+          3
+        ],
+        [
+          "keep",
+          3
+        ],
+        [
+          "unused",
+          10
+        ],
+        [
+          "keep",
+          10
+        ],
+        [
+          "visit",
+          3,
+          5,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          5
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "visit",
+          10,
+          11,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          11
+        ],
+        [
+          "b",
+          11
+        ],
+        [
+          "visit",
+          3,
+          6,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "reentered",
+          6
+        ],
+        [
+          "visit",
+          10,
+          13,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          50
+        ],
+        [
+          "caught",
+          "host"
+        ],
+        [
+          "retained",
+          40,
+          50
+        ],
+        [
+          "visit",
+          3,
+          9,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          9
+        ],
+        [
+          "saved",
+          9
+        ],
+        [
+          "live",
+          5,
+          5
+        ],
+        [
+          "public",
+          true,
+          true,
+          7,
+          2
+        ],
+        [
+          "exports",
+          [
+            "bootCount",
+            "editTarget",
+            "exposed",
+            "inspectMatch",
+            "liveTotal",
+            "make",
+            "readLate",
+            "runIntegrated",
+            "tabRule",
+            "total"
+          ]
+        ],
+        [
+          "unused",
+          30
+        ],
+        [
+          "keep",
+          30
+        ],
+        [
+          "marked-normalized",
+          "one\nsecond"
+        ],
+        [
+          "marked-expanded",
+          "    one\nsecond"
+        ],
+        [
+          "match",
+          [
+            "\t",
+            0
+          ]
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "visit",
+          30,
+          32,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "portable",
+          49
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "portable",
+          38
+        ],
+        [
+          "portable",
+          15
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "integrated",
+          87
+        ],
+        [
+          "integrated-live",
+          6,
+          40
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          0
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          null
+        ],
+        [
+          "fallback",
+          "nullish"
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          {
+            "marker": 7
+          }
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "edit",
+          11
+        ]
+      ],
+      "candidate_disposed_before_scoring": true
+    },
+    {
+      "schema": 1,
+      "recipe": "shared-caller-callee-fields-inline",
+      "descriptor": [
+        3,
+        1,
+        181,
+        14,
+        0,
+        5,
+        3,
+        175,
+        35,
+        183,
+        39,
+        184,
+        40,
+        1,
+        1,
+        40,
+        1,
+        40,
+        2,
+        2,
+        232,
+        0,
+        2,
+        1,
+        0,
+        1,
+        232,
+        1,
+        0,
+        0,
+        239,
+        0,
+        2,
+        2,
+        0,
+        1,
+        239,
+        0,
+        37,
+        4,
+        240,
+        0,
+        37,
+        7,
+        1,
+        35,
+        1,
+        0,
+        0,
+        1
+      ],
+      "selected_families": {
+        "record": 181,
+        "inline_helpers": [
+          175,
+          183,
+          184
+        ],
+        "shared_string": {
+          "unit": 40,
+          "value": 2
+        },
+        "products": [
+          {
+            "root": 232,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              232
+            ]
+          },
+          {
+            "root": 239,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              239,
+              240
+            ]
+          }
+        ],
+        "field_call_body": 35,
+        "product_helper_inlined": true
+      },
+      "style": "Scoped",
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "literals": "Original"
+      },
+      "sha256": "0638d89bcefbddb013de40fbc03e1b8fc9fbfa20244b4f7e3a1f622301e644e1",
+      "javascript": "function v(a,b){while(b!==null){a=a[b[0]];b=b[2];}return a;}function w(a,b,c){if(b===null){return c;}let d=w(a[b[0]],b[2],c);return (0,b[1])(a,b[0],d);}function x(a,b,c){return [b===0?c:a[0],b===1?c:a[1]];}let y=[0,x,null];let bump;let readLate;let make;let exposed;let replaceRe;let execRe;let joinLines;let splitLines;let expandTabs;let removeCodeIndent;let normalizeInput;let inspectMatch;let updateReference;let productScore;let editTarget;let runIntegrated;bump=function(){c=c+ 1|0;return c;};let b=bump;readLate=function(){emit(\"read-late\",0);return f;};let d=readLate;make=function(a){let d;let e;let f;let g;let h;d=a;seedEffect(a);let c=d;keep((e=a,f=(0,()=>{return c??null??0;}),g=(0,(a)=>{c=a;}),e),f,g);h=(0,(d)=>{let f;let g;f=(g=\"counter/ready\",g);let e=f;let h;try{let g;let i;i=(g=d,h=g,c=(c??null??0)+ h|0,c??null??0);let f=i;b();visit(a,f,e);return f;}finally{emit(\"finally\",c??null??0);}});return h;};let e=make;exposed=function(a){return {__proto__:null,[\"count\"]:a};};let g=exposed;replaceRe=function(a,b,c){return a.replace(b,c);};let j=replaceRe;execRe=function(a,b){return a.exec(b);};let k=execRe;joinLines=function(a){let b=\"\";let c=0;while(c<(a.length|0)){if(c>0){b=b+ \"\\n\";}b=b+ (a[c]??\"\");c=c+ 1|0;}return b;};let l=joinLines;splitLines=function(a){return a.split(\"\\n\");};let m=splitLines;expandTabs=function(a,b){let c=b;let d=\"\";let e=0;while(e<(a.length|0)){let b=a.charAt(e);if(b===\"\\t\"){let a=4- (c%4|0)|0;d=d+ \" \".repeat(a);c=c+ a|0;}else{d=d+ b;c=c+ 1|0;}e=e+ 1|0;}return d;};let n=expandTabs;removeCodeIndent=function(a){h[\"lastIndex\"]=0;return j(a,h,\"\");};let o=removeCodeIndent;normalizeInput=function(a){let b=l(m(o(a)));textEvent(\"marked-normalized\",b);let c=n(\"\\t\"+ b,0);textEvent(\"marked-expanded\",c);return c.length|0;};let p=normalizeInput;inspectMatch=function(){i[\"lastIndex\"]=0;let a=k(i,\"\\tA\");let b=a;demandSeen(a);a&&demandFallback(\"and\");b??demandFallback(\"nullish\");};let q=inspectMatch;updateReference=function(a,f,b,g,c){let d;let e;v(a[0],f);d=[(v(a[0],f)[0]|0)+ c|0,(v(a[0],f)[1]|0)+ 1|0];a[0]=w(a[0],f,d);e=(g===null?v(b[0],g):v(b[0],g)|0)+ 2|0;b[0]=w(b[0],g,e);};let r=updateReference;productScore=function(a,b){let f;let k;let l;let m;let n;let o;let p;k=a,l=b;let g=k;let h=l;let i=g;let j=h;let q;let s;let t;let u;f=(t=g,u=h,q=3,s=(t|0)+ q|0,t=s,(t|0)+ (u|0)|0);let c=f;let d=[[a,b]];let e=d[0];r(((m=d,n=null,d[0]),(o=d,p=y,d[0][0]),m),n,o,p,4);void console.log(c);void console.log(i|0);void console.log(j|0);void console.log(d[0][0]|0);void console.log(d[0][1]|0);void console.log(e[0]|0);void console.log(e[1]|0);return c+ (d[0][0]|0)|0;};let s=productScore;editTarget=function(){return 11;};let t=editTarget;runIntegrated=function(a,b,c){let d=e(a);let f=p(c);q();let g=d(b);return s(g,f);};let u=runIntegrated;let a=1;emit(\"boot\",a);let c=0;try{emit(\"early-value\",d());}catch(a){caughtEarly(a);}emit(\"state\",a);let f=41;emit(\"factory\",f);emit(\"public-init\",a);emit(\"barrel\",a);emit(\"entry\",d());new RegExp(\"^(?:[ \\\\t]*(?:\\\\n|$))+\");new RegExp(\"^((?: {4}| {0,3}\\\\t)[^\\\\n]+(?:\\\\n(?:[ \\\\t]*(?:\\\\n|$))*)?)+\");new RegExp(\"^ {0,3}(`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~{3,})([^\\\\n]*)(?:\\\\n|$)(?:|([\\\\s\\\\S]*?)(?:\\\\n|$))(?: {0,3}\\\\1[~`]* *(?=\\\\n|$)|$)\");new RegExp(\"^ {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}(#{1,6})(?=\\\\s|$)(.*)(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^ {0,3}\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]: *(?:\\\\n[ \\\\t]*)?([^<\\\\s][^\\\\s]*|<.*?>)(?:(?: +(?:\\\\n[ \\\\t]*)?| *\\\\n[ \\\\t]*)((?:\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'[^'\\\\n]*(?:\\\\n[^'\\\\n]+)*\\\\n?'|\\\\([^()]*\\\\))))? *(?:\\\\n+|$)\");new RegExp(\"^( {0,3}(?:[*+-]|\\\\d{1,9}[.)]))([ \\\\t][^\\\\n]*?)?(?:\\\\n|$)\");new RegExp(\"^ {0,3}(?:<(script|pre|style|textarea)[\\\\s>][\\\\s\\\\S]*?(?:<\\\\/\\\\1>[^\\\\n]*\\\\n*|$)|<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$))[^\\\\n]*(\\\\n+|$)|<\\\\?[\\\\s\\\\S]*?(?:\\\\?>[^\\\\n]*\\\\n*|$)|<![A-Z][\\\\s\\\\S]*?(?:>[^\\\\n]*\\\\n*|$)|<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?(?:\\\\]\\\\]>[^\\\\n]*\\\\n*|$)|<\\\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<(?!script|pre|style|textarea)([a-z][\\\\w-]*)(?: +[a-zA-Z:_][\\\\w.:-]*(?: *= *\\\"[^\\\"\\\\n]*\\\"| *= *'[^'\\\\n]*'| *= *[^\\\\s\\\"'=<>`]+)?)*? *\\\\/?>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<\\\\/(?!script|pre|style|textarea)[a-z][\\\\w-]*\\\\s*>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$))\",\"i\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^( {0,3}> ?(([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|\\\\d{1,9}[.)])(?:[ \\\\t]|\\\\n|$)|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)|[^\\\\n]*)(?:\\\\n|$))+\");new RegExp(\"^ *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^[^\\\\n]+\");new RegExp(\"^ *(?:<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$)) *(?:\\\\n|\\\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b)[\\\\s\\\\S]+?<\\\\/\\\\1> *(?:\\\\n{2,}|\\\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b(?:\\\"[^\\\"]*\\\"|'[^']*'|\\\\s[^'\\\"/>\\\\s]*)*?\\\\/?> *(?:\\\\n{2,}|\\\\s*$))\");new RegExp(\"^ *\\\\[([^\\\\]]+)\\\\]: *<?([^\\\\s>]+)>?(?: +([\\\"(][^\\\\n]+[\\\")]))? *(?:\\\\n+|$)\");new RegExp(\"^(#{1,6})(.*)(?:\\\\n+|$)\");new RegExp(\"^(.+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| *#{1,6} *[^\\\\n]|(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)| {0,3}>|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^\\\\\\\\([!\\\"#$%&'()*+,\\\\-./:;<=>?@\\\\[\\\\]\\\\\\\\^_`{|}~])\");new RegExp(\"^(`+)([^`]|[^`][\\\\s\\\\S]*?[^`])\\\\1(?!`)\");new RegExp(\"^( {2,}|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|[^`])(?:(?= {2,}\\\\n)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*_]|\\\\b_|$)|[^ ](?= {2,}\\\\n)))\");new RegExp(\"^((?![*_])[\\\\s\\\\p{P}\\\\p{S}])\",\"u\");new RegExp(\"\\\\[(?:[^\\\\[\\\\]`]|(?<a>`+)[^`]+\\\\k<a>(?!`))*?\\\\]\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)]|\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)])*\\\\))*\\\\)|(?<!`)()(?<b>`+)[^`]+\\\\k<b>(?!`)|<(?! )[^<>]*?>\",\"g\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?!\\\\*)(?=(?!~)[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)(?!~)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))|[\\\\s](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?:(?!\\\\*)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(\\\\*+)(?!\\\\*)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s\\\\p{P}\\\\p{S}](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?:(?!_)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(_+)(?!_)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^~~?(?:((?!~)[\\\\p{P}\\\\p{S}])|[^\\\\s~])\",\"u\");new RegExp(\"^[^~]+(?=[^~])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!~)[\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"\\\\\\\\([\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\\\s\\\\x00-\\\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>\");new RegExp(\"^<!--(?:-?>|[\\\\s\\\\S]*?-->)|^<\\\\/[a-zA-Z][\\\\w:-]*\\\\s*>|^<[a-zA-Z][\\\\w-]*(?:\\\\s+[a-zA-Z:_][\\\\w.:-]*(?:\\\\s*=\\\\s*\\\"[^\\\"]*\\\"|\\\\s*=\\\\s*'[^']*'|\\\\s*=\\\\s*[^\\\\s\\\"'=<>`]+)?)*?\\\\s*\\\\/?>|^<\\\\?[\\\\s\\\\S]*?\\\\?>|^<![a-zA-Z]+\\\\s[\\\\s\\\\S]*?>|^<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?\\\\]\\\\]>\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\(\\\\s*(<(?:\\\\\\\\.|[^\\\\n<>\\\\\\\\])+>|[^ \\\\t\\\\n\\\\x00-\\\\x1f]+|(?=\\\\)))(?:(?:[ \\\\t]+(?:\\\\n[ \\\\t]*)?|\\\\n[ \\\\t]*)(\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'(?:\\\\\\\\'?|[^'\\\\\\\\])*'|\\\\((?:\\\\\\\\\\\\)?|[^)\\\\\\\\])*\\\\)))?\\\\s*\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]\");new RegExp(\"^!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?\");new RegExp(\"!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]|!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?(?!\\\\()\",\"g\");new RegExp(\"^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\\\/\\\\/|www\\\\.)(?:[a-zA-Z0-9\\\\-]+\\\\.?)+[^\\\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])\");new RegExp(\"(?:[^?!.,:;*_'\\\"~()&]+|\\\\([^)]*\\\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\\\"~)]+(?!$))+\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= {2,}\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^( *|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_| *\\\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= *\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\((.*?)\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\s*\\\\[([^\\\\]]*)\\\\]\");let h=new RegExp(\"^(?: {1,4}| {0,3}\\\\t)\",\"gm\");new RegExp(\"\\\\\\\\([\\\\[\\\\]])\",\"g\");new RegExp(\"^(\\\\s+)(?:```)\");new RegExp(\"^\\\\s+\");new RegExp(\"#$\");new RegExp(\"^ \");new RegExp(\" $\");new RegExp(\"[^ ]\");new RegExp(\"\\\\n\",\"g\");let i=new RegExp(\"\\\\t\",\"g\");new RegExp(\"\\\\s+\",\"g\");new RegExp(\"^[ \\\\t]*$\");new RegExp(\"\\\\n[ \\\\t]*\\\\n[ \\\\t]*$\");new RegExp(\"^ {0,3}>\");new RegExp(\"\\\\n {0,3}((?:=+|-+) *)(?=\\\\n|$)\",\"g\");new RegExp(\"^ {0,3}>[ \\\\t]?\",\"gm\");new RegExp(\"^ {1,4}(?=( {4})*[^ ])\",\"g\");new RegExp(\"^\\\\[[ xX]\\\\] +\\\\S\");new RegExp(\"^\\\\[[ xX]\\\\] +\");new RegExp(\"\\\\[[ xX]\\\\]\");new RegExp(\"\\\\n.*\\\\n\");new RegExp(\"^<(.*)>$\");new RegExp(\"[:|]\");new RegExp(\"^\\\\||\\\\| *$\",\"g\");new RegExp(\"\\\\n[ \\\\t]*$\");new RegExp(\"^ *-+: *$\");new RegExp(\"^ *:-+: *$\");new RegExp(\"^ *:-+ *$\");new RegExp(\"^<a \",\"i\");new RegExp(\"^<\\\\/a>\",\"i\");new RegExp(\"^<(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\\\\/(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\");new RegExp(\">$\");new RegExp(\"^([^'\\\"]*[^\\\\s])\\\\s+(['\\\"])(.*)\\\\2\");new RegExp(\"[\\\\p{L}\\\\p{N}]\",\"u\");new RegExp(\"[&<>\\\"']\");new RegExp(\"[<>\\\"']|&(?!(#\\\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\\\w+);)\");new RegExp(\"%25\",\"g\");new RegExp(\"\\\\\\\\\\\\|\",\"g\");new RegExp(\"\\\\r\\\\n|\\\\r\",\"g\");new RegExp(\"^ +$\",\"gm\");new RegExp(\"^\\\\S*\");new RegExp(\"^ {0,0}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,1}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,2}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,3}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,0}(?:```|~~~)\");new RegExp(\"^ {0,1}(?:```|~~~)\");new RegExp(\"^ {0,2}(?:```|~~~)\");new RegExp(\"^ {0,3}(?:```|~~~)\");new RegExp(\"^ {0,0}#\");new RegExp(\"^ {0,1}#\");new RegExp(\"^ {0,2}#\");new RegExp(\"^ {0,3}#\");new RegExp(\"^ {0,0}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,1}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,2}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,3}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,0}>\");new RegExp(\"^ {0,1}>\");new RegExp(\"^ {0,2}>\");new RegExp(\"^ {0,3}>\");export{e as make,d as readLate,g as exposed,c as total,c as liveTotal,a as bootCount,q as inspectMatch,i as tabRule,t as editTarget,u as runIntegrated};",
+      "sizes": {
+        "raw": 17918,
+        "gzip9": 4031,
+        "brotli11": 3695
+      },
+      "qualified_codecs": [
+        "Raw",
+        "Gzip",
+        "Brotli"
+      ],
+      "policy_fingerprint": [
+        252,
+        213,
+        202,
+        118,
+        75,
+        116,
+        99,
+        91,
+        98,
+        252,
+        113,
+        131,
+        126,
+        36,
+        229,
+        104,
+        136,
+        171,
+        22,
+        144,
+        88,
+        95,
+        179,
+        118,
+        203,
+        25,
+        154,
+        79,
+        138,
+        11,
+        20,
+        39
+      ],
+      "work_before_score": 2197223,
+      "work_after_handoff": 2501432,
+      "observations": [
+        [
+          "boot",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "early-tdz",
+          1
+        ],
+        [
+          "state",
+          1
+        ],
+        [
+          "factory",
+          41
+        ],
+        [
+          "public-init",
+          1
+        ],
+        [
+          "barrel",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "entry",
+          41
+        ],
+        [
+          "unused",
+          3
+        ],
+        [
+          "keep",
+          3
+        ],
+        [
+          "unused",
+          10
+        ],
+        [
+          "keep",
+          10
+        ],
+        [
+          "visit",
+          3,
+          5,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          5
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "visit",
+          10,
+          11,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          11
+        ],
+        [
+          "b",
+          11
+        ],
+        [
+          "visit",
+          3,
+          6,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "reentered",
+          6
+        ],
+        [
+          "visit",
+          10,
+          13,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          50
+        ],
+        [
+          "caught",
+          "host"
+        ],
+        [
+          "retained",
+          40,
+          50
+        ],
+        [
+          "visit",
+          3,
+          9,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          9
+        ],
+        [
+          "saved",
+          9
+        ],
+        [
+          "live",
+          5,
+          5
+        ],
+        [
+          "public",
+          true,
+          true,
+          7,
+          2
+        ],
+        [
+          "exports",
+          [
+            "bootCount",
+            "editTarget",
+            "exposed",
+            "inspectMatch",
+            "liveTotal",
+            "make",
+            "readLate",
+            "runIntegrated",
+            "tabRule",
+            "total"
+          ]
+        ],
+        [
+          "unused",
+          30
+        ],
+        [
+          "keep",
+          30
+        ],
+        [
+          "marked-normalized",
+          "one\nsecond"
+        ],
+        [
+          "marked-expanded",
+          "    one\nsecond"
+        ],
+        [
+          "match",
+          [
+            "\t",
+            0
+          ]
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "visit",
+          30,
+          32,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "portable",
+          49
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "portable",
+          38
+        ],
+        [
+          "portable",
+          15
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "integrated",
+          87
+        ],
+        [
+          "integrated-live",
+          6,
+          40
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          0
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          null
+        ],
+        [
+          "fallback",
+          "nullish"
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          {
+            "marker": 7
+          }
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "edit",
+          11
+        ]
+      ],
+      "candidate_disposed_before_scoring": true
+    },
+    {
+      "schema": 1,
+      "recipe": "shared-caller-callee-fields-inline",
+      "descriptor": [
+        3,
+        1,
+        181,
+        14,
+        0,
+        5,
+        3,
+        175,
+        35,
+        183,
+        39,
+        184,
+        40,
+        1,
+        1,
+        40,
+        1,
+        40,
+        2,
+        2,
+        232,
+        0,
+        2,
+        1,
+        0,
+        1,
+        232,
+        1,
+        0,
+        0,
+        239,
+        0,
+        2,
+        2,
+        0,
+        1,
+        239,
+        0,
+        37,
+        4,
+        240,
+        0,
+        37,
+        7,
+        1,
+        35,
+        1,
+        0,
+        0,
+        1
+      ],
+      "selected_families": {
+        "record": 181,
+        "inline_helpers": [
+          175,
+          183,
+          184
+        ],
+        "shared_string": {
+          "unit": 40,
+          "value": 2
+        },
+        "products": [
+          {
+            "root": 232,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              232
+            ]
+          },
+          {
+            "root": 239,
+            "schema": 0,
+            "fields": [
+              0,
+              1
+            ],
+            "cells": [
+              239,
+              240
+            ]
+          }
+        ],
+        "field_call_body": 35,
+        "product_helper_inlined": true
+      },
+      "style": "Source",
+      "output": {
+        "dead_code_elimination": true,
+        "target_compaction": true,
+        "literals": "Original"
+      },
+      "sha256": "3f1491dc4f08566a9eff0c3a5551615dbbcadaa8f68a446950983e17c56c912d",
+      "javascript": "function q(a,b){while(b!==null){a=a[b[0]];b=b[2];}return a;}function r(a,b,c){if(b===null){return c;}let d=r(a[b[0]],b[2],c);return (0,b[1])(a,b[0],d);}function s(a,b,c){return [b===0?c:a[0],b===1?c:a[1]];}let t=[0,s,null];let a;let b;let c;let d;let e;let f;let g;let h;let i;let j;let k;let l;let m;let n;let o;let p;a=(0,{bump:function(){total=total+ 1|0;return total;}}.bump);let bump=a;b=(0,{readLate:function(){emit(\"read-late\",0);return late;}}.readLate);let readLate=b;c=(0,{make:function(seed){let b;let c;let d;let e;let f;b=seed;seedEffect(seed);let a=b;keep((c=seed,d=(0,()=>{return a??null??0;}),e=(0,(next)=>{a=next;}),c),d,e);f=(0,(delta)=>{let b;let c;b=(c=\"counter/ready\",c);let label=b;let d;try{let b;let c;c=(b=delta,d=b,a=(a??null??0)+ d|0,a??null??0);let result=c;bump();visit(seed,result,label);return result;}finally{emit(\"finally\",a??null??0);}});return f;}}.make);let make=c;d=(0,{exposed:function(seed){return {__proto__:null,[\"count\"]:seed};}}.exposed);let exposed=d;e=(0,{replaceRe:function(s,re,replacement){return s.replace(re,replacement);}}.replaceRe);let replaceRe=e;f=(0,{execRe:function(re,src){return re.exec(src);}}.execRe);let execRe=f;g=(0,{joinLines:function(lines){let out=\"\";let i=0;while(i<(lines.length|0)){if(i>0){out=out+ \"\\n\";}out=out+ (lines[i]??\"\");i=i+ 1|0;}return out;}}.joinLines);let joinLines=g;h=(0,{splitLines:function(src){return src.split(\"\\n\");}}.splitLines);let splitLines=h;i=(0,{expandTabs:function(line,indent){let col=indent;let expanded=\"\";let i=0;while(i<(line.length|0)){let ch=line.charAt(i);if(ch===\"\\t\"){let added=4- (col%4|0)|0;expanded=expanded+ \" \".repeat(added);col=col+ added|0;}else{expanded=expanded+ ch;col=col+ 1|0;}i=i+ 1|0;}return expanded;}}.expandTabs);let expandTabs=i;j=(0,{removeCodeIndent:function(raw){otherCodeRemoveIndent[\"lastIndex\"]=0;return replaceRe(raw,otherCodeRemoveIndent,\"\");}}.removeCodeIndent);let removeCodeIndent=j;k=(0,{normalizeInput:function(text){let normalized=joinLines(splitLines(removeCodeIndent(text)));textEvent(\"marked-normalized\",normalized);let expanded=expandTabs(\"\\t\"+ normalized,0);textEvent(\"marked-expanded\",expanded);return expanded.length|0;}}.normalizeInput);let normalizeInput=k;l=(0,{inspectMatch:function(){otherTabCharGlobal[\"lastIndex\"]=0;let matched=execRe(otherTabCharGlobal,\"\\tA\");let nullable=matched;demandSeen(matched);matched&&demandFallback(\"and\");nullable??demandFallback(\"nullish\");}}.inspectMatch);let inspectMatch=l;m=(0,{updateReference:function(whole,c,leaf,d,delta){let a;let b;q(whole[0],c);a=[(q(whole[0],c)[0]|0)+ delta|0,(q(whole[0],c)[1]|0)+ 1|0];whole[0]=r(whole[0],c,a);b=(d===null?q(leaf[0],d):q(leaf[0],d)|0)+ 2|0;leaf[0]=r(leaf[0],d,b);}}.updateReference);let updateReference=m;n=(0,{productScore:function(count,width){let a;let f;let g;let h;let i;let j;let k;f=count,g=width;let b=f;let c=g;let d=b;let e=c;let delta;let l;let m;let n;a=(m=b,n=c,delta=3,l=(m|0)+ delta|0,m=l,(m|0)+ (n|0)|0);let score=a;let referenceState=[[count,width]];let referenceSaved=referenceState[0];updateReference(((h=referenceState,i=null,referenceState[0]),(j=referenceState,k=t,referenceState[0][0]),h),i,j,k,4);void console.log(score);void console.log(d|0);void console.log(e|0);void console.log(referenceState[0][0]|0);void console.log(referenceState[0][1]|0);void console.log(referenceSaved[0]|0);void console.log(referenceSaved[1]|0);return score+ (referenceState[0][0]|0)|0;}}.productScore);let productScore=n;o=(0,{editTarget:function(){return 11;}}.editTarget);let editTarget=o;p=(0,{runIntegrated:function(seed,delta,text){let counter=make(seed);let width=normalizeInput(text);inspectMatch();let current=counter(delta);return productScore(current,width);}}.runIntegrated);let runIntegrated=p;let boots=1;emit(\"boot\",boots);let total=0;try{emit(\"early-value\",readLate());}catch(error){caughtEarly(error);}emit(\"state\",boots);let late=41;emit(\"factory\",late);emit(\"public-init\",boots);emit(\"barrel\",boots);emit(\"entry\",readLate());new RegExp(\"^(?:[ \\\\t]*(?:\\\\n|$))+\");new RegExp(\"^((?: {4}| {0,3}\\\\t)[^\\\\n]+(?:\\\\n(?:[ \\\\t]*(?:\\\\n|$))*)?)+\");new RegExp(\"^ {0,3}(`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~{3,})([^\\\\n]*)(?:\\\\n|$)(?:|([\\\\s\\\\S]*?)(?:\\\\n|$))(?: {0,3}\\\\1[~`]* *(?=\\\\n|$)|$)\");new RegExp(\"^ {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}(#{1,6})(?=\\\\s|$)(.*)(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n| {0,3}\\\\|?(?:[:\\\\- ]*\\\\|)+[\\\\:\\\\- ]*\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^ {0,3}\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]: *(?:\\\\n[ \\\\t]*)?([^<\\\\s][^\\\\s]*|<.*?>)(?:(?: +(?:\\\\n[ \\\\t]*)?| *\\\\n[ \\\\t]*)((?:\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'[^'\\\\n]*(?:\\\\n[^'\\\\n]+)*\\\\n?'|\\\\([^()]*\\\\))))? *(?:\\\\n+|$)\");new RegExp(\"^( {0,3}(?:[*+-]|\\\\d{1,9}[.)]))([ \\\\t][^\\\\n]*?)?(?:\\\\n|$)\");new RegExp(\"^ {0,3}(?:<(script|pre|style|textarea)[\\\\s>][\\\\s\\\\S]*?(?:<\\\\/\\\\1>[^\\\\n]*\\\\n*|$)|<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$))[^\\\\n]*(\\\\n+|$)|<\\\\?[\\\\s\\\\S]*?(?:\\\\?>[^\\\\n]*\\\\n*|$)|<![A-Z][\\\\s\\\\S]*?(?:>[^\\\\n]*\\\\n*|$)|<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?(?:\\\\]\\\\]>[^\\\\n]*\\\\n*|$)|<\\\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<(?!script|pre|style|textarea)([a-z][\\\\w-]*)(?: +[a-zA-Z:_][\\\\w.:-]*(?: *= *\\\"[^\\\"\\\\n]*\\\"| *= *'[^'\\\\n]*'| *= *[^\\\\s\\\"'=<>`]+)?)*? *\\\\/?>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$)|<\\\\/(?!script|pre|style|textarea)[a-z][\\\\w-]*\\\\s*>(?=[ \\\\t]*(?:\\\\n|$))[\\\\s\\\\S]*?(?:(?:\\\\n[ \\t]*)+\\\\n|$))\",\"i\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^( {0,3}> ?(([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|\\\\d{1,9}[.)])(?:[ \\\\t]|\\\\n|$)|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\\\t]+\\\\n)[^\\\\n]+)*)|[^\\\\n]*)(?:\\\\n|$))+\");new RegExp(\"^ *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]+[^ \\\\t\\\\n]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\\\n ].*)\\\\n {0,3}((?:\\\\| *)?:?-+:? *(?:\\\\| *:?-+:? *)*(?:\\\\| *)?)(?:\\\\n((?:(?! *\\\\n| {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| {0,3}#{1,6}(?:\\\\s|$)| {0,3}>|(?: {4}| {0,3}\\t)[^\\\\n]| {0,3}(?:`{3,}(?=[^`\\\\n]*(?:\\\\n|$))|~~~)[^\\\\n]*(?:\\\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\\\t]|<\\\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\\\n|\\\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\\\n|$))*)\\\\n*|$)|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^[^\\\\n]+\");new RegExp(\"^ *(?:<!--(?:-?>|[\\\\s\\\\S]*?(?:-->|$)) *(?:\\\\n|\\\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b)[\\\\s\\\\S]+?<\\\\/\\\\1> *(?:\\\\n{2,}|\\\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\\\b)\\\\w+(?!:|[^\\\\w\\\\s@]*@)\\\\b(?:\\\"[^\\\"]*\\\"|'[^']*'|\\\\s[^'\\\"/>\\\\s]*)*?\\\\/?> *(?:\\\\n{2,}|\\\\s*$))\");new RegExp(\"^ *\\\\[([^\\\\]]+)\\\\]: *<?([^\\\\s>]+)>?(?: +([\\\"(][^\\\\n]+[\\\")]))? *(?:\\\\n+|$)\");new RegExp(\"^(#{1,6})(.*)(?:\\\\n+|$)\");new RegExp(\"^(.+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)\");new RegExp(\"^([^\\\\n]+(?:\\\\n(?! {0,3}((?:-[\\\\t ]*){3,}|(?:_[ \\\\t]*){3,}|(?:\\\\*[ \\\\t]*){3,})(?:\\\\n+|$)| *#{1,6} *[^\\\\n]|(?! {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n)((?:.|\\\\n(?!\\\\s*?\\\\n| {0,3}(?:[*+-]|\\\\d{1,9}[.)]) |(?: {4}| {0,3}\\\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\\\s|$)| {0,3}<[^\\\\n>]+>\\\\n))+?)\\\\n {0,3}(=+|-+) *(?:\\\\n+|$)| {0,3}>|[ \\\\t]+\\\\n)[^\\\\n]+)*)\");new RegExp(\"^\\\\\\\\([!\\\"#$%&'()*+,\\\\-./:;<=>?@\\\\[\\\\]\\\\\\\\^_`{|}~])\");new RegExp(\"^(`+)([^`]|[^`][\\\\s\\\\S]*?[^`])\\\\1(?!`)\");new RegExp(\"^( {2,}|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|[^`])(?:(?= {2,}\\\\n)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*_]|\\\\b_|$)|[^ ](?= {2,}\\\\n)))\");new RegExp(\"^((?![*_])[\\\\s\\\\p{P}\\\\p{S}])\",\"u\");new RegExp(\"\\\\[(?:[^\\\\[\\\\]`]|(?<a>`+)[^`]+\\\\k<a>(?!`))*?\\\\]\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)]|\\\\((?:\\\\\\\\[\\\\s\\\\S]|[^\\\\\\\\\\\\(\\\\)])*\\\\))*\\\\)|(?<!`)()(?<b>`+)[^`]+\\\\k<b>(?!`)|<(?! )[^<>]*?>\",\"g\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?!~)[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^(?:\\\\*+(?:((?!\\\\*)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s*]))?)|^_+(?:((?!_)(?![\\\\p{Pi}\\\\p{Ps}\\\"'])[\\\\p{P}\\\\p{S}])|([^\\\\s_]))?\",\"u\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?!\\\\*)(?=(?!~)[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)(?!~)[\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))|[\\\\s](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?!\\\\*)(?!~)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=(?!~)[\\\\p{P}\\\\p{S}])|(?:[^\\\\s\\\\p{P}\\\\p{S}]|~)(\\\\*+)(?=(?:[^\\\\s\\\\p{P}\\\\p{S}]|~))\",\"gu\");new RegExp(\"^[^_*]*?__[^_*]*?\\\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!\\\\*)[\\\\s](\\\\*+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?!\\\\*)[\\\\p{P}\\\\p{S}](\\\\*+)(?!\\\\*)(?=[\\\\p{P}\\\\p{S}])|(?:(?!\\\\*)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(\\\\*+)(?!\\\\*)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s\\\\p{P}\\\\p{S}](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^[^_*]*?\\\\*\\\\*[^_*]*?_[^_*]*?(?=\\\\*\\\\*)|[^_]+(?=[^_])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!_)[\\\\s](_+)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?!_)[\\\\p{P}\\\\p{S}](_+)(?!_)(?=[\\\\p{P}\\\\p{S}])|(?:(?!_)[\\\\p{P}\\\\p{S}]|[^\\\\s\\\\p{P}\\\\p{S}])(_+)(?!_)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^~~?(?:((?!~)[\\\\p{P}\\\\p{S}])|[^\\\\s~])\",\"u\");new RegExp(\"^[^~]+(?=[^~])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?=[\\\\s]|$)|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\s\\\\p{P}\\\\p{S}]|$)|(?!~)[\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])|[\\\\s](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|(?!~)[\\\\p{P}\\\\p{S}](~~?)(?!~)(?=[\\\\p{P}\\\\p{S}])|[^\\\\s\\\\p{P}\\\\p{S}](~~?)(?=[^\\\\s\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"\\\\\\\\([\\\\p{P}\\\\p{S}])\",\"gu\");new RegExp(\"^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\\\s\\\\x00-\\\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>\");new RegExp(\"^<!--(?:-?>|[\\\\s\\\\S]*?-->)|^<\\\\/[a-zA-Z][\\\\w:-]*\\\\s*>|^<[a-zA-Z][\\\\w-]*(?:\\\\s+[a-zA-Z:_][\\\\w.:-]*(?:\\\\s*=\\\\s*\\\"[^\\\"]*\\\"|\\\\s*=\\\\s*'[^']*'|\\\\s*=\\\\s*[^\\\\s\\\"'=<>`]+)?)*?\\\\s*\\\\/?>|^<\\\\?[\\\\s\\\\S]*?\\\\?>|^<![a-zA-Z]+\\\\s[\\\\s\\\\S]*?>|^<!\\\\[CDATA\\\\[[\\\\s\\\\S]*?\\\\]\\\\]>\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\(\\\\s*(<(?:\\\\\\\\.|[^\\\\n<>\\\\\\\\])+>|[^ \\\\t\\\\n\\\\x00-\\\\x1f]+|(?=\\\\)))(?:(?:[ \\\\t]+(?:\\\\n[ \\\\t]*)?|\\\\n[ \\\\t]*)(\\\"(?:\\\\\\\\\\\"?|[^\\\"\\\\\\\\])*\\\"|'(?:\\\\\\\\'?|[^'\\\\\\\\])*'|\\\\((?:\\\\\\\\\\\\)?|[^)\\\\\\\\])*\\\\)))?\\\\s*\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]\");new RegExp(\"^!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?\");new RegExp(\"!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\]|!?\\\\[((?!\\\\s*\\\\])(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])+)\\\\](?:\\\\[\\\\])?(?!\\\\()\",\"g\");new RegExp(\"^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\\\/\\\\/|www\\\\.)(?:[a-zA-Z0-9\\\\-]+\\\\.?)+[^\\\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])\");new RegExp(\"(?:[^?!.,:;*_'\\\"~()&]+|\\\\([^)]*\\\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\\\"~)]+(?!$))+\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= {2,}\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^( *|\\\\\\\\)\\\\n(?!\\\\s*$)\");new RegExp(\"^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)|[\\\\s\\\\S]*?(?:(?=[\\\\\\\\<!\\\\[`*~_]|\\\\b_| *\\\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\\\/\\\\/|www\\\\.|$)|[^ ](?= *\\\\n)|[^a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\\\/=?_`{\\\\|}~-]+@)))\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\((.*?)\\\\)\");new RegExp(\"^!?\\\\[((?:\\\\[(?:\\\\\\\\[\\\\s\\\\S]|[^\\\\[\\\\]\\\\\\\\])*\\\\]|\\\\\\\\[\\\\s\\\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\\\])|[^\\\\[\\\\]\\\\\\\\`])*?)\\\\]\\\\s*\\\\[([^\\\\]]*)\\\\]\");let otherCodeRemoveIndent=new RegExp(\"^(?: {1,4}| {0,3}\\\\t)\",\"gm\");new RegExp(\"\\\\\\\\([\\\\[\\\\]])\",\"g\");new RegExp(\"^(\\\\s+)(?:```)\");new RegExp(\"^\\\\s+\");new RegExp(\"#$\");new RegExp(\"^ \");new RegExp(\" $\");new RegExp(\"[^ ]\");new RegExp(\"\\\\n\",\"g\");let otherTabCharGlobal=new RegExp(\"\\\\t\",\"g\");new RegExp(\"\\\\s+\",\"g\");new RegExp(\"^[ \\\\t]*$\");new RegExp(\"\\\\n[ \\\\t]*\\\\n[ \\\\t]*$\");new RegExp(\"^ {0,3}>\");new RegExp(\"\\\\n {0,3}((?:=+|-+) *)(?=\\\\n|$)\",\"g\");new RegExp(\"^ {0,3}>[ \\\\t]?\",\"gm\");new RegExp(\"^ {1,4}(?=( {4})*[^ ])\",\"g\");new RegExp(\"^\\\\[[ xX]\\\\] +\\\\S\");new RegExp(\"^\\\\[[ xX]\\\\] +\");new RegExp(\"\\\\[[ xX]\\\\]\");new RegExp(\"\\\\n.*\\\\n\");new RegExp(\"^<(.*)>$\");new RegExp(\"[:|]\");new RegExp(\"^\\\\||\\\\| *$\",\"g\");new RegExp(\"\\\\n[ \\\\t]*$\");new RegExp(\"^ *-+: *$\");new RegExp(\"^ *:-+: *$\");new RegExp(\"^ *:-+ *$\");new RegExp(\"^<a \",\"i\");new RegExp(\"^<\\\\/a>\",\"i\");new RegExp(\"^<(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\\\\/(pre|code|kbd|script)(\\\\s|>)\",\"i\");new RegExp(\"^<\");new RegExp(\">$\");new RegExp(\"^([^'\\\"]*[^\\\\s])\\\\s+(['\\\"])(.*)\\\\2\");new RegExp(\"[\\\\p{L}\\\\p{N}]\",\"u\");new RegExp(\"[&<>\\\"']\");new RegExp(\"[<>\\\"']|&(?!(#\\\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\\\w+);)\");new RegExp(\"%25\",\"g\");new RegExp(\"\\\\\\\\\\\\|\",\"g\");new RegExp(\"\\\\r\\\\n|\\\\r\",\"g\");new RegExp(\"^ +$\",\"gm\");new RegExp(\"^\\\\S*\");new RegExp(\"^ {0,0}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,1}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,2}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,3}(?:[*+-]|\\\\d{1,9}[.)])((?:[ \\\\t][^\\\\n]*)?(?:\\\\n|$))\");new RegExp(\"^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\\\* *){3,})(?:\\\\n+|$)\");new RegExp(\"^ {0,0}(?:```|~~~)\");new RegExp(\"^ {0,1}(?:```|~~~)\");new RegExp(\"^ {0,2}(?:```|~~~)\");new RegExp(\"^ {0,3}(?:```|~~~)\");new RegExp(\"^ {0,0}#\");new RegExp(\"^ {0,1}#\");new RegExp(\"^ {0,2}#\");new RegExp(\"^ {0,3}#\");new RegExp(\"^ {0,0}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,1}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,2}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,3}<(?:[a-z].*>|!--)\",\"i\");new RegExp(\"^ {0,0}>\");new RegExp(\"^ {0,1}>\");new RegExp(\"^ {0,2}>\");new RegExp(\"^ {0,3}>\");export{make,readLate,exposed,total,total as liveTotal,boots as bootCount,inspectMatch,otherTabCharGlobal as tabRule,editTarget,runIntegrated};",
+      "sizes": {
+        "raw": 18956,
+        "gzip9": 4303,
+        "brotli11": 3911
+      },
+      "qualified_codecs": [
+        "Raw",
+        "Gzip",
+        "Brotli"
+      ],
+      "policy_fingerprint": [
+        252,
+        213,
+        202,
+        118,
+        75,
+        116,
+        99,
+        91,
+        98,
+        252,
+        113,
+        131,
+        126,
+        36,
+        229,
+        104,
+        136,
+        171,
+        22,
+        144,
+        88,
+        95,
+        179,
+        118,
+        203,
+        25,
+        154,
+        79,
+        138,
+        11,
+        20,
+        39
+      ],
+      "work_before_score": 2501432,
+      "work_after_handoff": 2807714,
+      "observations": [
+        [
+          "boot",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "early-tdz",
+          1
+        ],
+        [
+          "state",
+          1
+        ],
+        [
+          "factory",
+          41
+        ],
+        [
+          "public-init",
+          1
+        ],
+        [
+          "barrel",
+          1
+        ],
+        [
+          "read-late",
+          0
+        ],
+        [
+          "entry",
+          41
+        ],
+        [
+          "unused",
+          3
+        ],
+        [
+          "keep",
+          3
+        ],
+        [
+          "unused",
+          10
+        ],
+        [
+          "keep",
+          10
+        ],
+        [
+          "visit",
+          3,
+          5,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          5
+        ],
+        [
+          "a",
+          5
+        ],
+        [
+          "visit",
+          10,
+          11,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          11
+        ],
+        [
+          "b",
+          11
+        ],
+        [
+          "visit",
+          3,
+          6,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "reentered",
+          6
+        ],
+        [
+          "visit",
+          10,
+          13,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          50
+        ],
+        [
+          "caught",
+          "host"
+        ],
+        [
+          "retained",
+          40,
+          50
+        ],
+        [
+          "visit",
+          3,
+          9,
+          "counter/ready"
+        ],
+        [
+          "finally",
+          9
+        ],
+        [
+          "saved",
+          9
+        ],
+        [
+          "live",
+          5,
+          5
+        ],
+        [
+          "public",
+          true,
+          true,
+          7,
+          2
+        ],
+        [
+          "exports",
+          [
+            "bootCount",
+            "editTarget",
+            "exposed",
+            "inspectMatch",
+            "liveTotal",
+            "make",
+            "readLate",
+            "runIntegrated",
+            "tabRule",
+            "total"
+          ]
+        ],
+        [
+          "unused",
+          30
+        ],
+        [
+          "keep",
+          30
+        ],
+        [
+          "marked-normalized",
+          "one\nsecond"
+        ],
+        [
+          "marked-expanded",
+          "    one\nsecond"
+        ],
+        [
+          "match",
+          [
+            "\t",
+            0
+          ]
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "visit",
+          30,
+          32,
+          "counter/ready"
+        ],
+        [
+          "reentry",
+          40
+        ],
+        [
+          "finally",
+          40
+        ],
+        [
+          "portable",
+          49
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "portable",
+          38
+        ],
+        [
+          "portable",
+          15
+        ],
+        [
+          "portable",
+          32
+        ],
+        [
+          "portable",
+          14
+        ],
+        [
+          "integrated",
+          87
+        ],
+        [
+          "integrated-live",
+          6,
+          40
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          0
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          null
+        ],
+        [
+          "fallback",
+          "nullish"
+        ],
+        [
+          "override",
+          "\tA"
+        ],
+        [
+          "match",
+          {
+            "marker": 7
+          }
+        ],
+        [
+          "fallback",
+          "and"
+        ],
+        [
+          "edit",
+          11
+        ]
+      ],
+      "candidate_disposed_before_scoring": true
+    }
+  ],
+  "summary": {
+    "schema": 1,
+    "outputs": 6,
+    "recipes": 2,
+    "styles": 3,
+    "inputs": {
+      "root": 0,
+      "modules": [
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+          "bytes": 610,
+          "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+          "dependencies": [
+            1,
+            7,
+            9,
+            10,
+            11
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+          "bytes": 204,
+          "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+          "dependencies": [
+            2
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+          "bytes": 292,
+          "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+          "dependencies": [
+            3,
+            4,
+            5,
+            6
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+          "bytes": 918,
+          "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+          "dependencies": [
+            4,
+            5
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+          "bytes": 321,
+          "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+          "dependencies": [
+            3,
+            5
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+          "bytes": 82,
+          "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+          "bytes": 168,
+          "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+          "dependencies": [
+            5
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+          "bytes": 925,
+          "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+          "dependencies": [
+            8,
+            9
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+          "bytes": 1513,
+          "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+          "dependencies": [
+            9
+          ],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+          "bytes": 20051,
+          "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+          "bytes": 955,
+          "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        },
+        {
+          "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+          "bytes": 115,
+          "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+          "dependencies": [],
+          "dynamic_dependencies": []
+        }
+      ]
+    },
+    "policy": {
+      "schema": 2,
+      "algorithm": 1,
+      "contract": {
+        "target": "javascript",
+        "world": "ReusableLibrary",
+        "execution": "Module",
+        "ecmascript": "es2022",
+        "preserve_root_exports": true,
+        "public_aggregate_abi": "Named",
+        "preserve_extern_fields": true,
+        "internal_exports_may_mangle": false,
+        "public_function_spelling": "None",
+        "pristine_builtins": false,
+        "pure_property_reads": false,
+        "strip_console": false,
+        "preserved_properties": [],
+        "owned_properties": "UnderscoreSuffix",
+        "bundle_mode": "Single"
+      },
+      "objective": {
+        "codec": "Brotli",
+        "priority": "SizeFirst",
+        "realistic_performance_limit_percent": 25,
+        "optional_alternatives": 0,
+        "optional_codec_probes": 192,
+        "cleanup_finalists": 1,
+        "retained_candidates": 384,
+        "retained_candidate_bytes": 786432,
+        "beam_width": 10,
+        "search": {
+          "version": 22,
+          "codec_schedule": "staged",
+          "render_batch": 8,
+          "diversity_interval": 4
+        }
+      },
+      "effort": 13,
+      "tactics": [
+        {
+          "id": "dead-code-elimination",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "constant-folding",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "inlining",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "scalar-replacement",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "call-specialization",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "helper-sharing",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "target-compaction",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "identifier-mangling",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "property-mangling",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "string-pooling",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        },
+        {
+          "id": "string-array-packing",
+          "state": {
+            "permission": "auto",
+            "enabled": true
+          }
+        },
+        {
+          "id": "startup-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "recurring-reconstruction",
+          "state": {
+            "permission": "auto",
+            "enabled": false
+          }
+        },
+        {
+          "id": "naming-search",
+          "state": {
+            "permission": "on",
+            "enabled": true
+          }
+        }
+      ],
+      "resources": {
+        "logical_work": null,
+        "retained_bytes": null,
+        "wall_time_ms": null
+      },
+      "constraints": {
+        "max_startup_work": null,
+        "max_recurring_work": null,
+        "max_runtime_memory_bytes": null,
+        "max_performance_regression_percent": null
+      }
+    },
+    "baseline_sizes": {
+      "raw": 18232,
+      "gzip9": 4229,
+      "brotli11": 3863
+    },
+    "optional_work_before_families": 0,
+    "optional_work_after_handoffs": 2807714,
+    "peak_retained_bytes": 8415818,
+    "required_tactic_vetoes": [
+      "scalar-replacement",
+      "inlining",
+      "constant-folding",
+      "string-pooling",
+      "call-specialization"
+    ],
+    "scope": "public with_checked_path; zero-proposal service baseline followed by two existing manually selected cross-family recipes; common immutable artifact qualification for every codec",
+    "limitations": "not an automatic search or optimum claim; source remains live, selected candidates are disposed before scoring; test-owned metadata, runtime and independent canonical codec replay are outside compiler accounting",
+    "retained_bytes_after_finish": 0,
+    "frontend_resources": {
+      "baseline_work": 3151429,
+      "optional_work": 2807714,
+      "codec_work": 2134618,
+      "peak_retained_bytes": 8415818,
+      "frontend_logical_work": 2625472,
+      "frontend_allocation_accounting": "partial",
+      "source_buffer_accounting": "pre-admitted stable arena backing; insertion String overlap charged",
+      "source_buffer_capacity": 48768,
+      "frontend_phase_accounting": {
+        "discovery_parse_arena": "one pre-admitted arena and owned program list, reused for checking",
+        "main_parse_arena": "not repeated; discovery programs reused",
+        "lexer_tokens": "pre-admitted Vec capacities, including overlapping nested fragments",
+        "lexer_templates": "pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
+        "lexer_work": "full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
+        "source_identity": "inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
+        "legacy_ast_specialization": "nonzero for_of_specialize_family unsupported",
+        "parser_lookahead_work": "each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
+        "parser_non_arena": "diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
+        "checker": "pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",
+        "checker_module_graph": "ownership/dependency/order validation work and shared iterative schedule work/storage admitted; exact dependency/import/export capacities",
+        "checker_analyzer": "scope/narrowing, type-parameter, return, constructor and generator context vector backing admitted; dropped and released per Analyzer without releasing shared declarations",
+        "checker_binary": "existing iterative expression visits and continuation probes charged; continuation vector backing/growth admitted and released after each expression, including nested overlap and ordinary failures",
+        "checker_narrowing": "leaf queries and iterative traversal probes charged; pending/answer vector backing and growth overlap admitted and released per query; nested maps/types remain uninstrumented",
+        "checker_narrowing_reuse": "binary continuations retain syntax-only guard inputs/projections; empty branches are skipped, retained guards re-resolve in the active scope; no result cache or source reassociation",
+        "checker_remaining": "nested type/signature/default payloads, hash/ordered maps, alias/local-resolution scratch, debug consistency scratch, diagnostics and comprehensive checker traversal/native stack work uninstrumented",
+        "conversion_construction": "pre-admitted graph and temporary storage; retained charges transfer into publication",
+        "semantic_verification": "pre-admitted work and owned scratch",
+        "module_metadata": "uninstrumented"
+      },
+      "source_discovery_work": "per-read byte/chunk and import traversal charges; admitted growth reuses the allocation owner's Render movement tariff",
+      "work_kind_accounting": "Render includes shared buffer allocation/movement tariffs, not only target code generation",
+      "deadline": "cooperative; checked between phases and within admitted frontend/backend work; individual uninstrumented operations are not preemptible",
+      "scope": "admitted path source buffers, covered parser arenas, token/template storage, semantic construction/verification and target/codec storage; remaining frontend allocations listed by phase, diagnostic copies, caller configuration I/O, returned buffers and process RSS are separate",
+      "retained_bytes_after_handoff": 0
+    }
+  }
+}

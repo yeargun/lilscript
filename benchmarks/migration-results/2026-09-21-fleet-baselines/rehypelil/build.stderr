@@ -1,0 +1,1 @@
+warning: /tmp/lilscript-baseline-rehypelil-6TTO2Y/rehypelil/lilscript.toml: `javascript.name_ordering = "idiom-converged"` selects a naming strategy this compiler does not implement; it is accepted and has no effect, and the default naming is used

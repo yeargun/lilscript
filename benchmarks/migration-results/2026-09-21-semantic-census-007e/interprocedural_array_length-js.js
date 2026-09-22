@@ -1,0 +1,1 @@
+let a;let b;let c;a=(0,{countWithSentinel:function(values){return (values.length|0)+ 1|0;}}.countWithSentinel);let countWithSentinel=a;b=void console.log(countWithSentinel([1,2,3]));c=void console.log(countWithSentinel([4,5,6]));

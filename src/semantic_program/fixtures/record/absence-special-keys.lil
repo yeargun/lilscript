@@ -1,0 +1,1 @@
+func()->int make(){Record<int> state=record{__proto__:4,"quoted-key":6};return ()=>{print(state.missing==null);state.missing=7;print(state.missing??0);return (state["__proto__"]??0)+(state["quoted-key"]??0);};}print(make()());

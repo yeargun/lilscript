@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "jquerylil",
+  "inventory": {
+    "path": "benchmarks/libraries/jquerylil.required-tests.json",
+    "sha256": "b5cf45d76b1089102502bcbdc071e3bceef682c7e57babda2a7ddf5b26fd6da6",
+    "bytes": 64269
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/jquerylil/receipt.json",
+    "sha256": "f6fc3ee3da3149bdc5f0b83d95c439f169d9ff397d383b13f30d66afb9cd997a",
+    "bytes": 10892
+  },
+  "frozenCases": 8,
+  "observedCases": 8,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

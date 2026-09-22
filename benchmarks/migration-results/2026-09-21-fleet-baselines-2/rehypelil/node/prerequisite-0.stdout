@@ -1,0 +1,4 @@
+
+> @itslil/rehype@13.0.4 check:types
+> tsc --noEmit
+

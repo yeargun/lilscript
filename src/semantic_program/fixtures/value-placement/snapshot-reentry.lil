@@ -1,0 +1,2 @@
+extern void reenter(func()->void change);
+export int run(){int state=4;int before=state;reenter(()=>{state=19;});return before*100+state;}

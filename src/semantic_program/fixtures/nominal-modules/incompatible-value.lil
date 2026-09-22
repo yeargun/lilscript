@@ -1,0 +1,4 @@
+import { leftNumber } from "./private-left";
+import { makeRight } from "./private-right";
+auto right = makeRight(5);
+print(leftNumber(right));

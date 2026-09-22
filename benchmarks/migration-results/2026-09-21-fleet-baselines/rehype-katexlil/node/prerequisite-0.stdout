@@ -1,0 +1,4 @@
+
+> @itslil/rehype-katex@7.0.3 check:types
+> tsc --noEmit --strict --skipLibCheck --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts
+

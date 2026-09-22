@@ -1,0 +1,65 @@
+{
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-breaks-baseline/qualify.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-breaks-baseline/source-built-release"
+  ],
+  "inputsBefore": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-breaks-baseline/qualify.mjs",
+      "sha256": "3eb848d7a0abfb2ec1bcb350bc48a1f1d5a3c787a1fd7a7b20ba486de01de742",
+      "bytes": 20551
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsAfter": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-breaks-baseline/qualify.mjs",
+      "sha256": "3eb848d7a0abfb2ec1bcb350bc48a1f1d5a3c787a1fd7a7b20ba486de01de742",
+      "bytes": 20551
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 450000,
+    "killAfterMs": 1000,
+    "maxBuffer": 33554432,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "elapsedMs": 18000,
+  "stdout": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-breaks-baseline/supervisor.stdout",
+    "sha256": "293720d867668a0eed35e7be56d67f4f3de80cf2684836676a591bd0b09e3619",
+    "bytes": 247
+  },
+  "stderr": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-breaks-baseline/supervisor.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

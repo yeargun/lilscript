@@ -1,0 +1,1 @@
+extern int host(int value);int helper(int value){return host(value)+1;}print(helper(4));

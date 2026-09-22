@@ -1,0 +1,163 @@
+{
+  "schema": 1,
+  "kind": "failed-mdast-baseline-retained-evidence-verification",
+  "started": "2026-09-19T19:34:49.444Z",
+  "passed": true,
+  "originalTestBoundaryPassed": false,
+  "qualification": "unverified",
+  "scope": "Rehash frozen failed evidence, current input closures and exact loaded bytes; one independent canonical codec replay on retained artifacts. No compiler or library test rerun.",
+  "frozenReceipt": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/receipt.json",
+    "sha256": "b2c45af4b4bdf370f94383b936b8a56bd175ff342e5cbf8eb64b1abc1bd26cce",
+    "bytes": 256371
+  },
+  "verifiedOutputs": 117,
+  "verifiedInputPins": 24,
+  "currentClosures": [
+    {
+      "name": "source",
+      "sha256": "1552e7ad23e86027077da675c75e7a00772ab4682d905994da9554f07e37a158",
+      "entries": 61
+    },
+    {
+      "name": "original",
+      "sha256": "6d2cfa43ca142817fd995f169e9db7a7203a91bbc50ca7126e04f5a095cb7699",
+      "entries": 67
+    },
+    {
+      "name": "project-dependencies",
+      "sha256": "c8f91146c7392584269956870b221c86075d7a4dddcd12c5da6119fe05dcef51",
+      "entries": 1507
+    },
+    {
+      "name": "npm-runtime",
+      "sha256": "291d4d025534431af9501fd99ae494678422fa89f07bb8cdee26d096ad3f2ba9",
+      "entries": 2643
+    },
+    {
+      "name": "workspace",
+      "sha256": "1552e7ad23e86027077da675c75e7a00772ab4682d905994da9554f07e37a158",
+      "entries": 61
+    }
+  ],
+  "caseCounts": {
+    "test:fail": 90,
+    "test:pass": 59,
+    "suite:pass": 1,
+    "suite:fail": 2
+  },
+  "loadedArtifacts": [
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js",
+      "url": "file:///tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js",
+      "format": "module",
+      "sha256": "5f00bdbaaae4f84d29dd233a3e2b81820f2792a39198279b3e7bc7ad893a858a",
+      "bytes": 14031,
+      "pid": 1144278
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js",
+      "url": "file:///tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js",
+      "format": "module",
+      "sha256": "5f00bdbaaae4f84d29dd233a3e2b81820f2792a39198279b3e7bc7ad893a858a",
+      "bytes": 14031,
+      "pid": 1144279
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.closed.js",
+      "url": "file:///tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.closed.js",
+      "format": "module",
+      "sha256": "0d556d9a29c9961353fe5eb620707654d14ab2fa237a2c8bc38886558f93577a",
+      "bytes": 14473,
+      "pid": 1144280
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js",
+      "url": "file:///tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js",
+      "format": "module",
+      "sha256": "5f00bdbaaae4f84d29dd233a3e2b81820f2792a39198279b3e7bc7ad893a858a",
+      "bytes": 14031,
+      "pid": 1144280
+    }
+  ],
+  "command": {
+    "executable": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+    "args": [
+      "--json",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.cjs",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.closed.js",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.esm.js",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.raw.js",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.umd.js"
+    ],
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "supervision": {
+      "timeoutMs": 60000,
+      "killAfterMs": 1000,
+      "maxBuffer": 67108864,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/to-hast.cjs",
+      "objective": null,
+      "sha256": "ee7d81ed82fba48b5d79c598b232de5677f7b7a4963c7ba76156185104a9dcfe",
+      "raw": 15122,
+      "gzip9": 5104,
+      "brotli11": 4631
+    },
+    {
+      "path": "dist/to-hast.closed.js",
+      "objective": null,
+      "sha256": "0d556d9a29c9961353fe5eb620707654d14ab2fa237a2c8bc38886558f93577a",
+      "raw": 14473,
+      "gzip9": 5328,
+      "brotli11": 4840
+    },
+    {
+      "path": "dist/to-hast.esm.js",
+      "objective": null,
+      "sha256": "5f00bdbaaae4f84d29dd233a3e2b81820f2792a39198279b3e7bc7ad893a858a",
+      "raw": 14031,
+      "gzip9": 4732,
+      "brotli11": 4275
+    },
+    {
+      "path": "dist/to-hast.raw.js",
+      "objective": null,
+      "sha256": "29af5b879abef6c2252f80568804298651d1349afd0a6cd641b0fb9ee47cb5bc",
+      "raw": 13932,
+      "gzip9": 4662,
+      "brotli11": 4210
+    },
+    {
+      "path": "dist/to-hast.umd.js",
+      "objective": null,
+      "sha256": "3f144e7261ccafdc0c06778db0c93e7433e0abf95ec304e0f5a4f5ce9956211c",
+      "raw": 15193,
+      "gzip9": 5139,
+      "brotli11": 4657
+    }
+  ],
+  "codecStdout": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/postrun-verification/codec.stdout",
+    "sha256": "89b8485ad69c89f342048726c5d398d925f1b7c583954e0a78746666b239c83f",
+    "bytes": 1306
+  },
+  "inputsStable": true,
+  "completed": "2026-09-19T19:34:50.673Z"
+}

@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "kind": "source-baseline-batch",
+  "runId": "2026-09-21-source-baselines-fixed",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "started": "2026-09-21T00:06:15.935Z",
+  "qualified": [
+    {
+      "library": "unifiedlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 81.433,
+      "artifacts": 8,
+      "cases": {
+        "required": 227,
+        "executed": 227,
+        "failed": []
+      },
+      "measurements": {
+        "dist/unified.cjs": {
+          "raw": 21780,
+          "gzip": 6207,
+          "brotli": 5553
+        },
+        "dist/unified.closed.js": {
+          "raw": 14616,
+          "gzip": 5173,
+          "brotli": 4671
+        },
+        "dist/unified.esm.js": {
+          "raw": 14567,
+          "gzip": 5155,
+          "brotli": 4654
+        },
+        "dist/unified.raw.js": {
+          "raw": 14530,
+          "gzip": 5116,
+          "brotli": 4624
+        },
+        "dist/unified.umd.js": {
+          "raw": 22921,
+          "gzip": 6239,
+          "brotli": 5562
+        },
+        "dist/vfile.cjs": {
+          "raw": 12112,
+          "gzip": 3631,
+          "brotli": 3247
+        },
+        "dist/vfile.esm.js": {
+          "raw": 7823,
+          "gzip": 2905,
+          "brotli": 2617
+        },
+        "dist/vfile.raw.js": {
+          "raw": 7761,
+          "gzip": 2849,
+          "brotli": 2573
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    }
+  ],
+  "unqualified": [],
+  "completed": "2026-09-21T00:07:42.070Z"
+}

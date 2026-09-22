@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;a=(0,{same:function(left,right){return left===right;}}.same);let same=a;b=(0,{increment:function(value){return value+ 1|0;}}.increment);let increment=b;let comparator=same;let transform=increment;c=void console.log(comparator(4,4));d=void console.log(comparator(4,5));e=void console.log(transform(8));

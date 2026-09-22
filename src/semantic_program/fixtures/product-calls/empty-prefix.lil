@@ -1,0 +1,4 @@
+struct Empty {}
+extern bool mark();
+void step(Empty local) { print(2); }
+try { step(if(mark()){Empty{}}else{Empty{}}); } catch { print(99); }

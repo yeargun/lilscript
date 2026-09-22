@@ -1,0 +1,7 @@
+
+running 2 tests
+test structured_js::tests::source_templates_keep_probe_bindings_and_string_operations_visible ... ok
+test structured_js::tests::source_templates_cook_escapes_without_losing_surrogates_or_creating_substitutions ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2860 filtered out; finished in 0.35s
+

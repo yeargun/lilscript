@@ -1,0 +1,1 @@
+extern int invoke(func()->int read);try{int value=invoke(()=>value);print(value);}catch(auto error){print(99);}

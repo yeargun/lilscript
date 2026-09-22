@@ -1,0 +1,2770 @@
+{
+  "schema": 1,
+  "kind": "source-pinned-original-probe-baseline",
+  "started": "2026-09-19T18:16:30.464Z",
+  "passed": false,
+  "evidenceComplete": false,
+  "qualification": "unverified",
+  "commands": [
+    {
+      "label": "base-portgate",
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "args": [
+        "/home/azureuser/lilscript/finer/tools/portgate.mjs",
+        "record",
+        "--arm",
+        "preserved-release-original-probe",
+        "--ports",
+        "probelil",
+        "--compiler",
+        "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript",
+        "--codec",
+        "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+        "--manifest",
+        "/home/azureuser/lilscript/benchmarks/libraries/maintained-workloads.json",
+        "--out",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate",
+        "--timeout",
+        "90"
+      ],
+      "cwd": "/home/azureuser/lilscript",
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 33554432,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 41411617050
+    },
+    {
+      "label": "matrix",
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "args": [
+        "scripts/configs.mjs",
+        "--keep"
+      ],
+      "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+      "status": null,
+      "signal": "SIGTERM",
+      "error": "command deadline exceeded",
+      "supervision": {
+        "timeoutMs": 240000,
+        "killAfterMs": 1000,
+        "maxBuffer": 33554432,
+        "timedOut": true,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 240008036302
+    },
+    {
+      "label": "canonical-codec",
+      "command": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+      "args": [
+        "--json",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.none.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+        "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js"
+      ],
+      "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 33554432,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "wall_ns": 62364751
+    }
+  ],
+  "profiles": [
+    "shipped",
+    "level0",
+    "level5",
+    "level9",
+    "level15",
+    "searchOff",
+    "searchAlways",
+    "gzip",
+    "raw",
+    "perfFirst",
+    "balanced",
+    "noPeephole",
+    "arrows",
+    "functions",
+    "looseNames",
+    "beam1",
+    "beam32",
+    "freqNames",
+    "freqNamesSearchOff",
+    "idiomNames",
+    "idiomNamesSearchOff",
+    "phiRegions"
+  ],
+  "knownRejectedConfigurationProfiles": [
+    "freqNames",
+    "freqNamesSearchOff",
+    "idiomNames",
+    "idiomNamesSearchOff"
+  ],
+  "environment": {
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "RAYON_NUM_THREADS": "2",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true"
+    },
+    "removed": [
+      "NODE_TEST_CONTEXT",
+      "ESBUILD_BINARY_PATH"
+    ],
+    "otherwise": "inherited"
+  },
+  "boundsMs": {
+    "sharedCommands": 370000,
+    "externalSupervisor": 390000,
+    "baseSupervisor": 120000,
+    "baseEachPhase": 90000,
+    "matrix": 240000,
+    "measurement": 60000
+  },
+  "scope": "Original two golden lanes and all 22 original matrix profiles using a preserved accepted release compiler; no changed configuration or expected output",
+  "limitations": [
+    "The preserved legacy compiler is tied to its accepted source manifest, not current changing compiler sources or semantic-backend support.",
+    "Four original name_ordering profiles are expected to reject configuration; no boolean replacement or historical altered-script pass credit is used.",
+    "Matrix rows are original script dispositions plus compiler/load/codec receipts, not newly claimed frozen Node test identities. The base adapter retains its original two identities.",
+    "A failed profile remains required. Complete evidence of a failed attempt is not a passing canary gate or a language-wide/library-size claim.",
+    "Original matrix execution captures stdout internally and compares it with expected.out. Matching pass lines plus exact module-load evidence bind that original assertion; raw successful child stdout is not separately retained.",
+    "The original matrix summary subtracts compilation failures from its run count; per-profile statuses, not its aggregate prose, determine counts here.",
+    "Canonical file scores include the required host runner separately; they are not competitive wins or a deployment optimum.",
+    "Concurrent host load is not isolated. No speed claim; command supervision is not a hard OS resource bound and excludes synchronous hashing/copying, escaped sessions and supervisor SIGKILL cleanup."
+  ],
+  "loadAverageStart": [
+    0.05,
+    0.28,
+    0.47
+  ],
+  "parent": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-36-23.430Z/receipt.json",
+    "sha256": "020c288f5b0e6bafc016e12cbb6d5a7a7ab53b9b28a32444c584c9781abbf533",
+    "bytes": 42567,
+    "inputSha256": "2e140666dd1cb5fd2f0cf82d0256cc0ed15e630a1defaaf4eca549c887e1e2f3",
+    "compiler": {
+      "path": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript",
+      "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+      "bytes": 17828488
+    },
+    "codec": {
+      "path": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+      "sha256": "d55c6f33119cb11153f21145f45058ef3ed188c04554cc198af242f4b12e1ef9",
+      "bytes": 2601824
+    },
+    "externalControl": {
+      "path": "/home/azureuser/lilscript/tests/config/no-optimization.toml",
+      "sha256": "1f796338933bd7bd7875a2e9cf0f5917b79c7c19de598bb92d5baf38096e74b5",
+      "bytes": 240
+    }
+  },
+  "arm": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate",
+  "base": {
+    "commandCompleted": true,
+    "exitCode": 1,
+    "errors": [],
+    "qualified": true,
+    "originalRecordCertification": "unverified",
+    "requiredCases": [
+      "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"optimized preserves the probe's golden behavior\",1]",
+      "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"unoptimized reference preserves the probe's golden behavior\",1]"
+    ],
+    "artifacts": [
+      {
+        "path": "dist/probe.js",
+        "objective": "brotli",
+        "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+        "raw": 4034,
+        "gzip9": 1605,
+        "brotli11": 1492
+      },
+      {
+        "path": "dist/probe.none.js",
+        "objective": null,
+        "sha256": "513b6321f3c4cf1eeae5ea3d1a0c40428ef45898eb6627643f3ecc507f185d4f",
+        "raw": 7309,
+        "gzip9": 2621,
+        "brotli11": 2359
+      },
+      {
+        "path": "dist/run.cjs",
+        "objective": null,
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "raw": 70,
+        "gzip9": 88,
+        "brotli11": 74
+      }
+    ],
+    "testReport": {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/tests/probelil/report.json",
+      "sha256": "06931c4d0579b0171625bdf3789edfecee5f68f8f6019bd3501a4a1cf5017c8a",
+      "bytes": 5738
+    }
+  },
+  "matrixOwnerInputs": [
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/matrix-wrapper.json",
+      "sha256": "dc4068216f467659c51133800735c6c396343d2212f5ab11d733fae98e9b60c4",
+      "bytes": 365
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/matrix-compiler.mjs",
+      "sha256": "5b774762534cbc8aa0687f429dafc39ec42d0d2728aa0e28936a5c37f03a759f",
+      "bytes": 369
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/matrix-observe.mjs",
+      "sha256": "54c66855787f641e6431a637ee5a09ff88c18b24ea2d1c242097c80484377090",
+      "bytes": 2575
+    }
+  ],
+  "matrix": {
+    "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+    "rows": [
+      {
+        "profile": "shipped",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.toml",
+          "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+          "bytes": 958
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+          "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+          "bytes": 4034
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "2679f84a-3111-4b39-bb94-23c0902a99c8",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js"
+          ],
+          "inputSha256": "144ea915b539eaaea78612a82d865db433bc943dbbf3c4a888d94af7c2099a90",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/shipped.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.toml",
+            "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+            "bytes": 958
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+            "previous": null,
+            "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+            "bytes": 4034
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 30628.12206,
+          "inputAfterSha256": "144ea915b539eaaea78612a82d865db433bc943dbbf3c4a888d94af7c2099a90",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  shipped        ok  4034 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+            "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+            "bytes": 4034,
+            "pid": 1004962
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "level0",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.toml",
+          "sha256": "357d2ed5f2d4d0a892ccd0be50c04b54bff0081fc790c5e5ae55d1e7a39db988",
+          "bytes": 957
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+          "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+          "bytes": 4442
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "3b2f8cf7-6103-49ff-bbc0-9b26847a0ab2",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js"
+          ],
+          "inputSha256": "6808584bfa89924f585a8c8d7f182bd4f2d29a54df69d8a44ae843367db9e067",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/level0.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.toml",
+            "sha256": "357d2ed5f2d4d0a892ccd0be50c04b54bff0081fc790c5e5ae55d1e7a39db988",
+            "bytes": 957
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+            "previous": null,
+            "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+            "bytes": 4442
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 170.336154,
+          "inputAfterSha256": "6808584bfa89924f585a8c8d7f182bd4f2d29a54df69d8a44ae843367db9e067",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  level0         ok  4442 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+            "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+            "bytes": 4442,
+            "pid": 1004979
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "level5",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.toml",
+          "sha256": "9d0efa2ccaf542f7d6bb4c8ef4e54b16fe972ee66b263734480b1d81bab9f4e5",
+          "bytes": 957
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+          "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+          "bytes": 4090
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "b1a84698-8284-459b-9ea0-d8516b7717cc",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js"
+          ],
+          "inputSha256": "b7d01c22ee3d91fed391ba2a7067db6a18586a018b25457817f105780a251ea6",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/level5.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.toml",
+            "sha256": "9d0efa2ccaf542f7d6bb4c8ef4e54b16fe972ee66b263734480b1d81bab9f4e5",
+            "bytes": 957
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+            "previous": null,
+            "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+            "bytes": 4090
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 5125.828296,
+          "inputAfterSha256": "b7d01c22ee3d91fed391ba2a7067db6a18586a018b25457817f105780a251ea6",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  level5         ok  4090 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+            "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+            "bytes": 4090,
+            "pid": 1005101
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "level9",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.toml",
+          "sha256": "182210a035bad33e9ad0ad8ca783570fca04ee4c5c866ee5898cb76d3be41ed6",
+          "bytes": 957
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+          "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+          "bytes": 4056
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "532adf6e-aa6f-4ede-90c5-48dc8ad7b6b0",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js"
+          ],
+          "inputSha256": "fd76f2eef74784e15a9d2e3c73b4dbf7ec075c720026e3f93d2f5668851e50dd",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/level9.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.toml",
+            "sha256": "182210a035bad33e9ad0ad8ca783570fca04ee4c5c866ee5898cb76d3be41ed6",
+            "bytes": 957
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+            "previous": null,
+            "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+            "bytes": 4056
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 24702.258555,
+          "inputAfterSha256": "fd76f2eef74784e15a9d2e3c73b4dbf7ec075c720026e3f93d2f5668851e50dd",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  level9         ok  4056 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+            "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+            "bytes": 4056,
+            "pid": 1005515
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "level15",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.toml",
+          "sha256": "b8fc33e168f6ca5324a8777328fb6e94dc21dce075dfaab00cb1b1bfb2558aac",
+          "bytes": 958
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+          "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+          "bytes": 4054
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "32bccec2-46f8-4514-ac4d-258c7d242ac3",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js"
+          ],
+          "inputSha256": "113083843d4f1143b6f581befddd07c1b1a399294f6ff014d18cb23e0fd656ed",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/level15.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.toml",
+            "sha256": "b8fc33e168f6ca5324a8777328fb6e94dc21dce075dfaab00cb1b1bfb2558aac",
+            "bytes": 958
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+            "previous": null,
+            "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+            "bytes": 4054
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 33356.176455,
+          "inputAfterSha256": "113083843d4f1143b6f581befddd07c1b1a399294f6ff014d18cb23e0fd656ed",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  level15        ok  4054 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+            "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+            "bytes": 4054,
+            "pid": 1006039
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "searchOff",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.toml",
+          "sha256": "c2edc8f8558664cf17e99a762c54861ac894f758c0734bc9309c6bbd541f30cf",
+          "bytes": 951
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+          "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+          "bytes": 4093
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "8375a0dd-7f20-42f6-975c-595e76727e41",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js"
+          ],
+          "inputSha256": "e96d065f03839eb437e1405f284f0510141aa04536e108717e19a44779924df4",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/searchOff.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.toml",
+            "sha256": "c2edc8f8558664cf17e99a762c54861ac894f758c0734bc9309c6bbd541f30cf",
+            "bytes": 951
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+            "previous": null,
+            "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+            "bytes": 4093
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 205.763262,
+          "inputAfterSha256": "e96d065f03839eb437e1405f284f0510141aa04536e108717e19a44779924df4",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  searchOff      ok  4093 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+            "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+            "bytes": 4093,
+            "pid": 1006064
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "searchAlways",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.toml",
+          "sha256": "873d5c4001e4364c58de9bc293b10191daed3f83320ea219f2af434db343e704",
+          "bytes": 954
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+          "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+          "bytes": 3920
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "413d87cf-8719-4d1f-80eb-7e997953407f",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js"
+          ],
+          "inputSha256": "6a9dc37426389fc57fc0bd48b9b54c7b029722305d5a230596d0c767516ceb44",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/searchAlways.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.toml",
+            "sha256": "873d5c4001e4364c58de9bc293b10191daed3f83320ea219f2af434db343e704",
+            "bytes": 954
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+            "previous": null,
+            "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+            "bytes": 3920
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 55088.11766,
+          "inputAfterSha256": "6a9dc37426389fc57fc0bd48b9b54c7b029722305d5a230596d0c767516ceb44",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  searchAlways   ok  3920 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+            "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+            "bytes": 3920,
+            "pid": 1006920
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "gzip",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.toml",
+          "sha256": "24afac2f0f4c9b92a1b72c155983039e3eae090250d42d274bf10bb1e8df4903",
+          "bytes": 956
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+          "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+          "bytes": 3868
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "1f6101db-5d32-477f-8ea5-15b819a5ff95",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js"
+          ],
+          "inputSha256": "5f10872958aaafc9def87e82d740056b146e1575fd559733c6d317fbb0a54227",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/gzip.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.toml",
+            "sha256": "24afac2f0f4c9b92a1b72c155983039e3eae090250d42d274bf10bb1e8df4903",
+            "bytes": 956
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+            "previous": null,
+            "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+            "bytes": 3868
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 28753.977424,
+          "inputAfterSha256": "5f10872958aaafc9def87e82d740056b146e1575fd559733c6d317fbb0a54227",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  gzip           ok  3868 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+            "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+            "bytes": 3868,
+            "pid": 1007440
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "raw",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.toml",
+          "sha256": "27d7dad93ad16e5b5b9932ef79d9813c4720b32db50b769005510dd143d2c43d",
+          "bytes": 955
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+          "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+          "bytes": 3866
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "eb82f03b-df08-4efb-94d1-536cb76b4060",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js"
+          ],
+          "inputSha256": "9e5b1b6ee16a52f95bfeb751a76c6dab1a55953420d1e49df0716a8cfe11b877",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/raw.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.toml",
+            "sha256": "27d7dad93ad16e5b5b9932ef79d9813c4720b32db50b769005510dd143d2c43d",
+            "bytes": 955
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+            "previous": null,
+            "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+            "bytes": 3866
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 27706.171461,
+          "inputAfterSha256": "9e5b1b6ee16a52f95bfeb751a76c6dab1a55953420d1e49df0716a8cfe11b877",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  raw            ok  3866 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+            "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+            "bytes": 3866,
+            "pid": 1007825
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "perfFirst",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.toml",
+          "sha256": "9a779d1c7f122cf2960052cf028e1b07b7c86d59220550d5f24a58a370fd6670",
+          "bytes": 965
+        },
+        "artifact": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+          "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+          "bytes": 4089
+        },
+        "invocation": {
+          "schemaVersion": 1,
+          "kind": "compiler-invocation",
+          "id": "a83f5a20-04a2-4098-83aa-963c968f0bcf",
+          "compiler": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+            "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+            "bytes": 17828488
+          },
+          "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+          "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+          "args": [
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+            "--target",
+            "js",
+            "--config",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.toml",
+            "-o",
+            "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js"
+          ],
+          "inputSha256": "6a58b2d58992bde22e814afe7bcf21bf0370fb89cdf40abc896e4ad937cdad97",
+          "inputs": [
+            {
+              "path": ".gitignore",
+              "kind": "file",
+              "executable": false,
+              "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+              "bytes": 20
+            },
+            {
+              "path": ".lilscript-test-adapter/suite.test.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+              "bytes": 802
+            },
+            {
+              "path": "README.md",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+              "bytes": 908
+            },
+            {
+              "path": "expected.out",
+              "kind": "file",
+              "executable": false,
+              "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+              "bytes": 136
+            },
+            {
+              "path": "lilscript.toml",
+              "kind": "file",
+              "executable": false,
+              "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+              "bytes": 958
+            },
+            {
+              "path": "scripts/build.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+              "bytes": 4311
+            },
+            {
+              "path": "scripts/configs.mjs",
+              "kind": "file",
+              "executable": false,
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            {
+              "path": "src/probe.lil",
+              "kind": "file",
+              "executable": false,
+              "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+              "bytes": 15299
+            }
+          ],
+          "configuration": {
+            "path": "dist/configs/perfFirst.toml",
+            "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.toml",
+            "sha256": "9a779d1c7f122cf2960052cf028e1b07b7c86d59220550d5f24a58a370fd6670",
+            "bytes": 965
+          },
+          "output": {
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+            "previous": null,
+            "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+            "bytes": 4089
+          },
+          "exitCode": 0,
+          "signal": null,
+          "error": null,
+          "elapsedMs": 30710.869739,
+          "inputAfterSha256": "6a58b2d58992bde22e814afe7bcf21bf0370fb89cdf40abc896e4ad937cdad97",
+          "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "validationErrors": []
+        },
+        "originalDisposition": "golden-match",
+        "originalLines": [
+          "  perfFirst      ok  4089 B"
+        ],
+        "compilePassed": true,
+        "compileErrors": [],
+        "observedLoads": [
+          {
+            "schemaVersion": 1,
+            "kind": "node-module-load",
+            "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+            "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+            "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+            "bytes": 4089,
+            "pid": 1008505
+          }
+        ],
+        "goldenMatched": true,
+        "evidenceErrors": []
+      },
+      {
+        "profile": "balanced",
+        "configuration": {
+          "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/balanced.toml",
+          "sha256": "f8b3a1bc72e409a8053f952e73e352cef7212040b79f2a52d4674adef376d2b1",
+          "bytes": 956
+        },
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "noPeephole",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "arrows",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "functions",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "looseNames",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "beam1",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "beam32",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "freqNames",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "freqNamesSearchOff",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "idiomNames",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "idiomNamesSearchOff",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      },
+      {
+        "profile": "phiRegions",
+        "configuration": null,
+        "artifact": null,
+        "invocation": null,
+        "originalDisposition": "unreported",
+        "originalLines": [],
+        "compilePassed": false,
+        "compileErrors": [],
+        "observedLoads": [],
+        "goldenMatched": false,
+        "evidenceErrors": [
+          "expected one invocation, got 0",
+          "expected one original disposition, got 0",
+          "failed compile has inconsistent artifact/runtime evidence"
+        ]
+      }
+    ],
+    "unexpectedInvocations": [],
+    "unexpectedLoads": [],
+    "runnerLoads": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1004962
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1004979
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1005101
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1005515
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1006039
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1006064
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1006920
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1007440
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1007825
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+        "format": "commonjs",
+        "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+        "bytes": 70,
+        "pid": 1008505
+      }
+    ],
+    "commandCompleted": false,
+    "exitCode": null,
+    "counts": {
+      "requested": 22,
+      "invocationReceipts": 10,
+      "compiled": 10,
+      "observedProfiles": 10,
+      "goldenMatches": 10,
+      "compilationFailures": 0,
+      "runtimeFailures": 0,
+      "evidenceErrors": 36
+    }
+  },
+  "artifacts": [
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.js",
+      "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+      "bytes": 4034,
+      "raw": 4034,
+      "gzip9": 1605,
+      "brotli11": 1492
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.none.js",
+      "sha256": "513b6321f3c4cf1eeae5ea3d1a0c40428ef45898eb6627643f3ecc507f185d4f",
+      "bytes": 7309,
+      "raw": 7309,
+      "gzip9": 2621,
+      "brotli11": 2359
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/run.cjs",
+      "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+      "bytes": 70,
+      "raw": 70,
+      "gzip9": 88,
+      "brotli11": 74
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/shipped.js",
+      "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+      "bytes": 4034,
+      "raw": 4034,
+      "gzip9": 1605,
+      "brotli11": 1492
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level0.js",
+      "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+      "bytes": 4442,
+      "raw": 4442,
+      "gzip9": 1769,
+      "brotli11": 1624
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level5.js",
+      "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+      "bytes": 4090,
+      "raw": 4090,
+      "gzip9": 1663,
+      "brotli11": 1536
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level9.js",
+      "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+      "bytes": 4056,
+      "raw": 4056,
+      "gzip9": 1602,
+      "brotli11": 1492
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/level15.js",
+      "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+      "bytes": 4054,
+      "raw": 4054,
+      "gzip9": 1610,
+      "brotli11": 1495
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchOff.js",
+      "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+      "bytes": 4093,
+      "raw": 4093,
+      "gzip9": 1678,
+      "brotli11": 1556
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/searchAlways.js",
+      "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+      "bytes": 3920,
+      "raw": 3920,
+      "gzip9": 1569,
+      "brotli11": 1465
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/gzip.js",
+      "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+      "bytes": 3868,
+      "raw": 3868,
+      "gzip9": 1592,
+      "brotli11": 1515
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/raw.js",
+      "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+      "bytes": 3866,
+      "raw": 3866,
+      "gzip9": 1648,
+      "brotli11": 1564
+    },
+    {
+      "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+      "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+      "bytes": 4089,
+      "raw": 4089,
+      "gzip9": 1610,
+      "brotli11": 1494
+    }
+  ],
+  "inputsStable": true,
+  "elapsedMs": 282236.842834,
+  "loadAverageEnd": [
+    1.89,
+    1.32,
+    0.88
+  ],
+  "completed": "2026-09-19T18:21:12.701Z",
+  "outputs": [
+    {
+      "path": "artifacts/configs/balanced.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f8b3a1bc72e409a8053f952e73e352cef7212040b79f2a52d4674adef376d2b1",
+      "bytes": 956
+    },
+    {
+      "path": "artifacts/configs/gzip.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a4de327c2e08b7ecd3f4d75cf62d8e7292e2cfd2b4a277d0ce77760055c4fd8c",
+      "bytes": 3868
+    },
+    {
+      "path": "artifacts/configs/gzip.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "24afac2f0f4c9b92a1b72c155983039e3eae090250d42d274bf10bb1e8df4903",
+      "bytes": 956
+    },
+    {
+      "path": "artifacts/configs/level0.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a3ccbc24620233aa1a460f9e4f191e4689a801dee000079030f870127665d231",
+      "bytes": 4442
+    },
+    {
+      "path": "artifacts/configs/level0.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "357d2ed5f2d4d0a892ccd0be50c04b54bff0081fc790c5e5ae55d1e7a39db988",
+      "bytes": 957
+    },
+    {
+      "path": "artifacts/configs/level15.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de23abf759a5f9df39b0688fb53959654da9d1aa4ec0b63750592f08552569f9",
+      "bytes": 4054
+    },
+    {
+      "path": "artifacts/configs/level15.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b8fc33e168f6ca5324a8777328fb6e94dc21dce075dfaab00cb1b1bfb2558aac",
+      "bytes": 958
+    },
+    {
+      "path": "artifacts/configs/level5.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7ec301c1069cce644eab8fc0e4c8d240d2503567852782e05728923efad4cfad",
+      "bytes": 4090
+    },
+    {
+      "path": "artifacts/configs/level5.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9d0efa2ccaf542f7d6bb4c8ef4e54b16fe972ee66b263734480b1d81bab9f4e5",
+      "bytes": 957
+    },
+    {
+      "path": "artifacts/configs/level9.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "057e5b7894657ee673838473655a16d6691b79001aad5c1149f9f01bbf630b5e",
+      "bytes": 4056
+    },
+    {
+      "path": "artifacts/configs/level9.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "182210a035bad33e9ad0ad8ca783570fca04ee4c5c866ee5898cb76d3be41ed6",
+      "bytes": 957
+    },
+    {
+      "path": "artifacts/configs/perfFirst.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+      "bytes": 4089
+    },
+    {
+      "path": "artifacts/configs/perfFirst.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9a779d1c7f122cf2960052cf028e1b07b7c86d59220550d5f24a58a370fd6670",
+      "bytes": 965
+    },
+    {
+      "path": "artifacts/configs/raw.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7f3f19eca383359336d291f9aab20bef69b6753a01dfe889cfbec9d4a7915c5f",
+      "bytes": 3866
+    },
+    {
+      "path": "artifacts/configs/raw.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "27d7dad93ad16e5b5b9932ef79d9813c4720b32db50b769005510dd143d2c43d",
+      "bytes": 955
+    },
+    {
+      "path": "artifacts/configs/searchAlways.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8c18145c49223c79ba0fe18f9b98a4c424ffdc83bb11ac70d60e0e22e6ea5a6d",
+      "bytes": 3920
+    },
+    {
+      "path": "artifacts/configs/searchAlways.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "873d5c4001e4364c58de9bc293b10191daed3f83320ea219f2af434db343e704",
+      "bytes": 954
+    },
+    {
+      "path": "artifacts/configs/searchOff.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fef55adb290e65e3f19ec16dce1284b606fa2c79deb177c12f778c2e76492917",
+      "bytes": 4093
+    },
+    {
+      "path": "artifacts/configs/searchOff.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c2edc8f8558664cf17e99a762c54861ac894f758c0734bc9309c6bbd541f30cf",
+      "bytes": 951
+    },
+    {
+      "path": "artifacts/configs/shipped.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+      "bytes": 4034
+    },
+    {
+      "path": "artifacts/configs/shipped.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+      "bytes": 958
+    },
+    {
+      "path": "artifacts/probe.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+      "bytes": 4034
+    },
+    {
+      "path": "artifacts/probe.none.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "513b6321f3c4cf1eeae5ea3d1a0c40428ef45898eb6627643f3ecc507f185d4f",
+      "bytes": 7309
+    },
+    {
+      "path": "artifacts/run.cjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+      "bytes": 70
+    },
+    {
+      "path": "base-portgate.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7f6c43e201fea1c3dad73adf25717147096bc968ee5af469192b132a27ccc93f",
+      "bytes": 457
+    },
+    {
+      "path": "base-portgate.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "canonical-codec.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "canonical-codec.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a1e3afc9751e3e9dc981926fa8a7169dfeede3bc22a0a9e5f20ebf38b8543eac",
+      "bytes": 2288
+    },
+    {
+      "path": "inputs-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "73c4f239acc6b6d70fd11251e54681e7bff6d17b5b79fa57e6698a5518b8e8af",
+      "bytes": 4261
+    },
+    {
+      "path": "inputs-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "73c4f239acc6b6d70fd11251e54681e7bff6d17b5b79fa57e6698a5518b8e8af",
+      "bytes": 4261
+    },
+    {
+      "path": "invocations/probelil/0b8d8d2d-74a8-49fe-abd0-3bd80ce9bc8a.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5fd154bd8e04eff3ce97158fba1b9e9c2fe71829b9717d7347d31ff258662b34",
+      "bytes": 3338
+    },
+    {
+      "path": "invocations/probelil/ba9a3ffc-6936-419a-bfe1-8a703cb4b526.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "86233de2bcfe9d3071038a7ad8132f4c2b33a0594ba182b5c5c53e14459c1c82",
+      "bytes": 3344
+    },
+    {
+      "path": "logs/probelil.build.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe3cab6f322cc9a7aa193d27bf691cd5a7b170f157713d2b7f3fa1efa0fe6420",
+      "bytes": 8556
+    },
+    {
+      "path": "maintained-workloads.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3c48ee5262c9107587ea62e42ac993cb459d84e17762c6f7310b7cedc96e4716",
+      "bytes": 100928
+    },
+    {
+      "path": "manifest.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9dd0b19ee8d12e72edfa723fb45980f9bded2d2109ea0c08e7591aad40aacee0",
+      "bytes": 1507
+    },
+    {
+      "path": "matrix-compiler.mjs",
+      "kind": "file",
+      "executable": true,
+      "sha256": "5b774762534cbc8aa0687f429dafc39ec42d0d2728aa0e28936a5c37f03a759f",
+      "bytes": 369
+    },
+    {
+      "path": "matrix-invocations/1f6101db-5d32-477f-8ea5-15b819a5ff95.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9092236a4f7b442941343cefd5604734274307cdd43e2b390db309bf2082e05d",
+      "bytes": 3382
+    },
+    {
+      "path": "matrix-invocations/2679f84a-3111-4b39-bb94-23c0902a99c8.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "386fc5fe2b85d3e6e5be441b368bc0433458399505200542db9ef03cd5767bce",
+      "bytes": 3396
+    },
+    {
+      "path": "matrix-invocations/32bccec2-46f8-4514-ac4d-258c7d242ac3.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c3391e8c92a8b1813565e3ab9f5b177edbfa67f41d4be6e94c87829cb4900004",
+      "bytes": 3397
+    },
+    {
+      "path": "matrix-invocations/3b2f8cf7-6103-49ff-bbc0-9b26847a0ab2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a52dd1cb4cc7250be4826fb7f4000021a111eeafdce839fa8c7ba91a355d1fbc",
+      "bytes": 3390
+    },
+    {
+      "path": "matrix-invocations/413d87cf-8719-4d1f-80eb-7e997953407f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9f87011359912e46f6583215aadb4c987a369df189f526e0e1ccb1359f7af623",
+      "bytes": 3421
+    },
+    {
+      "path": "matrix-invocations/532adf6e-aa6f-4ede-90c5-48dc8ad7b6b0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9a4737d06df85d756fc512b18276e32d27aa0767dac3699bbcdcaaaf53c1618e",
+      "bytes": 3392
+    },
+    {
+      "path": "matrix-invocations/8375a0dd-7f20-42f6-975c-595e76727e41.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ff805b6299b6f126c7b48d4598609ebda8a290e9298b6e212a2fac38c07a1d62",
+      "bytes": 3405
+    },
+    {
+      "path": "matrix-invocations/a83f5a20-04a2-4098-83aa-963c968f0bcf.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b182ff572c9b40c9706c880f206e95521fc55771a9eca4ace04aefdb3b80354a",
+      "bytes": 3407
+    },
+    {
+      "path": "matrix-invocations/b1a84698-8284-459b-9ea0-d8516b7717cc.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8155468f6efdc62db2f32e4add1f5cb78a322c21f3c59885844d2625561d88c1",
+      "bytes": 3391
+    },
+    {
+      "path": "matrix-invocations/eb82f03b-df08-4efb-94d1-536cb76b4060.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e4d3303470977ccc7c7865e8a1fa4286358ff6d0c7a56b3399ce3e7a7f0ef163",
+      "bytes": 3377
+    },
+    {
+      "path": "matrix-loaded/1004962-0983b9b7-7608-4b06-9141-cd1d9192dd29.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c0f56e3ec96643d04885aca8cddc0441cee55cf261c4add01519446b6b4dfba1",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1004962-dad1a432-50af-4b60-90ba-47af52efbb52.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "94e9e34a8d6e5e8a91a775832e7379c40822fbfd0c1f59d616485afbfe5e8117",
+      "bytes": 370
+    },
+    {
+      "path": "matrix-loaded/1004979-026bc183-b1d5-417c-b74d-612ec02f7a76.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ce89080da7bddf3bb976b17ec8299290037b9fc50d075996aa0b1585c1db84d1",
+      "bytes": 368
+    },
+    {
+      "path": "matrix-loaded/1004979-c56a72a7-0cfb-459b-88ca-1b9de368257f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5a72091c66fc00a5af47c7743f201351364362161a41ad5c530a2a70d57643e9",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1005101-a0035c10-d13a-49d2-8dfb-587ef55c7a9e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f322519ed1adad6e5d77958dc79cfcc3817318e7af263ee4848c55d3175f46a1",
+      "bytes": 368
+    },
+    {
+      "path": "matrix-loaded/1005101-e269478e-34fb-43b5-b421-32b94831c426.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3ffbd4d6338a89f1e66ada4018b01742931c61519680ac03212de92504b3558a",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1005515-6f7d372f-8646-4f97-8591-d263c95bee06.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ab50f3b68e436c9bb6e7d21811ff27801b80ce9acb4f4b4d7cfa0450f23bb0ac",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1005515-e98f72fd-06cf-4824-9b52-6fe72c6441eb.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d76e1037b8637ad023acd3ef8e3dd90659508476f57450a548e73f39d4029dee",
+      "bytes": 368
+    },
+    {
+      "path": "matrix-loaded/1006039-187ef6d7-c979-4c5a-8205-cf01bb09fd46.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4726f121e72d471bc35bd1ee3c0d319172675caae9fb224c6ef91e735f7f258c",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1006039-f19a3935-302b-47ea-8dbf-bf28bf712313.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2094dc83742ac21b26e75214007b509f81a76258bf537ccd747825a85d885d10",
+      "bytes": 370
+    },
+    {
+      "path": "matrix-loaded/1006064-47157a79-4ee4-4151-a70d-81bd17bc8bd7.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e6d57c44c8450320bbbad223cfe94caf33bbc6134c5124569c2f45c1995217bb",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1006064-dacdad42-50c6-4f40-aa99-0f965ad64bc8.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "82fb1c77bb7b1261b0863bb9ccff5e37e042658f73835bf4b24f4fc37226a321",
+      "bytes": 374
+    },
+    {
+      "path": "matrix-loaded/1006920-94dc3d60-fd5b-4bd2-bddd-137591061545.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "746aa616c316f78c86fefd30ea662ffef1ceb94206be712d89f0e6933cb85a4a",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1006920-aad13677-bfe3-4092-92a6-00ad630576a7.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "756364eeb4b1f3c68c583f0244df590233a26ba75ef215bb9d38afd1e30e609f",
+      "bytes": 380
+    },
+    {
+      "path": "matrix-loaded/1007440-677c6363-ff86-401f-9fb1-2683648db4e0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "77d94732deadc69eb09b75953ffa81346718e7794bf1f46896fbb16c9db2b414",
+      "bytes": 364
+    },
+    {
+      "path": "matrix-loaded/1007440-d28c25c6-0bd2-4d44-a15e-9f7fa138a5e1.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da2b997586dfac267c7669799807fe15c60e313a62de2ae951fe2b585e91729f",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1007825-1d38bb04-9e37-4adb-a6c8-8a5bc4f01bbb.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bfd1b5ccfe7d3e363fee84b0aa3a9ee344526170fadad20473fbf80b115151b2",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1007825-655f2054-6b9a-4d9d-b880-459ab31053d0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "46c8cb9611ba2db61f9e2b3035fb721fc0f805183d63942a7ff6873d4ef794ba",
+      "bytes": 362
+    },
+    {
+      "path": "matrix-loaded/1008505-dfa3e4c0-2159-4c39-ac53-150ad2e17a6a.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "35a2894d0bf2140cf5623d4babe19cc9a40527aa51eaa48666f68229cd9842b3",
+      "bytes": 366
+    },
+    {
+      "path": "matrix-loaded/1008505-e2202ae5-a318-48ec-8212-4cb587dae5e0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f9760d4ba98a8b13798d726267df55f7fa6d4aa1d9ecf02a025dc25289d001a6",
+      "bytes": 374
+    },
+    {
+      "path": "matrix-observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "54c66855787f641e6431a637ee5a09ff88c18b24ea2d1c242097c80484377090",
+      "bytes": 2575
+    },
+    {
+      "path": "matrix-wrapper.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dc4068216f467659c51133800735c6c396343d2212f5ab11d733fae98e9b60c4",
+      "bytes": 365
+    },
+    {
+      "path": "matrix.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fff257dba58847f7e38830cba1d55da768a160ca65a7c33bc7b32ed46b46f3a1",
+      "bytes": 64101
+    },
+    {
+      "path": "matrix.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "matrix.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0142eea65532b0815ab346ecd956ab20274d5eb5aef6343a93846e0aa2d45e9b",
+      "bytes": 280
+    },
+    {
+      "path": "no-optimization.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1f796338933bd7bd7875a2e9cf0f5917b79c7c19de598bb92d5baf38096e74b5",
+      "bytes": 240
+    },
+    {
+      "path": "original-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cc0987470fbf1631d67ab7f8690ea1c3a32d9f803eb813f6e9de9b81fc8c5213",
+      "bytes": 2109
+    },
+    {
+      "path": "original-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cc0987470fbf1631d67ab7f8690ea1c3a32d9f803eb813f6e9de9b81fc8c5213",
+      "bytes": 2109
+    },
+    {
+      "path": "parent-inputs-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b14a583dbd5a2dcfc4132d187f3610d6e7ff7bfa57a0bf6e11a5558e1e09bacb",
+      "bytes": 175303
+    },
+    {
+      "path": "parent-inputs-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b14a583dbd5a2dcfc4132d187f3610d6e7ff7bfa57a0bf6e11a5558e1e09bacb",
+      "bytes": 175303
+    },
+    {
+      "path": "parent-receipt.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "020c288f5b0e6bafc016e12cbb6d5a7a7ab53b9b28a32444c584c9781abbf533",
+      "bytes": 42567
+    },
+    {
+      "path": "probe.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+      "bytes": 802
+    },
+    {
+      "path": "probelil.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "489f2f59b0f61c26175ed99f0831d0b9e08f2876e6655496ee3ef03e02753b73",
+      "bytes": 16061
+    },
+    {
+      "path": "required-base-tests.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4b206ff63edc83031282ca46f9bdc77152cfd59da6523f2526aeb3cff1c45d0d",
+      "bytes": 2093
+    },
+    {
+      "path": "required-matrix-profiles.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ee52b4c2901d65628bbfb782187db24f80ee64068da7529f5dc327dab0622c09",
+      "bytes": 953
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/compiler-receipt.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9cc8b18ac0ea6447020ac8197fd35de0fd56c855940091b415f4a5caad3a33a5",
+      "bytes": 6735
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "runner-sources/portgate.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "eb7d2474af4c0d08ad0825db53413aef506ad6f2f97b043a138c8156ff3c83b2",
+      "bytes": 28554
+    },
+    {
+      "path": "runner-sources/vitest-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a1c78215b4b7e2f185f74abdfe78c45db59cc8389d0f7eaa85f8c7e6dd94f4c7",
+      "bytes": 9116
+    },
+    {
+      "path": "source-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a439c73d6de8ec8b44ab09183f446d9d6cd07ed68647057a637113238f36caae",
+      "bytes": 1516
+    },
+    {
+      "path": "source-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a439c73d6de8ec8b44ab09183f446d9d6cd07ed68647057a637113238f36caae",
+      "bytes": 1516
+    },
+    {
+      "path": "source/.gitignore",
+      "kind": "file",
+      "executable": false,
+      "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+      "bytes": 20
+    },
+    {
+      "path": "source/README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+      "bytes": 908
+    },
+    {
+      "path": "source/expected.out",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+      "bytes": 136
+    },
+    {
+      "path": "source/lilscript.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+      "bytes": 958
+    },
+    {
+      "path": "source/scripts/build.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+      "bytes": 4311
+    },
+    {
+      "path": "source/scripts/configs.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+      "bytes": 5251
+    },
+    {
+      "path": "source/src/probe.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+      "bytes": 15299
+    },
+    {
+      "path": "tests/probelil/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b4eb2214806c8d03f5d368d6be181d590bdc05fa8c56699b90dafe4075233886",
+      "bytes": 1169
+    },
+    {
+      "path": "tests/probelil/loaded/1004476-5de3d06e-26e9-4725-8908-88487d8c3379.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "852a99d97efa1036c00ca50870f9cc2bef8b36d1a4bf273d0ab7e0fa9c4a248d",
+      "bytes": 350
+    },
+    {
+      "path": "tests/probelil/loaded/1004484-40ee8ce5-88fe-4ce6-bbb5-d4a0efe4d044.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "46db986d75854f75b1efdb4c353a65dc1f20a89721c908b4719cd1140a827e2b",
+      "bytes": 360
+    },
+    {
+      "path": "tests/probelil/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bf6ad9bd34dff7558b774aebb68c4562a6040ff4db458d2036277b8d31a064f9",
+      "bytes": 425
+    },
+    {
+      "path": "tests/probelil/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "06931c4d0579b0171625bdf3789edfecee5f68f8f6019bd3501a4a1cf5017c8a",
+      "bytes": 5738
+    },
+    {
+      "path": "tests/probelil/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "workspace-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1e509498531e9993f0431dffde778b86b03fc691cc2b1c367a7bfca3a2b5618d",
+      "bytes": 1787
+    },
+    {
+      "path": "workspace-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1e509498531e9993f0431dffde778b86b03fc691cc2b1c367a7bfca3a2b5618d",
+      "bytes": 1787
+    },
+    {
+      "path": "wrapper.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "95a0836d68bbfd3e6f5e58ac1ecf5dc6f22da441a309e3b171a4772d3ff05a13",
+      "bytes": 25875
+    },
+    {
+      "path": "wrappers/probelil.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fa975e996d3a567726b828fd253cf01229a0b3b26b36c8c2ceb36dc1bcb7d65d",
+      "bytes": 367
+    },
+    {
+      "path": "wrappers/probelil.mjs",
+      "kind": "file",
+      "executable": true,
+      "sha256": "d6a5c6e2df86a7523d7aad87c6143807153b1dbf7d209c620182c80e80849ac5",
+      "bytes": 380
+    }
+  ]
+}

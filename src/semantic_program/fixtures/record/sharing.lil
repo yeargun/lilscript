@@ -1,0 +1,3 @@
+extern void keep(func()->int read);extern int saved(int which);
+func()->int make(int seed){Record<int> state=record{count:seed};keep(()=>state.count??0);return ()=>{state.count=(state.count??0)+1;return state.count??0;};}
+auto a=make(2);auto b=make(9);print(a());print(saved(0));print(saved(1));print(b());print(a());

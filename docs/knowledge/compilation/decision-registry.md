@@ -2,10 +2,10 @@
 
 Parent: [Compilation](README.md). Architecture:
 [current architecture](current-architecture.md),
-[planned architecture](planned-architecture.md). Ranking math:
+[target compiler design](../../compiler-design.md). Ranking math:
 [objectives](objectives.md). Search mechanics:
 [candidate search](candidate-search.md). Knobs: [config](../config/README.md).
-Migration: [planned migration](../migration/planned-migration.md).
+Migration: [single implementation plan](../../migration/index.md).
 
 This page is the implemented map of the known contested compilation choices. Field
 classification and scored emission families live in `src/decision_registry.rs`.
@@ -259,7 +259,7 @@ alphabet search stays a named special case between the before/after-entropy
 phases). Each sequential family starts from the current beam’s top
 `candidate_beam_width` finalists (default 12). An early winner can starve a late
 family when the proposal ledger is exhausted. That is why
-[search-03](../migration/board/notes/search-03.md) had to lift the pack config:
+search-03 (archived: `repository/docs/knowledge/migration/board/notes/search-03.md`) had to lift the pack config:
 an 18 KiB module at level 15 with production search got 96 work units against
 the then-active family set. The current registry declares 48 scored emission
 families. `--explain` lists branching cartesian axes, admitted scored families, and
@@ -344,7 +344,7 @@ illegal-to-flip fields must not appear as family names. Reversible priors,
 named-class emission, scored canonical/search-off challengers, reserved slices,
 starvation reporting, and expression-language cases have landed. Remaining
 consolidation and target work is in the
-[planned migration](../migration/planned-migration.md).
+[migration plan](../../migration/index.md#003-policy-and-resource-ownership).
 
 The planned registry consumes two separate normalized values:
 

@@ -1,0 +1,6 @@
+
+running 1 test
+test compiler::tests::attributes_purity_errors_to_the_dependency_module ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2836 filtered out; finished in 0.01s
+

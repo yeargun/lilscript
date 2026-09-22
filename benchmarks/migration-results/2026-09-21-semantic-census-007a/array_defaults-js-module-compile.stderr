@@ -1,0 +1,15 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/array_defaults.lil:13:1
+  |
+13 | class Bag {
+  int[] values;
+
+  init(int[] values = []) {
+    this.values = values;
+  }
+
+  int size() {
+    return this.values.length;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

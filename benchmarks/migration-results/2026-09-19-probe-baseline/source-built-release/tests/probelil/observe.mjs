@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.js","/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.none.js"],"directory":"/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/tests/probelil/loaded"});

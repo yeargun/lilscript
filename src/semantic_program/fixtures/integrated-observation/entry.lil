@@ -1,0 +1,20 @@
+// Authored document consumer. All imported integration and Marked sources are unchanged.
+import {make,readLate,exposed,total,liveTotal,bootCount,inspectMatch,tabRule,editTarget,runIntegrated} from "../integrated-architecture/entry.lil";
+import {removeCodeIndent} from "../integrated-architecture/marked/str-slice.lil";
+export {make,readLate,exposed,total,liveTotal,bootCount,inspectMatch,tabRule,editTarget,runIntegrated};
+extern void textEvent(string label,string text);
+
+// Dispatch names identify eligible document kinds. This consumer needs their
+// presence; the completion status is a separate exact public callback value.
+export int runDocument(int seed,int delta,string text) {
+    string normalized=removeCodeIndent(text);
+    bool content=normalized.length!=0;
+    string dispatch=if(content){
+        if(normalized==text){"document/plain"}else{"document/indented"}
+    }else{""};
+    string status=if(content){"document/processed"}else{"document/empty"};
+    int score=0;
+    JS.and(dispatch,score=runIntegrated(seed,delta,text));
+    if(status!=""){textEvent("document-status",status);}
+    return score;
+}

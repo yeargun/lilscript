@@ -1,0 +1,13 @@
+{
+  "source": "/home/azureuser/probelil/src/probe.lil",
+  "sourceSha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+  "span": {
+    "start": 3828,
+    "end": 4092
+  },
+  "originalFunctionSha256": "0d7494ca6c4bac797146004abd950293545321e28bbc5a0f2d3da74c902d4418",
+  "adaptation": "Preserve the complete function, removing only an export keyword when present; add a closed opaque-input harness.",
+  "fixtureSha256": "ca9cad47771bf9c3be86f6e71a804586ad4adefca2ed2cb65181d4f42cd03a1e",
+  "setup": "globalThis.read=()=>7;\n",
+  "expected": "64\n43\n34\n"
+}

@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "kind": "fixture-preflight-affected-owner-audit",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "initial": {
+    "path": "benchmarks/migration-results/2026-09-20-fixture-preflight/receipt.json",
+    "sha256": "a57bcc33632832b0e1a8d05de96ecb090a287c6d4d7ba874932f6b16db2d6ef9",
+    "bytes": 1147
+  },
+  "corrected": {
+    "path": "benchmarks/migration-results/2026-09-20-fixture-preflight/corrected-fixture/receipt.json",
+    "sha256": "f8c80ce4a2c3b33a17c59aa0e0856a954051d97bcc8bdb6938242d5a7dc02a45",
+    "bytes": 1171
+  },
+  "initialFixture": {
+    "path": "benchmarks/migration-results/2026-09-20-fixture-preflight/initial-artifact-evidence.test.mjs",
+    "sha256": "7c0c8eab5d5bc465964e83bcd90c4ca7055ab0a9b1d97f68bcbbec66c76cb871",
+    "bytes": 12021
+  },
+  "acceptedTests": 44,
+  "correctedArtifactTests": 17,
+  "reusedSourceIdenticalNodeAndQualifierTests": 27,
+  "testNames": [
+    "a failed compiler cannot be accepted even if it writes output",
+    "a failed runtime version probe cannot certify otherwise passing original tests",
+    "a prerequisite changing an initially valid expectation prevents suite execution",
+    "a prerequisite mutating a pinned input blocks the Node suite even with exit zero",
+    "a real fast invocation produces a complete receipt without a duration floor",
+    "all required tests must execute and pass against the production bytes",
+    "an empty test file cannot establish a case inventory",
+    "an exit-zero compiler that writes nothing cannot inherit old dist bytes",
+    "an explicit configuration outside the port is captured as an input",
+    "artifacts executed by a nested Node process are observed as well",
+    "both real thin clients validate their recipe and CLI before refusing an existing output",
+    "canonical measurements reject missing, duplicated, or incomplete rows",
+    "changed pinned prerequisite scripts are refused before command execution",
+    "changes to inputs during compilation reject the receipt",
+    "dependency snapshots enforce exact byte and entry caps and reject invalid bounds",
+    "dependency snapshots include nested installed code and file and directory symlink destinations",
+    "dependency snapshots reject ancestor cycles and missing symlink destinations",
+    "expectation mutation by an executed suite remains a failing final identity check",
+    "imported test source identities cannot change behind stable entry files and case names",
+    "importing the shared qualification owner has no CLI or filesystem effects",
+    "invalid data-only recipes are rejected before creating an output directory",
+    "inventory discovery retains failed and skipped declarations",
+    "malformed CLI options are rejected before creating an output directory",
+    "malformed or duplicate fixture declarations reject before creating evidence",
+    "missing or changed expectations cannot run self-updating tests or prerequisites",
+    "new files selected by the original glob cannot disappear from a frozen adapter",
+    "output declarations cannot move source inputs or escape via a symlink",
+    "parent rejection retains both caller and owner evidence without invoking producers",
+    "passing Node tests cannot conceal a changed prerequisite input",
+    "pinned prerequisites run before the unchanged Node case inventory",
+    "post-build output substitution and changed contracts are detected",
+    "prerequisite failure retains logs and skips later commands and the original Node suite",
+    "prerequisite schema rejects empty, unpinned, ambiguous and unbounded commands",
+    "prerequisite timeout cannot turn unexecuted tests into a pass",
+    "production tests capture exact ESM and CommonJS bytes without changing loaders",
+    "removing a required case cannot turn a passing subset into certification",
+    "runtime replacement during passing tests invalidates the pinned evidence",
+    "source identity includes configuration and generated files without git",
+    "tests loading a development artifact cannot certify the production artifact",
+    "the exact intended compiler is required before touching an old output",
+    "the production wrapper forwards explicit arguments and records its actual cwd",
+    "timing text cannot substitute for a compiler invocation",
+    "unchanged case names cannot conceal changed required test source",
+    "unknown or ambiguous test evidence fails closed"
+  ],
+  "beforeEditFiles": [
+    {
+      "path": "../../../tmp/lilscript-fixture-preflight-before-20260920/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "../../../tmp/lilscript-fixture-preflight-before-20260920/artifact-evidence.test.mjs",
+      "sha256": "c71d5642d9e5ae4f13b3f17057096e3b2d5d622934139c660c81af77202f0344",
+      "bytes": 9626
+    },
+    {
+      "path": "../../../tmp/lilscript-fixture-preflight-before-20260920/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "../../../tmp/lilscript-fixture-preflight-before-20260920/node-test-evidence.test.mjs",
+      "sha256": "a6d9834a2a2c111ae71bdd3099f9ac4305b637008fcba84f6549d1bf5773a1ac",
+      "bytes": 16933
+    },
+    {
+      "path": "../../../tmp/lilscript-fixture-preflight-before-20260920/qualify-node-library.mjs",
+      "sha256": "a71dd3c68a8ed4a64a553b70767c127c3b2fb0723c3073e7392d599cc6a409c4",
+      "bytes": 24164
+    }
+  ],
+  "inputs": "c196d8fb54af42a69fb42c998888f6cca44b7b2dfbcbea0eac9589869fa9129f",
+  "dependencySnapshotEquivalence": {
+    "path": "benchmarks/migration-results/2026-09-20-fixture-preflight/dependency-equivalence.json",
+    "sha256": "d705b605304366a3b772e7528dec2fdb26439f07c5926cc999c3568fa4418230",
+    "bytes": 805
+  },
+  "realConsumer": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/receipt.json",
+    "sha256": "b584655ac815c09b7a7c6353d06757cc24cceef4f9a421050664662ef1ad32b0",
+    "bytes": 31773
+  },
+  "compilerInputsUnchanged": "269288a54694ef126db4e16bba350254c0a7cc2629a6c6641cd5cf672511295a",
+  "compilerInputCount": 979,
+  "limitations": [
+    "First attempt passed 43/44; the new cycle fixture used rmSync on a directory symlink. Only its cleanup changed to unlinkSync. Initial failure and source are preserved.",
+    "Pinned fixtures are checked before prerequisites, after prerequisites and after the suite. No operating-system read-only sandbox or guarantee against a hostile racing writer is claimed.",
+    "No Rust build, library source rebuild, codec sweep or source-built use of the changed evidence owner is claimed; historical archived owner receipts remain immutable."
+  ]
+}

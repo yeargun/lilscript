@@ -1,0 +1,31 @@
+{"kind":"test-case","id":"[\"test/api.test.mjs\",17,3,1,\"test\",\"exposes the upstream public API and arity\",1]","file":"test/api.test.mjs","name":"exposes the upstream public API and arity","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",26,3,1,\"test\",\"splits text on newlines into text / break / text\",1]","file":"test/api.test.mjs","name":"splits text on newlines into text / break / text","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",40,3,1,\"test\",\"does not split inside code or inlineCode\",1]","file":"test/api.test.mjs","name":"does not split inside code or inlineCode","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",54,3,1,\"test\",\"works through processor.use(plugin)\",1]","file":"test/api.test.mjs","name":"works through processor.use(plugin)","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",16,1,0,\"suite\",\"@itslil/remark-breaks\",1]","file":"test/api.test.mjs","name":"@itslil/remark-breaks","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]","file":"test/closed.test.mjs","name":"ships a closed artifact whose exports stay callable","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-breaks closed lane\",1]","file":"test/closed.test.mjs","name":"@itslil/remark-breaks closed lane","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]","file":"test/official/index.js","name":"should expose the public api","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",9,1,0,\"test\",\"remarkBreaks\",1]","file":"test/official/index.js","name":"remarkBreaks","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"no space\",1]","file":"test/official/index.js","name":"no space","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"one space\",1]","file":"test/official/index.js","name":"one space","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"two spaces\",1]","file":"test/official/index.js","name":"two spaces","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"three spaces\",1]","file":"test/official/index.js","name":"three spaces","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"carriage return\",1]","file":"test/official/index.js","name":"carriage return","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"carriage return + line feed\",1]","file":"test/official/index.js","name":"carriage return + line feed","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"after phrasing\",1]","file":"test/official/index.js","name":"after phrasing","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"before phrasing\",1]","file":"test/official/index.js","name":"before phrasing","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"multiple\",1]","file":"test/official/index.js","name":"multiple","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"none\",1]","file":"test/official/index.js","name":"none","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",135,13,1,\"test\",\"document\",1]","file":"test/official/index.js","name":"document","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",17,1,0,\"test\",\"fixtures\",1]","file":"test/official/index.js","name":"fixtures","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 20"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 3"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 20"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 186.440194"}

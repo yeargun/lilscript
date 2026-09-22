@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "scope": "state reclamation admission; finite paired search comparison, not speed, release or fleet qualification",
+  "passed": true,
+  "parent": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json",
+    "sha256": "3d77a8fb060275a41c7f91030443bc13a0439f2bc2d2f938b3cd4ac181fddc07",
+    "bytes": 5797
+  },
+  "previous": {
+    "path": "benchmarks/migration-results/2026-09-20-search-schedule/receipt.json",
+    "sha256": "4a76cebf8ec49149f9c9ae5fffa49cb6a4224783da121ce1ca40680baaae0831",
+    "bytes": 12976
+  },
+  "compilerInputSha256": "728ed9ca7f4aeedc901844d91385cb6c79d371e3d920a34cbb4703387e93adb6",
+  "binary": {
+    "path": "/tmp/lilscript-search-reclamation-baseline-20260920/lilscript-c737e884cfca95f9",
+    "sha256": "b1457d368b0f0f8d8263b85f5ed9331f72bb8c7b41ae15c5c77ab58ee31a5720",
+    "bytes": 416534344
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "schedule": 22,
+  "inputsBefore": 980,
+  "commands": [
+    {
+      "command": "/tmp/lilscript-search-reclamation-baseline-20260920/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults",
+        "--exact",
+        "--nocapture"
+      ],
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    }
+  ],
+  "rows": 32,
+  "oracleArtifacts": 24,
+  "winnerObservations": 64,
+  "equal": [
+    "all 24 oracle records including bytes, observations and scores",
+    "all 32 rows excluding analysis_work and optional_work; includes winner bytes, scores, observations, explored masks/styles, renders, probes, other work, peak retained bytes and stop reasons"
+  ],
+  "removedAnalysisTariff": {
+    "min": 0,
+    "max": 667,
+    "positiveRows": 28
+  },
+  "canonicalCodecReuse": {
+    "parent": {
+      "path": "benchmarks/migration-results/2026-09-20-search-schedule/receipt.json",
+      "sha256": "4a76cebf8ec49149f9c9ae5fffa49cb6a4224783da121ce1ca40680baaae0831",
+      "bytes": 12976
+    },
+    "codec": {
+      "path": "/tmp/lilscript-frontend-release-20260920/lilscript-codec",
+      "sha256": "fd21fda3d4e38ebb223e42b91fec9763aebaf5de187158bbc2397b1acc24a2f5",
+      "bytes": 2600976
+    },
+    "oracle": {
+      "path": "benchmarks/migration-results/2026-09-20-search-schedule/oracle.json",
+      "sha256": "9fc594b44b0c3d89992baef4818865655f163cc82f365c7cc66c5a7c783c2632",
+      "bytes": 40455
+    },
+    "reason": "all exact primary byte streams, partitions, oracle scores and requested winner coordinates match the preserved canonical replay; codec not rerun"
+  },
+  "inputsAfter": 980,
+  "inputsStable": true,
+  "outputs": [
+    {
+      "path": "ablation.stdout",
+      "sha256": "9112dd0e329672276601b1ea2de6ecfffa42ebd5c27b3809438b2e3e7ea56742",
+      "bytes": 265
+    },
+    {
+      "path": "ablation.stderr",
+      "sha256": "da9cbd4832d53443b465d11fb778a5d0744187bbce33d8be88d2a925d3423940",
+      "bytes": 87730
+    },
+    {
+      "path": "rows.json",
+      "sha256": "6b25340e4c676fe554e7bd74f6883dc937f5c70e9cc3277d58377bb507e1ffa5",
+      "bytes": 166113
+    },
+    {
+      "path": "oracle.json",
+      "sha256": "9fc594b44b0c3d89992baef4818865655f163cc82f365c7cc66c5a7c783c2632",
+      "bytes": 40455
+    },
+    {
+      "path": "comparison.json",
+      "sha256": "7e1a1da7616ae4db31be6c1ddfdc811ea307e02c117e72fdb7cc033e8a08f4aa",
+      "bytes": 6432
+    }
+  ]
+}

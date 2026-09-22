@@ -1,0 +1,79 @@
+{
+  "name": "@itslil/mdast-util-to-hast",
+  "version": "13.2.1",
+  "description": "mdast-util-to-hast reimplemented in LilScript",
+  "keywords": [
+    "mdast",
+    "hast",
+    "unist",
+    "html",
+    "lilscript",
+    "itslil"
+  ],
+  "homepage": "https://yeargun.github.io/mdast-util-to-hastlil/",
+  "bugs": "https://github.com/yeargun/mdast-util-to-hastlil/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeargun/mdast-util-to-hastlil.git"
+  },
+  "license": "MIT",
+  "author": "yeargun",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/to-hast.cjs",
+  "module": "./dist/to-hast.esm.js",
+  "types": "./dist/to-hast.d.ts",
+  "unpkg": "./dist/to-hast.umd.js",
+  "jsdelivr": "./dist/to-hast.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/to-hast.d.ts",
+      "import": "./dist/to-hast.esm.js",
+      "require": "./dist/to-hast.cjs",
+      "default": "./dist/to-hast.esm.js"
+    },
+    "./closed": "./dist/to-hast.closed.js",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist/to-hast.esm.js",
+    "dist/to-hast.cjs",
+    "dist/to-hast.umd.js",
+    "dist/to-hast.closed.js",
+    "dist/to-hast.d.ts",
+    "LICENSE",
+    "NOTICE.md",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs --compile",
+    "build:site": "node scripts/build-site.mjs",
+    "test": "npm run test:types && node --test test/*.test.mjs test/official/index.js",
+    "test:types": "tsc --noEmit",
+    "check:site": "npm run build:site && node --test test/site.test.mjs",
+    "check:pack": "node scripts/check-pack.mjs",
+    "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
+  },
+  "dependencies": {
+    "@types/hast": "^3.0.0",
+    "@types/mdast": "^4.0.0",
+    "vfile": "^6.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "hast-util-to-html": "^9.0.5",
+    "hastscript": "^9.0.1",
+    "mdast-util-from-markdown": "^2.0.2",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "typescript": "5.5.4"
+  }
+}

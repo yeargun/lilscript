@@ -1,0 +1,11 @@
+file:///tmp/lilscript-baseline-solidlil-JUuz3a/solidlil/scripts/build.mjs:23
+  throw new Error("LilScript compiler not found. Set SOLIDLIL_LILSCRIPT_BIN to a release compiler.")
+        ^
+
+Error: LilScript compiler not found. Set SOLIDLIL_LILSCRIPT_BIN to a release compiler.
+    at file:///tmp/lilscript-baseline-solidlil-JUuz3a/solidlil/scripts/build.mjs:23:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.11.1

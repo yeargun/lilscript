@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;let values=[1,2,3,4];b=values.map((a=(0,(value)=>{return value*value|0;}),a));let mapped=b;d=mapped.reduce((c=(0,(sum,value)=>{return sum+ value|0;}),c),0);let total=d;e=void console.log(total);

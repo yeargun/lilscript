@@ -1,0 +1,10 @@
+{"kind":"test-case","id":"[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"optimized preserves the probe's golden behavior\",1]","file":".lilscript-test-adapter/suite.test.mjs","name":"optimized preserves the probe's golden behavior","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"unoptimized reference preserves the probe's golden behavior\",1]","file":".lilscript-test-adapter/suite.test.mjs","name":"unoptimized reference preserves the probe's golden behavior","type":"test","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 2"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 2"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 161.791809"}

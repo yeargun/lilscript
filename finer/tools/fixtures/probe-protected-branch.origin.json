@@ -1,0 +1,16 @@
+{
+  "source": "/home/azureuser/probelil/src/probe.lil",
+  "sourceSha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+  "functions": [
+    {
+      "signature": "void live12Absorb(int raw, bool coerce)",
+      "start": 15019,
+      "end": 15221,
+      "sha256": "bdc41539476539e6b71b31aa58f486edc023473ef5cb8ba352616764b365afcc"
+    }
+  ],
+  "adaptation": "Keep the full function, global initial value and call sequence; declare opaque read for the isolated harness. This is the recorded live-12 if/try/still-in-branch defect.",
+  "fixtureSha256": "789a931e8781920dba8a9da3134d84c2662beb405f7c2c97cd73ce30207c66ea",
+  "setup": "globalThis.read=()=>7;\n",
+  "expected": "14\n"
+}

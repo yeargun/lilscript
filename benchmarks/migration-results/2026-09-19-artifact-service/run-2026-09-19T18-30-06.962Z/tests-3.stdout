@@ -1,0 +1,10 @@
+
+running 5 tests
+test codegen_js::tests::checked_codegen_rejects_invalid_lilscript ... ok
+test codegen_js::tests::eliminates_unused_variable_decl ... ok
+test codegen_js::tests::dissolves_internal_classes_after_devirtualization ... ok
+test codegen_js::tests::dissolves_struct_literal_to_array ... ok
+test codegen_js::tests::emits_array_method_and_typed_arrow_callback ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2872 filtered out; finished in 0.00s
+

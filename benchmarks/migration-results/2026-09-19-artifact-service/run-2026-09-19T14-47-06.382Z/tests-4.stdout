@@ -1,0 +1,18 @@
+
+running 13 tests
+test module::admission_tests::source_work_and_deadline_refusals_are_typed_and_release_partial_reads ... ok
+test module::admission_tests::source_growth_admits_old_and_new_capacities_before_allocating ... ok
+test module::admission_tests::root_override_transfers_one_admitted_buffer_into_the_module ... ok
+test module::admission_tests::malformed_and_non_utf8_sources_release_admitted_storage ... ok
+test module::tests::linked_arrow_default_keeps_earlier_parameter_binding ... ok
+test module::admission_tests::missing_import_preserves_parent_diagnostic_after_admitted_cleanup ... ok
+test module::tests::exported_objects_keep_source_names_and_merge_across_modules ... ok
+test module::tests::resolves_extensionless_relative_imports ... ok
+test module::tests::static_order_preserves_edges_cycles_and_single_initialization ... ok
+test module::tests::module_cloning_keeps_reference_modes_and_fresh_argument_occurrences ... ok
+test module::tests::linked_arrow_defaults_reject_self_and_forward_parameter_references ... ok
+test module::admission_tests::admitted_source_graph_matches_legacy_and_releases_exact_capacities ... ok
+test module::tests::static_order_uses_an_iterative_stack_for_deep_import_chains ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2767 filtered out; finished in 0.00s
+

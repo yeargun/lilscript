@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/usr/bin/x86_64-linux-gnu-gcc-13",
+    "-std=c11",
+    "-fno-fast-math",
+    "-ffp-contract=off",
+    "-O2",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-13-23.731Z/example-native/00-native/native.c",
+    "-lm",
+    "-o",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T16-13-23.731Z/example-native/00-native/native"
+  ],
+  "elapsed_ns": 96681132,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

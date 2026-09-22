@@ -1,0 +1,10 @@
+
+running 5 tests
+test semantic_program::artifact_lifetime_tests::optional_denial_preserves_incumbent_and_baseline_output_allowance ... ok
+test semantic_program::artifact_lifetime_tests::scoped_artifacts_release_on_success_returned_error_and_unwind ... ok
+test semantic_program::artifact_lifetime_tests::retained_and_scoped_handles_cannot_cross_owner_boundaries_or_revive ... ok
+test semantic_program::artifact_lifetime_tests::complete_artifact_scores_are_cached_across_scoped_to_retained_transfer ... ok
+test semantic_program::artifact_lifetime_tests::explicit_retention_survives_callback_unwind_and_releases_at_terminal_handoff ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2857 filtered out; finished in 0.03s
+

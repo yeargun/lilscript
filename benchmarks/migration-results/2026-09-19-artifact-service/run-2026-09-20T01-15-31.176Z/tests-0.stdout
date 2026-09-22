@@ -1,0 +1,9 @@
+
+running 4 tests
+test semantic::type_resolution_tests::explicit_and_contextual_collection_constructors_keep_nested_types ... ok
+test semantic::type_resolution_tests::nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays_nominal ... ok
+test semantic::type_resolution_tests::arity_resolution_order_and_key_diagnostics_keep_exact_spans ... ok
+test semantic::type_resolution_tests::nested_builtin_types_preserve_every_resolved_argument ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2930 filtered out; finished in 0.00s
+

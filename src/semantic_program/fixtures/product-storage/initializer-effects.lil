@@ -1,0 +1,6 @@
+struct State { int first; int unusedSecond; int unusedThird; }
+extern int mark(int value);
+try {
+    State state = State{mark(1),mark(2),mark(3)};
+    print(state.first);
+} catch { print(99); } finally { print(100); }

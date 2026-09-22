@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "katexlil",
+  "inventory": {
+    "path": "benchmarks/libraries/katexlil.required-tests.json",
+    "sha256": "f27398e318336fc059311b4460acfececa360af488ddb632ba5e03d4c0fc05db",
+    "bytes": 1648761
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/katexlil/receipt.json",
+    "sha256": "92c29536f04a57c9a8db8c0f6a0dcbd696ee3b16bc2274e5f0a7716875ebc1de",
+    "bytes": 26163
+  },
+  "frozenCases": 26,
+  "observedCases": 26,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/browser-perf.test.mjs\",20,3,1,\"test\",\"renders the corpus identically and within the regression guard rail\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/browser-perf.test.mjs\",19,1,0,\"suite\",\"browser performance (Playwright, Chromium)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",18,3,1,\"test\",\"contains no runtime JavaScript host modules\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",25,3,1,\"test\",\"matches official render-a11y-string outputs and errors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",68,3,1,\"test\",\"matches official mhchem rendering across parser state machines\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/contrib-differential.test.mjs\",17,1,0,\"suite\",\"contrib LilScript parity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",38,3,1,\"test\",\"renders x^2 with MathML and HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",47,3,1,\"test\",\"renders frac\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",56,3,1,\"test\",\"matches the upstream root exports\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",82,3,1,\"test\",\"honors throwOnError and errorColor\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",90,3,1,\"test\",\"pins option keys on the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",98,3,1,\"test\",\"render appends a DOM tree and covers the TeX surface\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",124,3,1,\"test\",\"closed artifact performs the core call\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/katex.test.mjs\",37,1,0,\"suite\",\"@itslil/katex\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",14,3,1,\"test\",\"reports the pinned upstream version in ESM, CJS, and the CLI\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",27,3,1,\"test\",\"matches pinned upstream root and contrib export keys\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",49,3,1,\"test\",\"renders stdin through the CLI\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",59,3,1,\"test\",\"loads ESM and CommonJS contrib entry points\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",70,3,1,\"test\",\"loads browser builds as classic scripts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",100,3,1,\"test\",\"matches official mhchem output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",113,3,1,\"test\",\"matches official output across the screenshot corpus\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/package.test.mjs\",13,1,0,\"suite\",\"published surface\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",25,3,1,\"test\",\"ships the benchmark page and the corpus it shares with Node\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",31,3,1,\"test\",\"publishes results that name their sources and both worlds\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

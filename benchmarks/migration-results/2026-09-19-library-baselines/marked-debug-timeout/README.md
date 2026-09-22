@@ -1,0 +1,14 @@
+# Marked Debug Baseline: Timed Out
+
+This is a frozen failure record, not a qualified library baseline or a performance result. No retry or library edits were made while archiving it.
+
+- The old synchronous workload runner attempted `scripts/build.mjs --compile` in the isolated Marked workspace. The task-run observation records an outer exit code of 1 after a 300-second timeout during the first configured Brotli compile. The saved build record reports 300101 ms, `status: null`, and `trust: "untrustworthy"`.
+- There are no completed compiler-invocation receipts, no recorded artifacts, and no test results. The one-byte build log contains only a newline. Raw/gzip/Brotli sizes, runtime correctness, compiler speed, and full-library coverage are not established.
+- The compiler was the accepted 760-check **debug** baseline preserved under `/tmp/lilscript-checked-rewrite-baseline-20260919`. Its source qualification is [run-2026-09-19T13-59-26.405Z](../../2026-09-19-artifact-service/run-2026-09-19T13-59-26.405Z/receipt.json), with stable input identity `8cb3f1b60dfc2137037891b84b17f7779fd254da6dee927e4facf96e90a05b7f`. That compiler qualification does not qualify this failed Marked run.
+- Compiler SHA-256: `65c1f32c02309dc36e008f7f9cb77ede94fdf339278399d314a1f345e9ae7630`. Codec SHA-256: `6aff01216c5a4c839c551205cb4294423be13ea744c5527879254fe436a42cb0`. Both the preserved baseline files and the run's copied binaries independently matched these identities at archival time; binaries are not copied here.
+- All 104 files listed in the recorded Marked source snapshot matched SHA-256, byte count, and executable mode in both the source repository and the isolated run workspace. Its recorded snapshot identity is `41a47a645f2708a9c9093264182cd466fa44793b71b2a8a5110075bdf293cb50`; its Git HEAD still matched `dbfaf30fb162a0f100e5d97c232d263b84d1cfd3`. This comparison does not establish the absence of unlisted files or a clean worktree.
+- The workload manifest and all four referenced test-contract files matched their recorded hashes. Exact copies are retained under `workload-identities/`. The build script/config hashes in the source snapshot confirm that the first configured compile uses `lilscript.toml`, `cost_model = "brotli"`, and the output name `dist/marked.raw.js`; that filename does not mean a raw-objective compile.
+
+`manifest.json`, `markedlil.json`, `logs/`, and `wrappers/` are byte-for-byte copies from `/tmp/lilscript-source-built-marked-20260919`. The invocation directory was empty. The source workspace and binaries are deliberately excluded. [receipt.json](receipt.json) records the archival checks and evidence hashes.
+
+The executed runner's pre-run source hash was **not captured**. The wrapper imports a helper by absolute path, but that helper and the workload runner were subsequently updated. Their current source identities are not execution provenance for this failure and are not substituted here.

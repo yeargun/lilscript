@@ -1,0 +1,138 @@
+{
+  "status": "source archive; execution qualification pending",
+  "scope": "Six unchanged authored factory modules plus complete original Marked rules module and explicitly excerpted original str API module. Remaining .lil files are authored integration adapters; no full Marked library claim. The full str.original.lil file is retained for byte-range provenance only and is not imported or compiled.",
+  "files": [
+    {
+      "file": "factory/entry.lil",
+      "origin": "src/semantic_program/fixtures/modules-javascript/entry.lil",
+      "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+      "adaptation": "None: existing six-file integration source preserved byte-exact."
+    },
+    {
+      "file": "factory/barrel.lil",
+      "origin": "src/semantic_program/fixtures/modules-javascript/barrel.lil",
+      "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+      "adaptation": "None: existing six-file integration source preserved byte-exact."
+    },
+    {
+      "file": "factory/factory.lil",
+      "origin": "src/semantic_program/fixtures/modules-javascript/factory.lil",
+      "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+      "adaptation": "None: existing six-file integration source preserved byte-exact."
+    },
+    {
+      "file": "factory/state.lil",
+      "origin": "src/semantic_program/fixtures/modules-javascript/state.lil",
+      "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+      "adaptation": "None: existing six-file integration source preserved byte-exact."
+    },
+    {
+      "file": "factory/boot.lil",
+      "origin": "src/semantic_program/fixtures/modules-javascript/boot.lil",
+      "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+      "adaptation": "None: existing six-file integration source preserved byte-exact."
+    },
+    {
+      "file": "factory/public.lil",
+      "origin": "src/semantic_program/fixtures/modules-javascript/public.lil",
+      "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+      "adaptation": "None: existing six-file integration source preserved byte-exact."
+    },
+    {
+      "file": "marked/rules.lil",
+      "origin": "/home/azureuser/markedlil/src/rules.lil",
+      "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+      "adaptation": "None: complete original 184-line module, 117 Regex values and seven factories."
+    },
+    {
+      "file": "marked/str-slice.lil",
+      "origin": "/home/azureuser/markedlil/src/str.lil",
+      "original_sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+      "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+      "regions": [
+        {
+          "name": "original-import",
+          "start": 0,
+          "end": 213,
+          "line_start": 1,
+          "line_end": 10,
+          "sha256": "97d8271a31b0eb982e2ffe26685f641123c541e52a95acaa75912cd01ddd0ac2"
+        },
+        {
+          "name": "slice",
+          "start": 487,
+          "end": 571,
+          "line_start": 29,
+          "line_end": 31,
+          "sha256": "f9d21c94e92dfad2e3fa2bd4578183b249a37058a5850dd11c57d9f24a0bbe30"
+        },
+        {
+          "name": "sliceFrom",
+          "start": 572,
+          "end": 646,
+          "line_start": 33,
+          "line_end": 35,
+          "sha256": "fc3b0808dcd38fc3a2b163d19105bef57630af9bef277be21e46965cd518848a"
+        },
+        {
+          "name": "replaceRe",
+          "start": 647,
+          "end": 752,
+          "line_start": 37,
+          "line_end": 39,
+          "sha256": "1a18946ac9998700daacb501fdb7dc62a03453106dae5994179afe0aec48a2c8"
+        },
+        {
+          "name": "execRe",
+          "start": 753,
+          "end": 824,
+          "line_start": 41,
+          "line_end": 43,
+          "sha256": "d2bf1885ae0ac3fa0e12b5f1c37f0cb3b83b6447b74640afb7f68b37875ed29b"
+        },
+        {
+          "name": "joinLines",
+          "start": 1352,
+          "end": 1563,
+          "line_start": 70,
+          "line_end": 81,
+          "sha256": "755dfdccf8ad275284f9c8ff6806dd670ba347d9f42d7c54d9d4d987a78f2b0a"
+        },
+        {
+          "name": "splitLines",
+          "start": 1564,
+          "end": 1633,
+          "line_start": 83,
+          "line_end": 85,
+          "sha256": "1a0e399d22e97e73e49aac43f7e656067840ec3f9be72c46123e918e83afd912"
+        },
+        {
+          "name": "firstLine",
+          "start": 1634,
+          "end": 1765,
+          "line_start": 87,
+          "line_end": 93,
+          "sha256": "1f3400b27eca6a7a94cfa2bb002d6f85320eec2031e3031a7135e3a074699af8"
+        },
+        {
+          "name": "expandTabs",
+          "start": 3141,
+          "end": 3549,
+          "line_start": 162,
+          "line_end": 179,
+          "sha256": "0548609db5b1763c970c2ba8c2771ba9d0b993b3cf6888e2086f64113430eef2"
+        },
+        {
+          "name": "removeCodeIndent",
+          "start": 8309,
+          "end": 8447,
+          "line_start": 370,
+          "line_end": 373,
+          "sha256": "56e6a18c45d3b1c3a408cc051ffa8a91782c2ca23b28581892de127b0fb0832e"
+        }
+      ],
+      "adaptation": "Original full ./rules.lil import stanza and nine complete exported function declarations preserved byte-exact, in source order, separated by one newline. Other declarations omitted. This is an explicit source excerpt module, not the complete str module; rules are a separate actual import, never concatenated into this source.",
+      "original_archive": "marked/str.original.lil"
+    }
+  ]
+}

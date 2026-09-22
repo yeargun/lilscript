@@ -39,3 +39,6 @@
 
 # Isolated agent worktrees created by Claude Code
 .claude/worktrees/
+
+# Python bytecode from finer/tools
+__pycache__/

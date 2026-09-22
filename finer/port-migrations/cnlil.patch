@@ -1,0 +1,7 @@
+--- a/src/default.lil
++++ b/src/default.lil
+@@ -1,3 +1,4 @@
++extern JsValue Error;
+ // The public functions over the default engine: `cn` with its argument-identity cache and
+ // sequence prediction (upstream's `wrapClsx`), `twMerge`, `clsx` and `twJoin`. The cache is
+ // module state for the same reason the engine is (finer 048). The `cn` fast paths read the

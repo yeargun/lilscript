@@ -1,0 +1,10 @@
+
+running 5 tests
+test semantic_program::recipe_descriptor_tests::descriptor_callback_error_and_unwind_preserve_the_shared_original_domain ... ok
+test semantic_program::recipe_descriptor_tests::descriptor_distinguishes_real_recipe_choices_without_retaining_another_candidate ... ok
+test semantic_program::recipe_descriptor_tests::completed_naming_variants_share_the_candidate_descriptor_after_source_disposal ... ok
+test semantic_program::recipe_descriptor_tests::descriptor_rejects_foreign_and_recycled_candidate_handles_before_admission ... ok
+test semantic_program::recipe_descriptor_tests::descriptor_work_and_memory_denial_never_call_the_observer_or_leak_backing ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2857 filtered out; finished in 0.01s
+

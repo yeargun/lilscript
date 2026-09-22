@@ -1,0 +1,7 @@
+
+running 2 tests
+test compiler::rest_capture_tests::rest_argument_alias_keeps_nested_mutation_and_invocation_identity_at_emission ... ok
+test compiler::rest_capture_tests::rest_argument_alias_keeps_nested_mutation_and_invocation_identity_in_configured_pipeline ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2928 filtered out; finished in 0.30s
+

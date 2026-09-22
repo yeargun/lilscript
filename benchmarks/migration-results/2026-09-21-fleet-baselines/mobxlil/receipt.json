@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "mobxlil",
+  "started": "2026-09-21T01:07:20.239Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/mobxlil",
+  "workspace": "/tmp/lilscript-baseline-mobxlil-I3DM2J/mobxlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/mobxlil",
+    "candidates": [
+      "/home/azureuser/mobxlil",
+      "/home/azureuser/mobxlil",
+      "/tmp/lilscript-page-refresh-20260910/current/mobxlil"
+    ],
+    "recorded": "/home/azureuser/mobxlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/mobxlil",
+    "files": 556,
+    "sha256": "e5de1927008656d148ba9144fb3146f768b9729dfd5d8a400a5b972cf3902523"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/mobxlil/config/dev.toml",
+        "sha256": "a0676a8c30c8b9cfc9c6f2fe15a677d89209c5338e4f8df470e99b1220cdfcd1",
+        "bytes": 453
+      },
+      {
+        "path": "/home/azureuser/mobxlil/config/perf.toml",
+        "sha256": "15c1dec745765dc87eb9fca0cbd3423f917091dd21d2ef0caf305dc332b51cbe",
+        "bytes": 785
+      },
+      {
+        "path": "/home/azureuser/mobxlil/config/production.min.toml",
+        "sha256": "25e3f6f7b59d8aac62434d64b0b1f48d39fe3ef85ae41ef23c9a0ba272e86991",
+        "bytes": 1591
+      },
+      {
+        "path": "/home/azureuser/mobxlil/lilscript.toml",
+        "sha256": "dac309765067eb2a72bdf618917f06c126a75b68c1744122ec88d4378b26c6e4",
+        "bytes": 2671
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/index.js",
+    "dist/mobx.cjs.development.js",
+    "dist/mobx.cjs.production.js",
+    "dist/mobx.cjs.production.min.js",
+    "dist/mobx.dev.esm.js",
+    "dist/mobx.esm.development.js",
+    "dist/mobx.esm.js",
+    "dist/mobx.esm.js.mjs",
+    "dist/mobx.esm.production.min.js",
+    "dist/mobx.mjs",
+    "dist/mobx.umd.development.js",
+    "dist/mobx.umd.production.js",
+    "dist/mobx.umd.production.min.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 103.436,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "the build left these artifacts empty, so they were not rebuilt: dist/mobx.esm.js.mjs",
+    "stack": "AssertionError [ERR_ASSERTION]: the build left these artifacts empty, so they were not rebuilt: dist/mobx.esm.js.mjs\n    at buildSourceBaseline (file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:225:5)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:329:21"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 109.137,
+  "completed": "2026-09-21T01:09:09.339Z",
+  "fingerprint": "4ed6337d43e5e99e5fbd5c06ca7e009e6746e6cb256a403e76fd306a3522677b"
+}

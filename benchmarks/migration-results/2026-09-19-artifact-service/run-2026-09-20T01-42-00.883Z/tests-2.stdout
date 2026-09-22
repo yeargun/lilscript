@@ -1,0 +1,20 @@
+
+running 15 tests
+test semantic_program::search_tests::invalid_ledger_and_missing_runtime_evidence_reject_before_search_work_or_storage ... ok
+test semantic_program::search_tests::artifact_identity::qualified_winner_keeps_complete_recipe_after_search_and_source_disposal ... ok
+test semantic_program::search_tests::one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union ... ok
+test semantic_program::search_tests::discovery::private_product_transport_search_is_independent_and_retries_under_stronger_caps ... ok
+test semantic_program::search_tests::panicking_observer_releases_losing_artifact_provenance_and_search_storage ... ok
+test semantic_program::search_tests::discovery::one_artifact_attempt_can_reach_a_literal_after_many_unavailable_helpers ... ok
+test semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes ... ok
+test semantic_program::search_tests::taking_one_shared_winner_moves_its_buffer_and_consumes_all_objective_aliases ... ok
+test semantic_program::search_tests::discovery::one_closed_product_proof_covers_its_copy_hints_without_a_facts_cache ... ok
+test semantic_program::search_tests::optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents ... ok
+test semantic_program::search_tests::real_gzip_and_brotli_winners_survive_independently ... ok
+test semantic_program::search_tests::discovery::cold_low_search_and_high_warmed_low_search_keep_exact_winners_and_request_charges ... ok
+test semantic_program::search_tests::zero_optional_work_seals_a_completely_scored_direct_baseline ... ok
+test semantic_program::search_tests::structural_discovery_matches_independent_twelve_state_oracle_and_measured_union ... ok
+test semantic_program::search_tests::discovery::truncated_queries_are_skipped_within_the_request_and_retried_with_stronger_bounds ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 2924 filtered out; finished in 1.97s
+

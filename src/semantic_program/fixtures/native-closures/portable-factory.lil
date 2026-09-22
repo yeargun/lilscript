@@ -1,0 +1,11 @@
+// Authored portable callback consumer of the unchanged integrated value/ref module.
+import {productScore} from "../integrated-architecture/products.lil";
+extern void keep(int slot,func(int)->int callback);
+struct Counter {int count;string label;}
+export void installCounter(int seed,int slot) {
+    Counter state=Counter{seed,"counter/ready"};
+    keep(slot,(int delta)=>{
+        state.count+=delta;
+        return productScore(state.count,state.label.length);
+    });
+}

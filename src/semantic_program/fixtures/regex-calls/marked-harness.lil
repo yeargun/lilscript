@@ -1,0 +1,1 @@
+export bool testRe(Regex value, string input) { return value.test(input); }

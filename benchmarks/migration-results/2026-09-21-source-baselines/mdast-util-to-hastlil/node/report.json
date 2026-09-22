@@ -1,0 +1,3863 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/mdast-util-to-hastlil/node/events.jsonl",
+    "test/site.test.mjs",
+    "test/to-hast.test.mjs",
+    "test/official/index.js"
+  ],
+  "testFiles": [
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+      "bytes": 984
+    },
+    {
+      "path": "test/to-hast.test.mjs",
+      "sha256": "33ec55c7eebb303d2bb1203cdc219995175844d0c206a69e1a4f5257c0164807",
+      "bytes": 8408
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "453f9cdb4a4c9e983f4635acd1b421703fca9f7ec5a45cbf865e3ed281af38a8",
+      "bytes": 717
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "files": [
+      "test/official/index.js",
+      "test/site.test.mjs",
+      "test/to-hast.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/mdast-util-to-hastlil/node/observe.mjs",
+    "sha256": "676276ba85b4109ccddf25f7035585e86381ca7b29f92c5e7ac5bcbf04a73a60",
+    "bytes": 475,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+          "bytes": 2154
+        },
+        "actual": {
+          "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+          "bytes": 2154
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+          "bytes": 60128
+        },
+        "actual": {
+          "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+          "bytes": 60128
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+          "bytes": 288
+        },
+        "actual": {
+          "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+          "bytes": 288
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/types/to-hast.d.ts",
+        "expected": {
+          "path": "types/to-hast.d.ts",
+          "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+          "bytes": 4830
+        },
+        "actual": {
+          "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+          "bytes": 4830
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.d.ts",
+        "expected": {
+          "path": "test/types.d.ts",
+          "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+          "bytes": 1324
+        },
+        "actual": {
+          "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+          "bytes": 1324
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+          "bytes": 1083
+        },
+        "actual": {
+          "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+          "bytes": 1083
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "efa94cdc47fcc87a26a73d228c73eada69550e487c98ce58d94880e29b19f7e2",
+          "bytes": 1121
+        },
+        "actual": {
+          "sha256": "efa94cdc47fcc87a26a73d228c73eada69550e487c98ce58d94880e29b19f7e2",
+          "bytes": 1121
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "6a02fbc0a446cd61235a56009532146df2959f86ab7365a93f4e47b5467b41ba",
+          "bytes": 945
+        },
+        "actual": {
+          "sha256": "6a02fbc0a446cd61235a56009532146df2959f86ab7365a93f4e47b5467b41ba",
+          "bytes": 945
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "f085cd18d05fa8da033f0cdccfd132da10b6832203b97e094c54c5405068eada",
+          "bytes": 9436
+        },
+        "actual": {
+          "sha256": "f085cd18d05fa8da033f0cdccfd132da10b6832203b97e094c54c5405068eada",
+          "bytes": 9436
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "8f813e6a34bc78f5875590b61fcd8547f37a8051dbe69980a3569e7a4bf403a0",
+          "bytes": 2814
+        },
+        "actual": {
+          "sha256": "8f813e6a34bc78f5875590b61fcd8547f37a8051dbe69980a3569e7a4bf403a0",
+          "bytes": 2814
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/blockquote.js",
+        "expected": {
+          "path": "test/official/blockquote.js",
+          "sha256": "57c0858eaeaede929ae56c72f033dba2986cc7a350b12cfe71f685cea4a46ba7",
+          "bytes": 660
+        },
+        "actual": {
+          "sha256": "57c0858eaeaede929ae56c72f033dba2986cc7a350b12cfe71f685cea4a46ba7",
+          "bytes": 660
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/break.js",
+        "expected": {
+          "path": "test/official/break.js",
+          "sha256": "71d8f00ae4390e8c521f5859f3bacc0f409fe98470bdb7092c0c19aba92a23c7",
+          "bytes": 1985
+        },
+        "actual": {
+          "sha256": "71d8f00ae4390e8c521f5859f3bacc0f409fe98470bdb7092c0c19aba92a23c7",
+          "bytes": 1985
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/code.js",
+        "expected": {
+          "path": "test/official/code.js",
+          "sha256": "1c134952e3fc7179d67748b3a91c48ee2457ddf09075698c35b5a366b735044d",
+          "bytes": 1794
+        },
+        "actual": {
+          "sha256": "1c134952e3fc7179d67748b3a91c48ee2457ddf09075698c35b5a366b735044d",
+          "bytes": 1794
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/core.js",
+        "expected": {
+          "path": "test/official/core.js",
+          "sha256": "679ab3a88f00c67bd5a6e707ceacbc81ef966e728449dde8a28f01ccaf50f6c4",
+          "bytes": 9514
+        },
+        "actual": {
+          "sha256": "679ab3a88f00c67bd5a6e707ceacbc81ef966e728449dde8a28f01ccaf50f6c4",
+          "bytes": 9514
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/definition.js",
+        "expected": {
+          "path": "test/official/definition.js",
+          "sha256": "13df216085eb9ee00f4c3b2fdf71d1c1b4a156da0f1e98b7cef7c034b314fa22",
+          "bytes": 1117
+        },
+        "actual": {
+          "sha256": "13df216085eb9ee00f4c3b2fdf71d1c1b4a156da0f1e98b7cef7c034b314fa22",
+          "bytes": 1117
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/delete.js",
+        "expected": {
+          "path": "test/official/delete.js",
+          "sha256": "6c05087341e8a8959ba3e97f2e700c0c42bde9ae35e59c64813921625bd1abfc",
+          "bytes": 393
+        },
+        "actual": {
+          "sha256": "6c05087341e8a8959ba3e97f2e700c0c42bde9ae35e59c64813921625bd1abfc",
+          "bytes": 393
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/emphasis.js",
+        "expected": {
+          "path": "test/official/emphasis.js",
+          "sha256": "85cfb21f12514f70cfe2ece586c7239fecb1b714d57dc18a9f0d0739faffefab",
+          "bytes": 397
+        },
+        "actual": {
+          "sha256": "85cfb21f12514f70cfe2ece586c7239fecb1b714d57dc18a9f0d0739faffefab",
+          "bytes": 397
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote-definition.js",
+        "expected": {
+          "path": "test/official/footnote-definition.js",
+          "sha256": "d7b7f4af3508af18d20793a9a7fb8e601b67abc1a726b152bb9690e122bb844c",
+          "bytes": 4216
+        },
+        "actual": {
+          "sha256": "d7b7f4af3508af18d20793a9a7fb8e601b67abc1a726b152bb9690e122bb844c",
+          "bytes": 4216
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote-reference.js",
+        "expected": {
+          "path": "test/official/footnote-reference.js",
+          "sha256": "f3208eaab74cfc55de5524b5a518a99ebca7b1c22ab8b316da5eed9c14370d8e",
+          "bytes": 1621
+        },
+        "actual": {
+          "sha256": "f3208eaab74cfc55de5524b5a518a99ebca7b1c22ab8b316da5eed9c14370d8e",
+          "bytes": 1621
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote.js",
+        "expected": {
+          "path": "test/official/footnote.js",
+          "sha256": "8f6c8cd909fdff5d4eee27e51d0b8b421c6fb16ecfa34d9fb00bfcc982bedc03",
+          "bytes": 13344
+        },
+        "actual": {
+          "sha256": "8f6c8cd909fdff5d4eee27e51d0b8b421c6fb16ecfa34d9fb00bfcc982bedc03",
+          "bytes": 13344
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/heading.js",
+        "expected": {
+          "path": "test/official/heading.js",
+          "sha256": "e87a2080822e7aef6b8b5cb43b390291797d6e3af389390074b568ad81af1a58",
+          "bytes": 480
+        },
+        "actual": {
+          "sha256": "e87a2080822e7aef6b8b5cb43b390291797d6e3af389390074b568ad81af1a58",
+          "bytes": 480
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/html.js",
+        "expected": {
+          "path": "test/official/html.js",
+          "sha256": "ad480fa6d10eba490a347da4fc1e45eccb51f08bb1b5028e8d4a15c9294833f5",
+          "bytes": 659
+        },
+        "actual": {
+          "sha256": "ad480fa6d10eba490a347da4fc1e45eccb51f08bb1b5028e8d4a15c9294833f5",
+          "bytes": 659
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/image-reference.js",
+        "expected": {
+          "path": "test/official/image-reference.js",
+          "sha256": "95bc3b8bb8c62b999f6bf1d94e0fcab3067adf83a7f134c6c110a979fb94aaed",
+          "bytes": 2712
+        },
+        "actual": {
+          "sha256": "95bc3b8bb8c62b999f6bf1d94e0fcab3067adf83a7f134c6c110a979fb94aaed",
+          "bytes": 2712
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/image.js",
+        "expected": {
+          "path": "test/official/image.js",
+          "sha256": "4aa26f39ad3441bb372e8bf0dc74cc7e761c83502aac1efb9754c9aef5f7b3c6",
+          "bytes": 711
+        },
+        "actual": {
+          "sha256": "4aa26f39ad3441bb372e8bf0dc74cc7e761c83502aac1efb9754c9aef5f7b3c6",
+          "bytes": 711
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/inline-code.js",
+        "expected": {
+          "path": "test/official/inline-code.js",
+          "sha256": "e79505d6b9b1aee7b25753842ef4be78012fb9fc2b05a24dbc83c5c027169eec",
+          "bytes": 809
+        },
+        "actual": {
+          "sha256": "e79505d6b9b1aee7b25753842ef4be78012fb9fc2b05a24dbc83c5c027169eec",
+          "bytes": 809
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/link-reference.js",
+        "expected": {
+          "path": "test/official/link-reference.js",
+          "sha256": "d8353ba2cd52f44f66f3fede318618bf11fcb3a757a520ad957bfd83b7194765",
+          "bytes": 3302
+        },
+        "actual": {
+          "sha256": "d8353ba2cd52f44f66f3fede318618bf11fcb3a757a520ad957bfd83b7194765",
+          "bytes": 3302
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/link.js",
+        "expected": {
+          "path": "test/official/link.js",
+          "sha256": "2a12c6365117ef3475f0634df9b8b05c72836ac21eeeb9ab161437a45c1967fb",
+          "bytes": 1596
+        },
+        "actual": {
+          "sha256": "2a12c6365117ef3475f0634df9b8b05c72836ac21eeeb9ab161437a45c1967fb",
+          "bytes": 1596
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/list-item.js",
+        "expected": {
+          "path": "test/official/list-item.js",
+          "sha256": "59d185a3eaefe92501aadf44ba7355d6d25241d88a93ed94d4df8e3ea36a8992",
+          "bytes": 5025
+        },
+        "actual": {
+          "sha256": "59d185a3eaefe92501aadf44ba7355d6d25241d88a93ed94d4df8e3ea36a8992",
+          "bytes": 5025
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/list.js",
+        "expected": {
+          "path": "test/official/list.js",
+          "sha256": "e46a0615935a8e8a02cccec4bdfa91434558edd981561bf344843fac7b972a56",
+          "bytes": 2212
+        },
+        "actual": {
+          "sha256": "e46a0615935a8e8a02cccec4bdfa91434558edd981561bf344843fac7b972a56",
+          "bytes": 2212
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/paragraph.js",
+        "expected": {
+          "path": "test/official/paragraph.js",
+          "sha256": "21fe54121b597d1f7ad7ae59effe65ae378e76f9a91a281269f46426ad45b72d",
+          "bytes": 430
+        },
+        "actual": {
+          "sha256": "21fe54121b597d1f7ad7ae59effe65ae378e76f9a91a281269f46426ad45b72d",
+          "bytes": 430
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/root.js",
+        "expected": {
+          "path": "test/official/root.js",
+          "sha256": "f6aca6c60493955271249dca6e4b2d29c156b2941023c72bbdb03b8552e5d3c4",
+          "bytes": 1529
+        },
+        "actual": {
+          "sha256": "f6aca6c60493955271249dca6e4b2d29c156b2941023c72bbdb03b8552e5d3c4",
+          "bytes": 1529
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/strong.js",
+        "expected": {
+          "path": "test/official/strong.js",
+          "sha256": "8db2b3caabd0469ec5dd5056eb5d0446ceb8b9d2587d8a0fa248566288094530",
+          "bytes": 399
+        },
+        "actual": {
+          "sha256": "8db2b3caabd0469ec5dd5056eb5d0446ceb8b9d2587d8a0fa248566288094530",
+          "bytes": 399
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/table.js",
+        "expected": {
+          "path": "test/official/table.js",
+          "sha256": "7b306b3b4067f553a417456b4d8b5a8dad7758e8cfe14cc97ea8927e260cc499",
+          "bytes": 3637
+        },
+        "actual": {
+          "sha256": "7b306b3b4067f553a417456b4d8b5a8dad7758e8cfe14cc97ea8927e260cc499",
+          "bytes": 3637
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/text.js",
+        "expected": {
+          "path": "test/official/text.js",
+          "sha256": "fa35d6faf41508b39d500fd607f119b6e433d227e97ce0bbd43b4cef9a3a13d9",
+          "bytes": 2167
+        },
+        "actual": {
+          "sha256": "fa35d6faf41508b39d500fd607f119b6e433d227e97ce0bbd43b4cef9a3a13d9",
+          "bytes": 2167
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/thematic-break.js",
+        "expected": {
+          "path": "test/official/thematic-break.js",
+          "sha256": "bb5759b94c9e557963e318d83e487df53f64db1ae622c886aa5c396e45525994",
+          "bytes": 341
+        },
+        "actual": {
+          "sha256": "bb5759b94c9e557963e318d83e487df53f64db1ae622c886aa5c396e45525994",
+          "bytes": 341
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/toml.js",
+        "expected": {
+          "path": "test/official/toml.js",
+          "sha256": "349a8345311e34f9ec95bb9a5190047aa32330947b1330b385a0a5897a7ae97b",
+          "bytes": 329
+        },
+        "actual": {
+          "sha256": "349a8345311e34f9ec95bb9a5190047aa32330947b1330b385a0a5897a7ae97b",
+          "bytes": 329
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/yaml.js",
+        "expected": {
+          "path": "test/official/yaml.js",
+          "sha256": "2f51f31cbcb76c4dbac90a7d976693c2fb0a09e7032a032fb37af17754b9b79c",
+          "bytes": 329
+        },
+        "actual": {
+          "sha256": "2f51f31cbcb76c4dbac90a7d976693c2fb0a09e7032a032fb37af17754b9b79c",
+          "bytes": 329
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+          "bytes": 2154
+        },
+        "actual": {
+          "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+          "bytes": 2154
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+          "bytes": 60128
+        },
+        "actual": {
+          "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+          "bytes": 60128
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+          "bytes": 288
+        },
+        "actual": {
+          "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+          "bytes": 288
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/types/to-hast.d.ts",
+        "expected": {
+          "path": "types/to-hast.d.ts",
+          "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+          "bytes": 4830
+        },
+        "actual": {
+          "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+          "bytes": 4830
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.d.ts",
+        "expected": {
+          "path": "test/types.d.ts",
+          "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+          "bytes": 1324
+        },
+        "actual": {
+          "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+          "bytes": 1324
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+          "bytes": 1083
+        },
+        "actual": {
+          "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+          "bytes": 1083
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "efa94cdc47fcc87a26a73d228c73eada69550e487c98ce58d94880e29b19f7e2",
+          "bytes": 1121
+        },
+        "actual": {
+          "sha256": "efa94cdc47fcc87a26a73d228c73eada69550e487c98ce58d94880e29b19f7e2",
+          "bytes": 1121
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "6a02fbc0a446cd61235a56009532146df2959f86ab7365a93f4e47b5467b41ba",
+          "bytes": 945
+        },
+        "actual": {
+          "sha256": "6a02fbc0a446cd61235a56009532146df2959f86ab7365a93f4e47b5467b41ba",
+          "bytes": 945
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "f085cd18d05fa8da033f0cdccfd132da10b6832203b97e094c54c5405068eada",
+          "bytes": 9436
+        },
+        "actual": {
+          "sha256": "f085cd18d05fa8da033f0cdccfd132da10b6832203b97e094c54c5405068eada",
+          "bytes": 9436
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "8f813e6a34bc78f5875590b61fcd8547f37a8051dbe69980a3569e7a4bf403a0",
+          "bytes": 2814
+        },
+        "actual": {
+          "sha256": "8f813e6a34bc78f5875590b61fcd8547f37a8051dbe69980a3569e7a4bf403a0",
+          "bytes": 2814
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/blockquote.js",
+        "expected": {
+          "path": "test/official/blockquote.js",
+          "sha256": "57c0858eaeaede929ae56c72f033dba2986cc7a350b12cfe71f685cea4a46ba7",
+          "bytes": 660
+        },
+        "actual": {
+          "sha256": "57c0858eaeaede929ae56c72f033dba2986cc7a350b12cfe71f685cea4a46ba7",
+          "bytes": 660
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/break.js",
+        "expected": {
+          "path": "test/official/break.js",
+          "sha256": "71d8f00ae4390e8c521f5859f3bacc0f409fe98470bdb7092c0c19aba92a23c7",
+          "bytes": 1985
+        },
+        "actual": {
+          "sha256": "71d8f00ae4390e8c521f5859f3bacc0f409fe98470bdb7092c0c19aba92a23c7",
+          "bytes": 1985
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/code.js",
+        "expected": {
+          "path": "test/official/code.js",
+          "sha256": "1c134952e3fc7179d67748b3a91c48ee2457ddf09075698c35b5a366b735044d",
+          "bytes": 1794
+        },
+        "actual": {
+          "sha256": "1c134952e3fc7179d67748b3a91c48ee2457ddf09075698c35b5a366b735044d",
+          "bytes": 1794
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/core.js",
+        "expected": {
+          "path": "test/official/core.js",
+          "sha256": "679ab3a88f00c67bd5a6e707ceacbc81ef966e728449dde8a28f01ccaf50f6c4",
+          "bytes": 9514
+        },
+        "actual": {
+          "sha256": "679ab3a88f00c67bd5a6e707ceacbc81ef966e728449dde8a28f01ccaf50f6c4",
+          "bytes": 9514
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/definition.js",
+        "expected": {
+          "path": "test/official/definition.js",
+          "sha256": "13df216085eb9ee00f4c3b2fdf71d1c1b4a156da0f1e98b7cef7c034b314fa22",
+          "bytes": 1117
+        },
+        "actual": {
+          "sha256": "13df216085eb9ee00f4c3b2fdf71d1c1b4a156da0f1e98b7cef7c034b314fa22",
+          "bytes": 1117
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/delete.js",
+        "expected": {
+          "path": "test/official/delete.js",
+          "sha256": "6c05087341e8a8959ba3e97f2e700c0c42bde9ae35e59c64813921625bd1abfc",
+          "bytes": 393
+        },
+        "actual": {
+          "sha256": "6c05087341e8a8959ba3e97f2e700c0c42bde9ae35e59c64813921625bd1abfc",
+          "bytes": 393
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/emphasis.js",
+        "expected": {
+          "path": "test/official/emphasis.js",
+          "sha256": "85cfb21f12514f70cfe2ece586c7239fecb1b714d57dc18a9f0d0739faffefab",
+          "bytes": 397
+        },
+        "actual": {
+          "sha256": "85cfb21f12514f70cfe2ece586c7239fecb1b714d57dc18a9f0d0739faffefab",
+          "bytes": 397
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote-definition.js",
+        "expected": {
+          "path": "test/official/footnote-definition.js",
+          "sha256": "d7b7f4af3508af18d20793a9a7fb8e601b67abc1a726b152bb9690e122bb844c",
+          "bytes": 4216
+        },
+        "actual": {
+          "sha256": "d7b7f4af3508af18d20793a9a7fb8e601b67abc1a726b152bb9690e122bb844c",
+          "bytes": 4216
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote-reference.js",
+        "expected": {
+          "path": "test/official/footnote-reference.js",
+          "sha256": "f3208eaab74cfc55de5524b5a518a99ebca7b1c22ab8b316da5eed9c14370d8e",
+          "bytes": 1621
+        },
+        "actual": {
+          "sha256": "f3208eaab74cfc55de5524b5a518a99ebca7b1c22ab8b316da5eed9c14370d8e",
+          "bytes": 1621
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote.js",
+        "expected": {
+          "path": "test/official/footnote.js",
+          "sha256": "8f6c8cd909fdff5d4eee27e51d0b8b421c6fb16ecfa34d9fb00bfcc982bedc03",
+          "bytes": 13344
+        },
+        "actual": {
+          "sha256": "8f6c8cd909fdff5d4eee27e51d0b8b421c6fb16ecfa34d9fb00bfcc982bedc03",
+          "bytes": 13344
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/heading.js",
+        "expected": {
+          "path": "test/official/heading.js",
+          "sha256": "e87a2080822e7aef6b8b5cb43b390291797d6e3af389390074b568ad81af1a58",
+          "bytes": 480
+        },
+        "actual": {
+          "sha256": "e87a2080822e7aef6b8b5cb43b390291797d6e3af389390074b568ad81af1a58",
+          "bytes": 480
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/html.js",
+        "expected": {
+          "path": "test/official/html.js",
+          "sha256": "ad480fa6d10eba490a347da4fc1e45eccb51f08bb1b5028e8d4a15c9294833f5",
+          "bytes": 659
+        },
+        "actual": {
+          "sha256": "ad480fa6d10eba490a347da4fc1e45eccb51f08bb1b5028e8d4a15c9294833f5",
+          "bytes": 659
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/image-reference.js",
+        "expected": {
+          "path": "test/official/image-reference.js",
+          "sha256": "95bc3b8bb8c62b999f6bf1d94e0fcab3067adf83a7f134c6c110a979fb94aaed",
+          "bytes": 2712
+        },
+        "actual": {
+          "sha256": "95bc3b8bb8c62b999f6bf1d94e0fcab3067adf83a7f134c6c110a979fb94aaed",
+          "bytes": 2712
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/image.js",
+        "expected": {
+          "path": "test/official/image.js",
+          "sha256": "4aa26f39ad3441bb372e8bf0dc74cc7e761c83502aac1efb9754c9aef5f7b3c6",
+          "bytes": 711
+        },
+        "actual": {
+          "sha256": "4aa26f39ad3441bb372e8bf0dc74cc7e761c83502aac1efb9754c9aef5f7b3c6",
+          "bytes": 711
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/inline-code.js",
+        "expected": {
+          "path": "test/official/inline-code.js",
+          "sha256": "e79505d6b9b1aee7b25753842ef4be78012fb9fc2b05a24dbc83c5c027169eec",
+          "bytes": 809
+        },
+        "actual": {
+          "sha256": "e79505d6b9b1aee7b25753842ef4be78012fb9fc2b05a24dbc83c5c027169eec",
+          "bytes": 809
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/link-reference.js",
+        "expected": {
+          "path": "test/official/link-reference.js",
+          "sha256": "d8353ba2cd52f44f66f3fede318618bf11fcb3a757a520ad957bfd83b7194765",
+          "bytes": 3302
+        },
+        "actual": {
+          "sha256": "d8353ba2cd52f44f66f3fede318618bf11fcb3a757a520ad957bfd83b7194765",
+          "bytes": 3302
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/link.js",
+        "expected": {
+          "path": "test/official/link.js",
+          "sha256": "2a12c6365117ef3475f0634df9b8b05c72836ac21eeeb9ab161437a45c1967fb",
+          "bytes": 1596
+        },
+        "actual": {
+          "sha256": "2a12c6365117ef3475f0634df9b8b05c72836ac21eeeb9ab161437a45c1967fb",
+          "bytes": 1596
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/list-item.js",
+        "expected": {
+          "path": "test/official/list-item.js",
+          "sha256": "59d185a3eaefe92501aadf44ba7355d6d25241d88a93ed94d4df8e3ea36a8992",
+          "bytes": 5025
+        },
+        "actual": {
+          "sha256": "59d185a3eaefe92501aadf44ba7355d6d25241d88a93ed94d4df8e3ea36a8992",
+          "bytes": 5025
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/list.js",
+        "expected": {
+          "path": "test/official/list.js",
+          "sha256": "e46a0615935a8e8a02cccec4bdfa91434558edd981561bf344843fac7b972a56",
+          "bytes": 2212
+        },
+        "actual": {
+          "sha256": "e46a0615935a8e8a02cccec4bdfa91434558edd981561bf344843fac7b972a56",
+          "bytes": 2212
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/paragraph.js",
+        "expected": {
+          "path": "test/official/paragraph.js",
+          "sha256": "21fe54121b597d1f7ad7ae59effe65ae378e76f9a91a281269f46426ad45b72d",
+          "bytes": 430
+        },
+        "actual": {
+          "sha256": "21fe54121b597d1f7ad7ae59effe65ae378e76f9a91a281269f46426ad45b72d",
+          "bytes": 430
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/root.js",
+        "expected": {
+          "path": "test/official/root.js",
+          "sha256": "f6aca6c60493955271249dca6e4b2d29c156b2941023c72bbdb03b8552e5d3c4",
+          "bytes": 1529
+        },
+        "actual": {
+          "sha256": "f6aca6c60493955271249dca6e4b2d29c156b2941023c72bbdb03b8552e5d3c4",
+          "bytes": 1529
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/strong.js",
+        "expected": {
+          "path": "test/official/strong.js",
+          "sha256": "8db2b3caabd0469ec5dd5056eb5d0446ceb8b9d2587d8a0fa248566288094530",
+          "bytes": 399
+        },
+        "actual": {
+          "sha256": "8db2b3caabd0469ec5dd5056eb5d0446ceb8b9d2587d8a0fa248566288094530",
+          "bytes": 399
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/table.js",
+        "expected": {
+          "path": "test/official/table.js",
+          "sha256": "7b306b3b4067f553a417456b4d8b5a8dad7758e8cfe14cc97ea8927e260cc499",
+          "bytes": 3637
+        },
+        "actual": {
+          "sha256": "7b306b3b4067f553a417456b4d8b5a8dad7758e8cfe14cc97ea8927e260cc499",
+          "bytes": 3637
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/text.js",
+        "expected": {
+          "path": "test/official/text.js",
+          "sha256": "fa35d6faf41508b39d500fd607f119b6e433d227e97ce0bbd43b4cef9a3a13d9",
+          "bytes": 2167
+        },
+        "actual": {
+          "sha256": "fa35d6faf41508b39d500fd607f119b6e433d227e97ce0bbd43b4cef9a3a13d9",
+          "bytes": 2167
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/thematic-break.js",
+        "expected": {
+          "path": "test/official/thematic-break.js",
+          "sha256": "bb5759b94c9e557963e318d83e487df53f64db1ae622c886aa5c396e45525994",
+          "bytes": 341
+        },
+        "actual": {
+          "sha256": "bb5759b94c9e557963e318d83e487df53f64db1ae622c886aa5c396e45525994",
+          "bytes": 341
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/toml.js",
+        "expected": {
+          "path": "test/official/toml.js",
+          "sha256": "349a8345311e34f9ec95bb9a5190047aa32330947b1330b385a0a5897a7ae97b",
+          "bytes": 329
+        },
+        "actual": {
+          "sha256": "349a8345311e34f9ec95bb9a5190047aa32330947b1330b385a0a5897a7ae97b",
+          "bytes": 329
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/yaml.js",
+        "expected": {
+          "path": "test/official/yaml.js",
+          "sha256": "2f51f31cbcb76c4dbac90a7d976693c2fb0a09e7032a032fb37af17754b9b79c",
+          "bytes": 329
+        },
+        "actual": {
+          "sha256": "2f51f31cbcb76c4dbac90a7d976693c2fb0a09e7032a032fb37af17754b9b79c",
+          "bytes": 329
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+          "bytes": 2154
+        },
+        "actual": {
+          "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+          "bytes": 2154
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+          "bytes": 60128
+        },
+        "actual": {
+          "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+          "bytes": 60128
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+          "bytes": 288
+        },
+        "actual": {
+          "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+          "bytes": 288
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/types/to-hast.d.ts",
+        "expected": {
+          "path": "types/to-hast.d.ts",
+          "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+          "bytes": 4830
+        },
+        "actual": {
+          "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+          "bytes": 4830
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.d.ts",
+        "expected": {
+          "path": "test/types.d.ts",
+          "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+          "bytes": 1324
+        },
+        "actual": {
+          "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+          "bytes": 1324
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+          "bytes": 1083
+        },
+        "actual": {
+          "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+          "bytes": 1083
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "efa94cdc47fcc87a26a73d228c73eada69550e487c98ce58d94880e29b19f7e2",
+          "bytes": 1121
+        },
+        "actual": {
+          "sha256": "efa94cdc47fcc87a26a73d228c73eada69550e487c98ce58d94880e29b19f7e2",
+          "bytes": 1121
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "6a02fbc0a446cd61235a56009532146df2959f86ab7365a93f4e47b5467b41ba",
+          "bytes": 945
+        },
+        "actual": {
+          "sha256": "6a02fbc0a446cd61235a56009532146df2959f86ab7365a93f4e47b5467b41ba",
+          "bytes": 945
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "f085cd18d05fa8da033f0cdccfd132da10b6832203b97e094c54c5405068eada",
+          "bytes": 9436
+        },
+        "actual": {
+          "sha256": "f085cd18d05fa8da033f0cdccfd132da10b6832203b97e094c54c5405068eada",
+          "bytes": 9436
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "8f813e6a34bc78f5875590b61fcd8547f37a8051dbe69980a3569e7a4bf403a0",
+          "bytes": 2814
+        },
+        "actual": {
+          "sha256": "8f813e6a34bc78f5875590b61fcd8547f37a8051dbe69980a3569e7a4bf403a0",
+          "bytes": 2814
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/blockquote.js",
+        "expected": {
+          "path": "test/official/blockquote.js",
+          "sha256": "57c0858eaeaede929ae56c72f033dba2986cc7a350b12cfe71f685cea4a46ba7",
+          "bytes": 660
+        },
+        "actual": {
+          "sha256": "57c0858eaeaede929ae56c72f033dba2986cc7a350b12cfe71f685cea4a46ba7",
+          "bytes": 660
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/break.js",
+        "expected": {
+          "path": "test/official/break.js",
+          "sha256": "71d8f00ae4390e8c521f5859f3bacc0f409fe98470bdb7092c0c19aba92a23c7",
+          "bytes": 1985
+        },
+        "actual": {
+          "sha256": "71d8f00ae4390e8c521f5859f3bacc0f409fe98470bdb7092c0c19aba92a23c7",
+          "bytes": 1985
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/code.js",
+        "expected": {
+          "path": "test/official/code.js",
+          "sha256": "1c134952e3fc7179d67748b3a91c48ee2457ddf09075698c35b5a366b735044d",
+          "bytes": 1794
+        },
+        "actual": {
+          "sha256": "1c134952e3fc7179d67748b3a91c48ee2457ddf09075698c35b5a366b735044d",
+          "bytes": 1794
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/core.js",
+        "expected": {
+          "path": "test/official/core.js",
+          "sha256": "679ab3a88f00c67bd5a6e707ceacbc81ef966e728449dde8a28f01ccaf50f6c4",
+          "bytes": 9514
+        },
+        "actual": {
+          "sha256": "679ab3a88f00c67bd5a6e707ceacbc81ef966e728449dde8a28f01ccaf50f6c4",
+          "bytes": 9514
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/definition.js",
+        "expected": {
+          "path": "test/official/definition.js",
+          "sha256": "13df216085eb9ee00f4c3b2fdf71d1c1b4a156da0f1e98b7cef7c034b314fa22",
+          "bytes": 1117
+        },
+        "actual": {
+          "sha256": "13df216085eb9ee00f4c3b2fdf71d1c1b4a156da0f1e98b7cef7c034b314fa22",
+          "bytes": 1117
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/delete.js",
+        "expected": {
+          "path": "test/official/delete.js",
+          "sha256": "6c05087341e8a8959ba3e97f2e700c0c42bde9ae35e59c64813921625bd1abfc",
+          "bytes": 393
+        },
+        "actual": {
+          "sha256": "6c05087341e8a8959ba3e97f2e700c0c42bde9ae35e59c64813921625bd1abfc",
+          "bytes": 393
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/emphasis.js",
+        "expected": {
+          "path": "test/official/emphasis.js",
+          "sha256": "85cfb21f12514f70cfe2ece586c7239fecb1b714d57dc18a9f0d0739faffefab",
+          "bytes": 397
+        },
+        "actual": {
+          "sha256": "85cfb21f12514f70cfe2ece586c7239fecb1b714d57dc18a9f0d0739faffefab",
+          "bytes": 397
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote-definition.js",
+        "expected": {
+          "path": "test/official/footnote-definition.js",
+          "sha256": "d7b7f4af3508af18d20793a9a7fb8e601b67abc1a726b152bb9690e122bb844c",
+          "bytes": 4216
+        },
+        "actual": {
+          "sha256": "d7b7f4af3508af18d20793a9a7fb8e601b67abc1a726b152bb9690e122bb844c",
+          "bytes": 4216
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote-reference.js",
+        "expected": {
+          "path": "test/official/footnote-reference.js",
+          "sha256": "f3208eaab74cfc55de5524b5a518a99ebca7b1c22ab8b316da5eed9c14370d8e",
+          "bytes": 1621
+        },
+        "actual": {
+          "sha256": "f3208eaab74cfc55de5524b5a518a99ebca7b1c22ab8b316da5eed9c14370d8e",
+          "bytes": 1621
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/footnote.js",
+        "expected": {
+          "path": "test/official/footnote.js",
+          "sha256": "8f6c8cd909fdff5d4eee27e51d0b8b421c6fb16ecfa34d9fb00bfcc982bedc03",
+          "bytes": 13344
+        },
+        "actual": {
+          "sha256": "8f6c8cd909fdff5d4eee27e51d0b8b421c6fb16ecfa34d9fb00bfcc982bedc03",
+          "bytes": 13344
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/heading.js",
+        "expected": {
+          "path": "test/official/heading.js",
+          "sha256": "e87a2080822e7aef6b8b5cb43b390291797d6e3af389390074b568ad81af1a58",
+          "bytes": 480
+        },
+        "actual": {
+          "sha256": "e87a2080822e7aef6b8b5cb43b390291797d6e3af389390074b568ad81af1a58",
+          "bytes": 480
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/html.js",
+        "expected": {
+          "path": "test/official/html.js",
+          "sha256": "ad480fa6d10eba490a347da4fc1e45eccb51f08bb1b5028e8d4a15c9294833f5",
+          "bytes": 659
+        },
+        "actual": {
+          "sha256": "ad480fa6d10eba490a347da4fc1e45eccb51f08bb1b5028e8d4a15c9294833f5",
+          "bytes": 659
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/image-reference.js",
+        "expected": {
+          "path": "test/official/image-reference.js",
+          "sha256": "95bc3b8bb8c62b999f6bf1d94e0fcab3067adf83a7f134c6c110a979fb94aaed",
+          "bytes": 2712
+        },
+        "actual": {
+          "sha256": "95bc3b8bb8c62b999f6bf1d94e0fcab3067adf83a7f134c6c110a979fb94aaed",
+          "bytes": 2712
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/image.js",
+        "expected": {
+          "path": "test/official/image.js",
+          "sha256": "4aa26f39ad3441bb372e8bf0dc74cc7e761c83502aac1efb9754c9aef5f7b3c6",
+          "bytes": 711
+        },
+        "actual": {
+          "sha256": "4aa26f39ad3441bb372e8bf0dc74cc7e761c83502aac1efb9754c9aef5f7b3c6",
+          "bytes": 711
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/inline-code.js",
+        "expected": {
+          "path": "test/official/inline-code.js",
+          "sha256": "e79505d6b9b1aee7b25753842ef4be78012fb9fc2b05a24dbc83c5c027169eec",
+          "bytes": 809
+        },
+        "actual": {
+          "sha256": "e79505d6b9b1aee7b25753842ef4be78012fb9fc2b05a24dbc83c5c027169eec",
+          "bytes": 809
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/link-reference.js",
+        "expected": {
+          "path": "test/official/link-reference.js",
+          "sha256": "d8353ba2cd52f44f66f3fede318618bf11fcb3a757a520ad957bfd83b7194765",
+          "bytes": 3302
+        },
+        "actual": {
+          "sha256": "d8353ba2cd52f44f66f3fede318618bf11fcb3a757a520ad957bfd83b7194765",
+          "bytes": 3302
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/link.js",
+        "expected": {
+          "path": "test/official/link.js",
+          "sha256": "2a12c6365117ef3475f0634df9b8b05c72836ac21eeeb9ab161437a45c1967fb",
+          "bytes": 1596
+        },
+        "actual": {
+          "sha256": "2a12c6365117ef3475f0634df9b8b05c72836ac21eeeb9ab161437a45c1967fb",
+          "bytes": 1596
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/list-item.js",
+        "expected": {
+          "path": "test/official/list-item.js",
+          "sha256": "59d185a3eaefe92501aadf44ba7355d6d25241d88a93ed94d4df8e3ea36a8992",
+          "bytes": 5025
+        },
+        "actual": {
+          "sha256": "59d185a3eaefe92501aadf44ba7355d6d25241d88a93ed94d4df8e3ea36a8992",
+          "bytes": 5025
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/list.js",
+        "expected": {
+          "path": "test/official/list.js",
+          "sha256": "e46a0615935a8e8a02cccec4bdfa91434558edd981561bf344843fac7b972a56",
+          "bytes": 2212
+        },
+        "actual": {
+          "sha256": "e46a0615935a8e8a02cccec4bdfa91434558edd981561bf344843fac7b972a56",
+          "bytes": 2212
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/paragraph.js",
+        "expected": {
+          "path": "test/official/paragraph.js",
+          "sha256": "21fe54121b597d1f7ad7ae59effe65ae378e76f9a91a281269f46426ad45b72d",
+          "bytes": 430
+        },
+        "actual": {
+          "sha256": "21fe54121b597d1f7ad7ae59effe65ae378e76f9a91a281269f46426ad45b72d",
+          "bytes": 430
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/root.js",
+        "expected": {
+          "path": "test/official/root.js",
+          "sha256": "f6aca6c60493955271249dca6e4b2d29c156b2941023c72bbdb03b8552e5d3c4",
+          "bytes": 1529
+        },
+        "actual": {
+          "sha256": "f6aca6c60493955271249dca6e4b2d29c156b2941023c72bbdb03b8552e5d3c4",
+          "bytes": 1529
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/strong.js",
+        "expected": {
+          "path": "test/official/strong.js",
+          "sha256": "8db2b3caabd0469ec5dd5056eb5d0446ceb8b9d2587d8a0fa248566288094530",
+          "bytes": 399
+        },
+        "actual": {
+          "sha256": "8db2b3caabd0469ec5dd5056eb5d0446ceb8b9d2587d8a0fa248566288094530",
+          "bytes": 399
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/table.js",
+        "expected": {
+          "path": "test/official/table.js",
+          "sha256": "7b306b3b4067f553a417456b4d8b5a8dad7758e8cfe14cc97ea8927e260cc499",
+          "bytes": 3637
+        },
+        "actual": {
+          "sha256": "7b306b3b4067f553a417456b4d8b5a8dad7758e8cfe14cc97ea8927e260cc499",
+          "bytes": 3637
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/text.js",
+        "expected": {
+          "path": "test/official/text.js",
+          "sha256": "fa35d6faf41508b39d500fd607f119b6e433d227e97ce0bbd43b4cef9a3a13d9",
+          "bytes": 2167
+        },
+        "actual": {
+          "sha256": "fa35d6faf41508b39d500fd607f119b6e433d227e97ce0bbd43b4cef9a3a13d9",
+          "bytes": 2167
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/thematic-break.js",
+        "expected": {
+          "path": "test/official/thematic-break.js",
+          "sha256": "bb5759b94c9e557963e318d83e487df53f64db1ae622c886aa5c396e45525994",
+          "bytes": 341
+        },
+        "actual": {
+          "sha256": "bb5759b94c9e557963e318d83e487df53f64db1ae622c886aa5c396e45525994",
+          "bytes": 341
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/toml.js",
+        "expected": {
+          "path": "test/official/toml.js",
+          "sha256": "349a8345311e34f9ec95bb9a5190047aa32330947b1330b385a0a5897a7ae97b",
+          "bytes": 329
+        },
+        "actual": {
+          "sha256": "349a8345311e34f9ec95bb9a5190047aa32330947b1330b385a0a5897a7ae97b",
+          "bytes": 329
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/official/yaml.js",
+        "expected": {
+          "path": "test/official/yaml.js",
+          "sha256": "2f51f31cbcb76c4dbac90a7d976693c2fb0a09e7032a032fb37af17754b9b79c",
+          "bytes": 329
+        },
+        "actual": {
+          "sha256": "2f51f31cbcb76c4dbac90a7d976693c2fb0a09e7032a032fb37af17754b9b79c",
+          "bytes": 329
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-test-types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "test:types"
+        ],
+        "timeoutMs": 60000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          {
+            "path": "tsconfig.json",
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          {
+            "path": "types/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          {
+            "path": "dist/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          {
+            "path": "test/types.d.ts",
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          {
+            "path": "test/types.test.ts",
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "test:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          "actual": {
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          "actual": {
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/tsconfig.json",
+          "expected": {
+            "path": "tsconfig.json",
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          "actual": {
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/types/to-hast.d.ts",
+          "expected": {
+            "path": "types/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "actual": {
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.d.ts",
+          "expected": {
+            "path": "dist/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "actual": {
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.d.ts",
+          "expected": {
+            "path": "test/types.d.ts",
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          "actual": {
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          "actual": {
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "actual": {
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "actual": {
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/mdast-util-to-hastlil/node/prerequisite-0.stdout",
+        "sha256": "ddaee76d5feb14fcb9d7cb7e003db99d889f13802c8347994fd34a68a8d033d0",
+        "bytes": 64
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/mdast-util-to-hastlil/node/prerequisite-0.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          "actual": {
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          "actual": {
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/tsconfig.json",
+          "expected": {
+            "path": "tsconfig.json",
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          "actual": {
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/types/to-hast.d.ts",
+          "expected": {
+            "path": "types/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "actual": {
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.d.ts",
+          "expected": {
+            "path": "dist/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "actual": {
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.d.ts",
+          "expected": {
+            "path": "test/types.d.ts",
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          "actual": {
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          "actual": {
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "actual": {
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "actual": {
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          "actual": {
+            "sha256": "8528ef57a355c8e95be68d2d16155a6e7f7bc66128051dcb89f50213cbe2a77f",
+            "bytes": 2154
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          "actual": {
+            "sha256": "e952b0d01f97fdf164e82ef30c46be796d45371347fa0148cc411f9fcbd29f77",
+            "bytes": 60128
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/tsconfig.json",
+          "expected": {
+            "path": "tsconfig.json",
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          "actual": {
+            "sha256": "83661168f6a56d868915a1bde05398ecabe6e5dddacf2af2d677435d9044e62f",
+            "bytes": 288
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/types/to-hast.d.ts",
+          "expected": {
+            "path": "types/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "actual": {
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.d.ts",
+          "expected": {
+            "path": "dist/to-hast.d.ts",
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "actual": {
+            "sha256": "bf19af2da52157fb81a3fc0383154e551f7405c58b8f94744554166764174e35",
+            "bytes": 4830
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.d.ts",
+          "expected": {
+            "path": "test/types.d.ts",
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          "actual": {
+            "sha256": "acfa29a0a320143006fcce954b3a7f2d417fb3551559e465b79078b7fd61a55f",
+            "bytes": 1324
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          "actual": {
+            "sha256": "9668e084f164e12bec0ef8b96eba8baec842381c0c90a2bb590a31de9d67b9ef",
+            "bytes": 1083
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "actual": {
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "actual": {
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/home/azureuser/.local/bin:/home/azureuser/.cargo/bin:/home/azureuser/.opencode/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.sdkman/candidates/springboot/current/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.local/bin:/home/azureuser/eddocupptx/build/release:/home/azureuser/.bun/bin:/home/azureuser/.nvm/versions/node/v20.19.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/azureuser/.claude/remote/plugins/e386d0f8/f3b2ab7888e1fcd9/bin"
+  },
+  "supervision": {
+    "timeoutMs": 900000,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [
+      "[\"test/official/blockquote.js\",6,1,0,\"test\",\"blockquote\",1]",
+      "[\"test/official/blockquote.js\",7,11,1,\"test\",\"should transform `blockquote` to a `blockquote` element\",1]",
+      "[\"test/official/break.js\",21,11,1,\"test\",\"should trim text after a `br` (#1)\",1]",
+      "[\"test/official/break.js\",35,11,1,\"test\",\"should trim text after a `br` (#2)\",1]",
+      "[\"test/official/break.js\",49,11,1,\"test\",\"should trim text after a `br` (#3)\",1]",
+      "[\"test/official/break.js\",6,1,0,\"test\",\"break\",1]",
+      "[\"test/official/break.js\",7,11,1,\"test\",\"should transform `break` to `br`\",1]",
+      "[\"test/official/code.js\",17,11,1,\"test\",\"should transform `code` to a `pre` element (#2)\",1]",
+      "[\"test/official/code.js\",27,11,1,\"test\",\"should transform `code` to a `pre` element with language class\",1]",
+      "[\"test/official/code.js\",37,11,1,\"test\",\"should transform `lang` w/ spaces\",1]",
+      "[\"test/official/code.js\",44,11,1,\"test\",\"should support `meta`\",1]",
+      "[\"test/official/code.js\",59,11,1,\"test\",\"should support tabs in code\",1]",
+      "[\"test/official/code.js\",6,1,0,\"test\",\"code\",1]",
+      "[\"test/official/code.js\",7,11,1,\"test\",\"should transform `code` to a `pre` element (#1)\",1]",
+      "[\"test/official/core.js\",12,1,0,\"test\",\"toHast\",1]",
+      "[\"test/official/core.js\",127,11,1,\"test\",\"should patch `position`s when given\",1]",
+      "[\"test/official/core.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+      "[\"test/official/core.js\",150,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+      "[\"test/official/core.js\",187,11,1,\"test\",\"should transform unknown texts to `text`\",1]",
+      "[\"test/official/core.js\",195,11,1,\"test\",\"should transform unknown parents to `div`\",1]",
+      "[\"test/official/core.js\",203,11,1,\"test\",\"should transform unknown voids to `div`\",1]",
+      "[\"test/official/core.js\",211,11,1,\"test\",\"should transform unknown nodes with `data.h*` properties\",1]",
+      "[\"test/official/core.js\",22,11,1,\"test\",\"should throw on non-nodes\",1]",
+      "[\"test/official/core.js\",230,11,1,\"test\",\"should transform unknown nodes with `data.hChildren` only to `div`\",1]",
+      "[\"test/official/core.js\",245,11,1,\"test\",\"should transform unknown nodes with `data.hProperties` only to a `element` node\",1]",
+      "[\"test/official/core.js\",270,11,1,\"test\",\"should override default handlers\",1]",
+      "[\"test/official/core.js\",294,11,1,\"test\",\"should support files\",1]",
+      "[\"test/official/core.js\",317,11,1,\"test\",\"should support unknown nodes by default\",1]",
+      "[\"test/official/core.js\",324,11,1,\"test\",\"should support `unknownHandler`\",1]",
+      "[\"test/official/core.js\",335,11,1,\"test\",\"should support `passThrough`\",1]",
+      "[\"test/official/core.js\",34,11,1,\"test\",\"should prefer `data.hName` to tag names\",1]",
+      "[\"test/official/core.js\",45,11,1,\"test\",\"should prefer `data.hChildren` to children\",1]",
+      "[\"test/official/core.js\",56,11,1,\"test\",\"should support `data.hProperties`\",1]",
+      "[\"test/official/core.js\",67,11,1,\"test\",\"should patch `position`s when given\",1]",
+      "[\"test/official/core.js\",90,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+      "[\"test/official/definition.js\",18,11,1,\"test\",\"should prefer the first definition\",1]",
+      "[\"test/official/definition.js\",6,1,0,\"test\",\"definition\",1]",
+      "[\"test/official/definition.js\",7,11,1,\"test\",\"should ignore `definition`\",1]",
+      "[\"test/official/delete.js\",6,1,0,\"test\",\"delete\",1]",
+      "[\"test/official/delete.js\",7,11,1,\"test\",\"should transform `delete` to `del`\",1]",
+      "[\"test/official/emphasis.js\",6,1,0,\"test\",\"emphasis\",1]",
+      "[\"test/official/emphasis.js\",7,11,1,\"test\",\"should transform `emphasis` to `em`\",1]",
+      "[\"test/official/footnote-definition.js\",20,11,1,\"test\",\"should support a `footnoteDefinition`\",1]",
+      "[\"test/official/footnote-definition.js\",6,1,0,\"test\",\"footnoteDefinition\",1]",
+      "[\"test/official/footnote-definition.js\",7,11,1,\"test\",\"should ignore `footnoteDefinition`\",1]",
+      "[\"test/official/footnote-definition.js\",83,11,1,\"test\",\"should use the first `footnoteDefinition` if multiple exist\",1]",
+      "[\"test/official/footnote-reference.js\",25,11,1,\"test\",\"should render `footnoteReference`s (#2)\",1]",
+      "[\"test/official/footnote-reference.js\",43,11,1,\"test\",\"should not fail on non-string identifiers\",1]",
+      "[\"test/official/footnote-reference.js\",6,1,0,\"test\",\"footnoteReference\",1]",
+      "[\"test/official/footnote-reference.js\",7,11,1,\"test\",\"should render `footnoteReference`s\",1]",
+      "[\"test/official/footnote.js\",100,11,1,\"test\",\"should render footnotes in table cells\",1]",
+      "[\"test/official/footnote.js\",13,1,0,\"test\",\"footnote\",1]",
+      "[\"test/official/footnote.js\",135,11,1,\"test\",\"should render reused and resursive footnotes\",1]",
+      "[\"test/official/footnote.js\",14,11,1,\"test\",\"should render `footnote`s (#1)\",1]",
+      "[\"test/official/footnote.js\",159,11,1,\"test\",\"should support `footnoteLabel`, `footnoteBackLabel`\",1]",
+      "[\"test/official/footnote.js\",187,11,1,\"test\",\"should support `footnoteBackLabel` as a function\",1]",
+      "[\"test/official/footnote.js\",220,11,1,\"test\",\"should support `footnoteBackContent` as `string`\",1]",
+      "[\"test/official/footnote.js\",245,11,1,\"test\",\"should support `footnoteBackContent` as a function`\",1]",
+      "[\"test/official/footnote.js\",286,11,1,\"test\",\"should support an empty `clobberPrefix`\",1]",
+      "[\"test/official/footnote.js\",308,11,1,\"test\",\"should support a `footnoteLabelTagName`\",1]",
+      "[\"test/official/footnote.js\",330,11,1,\"test\",\"should support a `footnoteLabelProperties`\",1]",
+      "[\"test/official/footnote.js\",352,11,1,\"test\",\"should support funky footnote identifiers\",1]",
+      "[\"test/official/footnote.js\",56,11,1,\"test\",\"should render footnotes in tables\",1]",
+      "[\"test/official/heading.js\",6,1,0,\"test\",\"heading\",1]",
+      "[\"test/official/heading.js\",7,11,1,\"test\",\"should transform `heading` to a `h[1-6]` element\",1]",
+      "[\"test/official/html.js\",13,11,1,\"test\",\"should transform `html` to `raw` if `allowDangerousHtml` is given\",1]",
+      "[\"test/official/html.js\",5,1,0,\"test\",\"HTML\",1]",
+      "[\"test/official/html.js\",6,11,1,\"test\",\"should ignore `html`\",1]",
+      "[\"test/official/image-reference.js\",22,11,1,\"test\",\"should fall back on full `imageReference`s\",1]",
+      "[\"test/official/image-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `imageReference`s\",1]",
+      "[\"test/official/image-reference.js\",49,11,1,\"test\",\"should transform `imageReference`s to `img`s (1)\",1]",
+      "[\"test/official/image-reference.js\",6,1,0,\"test\",\"imageReference\",1]",
+      "[\"test/official/image-reference.js\",66,11,1,\"test\",\"should transform `imageReference`s with an empty defined url to `img`s\",1]",
+      "[\"test/official/image-reference.js\",7,11,1,\"test\",\"should fall back on `imageReference`s without definition\",1]",
+      "[\"test/official/image-reference.js\",83,11,1,\"test\",\"should fall back on the label on a full `imageReference` (GH-22)\",1]",
+      "[\"test/official/image.js\",18,11,1,\"test\",\"should transform `image` to `img` (missing `title`)\",1]",
+      "[\"test/official/image.js\",6,1,0,\"test\",\"image\",1]",
+      "[\"test/official/image.js\",7,11,1,\"test\",\"should transform `image` to `img`\",1]",
+      "[\"test/official/inline-code.js\",17,11,1,\"test\",\"should support tabs in inline code\",1]",
+      "[\"test/official/inline-code.js\",24,11,1,\"test\",\"should change eols to spaces in inline code\",1]",
+      "[\"test/official/inline-code.js\",6,1,0,\"test\",\"inlineCode\",1]",
+      "[\"test/official/inline-code.js\",7,11,1,\"test\",\"should transform `inlineCode` to a `code` element\",1]",
+      "[\"test/official/link-reference.js\",103,11,1,\"test\",\"should transform `linkReference`s with an empty defined url to `a`s\",1]",
+      "[\"test/official/link-reference.js\",22,11,1,\"test\",\"should fall back on full `linkReference`s\",1]",
+      "[\"test/official/link-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `linkReference`s\",1]",
+      "[\"test/official/link-reference.js\",49,11,1,\"test\",\"should fall back on the label on a full `linkReference` (GH-22)\",1]",
+      "[\"test/official/link-reference.js\",6,1,0,\"test\",\"linkReference\",1]",
+      "[\"test/official/link-reference.js\",65,11,1,\"test\",\"should support link references with non-text content\",1]",
+      "[\"test/official/link-reference.js\",7,11,1,\"test\",\"should fall back on `linkReference`s without definition\",1]",
+      "[\"test/official/link-reference.js\",80,11,1,\"test\",\"should transform `linkReference`s to `a`s\",1]",
+      "[\"test/official/link.js\",19,11,1,\"test\",\"should transform `link` to `a` (w/o `title`)\",1]",
+      "[\"test/official/link.js\",33,11,1,\"test\",\"should correctly decode/encode urls\",1]",
+      "[\"test/official/link.js\",50,11,1,\"test\",\"should correctly decode/encode dangerous characters\",1]",
+      "[\"test/official/link.js\",6,1,0,\"test\",\"link\",1]",
+      "[\"test/official/link.js\",7,11,1,\"test\",\"should transform `link` to `a`\",1]",
+      "[\"test/official/list-item.js\",102,11,1,\"test\",\"should support checkboxes in `listItem`s w/o paragraph\",1]",
+      "[\"test/official/list-item.js\",124,11,1,\"test\",\"should support checkboxes in `listItem`s that don’t start with paragraphs\",1]",
+      "[\"test/official/list-item.js\",156,11,1,\"test\",\"should support `listItem`s without children\",1]",
+      "[\"test/official/list-item.js\",163,11,1,\"test\",\"should support checkboxes in `listItem`s without children\",1]",
+      "[\"test/official/list-item.js\",175,11,1,\"test\",\"should support lists in `listItem`s\",1]",
+      "[\"test/official/list-item.js\",22,11,1,\"test\",\"should transform a spread `listItem`s to a `li` element\",1]",
+      "[\"test/official/list-item.js\",38,11,1,\"test\",\"should detect that an item is spread, even when not explicitly set\",1]",
+      "[\"test/official/list-item.js\",54,11,1,\"test\",\"should support checkboxes in `listItem`s (`true`, tight item)\",1]",
+      "[\"test/official/list-item.js\",6,1,0,\"test\",\"listItem\",1]",
+      "[\"test/official/list-item.js\",7,11,1,\"test\",\"should transform `listItem`s to a `li` element\",1]",
+      "[\"test/official/list-item.js\",74,11,1,\"test\",\"should support checkboxes in `listItem`s (`false`, loose item)\",1]",
+      "[\"test/official/list.js\",25,11,1,\"test\",\"should transform unordered lists to `ul`\",1]",
+      "[\"test/official/list.js\",42,11,1,\"test\",\"should identify task list items in unordered lists\",1]",
+      "[\"test/official/list.js\",6,1,0,\"test\",\"list\",1]",
+      "[\"test/official/list.js\",7,11,1,\"test\",\"should transform ordered lists to `ol`\",1]",
+      "[\"test/official/list.js\",74,11,1,\"test\",\"should support `start` in ordered lists\",1]",
+      "[\"test/official/paragraph.js\",6,1,0,\"test\",\"paragraph\",1]",
+      "[\"test/official/paragraph.js\",7,11,1,\"test\",\"should transform `paragraph` to a `p` element\",1]",
+      "[\"test/official/root.js\",11,11,1,\"test\",\"should transform root nodes w/ `hName`\",1]",
+      "[\"test/official/root.js\",22,11,1,\"test\",\"should transform root nodes w/ `hName`, `hProperties`\",1]",
+      "[\"test/official/root.js\",36,11,1,\"test\",\"should transform root nodes w/ `hName`, `hChildren`\",1]",
+      "[\"test/official/root.js\",6,1,0,\"test\",\"root\",1]",
+      "[\"test/official/root.js\",7,11,1,\"test\",\"should map `root`s\",1]",
+      "[\"test/official/strong.js\",6,1,0,\"test\",\"strong\",1]",
+      "[\"test/official/strong.js\",7,11,1,\"test\",\"should transform `strong` to `strong`\",1]",
+      "[\"test/official/table.js\",101,11,1,\"test\",\"should handle a table node w/o rows\",1]",
+      "[\"test/official/table.js\",105,11,1,\"test\",\"should handle a table row node w/ cells\",1]",
+      "[\"test/official/table.js\",118,11,1,\"test\",\"should handle a table row node w/o cells\",1]",
+      "[\"test/official/table.js\",122,11,1,\"test\",\"should handle a table cell node w/ children\",1]",
+      "[\"test/official/table.js\",132,11,1,\"test\",\"should handle a table cell node w/o children\",1]",
+      "[\"test/official/table.js\",6,1,0,\"test\",\"table\",1]",
+      "[\"test/official/table.js\",7,11,1,\"test\",\"should transform `table`\",1]",
+      "[\"test/official/table.js\",80,11,1,\"test\",\"should not add a `tbody` if w/o second row\",1]",
+      "[\"test/official/text.js\",14,11,1,\"test\",\"should trim spaces and tabs around eols\",1]",
+      "[\"test/official/text.js\",21,11,1,\"test\",\"should transform text nodes w/ `hName` to an `element`\",1]",
+      "[\"test/official/text.js\",31,11,1,\"test\",\"should ignore `hProperties` on text nodes w/o `hName`\",1]",
+      "[\"test/official/text.js\",45,11,1,\"test\",\"should transform text nodes w/ `hProperties` and `hName` to an `element`\",1]",
+      "[\"test/official/text.js\",59,11,1,\"test\",\"should not transform text nodes w/ `hChildren` w/o `hName` to an `element`\",1]",
+      "[\"test/official/text.js\",6,1,0,\"test\",\"text\",1]",
+      "[\"test/official/text.js\",7,11,1,\"test\",\"should map `text`s\",1]",
+      "[\"test/official/text.js\",73,11,1,\"test\",\"should transform text nodes w/ `hChildren` and `hName` to an `element`\",1]",
+      "[\"test/official/thematic-break.js\",6,1,0,\"test\",\"thematicBreak\",1]",
+      "[\"test/official/thematic-break.js\",7,11,1,\"test\",\"should transform `thematicBreak` to `hr`\",1]",
+      "[\"test/official/toml.js\",5,1,0,\"test\",\"toml\",1]",
+      "[\"test/official/toml.js\",6,11,1,\"test\",\"should ignore `toml`\",1]",
+      "[\"test/official/yaml.js\",5,1,0,\"test\",\"yaml\",1]",
+      "[\"test/official/yaml.js\",6,11,1,\"test\",\"should ignore `yaml`\",1]",
+      "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "[\"test/to-hast.test.mjs\",100,1,0,\"suite\",\"@itslil/mdast-util-to-hast library\",1]",
+      "[\"test/to-hast.test.mjs\",101,3,1,\"test\",\"exports the upstream public API\",1]",
+      "[\"test/to-hast.test.mjs\",140,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+      "[\"test/to-hast.test.mjs\",153,3,1,\"test\",\"keeps pinned option and tree keys in the library artifact\",1]",
+      "[\"test/to-hast.test.mjs\",160,3,1,\"test\",\"maps a mdast fixture to hast elements\",1]",
+      "[\"test/to-hast.test.mjs\",218,3,1,\"test\",\"skips html when allowDangerousHtml is off\",1]",
+      "[\"test/to-hast.test.mjs\",228,1,0,\"suite\",\"@itslil/mdast-util-to-hast closed lane\",1]",
+      "[\"test/to-hast.test.mjs\",229,3,1,\"test\",\"exists and still converts a tree\",1]"
+    ],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/blockquote.js\",7,11,1,\"test\",\"should transform `blockquote` to a `blockquote` element\",1]",
+        "file": "test/official/blockquote.js",
+        "name": "should transform `blockquote` to a `blockquote` element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/blockquote.js\",6,1,0,\"test\",\"blockquote\",1]",
+        "file": "test/official/blockquote.js",
+        "name": "blockquote",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/break.js\",7,11,1,\"test\",\"should transform `break` to `br`\",1]",
+        "file": "test/official/break.js",
+        "name": "should transform `break` to `br`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/break.js\",21,11,1,\"test\",\"should trim text after a `br` (#1)\",1]",
+        "file": "test/official/break.js",
+        "name": "should trim text after a `br` (#1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/break.js\",35,11,1,\"test\",\"should trim text after a `br` (#2)\",1]",
+        "file": "test/official/break.js",
+        "name": "should trim text after a `br` (#2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/break.js\",49,11,1,\"test\",\"should trim text after a `br` (#3)\",1]",
+        "file": "test/official/break.js",
+        "name": "should trim text after a `br` (#3)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/break.js\",6,1,0,\"test\",\"break\",1]",
+        "file": "test/official/break.js",
+        "name": "break",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",7,11,1,\"test\",\"should transform `code` to a `pre` element (#1)\",1]",
+        "file": "test/official/code.js",
+        "name": "should transform `code` to a `pre` element (#1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",17,11,1,\"test\",\"should transform `code` to a `pre` element (#2)\",1]",
+        "file": "test/official/code.js",
+        "name": "should transform `code` to a `pre` element (#2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",27,11,1,\"test\",\"should transform `code` to a `pre` element with language class\",1]",
+        "file": "test/official/code.js",
+        "name": "should transform `code` to a `pre` element with language class",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",37,11,1,\"test\",\"should transform `lang` w/ spaces\",1]",
+        "file": "test/official/code.js",
+        "name": "should transform `lang` w/ spaces",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",44,11,1,\"test\",\"should support `meta`\",1]",
+        "file": "test/official/code.js",
+        "name": "should support `meta`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",59,11,1,\"test\",\"should support tabs in code\",1]",
+        "file": "test/official/code.js",
+        "name": "should support tabs in code",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/code.js\",6,1,0,\"test\",\"code\",1]",
+        "file": "test/official/code.js",
+        "name": "code",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/core.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",22,11,1,\"test\",\"should throw on non-nodes\",1]",
+        "file": "test/official/core.js",
+        "name": "should throw on non-nodes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",34,11,1,\"test\",\"should prefer `data.hName` to tag names\",1]",
+        "file": "test/official/core.js",
+        "name": "should prefer `data.hName` to tag names",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",45,11,1,\"test\",\"should prefer `data.hChildren` to children\",1]",
+        "file": "test/official/core.js",
+        "name": "should prefer `data.hChildren` to children",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",56,11,1,\"test\",\"should support `data.hProperties`\",1]",
+        "file": "test/official/core.js",
+        "name": "should support `data.hProperties`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",67,11,1,\"test\",\"should patch `position`s when given\",1]",
+        "file": "test/official/core.js",
+        "name": "should patch `position`s when given",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",90,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+        "file": "test/official/core.js",
+        "name": "should patch `position`s on `pre` and `code`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",127,11,1,\"test\",\"should patch `position`s when given\",1]",
+        "file": "test/official/core.js",
+        "name": "should patch `position`s when given",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",150,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+        "file": "test/official/core.js",
+        "name": "should patch `position`s on `pre` and `code`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",187,11,1,\"test\",\"should transform unknown texts to `text`\",1]",
+        "file": "test/official/core.js",
+        "name": "should transform unknown texts to `text`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",195,11,1,\"test\",\"should transform unknown parents to `div`\",1]",
+        "file": "test/official/core.js",
+        "name": "should transform unknown parents to `div`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",203,11,1,\"test\",\"should transform unknown voids to `div`\",1]",
+        "file": "test/official/core.js",
+        "name": "should transform unknown voids to `div`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",211,11,1,\"test\",\"should transform unknown nodes with `data.h*` properties\",1]",
+        "file": "test/official/core.js",
+        "name": "should transform unknown nodes with `data.h*` properties",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",230,11,1,\"test\",\"should transform unknown nodes with `data.hChildren` only to `div`\",1]",
+        "file": "test/official/core.js",
+        "name": "should transform unknown nodes with `data.hChildren` only to `div`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",245,11,1,\"test\",\"should transform unknown nodes with `data.hProperties` only to a `element` node\",1]",
+        "file": "test/official/core.js",
+        "name": "should transform unknown nodes with `data.hProperties` only to a `element` node",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",270,11,1,\"test\",\"should override default handlers\",1]",
+        "file": "test/official/core.js",
+        "name": "should override default handlers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",294,11,1,\"test\",\"should support files\",1]",
+        "file": "test/official/core.js",
+        "name": "should support files",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",317,11,1,\"test\",\"should support unknown nodes by default\",1]",
+        "file": "test/official/core.js",
+        "name": "should support unknown nodes by default",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",324,11,1,\"test\",\"should support `unknownHandler`\",1]",
+        "file": "test/official/core.js",
+        "name": "should support `unknownHandler`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",335,11,1,\"test\",\"should support `passThrough`\",1]",
+        "file": "test/official/core.js",
+        "name": "should support `passThrough`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",12,1,0,\"test\",\"toHast\",1]",
+        "file": "test/official/core.js",
+        "name": "toHast",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/definition.js\",7,11,1,\"test\",\"should ignore `definition`\",1]",
+        "file": "test/official/definition.js",
+        "name": "should ignore `definition`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/definition.js\",18,11,1,\"test\",\"should prefer the first definition\",1]",
+        "file": "test/official/definition.js",
+        "name": "should prefer the first definition",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/definition.js\",6,1,0,\"test\",\"definition\",1]",
+        "file": "test/official/definition.js",
+        "name": "definition",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/delete.js\",7,11,1,\"test\",\"should transform `delete` to `del`\",1]",
+        "file": "test/official/delete.js",
+        "name": "should transform `delete` to `del`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/delete.js\",6,1,0,\"test\",\"delete\",1]",
+        "file": "test/official/delete.js",
+        "name": "delete",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/emphasis.js\",7,11,1,\"test\",\"should transform `emphasis` to `em`\",1]",
+        "file": "test/official/emphasis.js",
+        "name": "should transform `emphasis` to `em`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/emphasis.js\",6,1,0,\"test\",\"emphasis\",1]",
+        "file": "test/official/emphasis.js",
+        "name": "emphasis",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-definition.js\",7,11,1,\"test\",\"should ignore `footnoteDefinition`\",1]",
+        "file": "test/official/footnote-definition.js",
+        "name": "should ignore `footnoteDefinition`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-definition.js\",20,11,1,\"test\",\"should support a `footnoteDefinition`\",1]",
+        "file": "test/official/footnote-definition.js",
+        "name": "should support a `footnoteDefinition`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-definition.js\",83,11,1,\"test\",\"should use the first `footnoteDefinition` if multiple exist\",1]",
+        "file": "test/official/footnote-definition.js",
+        "name": "should use the first `footnoteDefinition` if multiple exist",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-definition.js\",6,1,0,\"test\",\"footnoteDefinition\",1]",
+        "file": "test/official/footnote-definition.js",
+        "name": "footnoteDefinition",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-reference.js\",7,11,1,\"test\",\"should render `footnoteReference`s\",1]",
+        "file": "test/official/footnote-reference.js",
+        "name": "should render `footnoteReference`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-reference.js\",25,11,1,\"test\",\"should render `footnoteReference`s (#2)\",1]",
+        "file": "test/official/footnote-reference.js",
+        "name": "should render `footnoteReference`s (#2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-reference.js\",43,11,1,\"test\",\"should not fail on non-string identifiers\",1]",
+        "file": "test/official/footnote-reference.js",
+        "name": "should not fail on non-string identifiers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote-reference.js\",6,1,0,\"test\",\"footnoteReference\",1]",
+        "file": "test/official/footnote-reference.js",
+        "name": "footnoteReference",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",14,11,1,\"test\",\"should render `footnote`s (#1)\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should render `footnote`s (#1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",56,11,1,\"test\",\"should render footnotes in tables\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should render footnotes in tables",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",100,11,1,\"test\",\"should render footnotes in table cells\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should render footnotes in table cells",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",135,11,1,\"test\",\"should render reused and resursive footnotes\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should render reused and resursive footnotes",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",159,11,1,\"test\",\"should support `footnoteLabel`, `footnoteBackLabel`\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support `footnoteLabel`, `footnoteBackLabel`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",187,11,1,\"test\",\"should support `footnoteBackLabel` as a function\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support `footnoteBackLabel` as a function",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",220,11,1,\"test\",\"should support `footnoteBackContent` as `string`\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support `footnoteBackContent` as `string`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",245,11,1,\"test\",\"should support `footnoteBackContent` as a function`\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support `footnoteBackContent` as a function`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",286,11,1,\"test\",\"should support an empty `clobberPrefix`\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support an empty `clobberPrefix`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",308,11,1,\"test\",\"should support a `footnoteLabelTagName`\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support a `footnoteLabelTagName`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",330,11,1,\"test\",\"should support a `footnoteLabelProperties`\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support a `footnoteLabelProperties`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",352,11,1,\"test\",\"should support funky footnote identifiers\",1]",
+        "file": "test/official/footnote.js",
+        "name": "should support funky footnote identifiers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/footnote.js\",13,1,0,\"test\",\"footnote\",1]",
+        "file": "test/official/footnote.js",
+        "name": "footnote",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/heading.js\",7,11,1,\"test\",\"should transform `heading` to a `h[1-6]` element\",1]",
+        "file": "test/official/heading.js",
+        "name": "should transform `heading` to a `h[1-6]` element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/heading.js\",6,1,0,\"test\",\"heading\",1]",
+        "file": "test/official/heading.js",
+        "name": "heading",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/html.js\",6,11,1,\"test\",\"should ignore `html`\",1]",
+        "file": "test/official/html.js",
+        "name": "should ignore `html`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/html.js\",13,11,1,\"test\",\"should transform `html` to `raw` if `allowDangerousHtml` is given\",1]",
+        "file": "test/official/html.js",
+        "name": "should transform `html` to `raw` if `allowDangerousHtml` is given",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/html.js\",5,1,0,\"test\",\"HTML\",1]",
+        "file": "test/official/html.js",
+        "name": "HTML",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",7,11,1,\"test\",\"should fall back on `imageReference`s without definition\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "should fall back on `imageReference`s without definition",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",22,11,1,\"test\",\"should fall back on full `imageReference`s\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "should fall back on full `imageReference`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `imageReference`s\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "should fall back on collapsed `imageReference`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",49,11,1,\"test\",\"should transform `imageReference`s to `img`s (1)\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "should transform `imageReference`s to `img`s (1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",66,11,1,\"test\",\"should transform `imageReference`s with an empty defined url to `img`s\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "should transform `imageReference`s with an empty defined url to `img`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",83,11,1,\"test\",\"should fall back on the label on a full `imageReference` (GH-22)\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "should fall back on the label on a full `imageReference` (GH-22)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image-reference.js\",6,1,0,\"test\",\"imageReference\",1]",
+        "file": "test/official/image-reference.js",
+        "name": "imageReference",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image.js\",7,11,1,\"test\",\"should transform `image` to `img`\",1]",
+        "file": "test/official/image.js",
+        "name": "should transform `image` to `img`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image.js\",18,11,1,\"test\",\"should transform `image` to `img` (missing `title`)\",1]",
+        "file": "test/official/image.js",
+        "name": "should transform `image` to `img` (missing `title`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/image.js\",6,1,0,\"test\",\"image\",1]",
+        "file": "test/official/image.js",
+        "name": "image",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/inline-code.js\",7,11,1,\"test\",\"should transform `inlineCode` to a `code` element\",1]",
+        "file": "test/official/inline-code.js",
+        "name": "should transform `inlineCode` to a `code` element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/inline-code.js\",17,11,1,\"test\",\"should support tabs in inline code\",1]",
+        "file": "test/official/inline-code.js",
+        "name": "should support tabs in inline code",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/inline-code.js\",24,11,1,\"test\",\"should change eols to spaces in inline code\",1]",
+        "file": "test/official/inline-code.js",
+        "name": "should change eols to spaces in inline code",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/inline-code.js\",6,1,0,\"test\",\"inlineCode\",1]",
+        "file": "test/official/inline-code.js",
+        "name": "inlineCode",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",7,11,1,\"test\",\"should fall back on `linkReference`s without definition\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should fall back on `linkReference`s without definition",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",22,11,1,\"test\",\"should fall back on full `linkReference`s\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should fall back on full `linkReference`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `linkReference`s\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should fall back on collapsed `linkReference`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",49,11,1,\"test\",\"should fall back on the label on a full `linkReference` (GH-22)\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should fall back on the label on a full `linkReference` (GH-22)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",65,11,1,\"test\",\"should support link references with non-text content\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should support link references with non-text content",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",80,11,1,\"test\",\"should transform `linkReference`s to `a`s\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should transform `linkReference`s to `a`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",103,11,1,\"test\",\"should transform `linkReference`s with an empty defined url to `a`s\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "should transform `linkReference`s with an empty defined url to `a`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link-reference.js\",6,1,0,\"test\",\"linkReference\",1]",
+        "file": "test/official/link-reference.js",
+        "name": "linkReference",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link.js\",7,11,1,\"test\",\"should transform `link` to `a`\",1]",
+        "file": "test/official/link.js",
+        "name": "should transform `link` to `a`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link.js\",19,11,1,\"test\",\"should transform `link` to `a` (w/o `title`)\",1]",
+        "file": "test/official/link.js",
+        "name": "should transform `link` to `a` (w/o `title`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link.js\",33,11,1,\"test\",\"should correctly decode/encode urls\",1]",
+        "file": "test/official/link.js",
+        "name": "should correctly decode/encode urls",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link.js\",50,11,1,\"test\",\"should correctly decode/encode dangerous characters\",1]",
+        "file": "test/official/link.js",
+        "name": "should correctly decode/encode dangerous characters",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/link.js\",6,1,0,\"test\",\"link\",1]",
+        "file": "test/official/link.js",
+        "name": "link",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",7,11,1,\"test\",\"should transform `listItem`s to a `li` element\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should transform `listItem`s to a `li` element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",22,11,1,\"test\",\"should transform a spread `listItem`s to a `li` element\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should transform a spread `listItem`s to a `li` element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",38,11,1,\"test\",\"should detect that an item is spread, even when not explicitly set\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should detect that an item is spread, even when not explicitly set",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",54,11,1,\"test\",\"should support checkboxes in `listItem`s (`true`, tight item)\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support checkboxes in `listItem`s (`true`, tight item)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",74,11,1,\"test\",\"should support checkboxes in `listItem`s (`false`, loose item)\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support checkboxes in `listItem`s (`false`, loose item)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",102,11,1,\"test\",\"should support checkboxes in `listItem`s w/o paragraph\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support checkboxes in `listItem`s w/o paragraph",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",124,11,1,\"test\",\"should support checkboxes in `listItem`s that don’t start with paragraphs\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support checkboxes in `listItem`s that don’t start with paragraphs",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",156,11,1,\"test\",\"should support `listItem`s without children\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support `listItem`s without children",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",163,11,1,\"test\",\"should support checkboxes in `listItem`s without children\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support checkboxes in `listItem`s without children",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",175,11,1,\"test\",\"should support lists in `listItem`s\",1]",
+        "file": "test/official/list-item.js",
+        "name": "should support lists in `listItem`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list-item.js\",6,1,0,\"test\",\"listItem\",1]",
+        "file": "test/official/list-item.js",
+        "name": "listItem",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list.js\",7,11,1,\"test\",\"should transform ordered lists to `ol`\",1]",
+        "file": "test/official/list.js",
+        "name": "should transform ordered lists to `ol`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list.js\",25,11,1,\"test\",\"should transform unordered lists to `ul`\",1]",
+        "file": "test/official/list.js",
+        "name": "should transform unordered lists to `ul`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list.js\",42,11,1,\"test\",\"should identify task list items in unordered lists\",1]",
+        "file": "test/official/list.js",
+        "name": "should identify task list items in unordered lists",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list.js\",74,11,1,\"test\",\"should support `start` in ordered lists\",1]",
+        "file": "test/official/list.js",
+        "name": "should support `start` in ordered lists",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/list.js\",6,1,0,\"test\",\"list\",1]",
+        "file": "test/official/list.js",
+        "name": "list",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/paragraph.js\",7,11,1,\"test\",\"should transform `paragraph` to a `p` element\",1]",
+        "file": "test/official/paragraph.js",
+        "name": "should transform `paragraph` to a `p` element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/paragraph.js\",6,1,0,\"test\",\"paragraph\",1]",
+        "file": "test/official/paragraph.js",
+        "name": "paragraph",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/root.js\",7,11,1,\"test\",\"should map `root`s\",1]",
+        "file": "test/official/root.js",
+        "name": "should map `root`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/root.js\",11,11,1,\"test\",\"should transform root nodes w/ `hName`\",1]",
+        "file": "test/official/root.js",
+        "name": "should transform root nodes w/ `hName`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/root.js\",22,11,1,\"test\",\"should transform root nodes w/ `hName`, `hProperties`\",1]",
+        "file": "test/official/root.js",
+        "name": "should transform root nodes w/ `hName`, `hProperties`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/root.js\",36,11,1,\"test\",\"should transform root nodes w/ `hName`, `hChildren`\",1]",
+        "file": "test/official/root.js",
+        "name": "should transform root nodes w/ `hName`, `hChildren`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/root.js\",6,1,0,\"test\",\"root\",1]",
+        "file": "test/official/root.js",
+        "name": "root",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/strong.js\",7,11,1,\"test\",\"should transform `strong` to `strong`\",1]",
+        "file": "test/official/strong.js",
+        "name": "should transform `strong` to `strong`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/strong.js\",6,1,0,\"test\",\"strong\",1]",
+        "file": "test/official/strong.js",
+        "name": "strong",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",7,11,1,\"test\",\"should transform `table`\",1]",
+        "file": "test/official/table.js",
+        "name": "should transform `table`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",80,11,1,\"test\",\"should not add a `tbody` if w/o second row\",1]",
+        "file": "test/official/table.js",
+        "name": "should not add a `tbody` if w/o second row",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",101,11,1,\"test\",\"should handle a table node w/o rows\",1]",
+        "file": "test/official/table.js",
+        "name": "should handle a table node w/o rows",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",105,11,1,\"test\",\"should handle a table row node w/ cells\",1]",
+        "file": "test/official/table.js",
+        "name": "should handle a table row node w/ cells",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",118,11,1,\"test\",\"should handle a table row node w/o cells\",1]",
+        "file": "test/official/table.js",
+        "name": "should handle a table row node w/o cells",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",122,11,1,\"test\",\"should handle a table cell node w/ children\",1]",
+        "file": "test/official/table.js",
+        "name": "should handle a table cell node w/ children",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",132,11,1,\"test\",\"should handle a table cell node w/o children\",1]",
+        "file": "test/official/table.js",
+        "name": "should handle a table cell node w/o children",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/table.js\",6,1,0,\"test\",\"table\",1]",
+        "file": "test/official/table.js",
+        "name": "table",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",7,11,1,\"test\",\"should map `text`s\",1]",
+        "file": "test/official/text.js",
+        "name": "should map `text`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",14,11,1,\"test\",\"should trim spaces and tabs around eols\",1]",
+        "file": "test/official/text.js",
+        "name": "should trim spaces and tabs around eols",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",21,11,1,\"test\",\"should transform text nodes w/ `hName` to an `element`\",1]",
+        "file": "test/official/text.js",
+        "name": "should transform text nodes w/ `hName` to an `element`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",31,11,1,\"test\",\"should ignore `hProperties` on text nodes w/o `hName`\",1]",
+        "file": "test/official/text.js",
+        "name": "should ignore `hProperties` on text nodes w/o `hName`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",45,11,1,\"test\",\"should transform text nodes w/ `hProperties` and `hName` to an `element`\",1]",
+        "file": "test/official/text.js",
+        "name": "should transform text nodes w/ `hProperties` and `hName` to an `element`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",59,11,1,\"test\",\"should not transform text nodes w/ `hChildren` w/o `hName` to an `element`\",1]",
+        "file": "test/official/text.js",
+        "name": "should not transform text nodes w/ `hChildren` w/o `hName` to an `element`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",73,11,1,\"test\",\"should transform text nodes w/ `hChildren` and `hName` to an `element`\",1]",
+        "file": "test/official/text.js",
+        "name": "should transform text nodes w/ `hChildren` and `hName` to an `element`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/text.js\",6,1,0,\"test\",\"text\",1]",
+        "file": "test/official/text.js",
+        "name": "text",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/thematic-break.js\",7,11,1,\"test\",\"should transform `thematicBreak` to `hr`\",1]",
+        "file": "test/official/thematic-break.js",
+        "name": "should transform `thematicBreak` to `hr`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/thematic-break.js\",6,1,0,\"test\",\"thematicBreak\",1]",
+        "file": "test/official/thematic-break.js",
+        "name": "thematicBreak",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/toml.js\",6,11,1,\"test\",\"should ignore `toml`\",1]",
+        "file": "test/official/toml.js",
+        "name": "should ignore `toml`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/toml.js\",5,1,0,\"test\",\"toml\",1]",
+        "file": "test/official/toml.js",
+        "name": "toml",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/yaml.js\",6,11,1,\"test\",\"should ignore `yaml`\",1]",
+        "file": "test/official/yaml.js",
+        "name": "should ignore `yaml`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/yaml.js\",5,1,0,\"test\",\"yaml\",1]",
+        "file": "test/official/yaml.js",
+        "name": "yaml",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",101,3,1,\"test\",\"exports the upstream public API\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "exports the upstream public API",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",140,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "preserves numeric footnote helper arguments like upstream",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",153,3,1,\"test\",\"keeps pinned option and tree keys in the library artifact\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "keeps pinned option and tree keys in the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",160,3,1,\"test\",\"maps a mdast fixture to hast elements\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "maps a mdast fixture to hast elements",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",218,3,1,\"test\",\"skips html when allowDangerousHtml is off\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "skips html when allowDangerousHtml is off",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",100,1,0,\"suite\",\"@itslil/mdast-util-to-hast library\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "@itslil/mdast-util-to-hast library",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",229,3,1,\"test\",\"exists and still converts a tree\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "exists and still converts a tree",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/to-hast.test.mjs\",228,1,0,\"suite\",\"@itslil/mdast-util-to-hast closed lane\",1]",
+        "file": "test/to-hast.test.mjs",
+        "name": "@itslil/mdast-util-to-hast closed lane",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+        "bytes": 13965
+      },
+      {
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.closed.js",
+        "sha256": "7d5b839e443cfd3c54073ee4ac1bfcf0fae8c10b7ba0e1bf6fe04070a0b727a2",
+        "bytes": 14491
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "url": "file:///tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "format": "module",
+        "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+        "bytes": 13965,
+        "pid": 12042
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "url": "file:///tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "format": "module",
+        "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+        "bytes": 13965,
+        "pid": 12043
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "url": "file:///tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.esm.js",
+        "format": "module",
+        "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+        "bytes": 13965,
+        "pid": 12047
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.closed.js",
+        "url": "file:///tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil/dist/to-hast.closed.js",
+        "format": "module",
+        "sha256": "7d5b839e443cfd3c54073ee4ac1bfcf0fae8c10b7ba0e1bf6fe04070a0b727a2",
+        "bytes": 14491,
+        "pid": 12047
+      }
+    ]
+  },
+  "errors": [],
+  "certification": "verified",
+  "inventoryCandidate": [
+    "[\"test/official/blockquote.js\",7,11,1,\"test\",\"should transform `blockquote` to a `blockquote` element\",1]",
+    "[\"test/official/blockquote.js\",6,1,0,\"test\",\"blockquote\",1]",
+    "[\"test/official/break.js\",7,11,1,\"test\",\"should transform `break` to `br`\",1]",
+    "[\"test/official/break.js\",21,11,1,\"test\",\"should trim text after a `br` (#1)\",1]",
+    "[\"test/official/break.js\",35,11,1,\"test\",\"should trim text after a `br` (#2)\",1]",
+    "[\"test/official/break.js\",49,11,1,\"test\",\"should trim text after a `br` (#3)\",1]",
+    "[\"test/official/break.js\",6,1,0,\"test\",\"break\",1]",
+    "[\"test/official/code.js\",7,11,1,\"test\",\"should transform `code` to a `pre` element (#1)\",1]",
+    "[\"test/official/code.js\",17,11,1,\"test\",\"should transform `code` to a `pre` element (#2)\",1]",
+    "[\"test/official/code.js\",27,11,1,\"test\",\"should transform `code` to a `pre` element with language class\",1]",
+    "[\"test/official/code.js\",37,11,1,\"test\",\"should transform `lang` w/ spaces\",1]",
+    "[\"test/official/code.js\",44,11,1,\"test\",\"should support `meta`\",1]",
+    "[\"test/official/code.js\",59,11,1,\"test\",\"should support tabs in code\",1]",
+    "[\"test/official/code.js\",6,1,0,\"test\",\"code\",1]",
+    "[\"test/official/core.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/core.js\",22,11,1,\"test\",\"should throw on non-nodes\",1]",
+    "[\"test/official/core.js\",34,11,1,\"test\",\"should prefer `data.hName` to tag names\",1]",
+    "[\"test/official/core.js\",45,11,1,\"test\",\"should prefer `data.hChildren` to children\",1]",
+    "[\"test/official/core.js\",56,11,1,\"test\",\"should support `data.hProperties`\",1]",
+    "[\"test/official/core.js\",67,11,1,\"test\",\"should patch `position`s when given\",1]",
+    "[\"test/official/core.js\",90,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+    "[\"test/official/core.js\",127,11,1,\"test\",\"should patch `position`s when given\",1]",
+    "[\"test/official/core.js\",150,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+    "[\"test/official/core.js\",187,11,1,\"test\",\"should transform unknown texts to `text`\",1]",
+    "[\"test/official/core.js\",195,11,1,\"test\",\"should transform unknown parents to `div`\",1]",
+    "[\"test/official/core.js\",203,11,1,\"test\",\"should transform unknown voids to `div`\",1]",
+    "[\"test/official/core.js\",211,11,1,\"test\",\"should transform unknown nodes with `data.h*` properties\",1]",
+    "[\"test/official/core.js\",230,11,1,\"test\",\"should transform unknown nodes with `data.hChildren` only to `div`\",1]",
+    "[\"test/official/core.js\",245,11,1,\"test\",\"should transform unknown nodes with `data.hProperties` only to a `element` node\",1]",
+    "[\"test/official/core.js\",270,11,1,\"test\",\"should override default handlers\",1]",
+    "[\"test/official/core.js\",294,11,1,\"test\",\"should support files\",1]",
+    "[\"test/official/core.js\",317,11,1,\"test\",\"should support unknown nodes by default\",1]",
+    "[\"test/official/core.js\",324,11,1,\"test\",\"should support `unknownHandler`\",1]",
+    "[\"test/official/core.js\",335,11,1,\"test\",\"should support `passThrough`\",1]",
+    "[\"test/official/core.js\",12,1,0,\"test\",\"toHast\",1]",
+    "[\"test/official/definition.js\",7,11,1,\"test\",\"should ignore `definition`\",1]",
+    "[\"test/official/definition.js\",18,11,1,\"test\",\"should prefer the first definition\",1]",
+    "[\"test/official/definition.js\",6,1,0,\"test\",\"definition\",1]",
+    "[\"test/official/delete.js\",7,11,1,\"test\",\"should transform `delete` to `del`\",1]",
+    "[\"test/official/delete.js\",6,1,0,\"test\",\"delete\",1]",
+    "[\"test/official/emphasis.js\",7,11,1,\"test\",\"should transform `emphasis` to `em`\",1]",
+    "[\"test/official/emphasis.js\",6,1,0,\"test\",\"emphasis\",1]",
+    "[\"test/official/footnote-definition.js\",7,11,1,\"test\",\"should ignore `footnoteDefinition`\",1]",
+    "[\"test/official/footnote-definition.js\",20,11,1,\"test\",\"should support a `footnoteDefinition`\",1]",
+    "[\"test/official/footnote-definition.js\",83,11,1,\"test\",\"should use the first `footnoteDefinition` if multiple exist\",1]",
+    "[\"test/official/footnote-definition.js\",6,1,0,\"test\",\"footnoteDefinition\",1]",
+    "[\"test/official/footnote-reference.js\",7,11,1,\"test\",\"should render `footnoteReference`s\",1]",
+    "[\"test/official/footnote-reference.js\",25,11,1,\"test\",\"should render `footnoteReference`s (#2)\",1]",
+    "[\"test/official/footnote-reference.js\",43,11,1,\"test\",\"should not fail on non-string identifiers\",1]",
+    "[\"test/official/footnote-reference.js\",6,1,0,\"test\",\"footnoteReference\",1]",
+    "[\"test/official/footnote.js\",14,11,1,\"test\",\"should render `footnote`s (#1)\",1]",
+    "[\"test/official/footnote.js\",56,11,1,\"test\",\"should render footnotes in tables\",1]",
+    "[\"test/official/footnote.js\",100,11,1,\"test\",\"should render footnotes in table cells\",1]",
+    "[\"test/official/footnote.js\",135,11,1,\"test\",\"should render reused and resursive footnotes\",1]",
+    "[\"test/official/footnote.js\",159,11,1,\"test\",\"should support `footnoteLabel`, `footnoteBackLabel`\",1]",
+    "[\"test/official/footnote.js\",187,11,1,\"test\",\"should support `footnoteBackLabel` as a function\",1]",
+    "[\"test/official/footnote.js\",220,11,1,\"test\",\"should support `footnoteBackContent` as `string`\",1]",
+    "[\"test/official/footnote.js\",245,11,1,\"test\",\"should support `footnoteBackContent` as a function`\",1]",
+    "[\"test/official/footnote.js\",286,11,1,\"test\",\"should support an empty `clobberPrefix`\",1]",
+    "[\"test/official/footnote.js\",308,11,1,\"test\",\"should support a `footnoteLabelTagName`\",1]",
+    "[\"test/official/footnote.js\",330,11,1,\"test\",\"should support a `footnoteLabelProperties`\",1]",
+    "[\"test/official/footnote.js\",352,11,1,\"test\",\"should support funky footnote identifiers\",1]",
+    "[\"test/official/footnote.js\",13,1,0,\"test\",\"footnote\",1]",
+    "[\"test/official/heading.js\",7,11,1,\"test\",\"should transform `heading` to a `h[1-6]` element\",1]",
+    "[\"test/official/heading.js\",6,1,0,\"test\",\"heading\",1]",
+    "[\"test/official/html.js\",6,11,1,\"test\",\"should ignore `html`\",1]",
+    "[\"test/official/html.js\",13,11,1,\"test\",\"should transform `html` to `raw` if `allowDangerousHtml` is given\",1]",
+    "[\"test/official/html.js\",5,1,0,\"test\",\"HTML\",1]",
+    "[\"test/official/image-reference.js\",7,11,1,\"test\",\"should fall back on `imageReference`s without definition\",1]",
+    "[\"test/official/image-reference.js\",22,11,1,\"test\",\"should fall back on full `imageReference`s\",1]",
+    "[\"test/official/image-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `imageReference`s\",1]",
+    "[\"test/official/image-reference.js\",49,11,1,\"test\",\"should transform `imageReference`s to `img`s (1)\",1]",
+    "[\"test/official/image-reference.js\",66,11,1,\"test\",\"should transform `imageReference`s with an empty defined url to `img`s\",1]",
+    "[\"test/official/image-reference.js\",83,11,1,\"test\",\"should fall back on the label on a full `imageReference` (GH-22)\",1]",
+    "[\"test/official/image-reference.js\",6,1,0,\"test\",\"imageReference\",1]",
+    "[\"test/official/image.js\",7,11,1,\"test\",\"should transform `image` to `img`\",1]",
+    "[\"test/official/image.js\",18,11,1,\"test\",\"should transform `image` to `img` (missing `title`)\",1]",
+    "[\"test/official/image.js\",6,1,0,\"test\",\"image\",1]",
+    "[\"test/official/inline-code.js\",7,11,1,\"test\",\"should transform `inlineCode` to a `code` element\",1]",
+    "[\"test/official/inline-code.js\",17,11,1,\"test\",\"should support tabs in inline code\",1]",
+    "[\"test/official/inline-code.js\",24,11,1,\"test\",\"should change eols to spaces in inline code\",1]",
+    "[\"test/official/inline-code.js\",6,1,0,\"test\",\"inlineCode\",1]",
+    "[\"test/official/link-reference.js\",7,11,1,\"test\",\"should fall back on `linkReference`s without definition\",1]",
+    "[\"test/official/link-reference.js\",22,11,1,\"test\",\"should fall back on full `linkReference`s\",1]",
+    "[\"test/official/link-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `linkReference`s\",1]",
+    "[\"test/official/link-reference.js\",49,11,1,\"test\",\"should fall back on the label on a full `linkReference` (GH-22)\",1]",
+    "[\"test/official/link-reference.js\",65,11,1,\"test\",\"should support link references with non-text content\",1]",
+    "[\"test/official/link-reference.js\",80,11,1,\"test\",\"should transform `linkReference`s to `a`s\",1]",
+    "[\"test/official/link-reference.js\",103,11,1,\"test\",\"should transform `linkReference`s with an empty defined url to `a`s\",1]",
+    "[\"test/official/link-reference.js\",6,1,0,\"test\",\"linkReference\",1]",
+    "[\"test/official/link.js\",7,11,1,\"test\",\"should transform `link` to `a`\",1]",
+    "[\"test/official/link.js\",19,11,1,\"test\",\"should transform `link` to `a` (w/o `title`)\",1]",
+    "[\"test/official/link.js\",33,11,1,\"test\",\"should correctly decode/encode urls\",1]",
+    "[\"test/official/link.js\",50,11,1,\"test\",\"should correctly decode/encode dangerous characters\",1]",
+    "[\"test/official/link.js\",6,1,0,\"test\",\"link\",1]",
+    "[\"test/official/list-item.js\",7,11,1,\"test\",\"should transform `listItem`s to a `li` element\",1]",
+    "[\"test/official/list-item.js\",22,11,1,\"test\",\"should transform a spread `listItem`s to a `li` element\",1]",
+    "[\"test/official/list-item.js\",38,11,1,\"test\",\"should detect that an item is spread, even when not explicitly set\",1]",
+    "[\"test/official/list-item.js\",54,11,1,\"test\",\"should support checkboxes in `listItem`s (`true`, tight item)\",1]",
+    "[\"test/official/list-item.js\",74,11,1,\"test\",\"should support checkboxes in `listItem`s (`false`, loose item)\",1]",
+    "[\"test/official/list-item.js\",102,11,1,\"test\",\"should support checkboxes in `listItem`s w/o paragraph\",1]",
+    "[\"test/official/list-item.js\",124,11,1,\"test\",\"should support checkboxes in `listItem`s that don’t start with paragraphs\",1]",
+    "[\"test/official/list-item.js\",156,11,1,\"test\",\"should support `listItem`s without children\",1]",
+    "[\"test/official/list-item.js\",163,11,1,\"test\",\"should support checkboxes in `listItem`s without children\",1]",
+    "[\"test/official/list-item.js\",175,11,1,\"test\",\"should support lists in `listItem`s\",1]",
+    "[\"test/official/list-item.js\",6,1,0,\"test\",\"listItem\",1]",
+    "[\"test/official/list.js\",7,11,1,\"test\",\"should transform ordered lists to `ol`\",1]",
+    "[\"test/official/list.js\",25,11,1,\"test\",\"should transform unordered lists to `ul`\",1]",
+    "[\"test/official/list.js\",42,11,1,\"test\",\"should identify task list items in unordered lists\",1]",
+    "[\"test/official/list.js\",74,11,1,\"test\",\"should support `start` in ordered lists\",1]",
+    "[\"test/official/list.js\",6,1,0,\"test\",\"list\",1]",
+    "[\"test/official/paragraph.js\",7,11,1,\"test\",\"should transform `paragraph` to a `p` element\",1]",
+    "[\"test/official/paragraph.js\",6,1,0,\"test\",\"paragraph\",1]",
+    "[\"test/official/root.js\",7,11,1,\"test\",\"should map `root`s\",1]",
+    "[\"test/official/root.js\",11,11,1,\"test\",\"should transform root nodes w/ `hName`\",1]",
+    "[\"test/official/root.js\",22,11,1,\"test\",\"should transform root nodes w/ `hName`, `hProperties`\",1]",
+    "[\"test/official/root.js\",36,11,1,\"test\",\"should transform root nodes w/ `hName`, `hChildren`\",1]",
+    "[\"test/official/root.js\",6,1,0,\"test\",\"root\",1]",
+    "[\"test/official/strong.js\",7,11,1,\"test\",\"should transform `strong` to `strong`\",1]",
+    "[\"test/official/strong.js\",6,1,0,\"test\",\"strong\",1]",
+    "[\"test/official/table.js\",7,11,1,\"test\",\"should transform `table`\",1]",
+    "[\"test/official/table.js\",80,11,1,\"test\",\"should not add a `tbody` if w/o second row\",1]",
+    "[\"test/official/table.js\",101,11,1,\"test\",\"should handle a table node w/o rows\",1]",
+    "[\"test/official/table.js\",105,11,1,\"test\",\"should handle a table row node w/ cells\",1]",
+    "[\"test/official/table.js\",118,11,1,\"test\",\"should handle a table row node w/o cells\",1]",
+    "[\"test/official/table.js\",122,11,1,\"test\",\"should handle a table cell node w/ children\",1]",
+    "[\"test/official/table.js\",132,11,1,\"test\",\"should handle a table cell node w/o children\",1]",
+    "[\"test/official/table.js\",6,1,0,\"test\",\"table\",1]",
+    "[\"test/official/text.js\",7,11,1,\"test\",\"should map `text`s\",1]",
+    "[\"test/official/text.js\",14,11,1,\"test\",\"should trim spaces and tabs around eols\",1]",
+    "[\"test/official/text.js\",21,11,1,\"test\",\"should transform text nodes w/ `hName` to an `element`\",1]",
+    "[\"test/official/text.js\",31,11,1,\"test\",\"should ignore `hProperties` on text nodes w/o `hName`\",1]",
+    "[\"test/official/text.js\",45,11,1,\"test\",\"should transform text nodes w/ `hProperties` and `hName` to an `element`\",1]",
+    "[\"test/official/text.js\",59,11,1,\"test\",\"should not transform text nodes w/ `hChildren` w/o `hName` to an `element`\",1]",
+    "[\"test/official/text.js\",73,11,1,\"test\",\"should transform text nodes w/ `hChildren` and `hName` to an `element`\",1]",
+    "[\"test/official/text.js\",6,1,0,\"test\",\"text\",1]",
+    "[\"test/official/thematic-break.js\",7,11,1,\"test\",\"should transform `thematicBreak` to `hr`\",1]",
+    "[\"test/official/thematic-break.js\",6,1,0,\"test\",\"thematicBreak\",1]",
+    "[\"test/official/toml.js\",6,11,1,\"test\",\"should ignore `toml`\",1]",
+    "[\"test/official/toml.js\",5,1,0,\"test\",\"toml\",1]",
+    "[\"test/official/yaml.js\",6,11,1,\"test\",\"should ignore `yaml`\",1]",
+    "[\"test/official/yaml.js\",5,1,0,\"test\",\"yaml\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+    "[\"test/to-hast.test.mjs\",101,3,1,\"test\",\"exports the upstream public API\",1]",
+    "[\"test/to-hast.test.mjs\",140,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+    "[\"test/to-hast.test.mjs\",153,3,1,\"test\",\"keeps pinned option and tree keys in the library artifact\",1]",
+    "[\"test/to-hast.test.mjs\",160,3,1,\"test\",\"maps a mdast fixture to hast elements\",1]",
+    "[\"test/to-hast.test.mjs\",218,3,1,\"test\",\"skips html when allowDangerousHtml is off\",1]",
+    "[\"test/to-hast.test.mjs\",100,1,0,\"suite\",\"@itslil/mdast-util-to-hast library\",1]",
+    "[\"test/to-hast.test.mjs\",229,3,1,\"test\",\"exists and still converts a tree\",1]",
+    "[\"test/to-hast.test.mjs\",228,1,0,\"suite\",\"@itslil/mdast-util-to-hast closed lane\",1]"
+  ]
+}

@@ -1,0 +1,10 @@
+
+running 5 tests
+test semantic_program::module_contract::tests::cyclic_aliases_share_cells_but_names_and_exports_belong_to_modules ... ok
+test semantic_program::module_contract::tests::creator_location_and_source_imports_do_not_restrict_valid_semantic_reuse ... ok
+test semantic_program::module_contract::tests::module_origins_and_callable_source_ownership_are_verified ... ok
+test semantic_program::module_contract::tests::named_prefix_values_cannot_escape_into_calls_or_region_results ... ok
+test semantic_program::module_contract::tests::forged_imports_export_ownership_and_initialization_orders_are_rejected ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2925 filtered out; finished in 0.00s
+

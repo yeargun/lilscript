@@ -1,0 +1,5 @@
+[javascript]
+strip_console=false
+cost_model='brotli'
+candidate_proposal_limit=24
+terminal_codec_probe_limit=48

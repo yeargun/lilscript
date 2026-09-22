@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "kind": "hast-original-node-suite-adapter-increment",
+  "date": "2026-09-19",
+  "certification": "unverified",
+  "sourceBuilt": false,
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1"
+  },
+  "tools": [
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "sha256": "c59b0bb71f8a3f592a9c0ddc4792687dbfa4b6bb24422b2df83520defee01b52",
+      "bytes": 5810
+    },
+    {
+      "path": "finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "finer/tools/node-test-evidence.test.mjs",
+      "sha256": "192a754484403191832df9e37a6dc9733085dd76d5019d94c403cf4d42a2ec6c",
+      "bytes": 8000
+    },
+    {
+      "path": "finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/artifact-evidence.test.mjs",
+      "sha256": "c71d5642d9e5ae4f13b3f17057096e3b2d5d622934139c660c81af77202f0344",
+      "bytes": 9626
+    },
+    {
+      "path": "finer/tools/migration-inventory.mjs",
+      "sha256": "9deb5559b9e5a40d16c1913a9835e14ba3f8982440db7b32da8579cb6f95ce2a",
+      "bytes": 24409
+    },
+    {
+      "path": "finer/tools/migration-inventory.test.mjs",
+      "sha256": "fcf2a2aca76b506a3ee441756f7efbd7e44d3531fd6b1cb27eef714fac4f6242",
+      "bytes": 14964
+    },
+    {
+      "path": "finer/tools/portgate.mjs",
+      "sha256": "26ee5e75c637dbcff10ae0eeb2d2726ea20542c6808ebc42eace61a889ce5a7a",
+      "bytes": 27413
+    }
+  ],
+  "contracts": [
+    {
+      "path": "benchmarks/libraries/maintained-workloads.json",
+      "sha256": "3c48ee5262c9107587ea62e42ac993cb459d84e17762c6f7310b7cedc96e4716",
+      "bytes": 100928
+    },
+    {
+      "path": "benchmarks/libraries/hast-util-to-htmllil.required-tests.json",
+      "sha256": "f8c64147e4da01233034025034a07b318d01a59629adb3f8eeec8de27073eea3",
+      "bytes": 72608
+    }
+  ],
+  "evidence": [
+    {
+      "path": "before.json",
+      "sha256": "90fb4b903abd47ebbb0f3f8c68d162471c02f1f41f02a8bf6f645a18ece28998",
+      "bytes": 38524
+    },
+    {
+      "path": "discovery/report.json",
+      "sha256": "b04309ee6f86fff2850ce092c5847f4f971fa8c2b77182a712a6072bd08e5b2f",
+      "bytes": 220208
+    },
+    {
+      "path": "discovery/events.jsonl",
+      "sha256": "58839ff2ef3866a9fb076a69581231dc2dee862c26acc07a5fb5bc20e50af946",
+      "bytes": 125978
+    },
+    {
+      "path": "replay/report.json",
+      "sha256": "a689150d8f88c8bad9f59c5c6c1e68fe4709964735b64106c3af07bf88f397b4",
+      "bytes": 273478
+    },
+    {
+      "path": "replay/events.jsonl",
+      "sha256": "f1c6f269bd0c049a23b2eccb1315cec7d15e31cd5799b16112a19e0c6bd5af35",
+      "bytes": 125978
+    },
+    {
+      "path": "replay-disposition.json",
+      "sha256": "18d1e250131dc4fad6bb6919f4d671e39bd001e5ee2ba6cd47703e5849fd6b61",
+      "bytes": 1153
+    },
+    {
+      "path": "delivery-audit.json",
+      "sha256": "608a5912cc1418aca371c0f7829573255f0a3c267087c47c25f1932df6703f9e",
+      "bytes": 4793
+    },
+    {
+      "path": "focused-tests.log",
+      "sha256": "8552c6f1a1732ce6bcbe24d6fc54a13d63e512b3fcab3c66610b6a31a545ce95",
+      "bytes": 3200
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "ff014ed134dc3c8037b668f5060a5e8b9f63ebcf892f260b9f9dde19ca45a725",
+      "bytes": 2079680
+    }
+  ],
+  "preservedVitestReceipt": {
+    "path": "benchmarks/migration-results/2026-09-19-vitest-evidence/receipt.json",
+    "sha256": "fe5d6617ba03748776350c724766364aac6f7632af683e5684a736d17207d1b7",
+    "bytes": 9020
+  },
+  "selection": {
+    "originalCommand": "node --test test/*.test.mjs test/official/index.js",
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "entries": [
+      "test/character-references.test.mjs",
+      "test/site.test.mjs",
+      "test/to-html.test.mjs",
+      "test/official/index.js"
+    ],
+    "sourceFiles": 40,
+    "fixtureIdentities": 40,
+    "exclusionsAdded": []
+  },
+  "diagnostic": {
+    "command": [
+      "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "--test",
+      "--test-reporter",
+      "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "--test-reporter-destination",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/replay/events.jsonl",
+      "test/character-references.test.mjs",
+      "test/site.test.mjs",
+      "test/to-html.test.mjs",
+      "test/official/index.js"
+    ],
+    "cwd": "/home/azureuser/hast-util-to-htmllil",
+    "elapsedMs": 471,
+    "exitCode": 0,
+    "testCases": 456,
+    "suiteNodes": 4,
+    "passedIdentities": 460,
+    "skipped": 0,
+    "suiteEvidence": "verified",
+    "workloadCertification": "unverified",
+    "requiredArtifacts": [
+      {
+        "path": "/home/azureuser/hast-util-to-htmllil/dist/to-html.esm.js",
+        "sha256": "4878b006fd9f2f96a85bbd6024feb004a9741599791cff9d958f53f0f0ed103b",
+        "bytes": 29049
+      },
+      {
+        "path": "/home/azureuser/hast-util-to-htmllil/dist/to-html.closed.js",
+        "sha256": "0e9a2b588d016067fa1657eaead484dd4f71b6b3311c3758bb8cb05847d782c4",
+        "bytes": 28754
+      }
+    ],
+    "nativeLoadObservations": 4
+  },
+  "focusedTests": {
+    "command": [
+      "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "--test",
+      "finer/tools/node-test-evidence.test.mjs",
+      "finer/tools/migration-inventory.test.mjs",
+      "finer/tools/artifact-evidence.test.mjs"
+    ],
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 4440.748772,
+    "negativeCoverage": [
+      "A new file matching the original test glob rejects a frozen subset even when that subset remains green.",
+      "Changed imported test source rejects stable entry-file/case-name results.",
+      "Inventory validation independently detects newly matched original files."
+    ]
+  },
+  "inventorySummary": {
+    "rows": 29,
+    "libraryRows": 27,
+    "additionalRows": 2,
+    "missingWorkspaces": [],
+    "rowsWithMissingDependencies": [
+      "motionlil",
+      "rehype-stringifylil",
+      "vuelil",
+      "lil-solidjs"
+    ],
+    "rowsWithFrozenTestInventory": [
+      "hast-util-to-htmllil",
+      "markedlil",
+      "zodlil",
+      "probelil"
+    ],
+    "rowsWithInvalidTestInventory": [],
+    "installedPackageContents": 220,
+    "sourceFiles": 2725
+  },
+  "limitations": [
+    "No compiler build or source-built baseline was performed, and no full fleet or Rust suite was run.",
+    "Existing ESM/closed original-suite evidence is verified only within its frozen case/source/artifact scope. Workload acceptance remains unverified.",
+    "Static module parsing and source audit found no runtime imports in these exact pinned candidate artifacts; future changed delivery graphs must be re-audited.",
+    "Upstream hast-util-to-html is a differential test oracle and hastscript builds test inputs; neither is imported by the candidate artifacts.",
+    "CJS, UMD, declarations, complete packaging, freshly built site and browser delivery remain unverified and appear in additionalRequiredCoverage.",
+    "All test source files and observed site fixtures are pinned; static existing-site file checks are not browser execution or production-site build evidence.",
+    "Complete transitive dependency identity and source-qualified competitive measurements remain outside this increment.",
+    "Historical Vitest receipts were not modified; the current workload manifest and helper code advanced, so current-state inventory verification belongs to this new census."
+  ]
+}

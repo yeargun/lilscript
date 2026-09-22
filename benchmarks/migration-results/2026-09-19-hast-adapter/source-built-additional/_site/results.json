@@ -1,0 +1,86 @@
+{
+  "pin": "hast-util-to-html@9.0.5",
+  "package": "@itslil/hast-util-to-html",
+  "file": "to-html",
+  "lilExport": "toHtml",
+  "officialExport": "toHtml",
+  "node": "v22.21.1",
+  "codec": "lilscript-codec gzip-9 / brotli-11",
+  "runtime": "Node v22.21.1",
+  "warmupDiscard": 3,
+  "comparison": "Official rows are an esbuild bundle of hast-util-to-html@9.0.5 plus its runtime graph, then Terser or esbuild. LilScript is the compiled npm file. Closed is extern_fields=false.",
+  "spec": {
+    "total": 455,
+    "pass": 455,
+    "label": "official and package suites"
+  },
+  "play": {
+    "kind": "json-html",
+    "sample": "{\n  \"type\": \"root\",\n  \"children\": [\n    {\n      \"type\": \"element\",\n      \"tagName\": \"h1\",\n      \"properties\": {},\n      \"children\": [\n        {\n          \"type\": \"text\",\n          \"value\": \"hast\"\n        }\n      ]\n    }\n  ]\n}"
+  },
+  "size": [
+    {
+      "id": "official",
+      "name": "Official hast-util-to-html@9.0.5 graph",
+      "raw": 58318,
+      "gzip9": 14569,
+      "brotli11": 12817,
+      "note": "esbuild bundle of the published package plus runtime deps",
+      "diagnostic": false
+    },
+    {
+      "id": "official-terser-mangle",
+      "name": "Official · Terser mangle on",
+      "raw": 31835,
+      "gzip9": 11221,
+      "brotli11": 9833,
+      "note": "Terser compress of that graph, mangle: true",
+      "baseline": true
+    },
+    {
+      "id": "official-terser-nomangle",
+      "name": "Official · Terser mangle off",
+      "raw": 39665,
+      "gzip9": 12304,
+      "brotli11": 10796,
+      "note": "Terser compress of that graph, mangle: false"
+    },
+    {
+      "id": "official-esbuild",
+      "name": "Official · esbuild minify",
+      "raw": 32747,
+      "gzip9": 11217,
+      "brotli11": 10008,
+      "note": "esbuild minify of that graph"
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/hast-util-to-html · library",
+      "raw": 30291,
+      "gzip9": 10082,
+      "brotli11": 8825,
+      "note": "LilScript js-module, extern_fields true. The npm ESM.",
+      "primary": true
+    },
+    {
+      "id": "itslil-closed",
+      "name": "@itslil/hast-util-to-html · closed",
+      "raw": 29875,
+      "gzip9": 9914,
+      "brotli11": 8664,
+      "note": "Same source, extern_fields false; diagnostic only"
+    }
+  ],
+  "throughput": [
+    {
+      "id": "official",
+      "name": "hast-util-to-html@9.0.5",
+      "documentMs": 0.04966699999931734
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/hast-util-to-html",
+      "documentMs": 0.01912499999980355
+    }
+  ]
+}

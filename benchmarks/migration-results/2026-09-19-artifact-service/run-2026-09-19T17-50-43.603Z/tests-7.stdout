@@ -1,0 +1,15 @@
+
+running 10 tests
+test semantic_program::call_contract_tests::dynamic_calls_retain_a_real_checked_type_and_builtins_cannot_hide_missing_contracts ... ok
+test semantic_program::call_contract_tests::declarations_and_caller_default_evaluations_remain_explicitly_unsupported ... ok
+test semantic_program::call_contract_tests::omitted_method_operands_retain_checked_signature_and_complete_uses ... ok
+test semantic_program::call_contract_tests::other_checked_intrinsics_remain_explicitly_unsupported_by_javascript_formation ... ok
+test semantic_program::call_contract_tests::call_argument_edits_invalidate_the_unit_index_and_incremental_uses_match_rebuild ... ok
+test semantic_program::call_contract_tests::known_reference_places_cannot_claim_another_callable_default_contract ... ok
+test semantic_program::call_contract_tests::verifier_rejects_missing_forged_or_inconsistent_call_contracts ... ok
+test semantic_program::call_contract_tests::fully_supplied_default_signatures_preserve_explicit_values_and_host_call_arity ... ok
+test semantic_program::call_contract_tests::replaceable_method_preserves_arity_lookup_exceptions_and_reentry ... ok
+test semantic_program::call_contract_tests::archived_marked_bracket_source_runs_without_adaptation_through_common_output_owner ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 2857 filtered out; finished in 0.22s
+

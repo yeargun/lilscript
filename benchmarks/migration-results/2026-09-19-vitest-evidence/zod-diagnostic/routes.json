@@ -1,0 +1,593 @@
+{
+  "kind": "vitest-forbidden-source-observations",
+  "modules": [
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/checks.ts",
+      "sha256": "d99a964f8b97cc8c551ac5486a1b5f4193fccb9c0201260813ca5ef2d84e83a7",
+      "bytes": 790,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/coerce.ts",
+      "sha256": "9cf6429965d7d55dc4e50999af50cbad5b57b5f3372bba13038133aba62ba600",
+      "bytes": 1503,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/compat.ts",
+      "sha256": "c01e7157fcf6d5d0ef8d700a3884938d12b6be280191075c77f8d162e299d16e",
+      "bytes": 2831,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/errors.ts",
+      "sha256": "d069a17e3bdc680e591702004dcb8c092021fe49439f35e3c57e8934f240279b",
+      "bytes": 4104,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/external.ts",
+      "sha256": "6955593c93182c8b3a4274f71355c3609c8b112dc31ee23df485d6c999ce0a1f",
+      "bytes": 1374,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/from-json-schema.ts",
+      "sha256": "67ccdcd25344c7caf18a254b86799dce05d44a0c5a844bb45ec58260b64c8c7e",
+      "bytes": 26773,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/in-out.ts",
+      "sha256": "1a9c0bbd482dc3af3e6b7cdd4df0ffbaebdfe683b98730328e1b7488f6411764",
+      "bytes": 917,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/index.ts",
+      "sha256": "7a336836fdf518f78f89673745c982818d032c4819d40cf226b92c0cde87037f",
+      "bytes": 178,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/iso.ts",
+      "sha256": "ff9a91c925ea4ad50f216b2969d8ca2cc6c586aaad37e5e112353eb64a055993",
+      "bytes": 753,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/parse.ts",
+      "sha256": "fca6e84189ecc2cc2d1bf8300bf005b6465416c741cd42d7473f2000209ae71d",
+      "bytes": 3504,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/classic/schemas.ts",
+      "sha256": "90cb80b1761bb1a1e36cfd2817010a0b53d64505aec92bc4bcc145ff76dccff3",
+      "bytes": 99239,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/api.ts",
+      "sha256": "939f4f8418172b5b8bd9bd5c8da8819e174947e100491c608f1b3652c25a2888",
+      "bytes": 57139,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/checks.ts",
+      "sha256": "d3667ba462615d5f6829453059d6f50fc6ff868a1e6bed649a0d4b4f4a0ae547",
+      "bytes": 38755,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/compile.ts",
+      "sha256": "b0efa2230683a062e80b73faaa475d52a92dcdce00fa6a4c5b2851375f69c1dd",
+      "bytes": 86848,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/core.ts",
+      "sha256": "33e2fc519c5492ece2e197b15f65cfc69243439ac5a025cb8aba202c565d30ed",
+      "bytes": 7099,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/doc.ts",
+      "sha256": "496e63b612809bf031a1964bb2e74c1af4c1a4ba1f8e5cd6f164818ea135205a",
+      "bytes": 1204,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/errors.ts",
+      "sha256": "d353f4a895f51c3b907aa4123995fde6b81a9a298a2b6543832ae3c7d37e4d1a",
+      "bytes": 18875,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/index.ts",
+      "sha256": "2a0e452323aa5b75b7d7de4879289e2579b9dd2d6af291c0416ba6806ca2199d",
+      "bytes": 690,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/json-schema-generator.ts",
+      "sha256": "d6f2ccc8b4801bcbd8498b9ebd79851e56cbf6a1fca288a14a6981d98ed24c47",
+      "bytes": 4635,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/json-schema-processors.ts",
+      "sha256": "c603608da3ff66112ecd74496cd3b3f32c4e8dc957c0ee4713cd58b76a046202",
+      "bytes": 25532,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/json-schema.ts",
+      "sha256": "633d28210ea2e86270d47a6d14a61792280fe5b7677731f00ea320862338356a",
+      "bytes": 3861,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/memoizer.ts",
+      "sha256": "dd1a253a4cbe9ea4f92cc7004b08b329fa7b25a634d4eefd6b826978717571f5",
+      "bytes": 7168,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/parse.ts",
+      "sha256": "c615fd783363c5c886480b0fa54e96a299f2c757e493b0508333b09f06792966",
+      "bytes": 8694,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/regexes.ts",
+      "sha256": "ac6ca69e9d2806bd2ae4ec10df31ce2ea42aebde0eeae181f1ef6960f2d7738a",
+      "bytes": 10644,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/registries.ts",
+      "sha256": "699d7991cefa6282b97537b67e7a701465e50107b02d216b8da271a95672c47f",
+      "bytes": 3373,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/schemas.ts",
+      "sha256": "b365647c6340c00dc392235108e996aa749f2ceb2555d689b9924e0b6c9cf922",
+      "bytes": 163332,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/to-json-schema.ts",
+      "sha256": "5ea88aa6632feb92cb57ab67332db9f125b4440c1f8ab7072ad9ecd93e41e714",
+      "bytes": 27492,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/util.ts",
+      "sha256": "adab08343d28beeb27698cc0ba61efb52de9420ae136108ecd78441eee2b955a",
+      "bytes": 40429,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/core/versions.ts",
+      "sha256": "847580315b9909d204bdf5feb4dad7f220c226b77c4fad11857b7751bcdb6bdc",
+      "bytes": 83,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ar.ts",
+      "sha256": "416324c11396c942bf6a0158e97e4729824b209c583c506896dd9e1c2a781a59",
+      "bytes": 5157,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/az.ts",
+      "sha256": "a80d91befbaf34c1284384434dc48ac483b5eb0a5a3b55adbe160c063efcf8bd",
+      "bytes": 4450,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/be.ts",
+      "sha256": "26d740abfd6c0a171859bfd79178b01c716a021fe7fbccbc6236e336480a6b33",
+      "bytes": 6556,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/bg.ts",
+      "sha256": "48579ba76791b3e7c76344ee3bf07c264c746bcfccce7ec34b4a22f00ed766a3",
+      "bytes": 5617,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/bn.ts",
+      "sha256": "c72af2efd29c32b52cec7d438fd0abaeed87ae0b74164dbee48dcf7f3c8dc12c",
+      "bytes": 5484,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ca.ts",
+      "sha256": "1ff83b4276301b9ac626d5b597e7e680a8ac1e1eaa6f478cdf27ebd8104d503e",
+      "bytes": 4658,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ckb.ts",
+      "sha256": "fb67947b38f358a534a0a3853426fc6430e5ff310238636cfba0562c64003cea",
+      "bytes": 5581,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/cs.ts",
+      "sha256": "fefe1e5bc3d54c7791c844054c9b23101249f3afb1491782aac1a96776b21c85",
+      "bytes": 4680,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/da.ts",
+      "sha256": "ee996a5f6edbb1d027b65f5e3959d588e01e271371668b956521927754a06b36",
+      "bytes": 4695,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/de.ts",
+      "sha256": "7860bdf38d7e704588db44225b24024e7701e0198402bf553080ba303e8dc4f9",
+      "bytes": 4515,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/el.ts",
+      "sha256": "0acbbb2445fb951bcaf24195c880d1b005cdc1579eac9b85e47b55f5824c2a48",
+      "bytes": 5451,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/en.ts",
+      "sha256": "32379de2a5fac7ebf877640b7d774dcf8680188370e0b28cc18929e7d7fd66cf",
+      "bytes": 5037,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/eo.ts",
+      "sha256": "31b89e2e078b964dbd27921a7a262a72b7d793f5e921d826055099963c427455",
+      "bytes": 4524,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/es.ts",
+      "sha256": "d3fa6e5513c6b66fac5ba648dac2d80c8197b095ed6e5570259dbdc719fe73da",
+      "bytes": 5238,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/fa.ts",
+      "sha256": "f07a90e2c7a491cba26948f40713a620deea51e7437423e1691e046d6f1f5ea2",
+      "bytes": 5087,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/fi.ts",
+      "sha256": "89c181f91352567f57bc36af69215521ceba234291651becb5147aa9bc83c968",
+      "bytes": 4749,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/fr-CA.ts",
+      "sha256": "d399fae5097c9d40d0938f031f52b61a6960bef52b9eb8fb04fb00090f90a604",
+      "bytes": 4499,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/fr.ts",
+      "sha256": "a5f8c4fa1eaefdf4838a4106023934d46a26a209992830038a98284d8b575d4a",
+      "bytes": 5123,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/he.ts",
+      "sha256": "52b8ae79510470c317d0df09eea06539b78101b5519f708da73c634c812f098c",
+      "bytes": 11575,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/hi.ts",
+      "sha256": "917f3f6e44a375f36c254a92563108edf6d0452f3a260cc51d3adbbef097dd3e",
+      "bytes": 5661,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/hr.ts",
+      "sha256": "c5d2b957f0f6087a5c2c0117ce4cb8338e45b3100e9580941867f3f15a02ec27",
+      "bytes": 4878,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/hu.ts",
+      "sha256": "bddac91f23eab6dc87eb36ae0590b76f07861d08d72d497966e309a32b547809",
+      "bytes": 4623,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/hy.ts",
+      "sha256": "e6323cb0ed3c4098ca6f574ccb034d4d9248fcc398d5ca5bce8a4f03ab251389",
+      "bytes": 6333,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/id.ts",
+      "sha256": "e11794b3098c892c6b1f9e26dd231c4b0c12785fee4e26a0c2d02cdf8389ba98",
+      "bytes": 4517,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/index.ts",
+      "sha256": "43eaa319b2039aab9537964b32aa42a95b1d20be86d7f7ccd9bfaabca8fcbf2e",
+      "bytes": 2484,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/is.ts",
+      "sha256": "c05202a67c6b32640097a6bd0ae20ca562f05fbbe91c7207fd501e8747fcd6a0",
+      "bytes": 4561,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/it.ts",
+      "sha256": "93300b36f45c6dc968ddf1b1edf593353c7d3cf92faa4e95b11a868f638388a1",
+      "bytes": 4516,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ja.ts",
+      "sha256": "869791f399ffb122f53eddbb084966f15f2e6b27a7728ab15473bbb39701fd6f",
+      "bytes": 4800,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ka.ts",
+      "sha256": "59be08c7b58456f60ed417ee8b49f7de42d3ebaebe52cb171fecd9f9c76df5e5",
+      "bytes": 6248,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/kh.ts",
+      "sha256": "b55c1375cf0fbb40248ccc5d940074ef1448d38902ef0c8017d7ebda43649efb",
+      "bytes": 198,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/km.ts",
+      "sha256": "ef55d4c27f774f444ae9c4f5107589f104327af93b23e02017a04c6d26879227",
+      "bytes": 6222,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/kn.ts",
+      "sha256": "77ac1b41e6c0ccad2f1bf2ebe5f750c01e751ac552e7eb5a52c71cc891693632",
+      "bytes": 6223,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ko.ts",
+      "sha256": "8814c170e02f7721b07c07f5092d3dfbdd062362b123bde874ee09814ab47d25",
+      "bytes": 4829,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/lt.ts",
+      "sha256": "d0b3e3dfc9b6f2364fd1727d6d7828e6cd7e2bd96914f516c6dfe03642736460",
+      "bytes": 7773,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/mk.ts",
+      "sha256": "d17bbb5f36cb4249f1be13a8ad0ddee404391487c0de0d4cdb97b6dfb440d59a",
+      "bytes": 5131,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ms.ts",
+      "sha256": "e395a7052f90c598fa35d5df81aa2773a9d01610a6a80b26f4cb07dc050e82aa",
+      "bytes": 4419,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/nl.ts",
+      "sha256": "b310602c1e1ff99510021818fdf9eb663605fcd122d5724dd04f322ef83aebaf",
+      "bytes": 4675,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/nn.ts",
+      "sha256": "6bc1cdc024332760f8105e443d48a15f6f2ec7aab1bc819d1d6d0386ffa9173e",
+      "bytes": 4422,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/no.ts",
+      "sha256": "d8ce18a9378829c7b20f9c395707e70d4df6f75eaa283aef75dfd6f89c3cd2d4",
+      "bytes": 4437,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ota.ts",
+      "sha256": "ad49f402376b55747c1a9f4c40d0065a0011bd0515ed42a90a6dd458072795ff",
+      "bytes": 4457,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/pl.ts",
+      "sha256": "ffb33845e4fe56a3b1338eab52cf4a767bc22f2ea4ae7682c958d1864f2d151f",
+      "bytes": 4905,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ps.ts",
+      "sha256": "535eebfc00742a0a2d7c2623c9575ba6b279a5f345ebaf2443008950c8f608c7",
+      "bytes": 4856,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/pt-BR.ts",
+      "sha256": "51c0d6b040828bde8084d00605e0862119f5850627f6a59830abcef62ad637c0",
+      "bytes": 6907,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/pt.ts",
+      "sha256": "9b177106857337eeff12991305a30b64875a93ceb466bf0652dd10bd06b59c56",
+      "bytes": 6905,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ro.ts",
+      "sha256": "af98a1c3f6104aa8adb44cb8de924d4502af05155b48e7745668f83340e40448",
+      "bytes": 4611,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ru.ts",
+      "sha256": "e2e6f3b5bff9a1f1a0e6586fd9340adf0bbc2b77bf2b12c8565dc31e1588a946",
+      "bytes": 6644,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/sk.ts",
+      "sha256": "94617aa28bb5ee817e45b1a018b65f3226a7d875eb14dd7195311c0a8ddee070",
+      "bytes": 4677,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/sl.ts",
+      "sha256": "1b1997c842d5cd086c5e12b7723ed543db4ebeb2d48904619aa519e5c199a1c6",
+      "bytes": 4510,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/sv.ts",
+      "sha256": "754e0ab6629ddf2ea757535e48b83ae08afba4f6af0a330451bcab0f8120d238",
+      "bytes": 4589,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ta.ts",
+      "sha256": "1d481b3fc386230187ecab23690319aaacebbaaee950157dfe6f1b80eeab69ba",
+      "bytes": 6387,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/th.ts",
+      "sha256": "20d54e695ec79219900faced579cbc25e993307ccb3c81aafb26866e8d788ade",
+      "bytes": 6279,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/tk.ts",
+      "sha256": "50555c3a39128d3e220dca8f62c1f6de025f079e9a021a51f67df3882f537801",
+      "bytes": 4230,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/tr.ts",
+      "sha256": "3f0469ec07c2652d89957c91b82320ca9a40604eaa57c725fa4c0a3713372e01",
+      "bytes": 4385,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ua.ts",
+      "sha256": "46a90664b22f2b079c7ee1d36c957df8b39442717c3df68c8bbb6a0df20eadce",
+      "bytes": 198,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/uk.ts",
+      "sha256": "d22491a23db844faa20514b41b9a3e5fb3934c2c537261a6e6457e54bffba32f",
+      "bytes": 5410,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/ur.ts",
+      "sha256": "38344d3032e5700f878c62e7f79c038744f759a1efad9ff4cd0854457a1421ec",
+      "bytes": 5226,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/uz.ts",
+      "sha256": "2be68000ab265efdf2831d0b5530b2bb66e415ac5db2c1d400d1229d95d8ac0d",
+      "bytes": 4585,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/vi.ts",
+      "sha256": "cf2e640ed449013677c6e5acf0986a1536239614a38a26776560eacee45cb76e",
+      "bytes": 4716,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/yo.ts",
+      "sha256": "eb8027b337930244a6bf728c02549bf84d2c00095de1390d9fb65ddbc5d9f5ae",
+      "bytes": 4608,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/zh-CN.ts",
+      "sha256": "1a88bcda963e24a2be69caaa687bfbe3abd5f53d42b4b7df160d1798b6ff771e",
+      "bytes": 4359,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/locales/zh-TW.ts",
+      "sha256": "57848773de945d67a7be08a8e9f8d3aae03f3683157f9867670673222be01f5f",
+      "bytes": 4423,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/checks.ts",
+      "sha256": "c8b2b4c7aedd06ad62275bd6cfcfa763dd7be18c5872406285cdf00c3165dadd",
+      "bytes": 765,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/coerce.ts",
+      "sha256": "f9c2a48957a89038bdec5fb122045cf887a1b9e44243c07cce318a1a54123de9",
+      "bytes": 1182,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/external.ts",
+      "sha256": "0e1a013a3c10d7530e81bf5b67012f127680d59ed8b017f07edbc0cdbddb8c33",
+      "bytes": 1040,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/in-out.ts",
+      "sha256": "99793ae6720563fc44382f55bc84a6c82ad9106f2deb955408c9e0f48a6d1d03",
+      "bytes": 800,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/index.ts",
+      "sha256": "455d93e660b61feec18cd4c31e2f394627546ae8ab31f9bacdab6318112ac31c",
+      "bytes": 81,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/iso.ts",
+      "sha256": "e3718bdd5cca94e376dc3a7b45b16554ba8526a8bea5dbfc7145504cdbfd8b2d",
+      "bytes": 2239,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/parse.ts",
+      "sha256": "f56f7674e03f0ff117dc804c6cb50361d9dc6ad33a12277009ec753ff99ccf0e",
+      "bytes": 206,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    },
+    {
+      "path": "vendor/zod/packages/zod/src/v4/mini/schemas.ts",
+      "sha256": "150cb3d11050bd03219cbe8b980174c623d3ccf3cf7c164dafd7f37f629128d0",
+      "bytes": 62917,
+      "observation": "Vite transform input; not proof of raw Node module execution"
+    }
+  ]
+}

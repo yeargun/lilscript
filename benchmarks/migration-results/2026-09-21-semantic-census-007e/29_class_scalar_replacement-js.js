@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;let f;a=function(cell_2,x,y){cell_2.x=x;cell_2.y=y;};let init=a;b=function(cell_5){return cell_5.x*cell_5.x+ cell_5.y*cell_5.y;};let lengthSquared=b;c={x:0,y:0};d=init(c,3,4);let vector=c;f=void console.log((e=vector,lengthSquared(e)));

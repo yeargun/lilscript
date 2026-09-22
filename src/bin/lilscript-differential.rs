@@ -21,6 +21,16 @@ struct Args {
     #[arg(long, default_value = "0x6c696c7363726970", value_parser = parse_seed)]
     seed: u64,
 
+    /// Draw the seed from system entropy instead of the pinned default.
+    ///
+    /// The pinned seed makes this a regression corpus: the same programs run on
+    /// every commit, so a shape it never generates is a shape nobody checks.
+    /// `--random-seed` makes it a generator. The chosen seed is printed before
+    /// any work starts and repeated on every divergence, so a failing run is
+    /// replayed with `--seed <printed value>`.
+    #[arg(long, conflicts_with = "seed")]
+    random_seed: bool,
+
     /// Compiler executable. Defaults to the lilscript binary beside this executable.
     #[arg(long)]
     compiler: Option<PathBuf>,
@@ -38,10 +48,20 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let args = Args::parse();
+    let mut args = Args::parse();
     if args.cases == 0 {
         return Err("--cases must be greater than zero".to_string());
     }
+    if args.random_seed {
+        args.seed = entropy_seed();
+    }
+    // Announced before any work so a hang, a timeout or a crash still names the
+    // seed. The divergence and success paths repeat it; only this line survives
+    // a run that never reaches either.
+    eprintln!(
+        "lilscript-differential: seed {:#018x}, {} cases",
+        args.seed, args.cases
+    );
 
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let output_dir = args
@@ -196,6 +216,21 @@ fn run() -> Result<(), String> {
         args.cases, args.seed
     );
     Ok(())
+}
+
+/// A seed drawn from the clock and the process id, mixed so that two runs
+/// started in the same millisecond do not produce adjacent generator states.
+///
+/// `SplitMix64`'s finalizer, which is a bijection: distinct inputs stay
+/// distinct, so the mixing cannot collapse two starts onto one corpus.
+fn entropy_seed() -> u64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos() as u64);
+    let mut z = nanos ^ u64::from(std::process::id()).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
 }
 
 fn parse_seed(value: &str) -> Result<u64, String> {

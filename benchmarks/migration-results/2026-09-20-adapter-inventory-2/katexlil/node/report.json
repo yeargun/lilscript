@@ -1,0 +1,2912 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/katexlil/node/events.jsonl",
+    "test/browser-perf.test.mjs",
+    "test/contrib-differential.test.mjs",
+    "test/katex.test.mjs",
+    "test/package.test.mjs",
+    "test/site.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/browser-perf.test.mjs",
+      "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+      "bytes": 2211
+    },
+    {
+      "path": "test/contrib-differential.test.mjs",
+      "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+      "bytes": 3114
+    },
+    {
+      "path": "test/katex.test.mjs",
+      "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+      "bytes": 4480
+    },
+    {
+      "path": "test/package.test.mjs",
+      "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+      "bytes": 6048
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+      "bytes": 2214
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs"
+    ],
+    "files": [
+      "test/browser-perf.test.mjs",
+      "test/contrib-differential.test.mjs",
+      "test/katex.test.mjs",
+      "test/package.test.mjs",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-2/katexlil/node/observe.mjs",
+    "sha256": "7ccd38f65fc9928fcaa98a587621386998d1e0937e40fba38ac0d08dcba7c73f",
+    "bytes": 1332,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.check.toml",
+        "expected": {
+          "path": "lilscript.check.toml",
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+          "bytes": 164
+        },
+        "actual": {
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+          "bytes": 164
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+          "bytes": 872
+        },
+        "actual": {
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+          "bytes": 872
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.mhchem.toml",
+        "expected": {
+          "path": "lilscript.mhchem.toml",
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+          "bytes": 587
+        },
+        "actual": {
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+          "bytes": 587
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+          "bytes": 1309
+        },
+        "actual": {
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+          "bytes": 1309
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "2314c632b9bd8f688f9b1cb514482d03061e136239bef01b42d24366aa04fa7d",
+          "bytes": 182954
+        },
+        "actual": {
+          "sha256": "2314c632b9bd8f688f9b1cb514482d03061e136239bef01b42d24366aa04fa7d",
+          "bytes": 182954
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "381dbec344566337cae873f6b8ca351102ff514fe88e4770eedd2a93cb2d1f4e",
+          "bytes": 3981
+        },
+        "actual": {
+          "sha256": "381dbec344566337cae873f6b8ca351102ff514fe88e4770eedd2a93cb2d1f4e",
+          "bytes": 3981
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/artifact-anatomy.mjs",
+        "expected": {
+          "path": "scripts/artifact-anatomy.mjs",
+          "sha256": "cd5f8661441695ac42f063d973bc844449c2dd6bee2dbdf669a58200064fac48",
+          "bytes": 3785
+        },
+        "actual": {
+          "sha256": "cd5f8661441695ac42f063d973bc844449c2dd6bee2dbdf669a58200064fac48",
+          "bytes": 3785
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/attribute-core.mjs",
+        "expected": {
+          "path": "scripts/attribute-core.mjs",
+          "sha256": "5839673bca6ab89e141307440819769a0e504869d8df216e7a67ae4b49d4f98a",
+          "bytes": 9246
+        },
+        "actual": {
+          "sha256": "5839673bca6ab89e141307440819769a0e504869d8df216e7a67ae4b49d4f98a",
+          "bytes": 9246
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/attribute-map.mjs",
+        "expected": {
+          "path": "scripts/attribute-map.mjs",
+          "sha256": "4b3b00b4f46b1aef5286b1e6d28780384eaa15bb356eb24870d9f4826e700dab",
+          "bytes": 9595
+        },
+        "actual": {
+          "sha256": "4b3b00b4f46b1aef5286b1e6d28780384eaa15bb356eb24870d9f4826e700dab",
+          "bytes": 9595
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/audit-parity.mjs",
+        "expected": {
+          "path": "scripts/audit-parity.mjs",
+          "sha256": "bae706652857443dbfdb5608e6d8a3928ae916662961bff3e88a0868482632d9",
+          "bytes": 6881
+        },
+        "actual": {
+          "sha256": "bae706652857443dbfdb5608e6d8a3928ae916662961bff3e88a0868482632d9",
+          "bytes": 6881
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/bottom-up.mjs",
+        "expected": {
+          "path": "scripts/bottom-up.mjs",
+          "sha256": "e2d26d658430d112e66ee0affe32289ee1ea098bcbb8b46efc5097fb57ff0197",
+          "bytes": 3675
+        },
+        "actual": {
+          "sha256": "e2d26d658430d112e66ee0affe32289ee1ea098bcbb8b46efc5097fb57ff0197",
+          "bytes": 3675
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "005450908408ad7822efa2f25c66f5ec84d710d86508465403b96f901b353973",
+          "bytes": 943
+        },
+        "actual": {
+          "sha256": "005450908408ad7822efa2f25c66f5ec84d710d86508465403b96f901b353973",
+          "bytes": 943
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "b6041777321964ce5be08deaacbe3a9d2237d136938f20345d8b96cc8f926ab1",
+          "bytes": 11637
+        },
+        "actual": {
+          "sha256": "b6041777321964ce5be08deaacbe3a9d2237d136938f20345d8b96cc8f926ab1",
+          "bytes": 11637
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "0180a48fe3a4834877cd367459985e556fbd2ffffdd319b235b9323f0b7b07fe",
+          "bytes": 1804
+        },
+        "actual": {
+          "sha256": "0180a48fe3a4834877cd367459985e556fbd2ffffdd319b235b9323f0b7b07fe",
+          "bytes": 1804
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/copy-official-tests.mjs",
+        "expected": {
+          "path": "scripts/copy-official-tests.mjs",
+          "sha256": "66ba9df2ecf721f09e270048276b948d526a815e1e72a01dd56dd8f12373c594",
+          "bytes": 2729
+        },
+        "actual": {
+          "sha256": "66ba9df2ecf721f09e270048276b948d526a815e1e72a01dd56dd8f12373c594",
+          "bytes": 2729
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/dump-modules.mjs",
+        "expected": {
+          "path": "scripts/dump-modules.mjs",
+          "sha256": "e074a48ee77c1269bb55c09c228698be3c6390ab3289bec221d0eb9c04bff593",
+          "bytes": 1614
+        },
+        "actual": {
+          "sha256": "e074a48ee77c1269bb55c09c228698be3c6390ab3289bec221d0eb9c04bff593",
+          "bytes": 1614
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/function-pairs.mjs",
+        "expected": {
+          "path": "scripts/function-pairs.mjs",
+          "sha256": "768ce8fcb414bd98cff7999244c34728c109e564036529f35aeadc9f0c527722",
+          "bytes": 15220
+        },
+        "actual": {
+          "sha256": "768ce8fcb414bd98cff7999244c34728c109e564036529f35aeadc9f0c527722",
+          "bytes": 15220
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/lib/browser-bench.mjs",
+        "expected": {
+          "path": "scripts/lib/browser-bench.mjs",
+          "sha256": "0335348daf2eceecfb81fc5a625bc2720ee425cefee4a86d1873781e7639e3bd",
+          "bytes": 2103
+        },
+        "actual": {
+          "sha256": "0335348daf2eceecfb81fc5a625bc2720ee425cefee4a86d1873781e7639e3bd",
+          "bytes": 2103
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/lib/official.mjs",
+        "expected": {
+          "path": "scripts/lib/official.mjs",
+          "sha256": "77051d6921b246ac2c9289e8ceb59fc97286ee40402020a974deaadcfcb03a49",
+          "bytes": 5507
+        },
+        "actual": {
+          "sha256": "77051d6921b246ac2c9289e8ceb59fc97286ee40402020a974deaadcfcb03a49",
+          "bytes": 5507
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/measure-site.mjs",
+        "expected": {
+          "path": "scripts/measure-site.mjs",
+          "sha256": "98d06d876f879fd8db44d9076764e8a972e895c0ffb1c680a100b1fe89030e78",
+          "bytes": 8318
+        },
+        "actual": {
+          "sha256": "98d06d876f879fd8db44d9076764e8a972e895c0ffb1c680a100b1fe89030e78",
+          "bytes": 8318
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/module-ablation.mjs",
+        "expected": {
+          "path": "scripts/module-ablation.mjs",
+          "sha256": "120cd6a227d7caf52bfa096dd1171b799928fd1559baea64c1177cb4428b439f",
+          "bytes": 3195
+        },
+        "actual": {
+          "sha256": "120cd6a227d7caf52bfa096dd1171b799928fd1559baea64c1177cb4428b439f",
+          "bytes": 3195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/module-functions.mjs",
+        "expected": {
+          "path": "scripts/module-functions.mjs",
+          "sha256": "cb468bd22939ea329badd1938da2f2758b754ec80e87771950af913e61fcb5ca",
+          "bytes": 4509
+        },
+        "actual": {
+          "sha256": "cb468bd22939ea329badd1938da2f2758b754ec80e87771950af913e61fcb5ca",
+          "bytes": 4509
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/naming-experiments.mjs",
+        "expected": {
+          "path": "scripts/naming-experiments.mjs",
+          "sha256": "6a1d1dc6a6aafb13e33460eef211f12eea71a8dbcb42616d0da69a806f377156",
+          "bytes": 5317
+        },
+        "actual": {
+          "sha256": "6a1d1dc6a6aafb13e33460eef211f12eea71a8dbcb42616d0da69a806f377156",
+          "bytes": 5317
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/paired-functions.mjs",
+        "expected": {
+          "path": "scripts/paired-functions.mjs",
+          "sha256": "4bf6cdff2f55c42dd4795b41e5cb6543ea3e1ef7e88864e44810cb9806f70345",
+          "bytes": 4919
+        },
+        "actual": {
+          "sha256": "4bf6cdff2f55c42dd4795b41e5cb6543ea3e1ef7e88864e44810cb9806f70345",
+          "bytes": 4919
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/pattern-census.mjs",
+        "expected": {
+          "path": "scripts/pattern-census.mjs",
+          "sha256": "c02fe22c4b6827e75824b4e87d0a91b3903bd7b8c9831a3190181d52933039f4",
+          "bytes": 6219
+        },
+        "actual": {
+          "sha256": "c02fe22c4b6827e75824b4e87d0a91b3903bd7b8c9831a3190181d52933039f4",
+          "bytes": 6219
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/terser-headroom.mjs",
+        "expected": {
+          "path": "scripts/terser-headroom.mjs",
+          "sha256": "a4ec208a58ec1552da145d583f91e9a654435e2ab6c9d2574ad9e64aceb01643",
+          "bytes": 2539
+        },
+        "actual": {
+          "sha256": "a4ec208a58ec1552da145d583f91e9a654435e2ab6c9d2574ad9e64aceb01643",
+          "bytes": 2539
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "1f6133cc17fde558a464d34d3dbe663f95f44951beea728ab05d57aca6abb94c",
+          "bytes": 20425
+        },
+        "actual": {
+          "sha256": "1f6133cc17fde558a464d34d3dbe663f95f44951beea728ab05d57aca6abb94c",
+          "bytes": 20425
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/bench.html",
+        "expected": {
+          "path": "site/bench.html",
+          "sha256": "44d3bddf5e0a24385dcf21dd6169d65f0737c20a78fb4069db173b92d26dec71",
+          "bytes": 1785
+        },
+        "actual": {
+          "sha256": "44d3bddf5e0a24385dcf21dd6169d65f0737c20a78fb4069db173b92d26dec71",
+          "bytes": 1785
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/bench.js",
+        "expected": {
+          "path": "site/bench.js",
+          "sha256": "5b1da0fc98ce922b9e0fac11a80260926efb9b71468c5baae12bc66aa15f966f",
+          "bytes": 2669
+        },
+        "actual": {
+          "sha256": "5b1da0fc98ce922b9e0fac11a80260926efb9b71468c5baae12bc66aa15f966f",
+          "bytes": 2669
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/corpus.js",
+        "expected": {
+          "path": "site/corpus.js",
+          "sha256": "6f90a195eedc1d44dac61b2692ac9bd0054fcf8826cc6317ab0ac13b622abeaf",
+          "bytes": 4094
+        },
+        "actual": {
+          "sha256": "6f90a195eedc1d44dac61b2692ac9bd0054fcf8826cc6317ab0ac13b622abeaf",
+          "bytes": 4094
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "74e70135657f37a1be0f6f734b7424b1ed1eb81bd7ac66dd814918ff7ea7bed7",
+          "bytes": 12802
+        },
+        "actual": {
+          "sha256": "74e70135657f37a1be0f6f734b7424b1ed1eb81bd7ac66dd814918ff7ea7bed7",
+          "bytes": 12802
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3f50bb1dd2c5fe8fb8805c331beef74502da5cac6e41a94c3471f633fedee219",
+          "bytes": 267050
+        },
+        "actual": {
+          "sha256": "3f50bb1dd2c5fe8fb8805c331beef74502da5cac6e41a94c3471f633fedee219",
+          "bytes": 267050
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "8f0e7ceebfe0730bb06c82cb44a14ae6bf485a48d11a35fc0028594db2984687",
+          "bytes": 24975
+        },
+        "actual": {
+          "sha256": "8f0e7ceebfe0730bb06c82cb44a14ae6bf485a48d11a35fc0028594db2984687",
+          "bytes": 24975
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "0349b6c68b601b6240d04db400ceb40deccc95425b3754cf21469006c42d8d7c",
+          "bytes": 11971
+        },
+        "actual": {
+          "sha256": "0349b6c68b601b6240d04db400ceb40deccc95425b3754cf21469006c42d8d7c",
+          "bytes": 11971
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/browser-perf.test.mjs",
+        "expected": {
+          "path": "test/browser-perf.test.mjs",
+          "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+          "bytes": 2211
+        },
+        "actual": {
+          "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+          "bytes": 2211
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/contrib-differential.test.mjs",
+        "expected": {
+          "path": "test/contrib-differential.test.mjs",
+          "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+          "bytes": 3114
+        },
+        "actual": {
+          "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+          "bytes": 3114
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/katex.test.mjs",
+        "expected": {
+          "path": "test/katex.test.mjs",
+          "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+          "bytes": 4480
+        },
+        "actual": {
+          "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+          "bytes": 4480
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/__snapshots__/katex-spec.js.snap",
+        "expected": {
+          "path": "test/official/__snapshots__/katex-spec.js.snap",
+          "sha256": "0625c38011a4e71a801003b172d4213cf834206b2a5dbb90e442f640aed73d1d",
+          "bytes": 29239
+        },
+        "actual": {
+          "sha256": "0625c38011a4e71a801003b172d4213cf834206b2a5dbb90e442f640aed73d1d",
+          "bytes": 29239
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/__snapshots__/mathml-spec.js.snap",
+        "expected": {
+          "path": "test/official/__snapshots__/mathml-spec.js.snap",
+          "sha256": "e5ab8a4e2ba92fbedd8beda6d332ac78e4278bc129b1fc4c68b616414c0cfe54",
+          "bytes": 23918
+        },
+        "actual": {
+          "sha256": "e5ab8a4e2ba92fbedd8beda6d332ac78e4278bc129b1fc4c68b616414c0cfe54",
+          "bytes": 23918
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/contrib/auto-render-spec.js",
+        "expected": {
+          "path": "test/official/contrib/auto-render-spec.js",
+          "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+          "bytes": 12995
+        },
+        "actual": {
+          "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+          "bytes": 12995
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/contrib/render-a11y-string-spec.js",
+        "expected": {
+          "path": "test/official/contrib/render-a11y-string-spec.js",
+          "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+          "bytes": 18792
+        },
+        "actual": {
+          "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+          "bytes": 18792
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/dup-spec.js",
+        "expected": {
+          "path": "test/official/dup-spec.js",
+          "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+          "bytes": 555
+        },
+        "actual": {
+          "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+          "bytes": 555
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/errors-spec.js",
+        "expected": {
+          "path": "test/official/errors-spec.js",
+          "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+          "bytes": 14203
+        },
+        "actual": {
+          "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+          "bytes": 14203
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/helpers.js",
+        "expected": {
+          "path": "test/official/helpers.js",
+          "sha256": "82f67f899a9fd806b8f36248e5d95666244a0337690e7cbb1ece6de4f44f62a9",
+          "bytes": 5874
+        },
+        "actual": {
+          "sha256": "82f67f899a9fd806b8f36248e5d95666244a0337690e7cbb1ece6de4f44f62a9",
+          "bytes": 5874
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/jest.config.mjs",
+        "expected": {
+          "path": "test/official/jest.config.mjs",
+          "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+          "bytes": 240
+        },
+        "actual": {
+          "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+          "bytes": 240
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/katex-spec.js",
+        "expected": {
+          "path": "test/official/katex-spec.js",
+          "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+          "bytes": 162446
+        },
+        "actual": {
+          "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+          "bytes": 162446
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/mathml-spec.js",
+        "expected": {
+          "path": "test/official/mathml-spec.js",
+          "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+          "bytes": 5743
+        },
+        "actual": {
+          "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+          "bytes": 5743
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter-spec.js",
+        "expected": {
+          "path": "test/official/screenshotter-spec.js",
+          "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+          "bytes": 645
+        },
+        "actual": {
+          "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+          "bytes": 645
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter/ss_data.cjs",
+        "expected": {
+          "path": "test/official/screenshotter/ss_data.cjs",
+          "sha256": "c38e860cc4015af7c2f9530a3e0972ae09da6c1a1577c7233f8c0e1b99676aa5",
+          "bytes": 1195
+        },
+        "actual": {
+          "sha256": "c38e860cc4015af7c2f9530a3e0972ae09da6c1a1577c7233f8c0e1b99676aa5",
+          "bytes": 1195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter/ss_data.yaml",
+        "expected": {
+          "path": "test/official/screenshotter/ss_data.yaml",
+          "sha256": "ffc9597b3b6f70651039ea818ef4b3bce73045d47527c2e35a071283ea845134",
+          "bytes": 21740
+        },
+        "actual": {
+          "sha256": "ffc9597b3b6f70651039ea818ef4b3bce73045d47527c2e35a071283ea845134",
+          "bytes": 21740
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/setup.js",
+        "expected": {
+          "path": "test/official/setup.js",
+          "sha256": "64dd9ac18d6b3085ad5af932c69d1bf034e7a94331a9cd54c78abdcd4de57648",
+          "bytes": 2041
+        },
+        "actual": {
+          "sha256": "64dd9ac18d6b3085ad5af932c69d1bf034e7a94331a9cd54c78abdcd4de57648",
+          "bytes": 2041
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/unicode-spec.js",
+        "expected": {
+          "path": "test/official/unicode-spec.js",
+          "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+          "bytes": 6529
+        },
+        "actual": {
+          "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+          "bytes": 6529
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/package.test.mjs",
+        "expected": {
+          "path": "test/package.test.mjs",
+          "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+          "bytes": 6048
+        },
+        "actual": {
+          "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+          "bytes": 6048
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+          "bytes": 2214
+        },
+        "actual": {
+          "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+          "bytes": 2214
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/support.lil",
+        "expected": {
+          "path": "test/support.lil",
+          "sha256": "e89c695509da90ea6ddf47f335f3991d6199ba5ab60de6faee596dc0fddd21ec",
+          "bytes": 113
+        },
+        "actual": {
+          "sha256": "e89c695509da90ea6ddf47f335f3991d6199ba5ab60de6faee596dc0fddd21ec",
+          "bytes": 113
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/types/surface.ts",
+        "expected": {
+          "path": "test/types/surface.ts",
+          "sha256": "dcbbd1a3437ebc8bcdb54a94f5d28a3902dc1c4596d906a8c3bff15eb355f410",
+          "bytes": 524
+        },
+        "actual": {
+          "sha256": "dcbbd1a3437ebc8bcdb54a94f5d28a3902dc1c4596d906a8c3bff15eb355f410",
+          "bytes": 524
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/types/tsconfig.json",
+        "expected": {
+          "path": "test/types/tsconfig.json",
+          "sha256": "ddfdfecf52699420303b12a0bb37aeec57ecccd30b9d74a7179f650d5fecf289",
+          "bytes": 186
+        },
+        "actual": {
+          "sha256": "ddfdfecf52699420303b12a0bb37aeec57ecccd30b9d74a7179f650d5fecf289",
+          "bytes": 186
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/types/katex.d.ts",
+        "expected": {
+          "path": "types/katex.d.ts",
+          "sha256": "3c7e39e0f06c23cc1e4ee88c7962a512f8e4dba118eca6140b0daac3ae94fa51",
+          "bytes": 8686
+        },
+        "actual": {
+          "sha256": "3c7e39e0f06c23cc1e4ee88c7962a512f8e4dba118eca6140b0daac3ae94fa51",
+          "bytes": 8686
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.check.toml",
+        "expected": {
+          "path": "lilscript.check.toml",
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+          "bytes": 164
+        },
+        "actual": {
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+          "bytes": 164
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+          "bytes": 872
+        },
+        "actual": {
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+          "bytes": 872
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.mhchem.toml",
+        "expected": {
+          "path": "lilscript.mhchem.toml",
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+          "bytes": 587
+        },
+        "actual": {
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+          "bytes": 587
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+          "bytes": 1309
+        },
+        "actual": {
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+          "bytes": 1309
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "2314c632b9bd8f688f9b1cb514482d03061e136239bef01b42d24366aa04fa7d",
+          "bytes": 182954
+        },
+        "actual": {
+          "sha256": "2314c632b9bd8f688f9b1cb514482d03061e136239bef01b42d24366aa04fa7d",
+          "bytes": 182954
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "381dbec344566337cae873f6b8ca351102ff514fe88e4770eedd2a93cb2d1f4e",
+          "bytes": 3981
+        },
+        "actual": {
+          "sha256": "381dbec344566337cae873f6b8ca351102ff514fe88e4770eedd2a93cb2d1f4e",
+          "bytes": 3981
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/artifact-anatomy.mjs",
+        "expected": {
+          "path": "scripts/artifact-anatomy.mjs",
+          "sha256": "cd5f8661441695ac42f063d973bc844449c2dd6bee2dbdf669a58200064fac48",
+          "bytes": 3785
+        },
+        "actual": {
+          "sha256": "cd5f8661441695ac42f063d973bc844449c2dd6bee2dbdf669a58200064fac48",
+          "bytes": 3785
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/attribute-core.mjs",
+        "expected": {
+          "path": "scripts/attribute-core.mjs",
+          "sha256": "5839673bca6ab89e141307440819769a0e504869d8df216e7a67ae4b49d4f98a",
+          "bytes": 9246
+        },
+        "actual": {
+          "sha256": "5839673bca6ab89e141307440819769a0e504869d8df216e7a67ae4b49d4f98a",
+          "bytes": 9246
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/attribute-map.mjs",
+        "expected": {
+          "path": "scripts/attribute-map.mjs",
+          "sha256": "4b3b00b4f46b1aef5286b1e6d28780384eaa15bb356eb24870d9f4826e700dab",
+          "bytes": 9595
+        },
+        "actual": {
+          "sha256": "4b3b00b4f46b1aef5286b1e6d28780384eaa15bb356eb24870d9f4826e700dab",
+          "bytes": 9595
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/audit-parity.mjs",
+        "expected": {
+          "path": "scripts/audit-parity.mjs",
+          "sha256": "bae706652857443dbfdb5608e6d8a3928ae916662961bff3e88a0868482632d9",
+          "bytes": 6881
+        },
+        "actual": {
+          "sha256": "bae706652857443dbfdb5608e6d8a3928ae916662961bff3e88a0868482632d9",
+          "bytes": 6881
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/bottom-up.mjs",
+        "expected": {
+          "path": "scripts/bottom-up.mjs",
+          "sha256": "e2d26d658430d112e66ee0affe32289ee1ea098bcbb8b46efc5097fb57ff0197",
+          "bytes": 3675
+        },
+        "actual": {
+          "sha256": "e2d26d658430d112e66ee0affe32289ee1ea098bcbb8b46efc5097fb57ff0197",
+          "bytes": 3675
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "005450908408ad7822efa2f25c66f5ec84d710d86508465403b96f901b353973",
+          "bytes": 943
+        },
+        "actual": {
+          "sha256": "005450908408ad7822efa2f25c66f5ec84d710d86508465403b96f901b353973",
+          "bytes": 943
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "b6041777321964ce5be08deaacbe3a9d2237d136938f20345d8b96cc8f926ab1",
+          "bytes": 11637
+        },
+        "actual": {
+          "sha256": "b6041777321964ce5be08deaacbe3a9d2237d136938f20345d8b96cc8f926ab1",
+          "bytes": 11637
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "0180a48fe3a4834877cd367459985e556fbd2ffffdd319b235b9323f0b7b07fe",
+          "bytes": 1804
+        },
+        "actual": {
+          "sha256": "0180a48fe3a4834877cd367459985e556fbd2ffffdd319b235b9323f0b7b07fe",
+          "bytes": 1804
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/copy-official-tests.mjs",
+        "expected": {
+          "path": "scripts/copy-official-tests.mjs",
+          "sha256": "66ba9df2ecf721f09e270048276b948d526a815e1e72a01dd56dd8f12373c594",
+          "bytes": 2729
+        },
+        "actual": {
+          "sha256": "66ba9df2ecf721f09e270048276b948d526a815e1e72a01dd56dd8f12373c594",
+          "bytes": 2729
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/dump-modules.mjs",
+        "expected": {
+          "path": "scripts/dump-modules.mjs",
+          "sha256": "e074a48ee77c1269bb55c09c228698be3c6390ab3289bec221d0eb9c04bff593",
+          "bytes": 1614
+        },
+        "actual": {
+          "sha256": "e074a48ee77c1269bb55c09c228698be3c6390ab3289bec221d0eb9c04bff593",
+          "bytes": 1614
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/function-pairs.mjs",
+        "expected": {
+          "path": "scripts/function-pairs.mjs",
+          "sha256": "768ce8fcb414bd98cff7999244c34728c109e564036529f35aeadc9f0c527722",
+          "bytes": 15220
+        },
+        "actual": {
+          "sha256": "768ce8fcb414bd98cff7999244c34728c109e564036529f35aeadc9f0c527722",
+          "bytes": 15220
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/lib/browser-bench.mjs",
+        "expected": {
+          "path": "scripts/lib/browser-bench.mjs",
+          "sha256": "0335348daf2eceecfb81fc5a625bc2720ee425cefee4a86d1873781e7639e3bd",
+          "bytes": 2103
+        },
+        "actual": {
+          "sha256": "0335348daf2eceecfb81fc5a625bc2720ee425cefee4a86d1873781e7639e3bd",
+          "bytes": 2103
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/lib/official.mjs",
+        "expected": {
+          "path": "scripts/lib/official.mjs",
+          "sha256": "77051d6921b246ac2c9289e8ceb59fc97286ee40402020a974deaadcfcb03a49",
+          "bytes": 5507
+        },
+        "actual": {
+          "sha256": "77051d6921b246ac2c9289e8ceb59fc97286ee40402020a974deaadcfcb03a49",
+          "bytes": 5507
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/measure-site.mjs",
+        "expected": {
+          "path": "scripts/measure-site.mjs",
+          "sha256": "98d06d876f879fd8db44d9076764e8a972e895c0ffb1c680a100b1fe89030e78",
+          "bytes": 8318
+        },
+        "actual": {
+          "sha256": "98d06d876f879fd8db44d9076764e8a972e895c0ffb1c680a100b1fe89030e78",
+          "bytes": 8318
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/module-ablation.mjs",
+        "expected": {
+          "path": "scripts/module-ablation.mjs",
+          "sha256": "120cd6a227d7caf52bfa096dd1171b799928fd1559baea64c1177cb4428b439f",
+          "bytes": 3195
+        },
+        "actual": {
+          "sha256": "120cd6a227d7caf52bfa096dd1171b799928fd1559baea64c1177cb4428b439f",
+          "bytes": 3195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/module-functions.mjs",
+        "expected": {
+          "path": "scripts/module-functions.mjs",
+          "sha256": "cb468bd22939ea329badd1938da2f2758b754ec80e87771950af913e61fcb5ca",
+          "bytes": 4509
+        },
+        "actual": {
+          "sha256": "cb468bd22939ea329badd1938da2f2758b754ec80e87771950af913e61fcb5ca",
+          "bytes": 4509
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/naming-experiments.mjs",
+        "expected": {
+          "path": "scripts/naming-experiments.mjs",
+          "sha256": "6a1d1dc6a6aafb13e33460eef211f12eea71a8dbcb42616d0da69a806f377156",
+          "bytes": 5317
+        },
+        "actual": {
+          "sha256": "6a1d1dc6a6aafb13e33460eef211f12eea71a8dbcb42616d0da69a806f377156",
+          "bytes": 5317
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/paired-functions.mjs",
+        "expected": {
+          "path": "scripts/paired-functions.mjs",
+          "sha256": "4bf6cdff2f55c42dd4795b41e5cb6543ea3e1ef7e88864e44810cb9806f70345",
+          "bytes": 4919
+        },
+        "actual": {
+          "sha256": "4bf6cdff2f55c42dd4795b41e5cb6543ea3e1ef7e88864e44810cb9806f70345",
+          "bytes": 4919
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/pattern-census.mjs",
+        "expected": {
+          "path": "scripts/pattern-census.mjs",
+          "sha256": "c02fe22c4b6827e75824b4e87d0a91b3903bd7b8c9831a3190181d52933039f4",
+          "bytes": 6219
+        },
+        "actual": {
+          "sha256": "c02fe22c4b6827e75824b4e87d0a91b3903bd7b8c9831a3190181d52933039f4",
+          "bytes": 6219
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/terser-headroom.mjs",
+        "expected": {
+          "path": "scripts/terser-headroom.mjs",
+          "sha256": "a4ec208a58ec1552da145d583f91e9a654435e2ab6c9d2574ad9e64aceb01643",
+          "bytes": 2539
+        },
+        "actual": {
+          "sha256": "a4ec208a58ec1552da145d583f91e9a654435e2ab6c9d2574ad9e64aceb01643",
+          "bytes": 2539
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "1f6133cc17fde558a464d34d3dbe663f95f44951beea728ab05d57aca6abb94c",
+          "bytes": 20425
+        },
+        "actual": {
+          "sha256": "1f6133cc17fde558a464d34d3dbe663f95f44951beea728ab05d57aca6abb94c",
+          "bytes": 20425
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/bench.html",
+        "expected": {
+          "path": "site/bench.html",
+          "sha256": "44d3bddf5e0a24385dcf21dd6169d65f0737c20a78fb4069db173b92d26dec71",
+          "bytes": 1785
+        },
+        "actual": {
+          "sha256": "44d3bddf5e0a24385dcf21dd6169d65f0737c20a78fb4069db173b92d26dec71",
+          "bytes": 1785
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/bench.js",
+        "expected": {
+          "path": "site/bench.js",
+          "sha256": "5b1da0fc98ce922b9e0fac11a80260926efb9b71468c5baae12bc66aa15f966f",
+          "bytes": 2669
+        },
+        "actual": {
+          "sha256": "5b1da0fc98ce922b9e0fac11a80260926efb9b71468c5baae12bc66aa15f966f",
+          "bytes": 2669
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/corpus.js",
+        "expected": {
+          "path": "site/corpus.js",
+          "sha256": "6f90a195eedc1d44dac61b2692ac9bd0054fcf8826cc6317ab0ac13b622abeaf",
+          "bytes": 4094
+        },
+        "actual": {
+          "sha256": "6f90a195eedc1d44dac61b2692ac9bd0054fcf8826cc6317ab0ac13b622abeaf",
+          "bytes": 4094
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "74e70135657f37a1be0f6f734b7424b1ed1eb81bd7ac66dd814918ff7ea7bed7",
+          "bytes": 12802
+        },
+        "actual": {
+          "sha256": "74e70135657f37a1be0f6f734b7424b1ed1eb81bd7ac66dd814918ff7ea7bed7",
+          "bytes": 12802
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3f50bb1dd2c5fe8fb8805c331beef74502da5cac6e41a94c3471f633fedee219",
+          "bytes": 267050
+        },
+        "actual": {
+          "sha256": "3f50bb1dd2c5fe8fb8805c331beef74502da5cac6e41a94c3471f633fedee219",
+          "bytes": 267050
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "8f0e7ceebfe0730bb06c82cb44a14ae6bf485a48d11a35fc0028594db2984687",
+          "bytes": 24975
+        },
+        "actual": {
+          "sha256": "8f0e7ceebfe0730bb06c82cb44a14ae6bf485a48d11a35fc0028594db2984687",
+          "bytes": 24975
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "0349b6c68b601b6240d04db400ceb40deccc95425b3754cf21469006c42d8d7c",
+          "bytes": 11971
+        },
+        "actual": {
+          "sha256": "0349b6c68b601b6240d04db400ceb40deccc95425b3754cf21469006c42d8d7c",
+          "bytes": 11971
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/browser-perf.test.mjs",
+        "expected": {
+          "path": "test/browser-perf.test.mjs",
+          "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+          "bytes": 2211
+        },
+        "actual": {
+          "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+          "bytes": 2211
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/contrib-differential.test.mjs",
+        "expected": {
+          "path": "test/contrib-differential.test.mjs",
+          "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+          "bytes": 3114
+        },
+        "actual": {
+          "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+          "bytes": 3114
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/katex.test.mjs",
+        "expected": {
+          "path": "test/katex.test.mjs",
+          "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+          "bytes": 4480
+        },
+        "actual": {
+          "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+          "bytes": 4480
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/__snapshots__/katex-spec.js.snap",
+        "expected": {
+          "path": "test/official/__snapshots__/katex-spec.js.snap",
+          "sha256": "0625c38011a4e71a801003b172d4213cf834206b2a5dbb90e442f640aed73d1d",
+          "bytes": 29239
+        },
+        "actual": {
+          "sha256": "0625c38011a4e71a801003b172d4213cf834206b2a5dbb90e442f640aed73d1d",
+          "bytes": 29239
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/__snapshots__/mathml-spec.js.snap",
+        "expected": {
+          "path": "test/official/__snapshots__/mathml-spec.js.snap",
+          "sha256": "e5ab8a4e2ba92fbedd8beda6d332ac78e4278bc129b1fc4c68b616414c0cfe54",
+          "bytes": 23918
+        },
+        "actual": {
+          "sha256": "e5ab8a4e2ba92fbedd8beda6d332ac78e4278bc129b1fc4c68b616414c0cfe54",
+          "bytes": 23918
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/contrib/auto-render-spec.js",
+        "expected": {
+          "path": "test/official/contrib/auto-render-spec.js",
+          "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+          "bytes": 12995
+        },
+        "actual": {
+          "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+          "bytes": 12995
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/contrib/render-a11y-string-spec.js",
+        "expected": {
+          "path": "test/official/contrib/render-a11y-string-spec.js",
+          "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+          "bytes": 18792
+        },
+        "actual": {
+          "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+          "bytes": 18792
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/dup-spec.js",
+        "expected": {
+          "path": "test/official/dup-spec.js",
+          "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+          "bytes": 555
+        },
+        "actual": {
+          "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+          "bytes": 555
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/errors-spec.js",
+        "expected": {
+          "path": "test/official/errors-spec.js",
+          "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+          "bytes": 14203
+        },
+        "actual": {
+          "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+          "bytes": 14203
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/helpers.js",
+        "expected": {
+          "path": "test/official/helpers.js",
+          "sha256": "82f67f899a9fd806b8f36248e5d95666244a0337690e7cbb1ece6de4f44f62a9",
+          "bytes": 5874
+        },
+        "actual": {
+          "sha256": "82f67f899a9fd806b8f36248e5d95666244a0337690e7cbb1ece6de4f44f62a9",
+          "bytes": 5874
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/jest.config.mjs",
+        "expected": {
+          "path": "test/official/jest.config.mjs",
+          "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+          "bytes": 240
+        },
+        "actual": {
+          "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+          "bytes": 240
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/katex-spec.js",
+        "expected": {
+          "path": "test/official/katex-spec.js",
+          "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+          "bytes": 162446
+        },
+        "actual": {
+          "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+          "bytes": 162446
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/mathml-spec.js",
+        "expected": {
+          "path": "test/official/mathml-spec.js",
+          "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+          "bytes": 5743
+        },
+        "actual": {
+          "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+          "bytes": 5743
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter-spec.js",
+        "expected": {
+          "path": "test/official/screenshotter-spec.js",
+          "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+          "bytes": 645
+        },
+        "actual": {
+          "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+          "bytes": 645
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter/ss_data.cjs",
+        "expected": {
+          "path": "test/official/screenshotter/ss_data.cjs",
+          "sha256": "c38e860cc4015af7c2f9530a3e0972ae09da6c1a1577c7233f8c0e1b99676aa5",
+          "bytes": 1195
+        },
+        "actual": {
+          "sha256": "c38e860cc4015af7c2f9530a3e0972ae09da6c1a1577c7233f8c0e1b99676aa5",
+          "bytes": 1195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter/ss_data.yaml",
+        "expected": {
+          "path": "test/official/screenshotter/ss_data.yaml",
+          "sha256": "ffc9597b3b6f70651039ea818ef4b3bce73045d47527c2e35a071283ea845134",
+          "bytes": 21740
+        },
+        "actual": {
+          "sha256": "ffc9597b3b6f70651039ea818ef4b3bce73045d47527c2e35a071283ea845134",
+          "bytes": 21740
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/setup.js",
+        "expected": {
+          "path": "test/official/setup.js",
+          "sha256": "64dd9ac18d6b3085ad5af932c69d1bf034e7a94331a9cd54c78abdcd4de57648",
+          "bytes": 2041
+        },
+        "actual": {
+          "sha256": "64dd9ac18d6b3085ad5af932c69d1bf034e7a94331a9cd54c78abdcd4de57648",
+          "bytes": 2041
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/unicode-spec.js",
+        "expected": {
+          "path": "test/official/unicode-spec.js",
+          "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+          "bytes": 6529
+        },
+        "actual": {
+          "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+          "bytes": 6529
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/package.test.mjs",
+        "expected": {
+          "path": "test/package.test.mjs",
+          "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+          "bytes": 6048
+        },
+        "actual": {
+          "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+          "bytes": 6048
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+          "bytes": 2214
+        },
+        "actual": {
+          "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+          "bytes": 2214
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/support.lil",
+        "expected": {
+          "path": "test/support.lil",
+          "sha256": "e89c695509da90ea6ddf47f335f3991d6199ba5ab60de6faee596dc0fddd21ec",
+          "bytes": 113
+        },
+        "actual": {
+          "sha256": "e89c695509da90ea6ddf47f335f3991d6199ba5ab60de6faee596dc0fddd21ec",
+          "bytes": 113
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/types/surface.ts",
+        "expected": {
+          "path": "test/types/surface.ts",
+          "sha256": "dcbbd1a3437ebc8bcdb54a94f5d28a3902dc1c4596d906a8c3bff15eb355f410",
+          "bytes": 524
+        },
+        "actual": {
+          "sha256": "dcbbd1a3437ebc8bcdb54a94f5d28a3902dc1c4596d906a8c3bff15eb355f410",
+          "bytes": 524
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/types/tsconfig.json",
+        "expected": {
+          "path": "test/types/tsconfig.json",
+          "sha256": "ddfdfecf52699420303b12a0bb37aeec57ecccd30b9d74a7179f650d5fecf289",
+          "bytes": 186
+        },
+        "actual": {
+          "sha256": "ddfdfecf52699420303b12a0bb37aeec57ecccd30b9d74a7179f650d5fecf289",
+          "bytes": 186
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/types/katex.d.ts",
+        "expected": {
+          "path": "types/katex.d.ts",
+          "sha256": "3c7e39e0f06c23cc1e4ee88c7962a512f8e4dba118eca6140b0daac3ae94fa51",
+          "bytes": 8686
+        },
+        "actual": {
+          "sha256": "3c7e39e0f06c23cc1e4ee88c7962a512f8e4dba118eca6140b0daac3ae94fa51",
+          "bytes": 8686
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.check.toml",
+        "expected": {
+          "path": "lilscript.check.toml",
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+          "bytes": 164
+        },
+        "actual": {
+          "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+          "bytes": 164
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+          "bytes": 872
+        },
+        "actual": {
+          "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+          "bytes": 872
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.mhchem.toml",
+        "expected": {
+          "path": "lilscript.mhchem.toml",
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+          "bytes": 587
+        },
+        "actual": {
+          "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+          "bytes": 587
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+          "bytes": 1309
+        },
+        "actual": {
+          "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+          "bytes": 1309
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "2314c632b9bd8f688f9b1cb514482d03061e136239bef01b42d24366aa04fa7d",
+          "bytes": 182954
+        },
+        "actual": {
+          "sha256": "2314c632b9bd8f688f9b1cb514482d03061e136239bef01b42d24366aa04fa7d",
+          "bytes": 182954
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "381dbec344566337cae873f6b8ca351102ff514fe88e4770eedd2a93cb2d1f4e",
+          "bytes": 3981
+        },
+        "actual": {
+          "sha256": "381dbec344566337cae873f6b8ca351102ff514fe88e4770eedd2a93cb2d1f4e",
+          "bytes": 3981
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/artifact-anatomy.mjs",
+        "expected": {
+          "path": "scripts/artifact-anatomy.mjs",
+          "sha256": "cd5f8661441695ac42f063d973bc844449c2dd6bee2dbdf669a58200064fac48",
+          "bytes": 3785
+        },
+        "actual": {
+          "sha256": "cd5f8661441695ac42f063d973bc844449c2dd6bee2dbdf669a58200064fac48",
+          "bytes": 3785
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/attribute-core.mjs",
+        "expected": {
+          "path": "scripts/attribute-core.mjs",
+          "sha256": "5839673bca6ab89e141307440819769a0e504869d8df216e7a67ae4b49d4f98a",
+          "bytes": 9246
+        },
+        "actual": {
+          "sha256": "5839673bca6ab89e141307440819769a0e504869d8df216e7a67ae4b49d4f98a",
+          "bytes": 9246
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/attribute-map.mjs",
+        "expected": {
+          "path": "scripts/attribute-map.mjs",
+          "sha256": "4b3b00b4f46b1aef5286b1e6d28780384eaa15bb356eb24870d9f4826e700dab",
+          "bytes": 9595
+        },
+        "actual": {
+          "sha256": "4b3b00b4f46b1aef5286b1e6d28780384eaa15bb356eb24870d9f4826e700dab",
+          "bytes": 9595
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/audit-parity.mjs",
+        "expected": {
+          "path": "scripts/audit-parity.mjs",
+          "sha256": "bae706652857443dbfdb5608e6d8a3928ae916662961bff3e88a0868482632d9",
+          "bytes": 6881
+        },
+        "actual": {
+          "sha256": "bae706652857443dbfdb5608e6d8a3928ae916662961bff3e88a0868482632d9",
+          "bytes": 6881
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/bottom-up.mjs",
+        "expected": {
+          "path": "scripts/bottom-up.mjs",
+          "sha256": "e2d26d658430d112e66ee0affe32289ee1ea098bcbb8b46efc5097fb57ff0197",
+          "bytes": 3675
+        },
+        "actual": {
+          "sha256": "e2d26d658430d112e66ee0affe32289ee1ea098bcbb8b46efc5097fb57ff0197",
+          "bytes": 3675
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "005450908408ad7822efa2f25c66f5ec84d710d86508465403b96f901b353973",
+          "bytes": 943
+        },
+        "actual": {
+          "sha256": "005450908408ad7822efa2f25c66f5ec84d710d86508465403b96f901b353973",
+          "bytes": 943
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "b6041777321964ce5be08deaacbe3a9d2237d136938f20345d8b96cc8f926ab1",
+          "bytes": 11637
+        },
+        "actual": {
+          "sha256": "b6041777321964ce5be08deaacbe3a9d2237d136938f20345d8b96cc8f926ab1",
+          "bytes": 11637
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "0180a48fe3a4834877cd367459985e556fbd2ffffdd319b235b9323f0b7b07fe",
+          "bytes": 1804
+        },
+        "actual": {
+          "sha256": "0180a48fe3a4834877cd367459985e556fbd2ffffdd319b235b9323f0b7b07fe",
+          "bytes": 1804
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/copy-official-tests.mjs",
+        "expected": {
+          "path": "scripts/copy-official-tests.mjs",
+          "sha256": "66ba9df2ecf721f09e270048276b948d526a815e1e72a01dd56dd8f12373c594",
+          "bytes": 2729
+        },
+        "actual": {
+          "sha256": "66ba9df2ecf721f09e270048276b948d526a815e1e72a01dd56dd8f12373c594",
+          "bytes": 2729
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/dump-modules.mjs",
+        "expected": {
+          "path": "scripts/dump-modules.mjs",
+          "sha256": "e074a48ee77c1269bb55c09c228698be3c6390ab3289bec221d0eb9c04bff593",
+          "bytes": 1614
+        },
+        "actual": {
+          "sha256": "e074a48ee77c1269bb55c09c228698be3c6390ab3289bec221d0eb9c04bff593",
+          "bytes": 1614
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/function-pairs.mjs",
+        "expected": {
+          "path": "scripts/function-pairs.mjs",
+          "sha256": "768ce8fcb414bd98cff7999244c34728c109e564036529f35aeadc9f0c527722",
+          "bytes": 15220
+        },
+        "actual": {
+          "sha256": "768ce8fcb414bd98cff7999244c34728c109e564036529f35aeadc9f0c527722",
+          "bytes": 15220
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/lib/browser-bench.mjs",
+        "expected": {
+          "path": "scripts/lib/browser-bench.mjs",
+          "sha256": "0335348daf2eceecfb81fc5a625bc2720ee425cefee4a86d1873781e7639e3bd",
+          "bytes": 2103
+        },
+        "actual": {
+          "sha256": "0335348daf2eceecfb81fc5a625bc2720ee425cefee4a86d1873781e7639e3bd",
+          "bytes": 2103
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/lib/official.mjs",
+        "expected": {
+          "path": "scripts/lib/official.mjs",
+          "sha256": "77051d6921b246ac2c9289e8ceb59fc97286ee40402020a974deaadcfcb03a49",
+          "bytes": 5507
+        },
+        "actual": {
+          "sha256": "77051d6921b246ac2c9289e8ceb59fc97286ee40402020a974deaadcfcb03a49",
+          "bytes": 5507
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/measure-site.mjs",
+        "expected": {
+          "path": "scripts/measure-site.mjs",
+          "sha256": "98d06d876f879fd8db44d9076764e8a972e895c0ffb1c680a100b1fe89030e78",
+          "bytes": 8318
+        },
+        "actual": {
+          "sha256": "98d06d876f879fd8db44d9076764e8a972e895c0ffb1c680a100b1fe89030e78",
+          "bytes": 8318
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/module-ablation.mjs",
+        "expected": {
+          "path": "scripts/module-ablation.mjs",
+          "sha256": "120cd6a227d7caf52bfa096dd1171b799928fd1559baea64c1177cb4428b439f",
+          "bytes": 3195
+        },
+        "actual": {
+          "sha256": "120cd6a227d7caf52bfa096dd1171b799928fd1559baea64c1177cb4428b439f",
+          "bytes": 3195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/module-functions.mjs",
+        "expected": {
+          "path": "scripts/module-functions.mjs",
+          "sha256": "cb468bd22939ea329badd1938da2f2758b754ec80e87771950af913e61fcb5ca",
+          "bytes": 4509
+        },
+        "actual": {
+          "sha256": "cb468bd22939ea329badd1938da2f2758b754ec80e87771950af913e61fcb5ca",
+          "bytes": 4509
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/naming-experiments.mjs",
+        "expected": {
+          "path": "scripts/naming-experiments.mjs",
+          "sha256": "6a1d1dc6a6aafb13e33460eef211f12eea71a8dbcb42616d0da69a806f377156",
+          "bytes": 5317
+        },
+        "actual": {
+          "sha256": "6a1d1dc6a6aafb13e33460eef211f12eea71a8dbcb42616d0da69a806f377156",
+          "bytes": 5317
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/paired-functions.mjs",
+        "expected": {
+          "path": "scripts/paired-functions.mjs",
+          "sha256": "4bf6cdff2f55c42dd4795b41e5cb6543ea3e1ef7e88864e44810cb9806f70345",
+          "bytes": 4919
+        },
+        "actual": {
+          "sha256": "4bf6cdff2f55c42dd4795b41e5cb6543ea3e1ef7e88864e44810cb9806f70345",
+          "bytes": 4919
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/pattern-census.mjs",
+        "expected": {
+          "path": "scripts/pattern-census.mjs",
+          "sha256": "c02fe22c4b6827e75824b4e87d0a91b3903bd7b8c9831a3190181d52933039f4",
+          "bytes": 6219
+        },
+        "actual": {
+          "sha256": "c02fe22c4b6827e75824b4e87d0a91b3903bd7b8c9831a3190181d52933039f4",
+          "bytes": 6219
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/scripts/terser-headroom.mjs",
+        "expected": {
+          "path": "scripts/terser-headroom.mjs",
+          "sha256": "a4ec208a58ec1552da145d583f91e9a654435e2ab6c9d2574ad9e64aceb01643",
+          "bytes": 2539
+        },
+        "actual": {
+          "sha256": "a4ec208a58ec1552da145d583f91e9a654435e2ab6c9d2574ad9e64aceb01643",
+          "bytes": 2539
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "1f6133cc17fde558a464d34d3dbe663f95f44951beea728ab05d57aca6abb94c",
+          "bytes": 20425
+        },
+        "actual": {
+          "sha256": "1f6133cc17fde558a464d34d3dbe663f95f44951beea728ab05d57aca6abb94c",
+          "bytes": 20425
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/bench.html",
+        "expected": {
+          "path": "site/bench.html",
+          "sha256": "44d3bddf5e0a24385dcf21dd6169d65f0737c20a78fb4069db173b92d26dec71",
+          "bytes": 1785
+        },
+        "actual": {
+          "sha256": "44d3bddf5e0a24385dcf21dd6169d65f0737c20a78fb4069db173b92d26dec71",
+          "bytes": 1785
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/bench.js",
+        "expected": {
+          "path": "site/bench.js",
+          "sha256": "5b1da0fc98ce922b9e0fac11a80260926efb9b71468c5baae12bc66aa15f966f",
+          "bytes": 2669
+        },
+        "actual": {
+          "sha256": "5b1da0fc98ce922b9e0fac11a80260926efb9b71468c5baae12bc66aa15f966f",
+          "bytes": 2669
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/corpus.js",
+        "expected": {
+          "path": "site/corpus.js",
+          "sha256": "6f90a195eedc1d44dac61b2692ac9bd0054fcf8826cc6317ab0ac13b622abeaf",
+          "bytes": 4094
+        },
+        "actual": {
+          "sha256": "6f90a195eedc1d44dac61b2692ac9bd0054fcf8826cc6317ab0ac13b622abeaf",
+          "bytes": 4094
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "74e70135657f37a1be0f6f734b7424b1ed1eb81bd7ac66dd814918ff7ea7bed7",
+          "bytes": 12802
+        },
+        "actual": {
+          "sha256": "74e70135657f37a1be0f6f734b7424b1ed1eb81bd7ac66dd814918ff7ea7bed7",
+          "bytes": 12802
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3f50bb1dd2c5fe8fb8805c331beef74502da5cac6e41a94c3471f633fedee219",
+          "bytes": 267050
+        },
+        "actual": {
+          "sha256": "3f50bb1dd2c5fe8fb8805c331beef74502da5cac6e41a94c3471f633fedee219",
+          "bytes": 267050
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "8f0e7ceebfe0730bb06c82cb44a14ae6bf485a48d11a35fc0028594db2984687",
+          "bytes": 24975
+        },
+        "actual": {
+          "sha256": "8f0e7ceebfe0730bb06c82cb44a14ae6bf485a48d11a35fc0028594db2984687",
+          "bytes": 24975
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "0349b6c68b601b6240d04db400ceb40deccc95425b3754cf21469006c42d8d7c",
+          "bytes": 11971
+        },
+        "actual": {
+          "sha256": "0349b6c68b601b6240d04db400ceb40deccc95425b3754cf21469006c42d8d7c",
+          "bytes": 11971
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/browser-perf.test.mjs",
+        "expected": {
+          "path": "test/browser-perf.test.mjs",
+          "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+          "bytes": 2211
+        },
+        "actual": {
+          "sha256": "8790f583a44f8bb63ffb1cb9ef72f4a4cfa297c7eca1dd43785c35cb73bb4593",
+          "bytes": 2211
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/contrib-differential.test.mjs",
+        "expected": {
+          "path": "test/contrib-differential.test.mjs",
+          "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+          "bytes": 3114
+        },
+        "actual": {
+          "sha256": "66b1efe639a0b351598a4dda5bcd9b18b5e1120c8a676e4acb3f532fe62336d3",
+          "bytes": 3114
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/katex.test.mjs",
+        "expected": {
+          "path": "test/katex.test.mjs",
+          "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+          "bytes": 4480
+        },
+        "actual": {
+          "sha256": "5ce02bc4e57a6bc58e89ae27068f3df172189ff5a6b675fdab7253f7f54aa574",
+          "bytes": 4480
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/__snapshots__/katex-spec.js.snap",
+        "expected": {
+          "path": "test/official/__snapshots__/katex-spec.js.snap",
+          "sha256": "0625c38011a4e71a801003b172d4213cf834206b2a5dbb90e442f640aed73d1d",
+          "bytes": 29239
+        },
+        "actual": {
+          "sha256": "0625c38011a4e71a801003b172d4213cf834206b2a5dbb90e442f640aed73d1d",
+          "bytes": 29239
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/__snapshots__/mathml-spec.js.snap",
+        "expected": {
+          "path": "test/official/__snapshots__/mathml-spec.js.snap",
+          "sha256": "e5ab8a4e2ba92fbedd8beda6d332ac78e4278bc129b1fc4c68b616414c0cfe54",
+          "bytes": 23918
+        },
+        "actual": {
+          "sha256": "e5ab8a4e2ba92fbedd8beda6d332ac78e4278bc129b1fc4c68b616414c0cfe54",
+          "bytes": 23918
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/contrib/auto-render-spec.js",
+        "expected": {
+          "path": "test/official/contrib/auto-render-spec.js",
+          "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+          "bytes": 12995
+        },
+        "actual": {
+          "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+          "bytes": 12995
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/contrib/render-a11y-string-spec.js",
+        "expected": {
+          "path": "test/official/contrib/render-a11y-string-spec.js",
+          "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+          "bytes": 18792
+        },
+        "actual": {
+          "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+          "bytes": 18792
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/dup-spec.js",
+        "expected": {
+          "path": "test/official/dup-spec.js",
+          "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+          "bytes": 555
+        },
+        "actual": {
+          "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+          "bytes": 555
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/errors-spec.js",
+        "expected": {
+          "path": "test/official/errors-spec.js",
+          "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+          "bytes": 14203
+        },
+        "actual": {
+          "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+          "bytes": 14203
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/helpers.js",
+        "expected": {
+          "path": "test/official/helpers.js",
+          "sha256": "82f67f899a9fd806b8f36248e5d95666244a0337690e7cbb1ece6de4f44f62a9",
+          "bytes": 5874
+        },
+        "actual": {
+          "sha256": "82f67f899a9fd806b8f36248e5d95666244a0337690e7cbb1ece6de4f44f62a9",
+          "bytes": 5874
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/jest.config.mjs",
+        "expected": {
+          "path": "test/official/jest.config.mjs",
+          "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+          "bytes": 240
+        },
+        "actual": {
+          "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+          "bytes": 240
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/katex-spec.js",
+        "expected": {
+          "path": "test/official/katex-spec.js",
+          "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+          "bytes": 162446
+        },
+        "actual": {
+          "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+          "bytes": 162446
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/mathml-spec.js",
+        "expected": {
+          "path": "test/official/mathml-spec.js",
+          "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+          "bytes": 5743
+        },
+        "actual": {
+          "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+          "bytes": 5743
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter-spec.js",
+        "expected": {
+          "path": "test/official/screenshotter-spec.js",
+          "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+          "bytes": 645
+        },
+        "actual": {
+          "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+          "bytes": 645
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter/ss_data.cjs",
+        "expected": {
+          "path": "test/official/screenshotter/ss_data.cjs",
+          "sha256": "c38e860cc4015af7c2f9530a3e0972ae09da6c1a1577c7233f8c0e1b99676aa5",
+          "bytes": 1195
+        },
+        "actual": {
+          "sha256": "c38e860cc4015af7c2f9530a3e0972ae09da6c1a1577c7233f8c0e1b99676aa5",
+          "bytes": 1195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/screenshotter/ss_data.yaml",
+        "expected": {
+          "path": "test/official/screenshotter/ss_data.yaml",
+          "sha256": "ffc9597b3b6f70651039ea818ef4b3bce73045d47527c2e35a071283ea845134",
+          "bytes": 21740
+        },
+        "actual": {
+          "sha256": "ffc9597b3b6f70651039ea818ef4b3bce73045d47527c2e35a071283ea845134",
+          "bytes": 21740
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/setup.js",
+        "expected": {
+          "path": "test/official/setup.js",
+          "sha256": "64dd9ac18d6b3085ad5af932c69d1bf034e7a94331a9cd54c78abdcd4de57648",
+          "bytes": 2041
+        },
+        "actual": {
+          "sha256": "64dd9ac18d6b3085ad5af932c69d1bf034e7a94331a9cd54c78abdcd4de57648",
+          "bytes": 2041
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/official/unicode-spec.js",
+        "expected": {
+          "path": "test/official/unicode-spec.js",
+          "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+          "bytes": 6529
+        },
+        "actual": {
+          "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+          "bytes": 6529
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/package.test.mjs",
+        "expected": {
+          "path": "test/package.test.mjs",
+          "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+          "bytes": 6048
+        },
+        "actual": {
+          "sha256": "acc23187ec220afd4e769c734cbe6015067dfe84b2c66d30b3eee7b9b2454711",
+          "bytes": 6048
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+          "bytes": 2214
+        },
+        "actual": {
+          "sha256": "c673210ac26e57079cd59098e3a1de51231238a88955094e1be1a8020b0f6c95",
+          "bytes": 2214
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/support.lil",
+        "expected": {
+          "path": "test/support.lil",
+          "sha256": "e89c695509da90ea6ddf47f335f3991d6199ba5ab60de6faee596dc0fddd21ec",
+          "bytes": 113
+        },
+        "actual": {
+          "sha256": "e89c695509da90ea6ddf47f335f3991d6199ba5ab60de6faee596dc0fddd21ec",
+          "bytes": 113
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/types/surface.ts",
+        "expected": {
+          "path": "test/types/surface.ts",
+          "sha256": "dcbbd1a3437ebc8bcdb54a94f5d28a3902dc1c4596d906a8c3bff15eb355f410",
+          "bytes": 524
+        },
+        "actual": {
+          "sha256": "dcbbd1a3437ebc8bcdb54a94f5d28a3902dc1c4596d906a8c3bff15eb355f410",
+          "bytes": 524
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/test/types/tsconfig.json",
+        "expected": {
+          "path": "test/types/tsconfig.json",
+          "sha256": "ddfdfecf52699420303b12a0bb37aeec57ecccd30b9d74a7179f650d5fecf289",
+          "bytes": 186
+        },
+        "actual": {
+          "sha256": "ddfdfecf52699420303b12a0bb37aeec57ecccd30b9d74a7179f650d5fecf289",
+          "bytes": 186
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/types/katex.d.ts",
+        "expected": {
+          "path": "types/katex.d.ts",
+          "sha256": "3c7e39e0f06c23cc1e4ee88c7962a512f8e4dba118eca6140b0daac3ae94fa51",
+          "bytes": 8686
+        },
+        "actual": {
+          "sha256": "3c7e39e0f06c23cc1e4ee88c7962a512f8e4dba118eca6140b0daac3ae94fa51",
+          "bytes": 8686
+        },
+        "matches": true
+      }
+    ]
+  },
+  "supervision": {
+    "timeoutMs": 296012,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/browser-perf.test.mjs\",20,3,1,\"test\",\"renders the corpus identically and within the regression guard rail\",1]",
+        "file": "test/browser-perf.test.mjs",
+        "name": "renders the corpus identically and within the regression guard rail",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/browser-perf.test.mjs\",19,1,0,\"suite\",\"browser performance (Playwright, Chromium)\",1]",
+        "file": "test/browser-perf.test.mjs",
+        "name": "browser performance (Playwright, Chromium)",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/contrib-differential.test.mjs\",18,3,1,\"test\",\"contains no runtime JavaScript host modules\",1]",
+        "file": "test/contrib-differential.test.mjs",
+        "name": "contains no runtime JavaScript host modules",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/contrib-differential.test.mjs\",25,3,1,\"test\",\"matches official render-a11y-string outputs and errors\",1]",
+        "file": "test/contrib-differential.test.mjs",
+        "name": "matches official render-a11y-string outputs and errors",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/contrib-differential.test.mjs\",68,3,1,\"test\",\"matches official mhchem rendering across parser state machines\",1]",
+        "file": "test/contrib-differential.test.mjs",
+        "name": "matches official mhchem rendering across parser state machines",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/contrib-differential.test.mjs\",17,1,0,\"suite\",\"contrib LilScript parity\",1]",
+        "file": "test/contrib-differential.test.mjs",
+        "name": "contrib LilScript parity",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",38,3,1,\"test\",\"renders x^2 with MathML and HTML\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "renders x^2 with MathML and HTML",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",47,3,1,\"test\",\"renders frac\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "renders frac",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",56,3,1,\"test\",\"matches the upstream root exports\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "matches the upstream root exports",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",82,3,1,\"test\",\"honors throwOnError and errorColor\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "honors throwOnError and errorColor",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",90,3,1,\"test\",\"pins option keys on the library artifact\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "pins option keys on the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",98,3,1,\"test\",\"render appends a DOM tree and covers the TeX surface\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "render appends a DOM tree and covers the TeX surface",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",124,3,1,\"test\",\"closed artifact performs the core call\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "closed artifact performs the core call",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/katex.test.mjs\",37,1,0,\"suite\",\"@itslil/katex\",1]",
+        "file": "test/katex.test.mjs",
+        "name": "@itslil/katex",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",14,3,1,\"test\",\"reports the pinned upstream version in ESM, CJS, and the CLI\",1]",
+        "file": "test/package.test.mjs",
+        "name": "reports the pinned upstream version in ESM, CJS, and the CLI",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",27,3,1,\"test\",\"matches pinned upstream root and contrib export keys\",1]",
+        "file": "test/package.test.mjs",
+        "name": "matches pinned upstream root and contrib export keys",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",49,3,1,\"test\",\"renders stdin through the CLI\",1]",
+        "file": "test/package.test.mjs",
+        "name": "renders stdin through the CLI",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",59,3,1,\"test\",\"loads ESM and CommonJS contrib entry points\",1]",
+        "file": "test/package.test.mjs",
+        "name": "loads ESM and CommonJS contrib entry points",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",70,3,1,\"test\",\"loads browser builds as classic scripts\",1]",
+        "file": "test/package.test.mjs",
+        "name": "loads browser builds as classic scripts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",100,3,1,\"test\",\"matches official mhchem output\",1]",
+        "file": "test/package.test.mjs",
+        "name": "matches official mhchem output",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",113,3,1,\"test\",\"matches official output across the screenshot corpus\",1]",
+        "file": "test/package.test.mjs",
+        "name": "matches official output across the screenshot corpus",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",13,1,0,\"suite\",\"published surface\",1]",
+        "file": "test/package.test.mjs",
+        "name": "published surface",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",25,3,1,\"test\",\"ships the benchmark page and the corpus it shares with Node\",1]",
+        "file": "test/site.test.mjs",
+        "name": "ships the benchmark page and the corpus it shares with Node",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",31,3,1,\"test\",\"publishes results that name their sources and both worlds\",1]",
+        "file": "test/site.test.mjs",
+        "name": "publishes results that name their sources and both worlds",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/auto-render.cjs",
+        "sha256": "2b795d8717ac9041a9c52919176b13c37e91efb9f0c437f028d193f7d74bb812",
+        "bytes": 4057
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/auto-render.mjs",
+        "sha256": "01330af0bccf50a445d6ba95cea68c0e580d4f89395a06b9929652c99660c045",
+        "bytes": 2739
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/copy-tex.cjs",
+        "sha256": "ca8b619a5c0cd36c07f136456c28a64b35df6a89cfa8c32b44c42a772fac616e",
+        "bytes": 1381
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/copy-tex.mjs",
+        "sha256": "bf0983e6edbe3743ea1b8b96b34da9ff6a28a06bb398a32d2dd32249f03a577e",
+        "bytes": 1312
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mathtex-script-type.cjs",
+        "sha256": "eb52b37058646b6bc4a215782c76a02cf5f7b7b7c01b6b941bd6b69b3eb9b6af",
+        "bytes": 1333
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mathtex-script-type.mjs",
+        "sha256": "7e256d4569d673e7bacd38ca15df15e283b33c30b25889c7d0ec74b21c32f796",
+        "bytes": 530
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.cjs",
+        "sha256": "98b156f088ea22810f5201353b7baf79eace1c666acf59e41a873697e0ccfa41",
+        "bytes": 43086
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.mjs",
+        "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+        "bytes": 42015
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.cjs",
+        "sha256": "1b405c41ebe2147641f07c901965265136afd156c3e2999dff290a8f1ba565e7",
+        "bytes": 8622
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.mjs",
+        "sha256": "808a4d2a48e438762bb978a799283948ab7f145700212bd6fb6be1834a195ded",
+        "bytes": 6911
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.cjs",
+        "sha256": "bdeafc9329203138d0cad72456f21db9c673efd3155fcf39365bf4119266059b",
+        "bytes": 276695
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.closed.js",
+        "sha256": "cf0f158f34d0796cba3f171fce1f5a888bdaf7128b0727d05b0f4277065185f6",
+        "bytes": 275209
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+        "bytes": 274892
+      },
+      {
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/katex.js",
+        "sha256": "053a4aa4fd160948275966aa51c70c30cc87c6bae7ed3460ae61e9dc50a6fe53",
+        "bytes": 76
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "format": "module",
+        "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+        "bytes": 274892,
+        "pid": 3414472
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.mjs",
+        "format": "module",
+        "sha256": "808a4d2a48e438762bb978a799283948ab7f145700212bd6fb6be1834a195ded",
+        "bytes": 6911,
+        "pid": 3414472
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.mjs",
+        "format": "module",
+        "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+        "bytes": 42015,
+        "pid": 3414472
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.closed.js",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.closed.js",
+        "format": "module",
+        "sha256": "cf0f158f34d0796cba3f171fce1f5a888bdaf7128b0727d05b0f4277065185f6",
+        "bytes": 275209,
+        "pid": 3414473
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mathtex-script-type.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mathtex-script-type.mjs",
+        "format": "module",
+        "sha256": "7e256d4569d673e7bacd38ca15df15e283b33c30b25889c7d0ec74b21c32f796",
+        "bytes": 530,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.cjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.cjs",
+        "format": "commonjs",
+        "sha256": "bdeafc9329203138d0cad72456f21db9c673efd3155fcf39365bf4119266059b",
+        "bytes": 276695,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.cjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.cjs",
+        "format": "commonjs",
+        "sha256": "1b405c41ebe2147641f07c901965265136afd156c3e2999dff290a8f1ba565e7",
+        "bytes": 8622,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.mjs",
+        "format": "module",
+        "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+        "bytes": 42015,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/auto-render.cjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/auto-render.cjs",
+        "format": "commonjs",
+        "sha256": "2b795d8717ac9041a9c52919176b13c37e91efb9f0c437f028d193f7d74bb812",
+        "bytes": 4057,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/katex.js",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/katex.js",
+        "format": "module",
+        "sha256": "053a4aa4fd160948275966aa51c70c30cc87c6bae7ed3460ae61e9dc50a6fe53",
+        "bytes": 76,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.closed.js",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.closed.js",
+        "format": "module",
+        "sha256": "cf0f158f34d0796cba3f171fce1f5a888bdaf7128b0727d05b0f4277065185f6",
+        "bytes": 275209,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/render-a11y-string.mjs",
+        "format": "module",
+        "sha256": "808a4d2a48e438762bb978a799283948ab7f145700212bd6fb6be1834a195ded",
+        "bytes": 6911,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.cjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mhchem.cjs",
+        "format": "commonjs",
+        "sha256": "98b156f088ea22810f5201353b7baf79eace1c666acf59e41a873697e0ccfa41",
+        "bytes": 43086,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/auto-render.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/auto-render.mjs",
+        "format": "module",
+        "sha256": "01330af0bccf50a445d6ba95cea68c0e580d4f89395a06b9929652c99660c045",
+        "bytes": 2739,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/copy-tex.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/copy-tex.mjs",
+        "format": "module",
+        "sha256": "bf0983e6edbe3743ea1b8b96b34da9ff6a28a06bb398a32d2dd32249f03a577e",
+        "bytes": 1312,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "format": "module",
+        "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+        "bytes": 274892,
+        "pid": 3414479
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "format": "module",
+        "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+        "bytes": 274892,
+        "pid": 3414527
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "url": "file:///tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/katex.mjs",
+        "format": "module",
+        "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+        "bytes": 274892,
+        "pid": 3414534
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/copy-tex.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-katexlil-2rS33W/katexlil/dist/contrib/mathtex-script-type.cjs"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/browser-perf.test.mjs\",20,3,1,\"test\",\"renders the corpus identically and within the regression guard rail\",1]",
+    "[\"test/browser-perf.test.mjs\",19,1,0,\"suite\",\"browser performance (Playwright, Chromium)\",1]",
+    "[\"test/contrib-differential.test.mjs\",18,3,1,\"test\",\"contains no runtime JavaScript host modules\",1]",
+    "[\"test/contrib-differential.test.mjs\",25,3,1,\"test\",\"matches official render-a11y-string outputs and errors\",1]",
+    "[\"test/contrib-differential.test.mjs\",68,3,1,\"test\",\"matches official mhchem rendering across parser state machines\",1]",
+    "[\"test/contrib-differential.test.mjs\",17,1,0,\"suite\",\"contrib LilScript parity\",1]",
+    "[\"test/katex.test.mjs\",38,3,1,\"test\",\"renders x^2 with MathML and HTML\",1]",
+    "[\"test/katex.test.mjs\",47,3,1,\"test\",\"renders frac\",1]",
+    "[\"test/katex.test.mjs\",56,3,1,\"test\",\"matches the upstream root exports\",1]",
+    "[\"test/katex.test.mjs\",82,3,1,\"test\",\"honors throwOnError and errorColor\",1]",
+    "[\"test/katex.test.mjs\",90,3,1,\"test\",\"pins option keys on the library artifact\",1]",
+    "[\"test/katex.test.mjs\",98,3,1,\"test\",\"render appends a DOM tree and covers the TeX surface\",1]",
+    "[\"test/katex.test.mjs\",124,3,1,\"test\",\"closed artifact performs the core call\",1]",
+    "[\"test/katex.test.mjs\",37,1,0,\"suite\",\"@itslil/katex\",1]",
+    "[\"test/package.test.mjs\",14,3,1,\"test\",\"reports the pinned upstream version in ESM, CJS, and the CLI\",1]",
+    "[\"test/package.test.mjs\",27,3,1,\"test\",\"matches pinned upstream root and contrib export keys\",1]",
+    "[\"test/package.test.mjs\",49,3,1,\"test\",\"renders stdin through the CLI\",1]",
+    "[\"test/package.test.mjs\",59,3,1,\"test\",\"loads ESM and CommonJS contrib entry points\",1]",
+    "[\"test/package.test.mjs\",70,3,1,\"test\",\"loads browser builds as classic scripts\",1]",
+    "[\"test/package.test.mjs\",100,3,1,\"test\",\"matches official mhchem output\",1]",
+    "[\"test/package.test.mjs\",113,3,1,\"test\",\"matches official output across the screenshot corpus\",1]",
+    "[\"test/package.test.mjs\",13,1,0,\"suite\",\"published surface\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",25,3,1,\"test\",\"ships the benchmark page and the corpus it shares with Node\",1]",
+    "[\"test/site.test.mjs\",31,3,1,\"test\",\"publishes results that name their sources and both worlds\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

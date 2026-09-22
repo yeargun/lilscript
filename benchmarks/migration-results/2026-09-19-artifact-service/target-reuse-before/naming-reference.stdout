@@ -1,0 +1,6 @@
+
+running 1 test
+test semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2842 filtered out; finished in 0.19s
+

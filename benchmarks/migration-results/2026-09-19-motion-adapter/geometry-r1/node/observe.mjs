@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js","/home/azureuser/motionlil/node_modules/motion/dist/es/index.mjs"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/node/loaded"});

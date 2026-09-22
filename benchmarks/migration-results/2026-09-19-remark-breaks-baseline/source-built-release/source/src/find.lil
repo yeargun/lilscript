@@ -1,0 +1,174 @@
+import { childCount, fail, indexOfNode, spliceReplace, stringField } from "./host.lil";
+import { visitParents } from "./visit.lil";
+
+string escapeRegExp(string value) {
+  string out = "";
+  int n = value.length;
+  int i = 0;
+  while (i < n) {
+    string ch = value.charAt(i);
+    if (ch == "\\" || ch == "^" || ch == "$" || ch == "." || ch == "*" || ch == "+" || ch == "?" || ch == "(" || ch == ")" || ch == "[" || ch == "]" || ch == "{" || ch == "}" || ch == "|") {
+      out = out + "\\" + ch;
+    } else {
+      out = out + ch;
+    }
+    i = i + 1;
+  }
+  return out;
+}
+
+JsValue toExpression(JsValue find) {
+  if (find is string) {
+    return new Regex(escapeRegExp(find), "g");
+  }
+  return find;
+}
+
+JsValue toFunction(JsValue replace) {
+  if (JS.typeOf(replace) == "function") {
+    return replace;
+  }
+  JsValue holder = JS.object("value", replace);
+  return JS.method1((JsValue _s, JsValue _a) => {
+    return JS.get(holder, "value");
+  });
+}
+
+JsValue toPairs(JsValue tupleOrList) {
+  if (!JS.isArray(tupleOrList)) {
+    fail("Expected find and replace tuple or list of tuples");
+  }
+  JsValue list = tupleOrList;
+  if (childCount(tupleOrList) > 0) {
+    JsValue first = tupleOrList[0];
+    if (JS.isUndefined(first) || JS.isNullish(first) || !first.truthy() || JS.isArray(first)) {
+      list = tupleOrList;
+    } else {
+      list = JS.array();
+      JS.push(list, tupleOrList);
+    }
+  }
+  JsValue result = JS.array();
+  int n = childCount(list);
+  int index = 0;
+  while (index < n) {
+    JsValue tuple = list[index];
+    JsValue pair = JS.array();
+    JS.push(pair, toExpression(tuple[0]));
+    if (childCount(tuple) > 1) {
+      JS.push(pair, toFunction(tuple[1]));
+    } else {
+      JS.push(pair, toFunction(JS.undefined()));
+    }
+    JS.push(result, pair);
+    index = index + 1;
+  }
+  return result;
+}
+
+JsValue applyReplace(JsValue replace, JsValue found, JsValue matchObject) {
+  if (JS.typeOf(replace) != "function") {
+    return replace;
+  }
+  return JS.call(replace, JS.undefined(), found, matchObject);
+}
+
+JsValue handleText(JsValue node, JsValue parents, JsValue pair) {
+  if (childCount(parents) == 0) {
+    return JS.undefined();
+  }
+  JsValue parent = parents[childCount(parents) - 1];
+  JsValue find = pair[0];
+  JsValue replace = pair[1];
+  JsValue siblings = JS.get(parent, "children");
+  int index = indexOfNode(siblings, node);
+  string value = stringField(node, "value");
+  if (JS.typeOf(find) == "object" || JS.typeOf(find) == "function") {
+    find["lastIndex"] = 0;
+  }
+  int start = 0;
+  bool change = false;
+  JsValue nodes = JS.array();
+  JsValue found = JS.invoke(find, "exec", value);
+  while (!(JS.isUndefined(found) || JS.isNullish(found))) {
+    JsValue positionVal = JS.get(found, "index");
+    int position = 0;
+    if (JS.typeOf(positionVal) == "number") {
+      position = JS.number(positionVal).toInt();
+    }
+    JsValue stack = JS.array();
+    int pi = 0;
+    int pn = childCount(parents);
+    while (pi < pn) {
+      JS.push(stack, parents[pi]);
+      pi = pi + 1;
+    }
+    JS.push(stack, node);
+    JsValue matchObject = JS.object("index", position, "input", JS.get(found, "input"), "stack", stack);
+    JsValue replaced = applyReplace(replace, found[0], matchObject);
+    if (replaced is string) {
+      if (replaced.length > 0) {
+        replaced = JS.object("type", "text", "value", replaced);
+      } else {
+        replaced = JS.undefined();
+      }
+    }
+    if (replaced is bool && !replaced) {
+      find["lastIndex"] = position + 1;
+    } else {
+      if (start != position) {
+        JS.push(nodes, JS.object("type", "text", "value", value.slice(start, position)));
+      }
+      if (JS.isArray(replaced)) {
+        int ri = 0;
+        int rn = childCount(replaced);
+        while (ri < rn) {
+          JS.push(nodes, replaced[ri]);
+          ri = ri + 1;
+        }
+      } else if (!(JS.isUndefined(replaced) || JS.isNullish(replaced) || (replaced is bool && !replaced))) {
+        if (replaced is bool) {
+        } else {
+          JS.push(nodes, replaced);
+        }
+      }
+      string matched = "";
+      JsValue m0 = found[0];
+      if (m0 is string) {
+        matched = m0;
+      }
+      start = position + matched.length;
+      change = true;
+    }
+    JsValue globalFlag = JS.get(find, "global");
+    if (!(globalFlag is bool && globalFlag)) {
+      found = JS.undefined();
+    } else {
+      found = JS.invoke(find, "exec", value);
+    }
+  }
+  if (change) {
+    if (start < value.length) {
+      JS.push(nodes, JS.object("type", "text", "value", value.slice(start)));
+    }
+    spliceReplace(siblings, index, nodes);
+  } else {
+    nodes = JS.array();
+    JS.push(nodes, node);
+  }
+  return index + childCount(nodes);
+}
+
+export void findAndReplace(JsValue tree, JsValue list) {
+  JsValue pairs = toPairs(list);
+  int pairIndex = 0;
+  int n = childCount(pairs);
+  while (pairIndex < n) {
+    JsValue pair = pairs[pairIndex];
+    JsValue visitor = JS.method2((JsValue _s, JsValue node, JsValue parents) => {
+      return handleText(node, parents, pair);
+    });
+    visitParents(tree, "text", visitor);
+    pairIndex = pairIndex + 1;
+  }
+}

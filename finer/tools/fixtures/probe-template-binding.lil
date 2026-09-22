@@ -1,0 +1,7 @@
+extern int read();
+int templateBinding(int seed) {
+  int live = seed * 2;
+  string rendered = `value=${live}`;
+  return rendered.length;
+}
+print(templateBinding(read()));print(templateBinding(-3));print(templateBinding(0));print(templateBinding(2147483647));

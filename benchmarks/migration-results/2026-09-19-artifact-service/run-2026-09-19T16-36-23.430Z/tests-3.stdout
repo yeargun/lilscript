@@ -1,0 +1,13 @@
+
+running 8 tests
+test semantic_program::integrated_javascript_tests::integrated_observation_tests::document_consumer_runs_with_live_observed_literals_and_zero_optional_work ... ok
+test semantic_program::integrated_javascript_tests::integrated_private_edit_changes_the_public_observation_and_reuses_unrelated_facts ... ok
+test semantic_program::integrated_javascript_tests::integrated_original_modules_deliver_the_complete_api_with_zero_optional_work ... ok
+test semantic_program::integrated_javascript_tests::integrated_value_reference_module_executes_unchanged_through_native_and_javascript ... ok
+test semantic_program::integrated_javascript_tests::public_factory_qualifies_combined_recipes_with_exact_scores_and_original_observations ... ok
+test semantic_program::integrated_javascript_tests::integrated_record_helper_string_product_and_call_portfolio_preserves_one_event_oracle ... ok
+test semantic_program::integrated_javascript_tests::integrated_search_winners_belong_to_the_exact_executed_measured_union ... ok
+test semantic_program::integrated_javascript_tests::integrated_observation_tests::document_consumer_literal_modes_compose_with_the_existing_portfolio_and_fixed_search ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 2835 filtered out; finished in 14.72s
+

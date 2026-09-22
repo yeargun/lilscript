@@ -1,0 +1,3010 @@
+{
+  "schema": 1,
+  "kind": "semantic-backend-language-census",
+  "started": "2026-09-20T23:37:18.396Z",
+  "backend": "semantic",
+  "mode": "development",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+    "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+    "bytes": 17886160,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "config": {
+    "path": "/home/azureuser/lilscript/tests/config/no-optimization.toml",
+    "sha256": "1f796338933bd7bd7875a2e9cf0f5917b79c7c19de598bb92d5baf38096e74b5",
+    "bytes": 240
+  },
+  "scope": "the existing tests/cases runtime corpus; not a complete feature inventory, not a library baseline",
+  "rows": [
+    {
+      "case": "01_constants",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/01_constants.lil",
+        "sha256": "eb900b6a1b80d0bd96c4d27dfdd199d7da1c4e85cf041627b3e27e65efe5ee39",
+        "bytes": 62
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/01_constants.out",
+        "sha256": "0a04c624436de8d03e89f9171a3bb90a48c73b3fa8aa6f411308639c51738564",
+        "bytes": 16
+      },
+      "compileMs": 10.4,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/01_constants-js.js",
+        "sha256": "9d26b0b2260762f311c2bd84778b27d76fcf8091f680c8f01d4467ff8a5ce2e6",
+        "bytes": 111
+      },
+      "mismatch": null
+    },
+    {
+      "case": "01_constants",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/01_constants.lil",
+        "sha256": "eb900b6a1b80d0bd96c4d27dfdd199d7da1c4e85cf041627b3e27e65efe5ee39",
+        "bytes": 62
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/01_constants.out",
+        "sha256": "0a04c624436de8d03e89f9171a3bb90a48c73b3fa8aa6f411308639c51738564",
+        "bytes": 16
+      },
+      "compileMs": 6,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/01_constants-c.c",
+        "sha256": "75cdb9a2333fb517b0405abf9b8ac9a325d70d4b0d037d9cdbe3a2ec00588f5e",
+        "bytes": 4371
+      },
+      "mismatch": null
+    },
+    {
+      "case": "02_algebraic",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/02_algebraic.lil",
+        "sha256": "2fa4c49300743399e0274c93d738f8ea3a0bdd763cca2bd2d7fbb2117915916b",
+        "bytes": 123
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/02_algebraic.out",
+        "sha256": "9f8736eebfc8bf792a4dc3c5056e2966481a8bc363caf88881bce1d601b757d9",
+        "bytes": 5
+      },
+      "compileMs": 7.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/02_algebraic-js.js",
+        "sha256": "3721c6d9f4325a21414e17029f3ef0118f4fab70818174433e8d25d0b3ed9456",
+        "bytes": 173
+      },
+      "mismatch": null
+    },
+    {
+      "case": "02_algebraic",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/02_algebraic.lil",
+        "sha256": "2fa4c49300743399e0274c93d738f8ea3a0bdd763cca2bd2d7fbb2117915916b",
+        "bytes": 123
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/02_algebraic.out",
+        "sha256": "9f8736eebfc8bf792a4dc3c5056e2966481a8bc363caf88881bce1d601b757d9",
+        "bytes": 5
+      },
+      "compileMs": 8.5,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/02_algebraic-c.c",
+        "sha256": "b839f7c410bf788d7614aa2c929b124da18ead90edddb39671f5ff05936de948",
+        "bytes": 4526
+      },
+      "mismatch": null
+    },
+    {
+      "case": "03_branches",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/03_branches.lil",
+        "sha256": "6a46ab207f5c7b0efeb5366406388cfc904e01dc735534abccec09d38e75124b",
+        "bytes": 143
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/03_branches.out",
+        "sha256": "b57e8414a41540d11aa2f00a85f7a37ef674f76290bd7719f1741b1354525155",
+        "bytes": 7
+      },
+      "compileMs": 9.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/03_branches-js.js",
+        "sha256": "fb87621f47247e5de729304e0741d724ec2b38ecff902064c2d937df1801178b",
+        "bytes": 203
+      },
+      "mismatch": null
+    },
+    {
+      "case": "03_branches",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/03_branches.lil",
+        "sha256": "6a46ab207f5c7b0efeb5366406388cfc904e01dc735534abccec09d38e75124b",
+        "bytes": 143
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/03_branches.out",
+        "sha256": "b57e8414a41540d11aa2f00a85f7a37ef674f76290bd7719f1741b1354525155",
+        "bytes": 7
+      },
+      "compileMs": 3.8,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(3)), span: Span { start: 14, end: 27 }, feature: \"native print representation\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "04_while",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/04_while.lil",
+        "sha256": "de3a2e89165a1019d51d936c199b25d9d71ef9ef538e77e3ddee25e0f2a86009",
+        "bytes": 95
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/04_while.out",
+        "sha256": "238903180cc104ec2c5d8b3f20c5bc61b389ec0a967df8cc208cdc7cd454174f",
+        "bytes": 3
+      },
+      "compileMs": 5.4,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/04_while-js.js",
+        "sha256": "9d10e89c46f12ed40e9fdba5c706167b52bfbfbed452aa255d4c040d6709ca4f",
+        "bytes": 110
+      },
+      "mismatch": null
+    },
+    {
+      "case": "04_while",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/04_while.lil",
+        "sha256": "de3a2e89165a1019d51d936c199b25d9d71ef9ef538e77e3ddee25e0f2a86009",
+        "bytes": 95
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/04_while.out",
+        "sha256": "238903180cc104ec2c5d8b3f20c5bc61b389ec0a967df8cc208cdc7cd454174f",
+        "bytes": 3
+      },
+      "compileMs": 2.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/04_while-c.c",
+        "sha256": "2367fc55eaa2fc5ffede27322548d704ac84050c3d8abecbc9155e98abd9426c",
+        "bytes": 3270
+      },
+      "mismatch": null
+    },
+    {
+      "case": "05_for_control",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/05_for_control.lil",
+        "sha256": "9c93ffc67f19e48e78828e71db3d3615288bb07cb5b53edc978ebe15877bd70f",
+        "bytes": 165
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/05_for_control.out",
+        "sha256": "a9742eb8ee320e006666aef25ae9aeed948247f3125c9cafa7cf97b7e7467dd5",
+        "bytes": 3
+      },
+      "compileMs": 7.3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/05_for_control-js.js",
+        "sha256": "3f952afe7269b179e10231ec14a016978670f432f051baec4181436c4157336b",
+        "bytes": 169
+      },
+      "mismatch": null
+    },
+    {
+      "case": "05_for_control",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/05_for_control.lil",
+        "sha256": "9c93ffc67f19e48e78828e71db3d3615288bb07cb5b53edc978ebe15877bd70f",
+        "bytes": 165
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/05_for_control.out",
+        "sha256": "a9742eb8ee320e006666aef25ae9aeed948247f3125c9cafa7cf97b7e7467dd5",
+        "bytes": 3
+      },
+      "compileMs": 4.1,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/05_for_control-c.c",
+        "sha256": "fdb9789c25c695f5c4f3c8a3c510ddf28380da77a921487f432a604a20c4d5e1",
+        "bytes": 3582
+      },
+      "mismatch": null
+    },
+    {
+      "case": "06_short_circuit",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/06_short_circuit.lil",
+        "sha256": "a655289205e6298a13ecc3dc4a903013684f7b8d02fa1f90326b955b5a6a3350",
+        "bytes": 158
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/06_short_circuit.out",
+        "sha256": "c2dbae1e97a58ddb8e6dcad0a0bb62832a26c64c9b8e8bf482b7604879c02ecb",
+        "bytes": 7
+      },
+      "compileMs": 4.6,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/06_short_circuit-js.js",
+        "sha256": "8fce5042ac0438cc3b5e4d52574ef16578d172630f2bb5ae29cc9d041c7c4dfc",
+        "bytes": 213
+      },
+      "mismatch": null
+    },
+    {
+      "case": "06_short_circuit",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/06_short_circuit.lil",
+        "sha256": "a655289205e6298a13ecc3dc4a903013684f7b8d02fa1f90326b955b5a6a3350",
+        "bytes": 158
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/06_short_circuit.out",
+        "sha256": "c2dbae1e97a58ddb8e6dcad0a0bb62832a26c64c9b8e8bf482b7604879c02ecb",
+        "bytes": 7
+      },
+      "compileMs": 3.8,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: None, span: Span { start: 4, end: 9 }, feature: \"native captured module storage\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "07_deep_functions",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/07_deep_functions.lil",
+        "sha256": "4ddaa4b1698d732a3fa58d0c474dbfaa5f42d6f3bf248295de5c140a2af8522e",
+        "bytes": 195
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/07_deep_functions.out",
+        "sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+        "bytes": 2
+      },
+      "compileMs": 7,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/07_deep_functions-js.js",
+        "sha256": "b846b6eb870b713e31b71ea98cea22ea975a3bc38ecf1508c1c4b66da1fa3f79",
+        "bytes": 311
+      },
+      "mismatch": null
+    },
+    {
+      "case": "07_deep_functions",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/07_deep_functions.lil",
+        "sha256": "4ddaa4b1698d732a3fa58d0c474dbfaa5f42d6f3bf248295de5c140a2af8522e",
+        "bytes": 195
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/07_deep_functions.out",
+        "sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+        "bytes": 2
+      },
+      "compileMs": 3.1,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/07_deep_functions-c.c",
+        "sha256": "e746c2b0199ec53651ee15997ce5e78c0bce48264bc51c25eba99aad2f759917",
+        "bytes": 3284
+      },
+      "mismatch": null
+    },
+    {
+      "case": "08_recursion",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/08_recursion.lil",
+        "sha256": "a67accb6a96ba849156c41916e1250f3423dae62e3a00984ccbeebede0236847",
+        "bytes": 128
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/08_recursion.out",
+        "sha256": "140154083d726867f5e43282aeaf021f9300ec6287d4d2c874493ee655a766e7",
+        "bytes": 4
+      },
+      "compileMs": 12.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/08_recursion-js.js",
+        "sha256": "9e808acc665eb95fc5628fefadd68d12855ab570beea28e57520985aa5183e71",
+        "bytes": 167
+      },
+      "mismatch": null
+    },
+    {
+      "case": "08_recursion",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/08_recursion.lil",
+        "sha256": "a67accb6a96ba849156c41916e1250f3423dae62e3a00984ccbeebede0236847",
+        "bytes": 128
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/08_recursion.out",
+        "sha256": "140154083d726867f5e43282aeaf021f9300ec6287d4d2c874493ee655a766e7",
+        "bytes": 4
+      },
+      "compileMs": 3.2,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/08_recursion-c.c",
+        "sha256": "f607c3d2e3b6f8e5db865d2b10e51b0f1c833e19842d0e5306664e701185b3fa",
+        "bytes": 4032
+      },
+      "mismatch": null
+    },
+    {
+      "case": "09_closure_capture",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/09_closure_capture.lil",
+        "sha256": "41673204112dce99c3c0a85aae851da8f5d9eb29ac527d9d8367633d5d9aa21c",
+        "bytes": 127
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/09_closure_capture.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 10.4,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/09_closure_capture-js.js",
+        "sha256": "d36df22955e56a0a91b86582e1b9ca2085039f6dbff653b200f9e80811e777ba",
+        "bytes": 192
+      },
+      "mismatch": null
+    },
+    {
+      "case": "09_closure_capture",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/09_closure_capture.lil",
+        "sha256": "41673204112dce99c3c0a85aae851da8f5d9eb29ac527d9d8367633d5d9aa21c",
+        "bytes": 127
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/09_closure_capture.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 3.1,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/09_closure_capture-c.c",
+        "sha256": "cfc3118e7c28ad0f9ea1a2e5ec47cfcd88e934be4897471f74e0b79bc4f3c7de",
+        "bytes": 8103
+      },
+      "mismatch": null
+    },
+    {
+      "case": "10_function_value",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/10_function_value.lil",
+        "sha256": "f9c3a41be385f0a7b98ad2f6d1cf8ed5ff3c3243349db95864510bc9562f9f20",
+        "bytes": 74
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/10_function_value.out",
+        "sha256": "7ee29791fc17e986b97128845622b077fb45e349fdb80523fac9dba879b4ad60",
+        "bytes": 3
+      },
+      "compileMs": 4.4,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/10_function_value-js.js",
+        "sha256": "1a55f7e6d991041a9413c55a8d429c6f1a49e826d277a255d153d9a30447da18",
+        "bytes": 118
+      },
+      "mismatch": null
+    },
+    {
+      "case": "10_function_value",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/10_function_value.lil",
+        "sha256": "f9c3a41be385f0a7b98ad2f6d1cf8ed5ff3c3243349db95864510bc9562f9f20",
+        "bytes": 74
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/10_function_value.out",
+        "sha256": "7ee29791fc17e986b97128845622b077fb45e349fdb80523fac9dba879b4ad60",
+        "bytes": 3
+      },
+      "compileMs": 5,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/10_function_value-c.c",
+        "sha256": "12044b8e20c62a03c600cf4a8854fc7109497a68a70302c9f0584fdc03af4ceb",
+        "bytes": 7055
+      },
+      "mismatch": null
+    },
+    {
+      "case": "11_array_index",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/11_array_index.lil",
+        "sha256": "5110b3e2d262ec9636895804562a6be031546cfaee336b65b98529a5241c0195",
+        "bytes": 101
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/11_array_index.out",
+        "sha256": "df2cb6479a628f2cbc3cd4718c95a5fd4dc482992c7eb2925237ddfe3a9dffd1",
+        "bytes": 4
+      },
+      "compileMs": 5.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/11_array_index-js.js",
+        "sha256": "39f733002441ee1ef36e705f304c265d8bb527320c457ed0a586717772389896",
+        "bytes": 140
+      },
+      "mismatch": null
+    },
+    {
+      "case": "11_array_index",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/11_array_index.lil",
+        "sha256": "5110b3e2d262ec9636895804562a6be031546cfaee336b65b98529a5241c0195",
+        "bytes": 101
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/11_array_index.out",
+        "sha256": "df2cb6479a628f2cbc3cd4718c95a5fd4dc482992c7eb2925237ddfe3a9dffd1",
+        "bytes": 4
+      },
+      "compileMs": 2.6,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "12_array_map",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/12_array_map.lil",
+        "sha256": "70b8c01b8b9778b5e06a5f4c5ac395b2ade179624c61bc9fe071616942b4a592",
+        "bytes": 166
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/12_array_map.out",
+        "sha256": "f4ccd05b3271c386ee55d9876c7450012a3b361e5065c09dc22075e38b3cc35c",
+        "bytes": 3
+      },
+      "compileMs": 2.5,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/12_array_map.lil:2:15\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "12_array_map",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/12_array_map.lil",
+        "sha256": "70b8c01b8b9778b5e06a5f4c5ac395b2ade179624c61bc9fe071616942b4a592",
+        "bytes": 166
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/12_array_map.out",
+        "sha256": "f4ccd05b3271c386ee55d9876c7450012a3b361e5065c09dc22075e38b3cc35c",
+        "bytes": 3
+      },
+      "compileMs": 2.3,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/12_array_map.lil:2:15\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "13_filter_reduce",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/13_filter_reduce.lil",
+        "sha256": "d431693199e763d53f23c0fa3f35b6a5a9b51291c1b3883f08c3a9add1591d00",
+        "bytes": 180
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/13_filter_reduce.out",
+        "sha256": "a1fb50e6c86fae1679ef3351296fd6713411a08cf8dd1790a4fd05fae8688164",
+        "bytes": 3
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/13_filter_reduce.lil:2:17\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "13_filter_reduce",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/13_filter_reduce.lil",
+        "sha256": "d431693199e763d53f23c0fa3f35b6a5a9b51291c1b3883f08c3a9add1591d00",
+        "bytes": 180
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/13_filter_reduce.out",
+        "sha256": "a1fb50e6c86fae1679ef3351296fd6713411a08cf8dd1790a4fd05fae8688164",
+        "bytes": 3
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/13_filter_reduce.lil:2:17\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "14_array_mutation",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/14_array_mutation.lil",
+        "sha256": "40aa2c9ea010eac8d907643c2af8f9fa5b3c06d641d86f7ef5f0475dd6e9746c",
+        "bytes": 127
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/14_array_mutation.out",
+        "sha256": "a7f37ad6aac8a4c4ffade48cd23001fa27d6ad1177764fb75a46849a9aaae851",
+        "bytes": 6
+      },
+      "compileMs": 3.5,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 36, end: 50 }, feature: \"semantic JavaScript call implementation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "14_array_mutation",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/14_array_mutation.lil",
+        "sha256": "40aa2c9ea010eac8d907643c2af8f9fa5b3c06d641d86f7ef5f0475dd6e9746c",
+        "bytes": 127
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/14_array_mutation.out",
+        "sha256": "a7f37ad6aac8a4c4ffade48cd23001fa27d6ad1177764fb75a46849a9aaae851",
+        "bytes": 6
+      },
+      "compileMs": 3.3,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "15_strings",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/15_strings.lil",
+        "sha256": "8c76a8a3dbb46fcd027792d77fd6469134b5fcd9a246039701673f8472dfee49",
+        "bytes": 176
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/15_strings.out",
+        "sha256": "8d7664d3d1b2f334e2730a879a8abac018d4b3b4ea4c07b4363bef33452e7ec2",
+        "bytes": 25
+      },
+      "compileMs": 8,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 34, end: 58 }, feature: \"semantic JavaScript call implementation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "15_strings",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/15_strings.lil",
+        "sha256": "8c76a8a3dbb46fcd027792d77fd6469134b5fcd9a246039701673f8472dfee49",
+        "bytes": 176
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/15_strings.out",
+        "sha256": "8d7664d3d1b2f334e2730a879a8abac018d4b3b4ea4c07b4363bef33452e7ec2",
+        "bytes": 25
+      },
+      "compileMs": 9,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(6)), span: Span { start: 34, end: 58 }, feature: \"native method primitive\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "16_templates",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/16_templates.lil",
+        "sha256": "1a0d94a0af6348256c582c8564800f7be4aa17b1f7cf1073a2a1d7d07d4f8df5",
+        "bytes": 116
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/16_templates.out",
+        "sha256": "7f4cb21e1403e4806616928d5e98fc520ae8054281b86faf9e834377c1720f94",
+        "bytes": 17
+      },
+      "compileMs": 6.7,
+      "diagnostic": "error: unsupported semantic source: expression conversion\n --> /home/azureuser/lilscript/tests/cases/16_templates.lil:4:7\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "16_templates",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/16_templates.lil",
+        "sha256": "1a0d94a0af6348256c582c8564800f7be4aa17b1f7cf1073a2a1d7d07d4f8df5",
+        "bytes": 116
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/16_templates.out",
+        "sha256": "7f4cb21e1403e4806616928d5e98fc520ae8054281b86faf9e834377c1720f94",
+        "bytes": 17
+      },
+      "compileMs": 6.3,
+      "diagnostic": "error: unsupported semantic source: expression conversion\n --> /home/azureuser/lilscript/tests/cases/16_templates.lil:4:7\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "17_struct",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/17_struct.lil",
+        "sha256": "ad9e0c09b70320d005bb2b0242363f3d64789f2da290250b0fc48a9418037396",
+        "bytes": 138
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/17_struct.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 6.7,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 68, end: 75 }, feature: \"value-struct script callable frame adaptation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "17_struct",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/17_struct.lil",
+        "sha256": "ad9e0c09b70320d005bb2b0242363f3d64789f2da290250b0fc48a9418037396",
+        "bytes": 138
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/17_struct.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 6.4,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/17_struct-c.c",
+        "sha256": "abcc02bc7817f4ba8464a9d6de1da96ddcc2abbbcc5867ed1cabb9e9eb922852",
+        "bytes": 3137
+      },
+      "mismatch": null
+    },
+    {
+      "case": "18_nested_struct",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/18_nested_struct.lil",
+        "sha256": "be4182a12e08c4a0ca4849e93bd22c32a2177f29c362cbca120c28327594a610",
+        "bytes": 194
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/18_nested_struct.out",
+        "sha256": "dcf7d0378a8e4f73292ceb621c258ebd4ae42b709fa70c57f5705a38318f0c19",
+        "bytes": 5
+      },
+      "compileMs": 6.3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/18_nested_struct-js.js",
+        "sha256": "4c9290b68de5640c15a8ed6bc5088aea2c4c68d225ed79f4f9c3258803e49bad",
+        "bytes": 142
+      },
+      "mismatch": null
+    },
+    {
+      "case": "18_nested_struct",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/18_nested_struct.lil",
+        "sha256": "be4182a12e08c4a0ca4849e93bd22c32a2177f29c362cbca120c28327594a610",
+        "bytes": 194
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/18_nested_struct.out",
+        "sha256": "dcf7d0378a8e4f73292ceb621c258ebd4ae42b709fa70c57f5705a38318f0c19",
+        "bytes": 5
+      },
+      "compileMs": 4.4,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/18_nested_struct-c.c",
+        "sha256": "12f4b8217b2ffd26871b665014833d61dffcb57fb4b1cbfd3b738a1a693e0179",
+        "bytes": 3471
+      },
+      "mismatch": null
+    },
+    {
+      "case": "19_class",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/19_class.lil",
+        "sha256": "5b6096dcbca04b63f28a9d3f594534d216fdb5f39e93067537bd2d6b020711e1",
+        "bytes": 245
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/19_class.out",
+        "sha256": "fd4f6c8a3305974e4e80bc7bbcbd53fbc0e520232dc7b88941fbcccff56d398e",
+        "bytes": 6
+      },
+      "compileMs": 5.5,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/19_class.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "19_class",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/19_class.lil",
+        "sha256": "5b6096dcbca04b63f28a9d3f594534d216fdb5f39e93067537bd2d6b020711e1",
+        "bytes": 245
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/19_class.out",
+        "sha256": "fd4f6c8a3305974e4e80bc7bbcbd53fbc0e520232dc7b88941fbcccff56d398e",
+        "bytes": 6
+      },
+      "compileMs": 3.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/19_class.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "20_class_loop",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/20_class_loop.lil",
+        "sha256": "b28f7b2b7aea1234eb13f38ec6afee61d11a9ee4a8cd50b145584eca245e9729",
+        "bytes": 312
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/20_class_loop.out",
+        "sha256": "238903180cc104ec2c5d8b3f20c5bc61b389ec0a967df8cc208cdc7cd454174f",
+        "bytes": 3
+      },
+      "compileMs": 4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/20_class_loop.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "20_class_loop",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/20_class_loop.lil",
+        "sha256": "b28f7b2b7aea1234eb13f38ec6afee61d11a9ee4a8cd50b145584eca245e9729",
+        "bytes": 312
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/20_class_loop.out",
+        "sha256": "238903180cc104ec2c5d8b3f20c5bc61b389ec0a967df8cc208cdc7cd454174f",
+        "bytes": 3
+      },
+      "compileMs": 3.1,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/20_class_loop.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "21_float",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/21_float.lil",
+        "sha256": "8c5f31d04cf68549e9b57c46f721f18b52a74c9a1b8279ca459e6d05032e1906",
+        "bytes": 250
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/21_float.out",
+        "sha256": "f47389b6cbe7c00b69619dc2ee7ee2056259a98695d27964e160f0293a922e59",
+        "bytes": 23
+      },
+      "compileMs": 4.7,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 130, end: 144 }, feature: \"semantic JavaScript call implementation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "21_float",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/21_float.lil",
+        "sha256": "8c5f31d04cf68549e9b57c46f721f18b52a74c9a1b8279ca459e6d05032e1906",
+        "bytes": 250
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/21_float.out",
+        "sha256": "f47389b6cbe7c00b69619dc2ee7ee2056259a98695d27964e160f0293a922e59",
+        "bytes": 23
+      },
+      "compileMs": 3.2,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(22)), span: Span { start: 130, end: 144 }, feature: \"native prepared call convention\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "22_shadowing",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/22_shadowing.lil",
+        "sha256": "022124793512a8b435da84cadcbc489f8b3772304bd12bed818b299a022dda5f",
+        "bytes": 66
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/22_shadowing.out",
+        "sha256": "878cbee8e4be9baeae84b0de738919adec9ad78b08fb986e553891734d93f4bd",
+        "bytes": 4
+      },
+      "compileMs": 5.5,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/22_shadowing-js.js",
+        "sha256": "4f06395c7dcb41a66481bbbf33a735dde579577f837072d05ac1d3c918a48712",
+        "bytes": 90
+      },
+      "mismatch": null
+    },
+    {
+      "case": "22_shadowing",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/22_shadowing.lil",
+        "sha256": "022124793512a8b435da84cadcbc489f8b3772304bd12bed818b299a022dda5f",
+        "bytes": 66
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/22_shadowing.out",
+        "sha256": "878cbee8e4be9baeae84b0de738919adec9ad78b08fb986e553891734d93f4bd",
+        "bytes": 4
+      },
+      "compileMs": 7.5,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/22_shadowing-c.c",
+        "sha256": "33a83c6f2b02154a5c35b13d77992fed3d8b964b4148ae0c8379063b93f1ec93",
+        "bytes": 2791
+      },
+      "mismatch": null
+    },
+    {
+      "case": "23_global_constant",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/23_global_constant.lil",
+        "sha256": "3c82363bb8dca2ed279124bff51ddaae079f15b211055adf351abb74fd673b1a",
+        "bytes": 85
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/23_global_constant.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 4.6,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/23_global_constant-js.js",
+        "sha256": "696ef569cffb38412354d677f2dc4fd3c1de979a331b695218154e7177cfeb9f",
+        "bytes": 126
+      },
+      "mismatch": null
+    },
+    {
+      "case": "23_global_constant",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/23_global_constant.lil",
+        "sha256": "3c82363bb8dca2ed279124bff51ddaae079f15b211055adf351abb74fd673b1a",
+        "bytes": 85
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/23_global_constant.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 6.8,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: None, span: Span { start: 4, end: 10 }, feature: \"native captured module storage\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "24_global_mutation",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/24_global_mutation.lil",
+        "sha256": "a613b239effac14070e4c5583eb668bc97439ac9a003cd639a3b27c04211f96d",
+        "bytes": 111
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/24_global_mutation.out",
+        "sha256": "4a1ad737f99cef0b2fd9575aa63bc4c4664152f4c3ff5c1e2a4807cf6db61108",
+        "bytes": 6
+      },
+      "compileMs": 8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/24_global_mutation-js.js",
+        "sha256": "6c7019942bc0197780cef76309f0ed4ac01856025edacd076cc960ab3320df05",
+        "bytes": 198
+      },
+      "mismatch": null
+    },
+    {
+      "case": "24_global_mutation",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/24_global_mutation.lil",
+        "sha256": "a613b239effac14070e4c5583eb668bc97439ac9a003cd639a3b27c04211f96d",
+        "bytes": 111
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/24_global_mutation.out",
+        "sha256": "4a1ad737f99cef0b2fd9575aa63bc4c4664152f4c3ff5c1e2a4807cf6db61108",
+        "bytes": 6
+      },
+      "compileMs": 7.1,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: None, span: Span { start: 4, end: 11 }, feature: \"native captured module storage\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "25_nested_control",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/25_nested_control.lil",
+        "sha256": "b7f269417d5f3e0de98747e10ed712a31096874e92b30cc54f49c945917d4904",
+        "bytes": 201
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/25_nested_control.out",
+        "sha256": "5378796307535df3ec8d8b15a2e2dc5641419c3d3060cfe32238c0fa973f7aa3",
+        "bytes": 3
+      },
+      "compileMs": 8.7,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/25_nested_control-js.js",
+        "sha256": "e239b0aa0019e314c8fc3293e76593a6c3c14b407f7e15d128dd2a685cb1a3e9",
+        "bytes": 210
+      },
+      "mismatch": null
+    },
+    {
+      "case": "25_nested_control",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/25_nested_control.lil",
+        "sha256": "b7f269417d5f3e0de98747e10ed712a31096874e92b30cc54f49c945917d4904",
+        "bytes": 201
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/25_nested_control.out",
+        "sha256": "5378796307535df3ec8d8b15a2e2dc5641419c3d3060cfe32238c0fa973f7aa3",
+        "bytes": 3
+      },
+      "compileMs": 3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/25_nested_control-c.c",
+        "sha256": "7ca4a4d6b2e4a6e8fbc71870187d096e947435aa3a9d7ddcecbed2e140458b07",
+        "bytes": 5174
+      },
+      "mismatch": null
+    },
+    {
+      "case": "26_for_each_capture",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/26_for_each_capture.lil",
+        "sha256": "0c676768317b9dac75b49a673c7ca2c0dbc01e9ecef342829e2434d9d98b3625",
+        "bytes": 112
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/26_for_each_capture.out",
+        "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5",
+        "bytes": 3
+      },
+      "compileMs": 3.9,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/26_for_each_capture.lil:3:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "26_for_each_capture",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/26_for_each_capture.lil",
+        "sha256": "0c676768317b9dac75b49a673c7ca2c0dbc01e9ecef342829e2434d9d98b3625",
+        "bytes": 112
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/26_for_each_capture.out",
+        "sha256": "54183f4323f377b737433a1e98229ead0fdc686f93bab057ecb612daa94002b5",
+        "bytes": 3
+      },
+      "compileMs": 3.6,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/26_for_each_capture.lil:3:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "27_string_case",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/27_string_case.lil",
+        "sha256": "918a6f1f65e396ffab3633b0df88555a0db18fbf1422434cbc631a6a0cee3b98",
+        "bytes": 84
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/27_string_case.out",
+        "sha256": "93d2d09340fb641ede4a01b46909a4b591e6e74cc1c317828ee1e9df7bace92c",
+        "bytes": 20
+      },
+      "compileMs": 6.2,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/27_string_case-js.js",
+        "sha256": "abd7c7804c53cbef2ace06c3e93dd4dea5e27522eefe8554d87e3321d1efae6e",
+        "bytes": 114
+      },
+      "mismatch": null
+    },
+    {
+      "case": "27_string_case",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/27_string_case.lil",
+        "sha256": "918a6f1f65e396ffab3633b0df88555a0db18fbf1422434cbc631a6a0cee3b98",
+        "bytes": 84
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/27_string_case.out",
+        "sha256": "93d2d09340fb641ede4a01b46909a4b591e6e74cc1c317828ee1e9df7bace92c",
+        "bytes": 20
+      },
+      "compileMs": 4.1,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(5)), span: Span { start: 34, end: 53 }, feature: \"native method primitive\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "28_integer_zero_division",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/28_integer_zero_division.lil",
+        "sha256": "6e1cc405016093dd960f45b12788cfd96a36a2c644db3fec8c214316ff087536",
+        "bytes": 57
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/28_integer_zero_division.out",
+        "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+        "bytes": 4
+      },
+      "compileMs": 10.3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/28_integer_zero_division-js.js",
+        "sha256": "90411b12bf6f255888b4ee51f22235beb0f6eda03a2d54889f6a33d1d1696bdc",
+        "bytes": 90
+      },
+      "mismatch": null
+    },
+    {
+      "case": "28_integer_zero_division",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/28_integer_zero_division.lil",
+        "sha256": "6e1cc405016093dd960f45b12788cfd96a36a2c644db3fec8c214316ff087536",
+        "bytes": 57
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/28_integer_zero_division.out",
+        "sha256": "52f96c26a39ed25108a6db43d6e11c6051eba8a498a5baab1891adfa7ac7c262",
+        "bytes": 4
+      },
+      "compileMs": 3.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/28_integer_zero_division-c.c",
+        "sha256": "7003eec1722d0eebcf15b0d6d9854ad5faadc71b81252808197318aa6cf8cfc6",
+        "bytes": 3230
+      },
+      "mismatch": null
+    },
+    {
+      "case": "29_class_scalar_replacement",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.lil",
+        "sha256": "f28b0b873fcaedd8e171e513a584c265a299b1a5810eb357789917c26cc3f50e",
+        "bytes": 250
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.out",
+        "sha256": "64aeb9975f234becd55bb4635e6e2f2da7a6b7bf0a896f0c07763bdfbfb31420",
+        "bytes": 3
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "29_class_scalar_replacement",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.lil",
+        "sha256": "f28b0b873fcaedd8e171e513a584c265a299b1a5810eb357789917c26cc3f50e",
+        "bytes": 250
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.out",
+        "sha256": "64aeb9975f234becd55bb4635e6e2f2da7a6b7bf0a896f0c07763bdfbfb31420",
+        "bytes": 3
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "30_dead_code",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/30_dead_code.lil",
+        "sha256": "622796f5b3c153f0297b3fb5d4a15755e41c28ca9c8a1b03ad1f7afa2c07cb49",
+        "bytes": 95
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/30_dead_code.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 3.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/30_dead_code-js.js",
+        "sha256": "11b27a22bb3691edad16b4a414ed7ed132286faeb2d8a2596504c1d9f960e828",
+        "bytes": 154
+      },
+      "mismatch": null
+    },
+    {
+      "case": "30_dead_code",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/30_dead_code.lil",
+        "sha256": "622796f5b3c153f0297b3fb5d4a15755e41c28ca9c8a1b03ad1f7afa2c07cb49",
+        "bytes": 95
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/30_dead_code.out",
+        "sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+        "bytes": 3
+      },
+      "compileMs": 2.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/30_dead_code-c.c",
+        "sha256": "4bf3e8a98f9fff1e898f5713447c3caedf3b01fd4a60f3d060de4a38ccb8b6e7",
+        "bytes": 3808
+      },
+      "mismatch": null
+    },
+    {
+      "case": "31_string_array",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/31_string_array.lil",
+        "sha256": "27768717d410ef3c86ad2e34bc311408b81cf9cb997dd6a23436211334f1771e",
+        "bytes": 153
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/31_string_array.out",
+        "sha256": "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69",
+        "bytes": 4
+      },
+      "compileMs": 4.1,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/31_string_array-js.js",
+        "sha256": "cb686c07c06aae902b4e230641f782fb67b665c4b162bd196d3bc52d7c4ba092",
+        "bytes": 181
+      },
+      "mismatch": null
+    },
+    {
+      "case": "31_string_array",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/31_string_array.lil",
+        "sha256": "27768717d410ef3c86ad2e34bc311408b81cf9cb997dd6a23436211334f1771e",
+        "bytes": 153
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/31_string_array.out",
+        "sha256": "8470d56547eea6236d7c81a644ce74670ca0bbda998e13c629ef6bb3f0d60b69",
+        "bytes": 4
+      },
+      "compileMs": 2.9,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "32_boolean_logic",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/32_boolean_logic.lil",
+        "sha256": "b052ad9a73187ab2752d4c686c70c156995f8cabbf8bd9e3640af2c706eb6b18",
+        "bytes": 123
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/32_boolean_logic.out",
+        "sha256": "36768a89e8faf166700f48bc8df99361609e43956dd7d2bffebde9439ea5033c",
+        "bytes": 15
+      },
+      "compileMs": 3.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/32_boolean_logic-js.js",
+        "sha256": "c1dd8541c4e8b1c28b456aabba418139fdfe4a46b981c72832289e2e313d93ce",
+        "bytes": 161
+      },
+      "mismatch": null
+    },
+    {
+      "case": "32_boolean_logic",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/32_boolean_logic.lil",
+        "sha256": "b052ad9a73187ab2752d4c686c70c156995f8cabbf8bd9e3640af2c706eb6b18",
+        "bytes": 123
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/32_boolean_logic.out",
+        "sha256": "36768a89e8faf166700f48bc8df99361609e43956dd7d2bffebde9439ea5033c",
+        "bytes": 15
+      },
+      "compileMs": 2.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/32_boolean_logic-c.c",
+        "sha256": "2b43a19012e2118868102872c3f952da62269731afa4149f7b52b3836ee4513c",
+        "bytes": 2985
+      },
+      "mismatch": null
+    },
+    {
+      "case": "33_algorithms",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/33_algorithms.lil",
+        "sha256": "e4c05fd84341f186af88558731eeb78c1007de713a675c4a2a2850f17828af09",
+        "bytes": 543
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/33_algorithms.out",
+        "sha256": "1f413fc0b8cecadb0f35cd59c1a6766e966138f08644aef2726f9c158ff8922c",
+        "bytes": 12
+      },
+      "compileMs": 4.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/33_algorithms-js.js",
+        "sha256": "197637041885b421b9826da5fd17814a028832858c3e1dfc256bfd57f5f9658b",
+        "bytes": 620
+      },
+      "mismatch": null
+    },
+    {
+      "case": "33_algorithms",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/33_algorithms.lil",
+        "sha256": "e4c05fd84341f186af88558731eeb78c1007de713a675c4a2a2850f17828af09",
+        "bytes": 543
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/33_algorithms.out",
+        "sha256": "1f413fc0b8cecadb0f35cd59c1a6766e966138f08644aef2726f9c158ff8922c",
+        "bytes": 12
+      },
+      "compileMs": 3.1,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/33_algorithms-c.c",
+        "sha256": "5db605b3f2b2bd9b9da0fcccc6513a23ae1996d40c43a93e79d580cf31614b18",
+        "bytes": 6063
+      },
+      "mismatch": null
+    },
+    {
+      "case": "34_generics",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/34_generics.lil",
+        "sha256": "9e783e10d61372fac167855e7a9cbe8d4ac1500e020b197a71e853f5eb20d7b4",
+        "bytes": 679
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/34_generics.out",
+        "sha256": "e45552ac8b8923ffb5a6434a90f65fa03ca9520d6fa01c47e87e37fb00fbf0c4",
+        "bytes": 6
+      },
+      "compileMs": 2.9,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/34_generics.lil:9:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "34_generics",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/34_generics.lil",
+        "sha256": "9e783e10d61372fac167855e7a9cbe8d4ac1500e020b197a71e853f5eb20d7b4",
+        "bytes": 679
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/34_generics.out",
+        "sha256": "e45552ac8b8923ffb5a6434a90f65fa03ca9520d6fa01c47e87e37fb00fbf0c4",
+        "bytes": 6
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/34_generics.lil:9:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "35_nullable",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/35_nullable.lil",
+        "sha256": "f96c4db719ddc8303113cb99d8a86d001ba33d84964d722eec5b387dec343c08",
+        "bytes": 2106
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/35_nullable.out",
+        "sha256": "9a2e75b13ac58fc9237ffe1dd965dd5fa250c74257ff461a103b692197bfe05a",
+        "bytes": 146
+      },
+      "compileMs": 3.3,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/35_nullable.lil:26:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "35_nullable",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/35_nullable.lil",
+        "sha256": "f96c4db719ddc8303113cb99d8a86d001ba33d84964d722eec5b387dec343c08",
+        "bytes": 2106
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/35_nullable.out",
+        "sha256": "9a2e75b13ac58fc9237ffe1dd965dd5fa250c74257ff461a103b692197bfe05a",
+        "bytes": 146
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/35_nullable.lil:26:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "36_generic_equality",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/36_generic_equality.lil",
+        "sha256": "ea1d7db4199f6e9354029fd2ffdf5eb584c7c6f2a58b4f20358e20d64ff5b1e5",
+        "bytes": 342
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/36_generic_equality.out",
+        "sha256": "376259781ecdded7e47586cf98314f147c994141fb61bf717579c9efb5ed3783",
+        "bytes": 38
+      },
+      "compileMs": 2.5,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/36_generic_equality.lil:5:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "36_generic_equality",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/36_generic_equality.lil",
+        "sha256": "ea1d7db4199f6e9354029fd2ffdf5eb584c7c6f2a58b4f20358e20d64ff5b1e5",
+        "bytes": 342
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/36_generic_equality.out",
+        "sha256": "376259781ecdded7e47586cf98314f147c994141fb61bf717579c9efb5ed3783",
+        "bytes": 38
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/36_generic_equality.lil:5:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "37_named_function_callback",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/37_named_function_callback.lil",
+        "sha256": "cd27a14a9677098bcafaa4bd6a97adb5b1a2e618dfdef43b0664c77395d293b8",
+        "bytes": 258
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/37_named_function_callback.out",
+        "sha256": "e508a2f32bc6be3193e0fd207561e3f64df8bd43b09d7990260748363221370d",
+        "bytes": 13
+      },
+      "compileMs": 4.3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/37_named_function_callback-js.js",
+        "sha256": "712bbb20b5b8cc49be962e283d7720f08941de4c8f3ff527cd280a775519fe66",
+        "bytes": 331
+      },
+      "mismatch": null
+    },
+    {
+      "case": "37_named_function_callback",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/37_named_function_callback.lil",
+        "sha256": "cd27a14a9677098bcafaa4bd6a97adb5b1a2e618dfdef43b0664c77395d293b8",
+        "bytes": 258
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/37_named_function_callback.out",
+        "sha256": "e508a2f32bc6be3193e0fd207561e3f64df8bd43b09d7990260748363221370d",
+        "bytes": 13
+      },
+      "compileMs": 2.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/37_named_function_callback-c.c",
+        "sha256": "9f1d8c8d9350448ebb1d1d12b62e01a2996ae4ed09e9eb3ed6ed160e49938f1d",
+        "bytes": 8313
+      },
+      "mismatch": null
+    },
+    {
+      "case": "38_contextual_from",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/38_contextual_from.lil",
+        "sha256": "c74ab88f543ca58f5d6e97732b9baffa0fad5f41d545023ec92df08b49d7f9cb",
+        "bytes": 61
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/38_contextual_from.out",
+        "sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+        "bytes": 2
+      },
+      "compileMs": 4.3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/38_contextual_from-js.js",
+        "sha256": "e98f8d443f09db49f7a6b66e921d935d819cca961b543df456ff059de2ffc65c",
+        "bytes": 105
+      },
+      "mismatch": null
+    },
+    {
+      "case": "38_contextual_from",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/38_contextual_from.lil",
+        "sha256": "c74ab88f543ca58f5d6e97732b9baffa0fad5f41d545023ec92df08b49d7f9cb",
+        "bytes": 61
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/38_contextual_from.out",
+        "sha256": "f0b5c2c2211c8d67ed15e75e656c7862d086e9245420892a7de62cd9ec582a06",
+        "bytes": 2
+      },
+      "compileMs": 2.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/38_contextual_from-c.c",
+        "sha256": "24f037db403c0c386f4e7eaa734ef94b618364bde31dcca45f215c57fa1ed4f1",
+        "bytes": 2886
+      },
+      "mismatch": null
+    },
+    {
+      "case": "39_function_array",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/39_function_array.lil",
+        "sha256": "739231435142a3737e31a6aec2efc114fa8b4c49f723e8c8433c3f12050ec78e",
+        "bytes": 325
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/39_function_array.out",
+        "sha256": "10159baf262b43a92d95db59dae1f72c645127301661e0a3ce4e38b295a97c58",
+        "bytes": 2
+      },
+      "compileMs": 4.7,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/39_function_array-js.js",
+        "sha256": "408c7668eccf56f7f07590b96ef29435c8fa0225870db735a059065d7a2a2dbc",
+        "bytes": 393
+      },
+      "mismatch": null
+    },
+    {
+      "case": "39_function_array",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/39_function_array.lil",
+        "sha256": "739231435142a3737e31a6aec2efc114fa8b4c49f723e8c8433c3f12050ec78e",
+        "bytes": 325
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/39_function_array.out",
+        "sha256": "10159baf262b43a92d95db59dae1f72c645127301661e0a3ce4e38b295a97c58",
+        "bytes": 2
+      },
+      "compileMs": 2.8,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "40_default_parameters",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/40_default_parameters.lil",
+        "sha256": "7e3311b8b8670ed261405f21b5c26f38bb7b17407ca71a51a4e1de77c7763332",
+        "bytes": 532
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/40_default_parameters.out",
+        "sha256": "7e1eb08b9efa56e6fb8031ff387c29d3172089684497bae2867cf8cbe4094dbe",
+        "bytes": 14
+      },
+      "compileMs": 2.8,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/40_default_parameters.lil:17:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "40_default_parameters",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/40_default_parameters.lil",
+        "sha256": "7e3311b8b8670ed261405f21b5c26f38bb7b17407ca71a51a4e1de77c7763332",
+        "bytes": 532
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/40_default_parameters.out",
+        "sha256": "7e1eb08b9efa56e6fb8031ff387c29d3172089684497bae2867cf8cbe4094dbe",
+        "bytes": 14
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/40_default_parameters.lil:17:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "41_inline_for",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/41_inline_for.lil",
+        "sha256": "84f892424efe3306bba845bf9750b2d318c1784aac84d648e5b37f9bbd457bfb",
+        "bytes": 197
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/41_inline_for.out",
+        "sha256": "dcdb79f343d38ce95a351c4ce7972f7611ec8130d4cce7a9f0cf6afac823c8d5",
+        "bytes": 8
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: unsupported semantic source: statement conversion\n --> /home/azureuser/lilscript/tests/cases/41_inline_for.lil:2:8\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "41_inline_for",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/41_inline_for.lil",
+        "sha256": "84f892424efe3306bba845bf9750b2d318c1784aac84d648e5b37f9bbd457bfb",
+        "bytes": 197
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/41_inline_for.out",
+        "sha256": "dcdb79f343d38ce95a351c4ce7972f7611ec8130d4cce7a9f0cf6afac823c8d5",
+        "bytes": 8
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: unsupported semantic source: statement conversion\n --> /home/azureuser/lilscript/tests/cases/41_inline_for.lil:2:8\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "aggregate_defaults",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/aggregate_defaults.lil",
+        "sha256": "84c25e35dfc1caad701c9991109089d22e18081baa79100f5c4a5b5d893ec8b0",
+        "bytes": 637
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/aggregate_defaults.out",
+        "sha256": "4a21ba83e9126babb352bb8cd0516e465216193c39d0976e7b371081ca634a9d",
+        "bytes": 10
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/aggregate_defaults.lil:10:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "aggregate_defaults",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/aggregate_defaults.lil",
+        "sha256": "84c25e35dfc1caad701c9991109089d22e18081baa79100f5c4a5b5d893ec8b0",
+        "bytes": 637
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/aggregate_defaults.out",
+        "sha256": "4a21ba83e9126babb352bb8cd0516e465216193c39d0976e7b371081ca634a9d",
+        "bytes": 10
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/aggregate_defaults.lil:10:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "array_defaults",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_defaults.lil",
+        "sha256": "665b37602258458e314a79b1ea5226082a371ef0a4321e06cc23d98c64763a7d",
+        "bytes": 568
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_defaults.out",
+        "sha256": "ff726efc0461de67ac340ec6fef0a3a4851fc56ccb92ac812c95d148ab0312dc",
+        "bytes": 10
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/array_defaults.lil:13:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "array_defaults",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_defaults.lil",
+        "sha256": "665b37602258458e314a79b1ea5226082a371ef0a4321e06cc23d98c64763a7d",
+        "bytes": 568
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_defaults.out",
+        "sha256": "ff726efc0461de67ac340ec6fef0a3a4851fc56ccb92ac812c95d148ab0312dc",
+        "bytes": 10
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/array_defaults.lil:13:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "array_iteration_snapshot",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_iteration_snapshot.lil",
+        "sha256": "5a24d212c8357c844c21b64153f0440340545a4154c74911748f2fee9194caa5",
+        "bytes": 967
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_iteration_snapshot.out",
+        "sha256": "8ede9bbc56a1b3c1b3e01f81c7101e26d9c8d94afdcf373c7b27644e343b024a",
+        "bytes": 18
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/array_iteration_snapshot.lil:10:16\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "array_iteration_snapshot",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_iteration_snapshot.lil",
+        "sha256": "5a24d212c8357c844c21b64153f0440340545a4154c74911748f2fee9194caa5",
+        "bytes": 967
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_iteration_snapshot.out",
+        "sha256": "8ede9bbc56a1b3c1b3e01f81c7101e26d9c8d94afdcf373c7b27644e343b024a",
+        "bytes": 18
+      },
+      "compileMs": 2.5,
+      "diagnostic": "error: unsupported semantic source: missing checked call signature\n --> /home/azureuser/lilscript/tests/cases/array_iteration_snapshot.lil:10:16\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "array_slice",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_slice.lil",
+        "sha256": "d76722c7c95520966cee1b4fe02ac44abe46088541a049f5da5e24ca6d37d862",
+        "bytes": 346
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_slice.out",
+        "sha256": "bf5aac924a5c076d53b96a8fae2f55686470e5547187805a47b41888bc1eebdc",
+        "bytes": 18
+      },
+      "compileMs": 2.9,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 44, end: 58 }, feature: \"semantic JavaScript call implementation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "array_slice",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_slice.lil",
+        "sha256": "d76722c7c95520966cee1b4fe02ac44abe46088541a049f5da5e24ca6d37d862",
+        "bytes": 346
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/array_slice.out",
+        "sha256": "bf5aac924a5c076d53b96a8fae2f55686470e5547187805a47b41888bc1eebdc",
+        "bytes": 18
+      },
+      "compileMs": 2.4,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "binary_memory",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/binary_memory.lil",
+        "sha256": "5e87b5f9b440c89fffb9c218de3d6ec4bd514f0778918bca12504c0f4bf00dd8",
+        "bytes": 1207
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/binary_memory.out",
+        "sha256": "959748bdcb7e6bb190bee6551496d99bddb65a533ce36a1bbe67afbb869401be",
+        "bytes": 62
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/binary_memory.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "binary_memory",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/binary_memory.lil",
+        "sha256": "5e87b5f9b440c89fffb9c218de3d6ec4bd514f0778918bca12504c0f4bf00dd8",
+        "bytes": 1207
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/binary_memory.out",
+        "sha256": "959748bdcb7e6bb190bee6551496d99bddb65a533ce36a1bbe67afbb869401be",
+        "bytes": 62
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/binary_memory.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "callable_defaults",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/callable_defaults.lil",
+        "sha256": "09edca4711f3259cd61fa48762407cfc254c84acf64ed981307958a48b46373b",
+        "bytes": 673
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/callable_defaults.out",
+        "sha256": "a4112f015cc9367daa330f8d18b7730d9ec084f7618636280f49ec9784e4cd41",
+        "bytes": 14
+      },
+      "compileMs": 2.5,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/callable_defaults.lil:10:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "callable_defaults",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/callable_defaults.lil",
+        "sha256": "09edca4711f3259cd61fa48762407cfc254c84acf64ed981307958a48b46373b",
+        "bytes": 673
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/callable_defaults.out",
+        "sha256": "a4112f015cc9367daa330f8d18b7730d9ec084f7618636280f49ec9784e4cd41",
+        "bytes": 14
+      },
+      "compileMs": 2.3,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/callable_defaults.lil:10:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "closure_factory_variant",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/closure_factory_variant.lil",
+        "sha256": "81c1a35cd62346ef343c0c9695a60a54ff3f061e316bb244cfd230b2f9296cc4",
+        "bytes": 1174
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/closure_factory_variant.out",
+        "sha256": "6d850cf285c46869e14e62521fa4595dc12d92317e1f1440708f14c6f9512415",
+        "bytes": 95
+      },
+      "compileMs": 6,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/closure_factory_variant-js.js",
+        "sha256": "a88b0fab041a913f73257081e3648dfc4df1d719fb68326b6ffaf6eaf76d0f70",
+        "bytes": 1462
+      },
+      "mismatch": null
+    },
+    {
+      "case": "closure_factory_variant",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/closure_factory_variant.lil",
+        "sha256": "81c1a35cd62346ef343c0c9695a60a54ff3f061e316bb244cfd230b2f9296cc4",
+        "bytes": 1174
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/closure_factory_variant.out",
+        "sha256": "6d850cf285c46869e14e62521fa4595dc12d92317e1f1440708f14c6f9512415",
+        "bytes": 95
+      },
+      "compileMs": 3.2,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/closure_factory_variant-c.c",
+        "sha256": "199516fdf22438af776e12326e59c1f80ee18744113d3cdf340837c408b4310f",
+        "bytes": 17270
+      },
+      "mismatch": null
+    },
+    {
+      "case": "deferred_aggregate_values",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/deferred_aggregate_values.lil",
+        "sha256": "4c032d9ebe5011ac1458cac39006c7828a5fe6974dee6169ab763537df04236b",
+        "bytes": 324
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/deferred_aggregate_values.out",
+        "sha256": "06e9d52c1720fca412803e3b07c4b228ff113e303f4c7ab94665319d832bbfb7",
+        "bytes": 2
+      },
+      "compileMs": 4.7,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/deferred_aggregate_values-js.js",
+        "sha256": "348eb1c3299671def0c0a59e94b9b5612e8cb2cee746d976571266bc4f635b0f",
+        "bytes": 333
+      },
+      "mismatch": null
+    },
+    {
+      "case": "deferred_aggregate_values",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/deferred_aggregate_values.lil",
+        "sha256": "4c032d9ebe5011ac1458cac39006c7828a5fe6974dee6169ab763537df04236b",
+        "bytes": 324
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/deferred_aggregate_values.out",
+        "sha256": "06e9d52c1720fca412803e3b07c4b228ff113e303f4c7ab94665319d832bbfb7",
+        "bytes": 2
+      },
+      "compileMs": 2.9,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "float32_array",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/float32_array.lil",
+        "sha256": "d335b00dd6102253ce76afe2dab6da959c0d092237ca808af94a3cb134dbf3de",
+        "bytes": 743
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/float32_array.out",
+        "sha256": "5a261601d61b910f1c47a8e00853e49073a66b788b3e4fe93692303b9f0367f6",
+        "bytes": 49
+      },
+      "compileMs": 3,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/float32_array.lil:1:22\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "float32_array",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/float32_array.lil",
+        "sha256": "d335b00dd6102253ce76afe2dab6da959c0d092237ca808af94a3cb134dbf3de",
+        "bytes": 743
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/float32_array.out",
+        "sha256": "5a261601d61b910f1c47a8e00853e49073a66b788b3e4fe93692303b9f0367f6",
+        "bytes": 49
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/float32_array.lil:1:22\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "float_array_union",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/float_array_union.lil",
+        "sha256": "438aed462a3376b93c2b5fadd8a038817244dca17e3d3e46e532470bdd328b60",
+        "bytes": 298
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/float_array_union.out",
+        "sha256": "41870e5bfd371d1a53abf8431539e2c575a288e92ccccf6701e15dbda6b7e5ad",
+        "bytes": 14
+      },
+      "compileMs": 2.8,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/float_array_union.lil:3:12\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "float_array_union",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/float_array_union.lil",
+        "sha256": "438aed462a3376b93c2b5fadd8a038817244dca17e3d3e46e532470bdd328b60",
+        "bytes": 298
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/float_array_union.out",
+        "sha256": "41870e5bfd371d1a53abf8431539e2c575a288e92ccccf6701e15dbda6b7e5ad",
+        "bytes": 14
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/float_array_union.lil:3:12\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "function_subsumption",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/function_subsumption.lil",
+        "sha256": "41cb1c6580b89d01fa990511785ded5ccc0a7f6759128537eb0c5b427c156dee",
+        "bytes": 938
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/function_subsumption.out",
+        "sha256": "538e91c14239acd2490456d2f42bdc4d838fd789f3773977d973bb3bdcfd5955",
+        "bytes": 8
+      },
+      "compileMs": 5.6,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/function_subsumption-js.js",
+        "sha256": "d267767eb9d20f2748b78127f7875030f3be006ccc53432197921d047653667c",
+        "bytes": 1104
+      },
+      "mismatch": null
+    },
+    {
+      "case": "function_subsumption",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/function_subsumption.lil",
+        "sha256": "41cb1c6580b89d01fa990511785ded5ccc0a7f6759128537eb0c5b427c156dee",
+        "bytes": 938
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/function_subsumption.out",
+        "sha256": "538e91c14239acd2490456d2f42bdc4d838fd789f3773977d973bb3bdcfd5955",
+        "bytes": 8
+      },
+      "compileMs": 3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/function_subsumption-c.c",
+        "sha256": "97015d8bed29f9c61b038334905951cd4746a0a8656799ef024ab29ccf246940",
+        "bytes": 13489
+      },
+      "mismatch": null
+    },
+    {
+      "case": "integer_bitwise",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_bitwise.lil",
+        "sha256": "ac44813057df8ef575a1343a0b21d3a46aab886c37d19003ebfde01fd5a69f3c",
+        "bytes": 487
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_bitwise.out",
+        "sha256": "0fe4808997d8bede1841a73a548e8a6219e9473baeef137e921fa50b9874200b",
+        "bytes": 117
+      },
+      "compileMs": 3.1,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 378, end: 394 }, feature: \"semantic JavaScript call implementation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "integer_bitwise",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_bitwise.lil",
+        "sha256": "ac44813057df8ef575a1343a0b21d3a46aab886c37d19003ebfde01fd5a69f3c",
+        "bytes": 487
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_bitwise.out",
+        "sha256": "0fe4808997d8bede1841a73a548e8a6219e9473baeef137e921fa50b9874200b",
+        "bytes": 117
+      },
+      "compileMs": 2.4,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native callable defaults\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "integer_multiplication",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_multiplication.lil",
+        "sha256": "e1c1d7e30d154de0f79363041c378dfe2d19a44901d51e430d23456331b70d61",
+        "bytes": 269
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_multiplication.out",
+        "sha256": "46d969add4a3328b2f7e12f4d4260aa996b6caf52b1cb7ac4b94c1fa3f941147",
+        "bytes": 72
+      },
+      "compileMs": 4.3,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/integer_multiplication-js.js",
+        "sha256": "2f87ab1db314ccdce4f9445372290c5b613360c725ee67f9ae91c3887825ad48",
+        "bytes": 314
+      },
+      "mismatch": null
+    },
+    {
+      "case": "integer_multiplication",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_multiplication.lil",
+        "sha256": "e1c1d7e30d154de0f79363041c378dfe2d19a44901d51e430d23456331b70d61",
+        "bytes": 269
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_multiplication.out",
+        "sha256": "46d969add4a3328b2f7e12f4d4260aa996b6caf52b1cb7ac4b94c1fa3f941147",
+        "bytes": 72
+      },
+      "compileMs": 2.6,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "integer_range_elision",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_range_elision.lil",
+        "sha256": "4b4671784a1ea4e13e203cd2f0e373596bf6d77b55c858462885d33bba32b791",
+        "bytes": 195
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_range_elision.out",
+        "sha256": "0f7854219c1a38b0b1ad550eda104a8e9c188461f16e76581ad17103c1182d49",
+        "bytes": 18
+      },
+      "compileMs": 4.1,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/integer_range_elision-js.js",
+        "sha256": "35dac3e60440a2b1c4345242941b0387dc99907b397e5b34f28f2b9ff993176f",
+        "bytes": 249
+      },
+      "mismatch": null
+    },
+    {
+      "case": "integer_range_elision",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_range_elision.lil",
+        "sha256": "4b4671784a1ea4e13e203cd2f0e373596bf6d77b55c858462885d33bba32b791",
+        "bytes": 195
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/integer_range_elision.out",
+        "sha256": "0f7854219c1a38b0b1ad550eda104a8e9c188461f16e76581ad17103c1182d49",
+        "bytes": 18
+      },
+      "compileMs": 2.7,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "interprocedural_array_length",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_array_length.lil",
+        "sha256": "7ad0b952ee6d133a4c86b9cca121fd78e24186bd69f2a5dafb6e84fec19ab309",
+        "bytes": 143
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_array_length.out",
+        "sha256": "1e5040b4db14ca674e235de801fd4c74b1f0448e6eb1f838d1e9d4e443d99074",
+        "bytes": 4
+      },
+      "compileMs": 4.7,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/interprocedural_array_length-js.js",
+        "sha256": "6c7e8e025cc8d69d0fe80e7109d14117f17a377e125e951fef88f432e73ce83a",
+        "bytes": 229
+      },
+      "mismatch": null
+    },
+    {
+      "case": "interprocedural_array_length",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_array_length.lil",
+        "sha256": "7ad0b952ee6d133a4c86b9cca121fd78e24186bd69f2a5dafb6e84fec19ab309",
+        "bytes": 143
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_array_length.out",
+        "sha256": "1e5040b4db14ca674e235de801fd4c74b1f0448e6eb1f838d1e9d4e443d99074",
+        "bytes": 4
+      },
+      "compileMs": 2.5,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native callable payload type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "interprocedural_finite_values",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_finite_values.lil",
+        "sha256": "e84a54717895584bcd6dc6f344ca9fef4970f9398e3c0f8c2897d280a1660e16",
+        "bytes": 475
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_finite_values.out",
+        "sha256": "735d5a6a1ef479fd694ba0d9230e5d3276d0c2c32126a628943fa011f918f94a",
+        "bytes": 32
+      },
+      "compileMs": 3,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 276, end: 289 }, feature: \"value-struct script callable frame adaptation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "interprocedural_finite_values",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_finite_values.lil",
+        "sha256": "e84a54717895584bcd6dc6f344ca9fef4970f9398e3c0f8c2897d280a1660e16",
+        "bytes": 475
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_finite_values.out",
+        "sha256": "735d5a6a1ef479fd694ba0d9230e5d3276d0c2c32126a628943fa011f918f94a",
+        "bytes": 32
+      },
+      "compileMs": 2.3,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(18)), span: Span { start: 420, end: 450 }, feature: \"native print representation\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "interprocedural_values",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_values.lil",
+        "sha256": "508e5b2a33f4e5edb96129590298f0dfdcd9deb18c8c98b023ebf6e83ccb4cbd",
+        "bytes": 330
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_values.out",
+        "sha256": "9a7f91a861f59c0cb27f0af9323d158fdab7740d5e3c8016a60f4b04c0fc41e0",
+        "bytes": 4
+      },
+      "compileMs": 2.7,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 157, end: 166 }, feature: \"value-struct script callable frame adaptation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "interprocedural_values",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_values.lil",
+        "sha256": "508e5b2a33f4e5edb96129590298f0dfdcd9deb18c8c98b023ebf6e83ccb4cbd",
+        "bytes": 330
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/interprocedural_values.out",
+        "sha256": "9a7f91a861f59c0cb27f0af9323d158fdab7740d5e3c8016a60f4b04c0fc41e0",
+        "bytes": 4
+      },
+      "compileMs": 2.5,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/interprocedural_values-c.c",
+        "sha256": "eddf04bd7e1a1b8398dce5032194ab97ac30f0b4af373994ab16abf3cf1b5247",
+        "bytes": 4701
+      },
+      "mismatch": null
+    },
+    {
+      "case": "ir_inlining_variant",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/ir_inlining_variant.lil",
+        "sha256": "d009b3722bf5861ff6a5bd0a2f2b6d03de34e4f6018c117a0105077d1fe68b2d",
+        "bytes": 286
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/ir_inlining_variant.out",
+        "sha256": "3e6c131f81025cd954322104104af71dc8eaec1c8ef9ea81d477fb1f40b2637d",
+        "bytes": 28
+      },
+      "compileMs": 4.6,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/ir_inlining_variant-js.js",
+        "sha256": "3754ad8c2e9bda08c83837364ceee9a31165b0abdb57a2d8e74cc3459cb84d1f",
+        "bytes": 449
+      },
+      "mismatch": null
+    },
+    {
+      "case": "ir_inlining_variant",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/ir_inlining_variant.lil",
+        "sha256": "d009b3722bf5861ff6a5bd0a2f2b6d03de34e4f6018c117a0105077d1fe68b2d",
+        "bytes": 286
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/ir_inlining_variant.out",
+        "sha256": "3e6c131f81025cd954322104104af71dc8eaec1c8ef9ea81d477fb1f40b2637d",
+        "bytes": 28
+      },
+      "compileMs": 2.9,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "local_collection_elision",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/local_collection_elision.lil",
+        "sha256": "4b0e6e1be0c5d071ca59fe19182a66f6da81578b612b0ffb6836fec8dddd8c9b",
+        "bytes": 357
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/local_collection_elision.out",
+        "sha256": "10159baf262b43a92d95db59dae1f72c645127301661e0a3ce4e38b295a97c58",
+        "bytes": 2
+      },
+      "compileMs": 2.7,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/local_collection_elision.lil:15:24\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "local_collection_elision",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/local_collection_elision.lil",
+        "sha256": "4b0e6e1be0c5d071ca59fe19182a66f6da81578b612b0ffb6836fec8dddd8c9b",
+        "bytes": 357
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/local_collection_elision.out",
+        "sha256": "10159baf262b43a92d95db59dae1f72c645127301661e0a3ce4e38b295a97c58",
+        "bytes": 2
+      },
+      "compileMs": 2.4,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/local_collection_elision.lil:15:24\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "loop_carried_early_return",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/loop_carried_early_return.lil",
+        "sha256": "7c5da4e424c1bfaec58cb50c30fdd15b8bda5145d5d8d48406529c8a8f1ecc42",
+        "bytes": 202
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/loop_carried_early_return.out",
+        "sha256": "043e42748d5d232a4cce13c014b426d22c35f56e48e6aa75e8c518b36968182a",
+        "bytes": 5
+      },
+      "compileMs": 4.2,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/loop_carried_early_return-js.js",
+        "sha256": "6bbe373c19855231f16c75cea0273221b9715bfa2afa948f78dc4768e7a6df78",
+        "bytes": 241
+      },
+      "mismatch": null
+    },
+    {
+      "case": "loop_carried_early_return",
+      "target": "c",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/loop_carried_early_return.lil",
+        "sha256": "7c5da4e424c1bfaec58cb50c30fdd15b8bda5145d5d8d48406529c8a8f1ecc42",
+        "bytes": 202
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/loop_carried_early_return.out",
+        "sha256": "043e42748d5d232a4cce13c014b426d22c35f56e48e6aa75e8c518b36968182a",
+        "bytes": 5
+      },
+      "compileMs": 2.8,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/loop_carried_early_return-c.c",
+        "sha256": "b1d0392dcdf8e3833e13bc6060afb96a0229f6fc742bb5960d19c54d7fbbbda5",
+        "bytes": 3486
+      },
+      "mismatch": null
+    },
+    {
+      "case": "maps_sets",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/maps_sets.lil",
+        "sha256": "5255b07f53ab0ed00f8e18ec7143da8ecd1f459c041c3cc4b5d8e0f6bd92d36c",
+        "bytes": 1162
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/maps_sets.out",
+        "sha256": "9abc3f12e24c1141dbb92bdf0e5b85085fa9349141a788ace38705d0a5a81bad",
+        "bytes": 71
+      },
+      "compileMs": 2.7,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/maps_sets.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "maps_sets",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/maps_sets.lil",
+        "sha256": "5255b07f53ab0ed00f8e18ec7143da8ecd1f459c041c3cc4b5d8e0f6bd92d36c",
+        "bytes": 1162
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/maps_sets.out",
+        "sha256": "9abc3f12e24c1141dbb92bdf0e5b85085fa9349141a788ace38705d0a5a81bad",
+        "bytes": 71
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/maps_sets.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "nested_short_circuit",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/nested_short_circuit.lil",
+        "sha256": "88b28d5e23a8f756fc4f52503571dcec7123f677d4913030325b1bea5b585d78",
+        "bytes": 297
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/nested_short_circuit.out",
+        "sha256": "7924a643ed07a55027078f8bb8f9892193409471a881454c48d645e32ece11dd",
+        "bytes": 23
+      },
+      "compileMs": 3.9,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/nested_short_circuit-js.js",
+        "sha256": "399b4bd11d7c6bf66218c218cfcae533a6215b78be7e444c01632f78482187a5",
+        "bytes": 320
+      },
+      "mismatch": null
+    },
+    {
+      "case": "nested_short_circuit",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/nested_short_circuit.lil",
+        "sha256": "88b28d5e23a8f756fc4f52503571dcec7123f677d4913030325b1bea5b585d78",
+        "bytes": 297
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/nested_short_circuit.out",
+        "sha256": "7924a643ed07a55027078f8bb8f9892193409471a881454c48d645e32ece11dd",
+        "bytes": 23
+      },
+      "compileMs": 2.6,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native source type\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "optional_comparators",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_comparators.lil",
+        "sha256": "87c00c86f7f31c64277e268cbebec47a5f2055abc06a4a6f9694ee6623807bc6",
+        "bytes": 470
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_comparators.out",
+        "sha256": "1dbfb23b7aa28e2ff837135f5e4db00fcb9944dcb3b6efab5f72e447c03e6217",
+        "bytes": 11
+      },
+      "compileMs": 2.5,
+      "diagnostic": "error: direct module checking does not yet support source parameter defaults\n --> /home/azureuser/lilscript/tests/cases/optional_comparators.lil:4:31\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "optional_comparators",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_comparators.lil",
+        "sha256": "87c00c86f7f31c64277e268cbebec47a5f2055abc06a4a6f9694ee6623807bc6",
+        "bytes": 470
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_comparators.out",
+        "sha256": "1dbfb23b7aa28e2ff837135f5e4db00fcb9944dcb3b6efab5f72e447c03e6217",
+        "bytes": 11
+      },
+      "compileMs": 2.3,
+      "diagnostic": "error: direct module checking does not yet support source parameter defaults\n --> /home/azureuser/lilscript/tests/cases/optional_comparators.lil:4:31\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "optional_constructor_callback",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_constructor_callback.lil",
+        "sha256": "aebfde2cfaffd79cc25ea6a714033e761de55d764467b087ad137ec55469a711",
+        "bytes": 718
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_constructor_callback.out",
+        "sha256": "9ea888490f3b5de010012fbefb508ada43f3df8781294f3c1e376342ce2242c6",
+        "bytes": 22
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/optional_constructor_callback.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "optional_constructor_callback",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_constructor_callback.lil",
+        "sha256": "aebfde2cfaffd79cc25ea6a714033e761de55d764467b087ad137ec55469a711",
+        "bytes": 718
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/optional_constructor_callback.out",
+        "sha256": "9ea888490f3b5de010012fbefb508ada43f3df8781294f3c1e376342ce2242c6",
+        "bytes": 22
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/optional_constructor_callback.lil:1:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "prefix_update",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/prefix_update.lil",
+        "sha256": "ea84be72b5649e1bab135272edb1d549093474372e5d194733b19c0834703776",
+        "bytes": 362
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/prefix_update.out",
+        "sha256": "d1c531f868b7fce679840b1cb39135c18d59c95e7036bbcbc27d9c82446e63a3",
+        "bytes": 22
+      },
+      "compileMs": 2.5,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/prefix_update.lil:13:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "prefix_update",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/prefix_update.lil",
+        "sha256": "ea84be72b5649e1bab135272edb1d549093474372e5d194733b19c0834703776",
+        "bytes": 362
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/prefix_update.out",
+        "sha256": "d1c531f868b7fce679840b1cb39135c18d59c95e7036bbcbc27d9c82446e63a3",
+        "bytes": 22
+      },
+      "compileMs": 2.1,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/prefix_update.lil:13:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "scalar_math",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/scalar_math.lil",
+        "sha256": "a4f117f17a2d1338b78543eab32595679e2d86163c8f0b8e3567b7645b6b0c87",
+        "bytes": 539
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/scalar_math.out",
+        "sha256": "7ccbaca14a0045d8b64f2e2db8ad8421db7d56c80057a9b1f322204ab079804a",
+        "bytes": 52
+      },
+      "compileMs": 2.8,
+      "diagnostic": "semantic compiler (javascript): Candidate(Unsupported(Unsupported { span: Span { start: 78, end: 94 }, feature: \"semantic JavaScript call implementation\" }))\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "scalar_math",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/scalar_math.lil",
+        "sha256": "a4f117f17a2d1338b78543eab32595679e2d86163c8f0b8e3567b7645b6b0c87",
+        "bytes": 539
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/scalar_math.out",
+        "sha256": "7ccbaca14a0045d8b64f2e2db8ad8421db7d56c80057a9b1f322204ab079804a",
+        "bytes": 52
+      },
+      "compileMs": 2.3,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(11)), span: Span { start: 78, end: 94 }, feature: \"native prepared call convention\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "string_code_units",
+      "target": "js",
+      "state": "passed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/string_code_units.lil",
+        "sha256": "6c32683f8c59103dee42aa6f9695307ba4367f27215e725d2c95fe5336b91efd",
+        "bytes": 882
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/string_code_units.out",
+        "sha256": "bb4aa8e05b0cc80874f527b5197042833886bcb841d3ffa1ae464ae62a169a39",
+        "bytes": 74
+      },
+      "compileMs": 5.7,
+      "diagnostic": null,
+      "artifact": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-semantic-census/string_code_units-js.js",
+        "sha256": "1f2c24b0aa381eb7b690a77f6f33f44a7a3ef15d0d8125897cd308d60b505c40",
+        "bytes": 1210
+      },
+      "mismatch": null
+    },
+    {
+      "case": "string_code_units",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/string_code_units.lil",
+        "sha256": "6c32683f8c59103dee42aa6f9695307ba4367f27215e725d2c95fe5336b91efd",
+        "bytes": 882
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/string_code_units.out",
+        "sha256": "bb4aa8e05b0cc80874f527b5197042833886bcb841d3ffa1ae464ae62a169a39",
+        "bytes": 74
+      },
+      "compileMs": 2.7,
+      "diagnostic": "semantic compiler (native): Unsupported { unit: Some(UnitId(0)), operation: Some(OpId(50)), span: Span { start: 215, end: 237 }, feature: \"native print representation\" }\n",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "symbol_map_keys",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/symbol_map_keys.lil",
+        "sha256": "683877d482e1eda032c1dc767ab32bee5b7d7c2c6a9567d3ea0abeacd9647f36",
+        "bytes": 630
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/symbol_map_keys.out",
+        "sha256": "cc0e2e6e5cd36c8b3e7bf720c78b2262cf8f4ad378750d9ff19a0558a76be11c",
+        "bytes": 36
+      },
+      "compileMs": 2.8,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/symbol_map_keys.lil:1:16\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "symbol_map_keys",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/symbol_map_keys.lil",
+        "sha256": "683877d482e1eda032c1dc767ab32bee5b7d7c2c6a9567d3ea0abeacd9647f36",
+        "bytes": 630
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/symbol_map_keys.out",
+        "sha256": "cc0e2e6e5cd36c8b3e7bf720c78b2262cf8f4ad378750d9ff19a0558a76be11c",
+        "bytes": 36
+      },
+      "compileMs": 2.2,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/symbol_map_keys.lil:1:16\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "type_guards",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/type_guards.lil",
+        "sha256": "62e26c72a01793eaf4995560e10efdfe7d8a1a04aa89e186d950b3fd50f3df58",
+        "bytes": 1304
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/type_guards.out",
+        "sha256": "a0d9fee2b68833c273176b334c330718fd313b3510a4588e846f9bd070fb051e",
+        "bytes": 64
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: unsupported semantic source: expression conversion\n --> /home/azureuser/lilscript/tests/cases/type_guards.lil:13:7\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "type_guards",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/type_guards.lil",
+        "sha256": "62e26c72a01793eaf4995560e10efdfe7d8a1a04aa89e186d950b3fd50f3df58",
+        "bytes": 1304
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/type_guards.out",
+        "sha256": "a0d9fee2b68833c273176b334c330718fd313b3510a4588e846f9bd070fb051e",
+        "bytes": 64
+      },
+      "compileMs": 2.3,
+      "diagnostic": "error: unsupported semantic source: expression conversion\n --> /home/azureuser/lilscript/tests/cases/type_guards.lil:13:7\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "typed_arrays",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/typed_arrays.lil",
+        "sha256": "a5d575cf351a5cf10be3d4f7e941a6506069d58d8350fb0363798339685d70fb",
+        "bytes": 1020
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/typed_arrays.out",
+        "sha256": "32c91603f96cf307da3e926185c902e9c30b49dd4aef1278971a34ddfb824599",
+        "bytes": 110
+      },
+      "compileMs": 2.6,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/typed_arrays.lil:1:16\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "typed_arrays",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/typed_arrays.lil",
+        "sha256": "a5d575cf351a5cf10be3d4f7e941a6506069d58d8350fb0363798339685d70fb",
+        "bytes": 1020
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/typed_arrays.out",
+        "sha256": "32c91603f96cf307da3e926185c902e9c30b49dd4aef1278971a34ddfb824599",
+        "bytes": 110
+      },
+      "compileMs": 2.3,
+      "diagnostic": "error: unsupported semantic source: semantic constructor call contract\n --> /home/azureuser/lilscript/tests/cases/typed_arrays.lil:1:16\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "unions",
+      "target": "js",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/unions.lil",
+        "sha256": "7c17db626700e1efcadef68f1fc2238338db34c35c473601542332af5d7267cd",
+        "bytes": 450
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/unions.out",
+        "sha256": "1e76dee859c71e06f4f2f64116bce8a22a550470e50197d00da98cb9fe2fa75c",
+        "bytes": 24
+      },
+      "compileMs": 4.9,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/unions.lil:15:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    },
+    {
+      "case": "unions",
+      "target": "c",
+      "state": "diagnosed",
+      "source": {
+        "path": "/home/azureuser/lilscript/tests/cases/unions.lil",
+        "sha256": "7c17db626700e1efcadef68f1fc2238338db34c35c473601542332af5d7267cd",
+        "bytes": 450
+      },
+      "expected": {
+        "path": "/home/azureuser/lilscript/tests/cases/unions.out",
+        "sha256": "1e76dee859c71e06f4f2f64116bce8a22a550470e50197d00da98cb9fe2fa75c",
+        "bytes": 24
+      },
+      "compileMs": 2.1,
+      "diagnostic": "error: direct module checking does not yet support class or enum declarations\n --> /home/azureuser/lilscript/tests/cases/unions.lil:15:1\n  |",
+      "artifact": null,
+      "mismatch": null
+    }
+  ],
+  "summary": {
+    "js": {
+      "passed": 35,
+      "diagnosed": 37,
+      "wrong-output": 0,
+      "execution-failed": 0,
+      "native-build": 0
+    },
+    "c": {
+      "passed": 22,
+      "diagnosed": 50,
+      "wrong-output": 0,
+      "execution-failed": 0,
+      "native-build": 0
+    }
+  },
+  "miscompiles": [],
+  "passed": true,
+  "completed": "2026-09-20T23:37:22.066Z",
+  "fingerprint": "f7d7638f8c31c7efb125a36600d2b815f9f0ccd6365289311493c7dff04da2b4"
+}

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "kind": "bounded-public-feature-evidence-inventory",
+  "workload": "motionlil",
+  "scope": "Original non-browser callers plus five independently expected geometry observations against upstream and retained candidate; no compiler or D2 decision",
+  "originalReport": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/node/report.json",
+    "sha256": "ab1f1b56a61d4a6ecd5a2c8b0f845fea1f3c89a48fad8f9acf207c70811763e5",
+    "bytes": 16314
+  },
+  "geometryReport": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/node/report.json",
+    "sha256": "22f6e7068be4a661e4f52ccbb4f91ea9667e87b03950ca3d58d923c99c60abe2",
+    "bytes": 12407
+  },
+  "pins": [
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/src/motion-dom/projection/geometry/copy.lil",
+      "sha256": "52f5b8a110c507c559a90d0bf9c62fb0a3c74a8ce6023cb9486a123dbed5ce57",
+      "bytes": 555
+    },
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/src/motion-dom/projection/geometry/delta-apply.lil",
+      "sha256": "e1bcb2dbae47769002a0c5012581c6877c76d72fd4b1fd82d566b8570c7a0c74",
+      "bytes": 5315
+    },
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/src/motion-utils/types/geometry.lil",
+      "sha256": "1cd32273cd089fe759fa084e1c79c86f1c7e8c6f058761b11561c0590c4eeae7",
+      "bytes": 383
+    },
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/src/motion-dom/projection/node/create-projection-node.lil",
+      "sha256": "41a04eac1599291141e42f06bd320e8392aae1614fc0fa868963c1879070d24e",
+      "bytes": 78930
+    },
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/src/compat.mjs",
+      "sha256": "fe66c3ea1b000f6094c202e891b41ee2b94bf97d15b2f9a592156883153f4eda",
+      "bytes": 11897
+    },
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/src/control-compat.mjs",
+      "sha256": "fd295cc29323234a071711e28c0930f30f4fd75c52bf4ca59319cb7ef0e3b23e",
+      "bytes": 2822
+    },
+    {
+      "path": "/tmp/motionlil-cost-audit-20260911/current/test/node.test.mjs",
+      "sha256": "dd41723dafa45e7de3c121acb9f3875e101c5158a298ce3d2bd983a2fa26da82",
+      "bytes": 4345
+    }
+  ],
+  "features": [
+    {
+      "id": "retained-callbacks-and-public-constructors",
+      "caseIds": [
+        "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+        "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]"
+      ],
+      "observed": "Retained change/subscription callbacks fire, unsubscribe suppresses later calls; direct MotionValue construction preserves instanceof."
+    },
+    {
+      "id": "prototype-shared-methods-and-arity",
+      "caseIds": [
+        "[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]"
+      ],
+      "observed": "Default/full MotionValue instances use the public prototype and share methods; constructor and jump arity match upstream; jump default behavior preserves previous value."
+    },
+    {
+      "id": "control-accessors-and-completion-identity",
+      "caseIds": [
+        "[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]"
+      ],
+      "observed": "Group construction retains an existing control getter and promise identity; writes use the control setter and completion resolves expected values."
+    },
+    {
+      "id": "sequential-public-geometry-mutation",
+      "caseIds": [
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"upstream: copying preserves destination and leaf identity\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"upstream: overlapping source observes the preceding destination write\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"upstream: a later getter throw preserves earlier writes and access order\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"upstream: a setter replacing the next leaf is visible to the next call\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"upstream: aliased box axes receive both deltas in order\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"candidate: copying preserves destination and leaf identity\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"candidate: overlapping source observes the preceding destination write\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"candidate: a later getter throw preserves earlier writes and access order\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"candidate: a setter replacing the next leaf is visible to the next call\",1]",
+        "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"candidate: aliased box axes receive both deltas in order\",1]"
+      ],
+      "observed": "Both upstream and retained full candidate satisfy the same independent expected values, exact reference identities, write order, original thrown object, overlapping aliases and setter-driven leaf replacement.",
+      "consequence": "A snapshot-in/bulk-copy-out wrapper is not equivalent for these observed public inputs. Typed internal value copies and public object identity are distinct responsibilities.",
+      "sourceInspected": "Maintained copy/delta helpers still mutate ordinary by-value-shaped struct parameters; internal mutation migration needs explicit references or equivalent checked storage. Projection callers retain layout boxes and expose them through listeners.",
+      "notProven": "Fresh compiler output, arbitrary proxy/aliasing cases, full projection behavior and final D2 scope are not qualified."
+    }
+  ],
+  "policy": {
+    "D1": "Value structs and explicit mutable references remain the owner decision.",
+    "D2": "Still open. These observations constrain preserving supported public JS behavior; they do not approve a broader language policy."
+  }
+}

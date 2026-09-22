@@ -1,0 +1,16 @@
+{
+  "source": "/home/azureuser/probelil/src/probe.lil",
+  "sourceSha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+  "functions": [
+    {
+      "signature": "int forHeaderBinding(int seed)",
+      "start": 8331,
+      "end": 8518,
+      "sha256": "18837cacec66fcde909263ea5bec8a02775aa3d50cfa7460ac38c0c64beab9fc"
+    }
+  ],
+  "adaptation": "Preserve every function byte; append a closed harness with opaque seed 7 and declared boundary inputs.",
+  "fixtureSha256": "e636bc72f1406348d6fbc810d4c11a13c965d203b702e789f991a07a0a9fa6f0",
+  "setup": "globalThis.read=()=>7;\n",
+  "expected": "24\n3\n-6\n"
+}

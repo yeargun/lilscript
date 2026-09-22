@@ -1,0 +1,34 @@
+
+running 1 test
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... FAILED
+
+failures:
+
+---- timing::tests::semantic_phase_timing_is_observational_and_covers_refusal stdout ----
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1746320) panicked at src/timing_tests.rs:178:13:
+
+running 1 test
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... FAILED
+
+failures:
+
+failures:
+    timing::tests::semantic_phase_timing_is_observational_and_covers_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2939 filtered out; finished in 0.08s
+
+
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1746322) panicked at src/timing_tests.rs:150:6:
+called `Result::unwrap()` on an `Err` value: ServiceError { phase: "native", message: "Unsupported { unit: None, operation: None, span: Span { start: 0, end: 0 }, feature: \"native exported ABI\" }", diagnostic: None, resource: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    timing::tests::semantic_phase_timing_is_observational_and_covers_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2939 filtered out; finished in 0.09s
+

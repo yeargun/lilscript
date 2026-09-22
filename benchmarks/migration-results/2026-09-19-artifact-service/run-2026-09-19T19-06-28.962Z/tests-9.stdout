@@ -1,0 +1,9 @@
+
+running 4 tests
+test semantic_program::module_javascript_tests::six_original_modules_preserve_cycles_live_exports_factories_and_tdz_in_every_naming_style ... ok
+test semantic_program::module_javascript_tests::bounded_search_retains_exact_per_codec_winners_for_the_original_module_graph ... ok
+test semantic_program::module_javascript_tests::record_helper_and_string_choices_use_the_same_original_module_environments ... ok
+test semantic_program::module_javascript_tests::independently_composed_module_recipes_bound_nested_search_quality ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2883 filtered out; finished in 15.15s
+

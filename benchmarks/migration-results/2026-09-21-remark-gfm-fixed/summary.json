@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "kind": "source-baseline-batch",
+  "runId": "2026-09-21-remark-gfm-fixed",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/23113fd57d6b7b95f286f223bb413777d780af0e1ddf779400edf819b523f007/lilscript",
+    "sha256": "23113fd57d6b7b95f286f223bb413777d780af0e1ddf779400edf819b523f007",
+    "bytes": 17910416,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "started": "2026-09-21T11:14:22.005Z",
+  "qualified": [
+    {
+      "library": "remark-gfmlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 177.881,
+      "artifacts": 5,
+      "cases": {
+        "required": 22,
+        "executed": 22,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-gfm.cjs": {
+          "raw": 36842,
+          "gzip": 12746,
+          "brotli": 11340
+        },
+        "dist/remark-gfm.closed.js": {
+          "raw": 34706,
+          "gzip": 12833,
+          "brotli": 11532
+        },
+        "dist/remark-gfm.esm.js": {
+          "raw": 32703,
+          "gzip": 11564,
+          "brotli": 10346
+        },
+        "dist/remark-gfm.raw.js": {
+          "raw": 32621,
+          "gzip": 11501,
+          "brotli": 10254
+        },
+        "dist/remark-gfm.umd.js": {
+          "raw": 36931,
+          "gzip": 12801,
+          "brotli": 11424
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    }
+  ],
+  "unqualified": [],
+  "completed": "2026-09-21T11:17:22.503Z"
+}

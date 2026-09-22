@@ -1,0 +1,565 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "solidlil",
+  "started": "2026-09-20T18:46:03.081Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/solidlil",
+  "workspace": "/tmp/lilscript-baseline-solidlil-pVUAed/solidlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/solidlil",
+    "candidates": [
+      "/home/azureuser/solidlil",
+      "/home/azureuser/solidlil",
+      "/tmp/lilscript-page-refresh-20260910/current/solidlil"
+    ],
+    "recorded": "/home/azureuser/solidlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 600,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/solidlil",
+    "files": 444,
+    "sha256": "54fbfc8611e691543f2e09208d8a3a156aea96964390773ba02f61e757f6c1f4"
+  },
+  "committedArtifactsRemoved": [
+    "dist/compat.js",
+    "dist/core.cjs",
+    "dist/core.js",
+    "dist/dom-tables.js",
+    "dist/full.cjs",
+    "dist/full.js",
+    "dist/index.bundle.js",
+    "dist/index.cjs",
+    "dist/index.js",
+    "dist/lil-web.cjs",
+    "dist/lil-web.js",
+    "dist/solid-api.js",
+    "dist/solidlil.global.js",
+    "dist/web-api.js",
+    "dist/web.cjs",
+    "dist/web.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "SOLIDLIL_LILSCRIPT_BIN"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 27.593,
+    "supervision": {
+      "timeoutMs": 600000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/compat.js",
+      "sha256": "8f255cc733d0bcd2be7b06f83dbcf9ed158359eaa0998e8d06e983b36bae573f",
+      "bytes": 7818,
+      "sizes": {
+        "raw": 7818,
+        "gzip": 1887,
+        "brotli": 1681
+      }
+    },
+    {
+      "path": "dist/core.cjs",
+      "sha256": "aded81a57ea43156ce3ae1a9737e802ce6048950f4ad41fdf1d424bca77c2b22",
+      "bytes": 8849,
+      "sizes": {
+        "raw": 8849,
+        "gzip": 3551,
+        "brotli": 3179
+      }
+    },
+    {
+      "path": "dist/core.js",
+      "sha256": "6f51666bfc12d786d31f571344a94f5751cf1877c53fb7cb906b2fc1fae8be06",
+      "bytes": 8267,
+      "sizes": {
+        "raw": 8267,
+        "gzip": 3326,
+        "brotli": 2979
+      }
+    },
+    {
+      "path": "dist/dom-tables.js",
+      "sha256": "ddc7791aca8995b0689463a817b5279bb5ef1d78fe03e322e0a40dfb2e6f52ce",
+      "bytes": 3701,
+      "sizes": {
+        "raw": 3701,
+        "gzip": 1500,
+        "brotli": 1290
+      }
+    },
+    {
+      "path": "dist/full.cjs",
+      "sha256": "59be072bca2f3b3f45083624e7370dffd619c189d08abdf928816815c3ab0fe3",
+      "bytes": 18460,
+      "sizes": {
+        "raw": 18460,
+        "gzip": 6935,
+        "brotli": 6150
+      }
+    },
+    {
+      "path": "dist/full.js",
+      "sha256": "d5a0c961d8828c3c4b7a6482642bbb4b033f97b19b169670d07dad709aef9593",
+      "bytes": 17833,
+      "sizes": {
+        "raw": 17833,
+        "gzip": 6651,
+        "brotli": 5942
+      }
+    },
+    {
+      "path": "dist/index.bundle.js",
+      "sha256": "e6390d916358edf54db9a0a0581994acd6bd1a882bcabbe68495d9b1bae0e5eb",
+      "bytes": 18588,
+      "sizes": {
+        "raw": 18588,
+        "gzip": 6851,
+        "brotli": 6268
+      }
+    },
+    {
+      "path": "dist/index.cjs",
+      "sha256": "131e4f976a58fd1f887fb1eecc31a41378d45523d8ed867a7ba02b3e40d043f0",
+      "bytes": 20190,
+      "sizes": {
+        "raw": 20190,
+        "gzip": 7383,
+        "brotli": 6690
+      }
+    },
+    {
+      "path": "dist/index.js",
+      "sha256": "e6390d916358edf54db9a0a0581994acd6bd1a882bcabbe68495d9b1bae0e5eb",
+      "bytes": 18588,
+      "sizes": {
+        "raw": 18588,
+        "gzip": 6851,
+        "brotli": 6268
+      }
+    },
+    {
+      "path": "dist/lil-web.cjs",
+      "sha256": "44848221cacde87a3d55afdd201688019ac11d1b0f257473982a24052e2a2f1a",
+      "bytes": 15840,
+      "sizes": {
+        "raw": 15840,
+        "gzip": 6020,
+        "brotli": 5344
+      }
+    },
+    {
+      "path": "dist/lil-web.js",
+      "sha256": "c3f240003aaf031ef970f549ff06b76618abd4380b1cf4c91177fc9d21df0dd5",
+      "bytes": 15228,
+      "sizes": {
+        "raw": 15228,
+        "gzip": 5777,
+        "brotli": 5151
+      }
+    },
+    {
+      "path": "dist/solid-api.js",
+      "sha256": "ae35a43b730ea1f64935ab127413c2a48e1a2395a6017cf63c398fa204a5da74",
+      "bytes": 19796,
+      "sizes": {
+        "raw": 19796,
+        "gzip": 5001,
+        "brotli": 4454
+      }
+    },
+    {
+      "path": "dist/solidlil.global.js",
+      "sha256": "06f131c5b33568735f864d0809a96fa865368b4362ea104e57f95282d2cbab31",
+      "bytes": 18379,
+      "sizes": {
+        "raw": 18379,
+        "gzip": 6877,
+        "brotli": 6115
+      }
+    },
+    {
+      "path": "dist/web-api.js",
+      "sha256": "c064cb28fc3180f4872cbe3caef0049aac1c10cba0890057679ce3853e80788e",
+      "bytes": 16347,
+      "sizes": {
+        "raw": 16347,
+        "gzip": 4506,
+        "brotli": 3993
+      }
+    },
+    {
+      "path": "dist/web.cjs",
+      "sha256": "e39769ffa2c24bffcf4b0d98556ace54d6e47d337d1b6bb74530c28abce50880",
+      "bytes": 47242,
+      "sizes": {
+        "raw": 47242,
+        "gzip": 15940,
+        "brotli": 14242
+      }
+    },
+    {
+      "path": "dist/web.js",
+      "sha256": "a0228fda78243e0b750255d21501eed4f035e2be98dcb52acd5890c7e80a3733",
+      "bytes": 38129,
+      "sizes": {
+        "raw": 38129,
+        "gzip": 13391,
+        "brotli": 11951
+      }
+    }
+  ],
+  "measurements": {
+    "dist/compat.js": {
+      "raw": 7818,
+      "gzip": 1887,
+      "brotli": 1681
+    },
+    "dist/core.cjs": {
+      "raw": 8849,
+      "gzip": 3551,
+      "brotli": 3179
+    },
+    "dist/core.js": {
+      "raw": 8267,
+      "gzip": 3326,
+      "brotli": 2979
+    },
+    "dist/dom-tables.js": {
+      "raw": 3701,
+      "gzip": 1500,
+      "brotli": 1290
+    },
+    "dist/full.cjs": {
+      "raw": 18460,
+      "gzip": 6935,
+      "brotli": 6150
+    },
+    "dist/full.js": {
+      "raw": 17833,
+      "gzip": 6651,
+      "brotli": 5942
+    },
+    "dist/index.bundle.js": {
+      "raw": 18588,
+      "gzip": 6851,
+      "brotli": 6268
+    },
+    "dist/index.cjs": {
+      "raw": 20190,
+      "gzip": 7383,
+      "brotli": 6690
+    },
+    "dist/index.js": {
+      "raw": 18588,
+      "gzip": 6851,
+      "brotli": 6268
+    },
+    "dist/lil-web.cjs": {
+      "raw": 15840,
+      "gzip": 6020,
+      "brotli": 5344
+    },
+    "dist/lil-web.js": {
+      "raw": 15228,
+      "gzip": 5777,
+      "brotli": 5151
+    },
+    "dist/solid-api.js": {
+      "raw": 19796,
+      "gzip": 5001,
+      "brotli": 4454
+    },
+    "dist/solidlil.global.js": {
+      "raw": 18379,
+      "gzip": 6877,
+      "brotli": 6115
+    },
+    "dist/web-api.js": {
+      "raw": 16347,
+      "gzip": 4506,
+      "brotli": 3993
+    },
+    "dist/web.cjs": {
+      "raw": 47242,
+      "gzip": 15940,
+      "brotli": 14242
+    },
+    "dist/web.js": {
+      "raw": 38129,
+      "gzip": 13391,
+      "brotli": 11951
+    }
+  },
+  "testWallSeconds": 16.179,
+  "cases": {
+    "required": 50,
+    "executed": 50,
+    "failed": []
+  },
+  "testErrors": [
+    "required fixture differs: site/demo-e2e.json"
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "dist/web.js",
+      "sha256": "a0228fda78243e0b750255d21501eed4f035e2be98dcb52acd5890c7e80a3733",
+      "bytes": 38129
+    },
+    {
+      "path": "dist/index.js",
+      "sha256": "e6390d916358edf54db9a0a0581994acd6bd1a882bcabbe68495d9b1bae0e5eb",
+      "bytes": 18588
+    },
+    {
+      "path": "dist/index.js",
+      "sha256": "e6390d916358edf54db9a0a0581994acd6bd1a882bcabbe68495d9b1bae0e5eb",
+      "bytes": 18588
+    },
+    {
+      "path": "dist/index.cjs",
+      "sha256": "131e4f976a58fd1f887fb1eecc31a41378d45523d8ed867a7ba02b3e40d043f0",
+      "bytes": 20190
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"counter: Counter\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"effects: Split effects\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"form-binding: Form binding\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"context-theme: Context\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"async-profile: Async memo\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"optimistic-save: Optimistic action\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"reveal-feed: Reveal feed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"projection-filter: Projection\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"show-switch: Show / Switch\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"repeat-grid: Repeat grid\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"nested-tree: Nested tree\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"error-reset: Error reset\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"todolist: Todo list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"store-cart: Store cart\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"kanban: Kanban board\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"inbox: Inbox\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"marketplace: Lil marketplace\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"keyed: Keyed table\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"spreadsheet: Spreadsheet\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"svg-clock: SVG clock\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"portal-modal: Portal modal\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",12,1,0,\"test\",\"every solid-js export exists on @itslil/solidjs\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",17,1,0,\"test\",\"every @solidjs/web export exists on @itslil/solidjs/web\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",22,1,0,\"test\",\"createProjection and reconcile keep keyed identity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",41,1,0,\"test\",\"mapArray and For map a list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",52,1,0,\"test\",\"Reveal holds later Loading slots until earlier ones settle\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",77,1,0,\"test\",\"ssr helpers and renderToString produce HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",85,1,0,\"test\",\"hydrate claims existing nodes and does not wipe the root\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",103,1,0,\"test\",\"mapArray reuses mapped nodes by identity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",116,1,0,\"test\",\"createStore setter can replace by returning a new value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",126,1,0,\"test\",\"createMemo lazy waits for the first read\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",140,1,0,\"test\",\"createEffect defer skips the first apply\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/coverage.test.mjs\",153,1,0,\"test\",\"default-less createContext throws outside a provider\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/jfb.test.mjs\",64,1,0,\"test\",\"the source-aligned keyed bundles have the same observable behavior\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",7,1,0,\"test\",\"queued writes stay invisible until flush\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",18,1,0,\"test\",\"tuple createSignal matches the Solid 2.0 consumer shape\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",32,1,0,\"test\",\"createMemo is allocated once and tracks the source\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",43,1,0,\"test\",\"split createEffect applies after compute\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",61,1,0,\"test\",\"createSelector only notifies matching keys\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",85,1,0,\"test\",\"createStore mutates a draft\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",97,1,0,\"test\",\"fan-out subscribe notifies every observer and forgets recycled slots\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",129,1,0,\"test\",\"dropping a dependency stops updates from that signal\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",151,1,0,\"test\",\"disposing a root recycles effect slots\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",161,1,0,\"test\",\"public entries export createSelector\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",166,1,0,\"test\",\"NotReady from a nested effect wakes the parent Loading effect\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",196,1,0,\"test\",\"createMemo settles a thenable and flips isPending\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",214,1,0,\"test\",\"action reverts createOptimistic writes on failure\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",228,1,0,\"test\",\"createUniqueId is stable per call and children flattens\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/node.test.mjs\",238,1,0,\"test\",\"CommonJS entry exposes the same public names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 43.831,
+  "completed": "2026-09-20T18:46:46.912Z",
+  "fingerprint": "9464e3aecc45160f0e5837c9675154e30ae48cffdeb1576aac230e53fc6de0c7"
+}

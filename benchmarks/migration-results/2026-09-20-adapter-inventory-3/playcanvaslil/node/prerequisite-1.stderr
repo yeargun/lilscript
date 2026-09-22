@@ -1,0 +1,48 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  {
++   attributes: [],
+-   attributes: [
+-     'vec3 position'
+-   ],
+    outs: [],
+    src: '#version 450\n@@@\n\n\n\nout vec4 color;\nvoid main() {}',
++   uniforms: [],
++   varyings: []
+-   uniforms: [
+-     'vec4 tint'
+-   ],
+-   varyings: [
+-     'highp vec2 uv'
+-   ]
+  }
+
+    at file:///tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/src/shader-processing/shader-processor-glsl.differential.mjs:132:10
+    at check (file:///tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/src/shader-processing/shader-processor-glsl.differential.mjs:55:3)
+    at file:///tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/src/shader-processing/shader-processor-glsl.differential.mjs:130:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: {
+    src: '#version 450\n@@@\n\n\n\nout vec4 color;\nvoid main() {}',
+    attributes: [],
+    varyings: [],
+    outs: [],
+    uniforms: []
+  },
+  expected: {
+    src: '#version 450\n@@@\n\n\n\nout vec4 color;\nvoid main() {}',
+    attributes: [ 'vec3 position' ],
+    varyings: [ 'highp vec2 uv' ],
+    outs: [],
+    uniforms: [ 'vec4 tint' ]
+  },
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.11.1

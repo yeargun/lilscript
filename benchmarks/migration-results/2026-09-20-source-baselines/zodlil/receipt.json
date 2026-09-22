@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "zodlil",
+  "started": "2026-09-20T18:42:05.143Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/zodlil",
+  "workspace": "/tmp/lilscript-baseline-zodlil-Ljx9uw/zodlil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force --prod",
+  "failure": {
+    "message": "directory symlink needs its own input root: /home/azureuser/zodlil/vendor/zod/.codex/skills",
+    "stack": "Error: directory symlink needs its own input root: /home/azureuser/zodlil/vendor/zod/.codex/skills\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:47:45)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at snapshotInputs (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:57:29)\n    at capture (file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:84:15)\n    at buildSourceBaseline (file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:87:14)\n    at file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:209:27\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+  },
+  "elapsedSeconds": 0.91,
+  "completed": "2026-09-20T18:42:06.053Z",
+  "fingerprint": "91f270a2a4447b1b6035a85ea70a1120e20485aa3140f148672324062549aa82"
+}

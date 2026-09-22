@@ -1,0 +1,23 @@
+int mark(int value) { print(value); return value; }
+int pair(int first, int second) { return first * 10 + second; }
+bool gate(int value, bool truth) { print(value); return truth; }
+
+print(pair(mark(1), mark(2)));
+print(gate(3, false) && gate(4, true));
+print(gate(5, true) || gate(6, false));
+print(gate(7, true) && gate(8, true));
+int selected = if (gate(9, false)) { mark(10) } else { mark(11) };
+print(selected);
+for (int index = 0; index < 3; index = mark(index + 1)) {
+  if (index == 1) { continue; }
+  print(100 + index);
+}
+int rounds = 0;
+while (rounds < 3) {
+  rounds++;
+  if (rounds == 2) { continue; }
+  print(200 + rounds);
+}
+while (true) { print(300); break; }
+void report() { return print(301); }
+report();

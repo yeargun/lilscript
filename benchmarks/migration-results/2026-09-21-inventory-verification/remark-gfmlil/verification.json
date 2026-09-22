@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "remark-gfmlil",
+  "inventory": {
+    "path": "benchmarks/libraries/remark-gfmlil.required-tests.json",
+    "sha256": "42d537f47dfb744d02d67a2b3957d8ca8a02ec3caa0da3fecdac9f216a016c4d",
+    "bytes": 39163
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/remark-gfmlil/receipt.json",
+    "sha256": "6a2e36cfdeeba9a357709ef139744ab6d00f90458fc3854424038188f098c0d3",
+    "bytes": 16848
+  },
+  "frozenCases": 22,
+  "observedCases": 22,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

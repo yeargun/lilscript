@@ -1,0 +1,1416 @@
+{
+  "schema": 1,
+  "kind": "semantic phase telemetry verification",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "inputs": {
+    "verified": 981,
+    "sha256": "742f203a45dfd5483ff2774291e29563abf9b5adb5b9e39c955bb8eb380d8dc8",
+    "changedFromReclamation": [
+      "src/compression.rs",
+      "src/semantic_program/demand.rs",
+      "src/semantic_program/javascript.rs",
+      "src/structured_js/naming.rs",
+      "src/structured_js/print.rs",
+      "src/structured_js/verify.rs",
+      "src/timing.rs",
+      "src/timing_tests.rs"
+    ]
+  },
+  "qualification": [
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-54-46.431Z/receipt.json",
+        "sha256": "62ed05d6593be5257ec3ceb7ec1b4a54c81f4a1b689b2822e32376991a0c13dd",
+        "bytes": 5694
+      },
+      "passed": false,
+      "profile": "debug",
+      "inputSha256": "9c0f576e0faff7ac93173ff5942e3e821da774c448fab8ff10d479a61abb326c",
+      "binary": null,
+      "acceptedTests": [],
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "fb92aa36788ee1bf414d508074db651b0797d5f75924808a0399fa6030d9cb4f",
+          "bytes": 150
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "f9003f105d908d611fedfaebe665185b27172c5e4f538134771da20ecff1b1eb",
+          "bytes": 151935
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "7dcc23e715d8a297f262110d08f551f7a71b25e34023eb53c0d9fbc59f8dda6d",
+          "bytes": 177740
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "7dcc23e715d8a297f262110d08f551f7a71b25e34023eb53c0d9fbc59f8dda6d",
+          "bytes": 177740
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "62ed05d6593be5257ec3ceb7ec1b4a54c81f4a1b689b2822e32376991a0c13dd",
+          "bytes": 5694
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-55-54.497Z/receipt.json",
+        "sha256": "d252d695e6657cd649ea9ec6874bb0b7cb46efd185f0a3738a93ce7f8b7d0c4d",
+        "bytes": 14123
+      },
+      "passed": false,
+      "profile": "debug",
+      "inputSha256": "47706ad2b0a098466e84491b71d21574e8db4ca688cbc31ccef34587f2435b28",
+      "binary": {
+        "path": "/tmp/lilscript-semantic-phase-timing-initial-20260920/lilscript-c737e884cfca95f9",
+        "sha256": "7891167f26c6dd555d2e29796b2213ca47de07e381fb668888e018195b87c417",
+        "bytes": 417027720
+      },
+      "acceptedTests": [
+        "structured_js::naming::allocation_tests::name_index_checks_exact_scope_and_name_even_in_a_collision_cluster",
+        "structured_js::naming::allocation_tests::preparation_exhaustion_and_invalid_target_release_every_partial_buffer",
+        "structured_js::naming::allocation_tests::partial_lazy_cache_admission_failure_does_not_install_or_leak_it",
+        "structured_js::naming::allocation_tests::installed_lazy_caches_survive_failed_prints_and_release_with_output",
+        "structured_js::naming::allocation_tests::prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity",
+        "structured_js::naming::allocation_tests::large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation",
+        "structured_js::print::budget_tests::a_failed_optional_render_preserves_the_already_rendered_incumbent",
+        "structured_js::print::budget_tests::byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget",
+        "structured_js::print::budget_tests::admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text",
+        "semantic_program::formation_budget_tests::completed_formation_unwinds_after_actual_module_drop_in_the_original_domain",
+        "semantic_program::formation_budget_tests::observed_literal_payloads_share_formation_admission_and_unwind_after_payload_drop",
+        "semantic_program::formation_budget_tests::late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_partial_module",
+        "semantic_program::formation_budget_tests::formation_charges_exact_live_module_capacity_and_releases_all_planning_scratch",
+        "semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis",
+        "semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work",
+        "semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline",
+        "semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled",
+        "semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets",
+        "semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets",
+        "semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts",
+        "compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources",
+        "compiler_service::tests::deadline_at_adoption_discards_prepared_graph_before_releasing_its_charge",
+        "compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission",
+        "compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization",
+        "compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence",
+        "compiler_service::tests::path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_copy",
+        "compiler_service::tests::path_checker_refusal_releases_source_buffers_but_preserves_owned_diagnostic",
+        "compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic",
+        "compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget",
+        "compiler_service::tests::path_post_discovery_work_refusal_releases_sources_before_returning",
+        "compiler_service::tests::path_source_memory_refusal_is_typed_without_diagnostic_source_copy",
+        "compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error",
+        "compiler_service::tests::resource_owner_exists_before_discovery_and_parse",
+        "compiler_service::tests::path_store_refusal_releases_prepared_graph_then_factory_source_buffers",
+        "compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission",
+        "compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history",
+        "compiler_service::tests::path_factory_parses_each_canonical_module_once_and_releases_syntax_before_backend",
+        "compiler_service::tests::semantic_service_rejects_legacy_ast_specialization_before_io_or_work",
+        "compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback",
+        "compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget",
+        "compiler_service::tests::explicit_zero_specialization_matches_omitted_source_and_module_compilation",
+        "compiler_service::tests::source_checker_and_conversion_work_refusals_remain_typed_at_the_public_boundary",
+        "compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release",
+        "compiler_service::tests::source_parser_memory_refusal_remains_typed_at_the_public_boundary",
+        "compiler_service::tests::shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger",
+        "compiler_service::tests::store_construction_refusal_returns_the_owner_for_prepared_graph_cleanup",
+        "compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api",
+        "compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs",
+        "compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child",
+        "compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work",
+        "compiler_service::tests::source_service_returns_independently_scored_qualified_winners",
+        "compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects",
+        "compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service",
+        "structured_js::tests::a_shared_value_cannot_accidentally_duplicate_a_call_or_an_expression_graph",
+        "structured_js::tests::both_analysis_modes_apply_the_same_legal_transformations",
+        "structured_js::tests::array_length_places_and_receiver_calls_cannot_be_scalar_observations",
+        "structured_js::tests::anonymous_callable_values_do_not_acquire_object_property_names",
+        "structured_js::tests::checked_collection_result_identity_attaches_to_the_language_value",
+        "structured_js::tests::callable_source_occurrences_do_not_alias_at_the_same_span",
+        "structured_js::tests::a_constant_result_does_not_erase_effects_or_prove_raw_normalization_redundant",
+        "structured_js::tests::callable_name_materialization_preserves_anonymity_descriptors_and_construction",
+        "structured_js::tests::binary_memory_construction_preserves_probe_views_and_shared_storage",
+        "structured_js::tests::binding_updates_preserve_signed_arithmetic_and_rhs_observation_order",
+        "structured_js::tests::binary_memory_uses_the_checked_kinds_and_keeps_store_rounding",
+        "structured_js::tests::constructor_and_property_resolution_survive_optional_access_fusion",
+        "structured_js::tests::construction_is_a_value_observation_even_when_the_body_is_pure",
+        "structured_js::tests::catch_bindings_have_fresh_scope_cells_and_survive_escaping_closures",
+        "structured_js::tests::constructor_from_a_call_or_a_member_of_a_call_preserves_the_reference",
+        "structured_js::tests::detached_facts_reject_edits_and_independently_edited_branches",
+        "structured_js::tests::class_callable_fields_remain_replaceable_and_generic_methods_erase_types",
+        "structured_js::tests::class_calls_and_updates_capture_the_receiver_before_argument_effects",
+        "structured_js::tests::direct_eval_invalidates_target_normalization_proofs_as_well_as_names",
+        "structured_js::tests::class_initializers_share_super_defaults_and_keep_fresh_fields_after_arguments",
+        "structured_js::tests::direct_eval_keeps_lexical_names_and_indirect_eval_stays_global",
+        "structured_js::tests::distinct_target_cells_share_provenance_without_aliasing_and_remap_together",
+        "structured_js::tests::equivalent_escaped_record_keys_have_one_semantic_identity",
+        "structured_js::tests::collection_receiver_lookup_arguments_and_language_results_stay_ordered",
+        "structured_js::tests::defaults_distinguish_omission_supplied_undefined_and_function_arity",
+        "structured_js::tests::constructor_results_keep_allocation_identity_when_this_is_rebound",
+        "structured_js::tests::discardable_cell_reads_remain_nonrepeatable_and_tdz_reads_still_throw",
+        "structured_js::tests::each_query_visits_shared_value_dependencies_at_most_once",
+        "structured_js::tests::escaped_names_and_observing_calls_keep_function_name_requirements",
+        "structured_js::tests::empty_control_retains_condition_effects_and_repeated_loop_execution",
+        "structured_js::tests::exception_region_verification_enforces_ownership_scope_and_control_boundaries",
+        "structured_js::tests::explicit_exports_survive_cleanup_compaction_and_name_extraction",
+        "structured_js::tests::explicit_print_policy_is_reentrant_and_preserves_provenance",
+        "structured_js::tests::exports_reject_missing_bindings_duplicate_names_and_nested_cells",
+        "structured_js::tests::expression_grammar_preserves_association_signs_negative_zero_and_object_keys",
+        "structured_js::tests::constant_language_operations_match_independent_evaluation_at_i32_boundaries",
+        "structured_js::tests::escaping_callable_names_survive_storage_elimination_and_alias_renaming",
+        "structured_js::tests::escaped_record_keys_and_inferred_names_preserve_code_units",
+        "structured_js::tests::exact_string_knowledge_is_bounded_and_literal_payloads_stay_owned_by_the_program",
+        "structured_js::tests::erased_type_parameters_preserve_callback_bindings_and_invocations",
+        "structured_js::tests::exact_string_values_cross_cells_joins_and_utf16_operations",
+        "structured_js::tests::for_updates_participate_in_scope_verification_and_late_naming",
+        "structured_js::tests::exception_predecessors_do_not_inherit_values_from_unreached_body_tails",
+        "structured_js::tests::finalizers_preserve_and_override_loop_transfers_without_copying_bodies",
+        "structured_js::tests::for_control_keeps_continue_update_break_and_initializer_effects",
+        "structured_js::tests::for_update_facts_do_not_assume_code_after_continue_executed",
+        "structured_js::tests::invocation_observations_release_private_names_only_in_the_matching_world",
+        "structured_js::tests::later_storage_decisions_follow_transferred_statement_owners_and_depth",
+        "structured_js::tests::implicit_constructor_lookup_precedes_arguments_and_preserves_throws",
+        "structured_js::tests::indexed_nullish_callable_creation_keeps_its_anonymous_name",
+        "structured_js::tests::nested_closures_keep_binding_identity_after_renaming",
+        "structured_js::tests::indexed_compounds_capture_receiver_key_and_old_value_before_rhs",
+        "structured_js::tests::indexed_updates_preserve_proxy_get_set_order_and_lazy_nullish_writes",
+        "structured_js::tests::for_initializer_cells_are_shared_and_body_cells_are_fresh",
+        "structured_js::tests::lexical_ownership_distinguishes_nested_blocks_from_captured_writes",
+        "structured_js::tests::output_search_bounds_text_and_rejects_invalid_measurement_services",
+        "structured_js::tests::marked_bracket_scanner_preserves_its_real_control_and_utf16_operations",
+        "structured_js::tests::nullish_binding_assignment_preserves_lazy_callable_named_evaluation",
+        "structured_js::tests::nullish_evaluation_preserves_falsy_values_and_conditional_writes",
+        "structured_js::tests::normalized_strings_preserve_utf16_values_and_javascript_escape_semantics",
+        "structured_js::tests::planned_dead_reads_do_not_authorize_uninitialized_stores",
+        "structured_js::tests::owned_compaction_removes_dead_closures_and_names_without_losing_source_identity",
+        "structured_js::tests::primitive_construction_verification_rejects_invalid_operators_and_arity",
+        "structured_js::tests::primitive_identity_is_resolved_before_backend_selection",
+        "structured_js::tests::opaque_private_arguments_keep_coercion_and_throws_after_optimization",
+        "structured_js::tests::primitive_method_values_require_a_supported_receiver_contract",
+        "structured_js::tests::planned_observations_close_storage_without_another_semantic_round",
+        "structured_js::tests::private_parameter_domains_require_complete_actual_argument_evidence",
+        "structured_js::tests::projection::literal_projection_keeps_effects_and_absent_or_coercing_keys",
+        "structured_js::tests::omitted_defaults_preserve_literals_global_bindings_and_fresh_callables",
+        "structured_js::tests::projection::literal_projection_respects_the_existing_work_ledger_without_allocating",
+        "structured_js::tests::postfix_snapshots_survive_captured_mutation_and_short_circuiting",
+        "structured_js::tests::output_search_keeps_budget_prefixes_and_scores_the_complete_union",
+        "structured_js::tests::receiver_lookup_precedes_arguments_and_value_calls_stay_unbound",
+        "structured_js::tests::projection::literal_projection_preserves_raw_values_and_uses_no_new_target_storage",
+        "structured_js::tests::region_planning_consumes_child_results_without_assuming_arena_execution_order",
+        "structured_js::tests::primitive_integer_results_use_emitted_normalization_without_assuming_host_range",
+        "structured_js::tests::parameter_defaults_snapshot_arguments_inside_the_ordered_call",
+        "structured_js::tests::range_proofs_preserve_overflow_negative_zero_and_explicit_bitwise_operations",
+        "structured_js::tests::record_function_values_keep_named_creation_separate_from_assignment",
+        "structured_js::tests::private_array_observations_keep_initialization_effects_at_their_original_site",
+        "structured_js::tests::reference_construction_preserves_order_without_loading_a_write_target",
+        "structured_js::tests::region_value_barriers_follow_getters_and_property_key_coercion_order",
+        "structured_js::tests::scope_dependencies_and_loop_transfers_are_verified",
+        "structured_js::tests::renaming_cannot_capture_host_names_or_another_lexical_binding",
+        "structured_js::tests::removing_unobserved_stores_requires_initialization_and_the_declared_public_boundary",
+        "structured_js::tests::scoped_names_constrain_references_across_each_intervening_scope",
+        "structured_js::tests::region_values_do_not_promote_one_loop_iteration_or_one_short_circuit_path",
+        "structured_js::tests::requested_objectives_own_codec_work_and_unmeasured_scores_stay_absent",
+        "structured_js::tests::region_values_keep_captured_writes_and_reentrant_calls_observable",
+        "structured_js::tests::source_eval_waits_for_a_declared_binding_contract",
+        "structured_js::tests::region_versions_preserve_assignment_values_and_merge_all_branch_inputs",
+        "structured_js::tests::scoped_naming_reuses_siblings_and_preserves_nested_captures",
+        "structured_js::tests::shared_value_dependencies_preserve_initialization_effects_and_cells",
+        "structured_js::tests::source_classes_preserve_probe_inheritance_aliases_and_lexical_receivers",
+        "structured_js::tests::signed_offset_reassociation_preserves_rounding_effects_and_materialization",
+        "structured_js::tests::source_collections_preserve_probe_behavior_aliases_and_nullable_values",
+        "structured_js::tests::source_exception_regions_preserve_probe_recovery_and_finalizer_completions",
+        "structured_js::tests::source_functions_branches_and_loops_match_the_independent_interpreter",
+        "structured_js::tests::source_types_bindings_and_builtin_identity_survive_target_naming",
+        "structured_js::tests::structural_proofs_belong_to_their_immutable_program_state",
+        "structured_js::tests::source_integer_operations_follow_the_language_contract",
+        "structured_js::tests::source_operations_with_one_diagnostic_span_keep_distinct_resolution",
+        "structured_js::tests::target_template_constants_preserve_null_undefined_and_negative_zero_distinctions",
+        "structured_js::tests::source_short_circuit_and_mutable_closures_match_the_interpreter",
+        "structured_js::tests::source_templates_cook_escapes_without_losing_surrogates_or_creating_substitutions",
+        "structured_js::tests::source_templates_keep_probe_bindings_and_string_operations_visible",
+        "structured_js::tests::unchanged_pass_hands_current_facts_to_target_selection",
+        "structured_js::tests::unchanged_optimization_reuses_structure_and_compaction_preserves_it",
+        "structured_js::tests::template_conversions_keep_observable_function_names",
+        "structured_js::tests::template_conversions_preserve_string_hint_order_reentry_and_abrupt_completion",
+        "structured_js::tests::source_records_and_arrays_preserve_aliases_keys_and_absent_values",
+        "structured_js::tests::unused_template_results_preserve_target_tdz_reads",
+        "structured_js::tests::typed_array_stores_do_not_redefine_prefix_postfix_or_compound_results",
+        "structured_js::tests::typed_primitive_values_keep_utf16_effects_and_mutable_collection_observations",
+        "structured_js::tests::unobserved_cells_disappear_without_losing_initializer_effects_or_assignment_values",
+        "structured_js::tests::unused_collection_construction_retains_lookup_allocation_and_reentry",
+        "structured_js::tests::materialization_keeps_long_statement_chains_within_the_target_depth_budget",
+        "structured_js::output_policy_tests::policy_free_research_output_stays_explicit_and_native_policy_is_rejected",
+        "structured_js::output_policy_tests::enabled_search_retains_alternatives_and_prepared_permissions_do_not_change",
+        "structured_js::output_policy_tests::target_edition_backstop_rejects_live_nullish_but_allows_unused_arena_nodes",
+        "structured_js::output_policy_tests::target_edition_backstop_checks_reachable_optional_catch_binding",
+        "structured_js::output_policy_tests::naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides",
+        "structured_js::output_policy_tests::identifier_mangling_off_restricts_render_and_search_to_source",
+        "semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners",
+        "semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union",
+        "semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper",
+        "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults"
+      ],
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "36037ae6f7666be8e99e7d72c3184f9f8771f1ca08132fa6983ebb459245fb19",
+          "bytes": 132
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "85dce350daf26832772bcf991d5b2c106acf948e9248683a517194c1ed50855a",
+          "bytes": 178163
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "95f3788ae21f88d0b16bded875cbd5f0d51ed005718629451c56b7d426f1c934",
+          "bytes": 177740
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "95f3788ae21f88d0b16bded875cbd5f0d51ed005718629451c56b7d426f1c934",
+          "bytes": 177740
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "d252d695e6657cd649ea9ec6874bb0b7cb46efd185f0a3738a93ce7f8b7d0c4d",
+          "bytes": 14123
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "3b4cc2d0af97e9861a2d4fadb5490de1961e2410bc0c19b8d6583530d5e0fc86",
+          "bytes": 1364
+        },
+        {
+          "path": "tests-1.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-1.stdout",
+          "sha256": "5f0e2295690e94ce451f604647ab0477bb13402a5ef7bb23d855ce9a3bd9bfbb",
+          "bytes": 863
+        },
+        {
+          "path": "tests-2.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-2.stdout",
+          "sha256": "277c37cfb1f387334b8480cc62e4e07c8f1a17ffecb1038c9dfd80cec79c8c7b",
+          "bytes": 489
+        },
+        {
+          "path": "tests-3.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-3.stdout",
+          "sha256": "1e0fa02edaed1d227c2a71bd08933611909b42c976db11a8cbab2cab762c6c7c",
+          "bytes": 656
+        },
+        {
+          "path": "tests-4.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-4.stdout",
+          "sha256": "e092d17d668fdd1c2abf472347bb7f20a896cf7425cf2379882a41d60a9c0396",
+          "bytes": 955
+        },
+        {
+          "path": "tests-5.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-5.stdout",
+          "sha256": "d95e8a242359cb74b6aecdf159173999e70baa904542ee15be31dd2af7b819fb",
+          "bytes": 3686
+        },
+        {
+          "path": "tests-6.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-6.stdout",
+          "sha256": "00c74c0edb1fd4f4b3ab74e66baeb0a101574a7860b59f674b1c65f7eef22544",
+          "bytes": 12151
+        },
+        {
+          "path": "tests-7.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-7.stdout",
+          "sha256": "0c8c659cb568834386e4d8473000818e9613b5e3301754923c6bfc72631bdecc",
+          "bytes": 827
+        },
+        {
+          "path": "tests-8.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-8.stdout",
+          "sha256": "e36903f74cb13f5e7c35eb586bf6b777537d6eecb761e8eebf0b3ecffd99f6c3",
+          "bytes": 697
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-58-00.402Z/receipt.json",
+        "sha256": "77845c4992a0dfeeab08659f547929dbb5341f9da96d9cd918ee3752bcdca472",
+        "bytes": 14725
+      },
+      "passed": false,
+      "profile": "debug",
+      "inputSha256": "f866b189474180a33ab9afad23888844d0a62bc82e732f9cc8a6b5f2fbed5692",
+      "binary": {
+        "path": "/tmp/lilscript-semantic-phase-timing-codecs-20260920/lilscript-c737e884cfca95f9",
+        "sha256": "1906a630d6380c7eefd4c58c7bc61ce15411230d8f9386cc18de7bbde26f57e5",
+        "bytes": 417114568
+      },
+      "acceptedTests": [
+        "compression::tests::raw_has_no_codec_work_or_scratch_even_under_zero_admission",
+        "compression::tests::encoder_admission_failures_release_scratch_and_preserve_the_other_domain",
+        "compression::tests::late_brotli_denial_does_not_exit_the_process",
+        "compression::tests::admitted_codecs_match_pinned_convenience_scores_without_retaining_encoded_output",
+        "structured_js::naming::allocation_tests::name_index_checks_exact_scope_and_name_even_in_a_collision_cluster",
+        "structured_js::naming::allocation_tests::partial_lazy_cache_admission_failure_does_not_install_or_leak_it",
+        "structured_js::naming::allocation_tests::preparation_exhaustion_and_invalid_target_release_every_partial_buffer",
+        "structured_js::naming::allocation_tests::installed_lazy_caches_survive_failed_prints_and_release_with_output",
+        "structured_js::naming::allocation_tests::prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity",
+        "structured_js::naming::allocation_tests::large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation",
+        "structured_js::print::budget_tests::a_failed_optional_render_preserves_the_already_rendered_incumbent",
+        "structured_js::print::budget_tests::byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget",
+        "structured_js::print::budget_tests::admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text",
+        "semantic_program::formation_budget_tests::completed_formation_unwinds_after_actual_module_drop_in_the_original_domain",
+        "semantic_program::formation_budget_tests::observed_literal_payloads_share_formation_admission_and_unwind_after_payload_drop",
+        "semantic_program::formation_budget_tests::late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_partial_module",
+        "semantic_program::formation_budget_tests::formation_charges_exact_live_module_capacity_and_releases_all_planning_scratch",
+        "semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis",
+        "semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work",
+        "semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline",
+        "semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled",
+        "semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets",
+        "semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets",
+        "semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts",
+        "compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources",
+        "compiler_service::tests::deadline_at_adoption_discards_prepared_graph_before_releasing_its_charge",
+        "compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission",
+        "compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization",
+        "compiler_service::tests::path_checker_refusal_releases_source_buffers_but_preserves_owned_diagnostic",
+        "compiler_service::tests::path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_copy",
+        "compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence",
+        "compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic",
+        "compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error",
+        "compiler_service::tests::path_post_discovery_work_refusal_releases_sources_before_returning",
+        "compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget",
+        "compiler_service::tests::path_source_memory_refusal_is_typed_without_diagnostic_source_copy",
+        "compiler_service::tests::resource_owner_exists_before_discovery_and_parse",
+        "compiler_service::tests::path_store_refusal_releases_prepared_graph_then_factory_source_buffers",
+        "compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission",
+        "compiler_service::tests::path_factory_parses_each_canonical_module_once_and_releases_syntax_before_backend",
+        "compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget",
+        "compiler_service::tests::semantic_service_rejects_legacy_ast_specialization_before_io_or_work",
+        "compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history",
+        "compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback",
+        "compiler_service::tests::explicit_zero_specialization_matches_omitted_source_and_module_compilation",
+        "compiler_service::tests::source_checker_and_conversion_work_refusals_remain_typed_at_the_public_boundary",
+        "compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release",
+        "compiler_service::tests::source_parser_memory_refusal_remains_typed_at_the_public_boundary",
+        "compiler_service::tests::shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger",
+        "compiler_service::tests::store_construction_refusal_returns_the_owner_for_prepared_graph_cleanup",
+        "compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs",
+        "compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api",
+        "compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child",
+        "compiler_service::tests::source_service_returns_independently_scored_qualified_winners",
+        "compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work",
+        "compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects",
+        "compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service",
+        "structured_js::tests::a_shared_value_cannot_accidentally_duplicate_a_call_or_an_expression_graph",
+        "structured_js::tests::both_analysis_modes_apply_the_same_legal_transformations",
+        "structured_js::tests::anonymous_callable_values_do_not_acquire_object_property_names",
+        "structured_js::tests::array_length_places_and_receiver_calls_cannot_be_scalar_observations",
+        "structured_js::tests::checked_collection_result_identity_attaches_to_the_language_value",
+        "structured_js::tests::a_constant_result_does_not_erase_effects_or_prove_raw_normalization_redundant",
+        "structured_js::tests::callable_source_occurrences_do_not_alias_at_the_same_span",
+        "structured_js::tests::callable_name_materialization_preserves_anonymity_descriptors_and_construction",
+        "structured_js::tests::binding_updates_preserve_signed_arithmetic_and_rhs_observation_order",
+        "structured_js::tests::binary_memory_construction_preserves_probe_views_and_shared_storage",
+        "structured_js::tests::construction_is_a_value_observation_even_when_the_body_is_pure",
+        "structured_js::tests::constructor_and_property_resolution_survive_optional_access_fusion",
+        "structured_js::tests::binary_memory_uses_the_checked_kinds_and_keeps_store_rounding",
+        "structured_js::tests::class_callable_fields_remain_replaceable_and_generic_methods_erase_types",
+        "structured_js::tests::catch_bindings_have_fresh_scope_cells_and_survive_escaping_closures",
+        "structured_js::tests::detached_facts_reject_edits_and_independently_edited_branches",
+        "structured_js::tests::constructor_from_a_call_or_a_member_of_a_call_preserves_the_reference",
+        "structured_js::tests::class_calls_and_updates_capture_the_receiver_before_argument_effects",
+        "structured_js::tests::class_initializers_share_super_defaults_and_keep_fresh_fields_after_arguments",
+        "structured_js::tests::direct_eval_invalidates_target_normalization_proofs_as_well_as_names",
+        "structured_js::tests::direct_eval_keeps_lexical_names_and_indirect_eval_stays_global",
+        "structured_js::tests::distinct_target_cells_share_provenance_without_aliasing_and_remap_together",
+        "structured_js::tests::equivalent_escaped_record_keys_have_one_semantic_identity",
+        "structured_js::tests::collection_receiver_lookup_arguments_and_language_results_stay_ordered",
+        "structured_js::tests::constructor_results_keep_allocation_identity_when_this_is_rebound",
+        "structured_js::tests::defaults_distinguish_omission_supplied_undefined_and_function_arity",
+        "structured_js::tests::discardable_cell_reads_remain_nonrepeatable_and_tdz_reads_still_throw",
+        "structured_js::tests::each_query_visits_shared_value_dependencies_at_most_once",
+        "structured_js::tests::escaped_names_and_observing_calls_keep_function_name_requirements",
+        "structured_js::tests::empty_control_retains_condition_effects_and_repeated_loop_execution",
+        "structured_js::tests::exception_region_verification_enforces_ownership_scope_and_control_boundaries",
+        "structured_js::tests::explicit_exports_survive_cleanup_compaction_and_name_extraction",
+        "structured_js::tests::explicit_print_policy_is_reentrant_and_preserves_provenance",
+        "structured_js::tests::exports_reject_missing_bindings_duplicate_names_and_nested_cells",
+        "structured_js::tests::expression_grammar_preserves_association_signs_negative_zero_and_object_keys",
+        "structured_js::tests::constant_language_operations_match_independent_evaluation_at_i32_boundaries",
+        "structured_js::tests::escaped_record_keys_and_inferred_names_preserve_code_units",
+        "structured_js::tests::escaping_callable_names_survive_storage_elimination_and_alias_renaming",
+        "structured_js::tests::exact_string_knowledge_is_bounded_and_literal_payloads_stay_owned_by_the_program",
+        "structured_js::tests::exact_string_values_cross_cells_joins_and_utf16_operations",
+        "structured_js::tests::exception_predecessors_do_not_inherit_values_from_unreached_body_tails",
+        "structured_js::tests::erased_type_parameters_preserve_callback_bindings_and_invocations",
+        "structured_js::tests::for_updates_participate_in_scope_verification_and_late_naming",
+        "structured_js::tests::finalizers_preserve_and_override_loop_transfers_without_copying_bodies",
+        "structured_js::tests::for_control_keeps_continue_update_break_and_initializer_effects",
+        "structured_js::tests::for_update_facts_do_not_assume_code_after_continue_executed",
+        "structured_js::tests::invocation_observations_release_private_names_only_in_the_matching_world",
+        "structured_js::tests::implicit_constructor_lookup_precedes_arguments_and_preserves_throws",
+        "structured_js::tests::indexed_compounds_capture_receiver_key_and_old_value_before_rhs",
+        "structured_js::tests::later_storage_decisions_follow_transferred_statement_owners_and_depth",
+        "structured_js::tests::indexed_nullish_callable_creation_keeps_its_anonymous_name",
+        "structured_js::tests::nested_closures_keep_binding_identity_after_renaming",
+        "structured_js::tests::indexed_updates_preserve_proxy_get_set_order_and_lazy_nullish_writes",
+        "structured_js::tests::lexical_ownership_distinguishes_nested_blocks_from_captured_writes",
+        "structured_js::tests::for_initializer_cells_are_shared_and_body_cells_are_fresh",
+        "structured_js::tests::output_search_bounds_text_and_rejects_invalid_measurement_services",
+        "structured_js::tests::marked_bracket_scanner_preserves_its_real_control_and_utf16_operations",
+        "structured_js::tests::nullish_evaluation_preserves_falsy_values_and_conditional_writes",
+        "structured_js::tests::nullish_binding_assignment_preserves_lazy_callable_named_evaluation",
+        "structured_js::tests::normalized_strings_preserve_utf16_values_and_javascript_escape_semantics",
+        "structured_js::tests::planned_dead_reads_do_not_authorize_uninitialized_stores",
+        "structured_js::tests::owned_compaction_removes_dead_closures_and_names_without_losing_source_identity",
+        "structured_js::tests::primitive_construction_verification_rejects_invalid_operators_and_arity",
+        "structured_js::tests::primitive_identity_is_resolved_before_backend_selection",
+        "structured_js::tests::opaque_private_arguments_keep_coercion_and_throws_after_optimization",
+        "structured_js::tests::primitive_method_values_require_a_supported_receiver_contract",
+        "structured_js::tests::planned_observations_close_storage_without_another_semantic_round",
+        "structured_js::tests::private_parameter_domains_require_complete_actual_argument_evidence",
+        "structured_js::tests::projection::literal_projection_keeps_effects_and_absent_or_coercing_keys",
+        "structured_js::tests::omitted_defaults_preserve_literals_global_bindings_and_fresh_callables",
+        "structured_js::tests::projection::literal_projection_respects_the_existing_work_ledger_without_allocating",
+        "structured_js::tests::output_search_keeps_budget_prefixes_and_scores_the_complete_union",
+        "structured_js::tests::postfix_snapshots_survive_captured_mutation_and_short_circuiting",
+        "structured_js::tests::receiver_lookup_precedes_arguments_and_value_calls_stay_unbound",
+        "structured_js::tests::projection::literal_projection_preserves_raw_values_and_uses_no_new_target_storage",
+        "structured_js::tests::region_planning_consumes_child_results_without_assuming_arena_execution_order",
+        "structured_js::tests::primitive_integer_results_use_emitted_normalization_without_assuming_host_range",
+        "structured_js::tests::parameter_defaults_snapshot_arguments_inside_the_ordered_call",
+        "structured_js::tests::range_proofs_preserve_overflow_negative_zero_and_explicit_bitwise_operations",
+        "structured_js::tests::private_array_observations_keep_initialization_effects_at_their_original_site",
+        "structured_js::tests::record_function_values_keep_named_creation_separate_from_assignment",
+        "structured_js::tests::reference_construction_preserves_order_without_loading_a_write_target",
+        "structured_js::tests::removing_unobserved_stores_requires_initialization_and_the_declared_public_boundary",
+        "structured_js::tests::scope_dependencies_and_loop_transfers_are_verified",
+        "structured_js::tests::region_value_barriers_follow_getters_and_property_key_coercion_order",
+        "structured_js::tests::renaming_cannot_capture_host_names_or_another_lexical_binding",
+        "structured_js::tests::region_values_do_not_promote_one_loop_iteration_or_one_short_circuit_path",
+        "structured_js::tests::scoped_names_constrain_references_across_each_intervening_scope",
+        "structured_js::tests::requested_objectives_own_codec_work_and_unmeasured_scores_stay_absent",
+        "structured_js::tests::region_values_keep_captured_writes_and_reentrant_calls_observable",
+        "structured_js::tests::source_eval_waits_for_a_declared_binding_contract",
+        "structured_js::tests::region_versions_preserve_assignment_values_and_merge_all_branch_inputs",
+        "structured_js::tests::scoped_naming_reuses_siblings_and_preserves_nested_captures",
+        "structured_js::tests::shared_value_dependencies_preserve_initialization_effects_and_cells",
+        "structured_js::tests::source_classes_preserve_probe_inheritance_aliases_and_lexical_receivers",
+        "structured_js::tests::source_collections_preserve_probe_behavior_aliases_and_nullable_values",
+        "structured_js::tests::signed_offset_reassociation_preserves_rounding_effects_and_materialization",
+        "structured_js::tests::source_exception_regions_preserve_probe_recovery_and_finalizer_completions",
+        "structured_js::tests::source_functions_branches_and_loops_match_the_independent_interpreter",
+        "structured_js::tests::source_types_bindings_and_builtin_identity_survive_target_naming",
+        "structured_js::tests::structural_proofs_belong_to_their_immutable_program_state",
+        "structured_js::tests::source_integer_operations_follow_the_language_contract",
+        "structured_js::tests::source_operations_with_one_diagnostic_span_keep_distinct_resolution",
+        "structured_js::tests::source_short_circuit_and_mutable_closures_match_the_interpreter",
+        "structured_js::tests::source_templates_cook_escapes_without_losing_surrogates_or_creating_substitutions",
+        "structured_js::tests::target_template_constants_preserve_null_undefined_and_negative_zero_distinctions",
+        "structured_js::tests::source_templates_keep_probe_bindings_and_string_operations_visible",
+        "structured_js::tests::unchanged_pass_hands_current_facts_to_target_selection",
+        "structured_js::tests::unchanged_optimization_reuses_structure_and_compaction_preserves_it",
+        "structured_js::tests::template_conversions_keep_observable_function_names",
+        "structured_js::tests::template_conversions_preserve_string_hint_order_reentry_and_abrupt_completion",
+        "structured_js::tests::source_records_and_arrays_preserve_aliases_keys_and_absent_values",
+        "structured_js::tests::unused_template_results_preserve_target_tdz_reads",
+        "structured_js::tests::typed_array_stores_do_not_redefine_prefix_postfix_or_compound_results",
+        "structured_js::tests::unobserved_cells_disappear_without_losing_initializer_effects_or_assignment_values",
+        "structured_js::tests::typed_primitive_values_keep_utf16_effects_and_mutable_collection_observations",
+        "structured_js::tests::unused_collection_construction_retains_lookup_allocation_and_reentry",
+        "structured_js::tests::materialization_keeps_long_statement_chains_within_the_target_depth_budget",
+        "structured_js::output_policy_tests::policy_free_research_output_stays_explicit_and_native_policy_is_rejected",
+        "structured_js::output_policy_tests::target_edition_backstop_rejects_live_nullish_but_allows_unused_arena_nodes",
+        "structured_js::output_policy_tests::enabled_search_retains_alternatives_and_prepared_permissions_do_not_change",
+        "structured_js::output_policy_tests::target_edition_backstop_checks_reachable_optional_catch_binding",
+        "structured_js::output_policy_tests::naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides",
+        "structured_js::output_policy_tests::identifier_mangling_off_restricts_render_and_search_to_source",
+        "semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners",
+        "semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union",
+        "semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper",
+        "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults"
+      ],
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "5218586886e82ebf4746a42fd0781d9ff4ad022167be6e302364dba8cc816796",
+          "bytes": 132
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "d875ca924522d178708adc75f7807c425a8c6f7bf7d79f3755aabb572f464262",
+          "bytes": 178163
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "f8d9deb488b65929c9379eeb4f6fcf8fd9035db5797cc9677f88be5e90b1237a",
+          "bytes": 177741
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "f8d9deb488b65929c9379eeb4f6fcf8fd9035db5797cc9677f88be5e90b1237a",
+          "bytes": 177741
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "77845c4992a0dfeeab08659f547929dbb5341f9da96d9cd918ee3752bcdca472",
+          "bytes": 14725
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "fced7ecdbf330172d3765d35189dc6cb17c044f44215cc465c1d41537f8e4170",
+          "bytes": 1190
+        },
+        {
+          "path": "tests-1.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-1.stdout",
+          "sha256": "08b6fadbe6e98dec5b5bcca8d9cad0dc10789bc6c28f5dc13d47e738020510e5",
+          "bytes": 502
+        },
+        {
+          "path": "tests-2.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-2.stdout",
+          "sha256": "76839de479938d560d114416ea0ab7f1426076cc1051b1c6503cc8a7c49934ff",
+          "bytes": 863
+        },
+        {
+          "path": "tests-3.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-3.stdout",
+          "sha256": "277c37cfb1f387334b8480cc62e4e07c8f1a17ffecb1038c9dfd80cec79c8c7b",
+          "bytes": 489
+        },
+        {
+          "path": "tests-4.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-4.stdout",
+          "sha256": "1e0fa02edaed1d227c2a71bd08933611909b42c976db11a8cbab2cab762c6c7c",
+          "bytes": 656
+        },
+        {
+          "path": "tests-5.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-5.stdout",
+          "sha256": "a0b8d4552ebf51e94f717cf6508d47a15b5fd043839432c2a818b289ef93ceab",
+          "bytes": 955
+        },
+        {
+          "path": "tests-6.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-6.stdout",
+          "sha256": "dad94d23a2b66228c744e5cc7ae035d752be4d78e82c1fe8ac9efa49198e806d",
+          "bytes": 3686
+        },
+        {
+          "path": "tests-7.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-7.stdout",
+          "sha256": "64d3f671b270976f9f6745ce0ca47e8aa772dc0beb98b0b923ef69928ed7291d",
+          "bytes": 12151
+        },
+        {
+          "path": "tests-8.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-8.stdout",
+          "sha256": "7ecc35e82ef3aed3a1e6f7d8d59d2a8bb532e8074b52a6cd40fb409e96403a78",
+          "bytes": 827
+        },
+        {
+          "path": "tests-9.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-9.stdout",
+          "sha256": "68a8ce1a6cc59b0f31c03e754c6227b2bb01be37334d83a34749201658141613",
+          "bytes": 697
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-59-23.125Z/receipt.json",
+        "sha256": "9da060485ebb4c1e21a5ca5835f3d8cfd20262441a55b40d1f53b1dcaacc0861",
+        "bytes": 5772
+      },
+      "passed": true,
+      "profile": "debug",
+      "inputSha256": "742f203a45dfd5483ff2774291e29563abf9b5adb5b9e39c955bb8eb380d8dc8",
+      "binary": {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/debug-tests",
+        "sha256": "1f264ca31c86eefba1f69751be2ac58ae0813030969f57491e46fda6b7b69952",
+        "bytes": 417114568
+      },
+      "acceptedTests": [
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal"
+      ],
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "45b65bf335eacf8530a26153f3b679c8a3abb27a4430d793c3ae03ac8112248b",
+          "bytes": 132
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "c43527d78f2f8c9ce4076fb510120152e6101703dd268b33b3b2979284c2e553",
+          "bytes": 178163
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "33d829af6566293083027f50e496f020057a30fcdc727eb58b5c1705c0511703",
+          "bytes": 177741
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "33d829af6566293083027f50e496f020057a30fcdc727eb58b5c1705c0511703",
+          "bytes": 177741
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "9da060485ebb4c1e21a5ca5835f3d8cfd20262441a55b40d1f53b1dcaacc0861",
+          "bytes": 5772
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "b4d14427620b12a53bf247d936cebfb316d2cdd71a3f968d908772abfc3f2b2a",
+          "bytes": 200
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-00-06.766Z/receipt.json",
+        "sha256": "b1c5d415581dd99bdcb95b89ddde5b75b26a53cee7446dccb8b6175708dd3f0f",
+        "bytes": 13068
+      },
+      "passed": true,
+      "profile": "release",
+      "inputSha256": "742f203a45dfd5483ff2774291e29563abf9b5adb5b9e39c955bb8eb380d8dc8",
+      "binary": {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "sha256": "9c65b05499cc73e51212afc343b01dfa1493ade88a018f8ea6b42a5a49d5078a",
+        "bytes": 39990288
+      },
+      "acceptedTests": [
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "compression::tests::raw_has_no_codec_work_or_scratch_even_under_zero_admission",
+        "compression::tests::encoder_admission_failures_release_scratch_and_preserve_the_other_domain",
+        "compression::tests::late_brotli_denial_does_not_exit_the_process",
+        "compression::tests::admitted_codecs_match_pinned_convenience_scores_without_retaining_encoded_output",
+        "structured_js::naming::allocation_tests::name_index_checks_exact_scope_and_name_even_in_a_collision_cluster",
+        "structured_js::naming::allocation_tests::installed_lazy_caches_survive_failed_prints_and_release_with_output",
+        "structured_js::naming::allocation_tests::partial_lazy_cache_admission_failure_does_not_install_or_leak_it",
+        "structured_js::naming::allocation_tests::preparation_exhaustion_and_invalid_target_release_every_partial_buffer",
+        "structured_js::naming::allocation_tests::prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity",
+        "structured_js::naming::allocation_tests::large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation",
+        "structured_js::print::budget_tests::a_failed_optional_render_preserves_the_already_rendered_incumbent",
+        "structured_js::print::budget_tests::byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget",
+        "structured_js::print::budget_tests::admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text",
+        "semantic_program::formation_budget_tests::completed_formation_unwinds_after_actual_module_drop_in_the_original_domain",
+        "semantic_program::formation_budget_tests::observed_literal_payloads_share_formation_admission_and_unwind_after_payload_drop",
+        "semantic_program::formation_budget_tests::late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_partial_module",
+        "semantic_program::formation_budget_tests::formation_charges_exact_live_module_capacity_and_releases_all_planning_scratch",
+        "semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work",
+        "semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis",
+        "semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline",
+        "semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled",
+        "semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets",
+        "semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts",
+        "semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets",
+        "compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources",
+        "compiler_service::tests::deadline_at_adoption_discards_prepared_graph_before_releasing_its_charge",
+        "compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission",
+        "compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence",
+        "compiler_service::tests::path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_copy",
+        "compiler_service::tests::path_checker_refusal_releases_source_buffers_but_preserves_owned_diagnostic",
+        "compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization",
+        "compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget",
+        "compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic",
+        "compiler_service::tests::path_post_discovery_work_refusal_releases_sources_before_returning",
+        "compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error",
+        "compiler_service::tests::path_source_memory_refusal_is_typed_without_diagnostic_source_copy",
+        "compiler_service::tests::resource_owner_exists_before_discovery_and_parse",
+        "compiler_service::tests::path_store_refusal_releases_prepared_graph_then_factory_source_buffers",
+        "compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission",
+        "compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget",
+        "compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs",
+        "compiler_service::tests::semantic_service_rejects_legacy_ast_specialization_before_io_or_work",
+        "compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback",
+        "compiler_service::tests::shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger",
+        "compiler_service::tests::path_factory_parses_each_canonical_module_once_and_releases_syntax_before_backend",
+        "compiler_service::tests::source_checker_and_conversion_work_refusals_remain_typed_at_the_public_boundary",
+        "compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release",
+        "compiler_service::tests::source_parser_memory_refusal_remains_typed_at_the_public_boundary",
+        "compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api",
+        "compiler_service::tests::store_construction_refusal_returns_the_owner_for_prepared_graph_cleanup",
+        "compiler_service::tests::explicit_zero_specialization_matches_omitted_source_and_module_compilation",
+        "compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history",
+        "compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child",
+        "compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects",
+        "compiler_service::tests::source_service_returns_independently_scored_qualified_winners",
+        "compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work",
+        "compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service",
+        "structured_js::tests::a_shared_value_cannot_accidentally_duplicate_a_call_or_an_expression_graph",
+        "structured_js::tests::both_analysis_modes_apply_the_same_legal_transformations",
+        "structured_js::tests::anonymous_callable_values_do_not_acquire_object_property_names",
+        "structured_js::tests::array_length_places_and_receiver_calls_cannot_be_scalar_observations",
+        "structured_js::tests::checked_collection_result_identity_attaches_to_the_language_value",
+        "structured_js::tests::a_constant_result_does_not_erase_effects_or_prove_raw_normalization_redundant",
+        "structured_js::tests::callable_source_occurrences_do_not_alias_at_the_same_span",
+        "structured_js::tests::callable_name_materialization_preserves_anonymity_descriptors_and_construction",
+        "structured_js::tests::binary_memory_construction_preserves_probe_views_and_shared_storage",
+        "structured_js::tests::binding_updates_preserve_signed_arithmetic_and_rhs_observation_order",
+        "structured_js::tests::binary_memory_uses_the_checked_kinds_and_keeps_store_rounding",
+        "structured_js::tests::constructor_and_property_resolution_survive_optional_access_fusion",
+        "structured_js::tests::construction_is_a_value_observation_even_when_the_body_is_pure",
+        "structured_js::tests::class_callable_fields_remain_replaceable_and_generic_methods_erase_types",
+        "structured_js::tests::catch_bindings_have_fresh_scope_cells_and_survive_escaping_closures",
+        "structured_js::tests::detached_facts_reject_edits_and_independently_edited_branches",
+        "structured_js::tests::constructor_from_a_call_or_a_member_of_a_call_preserves_the_reference",
+        "structured_js::tests::direct_eval_invalidates_target_normalization_proofs_as_well_as_names",
+        "structured_js::tests::class_calls_and_updates_capture_the_receiver_before_argument_effects",
+        "structured_js::tests::class_initializers_share_super_defaults_and_keep_fresh_fields_after_arguments",
+        "structured_js::tests::direct_eval_keeps_lexical_names_and_indirect_eval_stays_global",
+        "structured_js::tests::distinct_target_cells_share_provenance_without_aliasing_and_remap_together",
+        "structured_js::tests::equivalent_escaped_record_keys_have_one_semantic_identity",
+        "structured_js::tests::collection_receiver_lookup_arguments_and_language_results_stay_ordered",
+        "structured_js::tests::constructor_results_keep_allocation_identity_when_this_is_rebound",
+        "structured_js::tests::defaults_distinguish_omission_supplied_undefined_and_function_arity",
+        "structured_js::tests::discardable_cell_reads_remain_nonrepeatable_and_tdz_reads_still_throw",
+        "structured_js::tests::each_query_visits_shared_value_dependencies_at_most_once",
+        "structured_js::tests::constant_language_operations_match_independent_evaluation_at_i32_boundaries",
+        "structured_js::tests::escaped_names_and_observing_calls_keep_function_name_requirements",
+        "structured_js::tests::exception_region_verification_enforces_ownership_scope_and_control_boundaries",
+        "structured_js::tests::empty_control_retains_condition_effects_and_repeated_loop_execution",
+        "structured_js::tests::explicit_print_policy_is_reentrant_and_preserves_provenance",
+        "structured_js::tests::exports_reject_missing_bindings_duplicate_names_and_nested_cells",
+        "structured_js::tests::expression_grammar_preserves_association_signs_negative_zero_and_object_keys",
+        "structured_js::tests::explicit_exports_survive_cleanup_compaction_and_name_extraction",
+        "structured_js::tests::escaped_record_keys_and_inferred_names_preserve_code_units",
+        "structured_js::tests::escaping_callable_names_survive_storage_elimination_and_alias_renaming",
+        "structured_js::tests::exact_string_knowledge_is_bounded_and_literal_payloads_stay_owned_by_the_program",
+        "structured_js::tests::exact_string_values_cross_cells_joins_and_utf16_operations",
+        "structured_js::tests::for_updates_participate_in_scope_verification_and_late_naming",
+        "structured_js::tests::exception_predecessors_do_not_inherit_values_from_unreached_body_tails",
+        "structured_js::tests::erased_type_parameters_preserve_callback_bindings_and_invocations",
+        "structured_js::tests::finalizers_preserve_and_override_loop_transfers_without_copying_bodies",
+        "structured_js::tests::for_control_keeps_continue_update_break_and_initializer_effects",
+        "structured_js::tests::for_update_facts_do_not_assume_code_after_continue_executed",
+        "structured_js::tests::invocation_observations_release_private_names_only_in_the_matching_world",
+        "structured_js::tests::later_storage_decisions_follow_transferred_statement_owners_and_depth",
+        "structured_js::tests::implicit_constructor_lookup_precedes_arguments_and_preserves_throws",
+        "structured_js::tests::nested_closures_keep_binding_identity_after_renaming",
+        "structured_js::tests::indexed_nullish_callable_creation_keeps_its_anonymous_name",
+        "structured_js::tests::indexed_updates_preserve_proxy_get_set_order_and_lazy_nullish_writes",
+        "structured_js::tests::indexed_compounds_capture_receiver_key_and_old_value_before_rhs",
+        "structured_js::tests::for_initializer_cells_are_shared_and_body_cells_are_fresh",
+        "structured_js::tests::lexical_ownership_distinguishes_nested_blocks_from_captured_writes",
+        "structured_js::tests::output_search_bounds_text_and_rejects_invalid_measurement_services",
+        "structured_js::tests::marked_bracket_scanner_preserves_its_real_control_and_utf16_operations",
+        "structured_js::tests::nullish_binding_assignment_preserves_lazy_callable_named_evaluation",
+        "structured_js::tests::normalized_strings_preserve_utf16_values_and_javascript_escape_semantics",
+        "structured_js::tests::nullish_evaluation_preserves_falsy_values_and_conditional_writes",
+        "structured_js::tests::planned_dead_reads_do_not_authorize_uninitialized_stores",
+        "structured_js::tests::owned_compaction_removes_dead_closures_and_names_without_losing_source_identity",
+        "structured_js::tests::primitive_construction_verification_rejects_invalid_operators_and_arity",
+        "structured_js::tests::primitive_identity_is_resolved_before_backend_selection",
+        "structured_js::tests::opaque_private_arguments_keep_coercion_and_throws_after_optimization",
+        "structured_js::tests::primitive_method_values_require_a_supported_receiver_contract",
+        "structured_js::tests::planned_observations_close_storage_without_another_semantic_round",
+        "structured_js::tests::private_parameter_domains_require_complete_actual_argument_evidence",
+        "structured_js::tests::projection::literal_projection_keeps_effects_and_absent_or_coercing_keys",
+        "structured_js::tests::omitted_defaults_preserve_literals_global_bindings_and_fresh_callables",
+        "structured_js::tests::projection::literal_projection_respects_the_existing_work_ledger_without_allocating",
+        "structured_js::tests::output_search_keeps_budget_prefixes_and_scores_the_complete_union",
+        "structured_js::tests::postfix_snapshots_survive_captured_mutation_and_short_circuiting",
+        "structured_js::tests::receiver_lookup_precedes_arguments_and_value_calls_stay_unbound",
+        "structured_js::tests::primitive_integer_results_use_emitted_normalization_without_assuming_host_range",
+        "structured_js::tests::region_planning_consumes_child_results_without_assuming_arena_execution_order",
+        "structured_js::tests::projection::literal_projection_preserves_raw_values_and_uses_no_new_target_storage",
+        "structured_js::tests::parameter_defaults_snapshot_arguments_inside_the_ordered_call",
+        "structured_js::tests::range_proofs_preserve_overflow_negative_zero_and_explicit_bitwise_operations",
+        "structured_js::tests::private_array_observations_keep_initialization_effects_at_their_original_site",
+        "structured_js::tests::record_function_values_keep_named_creation_separate_from_assignment",
+        "structured_js::tests::region_value_barriers_follow_getters_and_property_key_coercion_order",
+        "structured_js::tests::reference_construction_preserves_order_without_loading_a_write_target",
+        "structured_js::tests::scope_dependencies_and_loop_transfers_are_verified",
+        "structured_js::tests::materialization_keeps_long_statement_chains_within_the_target_depth_budget",
+        "structured_js::tests::removing_unobserved_stores_requires_initialization_and_the_declared_public_boundary",
+        "structured_js::tests::renaming_cannot_capture_host_names_or_another_lexical_binding",
+        "structured_js::tests::scoped_names_constrain_references_across_each_intervening_scope",
+        "structured_js::tests::requested_objectives_own_codec_work_and_unmeasured_scores_stay_absent",
+        "structured_js::tests::region_values_do_not_promote_one_loop_iteration_or_one_short_circuit_path",
+        "structured_js::tests::source_eval_waits_for_a_declared_binding_contract",
+        "structured_js::tests::region_values_keep_captured_writes_and_reentrant_calls_observable",
+        "structured_js::tests::region_versions_preserve_assignment_values_and_merge_all_branch_inputs",
+        "structured_js::tests::scoped_naming_reuses_siblings_and_preserves_nested_captures",
+        "structured_js::tests::shared_value_dependencies_preserve_initialization_effects_and_cells",
+        "structured_js::tests::source_classes_preserve_probe_inheritance_aliases_and_lexical_receivers",
+        "structured_js::tests::signed_offset_reassociation_preserves_rounding_effects_and_materialization",
+        "structured_js::tests::source_collections_preserve_probe_behavior_aliases_and_nullable_values",
+        "structured_js::tests::source_exception_regions_preserve_probe_recovery_and_finalizer_completions",
+        "structured_js::tests::source_types_bindings_and_builtin_identity_survive_target_naming",
+        "structured_js::tests::structural_proofs_belong_to_their_immutable_program_state",
+        "structured_js::tests::source_functions_branches_and_loops_match_the_independent_interpreter",
+        "structured_js::tests::source_integer_operations_follow_the_language_contract",
+        "structured_js::tests::source_operations_with_one_diagnostic_span_keep_distinct_resolution",
+        "structured_js::tests::target_template_constants_preserve_null_undefined_and_negative_zero_distinctions",
+        "structured_js::tests::source_short_circuit_and_mutable_closures_match_the_interpreter",
+        "structured_js::tests::source_templates_cook_escapes_without_losing_surrogates_or_creating_substitutions",
+        "structured_js::tests::unchanged_pass_hands_current_facts_to_target_selection",
+        "structured_js::tests::unchanged_optimization_reuses_structure_and_compaction_preserves_it",
+        "structured_js::tests::source_templates_keep_probe_bindings_and_string_operations_visible",
+        "structured_js::tests::template_conversions_keep_observable_function_names",
+        "structured_js::tests::template_conversions_preserve_string_hint_order_reentry_and_abrupt_completion",
+        "structured_js::tests::unused_template_results_preserve_target_tdz_reads",
+        "structured_js::tests::source_records_and_arrays_preserve_aliases_keys_and_absent_values",
+        "structured_js::tests::typed_array_stores_do_not_redefine_prefix_postfix_or_compound_results",
+        "structured_js::tests::unused_collection_construction_retains_lookup_allocation_and_reentry",
+        "structured_js::tests::typed_primitive_values_keep_utf16_effects_and_mutable_collection_observations",
+        "structured_js::tests::unobserved_cells_disappear_without_losing_initializer_effects_or_assignment_values",
+        "structured_js::output_policy_tests::policy_free_research_output_stays_explicit_and_native_policy_is_rejected",
+        "structured_js::output_policy_tests::enabled_search_retains_alternatives_and_prepared_permissions_do_not_change",
+        "structured_js::output_policy_tests::target_edition_backstop_rejects_live_nullish_but_allows_unused_arena_nodes",
+        "structured_js::output_policy_tests::target_edition_backstop_checks_reachable_optional_catch_binding",
+        "structured_js::output_policy_tests::naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides",
+        "structured_js::output_policy_tests::identifier_mangling_off_restricts_render_and_search_to_source",
+        "semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners",
+        "semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union",
+        "semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper",
+        "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults"
+      ],
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "c26cde1a7b62e3d294463dc15a88abd9f23e9323c45b89a33e52dc0aa3526e4d",
+          "bytes": 121
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "0da48a2e282bbc7e46dc834577741a2a9cb4c4f31eadeba67e350cad3ed74f1f",
+          "bytes": 180828
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "33d829af6566293083027f50e496f020057a30fcdc727eb58b5c1705c0511703",
+          "bytes": 177741
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "33d829af6566293083027f50e496f020057a30fcdc727eb58b5c1705c0511703",
+          "bytes": 177741
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "b1c5d415581dd99bdcb95b89ddde5b75b26a53cee7446dccb8b6175708dd3f0f",
+          "bytes": 13068
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "54d42c6e745e5f877bdb323f6bf81d8ec1d8fcdc310acc2846f55bb0799cda02",
+          "bytes": 200
+        },
+        {
+          "path": "tests-1.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-1.stdout",
+          "sha256": "ef2fa740c355b5c759bce8de18ece3bb45ec7d59b5c212bbb82b2870bbd3b687",
+          "bytes": 502
+        },
+        {
+          "path": "tests-2.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-2.stdout",
+          "sha256": "500d9d9814f0bf8d20ac4513d1426e7cf42dad16544491e8b753cd0417b9bb26",
+          "bytes": 863
+        },
+        {
+          "path": "tests-3.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-3.stdout",
+          "sha256": "ee9210026ea72b9bc866229127cb745705ef9665247e928580799e31eba12ae5",
+          "bytes": 489
+        },
+        {
+          "path": "tests-4.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-4.stdout",
+          "sha256": "6b5a53105a2c0c99dd5bbb764f5c131633dacb1bc8d96085f4674eeea1f0a400",
+          "bytes": 656
+        },
+        {
+          "path": "tests-5.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-5.stdout",
+          "sha256": "62b2a3fe44a8ad50a45a750cd6398ab59e101bc7eaf65f4f2b9aef439a70c222",
+          "bytes": 955
+        },
+        {
+          "path": "tests-6.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-6.stdout",
+          "sha256": "04cea4908d4889f97432d7207a6159dfbb346be31bc62fac03865d1d9e83270e",
+          "bytes": 3686
+        },
+        {
+          "path": "tests-7.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-7.stdout",
+          "sha256": "f1a57a137e713b96b26ea5d69b62ff60f6cfee4139d15a4b706938985aee1212",
+          "bytes": 12151
+        },
+        {
+          "path": "tests-8.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-8.stdout",
+          "sha256": "0c8c659cb568834386e4d8473000818e9613b5e3301754923c6bfc72631bdecc",
+          "bytes": 827
+        },
+        {
+          "path": "tests-9.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-9.stdout",
+          "sha256": "11f9c9dfd0b701b1a0d46a2caac5610d5998f2d97cbef1c3b2650e3f05e791f8",
+          "bytes": 697
+        }
+      ]
+    }
+  ],
+  "accepted": {
+    "debugDistinct": 186,
+    "releaseDistinct": 186,
+    "newTests": 1,
+    "debugReuse": "185 passing unaffected tests from codec-instrumented attempt; final correction changes only one test assertion, whose single test is rerun successfully",
+    "release": "all 186 focused tests rerun on final unchanged sources with opt-level=3, debug assertions/overflow checks off, no inherited compiler/profile overrides"
+  },
+  "failuresPreserved": [
+    "test-only wrong OutputError import; no tests reached",
+    "new native fixture requested unsupported default exported ABI; 181 other checks pass",
+    "raw-score assertion confused logical codec bookkeeping with actual encoder work; 185 other checks pass"
+  ],
+  "sourceSnapshots": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/compression.rs",
+        "sha256": "02a0882edfe6e331249aef5a4aabd9d31701d2c558ebf7a93c2211ccb29d3d79",
+        "bytes": 16733
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/semantic_program/demand.rs",
+        "sha256": "abd0402ff934e60d2fe65adc41f8e2de14124da65022c3328323019bdca1d15f",
+        "bytes": 123091
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/semantic_program/javascript.rs",
+        "sha256": "37632819d49bef59596f12e0c9847191e8f2d53398bde549294a0e8ddcc1c950",
+        "bytes": 110496
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/structured_js/naming.rs",
+        "sha256": "c46312160946fa98b08e1d68dcaffb408cb096cbff5551909395e4959a705f33",
+        "bytes": 28817
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/structured_js/print.rs",
+        "sha256": "6f68412fae626f1b15f5abf59b1eda2367b7df5a5eef082fb2aea7b9e28c62c7",
+        "bytes": 31900
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/structured_js/verify.rs",
+        "sha256": "5938101dff6058c4990903be3805fa77c27e07404602662fca3f604df960a928",
+        "bytes": 22369
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-before-20260920/src/timing.rs",
+        "sha256": "f995555f79d5ce84d37100fbea9ba8366040be565808e0fb7f79eb04d3dcf5f6",
+        "bytes": 13587
+      }
+    ],
+    "preserved": [
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/compression.rs",
+        "sha256": "55dd6b15966381a0c083420db6d8fd5b75951eb863dade4cd3a6a3a401d1c06c",
+        "bytes": 16985
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/semantic_program/demand.rs",
+        "sha256": "871ea8da36e6c4a3206d7c0cdd4dc3de6a5c5fc35bd8c6c60f81c292c4c7571e",
+        "bytes": 123148
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/semantic_program/javascript.rs",
+        "sha256": "43953eb45ef3a91a1a48dd9bbc98ffe994c48c0ad7bd568544f0de026fd9f4af",
+        "bytes": 110552
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/structured_js/naming.rs",
+        "sha256": "d09f93d3018ef332790b5dddc885d21c0f70d3dbb90bab73a65c44ac52a2ff84",
+        "bytes": 28937
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/structured_js/print.rs",
+        "sha256": "bc1cf21ae24acb1ec225c5bb18c90ec86539d10628292e682c995f4d38c0f7d0",
+        "bytes": 31956
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/structured_js/verify.rs",
+        "sha256": "79eaaa6408ac936d982011f9797cb979fe4b0b157519b27d293bb1311cb0292a",
+        "bytes": 22484
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/timing.rs",
+        "sha256": "cbb1da9460871f3e1f9f72059e38e291d695b1c6b7b29bc5635022bd75228eb2",
+        "bytes": 15135
+      },
+      {
+        "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/src/timing_tests.rs",
+        "sha256": "408b61b59e28e49ca43bd2b9300584d1b2591b970a30161e1405a1ffb08ab8a2",
+        "bytes": 10067
+      }
+    ]
+  },
+  "design": {
+    "path": "docs/compiler-design.md",
+    "sha256": "659911967aa490b1e7db340b7d76399307aa86baa3c7761ef252508d0b5a5bbb",
+    "bytes": 16688
+  },
+  "capture": {
+    "path": "benchmarks/migration-results/2026-09-20-semantic-phase-timing/receipt.json",
+    "sha256": "bc28276869156846eadd081567ae86c864a68e78c06028ce63c9975c6ad66f78",
+    "bytes": 18014
+  },
+  "diagnosticChecks": {
+    "timingPairs": 5,
+    "caseObservations": 30,
+    "deterministicEqual": true,
+    "searchRows": 32,
+    "oracleArtifacts": 24,
+    "winnerExecutions": 64,
+    "allPreviousSearchFieldsEqual": true
+  },
+  "review": [
+    "One existing timing owner; nine stack RAII timing sites, no semantic/search/budget mutation.",
+    "Target basis and names share existing owners; lazy scoped naming is included in target_names.",
+    "Demand/formation/verification/edition/naming/printing calls time attempted operations; failed operations and unwind are recorded.",
+    "Canonical encoder scopes begin after raw early return and are separate from legacy CODEC to avoid conflating route-level and backend timing.",
+    "Native success and existing exported-ABI refusal do not enter JS/codec phases; raw uses no encoder.",
+    "Process-global atomics and accumulated elapsed scopes are not per-compilation CPU or additive wall totals.",
+    "Timing-enabled wall deadlines could stop earlier; these comparisons use deterministic work/probe bounds."
+  ],
+  "limitations": [
+    "Release test executable retains cfg(test) instrumentation, not shipped-CLI timing.",
+    "Small constructed fixtures on a shared host; no speed gain, held-out library, full fleet or milestone qualification.",
+    "No independent agent review, policy/default or schedule changes; schedule remains 22 and resource format 3."
+  ]
+}

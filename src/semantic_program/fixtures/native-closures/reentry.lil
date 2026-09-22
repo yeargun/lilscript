@@ -1,0 +1,27 @@
+extern void keep(int slot,func(int)->int callback);
+extern int invoke(int slot,int delta);
+extern void clear(int slot);
+extern void clearAll();
+extern func(int)->int take(int slot);
+extern void expectLive(int count);
+extern void assertEmpty();
+
+struct Pair {int left;int right;}
+void overlap(ref Pair whole,ref int leaf) {whole=Pair{10,20};leaf+=1;}
+void attach(int slot) {
+    Pair state=Pair{1,2};
+    keep(slot,(int value)=>{state.left=invoke(slot+1,value);return state.left+state.right;});
+    keep(slot+1,(int value)=>{state=Pair{100+value,200+value};return 5+value;});
+    keep(slot+2,(int value)=>{overlap(ref state,ref state.left);return state.left+state.right;});
+}
+void selfClearing(int slot,int seed) {
+    int state=seed;
+    keep(slot,(int delta)=>{int before=state;clear(slot);state+=delta;print(before);return state;});
+}
+void exercise() {
+    attach(0);
+    print(invoke(0,3));print(invoke(2,0));print(invoke(0,1));
+    clearAll();assertEmpty();
+    selfClearing(4,30);print(invoke(4,7));assertEmpty();
+}
+exercise();assertEmpty();

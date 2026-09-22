@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 1,
+  "milestones": {
+    "001": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-katexlil/receipt.json",
+          "sha256": "6ca42fa93a307d1f5b4c169cf29120b9af66c02f9fd2d299af88649888896672",
+          "bytes": 31166,
+          "requires": [
+            "cases"
+          ],
+          "note": "original test command derived and observed once against the existing distribution; required case identities frozen"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-stringifylil/receipt.json",
+          "sha256": "c2b83cb060d12e000e8e518d7126a818f5b4f2be58264378ddbeadfd3c941ec7",
+          "bytes": 11912,
+          "requires": [
+            "cases"
+          ],
+          "note": "original test command derived and observed once against the existing distribution; required case identities frozen"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-adapter-inventory/remark-mathlil/receipt.json",
+          "sha256": "5292278a0cf1bdd97a964144921a45b069902a0749db8b9c601ca280d316bb09",
+          "bytes": 31050,
+          "requires": [
+            "cases"
+          ],
+          "note": "original test command derived and observed once against the existing distribution; required case identities frozen"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-adapter-inventory/unifiedlil/receipt.json",
+          "sha256": "072943c696fe960c08db88c0f3ac1f103f7be78e117342a9ca2fea1bc79cf451",
+          "bytes": 85615,
+          "requires": [
+            "cases"
+          ],
+          "note": "original test command derived and observed once against the existing distribution; required case identities frozen"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-competitors-sourcebuilt/hast-util-to-htmllil/receipt.json",
+          "sha256": "9a09c111f3df5a44b768533b8c9b95e6e201c0555bd1ec9794fdd5046f6cbad5",
+          "bytes": 6909,
+          "requires": [
+            "competitors",
+            "measurements"
+          ],
+          "note": "source-built artifact against pinned runnable bars; comparable on public surface and program mass"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-competitors-sourcebuilt/mdast-util-to-hastlil/receipt.json",
+          "sha256": "eaa5aa6765dad82baa85e31dc5e505333e592e35053da477f37085fe0bd7a762",
+          "bytes": 7312,
+          "requires": [
+            "competitors",
+            "measurements"
+          ],
+          "note": "source-built artifact against pinned runnable bars; comparable on public surface and program mass"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-competitors/katexlil/receipt.json",
+          "sha256": "44cacc47929e8aef0343874e7734f1b1a8fc1d1f1fd52648cc2fd5f78a864415",
+          "bytes": 7500,
+          "requires": [
+            "competitors"
+          ],
+          "note": "pinned runnable bars against this port's COMMITTED distribution; no source-built incumbent exists for it yet"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-competitors/mobxlil/receipt.json",
+          "sha256": "27ab626c16e8d7b12e4be5d15e04c55e22ba71191ae9ab0214fff4479206523c",
+          "bytes": 13542,
+          "requires": [
+            "competitors"
+          ],
+          "note": "pinned runnable bars against this port's COMMITTED distribution; no source-built incumbent exists for it yet"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-competitors/react-markdownlil/receipt.json",
+          "sha256": "31ae37a44d09d8b03e774c4b594a17bcbbefc844455cef63b44713b82d870755",
+          "bytes": 6783,
+          "requires": [
+            "competitors"
+          ],
+          "note": "pinned runnable bars against this port's COMMITTED distribution; no source-built incumbent exists for it yet"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-competitors/unifiedlil/receipt.json",
+          "sha256": "71bb19efb039f5b18cda1852bce575addbd59da62328e62604bd964cd47662d8",
+          "bytes": 6246,
+          "requires": [
+            "competitors"
+          ],
+          "note": "pinned runnable bars against this port's COMMITTED distribution; no source-built incumbent exists for it yet"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-20-cost-policy/policy.json",
+          "sha256": "16bbb7622cd7f9d314fa9db1d80c54ca1bff1cd8ba0211d6138cf75f6869d23c",
+          "bytes": 86785,
+          "requires": [],
+          "note": "frozen boundary x profile x codec matrix, envelopes, timing and delivery accounting"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-config-support/audit.json",
+          "sha256": "67869947ab740fd87c3589d8666873efa5b245365f15ab0143b8d643a720ec23",
+          "bytes": 45693,
+          "requires": [],
+          "note": "port configuration support on the main line after the sibling-knob change: 73 of 77 accepted"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines-2/katexlil/receipt.json",
+          "sha256": "d835097037b24ef90b78cf8aec80a41ef2ca9b865d1aa723f1629e4761b08172",
+          "bytes": 15920,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines-2/posthoglil/receipt.json",
+          "sha256": "e649971c199ec4e545604a2f2f05cf97db4649644f874076bc95cc8b9c3b778d",
+          "bytes": 13387,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines-2/rehypelil/receipt.json",
+          "sha256": "23bef34f81d4be340b4626438f451ba5a9e1048859475590884684b795effce0",
+          "bytes": 29624,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/hast-util-to-htmllil/receipt.json",
+          "sha256": "18134367fea9ce150533c9b84ba92a4cd5840286b6301b14502b12b0b3e86903",
+          "bytes": 79376,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/jquerylil/receipt.json",
+          "sha256": "7e5c42cdb7b850ee7bd0043f2343da8df48b13ebfd8ce5df52992add07aacda3",
+          "bytes": 7626,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/mdast-util-to-hastlil/receipt.json",
+          "sha256": "f07e05d4648295b09f8b3300dae877ffa6812d0e644f707ce6bcfbe84454d0a6",
+          "bytes": 28673,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/micromarklil/receipt.json",
+          "sha256": "1819b2ee453956d3d29e40d68d259abfc92d6280d34d405e6acee0b647017142",
+          "bytes": 306524,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/rehype-katexlil/receipt.json",
+          "sha256": "b22e74a2f89affd1477633c66189e2077f29ff1b81078d51172784e1321f9f7b",
+          "bytes": 16661,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/rehype-stringifylil/receipt.json",
+          "sha256": "75e29fc02a1959c702d90132a87ee4b642053d2c9d81f3e63f1b078bae4bd9fb",
+          "bytes": 8777,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/remark-breakslil/receipt.json",
+          "sha256": "cb60b2e7f34dd75af7963ad7dd37687339b745c46d8a9e2743b22f4280642ee7",
+          "bytes": 9872,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/remark-mathlil/receipt.json",
+          "sha256": "b1b3de5202774af6cfddf44e846290c23bcd9f98109dbd2dcd17ed56eef30d52",
+          "bytes": 16831,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/remark-rehypelil/receipt.json",
+          "sha256": "25991667cda9484839448e47b003057466138263198259329837cb8ec7e06503",
+          "bytes": 9851,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/solidlil/receipt.json",
+          "sha256": "9c981f4d38491c3365966f13cd71ebb21f058af8f14dc439571ebd40864f03ff",
+          "bytes": 18323,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-fleet-baselines/unifiedlil/receipt.json",
+          "sha256": "569119565bc6134434d12133d4881879a23d889df53807c8b7964af4c59b18ae",
+          "bytes": 42551,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built on the main line with a preserved compiler; frozen required cases executed against the built bytes"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-remark-gfm-fixed/remark-gfmlil/receipt.json",
+          "sha256": "d57c1ba3dc436cd8b2f640988540d3e7711a05e979b8c33b21cc9e44b88ddaec",
+          "bytes": 9782,
+          "requires": [
+            "cases",
+            "sourceBuilt",
+            "measurements"
+          ],
+          "note": "source-built after the fold_void_initializers_off_fresh_vars fix; all 22 frozen cases pass"
+        }
+      ]
+    },
+    "002": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-21-boundary-conformance-d2/hast-util-to-htmllil/receipt.json",
+          "sha256": "2ffb184a34244ae24c69d03ec60df2ccb86e241ebb20eada2ea35140f7a77307",
+          "bytes": 6918,
+          "requires": [],
+          "note": "D2 boundary table against the upstream oracle: all cases pass after export-name and callable-kind normalization"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-boundary-conformance-d2/mdast-util-to-hastlil/receipt.json",
+          "sha256": "ac5391bb3e6e18ccc073dfac22f7b7f214deafbdff8250357ebb11fa4dca56c8",
+          "bytes": 10782,
+          "requires": [],
+          "note": "D2 boundary table against the upstream oracle: all cases pass after export-name and callable-kind normalization"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-semantic-census/receipt.json",
+          "sha256": "1999fb4115dac32090e763b264ff40b712bd119a34b79710145abd00f5aab4ca",
+          "bytes": 116764,
+          "requires": [],
+          "note": "semantic-backend positive/negative census over the 72-case corpus, JS and C; zero miscompiles"
+        }
+      ]
+    },
+    "003": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-3/003-precedence/receipt.json",
+          "sha256": "39293d51bb46e734e84a4bd3fc0b2ea3eb5a16a82f3f55d9745db012b584054b",
+          "bytes": 2088,
+          "requires": [],
+          "note": "003 closure evidence: 13 precedence probes against the preserved compiler (re-run after the D2 callable-kind contract change)"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-3/003-rust-policy-tests/receipt.json",
+          "sha256": "d1f4cd9fd72b75106f449463012fcbb1e7841c6493564c0b17d64c08be763504",
+          "bytes": 1624,
+          "requires": [],
+          "note": "003 closure evidence: 79 policy/config/budget/contract Rust tests"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-3/003-schema/receipt.json",
+          "sha256": "37d4c1ffc031a143a1bbd110431476d8feef980c5837a5a2e6bbc81c3b2980e6",
+          "bytes": 1783,
+          "requires": [],
+          "note": "003 closure evidence: generated schema matches config.rs and every accepted key is documented (Node 24)"
+        }
+      ]
+    },
+    "005": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-4/full-library-suite/receipt.json",
+          "sha256": "82c5ea94f1f7f15729ab2c869131f1b531c2298f76b075da032fc5ce32e2b3f1",
+          "bytes": 4416,
+          "requires": [],
+          "note": "005 closure evidence (refreshed after 007 changes): full library suite 2970/2970 incl. native separate-TU GCC+Clang O0/O2/UBSan executions of the public semantic route"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-semantic-service-baseline/receipt.json",
+          "sha256": "e24df2e7bb1f1198bd142e73de804f86846661bec2768ee9c1b49cdea477093a",
+          "bytes": 15205,
+          "requires": [],
+          "note": "005 measured baseline: frontend-inclusive first-artifact time, process wall and peak RSS for every case the semantic route compiles (JS 38, C 22); a baseline, not a speed claim"
+        }
+      ]
+    },
+    "004": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-4/004-rewrites-facts/receipt.json",
+          "sha256": "69def6dae573682b9775dd03c2d23427d9afa700950cd9b82792997212245880",
+          "bytes": 2513,
+          "requires": [],
+          "note": "004 closure evidence (refreshed after 007 changes): 129 rewrite/fact tests incl. checked dead-value cleanup, stale-proof refusal, lineage, native integer folds under GCC+Clang"
+        }
+      ]
+    },
+    "006": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-4/006-reuse-versus-fresh/receipt.json",
+          "sha256": "0d71caf5aa269a519bf8ab6ed1e0a8dcbfdb4ff029db1796ddf3957f9142d319",
+          "bytes": 2967,
+          "requires": [],
+          "note": "006 closure: one edited unit compiled reused and fresh under one ledger; identical bytes; counters in stderr.txt (refreshed)"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-receipts-4/full-library-suite/receipt.json",
+          "sha256": "82c5ea94f1f7f15729ab2c869131f1b531c2298f76b075da032fc5ce32e2b3f1",
+          "bytes": 4416,
+          "requires": [],
+          "note": "006 closure evidence (refreshed after 007 changes): full library suite incl. D2 public value-struct adapter, D5 level-16 grant, original twelve-module fixture JS+native"
+        }
+      ]
+    },
+    "007": {
+      "receipts": [
+        {
+          "path": "benchmarks/migration-results/2026-09-21-semantic-census-007e/receipt.json",
+          "sha256": "07210f9f195388b379cfcd9aee2b54a350b51c1e1627abe3fded234068277d9d",
+          "bytes": 187905,
+          "requires": [],
+          "note": "007 closure: semantic census script/module/native C 72/72/72, zero miscompiles, binary 112bbc6a"
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-21-semantic-ports-007e/receipt.json",
+          "sha256": "23d92e2929a921a7ade7159acc206ce993f1757025ea32dee59aeb13022365a9",
+          "bytes": 4343,
+          "requires": [],
+          "note": "007 closure: 25 maintained ports on the semantic route with binary 112bbc6a; results identical to the receipt of record; failures owned by 008/011/014 as listed in the plan"
+        }
+      ]
+    }
+  }
+}

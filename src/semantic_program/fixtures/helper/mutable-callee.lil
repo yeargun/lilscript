@@ -1,0 +1,1 @@
+auto helper=(int value)=>value+1;helper=(int value)=>value+2;print(helper(3));

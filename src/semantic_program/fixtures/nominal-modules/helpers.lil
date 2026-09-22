@@ -1,0 +1,21 @@
+// Authored integration helpers; the imported geometry declarations are unchanged.
+import { Interval, Frame } from "./left-types";
+
+void translateAxis(ref Interval axis, float amount) {
+    axis.min += amount;
+    axis.max += amount;
+}
+export void translateFrame(ref Frame box, float x, float y) {
+    translateAxis(ref box.x, x);
+    translateAxis(ref box.y, y);
+}
+export Frame snapshot(ref Frame box) {
+    Frame copy = box;
+    box.x.min += 10.0;
+    return copy;
+}
+export void replaceFrame(ref Frame whole, ref float minimum) {
+    whole = Frame{Interval{10.0, 20.0}, Interval{30.0, 40.0}};
+    minimum = 12.0;
+    whole.y.max = 45.0;
+}

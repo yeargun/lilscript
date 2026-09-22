@@ -1,0 +1,7 @@
+error: unsupported semantic source: statement conversion
+ --> /home/azureuser/lilscript/tests/cases/41_inline_for.lil:2:8
+  |
+ 2 | inline for (int value of [1, 2, 3, 4]) {
+  total += value;
+}
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

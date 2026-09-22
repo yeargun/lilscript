@@ -1,0 +1,505 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "remark-rehypelil",
+  "started": "2026-09-21T10:48:19.571Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/remark-rehypelil",
+  "workspace": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run test:types && node --test test/*.test.mjs test/official/test.js",
+  "derivation": {
+    "supported": true,
+    "script": "npm run test:types && node --test test/*.test.mjs test/official/test.js",
+    "originalSegments": [
+      "npm run test:types",
+      "node --test test/*.test.mjs test/official/test.js"
+    ],
+    "segments": [
+      "npm run test:types",
+      "node --test test/*.test.mjs test/official/test.js"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-test:types",
+        "script": "test:types",
+        "segment": "npm run test:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/test.js"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/remark-rehype.cjs",
+      "dist/remark-rehype.closed.js",
+      "dist/remark-rehype.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/remark-rehype.cjs",
+      "./dist/remark-rehype.closed.js",
+      "./dist/remark-rehype.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/node/report.json",
+    "sha256": "cc5eafe713eb483c19b5e4d6286fbc3110cbce8c0b4fb9f5c2aaaf37e784aefc",
+    "bytes": 48555
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exports the plugin as default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exports the mdast-util-to-hast public helpers",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+      "file": "test/api.test.mjs",
+      "name": "preserves numeric footnote helper arguments like upstream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]",
+      "file": "test/api.test.mjs",
+      "name": "transforms a paragraph fixture into a p element",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]",
+      "file": "test/api.test.mjs",
+      "name": "maps unknown value nodes and task lists like upstream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps pinned keys in the library artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]",
+      "file": "test/api.test.mjs",
+      "name": "remark-rehype",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact with the default export",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "remark-rehype closed",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/test.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate w/ options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate w/ options and explicit unknown 2nd parameter",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate with `processor: undefined` and options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]",
+      "file": "test/official/test.js",
+      "name": "should bridge",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]",
+      "file": "test/official/test.js",
+      "name": "should bridge with options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]",
+      "file": "test/official/test.js",
+      "name": "should understand bridge types",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]",
+      "file": "test/official/test.js",
+      "name": "should understand mutate types",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]",
+      "file": "test/official/test.js",
+      "name": "remarkRehype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+      "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+      "bytes": 14163
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.closed.js",
+      "sha256": "8519ba7d9910b3904d09be43b3fd502148ee1a588e1be44b2883ae13b451f503",
+      "bytes": 15090
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+      "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+      "bytes": 14163
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+      "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+      "bytes": 14163
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-test:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.cjs"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [
+    "dist/remark-rehype.cjs"
+  ],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/remark-rehype.closed.js",
+    "dist/remark-rehype.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 6308.032834999991,
+  "completed": "2026-09-21T10:48:25.848Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c3b976bbf1b637c0381d79848bdccb090ce21d3622af95b6b2c0403787e328e2",
+      "bytes": 931548
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c3b976bbf1b637c0381d79848bdccb090ce21d3622af95b6b2c0403787e328e2",
+      "bytes": 931548
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c688bfb65ecba5b2288eefd129169fecd8fc303d391f388192dff79dc18c1b79",
+      "bytes": 3864
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "45c5b6a5f465f17e35f5733c2e97f2155702684faed8a3566183318e017014f6",
+      "bytes": 5299
+    },
+    {
+      "path": "node/loaded/485078-90fc7532-5380-4cf3-8983-8e11b7d7887e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0e1ae0b633130f7ec0724568896d823cf7fef06e0365c3c2dacd637bd5807972",
+      "bytes": 370
+    },
+    {
+      "path": "node/loaded/485079-2bc3bd3d-b795-4688-8657-8fafcd164076.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ddee81b5a2f6a35016bc8d11d859e6340ed5e6caab822583f15ae113eed14256",
+      "bytes": 376
+    },
+    {
+      "path": "node/loaded/485080-e89b3dfb-aba0-439b-a823-981213e40b5f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cf72d96be5bd5da5dd7521e1dcfcdd9ce6258fc0993d85f10ec7e1fc1d9d9cc9",
+      "bytes": 370
+    },
+    {
+      "path": "node/loaded/485086-ef55b845-5e76-4e94-9fd6-897f5ad206a7.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e5a3e6a7c509807bb50887aabd464b1ea27073bb0042717bd1c7a44d4492d606",
+      "bytes": 370
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "87d307c5066f5c1b0f28b47f19f6d5892334051e1566ea7bf3c0ef8d78e27cb3",
+      "bytes": 555
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7bdad9343c0c053e914e1959698dda15620df64e9786efeb1c45f859eb5fc301",
+      "bytes": 59
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cc5eafe713eb483c19b5e4d6286fbc3110cbce8c0b4fb9f5c2aaaf37e784aefc",
+      "bytes": 48555
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

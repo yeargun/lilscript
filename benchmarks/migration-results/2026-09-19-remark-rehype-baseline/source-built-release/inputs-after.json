@@ -1,0 +1,130 @@
+{
+  "files": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs",
+      "sha256": "4ebf5a13ce99a8a4ee0f6c5e0348b5b1d7c9f029bafc99a69f93177771f47bb9",
+      "bytes": 3897
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/qualify-node-library.mjs",
+      "sha256": "a71dd3c68a8ed4a64a553b70767c127c3b2fb0723c3073e7392d599cc6a409c4",
+      "bytes": 24164
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+      "bytes": 54
+    },
+    {
+      "path": "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript",
+      "sha256": "e0c4cb31f2bf306512767d296e8411f58652e52f12ad158a4d7733acc60712bd",
+      "bytes": 18000040
+    },
+    {
+      "path": "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript-codec",
+      "sha256": "2c9683d9b80746472f687dad7758075cdb9519032ecd3e5c48ec93e81bb50094",
+      "bytes": 2618064
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T19-48-31.223Z/receipt.json",
+      "sha256": "8918faac11122e916d8c7decbdfe03d71f3b873c6dc990691a2709fe498e1a39",
+      "bytes": 43335
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T19-48-31.223Z/inputs-before.json",
+      "sha256": "5a614cd3def5fa1e70790467d055e74262ab17cac0f1d2c274416ba807be46d7",
+      "bytes": 176186
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T19-48-31.223Z/inputs-after.json",
+      "sha256": "5a614cd3def5fa1e70790467d055e74262ab17cac0f1d2c274416ba807be46d7",
+      "bytes": 176186
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/maintained-workloads.json",
+      "sha256": "97aaa2d018e604afab97230396a27efd363031cc18e2ad1fc968fb3c5f80045c",
+      "bytes": 102380
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/remark-rehypelil.required-tests.json",
+      "sha256": "87a17c0cfb2899f4a6e571732aad4207cb60e948e98d2cc716cadfcc45fb23cf",
+      "bytes": 17761
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/receipt.json",
+      "sha256": "c71c89a9b873eab0ce53eb88be75a4d9edf449eb0d541bf9dfee9f566d98eb8a",
+      "bytes": 30711
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/before.json",
+      "sha256": "b992138e3156ea30fd02f65a2952b6b4cece13ed391e2ec99f2d7ed65d12446b",
+      "bytes": 869470
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/node/report.json",
+      "sha256": "08298e4edb05cfaedcf65c1eff6fbf96b3462ffef6a81e07391bcf29dae6ef3a",
+      "bytes": 32223
+    },
+    {
+      "path": "/home/azureuser/lilscript/.nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/source-built-release/npm-user.npmrc",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/source-built-release/npm-global.npmrc",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/portgate.mjs",
+      "sha256": "4606716b4c242167e0241cfde9af06a2a733e4fe6dbe1e46b471ad046c7b728e",
+      "bytes": 29042
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/compiler-receipt.mjs",
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/vitest-test-evidence.mjs",
+      "sha256": "a1c78215b4b7e2f185f74abdfe78c45db59cc8389d0f7eaa85f8c7e6dd94f4c7",
+      "bytes": 9116
+    }
+  ],
+  "sha256": "fe7a6dba370dbebfd0064762d3679785ec1cbee50887947b08f665253f16b7bb"
+}

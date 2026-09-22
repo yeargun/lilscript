@@ -1,0 +1,22 @@
+{
+  "source": "/home/azureuser/probelil/src/probe.lil",
+  "sourceSha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+  "functions": [
+    {
+      "signature": "func(int)->int counter(int start)",
+      "start": 2133,
+      "end": 2252,
+      "sha256": "7a170ee2ae30032f86ede0efb214967adca35a6f71593527e66b844bc3b63984"
+    },
+    {
+      "signature": "int closures(int seed)",
+      "start": 2254,
+      "end": 2466,
+      "sha256": "b5add6bae3fe0b92b11cdef9fbcd916ba44adcc236df1949fd83365ebe7eb6fb"
+    }
+  ],
+  "adaptation": "Preserve every function byte; append a closed harness with opaque seed 7 and declared boundary inputs.",
+  "fixtureSha256": "3df8e135e27c8844fa612191246f094aa36e88d4495cb1854c715bd0f57ff5a8",
+  "setup": "globalThis.read=()=>7;\n",
+  "expected": "32\n4\n-8\n"
+}

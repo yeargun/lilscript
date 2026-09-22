@@ -1,0 +1,16 @@
+{
+  "source": "/home/azureuser/probelil/src/probe.lil",
+  "sourceSha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+  "functions": [
+    {
+      "signature": "int withDefaults(int a, int b = 10, int c = 100)",
+      "start": 1869,
+      "end": 1941,
+      "sha256": "48fb48f3bac28d8dde34669df75d7d71a0ba2521e2bfd8a74f7e83ef7387931b"
+    }
+  ],
+  "adaptation": "Preserve the complete function bytes and append its three call arities under an opaque seed of 7.",
+  "fixtureSha256": "10f9e90aec06fe241e05990fd801be1d58b6b466863d0e1a2a159d1d528d7efa",
+  "setup": "globalThis.read=()=>7;\n",
+  "expected": "117\n108\n10\n"
+}

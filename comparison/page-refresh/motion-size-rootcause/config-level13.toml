@@ -1,0 +1,15 @@
+[optimization]
+preset = "maximum"
+
+[javascript]
+priority = "size-first"
+optimization_level = 13
+cost_model = "brotli"
+function_spelling = "arrow"
+local_name_reserve = 48
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+pool_strings = true

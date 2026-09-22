@@ -1,0 +1,1 @@
+func()->int make(){Record<int> state=record{};auto step=(int delta)=>{state["__proto__"]=(state.missing??0)+delta;return state["__proto__"]??0;};return ()=>step(7);}auto run=make();print(run());print(run());

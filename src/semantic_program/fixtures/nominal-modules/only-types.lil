@@ -1,0 +1,2 @@
+import { Axis, Box, Point, BoundingBox, AxisDelta, Delta } from "./motion-geometry";
+export { Axis, Box, Point, BoundingBox, AxisDelta, Delta };

@@ -2,7 +2,7 @@
 
 Compiler/language perspective for this port:
 [docs/knowledge/evidence/jquery.md](../../../../docs/knowledge/evidence/jquery.md).
-Live work: [jquery-01](../../../../docs/knowledge/migration/board/notes/jquery-01.md).
+Compiler work: [single migration plan](../../../../docs/migration/index.md).
 
 ## Port philosophy (LilScript-native)
 

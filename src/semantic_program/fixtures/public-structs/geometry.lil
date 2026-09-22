@@ -1,0 +1,6 @@
+export struct Point {
+  int x;
+  int y;
+}
+
+export Point translate(Point p, int dx, int dy) { return Point{p.x + dx, p.y + dy}; }

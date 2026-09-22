@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/tests/probelil/events.jsonl",
+    ".lilscript-test-adapter/suite.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": ".lilscript-test-adapter/suite.test.mjs",
+      "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+      "bytes": 802
+    }
+  ],
+  "selection": null,
+  "observer": {
+    "preload": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/tests/probelil/observe.mjs",
+    "sha256": "bf6ad9bd34dff7558b774aebb68c4562a6040ff4db458d2036277b8d31a064f9",
+    "bytes": 425,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "9cc8b18ac0ea6447020ac8197fd35de0fd56c855940091b415f4a5caad3a33a5",
+      "bytes": 6735
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [
+      "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"optimized preserves the probe's golden behavior\",1]",
+      "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"unoptimized reference preserves the probe's golden behavior\",1]"
+    ],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"optimized preserves the probe's golden behavior\",1]",
+        "file": ".lilscript-test-adapter/suite.test.mjs",
+        "name": "optimized preserves the probe's golden behavior",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"unoptimized reference preserves the probe's golden behavior\",1]",
+        "file": ".lilscript-test-adapter/suite.test.mjs",
+        "name": "unoptimized reference preserves the probe's golden behavior",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.js",
+        "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+        "bytes": 4034
+      },
+      {
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.none.js",
+        "sha256": "513b6321f3c4cf1eeae5ea3d1a0c40428ef45898eb6627643f3ecc507f185d4f",
+        "bytes": 7309
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.js",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.js",
+        "sha256": "1f72d73442ac89fe0c7449b2044f202242c5fab6aa2c94558d625fae52eb25f8",
+        "bytes": 4034,
+        "pid": 1004476
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.none.js",
+        "url": "file:///tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/probe.none.js",
+        "sha256": "513b6321f3c4cf1eeae5ea3d1a0c40428ef45898eb6627643f3ecc507f185d4f",
+        "bytes": 7309,
+        "pid": 1004484
+      }
+    ]
+  },
+  "errors": [],
+  "certification": "verified",
+  "inventoryCandidate": [
+    "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"optimized preserves the probe's golden behavior\",1]",
+    "[\".lilscript-test-adapter/suite.test.mjs\",11,3,0,\"test\",\"unoptimized reference preserves the probe's golden behavior\",1]"
+  ]
+}

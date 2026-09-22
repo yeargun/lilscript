@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "id": "package-resolution",
+      "status": "pass"
+    },
+    {
+      "id": "named-exports",
+      "status": "pass"
+    },
+    {
+      "id": "public-name",
+      "status": "fail",
+      "message": "Expected values to be strictly equal:\n\n'kb' !== 'toHtml'\n",
+      "expected": "toHtml",
+      "actual": "kb"
+    },
+    {
+      "id": "public-arity",
+      "status": "pass"
+    },
+    {
+      "id": "text",
+      "status": "pass"
+    },
+    {
+      "id": "escaping",
+      "status": "pass"
+    },
+    {
+      "id": "invalid-argument",
+      "status": "pass"
+    },
+    {
+      "id": "array-input",
+      "status": "pass"
+    }
+  ],
+  "passed": false,
+  "observed": {
+    "exports": [
+      "toHtml"
+    ],
+    "name": "kb",
+    "arity": 2
+  },
+  "loadedCommonJsFiles": [
+    "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html/dist/to-html.cjs"
+  ],
+  "dependencyClosure": true,
+  "installedManifest": {
+    "name": "@itslil/hast-util-to-html",
+    "version": "9.0.7",
+    "description": "hast-util-to-html reimplemented in LilScript",
+    "keywords": [
+      "hast",
+      "html",
+      "unist",
+      "stringify",
+      "lilscript",
+      "itslil"
+    ],
+    "homepage": "https://yeargun.github.io/hast-util-to-htmllil/",
+    "bugs": "https://github.com/yeargun/hast-util-to-htmllil/issues",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/yeargun/hast-util-to-htmllil.git"
+    },
+    "license": "MIT",
+    "author": "yeargun",
+    "publishConfig": {
+      "access": "public"
+    },
+    "type": "module",
+    "main": "./dist/to-html.cjs",
+    "module": "./dist/to-html.esm.js",
+    "types": "./dist/to-html.d.ts",
+    "unpkg": "./dist/to-html.umd.js",
+    "jsdelivr": "./dist/to-html.umd.js",
+    "exports": {
+      ".": {
+        "types": "./dist/to-html.d.ts",
+        "import": "./dist/to-html.esm.js",
+        "require": "./dist/to-html.cjs",
+        "default": "./dist/to-html.esm.js"
+      },
+      "./closed": "./dist/to-html.closed.js",
+      "./dist/*": "./dist/*",
+      "./package.json": "./package.json"
+    },
+    "files": [
+      "src",
+      "dist/to-html.esm.js",
+      "dist/to-html.cjs",
+      "dist/to-html.umd.js",
+      "dist/to-html.closed.js",
+      "dist/to-html.d.ts",
+      "LICENSE",
+      "NOTICE.md",
+      "README.md"
+    ],
+    "sideEffects": false,
+    "engines": {
+      "node": ">=18"
+    },
+    "scripts": {
+      "build": "node scripts/build.mjs --compile",
+      "build:site": "node scripts/build-site.mjs",
+      "test": "node --test test/*.test.mjs test/official/index.js",
+      "check:site": "npm run build:site && node --test test/site.test.mjs",
+      "check:pack": "node scripts/check-pack.mjs",
+      "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
+    },
+    "devDependencies": {
+      "esbuild": "0.28.1",
+      "hast-util-to-html": "9.0.5",
+      "hastscript": "^9.0.1",
+      "property-information": "7.2.0"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+error: unsupported semantic source: expression conversion
+ --> /home/azureuser/lilscript/tests/cases/type_guards.lil:13:7
+  |
+13 |   if (value is string) {
+  |       ^^^^^^^^^^^^^^^

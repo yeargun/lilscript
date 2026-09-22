@@ -1,0 +1,631 @@
+--- a/src/compilation_policy.rs
++++ b/src/compilation_policy.rs
+@@ -18,9 +18,9 @@
+ pub const POLICY_SCHEMA_VERSION: u32 = 2;
+ pub const LEGACY_TRANSLATOR_RETIREMENT_SCHEMA: u32 = 3;
+ pub const POLICY_ALGORITHM_VERSION: u32 = 1;
+-// Version4 enumerates Original/Observed literal output on one prepared target.
++// Version5 reuses exact scores of equal retained packages before probe admission.
+ // Structural cursor/beam scheduling remains the qualified version3 algorithm.
+-pub const SEARCH_SCHEDULE_VERSION: u32 = 4;
++pub const SEARCH_SCHEDULE_VERSION: u32 = 5;
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+ pub enum CompilationRequest {
+--- a/src/semantic_program/artifacts.rs
++++ b/src/semantic_program/artifacts.rs
+@@ -9,7 +9,7 @@
+ use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError, RetainedCharge};
+ use crate::structured_js::{
+     extract::Output,
+-    selection::{Plan, Sizes},
++    selection::{Objectives, Plan, Sizes},
+     BindingId,
+ };
+ use std::mem::size_of;
+@@ -176,6 +176,49 @@
+     }
+ }
+ 
++fn equal_bytes(
++    left: &str,
++    right: &str,
++    budget: &mut AllocationBudget<'_>,
++) -> Result<bool, CandidateError> {
++    if left.len() != right.len() {
++        return Ok(false);
++    }
++    budget.work(
++        WorkKind::Analysis,
++        u64::try_from(left.len()).map_err(|_| AllocationError::Capacity)?,
++    )?;
++    Ok(left == right)
++}
++
++fn same_streams(
++    left: ArtifactView<'_>,
++    right: ArtifactView<'_>,
++    budget: &mut AllocationBudget<'_>,
++) -> Result<bool, CandidateError> {
++    if left.sizes.raw != right.sizes.raw || left.javascript.len() != right.javascript.len() {
++        return Ok(false);
++    }
++    let dependencies = match (left.dependency, right.dependency) {
++        (None, None) => None,
++        (Some(left), Some(right))
++            if left.javascript.len() == right.javascript.len()
++                && left.specifier.len() == right.specifier.len() =>
++        {
++            Some((left, right))
++        }
++        _ => return Ok(false),
++    };
++    if !equal_bytes(left.javascript, right.javascript, budget)? {
++        return Ok(false);
++    }
++    match dependencies {
++        None => Ok(true),
++        Some((left, right)) => Ok(equal_bytes(left.specifier, right.specifier, budget)?
++            && equal_bytes(left.javascript, right.javascript, budget)?),
++    }
++}
++
+ struct Slot {
+     generation: RevisionId,
+     record: Option<Record>,
+@@ -321,6 +364,58 @@
+     ) -> Result<usize, CandidateError> {
+         self.get_mut(id.0)?.measure(codec, budget)
+     }
++    /// Reuse only exact scores from live retained records. Byte equality does
++    /// not share candidate eligibility, provenance or structural continuations.
++    /// Frozen producers outside this arena retain their own existing cache.
++    pub(super) fn reuse_scores(
++        &self,
++        id: ArtifactId,
++        objectives: Objectives,
++        budget: &mut AllocationBudget<'_>,
++    ) -> Result<Sizes, CandidateError> {
++        budget.work(WorkKind::Analysis, 1)?;
++        let target = self.get(id.0)?;
++        let original = target.sizes.get();
++        let mut known = original;
++        if objectives.iter().all(|codec| known.get(codec).is_some()) {
++            return Ok(known);
++        }
++        for slot in &self.slots {
++            budget.work(WorkKind::Analysis, 1)?;
++            let Some(donor) = &slot.record else {
++                continue;
++            };
++            let measured = donor.sizes.get();
++            if !objectives
++                .iter()
++                .any(|codec| known.get(codec).is_none() && measured.get(codec).is_some())
++                || !same_streams(target.view(), donor.view(), budget)?
++            {
++                continue;
++            }
++            for codec in objectives.iter() {
++                match codec {
++                    CompressionCostModel::Raw => {}
++                    CompressionCostModel::Gzip => known.gzip9 = known.gzip9.or(measured.gzip9),
++                    CompressionCostModel::Brotli => {
++                        known.brotli11 = known.brotli11.or(measured.brotli11)
++                    }
++                }
++            }
++            if objectives.iter().all(|codec| known.get(codec).is_some()) {
++                break;
++            }
++        }
++        // A refused comparison publishes nothing, even after finding one codec.
++        for codec in objectives.iter() {
++            if original.get(codec).is_none() {
++                if let Some(size) = known.get(codec) {
++                    target.sizes.publish(codec, size)?;
++                }
++            }
++        }
++        Ok(known)
++    }
+     pub(super) fn take(
+         &mut self,
+         id: ArtifactId,
+@@ -578,3 +673,7 @@
+ #[cfg(test)]
+ #[path = "artifact_scores_tests.rs"]
+ mod scores_tests;
++
++#[cfg(test)]
++#[path = "artifact_reuse_tests.rs"]
++mod reuse_tests;
+--- a/src/semantic_program/search_selection.rs
++++ b/src/semantic_program/search_selection.rs
+@@ -11,6 +11,9 @@
+ #[cfg(test)]
+ #[path = "search_resource_tests.rs"]
+ mod resource_tests;
++#[cfg(test)]
++#[path = "search_score_reuse_tests.rs"]
++mod reuse_tests;
+ 
+ pub(super) struct Portfolio {
+     pub(super) entries: Entries,
+@@ -301,8 +304,8 @@
+         let objective = policy.objective().unwrap();
+         let artifact = self.entries.get(position).unwrap().artifact;
+         budget.work(WorkKind::Analysis, 1)?;
+-        let (known, package) =
+-            arena.with_artifact(artifact, |view| (view.sizes, view.dependency.is_some()))?;
++        let known = arena.reuse_scores(artifact, objectives, budget)?;
++        let package = arena.with_artifact(artifact, |view| view.dependency.is_some())?;
+         let missing = objectives
+             .iter()
+             .filter(|&codec| known.get(codec).is_none())
+--- a/src/semantic_program/search_tests.rs
++++ b/src/semantic_program/search_tests.rs
+@@ -333,6 +333,66 @@
+ }
+ 
+ #[test]
++fn identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes() {
++    for schedule in ["immediate", "staged"] {
++        let policy = policy(
++            &format!(
++                "candidate_proposal_limit=8\nterminal_codec_probe_limit=4\n[policy.search]\ncodec_schedule='{schedule}'"
++            ),
++            "target-compaction='on'\nidentifier-mangling='on'\nnaming-search='on'",
++        );
++        with_source(
++            "export int answer(){return 17;}",
++            true,
++            WORK,
++            MEMORY,
++            |compiler, source| {
++                let mut measured = Vec::new();
++                let search = compiler
++                    .search_javascript_observed(source, &policy, request(), |entry| {
++                        measured.push(observe(entry));
++                    })
++                    .unwrap();
++                assert!(
++                    search.stopped().is_none(),
++                    "{schedule}: {:?}; {:?}; {measured:?}",
++                    search.stopped(),
++                    search.counters(),
++                );
++                assert_eq!(search.counters().renders, 3, "{schedule}");
++                assert_eq!(search.counters().codec_probes, 2, "{schedule}");
++                assert_eq!(measured.len(), 3, "{schedule}");
++                for style in STYLES {
++                    assert_eq!(
++                        measured.iter().filter(|entry| entry.plan.style == style).count(),
++                        1,
++                        "equal bytes must not erase a trial's naming provenance"
++                    );
++                }
++                let by_style = |style| measured.iter().find(|entry| entry.plan.style == style).unwrap();
++                let global = by_style(Style::Global);
++                let scoped = by_style(Style::Scoped);
++                let source = by_style(Style::Source);
++                assert_eq!(global.javascript, scoped.javascript);
++                assert_eq!(global.sizes, scoped.sizes);
++                assert_ne!(global.javascript, source.javascript);
++                for entry in &measured {
++                    receipt("exact-score-reuse", schedule, "direct", entry);
++                }
++                for winner in winners(&search, &measured) {
++                    run(
++                        &winner.javascript,
++                        "",
++                        "console.log(JSON.stringify([library.answer.name,library.answer.length,library.answer()]));",
++                        "[\"answer\",0,17]\n",
++                    );
++                }
++            },
++        );
++    }
++}
++
++#[test]
+ fn zero_optional_work_seals_a_completely_scored_direct_baseline() {
+     for settings in ["candidate_proposal_limit=0", "candidate_search='off'"] {
+         let policy = byte_policy(settings);
+--- a/src/semantic_program/artifact_reuse_tests.rs
++++ b/src/semantic_program/artifact_reuse_tests.rs
+@@ -0,0 +1,270 @@
++//! Exact-score reuse borrows live artifact bytes without merging their owners.
++use super::*;
++use crate::compilation_policy::{
++    BudgetError, BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
++};
++use crate::semantic_program::publication::{CheckpointLimit, Compilation};
++use crate::structured_js::selection::Style;
++
++const WORK: u64 = 100_000_000;
++const MEMORY: u64 = 128_000_000;
++
++fn with_candidates(inspect: impl FnOnce(&mut Compilation<'_>, [CandidateId; 2], &ResolvedPolicy)) {
++    let arena = bumpalo::Bump::new();
++    let syntax =
++        crate::parse_source(&arena, "export int value(int input){return input*3+1;}").unwrap();
++    let checked = crate::analyze(&syntax).unwrap();
++    let program = crate::semantic_program::from_checked_source(&syntax, &checked).unwrap();
++    let ledger = BudgetLedger::new(
++        ResourceLimits::default(),
++        BudgetPlan {
++            baseline_work: WORK,
++            optional_work: WORK,
++            baseline_retained_bytes: 0,
++            retained_bytes: MEMORY,
++        },
++    )
++    .unwrap();
++    let mut compilation = Compilation::new(ledger, CheckpointLimit { max_live: 4 }).unwrap();
++    let source = compilation
++        .adopt_checked(program, WorkDomain::Baseline)
++        .unwrap();
++    let policy = crate::config::ProjectConfig::default()
++        .resolve_policy(CompilationRequest::JavaScript {
++            preserve_root_exports: true,
++        })
++        .unwrap();
++    let candidates = std::array::from_fn(|_| {
++        compilation
++            .direct_javascript(source, &policy, WorkDomain::Baseline)
++            .unwrap()
++    });
++    assert_ne!(candidates[0], candidates[1]);
++    inspect(&mut compilation, candidates, &policy);
++    assert_eq!(compilation.finish().retained_bytes(), 0);
++}
++
++fn render(
++    compilation: &mut Compilation<'_>,
++    candidate: CandidateId,
++    policy: &ResolvedPolicy,
++) -> ArtifactId {
++    compilation
++        .with_javascript_output_in(candidate, policy, WorkDomain::Baseline, |output| {
++            let artifact = output.render(&Plan::new(Style::Global))?;
++            output.retain_artifact(artifact)
++        })
++        .unwrap()
++        .unwrap()
++}
++
++#[test]
++fn retained_equal_bytes_reuse_requested_codecs_without_merging_records() {
++    with_candidates(|compilation, candidates, policy| {
++        let donor = render(compilation, candidates[0], policy);
++        let target = render(compilation, candidates[1], policy);
++        for codec in [CompressionCostModel::Gzip, CompressionCostModel::Brotli] {
++            compilation
++                .measure_artifact(donor, codec, WorkDomain::Baseline)
++                .unwrap();
++        }
++        compilation
++            .with_javascript_output_in(candidates[0], policy, WorkDomain::Baseline, |output| {
++                output.with_retained_arena(|arena, budget| {
++                    let donor_sizes = arena.with_artifact(donor, |view| view.sizes).unwrap();
++                    let before = budget.with_ledger(|ledger| {
++                        let ledger = ledger.unwrap().0;
++                        (
++                            ledger.work_by_kind(WorkKind::Codec),
++                            ledger.retained_bytes(),
++                        )
++                    });
++                    let sizes = arena
++                        .reuse_scores(
++                            target,
++                            Objectives::One(CompressionCostModel::Brotli),
++                            budget,
++                        )
++                        .unwrap();
++                    assert_eq!(sizes.brotli11, donor_sizes.brotli11);
++                    assert_eq!(sizes.gzip9, None, "an unrequested codec stays unmeasured");
++                    let sizes = arena
++                        .reuse_scores(target, Objectives::One(CompressionCostModel::Gzip), budget)
++                        .unwrap();
++                    assert_eq!(sizes, donor_sizes);
++                    let after = budget.with_ledger(|ledger| {
++                        let ledger = ledger.unwrap().0;
++                        (
++                            ledger.work_by_kind(WorkKind::Codec),
++                            ledger.retained_bytes(),
++                        )
++                    });
++                    assert_eq!(after, before, "reuse needs no codec work or retained bytes");
++                    for (artifact, candidate) in [donor, target].into_iter().zip(candidates) {
++                        assert_eq!(
++                            arena
++                                .with_artifact(artifact, |view| view.candidate)
++                                .unwrap(),
++                            candidate
++                        );
++                    }
++                });
++            })
++            .unwrap();
++        compilation.discard_artifact(donor).unwrap();
++        assert!(compilation.with_artifact(target, |_| ()).is_ok());
++        compilation.discard_artifact(target).unwrap();
++    });
++}
++
++#[test]
++fn refused_reuse_does_not_publish_a_partially_found_codec() {
++    with_candidates(|compilation, candidates, policy| {
++        let gzip = render(compilation, candidates[0], policy);
++        let brotli = render(compilation, candidates[0], policy);
++        let target = render(compilation, candidates[1], policy);
++        compilation
++            .measure_artifact(gzip, CompressionCostModel::Gzip, WorkDomain::Baseline)
++            .unwrap();
++        compilation
++            .measure_artifact(brotli, CompressionCostModel::Brotli, WorkDomain::Baseline)
++            .unwrap();
++        compilation
++            .with_javascript_output_in(candidates[0], policy, WorkDomain::Baseline, |output| {
++                output.with_retained_arena(|arena, budget| {
++                    let before = arena.with_artifact(target, |view| view.sizes).unwrap();
++                    let raw = before.raw as u64;
++                    budget.with_ledger(|ledger| {
++                        let ledger = ledger.unwrap().0;
++                        // Lookup, first donor visit and its exact byte comparison fit.
++                        // Refuse the next donor after finding gzip but before publication.
++                        ledger
++                            .charge(WorkDomain::Optional, WorkKind::Analysis, WORK - raw - 2)
++                            .unwrap();
++                        let retained = ledger.retained_bytes();
++                        let codecs = ledger.work_by_kind(WorkKind::Codec);
++                        let mut optional =
++                            AllocationBudget::new(Some((ledger, WorkDomain::Optional)));
++                        assert!(matches!(
++                            arena.reuse_scores(target, Objectives::All, &mut optional),
++                            Err(CandidateError::Budget(BudgetError::WorkExhausted(
++                                WorkDomain::Optional
++                            )))
++                        ));
++                        assert_eq!(
++                            arena.with_artifact(target, |view| view.sizes).unwrap(),
++                            before
++                        );
++                        optional.with_ledger(|ledger| {
++                            let ledger = ledger.unwrap().0;
++                            assert_eq!(ledger.retained_bytes(), retained);
++                            assert_eq!(ledger.work_by_kind(WorkKind::Codec), codecs);
++                        });
++                    });
++                });
++            })
++            .unwrap();
++    });
++}
++
++#[test]
++fn discarded_donors_leave_no_score_history_or_retained_bytes() {
++    with_candidates(|compilation, candidates, policy| {
++        let donor = render(compilation, candidates[0], policy);
++        let target = render(compilation, candidates[1], policy);
++        compilation
++            .measure_artifact(donor, CompressionCostModel::Brotli, WorkDomain::Baseline)
++            .unwrap();
++        compilation.discard_artifact(donor).unwrap();
++        compilation
++            .with_javascript_output_in(candidates[0], policy, WorkDomain::Baseline, |output| {
++                output.with_retained_arena(|arena, budget| {
++                    let before = budget.with_ledger(|ledger| {
++                        let ledger = ledger.unwrap().0;
++                        (
++                            ledger.work_by_kind(WorkKind::Analysis),
++                            ledger.retained_bytes(),
++                        )
++                    });
++                    let sizes = arena.reuse_scores(target, Objectives::All, budget).unwrap();
++                    assert_eq!(sizes.gzip9, None);
++                    assert_eq!(sizes.brotli11, None);
++                    let after = budget.with_ledger(|ledger| {
++                        let ledger = ledger.unwrap().0;
++                        (
++                            ledger.work_by_kind(WorkKind::Analysis),
++                            ledger.retained_bytes(),
++                        )
++                    });
++                    assert_eq!(after.0 - before.0, 1 + arena.slots.len() as u64);
++                    assert_eq!(after.1, before.1);
++                });
++            })
++            .unwrap();
++    });
++}
++
++#[test]
++fn score_identity_preserves_dependency_bytes_and_separate_streams() {
++    with_candidates(|compilation, candidates, policy| {
++        compilation
++            .with_javascript_output_in(candidates[0], policy, WorkDomain::Baseline, |output| {
++                let artifact = output.render(&Plan::new(Style::Global)).unwrap();
++                let (candidate, execution, choices) = output
++                    .with_artifact(artifact, |view| {
++                        (view.candidate, view.execution, view.output)
++                    })
++                    .unwrap();
++                let view =
++                    |primary: &'static str, dependency: Option<(&'static str, &'static str)>| {
++                        let dependency =
++                            dependency.map(|(specifier, javascript)| ArtifactResourceView {
++                                specifier,
++                                javascript,
++                                output: choices,
++                                sizes: Sizes {
++                                    raw: javascript.len(),
++                                    gzip9: None,
++                                    brotli11: None,
++                                },
++                                retained_capacity: javascript.len(),
++                            });
++                        ArtifactView {
++                            javascript: primary,
++                            dependency,
++                            execution,
++                            candidate,
++                            output: choices,
++                            sizes: Sizes {
++                                raw: primary.len()
++                                    + dependency.map_or(0, |view| view.javascript.len()),
++                                gzip9: None,
++                                brotli11: None,
++                            },
++                            retained_capacity: primary.len(),
++                        }
++                    };
++                let package = view("ab", Some(("./data.mjs", "cd")));
++                output.with_allocation_budget(|budget| {
++                    assert!(same_streams(package, package, budget).unwrap());
++                    for different in [
++                        view("ab", Some(("./data.mjs", "ce"))),
++                        view("ab", Some(("./name.mjs", "cd"))),
++                        view("ac", Some(("./data.mjs", "cd"))),
++                        view("abc", Some(("./data.mjs", "d"))),
++                        view("abcd", None),
++                    ] {
++                        assert_eq!(package.sizes.raw, different.sizes.raw);
++                        assert!(!same_streams(package, different, budget).unwrap());
++                    }
++                    assert!(!same_streams(
++                        view("ab", None),
++                        view("ab", Some(("./data.mjs", ""))),
++                        budget,
++                    )
++                    .unwrap());
++                });
++            })
++            .unwrap();
++    });
++}
+--- a/src/semantic_program/search_score_reuse_tests.rs
++++ b/src/semantic_program/search_score_reuse_tests.rs
+@@ -0,0 +1,121 @@
++//! Cached scores do not spend another probe or replace provenance admission.
++use super::*;
++use crate::compilation_policy::{BaselineFirstPlan, CompilationRequest, ResourceLimits};
++
++fn policy(proposals: usize, naming: &str) -> ResolvedPolicy {
++    let config: crate::config::ProjectConfig = toml::from_str(&format!(
++        "[javascript]\nstrip_console=false\ncandidate_proposal_limit={proposals}\nterminal_codec_probe_limit=2\ncandidate_limit=4\n[policy.search]\ncodec_schedule='staged'\n[policy.tactics]\nidentifier-mangling='on'\nnaming-search='{naming}'\n"
++    ))
++    .unwrap();
++    config
++        .resolve_policy(CompilationRequest::JavaScript {
++            preserve_root_exports: true,
++        })
++        .unwrap()
++}
++
++fn request() -> SearchRequest {
++    let local_facts = LocalFactsRequest {
++        work_quota: 1_000,
++        result_bytes: 1_000,
++    };
++    SearchRequest {
++        objectives: Objectives::All,
++        scalar: ScalarRequest {
++            max_work: 1_000,
++            scratch_bytes: 1_000,
++            output_bytes: 1_000,
++        },
++        helper: HelperRequest {
++            max_work: 1_000,
++            scratch_bytes: 1_000,
++            output_bytes: 1_000,
++            local_facts,
++        },
++        string: StringRequest {
++            max_work: 1_000,
++            scratch_bytes: 1_000,
++            output_bytes: 1_000,
++            local_facts,
++        },
++        facts_cache: CacheLimits {
++            entries: 1,
++            bytes: 10_000,
++            result_bytes: 1_000,
++        },
++    }
++}
++
++#[test]
++fn staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission() {
++    for permitted in [true, false] {
++        let arena = bumpalo::Bump::new();
++        let syntax = crate::parse_source(&arena, "export int answer(){return 17;}").unwrap();
++        let checked = crate::analyze(&syntax).unwrap();
++        let program = crate::semantic_program::from_checked_source(&syntax, &checked).unwrap();
++        let ledger = BudgetLedger::new_baseline_first(
++            ResourceLimits::default(),
++            BaselineFirstPlan {
++                logical_work: 100_000_000,
++                retained_bytes: 128_000_000,
++                terminal_work: 0,
++            },
++        )
++        .unwrap();
++        let mut compilation = Compilation::new(ledger, CheckpointLimit { max_live: 4 }).unwrap();
++        let source = compilation
++            .adopt_checked(program, WorkDomain::Baseline)
++            .unwrap();
++        let baseline = policy(0, "on");
++        let optional = policy(2, "on");
++        let mut search = compilation
++            .search_javascript(source, &baseline, request())
++            .unwrap();
++        let original = search
++            .with_winner(Objective::Brotli, |view, _| view.sizes)
++            .unwrap();
++        let mut observed = Vec::new();
++        search
++            .evaluate(
++                0,
++                &optional,
++                Objectives::All,
++                &[Style::Scoped],
++                Evaluation::Structural,
++                &mut |entry| observed.push(entry.naming.style),
++            )
++            .unwrap();
++        assert!(observed.is_empty());
++        assert_eq!(search.counters.queued_artifacts, 1);
++        // The queued trial already exists when other work consumes the allowance.
++        search.counters.codec_probes = optional.objective().unwrap().optional_codec_probes;
++        let scoring = policy(2, if permitted { "on" } else { "off" });
++        let before = search.ledger().work_by_kind(WorkKind::Codec);
++        let result = search.score_next(&scoring, Objectives::All, &mut |entry| {
++            observed.push(entry.naming.style);
++            assert_eq!(entry.sizes, original);
++        });
++        if permitted {
++            assert!(matches!(result, Ok(true)));
++            assert_eq!(observed, [Style::Scoped]);
++            assert_eq!(search.counters.admitted_artifacts, 2);
++        } else {
++            assert!(matches!(
++                result,
++                Err(SearchError::Admission(AdmissionError::ForbiddenTactic(_)))
++                    | Err(SearchError::Candidate(CandidateError::Output(_)))
++            ));
++            assert!(observed.is_empty());
++            assert_eq!(search.counters.admitted_artifacts, 1);
++        }
++        assert_eq!(search.counters.codec_probes, 2);
++        // Record cache lookups remain charged, but no encoder runs.
++        assert!(search.ledger().work_by_kind(WorkKind::Codec) - before <= 3);
++        assert_eq!(
++            search.with_winner(Objective::Brotli, |view, _| view.sizes),
++            Some(original)
++        );
++        drop(search);
++        assert_eq!(compilation.finish().retained_bytes(), 0);
++    }
++}

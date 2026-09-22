@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "rehypelil",
+  "started": "2026-09-20T18:40:55.497Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/rehypelil",
+  "workspace": "/tmp/lilscript-baseline-rehypelil-AmSCew/rehypelil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "sourceSnapshot": {
+    "root": "/home/azureuser/rehypelil",
+    "files": 939,
+    "sha256": "89282b9ad8ba3e20186768793b6cccf41ec3bc03c28f2542b0419b12f36d4711"
+  },
+  "committedArtifactsRemoved": [
+    "dist/rehype.cjs",
+    "dist/rehype.closed.js",
+    "dist/rehype.esm.js",
+    "dist/rehype.umd.js"
+  ],
+  "build": {
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.08,
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=1 signal=null"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 1.155,
+  "completed": "2026-09-20T18:40:56.651Z",
+  "fingerprint": "964307b5b22b9955e0d0675bc7cb185c4c682022c832ef3c4ce8aecf5bfd0d36"
+}

@@ -1,0 +1,184 @@
+// Generated from marked 18.0.10 rules. Do not edit by hand.
+// lookbehind=true
+export Regex newline = new Regex("^(?:[ \\t]*(?:\\n|$))+");
+export Regex blockCode = new Regex("^((?: {4}| {0,3}\\t)[^\\n]+(?:\\n(?:[ \\t]*(?:\\n|$))*)?)+");
+export Regex fences = new Regex("^ {0,3}(`{3,}(?=[^`\\n]*(?:\\n|$))|~{3,})([^\\n]*)(?:\\n|$)(?:|([\\s\\S]*?)(?:\\n|$))(?: {0,3}\\1[~`]* *(?=\\n|$)|$)");
+export Regex hr = new Regex("^ {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)");
+export Regex heading = new Regex("^ {0,3}(#{1,6})(?=\\s|$)(.*)(?:\\n+|$)");
+export Regex lheading = new Regex("^(?! {0,3}(?:[*+-]|\\d{1,9}[.)]) |(?: {4}| {0,3}\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\s|$)| {0,3}<[^\\n>]+>\\n)((?:.|\\n(?!\\s*?\\n| {0,3}(?:[*+-]|\\d{1,9}[.)]) |(?: {4}| {0,3}\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\s|$)| {0,3}<[^\\n>]+>\\n))+?)\\n {0,3}(=+|-+) *(?:\\n+|$)");
+export Regex lheadingGfm = new Regex("^(?! {0,3}(?:[*+-]|\\d{1,9}[.)]) |(?: {4}| {0,3}\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\s|$)| {0,3}<[^\\n>]+>\\n| {0,3}\\|?(?:[:\\- ]*\\|)+[\\:\\- ]*\\n)((?:.|\\n(?!\\s*?\\n| {0,3}(?:[*+-]|\\d{1,9}[.)]) |(?: {4}| {0,3}\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\s|$)| {0,3}<[^\\n>]+>\\n| {0,3}\\|?(?:[:\\- ]*\\|)+[\\:\\- ]*\\n))+?)\\n {0,3}(=+|-+) *(?:\\n+|$)");
+export Regex def = new Regex("^ {0,3}\\[((?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+)\\]: *(?:\\n[ \\t]*)?([^<\\s][^\\s]*|<.*?>)(?:(?: +(?:\\n[ \\t]*)?| *\\n[ \\t]*)((?:\"(?:\\\\\"?|[^\"\\\\])*\"|'[^'\\n]*(?:\\n[^'\\n]+)*\\n?'|\\([^()]*\\))))? *(?:\\n+|$)");
+export Regex list = new Regex("^( {0,3}(?:[*+-]|\\d{1,9}[.)]))([ \\t][^\\n]*?)?(?:\\n|$)");
+export Regex html = new Regex("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:<\\/\\1>[^\\n]*\\n*|$)|<!--(?:-?>|[\\s\\S]*?(?:-->|$))[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>[^\\n]*\\n*|$)|<![A-Z][\\s\\S]*?(?:>[^\\n]*\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>[^\\n]*\\n*|$)|<\\/?(address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\n|\\/?>)[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|<(?!script|pre|style|textarea)([a-z][\\w-]*)(?: +[a-zA-Z:_][\\w.:-]*(?: *= *\"[^\"\\n]*\"| *= *'[^'\\n]*'| *= *[^\\s\"'=<>`]+)?)*? *\\/?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$)|<\\/(?!script|pre|style|textarea)[a-z][\\w-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ 	]*)+\\n|$))", "i");
+export Regex paragraph = new Regex("^([^\\n]+(?:\\n(?! {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)| {0,3}#{1,6}(?:\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\t]+[^ \\t\\n]|<\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\n|\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\t]+\\n)[^\\n]+)*)");
+export Regex blockquote = new Regex("^( {0,3}> ?(([^\\n]+(?:\\n(?! {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)| {0,3}#{1,6}(?:\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)| {0,3}(?:[*+-]|\\d{1,9}[.)])(?:[ \\t]|\\n|$)|<\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\n|\\/?>)|<(?:script|pre|style|textarea|!--)|[ \\t]+\\n)[^\\n]+)*)|[^\\n]*)(?:\\n|$))+");
+export Regex gfmTable = new Regex("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n| {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)| {0,3}#{1,6}(?:\\s|$)| {0,3}>|(?: {4}| {0,3}	)[^\\n]| {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\t]|<\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\n|\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\n|$))*)\\n*|$)");
+export Regex paragraphGfm = new Regex("^([^\\n]+(?:\\n(?! {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)| {0,3}#{1,6}(?:\\s|$)| {0,3}>| {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\t]+[^ \\t\\n]|<\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\n|\\/?>)|<(?:script|pre|style|textarea|!--)| *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n| {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)| {0,3}#{1,6}(?:\\s|$)| {0,3}>|(?: {4}| {0,3}	)[^\\n]| {0,3}(?:`{3,}(?=[^`\\n]*(?:\\n|$))|~~~)[^\\n]*(?:\\n|$)| {0,3}(?:[*+-]|1[.)])[ \\t]|<\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?: +|\\n|\\/?>)|<(?:script|pre|style|textarea|!--)).*(?:\\n|$))*)\\n*|$)|[ \\t]+\\n)[^\\n]+)*)");
+export Regex blockText = new Regex("^[^\\n]+");
+export Regex htmlPed = new Regex("^ *(?:<!--(?:-?>|[\\s\\S]*?(?:-->|$)) *(?:\\n|\\s*$)|<((?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b)[\\s\\S]+?<\\/\\1> *(?:\\n{2,}|\\s*$)|<(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b(?:\"[^\"]*\"|'[^']*'|\\s[^'\"/>\\s]*)*?\\/?> *(?:\\n{2,}|\\s*$))");
+export Regex defPed = new Regex("^ *\\[([^\\]]+)\\]: *<?([^\\s>]+)>?(?: +([\"(][^\\n]+[\")]))? *(?:\\n+|$)");
+export Regex headingPed = new Regex("^(#{1,6})(.*)(?:\\n+|$)");
+export Regex lheadingPed = new Regex("^(.+?)\\n {0,3}(=+|-+) *(?:\\n+|$)");
+export Regex paragraphPed = new Regex("^([^\\n]+(?:\\n(?! {0,3}((?:-[\\t ]*){3,}|(?:_[ \\t]*){3,}|(?:\\*[ \\t]*){3,})(?:\\n+|$)| *#{1,6} *[^\\n]|(?! {0,3}(?:[*+-]|\\d{1,9}[.)]) |(?: {4}| {0,3}\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\s|$)| {0,3}<[^\\n>]+>\\n)((?:.|\\n(?!\\s*?\\n| {0,3}(?:[*+-]|\\d{1,9}[.)]) |(?: {4}| {0,3}\\t)| {0,3}(?:`{3,}|~{3,})| {0,3}>| {0,3}#{1,6}(?:\\s|$)| {0,3}<[^\\n>]+>\\n))+?)\\n {0,3}(=+|-+) *(?:\\n+|$)| {0,3}>|[ \\t]+\\n)[^\\n]+)*)");
+export Regex escapeRe = new Regex("^\\\\([!\"#$%&'()*+,\\-./:;<=>?@\\[\\]\\\\^_`{|}~])");
+export Regex inlineCode = new Regex("^(`+)([^`]|[^`][\\s\\S]*?[^`])\\1(?!`)");
+export Regex br = new Regex("^( {2,}|\\\\)\\n(?!\\s*$)");
+export Regex inlineText = new Regex("^(`+|[^`])(?:(?= {2,}\\n)|[\\s\\S]*?(?:(?=[\\\\<!\\[`*_]|\\b_|$)|[^ ](?= {2,}\\n)))");
+export Regex punctuation = new Regex("^((?![*_])[\\s\\p{P}\\p{S}])", "u");
+export Regex blockSkip = new Regex("\\[(?:[^\\[\\]`]|(?<a>`+)[^`]+\\k<a>(?!`))*?\\]\\((?:\\\\[\\s\\S]|[^\\\\\\(\\)]|\\((?:\\\\[\\s\\S]|[^\\\\\\(\\)])*\\))*\\)|(?<!`)()(?<b>`+)[^`]+\\k<b>(?!`)|<(?! )[^<>]*?>", "g");
+export Regex emStrongLDelim = new Regex("^(?:\\*+(?:((?!\\*)[\\p{P}\\p{S}])|([^\\s*]))?)|^_+(?:((?!_)[\\p{P}\\p{S}])|([^\\s_]))?", "u");
+export Regex emStrongLDelimGfm = new Regex("^(?:\\*+(?:((?!\\*)(?!~)[\\p{P}\\p{S}])|([^\\s*]))?)|^_+(?:((?!_)(?!~)[\\p{P}\\p{S}])|([^\\s_]))?", "u");
+export Regex emStrongLDelimPedantic = new Regex("^(?:\\*+(?:((?!\\*)(?![\\p{Pi}\\p{Ps}\"'])[\\p{P}\\p{S}])|([^\\s*]))?)|^_+(?:((?!_)(?![\\p{Pi}\\p{Ps}\"'])[\\p{P}\\p{S}])|([^\\s_]))?", "u");
+export Regex emStrongRDelimAst = new Regex("^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)[\\p{P}\\p{S}](\\*+)(?=[\\s]|$)|[^\\s\\p{P}\\p{S}](\\*+)(?!\\*)(?=[\\s\\p{P}\\p{S}]|$)|(?!\\*)[\\s\\p{P}\\p{S}](\\*+)(?=[^\\s\\p{P}\\p{S}])|[\\s](\\*+)(?!\\*)(?=[\\p{P}\\p{S}])|(?!\\*)[\\p{P}\\p{S}](\\*+)(?!\\*)(?=[\\p{P}\\p{S}])|[^\\s\\p{P}\\p{S}](\\*+)(?=[^\\s\\p{P}\\p{S}])", "gu");
+export Regex emStrongRDelimAstGfm = new Regex("^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)(?!~)[\\p{P}\\p{S}](\\*+)(?=[\\s]|$)|(?:[^\\s\\p{P}\\p{S}]|~)(\\*+)(?!\\*)(?=(?!~)[\\s\\p{P}\\p{S}]|$)|(?!\\*)(?!~)[\\s\\p{P}\\p{S}](\\*+)(?=(?:[^\\s\\p{P}\\p{S}]|~))|[\\s](\\*+)(?!\\*)(?=(?!~)[\\p{P}\\p{S}])|(?!\\*)(?!~)[\\p{P}\\p{S}](\\*+)(?!\\*)(?=(?!~)[\\p{P}\\p{S}])|(?:[^\\s\\p{P}\\p{S}]|~)(\\*+)(?=(?:[^\\s\\p{P}\\p{S}]|~))", "gu");
+export Regex emStrongRDelimAstPedantic = new Regex("^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)[\\p{P}\\p{S}](\\*+)(?=[\\s]|$)|[^\\s\\p{P}\\p{S}](\\*+)(?!\\*)(?=[\\s\\p{P}\\p{S}]|$)|(?!\\*)[\\s](\\*+)(?=[^\\s\\p{P}\\p{S}])|[\\s](\\*+)(?!\\*)(?=[\\p{P}\\p{S}])|(?!\\*)[\\p{P}\\p{S}](\\*+)(?!\\*)(?=[\\p{P}\\p{S}])|(?:(?!\\*)[\\p{P}\\p{S}]|[^\\s\\p{P}\\p{S}])(\\*+)(?!\\*)(?=[^\\s\\p{P}\\p{S}])", "gu");
+export Regex emStrongRDelimUnd = new Regex("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)[\\p{P}\\p{S}](_+)(?=[\\s]|$)|[^\\s\\p{P}\\p{S}](_+)(?!_)(?=[\\s\\p{P}\\p{S}]|$)|(?!_)[\\s\\p{P}\\p{S}](_+)(?=[^\\s\\p{P}\\p{S}])|[\\s](_+)(?!_)(?=[\\p{P}\\p{S}])|(?!_)[\\p{P}\\p{S}](_+)(?!_)(?=[\\p{P}\\p{S}])", "gu");
+export Regex emStrongRDelimUndPedantic = new Regex("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)[\\p{P}\\p{S}](_+)(?=[\\s]|$)|[^\\s\\p{P}\\p{S}](_+)(?!_)(?=[\\s\\p{P}\\p{S}]|$)|(?!_)[\\s](_+)(?=[^\\s\\p{P}\\p{S}])|[\\s](_+)(?!_)(?=[\\p{P}\\p{S}])|(?!_)[\\p{P}\\p{S}](_+)(?!_)(?=[\\p{P}\\p{S}])|(?:(?!_)[\\p{P}\\p{S}]|[^\\s\\p{P}\\p{S}])(_+)(?!_)(?=[^\\s\\p{P}\\p{S}])", "gu");
+export Regex delLDelim = new Regex("^~~?(?:((?!~)[\\p{P}\\p{S}])|[^\\s~])", "u");
+export Regex delRDelim = new Regex("^[^~]+(?=[^~])|(?!~)[\\p{P}\\p{S}](~~?)(?=[\\s]|$)|[^\\s\\p{P}\\p{S}](~~?)(?!~)(?=[\\s\\p{P}\\p{S}]|$)|(?!~)[\\s\\p{P}\\p{S}](~~?)(?=[^\\s\\p{P}\\p{S}])|[\\s](~~?)(?!~)(?=[\\p{P}\\p{S}])|(?!~)[\\p{P}\\p{S}](~~?)(?!~)(?=[\\p{P}\\p{S}])|[^\\s\\p{P}\\p{S}](~~?)(?=[^\\s\\p{P}\\p{S}])", "gu");
+export Regex anyPunctuation = new Regex("\\\\([\\p{P}\\p{S}])", "gu");
+export Regex autolink = new Regex("^<([a-zA-Z][a-zA-Z0-9+.-]{1,31}:[^\\s\\x00-\\x1f<>]*|[a-zA-Z0-9.!#$%&'*+/=?_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_]))>");
+export Regex tag = new Regex("^<!--(?:-?>|[\\s\\S]*?-->)|^<\\/[a-zA-Z][\\w:-]*\\s*>|^<[a-zA-Z][\\w-]*(?:\\s+[a-zA-Z:_][\\w.:-]*(?:\\s*=\\s*\"[^\"]*\"|\\s*=\\s*'[^']*'|\\s*=\\s*[^\\s\"'=<>`]+)?)*?\\s*\\/?>|^<\\?[\\s\\S]*?\\?>|^<![a-zA-Z]+\\s[\\s\\S]*?>|^<!\\[CDATA\\[[\\s\\S]*?\\]\\]>");
+export Regex link = new Regex("^!?\\[((?:\\[(?:\\\\[\\s\\S]|[^\\[\\]\\\\])*\\]|\\\\[\\s\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\])|[^\\[\\]\\\\`])*?)\\]\\(\\s*(<(?:\\\\.|[^\\n<>\\\\])+>|[^ \\t\\n\\x00-\\x1f]+|(?=\\)))(?:(?:[ \\t]+(?:\\n[ \\t]*)?|\\n[ \\t]*)(\"(?:\\\\\"?|[^\"\\\\])*\"|'(?:\\\\'?|[^'\\\\])*'|\\((?:\\\\\\)?|[^)\\\\])*\\)))?\\s*\\)");
+export Regex reflink = new Regex("^!?\\[((?:\\[(?:\\\\[\\s\\S]|[^\\[\\]\\\\])*\\]|\\\\[\\s\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\])|[^\\[\\]\\\\`])*?)\\]\\[((?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+)\\]");
+export Regex nolink = new Regex("^!?\\[((?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+)\\](?:\\[\\])?");
+export Regex reflinkSearch = new Regex("!?\\[((?:\\[(?:\\\\[\\s\\S]|[^\\[\\]\\\\])*\\]|\\\\[\\s\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\])|[^\\[\\]\\\\`])*?)\\]\\[((?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+)\\]|!?\\[((?!\\s*\\])(?:\\\\[\\s\\S]|[^\\[\\]\\\\])+)\\](?:\\[\\])?(?!\\()", "g");
+export Regex urlRe = new Regex("^((?:[hH][tT][tT][pP][sS]?|[fF][tT][pP]):\\/\\/|www\\.)(?:[a-zA-Z0-9\\-]+\\.?)+[^\\s<]*|^[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])");
+export Regex backpedal = new Regex("(?:[^?!.,:;*_'\"~()&]+|\\([^)]*\\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'\"~)]+(?!$))+");
+export Regex textGfm = new Regex("^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-]+@)|[\\s\\S]*?(?:(?=[\\\\<!\\[`*~_]|\\b_|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\/\\/|www\\.|$)|[^ ](?= {2,}\\n)|[^a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-]+@)))");
+export Regex brBreaks = new Regex("^( *|\\\\)\\n(?!\\s*$)");
+export Regex textBreaks = new Regex("^(`+|~+|[^`~])(?:(?=[`~])|(?= *\\n)|(?=[a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-]+@)|[\\s\\S]*?(?:(?=[\\\\<!\\[`*~_]|\\b_| *\\n|[hH][tT][tT][pP][sS]?|[fF][tT][pP]:\\/\\/|www\\.|$)|[^ ](?= *\\n)|[^a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-](?=[a-zA-Z0-9.!#$%&'*+\\/=?_`{\\|}~-]+@)))");
+export Regex linkPed = new Regex("^!?\\[((?:\\[(?:\\\\[\\s\\S]|[^\\[\\]\\\\])*\\]|\\\\[\\s\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\])|[^\\[\\]\\\\`])*?)\\]\\((.*?)\\)");
+export Regex reflinkPed = new Regex("^!?\\[((?:\\[(?:\\\\[\\s\\S]|[^\\[\\]\\\\])*\\]|\\\\[\\s\\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\\])|[^\\[\\]\\\\`])*?)\\]\\s*\\[([^\\]]*)\\]");
+export Regex otherCodeRemoveIndent = new Regex("^(?: {1,4}| {0,3}\\t)", "gm");
+export Regex otherOutputLinkReplace = new Regex("\\\\([\\[\\]])", "g");
+export Regex otherIndentCodeCompensation = new Regex("^(\\s+)(?:```)");
+export Regex otherBeginningSpace = new Regex("^\\s+");
+export Regex otherEndingHash = new Regex("#$");
+export Regex otherStartingSpaceChar = new Regex("^ ");
+export Regex otherEndingSpaceChar = new Regex(" $");
+export Regex otherNonSpaceChar = new Regex("[^ ]");
+export Regex otherNewLineCharGlobal = new Regex("\\n", "g");
+export Regex otherTabCharGlobal = new Regex("\\t", "g");
+export Regex otherMultipleSpaceGlobal = new Regex("\\s+", "g");
+export Regex otherBlankLine = new Regex("^[ \\t]*$");
+export Regex otherDoubleBlankLine = new Regex("\\n[ \\t]*\\n[ \\t]*$");
+export Regex otherBlockquoteStart = new Regex("^ {0,3}>");
+export Regex otherBlockquoteSetextReplace = new Regex("\\n {0,3}((?:=+|-+) *)(?=\\n|$)", "g");
+export Regex otherBlockquoteSetextReplace2 = new Regex("^ {0,3}>[ \\t]?", "gm");
+export Regex otherListReplaceNesting = new Regex("^ {1,4}(?=( {4})*[^ ])", "g");
+export Regex otherListIsTask = new Regex("^\\[[ xX]\\] +\\S");
+export Regex otherListReplaceTask = new Regex("^\\[[ xX]\\] +");
+export Regex otherListTaskCheckbox = new Regex("\\[[ xX]\\]");
+export Regex otherAnyLine = new Regex("\\n.*\\n");
+export Regex otherHrefBrackets = new Regex("^<(.*)>$");
+export Regex otherTableDelimiter = new Regex("[:|]");
+export Regex otherTableAlignChars = new Regex("^\\||\\| *$", "g");
+export Regex otherTableRowBlankLine = new Regex("\\n[ \\t]*$");
+export Regex otherTableAlignRight = new Regex("^ *-+: *$");
+export Regex otherTableAlignCenter = new Regex("^ *:-+: *$");
+export Regex otherTableAlignLeft = new Regex("^ *:-+ *$");
+export Regex otherStartATag = new Regex("^<a ", "i");
+export Regex otherEndATag = new Regex("^<\\/a>", "i");
+export Regex otherStartPreScriptTag = new Regex("^<(pre|code|kbd|script)(\\s|>)", "i");
+export Regex otherEndPreScriptTag = new Regex("^<\\/(pre|code|kbd|script)(\\s|>)", "i");
+export Regex otherStartAngleBracket = new Regex("^<");
+export Regex otherEndAngleBracket = new Regex(">$");
+export Regex otherPedanticHrefTitle = new Regex("^([^'\"]*[^\\s])\\s+(['\"])(.*)\\2");
+export Regex otherUnicodeAlphaNumeric = new Regex("[\\p{L}\\p{N}]", "u");
+export Regex otherEscapeTest = new Regex("[&<>\"']");
+export Regex otherEscapeTestNoEncode = new Regex("[<>\"']|&(?!(#\\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\\w+);)");
+export Regex otherPercentDecode = new Regex("%25", "g");
+export Regex otherSlashPipe = new Regex("\\\\\\|", "g");
+export Regex otherCarriageReturn = new Regex("\\r\\n|\\r", "g");
+export Regex otherSpaceLine = new Regex("^ +$", "gm");
+export Regex otherNotSpaceStart = new Regex("^\\S*");
+export Regex nextBullet0 = new Regex("^ {0,0}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))");
+export Regex nextBullet1 = new Regex("^ {0,1}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))");
+export Regex nextBullet2 = new Regex("^ {0,2}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))");
+export Regex nextBullet3 = new Regex("^ {0,3}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))");
+export Regex hrIndent0 = new Regex("^ {0,0}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)");
+export Regex hrIndent1 = new Regex("^ {0,1}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)");
+export Regex hrIndent2 = new Regex("^ {0,2}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)");
+export Regex hrIndent3 = new Regex("^ {0,3}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)");
+export Regex fencesBegin0 = new Regex("^ {0,0}(?:```|~~~)");
+export Regex fencesBegin1 = new Regex("^ {0,1}(?:```|~~~)");
+export Regex fencesBegin2 = new Regex("^ {0,2}(?:```|~~~)");
+export Regex fencesBegin3 = new Regex("^ {0,3}(?:```|~~~)");
+export Regex headingBegin0 = new Regex("^ {0,0}#");
+export Regex headingBegin1 = new Regex("^ {0,1}#");
+export Regex headingBegin2 = new Regex("^ {0,2}#");
+export Regex headingBegin3 = new Regex("^ {0,3}#");
+export Regex htmlBegin0 = new Regex("^ {0,0}<(?:[a-z].*>|!--)", "i");
+export Regex htmlBegin1 = new Regex("^ {0,1}<(?:[a-z].*>|!--)", "i");
+export Regex htmlBegin2 = new Regex("^ {0,2}<(?:[a-z].*>|!--)", "i");
+export Regex htmlBegin3 = new Regex("^ {0,3}<(?:[a-z].*>|!--)", "i");
+export Regex blockquoteBegin0 = new Regex("^ {0,0}>");
+export Regex blockquoteBegin1 = new Regex("^ {0,1}>");
+export Regex blockquoteBegin2 = new Regex("^ {0,2}>");
+export Regex blockquoteBegin3 = new Regex("^ {0,3}>");
+
+export Regex nextBulletRegex(int indent) {
+  int i = indent - 1;
+  if (i < 0) { i = 0; }
+  if (i > 3) { i = 3; }
+  if (i == 0) { return nextBullet0; }
+  if (i == 1) { return nextBullet1; }
+  if (i == 2) { return nextBullet2; }
+  return nextBullet3;
+}
+
+export Regex hrIndentRegex(int indent) {
+  int i = indent - 1;
+  if (i < 0) { i = 0; }
+  if (i > 3) { i = 3; }
+  if (i == 0) { return hrIndent0; }
+  if (i == 1) { return hrIndent1; }
+  if (i == 2) { return hrIndent2; }
+  return hrIndent3;
+}
+
+export Regex fencesBeginRegex(int indent) {
+  int i = indent - 1;
+  if (i < 0) { i = 0; }
+  if (i > 3) { i = 3; }
+  if (i == 0) { return fencesBegin0; }
+  if (i == 1) { return fencesBegin1; }
+  if (i == 2) { return fencesBegin2; }
+  return fencesBegin3;
+}
+
+export Regex headingBeginRegex(int indent) {
+  int i = indent - 1;
+  if (i < 0) { i = 0; }
+  if (i > 3) { i = 3; }
+  if (i == 0) { return headingBegin0; }
+  if (i == 1) { return headingBegin1; }
+  if (i == 2) { return headingBegin2; }
+  return headingBegin3;
+}
+
+export Regex htmlBeginRegex(int indent) {
+  int i = indent - 1;
+  if (i < 0) { i = 0; }
+  if (i > 3) { i = 3; }
+  if (i == 0) { return htmlBegin0; }
+  if (i == 1) { return htmlBegin1; }
+  if (i == 2) { return htmlBegin2; }
+  return htmlBegin3;
+}
+
+export Regex blockquoteBeginRegex(int indent) {
+  int i = indent - 1;
+  if (i < 0) { i = 0; }
+  if (i > 3) { i = 3; }
+  if (i == 0) { return blockquoteBegin0; }
+  if (i == 1) { return blockquoteBegin1; }
+  if (i == 2) { return blockquoteBegin2; }
+  return blockquoteBegin3;
+}
+
+export Regex listItemRegex(string bull) {
+  return new Regex("^( {0,3}" + bull + ")((?:[\\t ][^\\n]*)?(?:\\n|$))");
+}
+

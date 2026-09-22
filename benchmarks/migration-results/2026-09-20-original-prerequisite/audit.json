@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "kind": "original-prerequisite-shared-owner-audit",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "receipts": [
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-20-original-prerequisite/receipt.json",
+        "sha256": "d16a067bb26065382eb973daf23646aab9173631f8a69517c8480578aae83585",
+        "bytes": 858
+      },
+      "checks": 10,
+      "pins": 18
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-20-original-prerequisite/entrypoint/receipt.json",
+        "sha256": "fc5ad375de2633c8d4357f649213c5024c5c28490ba19fc2de95fab9500e8dc9",
+        "bytes": 932
+      },
+      "checks": 11,
+      "pins": 25
+    }
+  ],
+  "acceptedDistinctChecks": 11,
+  "newChecks": 6,
+  "entrypointProbes": 4,
+  "initialProductionSourceIdentical": true,
+  "initialTenTestsPreservedWithOnlyNewTestAppended": true,
+  "beforeEdit": [
+    {
+      "path": "/tmp/lilscript-original-prerequisite-before-20260920/qualify-node-library.mjs",
+      "sha256": "a4ee02d8b7b08460c7d32ecd286dc9bdaeb7dd76323b71789186e835326084fb",
+      "bytes": 22861
+    },
+    {
+      "path": "/tmp/lilscript-original-prerequisite-before-20260920/qualify-node-library.test.mjs",
+      "sha256": "f907e3c632d06c1474549e088b29167100cb43d9e06b476d724e8806eacaddb9",
+      "bytes": 11416
+    }
+  ],
+  "transitiveInventoryPinVerified": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/before.json",
+    "sha256": "fad6384a9e26d02fa1fddef540b2574738d0b4abf18d0834c0f0464f536d23c6",
+    "bytes": 863961,
+    "root": "/home/azureuser/remark-gfmlil/node_modules",
+    "manifestSha256": "826041e36a09bdaa4a0300c17e1275dc5d8a950814232c261025897e472a8745",
+    "files": 943,
+    "entries": 1071,
+    "scope": "Complete installed project tree including nested dependencies and symlink destinations, pinned before/after discovery; no installation."
+  },
+  "compilerInputManifest": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T00-18-53.146Z/inputs-before.json",
+    "sha256": "258068aece0008ea738504f0689aef4d5a5931b9f8d0a82813722ad4db02e9c6",
+    "bytes": 177413
+  },
+  "compilerInputsUnchanged": "269288a54694ef126db4e16bba350254c0a7cc2629a6c6641cd5cf672511295a",
+  "compilerInputCount": 979,
+  "design": {
+    "path": "docs/compiler-design.md",
+    "sha256": "659911967aa490b1e7db340b7d76399307aa86baa3c7761ef252508d0b5a5bbb",
+    "bytes": 16688
+  },
+  "configurationHistory": {
+    "path": "benchmarks/migration-results/2026-09-20-original-prerequisite/configuration-history.json",
+    "sha256": "4452f6842a2aa0a09d5cd9038e7dbaa0da9ff8b0a2a5a697ee0de6741c780670",
+    "bytes": 61408
+  },
+  "originalGfmFixturePinsUnchanged": 46,
+  "outputs": [
+    {
+      "path": "configuration-history.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4452f6842a2aa0a09d5cd9038e7dbaa0da9ff8b0a2a5a697ee0de6741c780670",
+      "bytes": 61408
+    },
+    {
+      "path": "entrypoint/inputs-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e4ada5bfb7cc976a126ef2842b9c1774693deed1d9d29c64d785f3c50baf3245",
+      "bytes": 5256
+    },
+    {
+      "path": "entrypoint/inputs-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e4ada5bfb7cc976a126ef2842b9c1774693deed1d9d29c64d785f3c50baf3245",
+      "bytes": 5256
+    },
+    {
+      "path": "entrypoint/qualify-node-library.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f4e47d7d1efd1607d3e7167c5c00db373553cff61163606b70540dcd7570ca61",
+      "bytes": 20003
+    },
+    {
+      "path": "entrypoint/receipt.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fc5ad375de2633c8d4357f649213c5024c5c28490ba19fc2de95fab9500e8dc9",
+      "bytes": 932
+    },
+    {
+      "path": "entrypoint/tests.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "entrypoint/tests.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8822350c2afb9d409c7d7edf50a08c52f7bcf4d18939983ff0a1fb1df73a9f3a",
+      "bytes": 1226
+    },
+    {
+      "path": "inputs-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "787de93ad8bf655255febc34225fac7b4dc35b4577ff4d8c93d6b379880a662e",
+      "bytes": 4064
+    },
+    {
+      "path": "inputs-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "787de93ad8bf655255febc34225fac7b4dc35b4577ff4d8c93d6b379880a662e",
+      "bytes": 4064
+    },
+    {
+      "path": "qualify-node-library.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "57c934e8f1945c8c3943e0d7a58fd63f61665252c9db39224c58b2b84dc940ad",
+      "bytes": 25844
+    },
+    {
+      "path": "qualify-node-library.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d4ad03c0a493f402713338a4c4c194bb54b3ee1861a1d5fd8972cbd86fea5112",
+      "bytes": 17111
+    },
+    {
+      "path": "receipt.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d16a067bb26065382eb973daf23646aab9173631f8a69517c8480578aae83585",
+      "bytes": 858
+    },
+    {
+      "path": "tests.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "tests.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "20d9e3b189d81b0ad72097979780b49aa45216e5db8c53a11fca75c1bd3a4add",
+      "bytes": 1118
+    }
+  ],
+  "scope": "Prerequisite proof consumption only. Source qualifier still supports exactly one original npm-run prerequisite and the existing two-build/five-JS-output contract. No Rust build, compiler or codec execution, new library qualification, flag alias, library edit or compression/speed claim."
+}

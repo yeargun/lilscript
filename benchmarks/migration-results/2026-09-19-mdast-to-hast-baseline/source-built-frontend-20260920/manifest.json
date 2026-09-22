@@ -1,0 +1,80 @@
+{
+  "arm": "preserved-release-original-to-hast",
+  "timeoutsMs": {
+    "build": 300000,
+    "test": 90000,
+    "codec": 60000
+  },
+  "compiler": {
+    "source": "/tmp/lilscript-frontend-release-20260920/lilscript",
+    "sha256": "066d7d344694ee126c136a53b478750ea8daff7971a12961e729bad20f1539f7"
+  },
+  "codec": {
+    "source": "/tmp/lilscript-frontend-release-20260920/lilscript-codec",
+    "sha256": "fd21fda3d4e38ebb223e42b91fec9763aebaf5de187158bbc2397b1acc24a2f5",
+    "bytes": 2600976
+  },
+  "workloadManifest": {
+    "path": "/home/azureuser/lilscript/benchmarks/libraries/maintained-workloads.json",
+    "sha256": "972f431ed87a5e70816df92bc738d8384143b386256e5fef9d8b299b1dcb4a3d",
+    "testContracts": [
+      {
+        "path": "hast-util-to-htmllil.required-tests.json",
+        "sha256": "f8c64147e4da01233034025034a07b318d01a59629adb3f8eeec8de27073eea3",
+        "bytes": 72608
+      },
+      {
+        "path": "jquerylil.required-tests.json",
+        "sha256": "b5cf45d76b1089102502bcbdc071e3bceef682c7e57babda2a7ddf5b26fd6da6",
+        "bytes": 64269
+      },
+      {
+        "path": "markedlil.profiles.tests.json",
+        "sha256": "513e0c12316d445476e05af8ed65d83dd760f635eac720c1b4c070f5adc17ecb",
+        "bytes": 12346
+      },
+      {
+        "path": "mdast-util-to-hastlil.required-tests.json",
+        "sha256": "42289aeec4a58356ec0e3bb1b34326d9a8d2aa5f226642592d8b1ba98f6d05d8",
+        "bytes": 40861
+      },
+      {
+        "path": "micromarklil.required-tests.json",
+        "sha256": "b2470f1bfae826f6997d650b96eeee9b95e339ecaf8f4cd3ec89289843185b83",
+        "bytes": 246622
+      },
+      {
+        "path": "motionlil.required-tests.json",
+        "sha256": "c17cb9bfed1f09c5221e4c8bd3928402ebb042cfb59aef099b475c76199b7888",
+        "bytes": 120111
+      },
+      {
+        "path": "probelil.required-tests.json",
+        "sha256": "4b206ff63edc83031282ca46f9bdc77152cfd59da6523f2526aeb3cff1c45d0d",
+        "bytes": 2093
+      },
+      {
+        "path": "remark-breakslil.required-tests.json",
+        "sha256": "987262fcb998ca3baa405066544ef2637ef30f11ca3d546ec4f2621c84617b42",
+        "bytes": 18276
+      },
+      {
+        "path": "remark-rehypelil.required-tests.json",
+        "sha256": "87a17c0cfb2899f4a6e571732aad4207cb60e948e98d2cc716cadfcc45fb23cf",
+        "bytes": 17761
+      },
+      {
+        "path": "zodlil.required-tests.json",
+        "sha256": "62b4a957ae770d84a074c6edf15df03553e7a01e36413ffb3f50ba320d037cf7",
+        "bytes": 180317
+      }
+    ]
+  },
+  "repoHead": "06b8da20d417b1ca9f78efb32552fe70d2b41cc4",
+  "host": {
+    "cpus": 8
+  },
+  "ports": [
+    "mdast-util-to-hastlil"
+  ]
+}

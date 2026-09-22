@@ -1,0 +1,1 @@
+let left=[2147483647,2147483647,123456789,-2147483647- 1];let right=[2147483647,2147483646,987654321,2147483647];{let a;let index=0;for(;index<(left.length|0);a=index,index=a+ 1|0,a){let a;let b;a=void console.log((left[index]|0)*(right[index]|0)|0);b=void console.log(Math.imul(left[index]|0,right[index]|0)|0);}}

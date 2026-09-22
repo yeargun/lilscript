@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-baseline-remark-mathlil-PLNJ6d/remark-mathlil/dist/remark-math.cjs","/tmp/lilscript-baseline-remark-mathlil-PLNJ6d/remark-mathlil/dist/remark-math.closed.js","/tmp/lilscript-baseline-remark-mathlil-PLNJ6d/remark-mathlil/dist/remark-math.esm.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-source-baselines/remark-mathlil/node/loaded"});

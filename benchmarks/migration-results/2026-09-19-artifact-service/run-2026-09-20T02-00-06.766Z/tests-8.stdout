@@ -1,0 +1,11 @@
+
+running 6 tests
+test structured_js::output_policy_tests::policy_free_research_output_stays_explicit_and_native_policy_is_rejected ... ok
+test structured_js::output_policy_tests::enabled_search_retains_alternatives_and_prepared_permissions_do_not_change ... ok
+test structured_js::output_policy_tests::target_edition_backstop_rejects_live_nullish_but_allows_unused_arena_nodes ... ok
+test structured_js::output_policy_tests::target_edition_backstop_checks_reachable_optional_catch_binding ... ok
+test structured_js::output_policy_tests::naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides ... ok
+test structured_js::output_policy_tests::identifier_mangling_off_restricts_render_and_search_to_source ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2934 filtered out; finished in 0.06s
+

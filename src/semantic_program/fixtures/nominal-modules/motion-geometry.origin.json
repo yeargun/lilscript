@@ -1,0 +1,8 @@
+{
+  "original_path": "/home/azureuser/motionlil/src/motion-utils/types/geometry.lil",
+  "original_sha256": "1cd32273cd089fe759fa084e1c79c86f1c7e8c6f058761b11561c0590c4eeae7",
+  "archived_file": "motion-geometry.lil",
+  "archived_sha256": "1cd32273cd089fe759fa084e1c79c86f1c7e8c6f058761b11561c0590c4eeae7",
+  "source_bytes": 383,
+  "scope": "Byte-exact complete Motion geometry type module. All other files in this cohort are authored integration fixtures; this is not full Motion compilation or an archive of Motion mutation helpers."
+}

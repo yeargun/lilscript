@@ -1132,6 +1132,19 @@ fn rejects_duplicate_generated_export_names() {
 }
 
 #[test]
+fn export_binding_after_initializer_using_of_or_in_is_observed() {
+    for source in [
+        "var of=()=>false,guard=x=>x&&!of(),press=(a,b,c)=>a;export{press}",
+        "var object={},has='key' in object,press=(a,b,c)=>a;export{press}",
+    ] {
+        let witnesses = generated_javascript_export_witnesses(source).unwrap();
+        assert_eq!(witnesses.len(), 1);
+        assert_eq!(witnesses[0].name, "press");
+        assert_eq!(witnesses[0].arity, Some(3));
+    }
+}
+
+#[test]
 fn observes_generated_export_callable_shapes() {
     let witnesses = generated_javascript_export_witnesses(
         "class B{base(a){}}function f(a,b=1){}class C extends B{constructor(a,b){}read(a=1){}}let g=(a,b)=>a+b,v=1;export{f,C,g,v}",
@@ -3669,6 +3682,26 @@ fn drops_void_initializers_only_where_the_binding_is_fresh_and_runs_once() {
 }
 
 #[test]
+fn keeps_void_initializers_a_braceless_loop_body_reruns() {
+    // remark-gfm's extension merger: the loop body is a brace-less `if`, so a
+    // brace walk does not see the loop, and dropping the reset let one hook's
+    // object leak into the next iteration (later `.call` on undefined).
+    let source = "function merge(a,b){for(var c in b)if(Object.prototype.hasOwnProperty.call(b,c)){var d=void 0;Object.prototype.hasOwnProperty.call(a,c)&&(d=a[c]),d===void 0&&(d={},a[c]=d),d.seen=c}return a}console.log(JSON.stringify(merge({x:{}},{x:1,y:2,z:3})))";
+    let (folded, _) = fold_void_initializers_off_fresh_vars(source).unwrap();
+    assert!(folded.contains("var d=void 0"), "{folded}");
+    assert_eq!(run_javascript(&folded), run_javascript(source));
+}
+
+#[test]
+fn keeps_void_initializers_a_hoisted_function_can_write_first() {
+    // `f` is declared after the reset but hoisted, and runs before it.
+    let source = "function g(){f();var x=void 0;return x;function f(){x=1}}console.log(String(g()))";
+    let (folded, _) = fold_void_initializers_off_fresh_vars(source).unwrap();
+    assert!(folded.contains("var x=void 0"), "{folded}");
+    assert_eq!(run_javascript(&folded), "undefined\n");
+}
+
+#[test]
 fn joins_adjacent_declarations_of_one_kind() {
     let source = "var a=1;var b=a+1;let c=3;let d=c;const e=4;var f=5;for(var g=0;g<1;g++){var h=g;var i=h}export const j=1;var k=2;if(a){let l=1;let m=l;console.log(m)}console.log(a,b,c,d,e,f,h,i,j,k)";
     let (folded, count) = join_adjacent_declarations(source).unwrap();
@@ -4514,4 +4547,16 @@ fn idiom_conversion_groups_over_an_artifact_file() {
         applied,
         rewrites_total
     );
+}
+
+#[test]
+fn pure_export_annotations_follow_bindings_and_keep_argument_evaluations() {
+    let source = "function f(x){return()=>x}let value=f(effect());function shadow(f){f()}let obj={f(){effect()}};obj.f();new f();export{f as factory,value,shadow}";
+    let pure = std::collections::BTreeSet::from(["factory".to_owned()]);
+    let output = super::annotate_pure_export_calls(source, &pure).unwrap();
+    assert_eq!(output.matches("/*@__PURE__*/").count(), 1);
+    assert!(output.contains("value=/*@__PURE__*/f(effect())"));
+    assert!(output.contains("shadow(f){f()}"));
+    assert!(output.contains("obj.f();new f()"));
+    analyze_generated_javascript(&output).unwrap();
 }

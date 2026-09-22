@@ -1,0 +1,11 @@
+extern string textValue();
+extern int repeatCount();
+export string trimValue(string text) { return text.trim(); }
+export string trimLeft(string text) { return text.trimStart(); }
+export string trimRight(string text) { return text.trimEnd(); }
+export string repeated(string text, int count) { return text.repeat(count); }
+export string repeatCall() { return textValue().repeat(repeatCount()); }
+export void unusedRepeat() { textValue().repeat(repeatCount()); }
+export string trimCall() { return textValue().trim(); }
+export string coercedTrim() { return textValue().trim() + "!"; }
+export void unusedTrim() { textValue().trim(); }

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "exactOptionalPropertyTypes": true,
+    "lib": ["es2022", "DOM"],
+    "module": "NodeNext",
+    "noEmit": true,
+    "strict": true,
+    "target": "es2022"
+  },
+  "include": ["test/types.test.ts"]
+}

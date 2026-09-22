@@ -1,0 +1,5 @@
+error: direct module checking does not yet support source parameter defaults
+ --> /home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T14-47-06.382Z/unsupported.lil:1:29
+  |
+ 1 | export int answer(int value=17){return value;}
+  |                             ^^

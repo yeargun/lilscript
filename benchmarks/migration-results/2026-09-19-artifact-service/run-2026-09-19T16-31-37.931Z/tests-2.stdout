@@ -1,0 +1,16 @@
+
+running 11 tests
+test semantic_program::uses::update::tests::prepared_owner_guard_rejects_wrong_and_stale_indexes_even_for_empty_changes ... ok
+test semantic_program::uses::update::tests::fixed_fork_row_check_rejects_another_valid_edit_against_the_same_original_index ... ok
+test semantic_program::uses::update::tests::prepared_install_reuses_shell_and_untouched_chunks_with_original_domain_cleanup ... ok
+test semantic_program::uses::update::tests::prepared_negative_reference_and_creator_sets_match_full_rebuild ... ok
+test semantic_program::uses::update::tests::prepared_fork_failure_consumes_only_its_temporary_ownership ... ok
+test semantic_program::uses::update::tests::sparse_cell_merge_keeps_equal_occurrences_from_another_changed_unit ... ok
+test semantic_program::uses::update::tests::sparse_creator_merge_keeps_equal_occurrences_from_another_changed_unit ... ok
+test semantic_program::uses::update::tests::general_preparation_sorts_declared_ids_and_keeps_undeclared_change_guards ... ok
+test semantic_program::uses::update::tests::prepared_denials_and_unwind_preserve_original_index_and_release_partial_chunks ... ok
+test semantic_program::uses::update::tests::sparse_reverse_merge_refusals_release_all_new_chunks ... ok
+test semantic_program::uses::update::tests::fixed_footprint_validation_checks_order_and_both_revisions_without_table_scans ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 2832 filtered out; finished in 0.02s
+

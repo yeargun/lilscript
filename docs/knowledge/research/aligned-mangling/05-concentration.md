@@ -92,8 +92,8 @@ So the question this result raises is narrow and answerable: **the beam can
 propose this, the port config asks for `candidate_search = "production"`, and
 the checked-in artifact still spells 106 names.** Either the proposal is not
 reaching the finalists on this artifact, or the checked-in artifact predates
-the current beam. [PLAN.md](PLAN.md) turns that into a task rather than a
-guess.
+the then-current beam. Requalify this historical result through the
+[migration plan](../../../migration/index.md#010-bounded-codec-search) before assigning work.
 
 ## Proxies do not rank namings
 

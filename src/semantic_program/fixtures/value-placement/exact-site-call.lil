@@ -1,0 +1,2 @@
+extern int read();extern void event(int value);
+export int run(){event(1);try{return read()+3;}finally{event(2);}}

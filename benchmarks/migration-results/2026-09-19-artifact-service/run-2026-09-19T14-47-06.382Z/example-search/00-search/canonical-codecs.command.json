@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/lilscript-codec",
+    "--json",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T14-47-06.382Z/example-search/00-search/winner-Raw.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T14-47-06.382Z/example-search/00-search/winner-Gzip.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T14-47-06.382Z/example-search/00-search/winner-Brotli.mjs"
+  ],
+  "elapsed_ns": 125651703,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "ed28329c7e24b6b19af975d36ec472c3ce3ed88cdd5d023f4fbb73b44a6d78fc"
+}

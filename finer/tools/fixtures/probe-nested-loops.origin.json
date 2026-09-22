@@ -1,0 +1,16 @@
+{
+  "source": "/home/azureuser/probelil/src/probe.lil",
+  "sourceSha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+  "functions": [
+    {
+      "signature": "int nestedLoops(int seed)",
+      "start": 13304,
+      "end": 13520,
+      "sha256": "43bd44120913c301bf0bd2d7aeb75442079d6b44b2d952236e16efec1d002980"
+    }
+  ],
+  "adaptation": "Preserve every function byte; append a closed harness with opaque seed 7 and declared boundary inputs.",
+  "fixtureSha256": "1e7dd7ce697fa0bdcf66aa8a64817de8380e3c57a3219d7870fde90a0e730a97",
+  "setup": "globalThis.read=()=>7;\n",
+  "expected": "14\n0\n-6\n"
+}

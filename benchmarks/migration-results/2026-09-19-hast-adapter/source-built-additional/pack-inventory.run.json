@@ -1,0 +1,40 @@
+{
+  "command": "npm",
+  "executable": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/bin/npm-cli.js",
+  "args": [
+    "pack",
+    "--dry-run",
+    "--json"
+  ],
+  "cwd": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil",
+  "startedAt": "2026-09-19T13:25:38.956Z",
+  "env": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/home/azureuser/.codex/packages/standalone/releases/0.154.0-x86_64-unknown-linux-musl/codex-path:/home/azureuser/.codex/tmp/arg0/codex-arg0OnkoQs:/home/azureuser/.codex/tmp/arg0/codex-arg0xeLyqQ:/home/azureuser/.nvm/versions/node/v20.19.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/home/azureuser/.codex/tmp/arg0/codex-arg06Ni0GM:/home/azureuser/.nvm/versions/node/v20.19.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path:/home/azureuser/.opencode/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.bun/bin:/home/azureuser/.cursor-server/bin/linux-x64/f09fca384ceca23f7bf21f9c23655b162641d740/bin/remote-cli:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/home/azureuser/.opencode/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.sdkman/candidates/springboot/current/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.bun/bin:/home/azureuser/.nvm/versions/node/v20.19.0/bin:/home/azureuser/.cursor-server/bin/linux-x64/f09fca384ceca23f7bf21f9c23655b162641d740/bin/remote-cli:/home/azureuser/.cargo/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+    "NODE_OPTIONS": null
+  },
+  "inheritedEnvironment": "Other environment variables inherited unchanged; no package or script edits.",
+  "exitCode": 0,
+  "signal": null,
+  "error": null,
+  "elapsedMs": 328.287224,
+  "stdout": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/pack-inventory.stdout.log",
+    "sha256": "1a171c585c83d309c879b3b240ce45242cb89816aa11ec3d9386c648661c9dbf",
+    "bytes": 3034
+  },
+  "stderr": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/pack-inventory.stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "before": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/pack-inventory.before.json",
+    "sha256": "160b166590fc341be5c6a82b2a0170b0c158fa3c481232d7d0af8cbadc878f28",
+    "bytes": 18774
+  },
+  "after": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/pack-inventory.after.json",
+    "sha256": "160b166590fc341be5c6a82b2a0170b0c158fa3c481232d7d0af8cbadc878f28",
+    "bytes": 18774
+  }
+}

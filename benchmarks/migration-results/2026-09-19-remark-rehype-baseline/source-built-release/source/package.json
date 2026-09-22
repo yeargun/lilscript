@@ -1,0 +1,78 @@
+{
+  "name": "@itslil/remark-rehype",
+  "version": "11.1.4",
+  "description": "remark-rehype reimplemented in LilScript",
+  "keywords": [
+    "remark",
+    "rehype",
+    "mdast",
+    "hast",
+    "lilscript",
+    "itslil"
+  ],
+  "homepage": "https://yeargun.github.io/remark-rehypelil/",
+  "bugs": "https://github.com/yeargun/remark-rehypelil/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeargun/remark-rehypelil.git"
+  },
+  "license": "MIT",
+  "author": "yeargun",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/remark-rehype.cjs",
+  "module": "./dist/remark-rehype.esm.js",
+  "types": "./dist/remark-rehype.d.ts",
+  "unpkg": "./dist/remark-rehype.umd.js",
+  "jsdelivr": "./dist/remark-rehype.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/remark-rehype.d.ts",
+      "import": "./dist/remark-rehype.esm.js",
+      "require": "./dist/remark-rehype.cjs",
+      "default": "./dist/remark-rehype.esm.js"
+    },
+    "./closed": "./dist/remark-rehype.closed.js",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist/remark-rehype.esm.js",
+    "dist/remark-rehype.cjs",
+    "dist/remark-rehype.umd.js",
+    "dist/remark-rehype.closed.js",
+    "dist/remark-rehype.d.ts",
+    "LICENSE",
+    "NOTICE.md",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs --compile",
+    "build:site": "node scripts/build-site.mjs",
+    "test": "npm run test:types && node --test test/*.test.mjs test/official/test.js",
+    "test:types": "tsc --noEmit",
+    "check:site": "npm run build:site && node --test test/site.test.mjs",
+    "check:pack": "node scripts/check-pack.mjs",
+    "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
+  },
+  "dependencies": {
+    "@types/hast": "^3.0.0",
+    "@types/mdast": "^4.0.0",
+    "unified": "^11.0.0",
+    "vfile": "^6.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "rehype-stringify": "^10.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "typescript": "5.5.4"
+  }
+}

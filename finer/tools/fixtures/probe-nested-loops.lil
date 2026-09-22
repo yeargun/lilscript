@@ -1,0 +1,14 @@
+extern int read();
+int nestedLoops(int seed) {
+  int total = 0;
+  for (int i = 0; i < 3; i++) {
+    int j = 0;
+    while (j < i) {
+      if (j == 1) { j++; continue; }
+      total += i * j + seed;
+      j++;
+    }
+  }
+  return total;
+}
+print(nestedLoops(read()));print(nestedLoops(0));print(nestedLoops(-3));

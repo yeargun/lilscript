@@ -1,0 +1,232 @@
+{
+  "schema": 1,
+  "scope": "delivered files from accepted original-consumer checkpoints; not a fleet or speed claim",
+  "checker": {
+    "path": "compare-frontend-delivery.mjs",
+    "sha256": "2f4eb5a3fafa679d247005ecd9ee21e7893683302aae362508596f72db3394fb"
+  },
+  "receipts": [
+    {
+      "path": "run-2026-09-19T19-48-31.223Z/receipt.json",
+      "sha256": "8918faac11122e916d8c7decbdfe03d71f3b873c6dc990691a2709fe498e1a39"
+    },
+    {
+      "path": "run-2026-09-20T00-18-53.146Z/receipt.json",
+      "sha256": "e6301eff8cf5d57d39313452af9e6d1babb09894406e3bf43e6c967b7c5a116a"
+    }
+  ],
+  "equal": true,
+  "filesCompared": 15,
+  "rows": [
+    {
+      "mode": "direct",
+      "name": "baseline.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-direct/00-direct/baseline.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-direct/00-direct/baseline.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "search",
+      "name": "winner-Raw.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-search/00-search/winner-Raw.mjs",
+          "sha256": "c905606e21e89ba0a1ae31fd182fb5e397ca496f78eea81d9e8849413d6a8dbf"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-search/00-search/winner-Raw.mjs",
+          "sha256": "c905606e21e89ba0a1ae31fd182fb5e397ca496f78eea81d9e8849413d6a8dbf"
+        }
+      ]
+    },
+    {
+      "mode": "search",
+      "name": "winner-Gzip.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-search/00-search/winner-Gzip.mjs",
+          "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-search/00-search/winner-Gzip.mjs",
+          "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb"
+        }
+      ]
+    },
+    {
+      "mode": "search",
+      "name": "winner-Brotli.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-search/00-search/winner-Brotli.mjs",
+          "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-search/00-search/winner-Brotli.mjs",
+          "sha256": "fdc4c24d39049c79da2aa63adc53038f60174e2cfba6daa2b1df8ff9225b07cb"
+        }
+      ]
+    },
+    {
+      "mode": "retain",
+      "name": "baseline.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-retain/baseline.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-retain/baseline.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "retain",
+      "name": "retained-branch.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-retain/retained-branch.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-retain/retained-branch.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        }
+      ]
+    },
+    {
+      "mode": "retain",
+      "name": "final.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-retain/final.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-retain/final.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "retain",
+      "name": "retained-branch-recheck.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-retain/retained-branch-recheck.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-retain/retained-branch-recheck.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        }
+      ]
+    },
+    {
+      "mode": "retain",
+      "name": "baseline-recheck.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-retain/baseline-recheck.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-retain/baseline-recheck.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "advance",
+      "name": "baseline.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-advance/baseline.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-advance/baseline.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "advance",
+      "name": "retained-branch.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-advance/retained-branch.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-advance/retained-branch.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        }
+      ]
+    },
+    {
+      "mode": "advance",
+      "name": "final.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-advance/final.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-advance/final.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "advance",
+      "name": "retained-branch-recheck.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-advance/retained-branch-recheck.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-advance/retained-branch-recheck.mjs",
+          "sha256": "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        }
+      ]
+    },
+    {
+      "mode": "advance",
+      "name": "baseline-recheck.mjs",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-paired/00-advance/baseline-recheck.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-paired/00-advance/baseline-recheck.mjs",
+          "sha256": "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        }
+      ]
+    },
+    {
+      "mode": "native",
+      "name": "native.c",
+      "files": [
+        {
+          "path": "run-2026-09-19T19-48-31.223Z/example-native/00-native/native.c",
+          "sha256": "8f5a3c5e5d9b2f88b51ec157990cd84036642fc60fb45b01ebb812f2d6ed0849"
+        },
+        {
+          "path": "run-2026-09-20T00-18-53.146Z/example-native/00-native/native.c",
+          "sha256": "8f5a3c5e5d9b2f88b51ec157990cd84036642fc60fb45b01ebb812f2d6ed0849"
+        }
+      ]
+    }
+  ]
+}

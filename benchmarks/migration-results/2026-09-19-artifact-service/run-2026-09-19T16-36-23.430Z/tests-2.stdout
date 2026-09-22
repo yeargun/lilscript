@@ -1,0 +1,13 @@
+
+running 8 tests
+test compilation_policy_evidence_tests::a_performance_bound_requires_both_estimates_and_preserves_the_zero_baseline ... ok
+test compilation_policy_evidence_tests::known_runtime_increases_still_require_their_own_declared_risk ... ok
+test compilation_policy_evidence_tests::each_absolute_runtime_bound_distinguishes_unknown_zero_and_over_limit ... ok
+test compilation_policy_evidence_tests::every_performance_priority_rejects_missing_required_admission_and_rank_inputs ... ok
+test compilation_policy_evidence_tests::mixed_known_and_unknown_size_ties_form_a_transitive_total_preorder ... ok
+test compilation_policy_evidence_tests::unknown_costs_never_bypass_explicit_tactic_permission ... ok
+test compilation_policy_evidence_tests::unconstrained_size_ranking_uses_exact_bytes_and_leaves_canonical_ties_to_the_owner ... ok
+test compilation_policy_evidence_tests::known_legacy_costs_keep_their_existing_admission_and_priority_order ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 2835 filtered out; finished in 0.00s
+

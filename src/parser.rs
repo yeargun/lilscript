@@ -1,16 +1,24 @@
-use bumpalo::collections::Vec as BumpVec;
+use crate::ast::ExprKind;
+use admission::{ArenaVec as BumpVec, TokenStorage};
 use bumpalo::Bump;
 
-use crate::ast::{
-    ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding, CatchClause,
-    ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
+use crate::ast::{ExternConstructorDecl, 
+    Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding,
+    CatchClause, ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
     ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer,
     ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item, MatchArm,
-    MatchPattern, Param, Program, RecordBinding, RecordElement, RecordEntry, Stmt, StructDecl,
-    TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
+    MatchPattern, Param, ParameterType, Program, RecordBinding, RecordElement, RecordEntry,
+    RegionPolicy, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
-use crate::lexer::{lex, LexError, Token, TokenKind};
+use crate::lexer::{AdmittedLexError, LexError, Token, TokenKind};
+use crate::primitive::ParameterPassing;
 use crate::span::Span;
+
+#[path = "parser_admission.rs"]
+mod admission;
+#[cfg(test)]
+pub(crate) use admission::admitted_arena_activity_for_test;
+pub(crate) use admission::{AdmittedArena, AdmittedParseError, ParsedSources};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
@@ -59,47 +67,82 @@ pub fn parse_source<'arena, 'src>(
     Parser::new(arena, source)?.parse_program()
 }
 
-pub struct Parser<'arena, 'src> {
+pub struct Parser<'arena, 'src>(ParserCore<'arena, 'src>);
+
+impl<'arena, 'src> Parser<'arena, 'src> {
+    pub fn new(arena: &'arena Bump, source: &'src str) -> Result<Self, ParseError> {
+        ParserCore::new(arena, source, None)
+            .map(Self)
+            .map_err(AdmittedParseError::inspection)
+    }
+
+    pub fn parse_program(self) -> Result<Program<'arena, 'src>, ParseError> {
+        self.0
+            .parse_program()
+            .map_err(AdmittedParseError::inspection)
+    }
+}
+
+struct ParserCore<'arena, 'src> {
     arena: &'arena Bump,
-    tokens: Vec<Token<'src>>,
+    admission: Option<&'arena dyn admission::Admission>,
+    source: &'arena crate::ast::SourceNodes,
+    tokens: TokenStorage<'arena, 'src>,
     cursor: usize,
     source_len: usize,
 }
 
-impl<'arena, 'src> Parser<'arena, 'src> {
-    pub fn new(arena: &'arena Bump, source: &'src str) -> Result<Self, ParseError> {
-        Self::new_fragment(arena, source, 0)
+impl<'arena, 'src> ParserCore<'arena, 'src> {
+    fn new(
+        arena: &'arena Bump,
+        source: &'src str,
+        admission: Option<&'arena dyn admission::Admission>,
+    ) -> Result<Self, AdmittedParseError> {
+        Self::new_fragment(
+            arena,
+            source,
+            0,
+            admission::alloc(arena, admission, crate::ast::SourceNodes::default())?,
+            admission,
+        )
     }
 
     fn new_fragment(
         arena: &'arena Bump,
         source: &'src str,
         base_offset: usize,
-    ) -> Result<Self, ParseError> {
-        let mut tokens = lex(source).map_err(|error| ParseError {
-            span: Span::new(error.span.start + base_offset, error.span.end + base_offset),
-            message: error.message,
+        nodes: &'arena crate::ast::SourceNodes,
+        admission: Option<&'arena dyn admission::Admission>,
+    ) -> Result<Self, AdmittedParseError> {
+        let mut tokens = TokenStorage::new(source, admission).map_err(|error| match error {
+            AdmittedLexError::Syntax(error) => AdmittedParseError::Syntax(ParseError {
+                span: Span::new(error.span.start + base_offset, error.span.end + base_offset),
+                message: error.message,
+            }),
+            AdmittedLexError::Resource(error) => AdmittedParseError::Resource(error),
         })?;
         if base_offset != 0 {
-            for token in &mut tokens {
+            for token in tokens.iter_mut() {
                 token.span =
                     Span::new(token.span.start + base_offset, token.span.end + base_offset);
             }
         }
         Ok(Self {
             arena,
+            admission,
+            source: nodes,
             tokens,
             cursor: 0,
             source_len: source.len() + base_offset,
         })
     }
 
-    pub fn parse_program(mut self) -> Result<Program<'arena, 'src>, ParseError> {
+    pub fn parse_program(mut self) -> Result<Program<'arena, 'src>, AdmittedParseError> {
         let start = self.peek_span().unwrap_or_else(|| Span::empty(0));
-        let mut items = BumpVec::new_in(self.arena);
-        let mut imports = BumpVec::new_in(self.arena);
-        let mut foreign_imports = BumpVec::new_in(self.arena);
-        let mut exports = BumpVec::new_in(self.arena);
+        let mut items = BumpVec::new_in(self.arena, self.admission);
+        let mut imports = BumpVec::new_in(self.arena, self.admission);
+        let mut foreign_imports = BumpVec::new_in(self.arena, self.admission);
+        let mut exports = BumpVec::new_in(self.arena, self.admission);
 
         while !self.is_at_end() {
             if self.check(|kind| matches!(kind, TokenKind::Import))
@@ -107,9 +150,9 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             {
                 self.advance();
                 if self.match_kind(|kind| matches!(kind, TokenKind::Extern)) {
-                    foreign_imports.push(self.parse_foreign_import_after_keyword()?);
+                    foreign_imports.push(self.parse_foreign_import_after_keyword()?)?;
                 } else {
-                    imports.push(self.parse_import_after_keyword()?);
+                    imports.push(self.parse_import_after_keyword()?)?;
                 }
                 continue;
             }
@@ -134,23 +177,23 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                         exported,
                         kind: ExportKind::ConstructorValue,
                         span: export_start.merge(semi.span),
-                    });
+                    })?;
                     continue;
                 }
                 let item = self.parse_item()?;
                 let local = exported_item_name(&item).ok_or_else(|| {
-                    ParseError::new(item.span(), "only declarations can be exported")
+                    AdmittedParseError::new(item.span(), "only declarations can be exported")
                 })?;
                 exports.push(ExportDecl {
                     local,
                     exported: local,
                     kind: ExportKind::Binding,
                     span: export_start.merge(item.span()),
-                });
-                items.push(item);
+                })?;
+                items.push(item)?;
                 continue;
             }
-            items.push(self.parse_item()?);
+            items.push(self.parse_item()?)?;
         }
 
         let end = items
@@ -162,29 +205,32 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         } else {
             start.merge(end)
         };
-        let mut constructor_values = BumpVec::new_in(self.arena);
+        let mut constructor_values = BumpVec::new_in(self.arena, self.admission);
         constructor_values.extend(
             exports
                 .iter()
                 .filter(|export| export.kind == ExportKind::ConstructorValue)
                 .map(|export| export.local),
-        );
+        )?;
 
-        Ok(Program {
-            imports: imports.into_bump_slice(),
-            foreign_imports: foreign_imports.into_bump_slice(),
-            dynamic_imports: &[],
-            module_bindings: &[],
-            constructor_values: constructor_values.into_bump_slice(),
-            exports: exports.into_bump_slice(),
-            items: items.into_bump_slice(),
-            span,
-        })
+        Ok(Program::new(
+            self.source.finish(),
+            crate::ast::ProgramData {
+                imports: imports.into_bump_slice(),
+                foreign_imports: foreign_imports.into_bump_slice(),
+                dynamic_imports: &[],
+                module_bindings: &[],
+                constructor_values: constructor_values.into_bump_slice(),
+                exports: exports.into_bump_slice(),
+                items: items.into_bump_slice(),
+                span,
+            },
+        ))
     }
 
     fn parse_foreign_import_after_keyword(
         &mut self,
-    ) -> Result<ForeignImportDecl<'arena, 'src>, ParseError> {
+    ) -> Result<ForeignImportDecl<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         if let Some(TokenKind::StringLiteral(raw)) = self.peek_kind() {
             let source = strip_quotes(raw);
@@ -205,7 +251,9 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_import_after_keyword(&mut self) -> Result<ImportDecl<'arena, 'src>, ParseError> {
+    fn parse_import_after_keyword(
+        &mut self,
+    ) -> Result<ImportDecl<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         if let Some(TokenKind::StringLiteral(raw)) = self.peek_kind() {
             let source = strip_quotes(raw);
@@ -227,12 +275,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_import_specifiers(&mut self) -> Result<&'arena [ImportSpecifier<'src>], ParseError> {
+    fn parse_import_specifiers(
+        &mut self,
+    ) -> Result<&'arena [ImportSpecifier<'src>], AdmittedParseError> {
         self.expect(
             |kind| matches!(kind, TokenKind::LBrace),
             "expected `{` after import",
         )?;
-        let mut specifiers = BumpVec::new_in(self.arena);
+        let mut specifiers = BumpVec::new_in(self.arena, self.admission);
         if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             loop {
                 let imported = self.expect_ident("expected imported name")?;
@@ -241,7 +291,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 } else {
                     imported
                 };
-                specifiers.push(ImportSpecifier { imported, local });
+                specifiers.push(ImportSpecifier { imported, local })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
                 }
@@ -254,7 +304,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(specifiers.into_bump_slice())
     }
 
-    fn parse_import_source(&mut self) -> Result<(&'src str, Span), ParseError> {
+    fn parse_import_source(&mut self) -> Result<(&'src str, Span), AdmittedParseError> {
         self.expect(
             |kind| matches!(kind, TokenKind::From),
             "expected `from` after import names",
@@ -263,7 +313,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             .advance()
             .ok_or_else(|| self.error_here("expected module path after `from`"))?;
         let TokenKind::StringLiteral(raw) = path.kind else {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 path.span,
                 "expected string module path after `from`",
             ));
@@ -276,7 +326,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         &mut self,
         start: Span,
         exports: &mut BumpVec<'arena, ExportDecl<'src>>,
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), AdmittedParseError> {
         if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             loop {
                 let local = self.expect_ident("expected exported name")?;
@@ -290,7 +340,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     exported,
                     kind: ExportKind::Binding,
                     span: start.merge(exported.span),
-                });
+                })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
                 }
@@ -304,7 +354,36 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(())
     }
 
-    fn parse_item(&mut self) -> Result<Item<'arena, 'src>, ParseError> {
+    /// `@name` attributes preceding a declaration. Unknown names are rejected
+    /// rather than ignored: an attribute that silently does nothing is worse
+    /// than one that does not compile, because the author believes it worked.
+    fn parse_region_policy(&mut self) -> Result<RegionPolicy, AdmittedParseError> {
+        let mut region = RegionPolicy::default();
+        while self.match_kind(|kind| matches!(kind, TokenKind::At)) {
+            let name = self.expect_ident("expected attribute name after `@`")?;
+            match name.name {
+                "pool" => {
+                    if region.pool_strings {
+                        return Err(AdmittedParseError::new(
+                            name.span,
+                            "duplicate `@pool` attribute",
+                        ));
+                    }
+                    region.pool_strings = true;
+                }
+                other => {
+                    return Err(AdmittedParseError::new(
+                        name.span,
+                        format!("unknown region attribute `@{other}`; known attributes: `@pool`"),
+                    ));
+                }
+            }
+        }
+        Ok(region)
+    }
+
+    fn parse_item(&mut self) -> Result<Item<'arena, 'src>, AdmittedParseError> {
+        let region = self.parse_region_policy()?;
         let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
         let is_async = self.match_kind(|kind| matches!(kind, TokenKind::Async));
         let is_generator = self.match_kind(|kind| matches!(kind, TokenKind::Generator));
@@ -357,7 +436,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             return self.parse_class_after_keyword(true).map(Item::Class);
         }
 
-        if self.looks_like_typed_binding() {
+        if self.looks_like_typed_binding()? {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected declaration name")?;
             let type_params = self.parse_type_params()?;
@@ -367,6 +446,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                         ty,
                         name,
                         type_params,
+                        region,
                         declared_pure,
                         is_async,
                         is_generator,
@@ -375,14 +455,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             }
 
             if !type_params.is_empty() {
-                return Err(ParseError::new(
+                return Err(AdmittedParseError::new(
                     name.span,
                     "type parameters require a function declaration",
                 ));
             }
 
-            if declared_pure || is_async || is_generator {
-                return Err(ParseError::new(
+            if declared_pure || is_async || is_generator || !region.is_default() {
+                return Err(AdmittedParseError::new(
                     name.span,
                     "modifiers can only apply to functions",
                 ));
@@ -393,7 +473,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 .map(|decl| Item::Stmt(Stmt::VarDecl(decl)));
         }
 
-        if declared_pure || is_async || is_generator {
+        if declared_pure || is_async || is_generator || !region.is_default() {
             return Err(self.error_here("expected function declaration after modifier"));
         }
         self.parse_statement().map(Item::Stmt)
@@ -402,11 +482,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_extern_after_keyword(
         &mut self,
         declared_pure: bool,
-    ) -> Result<Item<'arena, 'src>, ParseError> {
+    ) -> Result<Item<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         let ty = self.parse_type()?;
         if ty.is_auto() {
-            return Err(ParseError::new(ty.span, "extern type cannot be `auto`"));
+            return Err(AdmittedParseError::new(
+                ty.span,
+                "extern type cannot be `auto`",
+            ));
         }
         let name = self.expect_ident("expected extern function name")?;
         let type_params = self.parse_type_params()?;
@@ -423,13 +506,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             }));
         }
         if declared_pure {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 name.span,
                 "`pure` can only modify extern functions and methods",
             ));
         }
         if !type_params.is_empty() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 name.span,
                 "type parameters require an extern function",
             ));
@@ -444,7 +527,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
     fn parse_extern_class_after_keyword(
         &mut self,
-    ) -> Result<ExternClassDecl<'arena, 'src>, ParseError> {
+    ) -> Result<ExternClassDecl<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         let name = self.expect_ident("expected extern class name")?;
         let type_params = self.parse_type_params()?;
@@ -454,13 +537,30 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             None
         };
         self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{`")?;
-        let mut members = BumpVec::new_in(self.arena);
+        let mut members = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated extern class declaration"));
             }
-            if self.check(|kind| matches!(kind, TokenKind::Init)) {
-                return Err(self.error_here("extern classes cannot declare `init`"));
+            if self.match_kind(|kind| matches!(kind, TokenKind::Init)) {
+                let init_span = self.previous_span();
+                if members
+                    .iter()
+                    .any(|member| matches!(member, ExternClassMember::Constructor(_)))
+                {
+                    return Err(AdmittedParseError::new(
+                        init_span,
+                        "an extern class declares its host constructor at most once",
+                    ));
+                }
+                self.expect(|kind| matches!(kind, TokenKind::LParen), "expected `(` after `init`")?;
+                let params = self.parse_params_after_open()?;
+                let semi = self.expect_semicolon()?;
+                members.push(ExternClassMember::Constructor(ExternConstructorDecl {
+                    params,
+                    span: init_span.merge(semi.span),
+                }))?;
+                continue;
             }
             let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
             let is_async = self.match_kind(|kind| matches!(kind, TokenKind::Async));
@@ -482,23 +582,23 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     type_params: member_type_params,
                     params,
                     span: ty.span.merge(semi.span),
-                }));
+                }))?;
             } else {
                 if declared_pure {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         member_name.span,
                         "`pure` can only modify extern methods",
                     ));
                 }
                 if !member_type_params.is_empty() {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         member_name.span,
                         "type parameters require an extern method",
                     ));
                 }
                 members.push(ExternClassMember::Field(
                     self.parse_field_decl_after_name(ty, member_name)?,
-                ));
+                ))?;
             }
         }
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
@@ -511,7 +611,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_statement(&mut self) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_statement(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
         if self.match_kind(|kind| matches!(kind, TokenKind::Return)) {
             return self.parse_return_after_keyword();
         }
@@ -611,7 +711,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             };
         }
 
-        if self.looks_like_typed_binding() {
+        if self.looks_like_typed_binding()? {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected variable name")?;
             return self.parse_var_decl_after_name(ty, name).map(Stmt::VarDecl);
@@ -622,7 +722,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(Stmt::Expr(expr))
     }
 
-    fn parse_try_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_try_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         self.expect(
             |kind| matches!(kind, TokenKind::LBrace),
@@ -671,7 +771,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             None
         };
         if catch.is_none() && finally.is_none() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 body_span,
                 "`try` requires a `catch` or `finally` clause",
             ));
@@ -691,18 +791,18 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_array_destructure_after_open(
         &mut self,
         start: Span,
-    ) -> Result<Stmt<'arena, 'src>, ParseError> {
-        let mut bindings = BumpVec::new_in(self.arena);
+    ) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
+        let mut bindings = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBracket)) {
             if self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
-                bindings.push(ArrayBinding::Hole(self.previous_span()));
+                bindings.push(ArrayBinding::Hole(self.previous_span()))?;
                 continue;
             }
             if self.match_kind(|kind| matches!(kind, TokenKind::Ellipsis)) {
                 let name = self.expect_ident("expected rest binding name")?;
-                bindings.push(ArrayBinding::Rest(name));
+                bindings.push(ArrayBinding::Rest(name))?;
                 if self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         self.previous_span(),
                         "array rest binding must be last",
                     ));
@@ -711,13 +811,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             }
             bindings.push(ArrayBinding::Name(
                 self.expect_ident("expected array binding name")?,
-            ));
+            ))?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
         }
         if bindings.is_empty() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 start,
                 "array destructuring requires a binding",
             ));
@@ -742,14 +842,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_record_destructure_after_open(
         &mut self,
         start: Span,
-    ) -> Result<Stmt<'arena, 'src>, ParseError> {
-        let mut bindings = BumpVec::new_in(self.arena);
+    ) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
+        let mut bindings = BumpVec::new_in(self.arena, self.admission);
         let mut rest = None;
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.match_kind(|kind| matches!(kind, TokenKind::Ellipsis)) {
                 rest = Some(self.expect_ident("expected record rest binding name")?);
                 if self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         self.previous_span(),
                         "record rest binding must be last",
                     ));
@@ -770,7 +870,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 kind => (
                     Ident {
                         name: property_identifier_name(kind).ok_or_else(|| {
-                            ParseError::new(token.span, "expected record binding key")
+                            AdmittedParseError::new(token.span, "expected record binding key")
                         })?,
                         span: token.span,
                     },
@@ -781,7 +881,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 self.expect_ident("expected record binding name")?
             } else {
                 if quoted {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         token.span,
                         "quoted record keys require a binding name",
                     ));
@@ -792,7 +892,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 key,
                 name,
                 span: key.span.merge(name.span),
-            });
+            })?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -801,7 +901,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             }
         }
         if bindings.is_empty() && rest.is_none() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 start,
                 "record destructuring requires a binding",
             ));
@@ -824,18 +924,20 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_struct_after_keyword(&mut self) -> Result<StructDecl<'arena, 'src>, ParseError> {
+    fn parse_struct_after_keyword(
+        &mut self,
+    ) -> Result<StructDecl<'arena, 'src>, AdmittedParseError> {
         let keyword_span = self.previous_span();
         let name = self.expect_ident("expected struct name")?;
         let type_params = self.parse_type_params()?;
         self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{`")?;
 
-        let mut fields = BumpVec::new_in(self.arena);
+        let mut fields = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated struct declaration"));
             }
-            fields.push(self.parse_field_decl()?);
+            fields.push(self.parse_field_decl()?)?;
         }
 
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
@@ -847,19 +949,19 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_enum_after_keyword(&mut self) -> Result<EnumDecl<'arena, 'src>, ParseError> {
+    fn parse_enum_after_keyword(&mut self) -> Result<EnumDecl<'arena, 'src>, AdmittedParseError> {
         let keyword_span = self.previous_span();
         let name = self.expect_ident("expected enum name")?;
         self.expect(
             |kind| matches!(kind, TokenKind::LBrace),
             "expected `{` after enum name",
         )?;
-        let mut variants = BumpVec::new_in(self.arena);
+        let mut variants = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated enum declaration"));
             }
-            variants.push(self.expect_property_ident("expected enum variant")?);
+            variants.push(self.expect_property_ident("expected enum variant")?)?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -869,7 +971,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             "expected `}` after enum variants",
         )?;
         if variants.is_empty() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 name.span,
                 "an enum requires at least one variant",
             ));
@@ -884,7 +986,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_class_after_keyword(
         &mut self,
         object: bool,
-    ) -> Result<ClassDecl<'arena, 'src>, ParseError> {
+    ) -> Result<ClassDecl<'arena, 'src>, AdmittedParseError> {
         let keyword_span = self.previous_span();
         let name = self.expect_ident(if object {
             "expected object name"
@@ -893,7 +995,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })?;
         let type_params = self.parse_type_params()?;
         if object && !type_params.is_empty() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 name.span,
                 "objects cannot declare type parameters",
             ));
@@ -908,7 +1010,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         };
         self.expect(|kind| matches!(kind, TokenKind::LBrace), "expected `{`")?;
 
-        let mut members = BumpVec::new_in(self.arena);
+        let mut members = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated class declaration"));
@@ -933,10 +1035,11 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     params,
                     body,
                     span: start.merge(body_span),
-                }));
+                }))?;
                 continue;
             }
 
+            let region = self.parse_region_policy()?;
             let declared_pure = self.match_kind(|kind| matches!(kind, TokenKind::Pure));
             let is_async = self.match_kind(|kind| matches!(kind, TokenKind::Async));
             let is_generator = self.match_kind(|kind| matches!(kind, TokenKind::Generator));
@@ -956,32 +1059,33 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     ty,
                     member_name,
                     type_params,
+                    region,
                     declared_pure,
                     is_async,
                     is_generator,
                 )?;
-                members.push(ClassMember::Method(method));
+                members.push(ClassMember::Method(method))?;
             } else {
                 if !type_params.is_empty() {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         member_name.span,
                         "type parameters require a method declaration",
                     ));
                 }
                 if declared_pure || is_async || is_generator {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         member_name.span,
                         "modifiers can only apply to methods",
                     ));
                 }
                 let field = self.parse_field_decl_after_name(ty, member_name)?;
                 if object {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         field.span,
                         "objects declare methods, not fields",
                     ));
                 }
-                members.push(ClassMember::Field(field));
+                members.push(ClassMember::Field(field))?;
             }
         }
 
@@ -996,7 +1100,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_field_decl(&mut self) -> Result<FieldDecl<'arena, 'src>, ParseError> {
+    fn parse_field_decl(&mut self) -> Result<FieldDecl<'arena, 'src>, AdmittedParseError> {
         let ty = self.parse_type()?;
         let name = self.expect_property_ident("expected field name")?;
         self.parse_field_decl_after_name(ty, name)
@@ -1006,7 +1110,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         &mut self,
         ty: TypeRef<'arena, 'src>,
         name: Ident<'src>,
-    ) -> Result<FieldDecl<'arena, 'src>, ParseError> {
+    ) -> Result<FieldDecl<'arena, 'src>, AdmittedParseError> {
         let semi = self.expect_semicolon()?;
         Ok(FieldDecl {
             ty,
@@ -1020,10 +1124,11 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         return_type: TypeRef<'arena, 'src>,
         name: Ident<'src>,
         type_params: &'arena [Ident<'src>],
+        region: RegionPolicy,
         declared_pure: bool,
         is_async: bool,
         is_generator: bool,
-    ) -> Result<FunctionDecl<'arena, 'src>, ParseError> {
+    ) -> Result<FunctionDecl<'arena, 'src>, AdmittedParseError> {
         let params = self.parse_params_after_open()?;
         self.expect(
             |kind| matches!(kind, TokenKind::LBrace),
@@ -1031,6 +1136,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         )?;
         let (body, body_span) = self.parse_block_after_open()?;
         Ok(FunctionDecl {
+            region,
             declared_pure,
             is_async,
             is_generator,
@@ -1047,7 +1153,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         &mut self,
         ty: TypeRef<'arena, 'src>,
         name: Ident<'src>,
-    ) -> Result<VarDecl<'arena, 'src>, ParseError> {
+    ) -> Result<VarDecl<'arena, 'src>, AdmittedParseError> {
         let initializer = if self.match_kind(|kind| matches!(kind, TokenKind::Eq)) {
             Some(self.parse_expression()?)
         } else {
@@ -1062,7 +1168,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_return_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_return_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         if self.check(|kind| matches!(kind, TokenKind::Semicolon)) {
             let semi = self.expect_semicolon()?;
@@ -1080,7 +1186,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_if_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_if_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
@@ -1091,9 +1197,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::RParen),
             "expected `)` after condition",
         )?;
-        let then_branch = self.arena.alloc(self.parse_statement()?);
+        let then_branch = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
         let else_branch = if self.match_kind(|kind| matches!(kind, TokenKind::Else)) {
-            Some(&*self.arena.alloc(self.parse_statement()?))
+            Some(&*admission::alloc(
+                self.arena,
+                self.admission,
+                self.parse_statement()?,
+            )?)
         } else {
             None
         };
@@ -1106,7 +1216,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_while_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_while_after_keyword(&mut self) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
@@ -1117,7 +1227,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::RParen),
             "expected `)` after condition",
         )?;
-        let body = self.arena.alloc(self.parse_statement()?);
+        let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
         Ok(Stmt::While {
             condition,
             span: start.merge(body.span()),
@@ -1130,7 +1240,10 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             && self.check_next(|kind| matches!(kind, TokenKind::For))
     }
 
-    fn parse_for_after_keyword(&mut self, inline: bool) -> Result<Stmt<'arena, 'src>, ParseError> {
+    fn parse_for_after_keyword(
+        &mut self,
+        inline: bool,
+    ) -> Result<Stmt<'arena, 'src>, AdmittedParseError> {
         let start = self.previous_span();
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
@@ -1139,12 +1252,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
         let initializer = if self.match_kind(|kind| matches!(kind, TokenKind::Semicolon)) {
             None
-        } else if self.looks_like_typed_binding() {
+        } else if self.looks_like_typed_binding()? {
             let ty = self.parse_type()?;
             let name = self.expect_ident("expected variable name")?;
             if self.match_kind(|kind| matches!(kind, TokenKind::In)) {
                 if inline {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         start,
                         "`inline for` requires `for (T name of constList)`",
                     ));
@@ -1154,7 +1267,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     |kind| matches!(kind, TokenKind::RParen),
                     "expected `)` after for-in object",
                 )?;
-                let body = self.arena.alloc(self.parse_statement()?);
+                let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
                 return Ok(Stmt::ForIn {
                     key_type: ty,
                     key: name,
@@ -1169,7 +1282,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     |kind| matches!(kind, TokenKind::RParen),
                     "expected `)` after for-of iterable",
                 )?;
-                let body = self.arena.alloc(self.parse_statement()?);
+                let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
                 return Ok(Stmt::ForOf {
                     element_type: ty,
                     element: name,
@@ -1205,9 +1318,9 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::RParen),
             "expected `)` after for clauses",
         )?;
-        let body = self.arena.alloc(self.parse_statement()?);
+        let body = admission::alloc(self.arena, self.admission, self.parse_statement()?)?;
         if inline {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 start,
                 "`inline for` requires `for (T name of constList)`",
             ));
@@ -1223,28 +1336,28 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
     fn parse_block_after_open(
         &mut self,
-    ) -> Result<(&'arena [Stmt<'arena, 'src>], Span), ParseError> {
+    ) -> Result<(&'arena [Stmt<'arena, 'src>], Span), AdmittedParseError> {
         let start = self.previous_span();
-        let mut statements = BumpVec::new_in(self.arena);
+        let mut statements = BumpVec::new_in(self.arena, self.admission);
 
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.is_at_end() {
                 return Err(self.error_here("unterminated block"));
             }
-            statements.push(self.parse_statement()?);
+            statements.push(self.parse_statement()?)?;
         }
 
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
         Ok((statements.into_bump_slice(), start.merge(close.span)))
     }
 
-    fn parse_type_params(&mut self) -> Result<&'arena [Ident<'src>], ParseError> {
+    fn parse_type_params(&mut self) -> Result<&'arena [Ident<'src>], AdmittedParseError> {
         if !self.match_kind(|kind| matches!(kind, TokenKind::Less)) {
             return Ok(&[]);
         }
-        let mut params = BumpVec::new_in(self.arena);
+        let mut params = BumpVec::new_in(self.arena, self.admission);
         loop {
-            params.push(self.expect_ident("expected type parameter name")?);
+            params.push(self.expect_ident("expected type parameter name")?)?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -1256,13 +1369,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(params.into_bump_slice())
     }
 
-    fn parse_type_args(&mut self) -> Result<&'arena [TypeRef<'arena, 'src>], ParseError> {
+    fn parse_type_args(&mut self) -> Result<&'arena [TypeRef<'arena, 'src>], AdmittedParseError> {
         if !self.match_kind(|kind| matches!(kind, TokenKind::Less)) {
             return Ok(&[]);
         }
-        let mut args = BumpVec::new_in(self.arena);
+        let mut args = BumpVec::new_in(self.arena, self.admission);
         loop {
-            args.push(self.parse_type()?);
+            args.push(self.parse_type()?)?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -1274,16 +1387,16 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(args.into_bump_slice())
     }
 
-    fn parse_type(&mut self) -> Result<TypeRef<'arena, 'src>, ParseError> {
+    fn parse_type(&mut self) -> Result<TypeRef<'arena, 'src>, AdmittedParseError> {
         let first = self.parse_postfix_type()?;
         if !self.match_kind(|kind| matches!(kind, TokenKind::Pipe)) {
             return Ok(first);
         }
 
-        let mut members = BumpVec::new_in(self.arena);
-        members.push(first);
+        let mut members = BumpVec::new_in(self.arena, self.admission);
+        members.push(first)?;
         loop {
-            members.push(self.parse_postfix_type()?);
+            members.push(self.parse_postfix_type()?)?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Pipe)) {
                 break;
             }
@@ -1299,7 +1412,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         })
     }
 
-    fn parse_postfix_type(&mut self) -> Result<TypeRef<'arena, 'src>, ParseError> {
+    fn parse_postfix_type(&mut self) -> Result<TypeRef<'arena, 'src>, AdmittedParseError> {
         let token = self
             .advance()
             .ok_or_else(|| self.error_here("expected type"))?;
@@ -1337,10 +1450,10 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     |kind| matches!(kind, TokenKind::LParen),
                     "expected `(` after `func`",
                 )?;
-                let mut params = BumpVec::new_in(self.arena);
+                let mut params = BumpVec::new_in(self.arena, self.admission);
                 if !self.check(|kind| matches!(kind, TokenKind::RParen)) {
                     loop {
-                        params.push(self.parse_type()?);
+                        params.push(self.parse_parameter_type(false)?)?;
                         if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                             break;
                         }
@@ -1355,7 +1468,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     "expected `->` before function return type",
                 )?;
                 let return_type = self.parse_type()?;
-                let return_type = self.arena.alloc(return_type);
+                let return_type = admission::alloc(self.arena, self.admission, return_type)?;
                 TypeRef {
                     kind: TypeKind::Function {
                         params: params.into_bump_slice(),
@@ -1386,7 +1499,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 }
             }
             TokenKind::From => TypeRef::named("from", token.span),
-            _ => return Err(ParseError::new(token.span, "expected type")),
+            _ => return Err(AdmittedParseError::new(token.span, "expected type")),
         };
 
         loop {
@@ -1394,14 +1507,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 let open = self.previous_span();
                 let close =
                     self.expect(|kind| matches!(kind, TokenKind::RBracket), "expected `]`")?;
-                let element = self.arena.alloc(ty);
+                let element = admission::alloc(self.arena, self.admission, ty)?;
                 ty = TypeRef {
                     kind: TypeKind::Array(element),
                     span: open.merge(close.span).merge(element.span),
                 };
             } else if self.match_kind(|kind| matches!(kind, TokenKind::Question)) {
                 let question = self.previous_span();
-                let inner = self.arena.alloc(ty);
+                let inner = admission::alloc(self.arena, self.admission, ty)?;
                 ty = TypeRef {
                     kind: TypeKind::Nullable(inner),
                     span: inner.span.merge(question),
@@ -1414,11 +1527,11 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(ty)
     }
 
-    fn parse_expression(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
+    fn parse_expression(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         self.parse_assignment_expression()
     }
 
-    fn parse_assignment_expression(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
+    fn parse_assignment_expression(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         let target = self.parse_binary_expression(0)?;
         let op = match self.peek_kind() {
             Some(TokenKind::Eq) => AssignmentOp::Assign,
@@ -1438,20 +1551,20 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         };
         self.advance();
         let value = self.parse_assignment_expression()?;
-        let target = self.arena.alloc(target);
-        let value = self.arena.alloc(value);
-        Ok(Expr::Assignment {
+        let target = admission::alloc(self.arena, self.admission, target)?;
+        let value = admission::alloc(self.arena, self.admission, value)?;
+        Ok(self.source.expression(ExprKind::Assignment {
             op,
             target,
             value,
             span: target.span().merge(value.span()),
-        })
+        }))
     }
 
     fn parse_binary_expression(
         &mut self,
         min_precedence: u8,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         let mut lhs = self.parse_unary_expression()?;
 
         loop {
@@ -1462,12 +1575,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 }
                 self.advance();
                 let target = self.parse_type()?;
-                let value = self.arena.alloc(lhs);
-                lhs = Expr::TypeCheck {
+                let value = admission::alloc(self.arena, self.admission, lhs)?;
+                lhs = self.source.expression(ExprKind::TypeCheck {
                     value,
                     target,
                     span: value.span().merge(target.span),
-                };
+                });
                 continue;
             }
 
@@ -1480,28 +1593,28 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
             self.advance();
             let rhs = self.parse_binary_expression(precedence + 1)?;
-            let lhs_ref = self.arena.alloc(lhs);
-            let rhs_ref = self.arena.alloc(rhs);
-            lhs = Expr::Binary {
+            let lhs_ref = admission::alloc(self.arena, self.admission, lhs)?;
+            let rhs_ref = admission::alloc(self.arena, self.admission, rhs)?;
+            lhs = self.source.expression(ExprKind::Binary {
                 op,
                 lhs: lhs_ref,
                 rhs: rhs_ref,
                 span: lhs_ref.span().merge(rhs_ref.span()),
-            };
+            });
         }
 
         Ok(lhs)
     }
 
-    fn parse_unary_expression(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
+    fn parse_unary_expression(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         if self.match_kind(|kind| matches!(kind, TokenKind::Await)) {
             let start = self.previous_span();
             let task = self.parse_unary_expression()?;
-            let task = self.arena.alloc(task);
-            return Ok(Expr::Await {
+            let task = admission::alloc(self.arena, self.admission, task)?;
+            return Ok(self.source.expression(ExprKind::Await {
                 task,
                 span: start.merge(task.span()),
-            });
+            }));
         }
 
         let update = if self.match_kind(|kind| matches!(kind, TokenKind::PlusPlus)) {
@@ -1514,41 +1627,41 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         if let Some(op) = update {
             let op_span = self.previous_span();
             let target = self.parse_unary_expression()?;
-            let target = self.arena.alloc(target);
-            return Ok(Expr::Update {
+            let target = admission::alloc(self.arena, self.admission, target)?;
+            return Ok(self.source.expression(ExprKind::Update {
                 op,
                 target,
                 prefix: true,
                 span: op_span.merge(target.span()),
-            });
+            }));
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Bang)) {
             let op_span = self.previous_span();
             let expr = self.parse_unary_expression()?;
-            let expr_ref = self.arena.alloc(expr);
-            return Ok(Expr::Unary {
+            let expr_ref = admission::alloc(self.arena, self.admission, expr)?;
+            return Ok(self.source.expression(ExprKind::Unary {
                 op: UnaryOp::Not,
                 expr: expr_ref,
                 span: op_span.merge(expr_ref.span()),
-            });
+            }));
         }
 
         if self.match_kind(|kind| matches!(kind, TokenKind::Minus)) {
             let op_span = self.previous_span();
             let expr = self.parse_unary_expression()?;
-            let expr_ref = self.arena.alloc(expr);
-            return Ok(Expr::Unary {
+            let expr_ref = admission::alloc(self.arena, self.admission, expr)?;
+            return Ok(self.source.expression(ExprKind::Unary {
                 op: UnaryOp::Neg,
                 expr: expr_ref,
                 span: op_span.merge(expr_ref.span()),
-            });
+            }));
         }
 
         self.parse_postfix_expression()
     }
 
-    fn parse_postfix_expression(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
+    fn parse_postfix_expression(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         let mut expr = self.parse_primary_expression()?;
 
         loop {
@@ -1559,44 +1672,44 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                         |kind| matches!(kind, TokenKind::RBracket),
                         "expected `]` after optional index",
                     )?;
-                    let object = self.arena.alloc(expr);
-                    let index = self.arena.alloc(index);
-                    expr = Expr::OptionalIndex {
+                    let object = admission::alloc(self.arena, self.admission, expr)?;
+                    let index = admission::alloc(self.arena, self.admission, index)?;
+                    expr = self.source.expression(ExprKind::OptionalIndex {
                         object,
                         index,
                         span: object.span().merge(close.span),
-                    };
+                    });
                 } else {
                     let property =
                         self.expect_property_ident("expected property name after `?.`")?;
-                    let object = self.arena.alloc(expr);
-                    expr = Expr::OptionalMember {
+                    let object = admission::alloc(self.arena, self.admission, expr)?;
+                    expr = self.source.expression(ExprKind::OptionalMember {
                         object,
                         property,
                         span: object.span().merge(property.span),
-                    };
+                    });
                 }
                 continue;
             }
             if self.match_kind(|kind| matches!(kind, TokenKind::Dot)) {
                 let property = self.expect_property_ident("expected property name after `.`")?;
-                let object = self.arena.alloc(expr);
-                expr = Expr::Member {
+                let object = admission::alloc(self.arena, self.admission, expr)?;
+                expr = self.source.expression(ExprKind::Member {
                     object,
                     property,
                     span: object.span().merge(property.span),
-                };
+                });
                 continue;
             }
 
             if self.match_kind(|kind| matches!(kind, TokenKind::LParen)) {
                 let (args, close_span) = self.parse_args_after_open()?;
-                let callee = self.arena.alloc(expr);
-                expr = Expr::Call {
+                let callee = admission::alloc(self.arena, self.admission, expr)?;
+                expr = self.source.expression(ExprKind::Call {
                     callee,
                     args,
                     span: callee.span().merge(close_span),
-                };
+                });
                 continue;
             }
 
@@ -1606,13 +1719,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     |kind| matches!(kind, TokenKind::RBracket),
                     "expected `]` after index",
                 )?;
-                let object = self.arena.alloc(expr);
-                let index = self.arena.alloc(index);
-                expr = Expr::Index {
+                let object = admission::alloc(self.arena, self.admission, expr)?;
+                let index = admission::alloc(self.arena, self.admission, index)?;
+                expr = self.source.expression(ExprKind::Index {
                     object,
                     index,
                     span: object.span().merge(close.span),
-                };
+                });
                 continue;
             }
 
@@ -1624,13 +1737,13 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 None
             };
             if let Some(op) = update {
-                let target = self.arena.alloc(expr);
-                expr = Expr::Update {
+                let target = admission::alloc(self.arena, self.admission, expr)?;
+                expr = self.source.expression(ExprKind::Update {
                     op,
                     target,
                     prefix: false,
                     span: target.span().merge(self.previous_span()),
-                };
+                });
                 continue;
             }
 
@@ -1640,8 +1753,8 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok(expr)
     }
 
-    fn parse_primary_expression(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
-        if self.check(|kind| matches!(kind, TokenKind::LParen)) && self.is_arrow_function_start() {
+    fn parse_primary_expression(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
+        if self.check(|kind| matches!(kind, TokenKind::LParen)) && self.is_arrow_function_start()? {
             return self.parse_arrow_function();
         }
 
@@ -1649,13 +1762,22 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             .advance()
             .ok_or_else(|| self.error_here("expected expression"))?;
         match token.kind {
-            TokenKind::IntLiteral(value) => Ok(Expr::Int(value, token.span)),
-            TokenKind::FloatLiteral(value) => Ok(Expr::Float(value, token.span)),
-            TokenKind::StringLiteral(raw) => Ok(Expr::String(strip_quotes(raw), token.span)),
-            TokenKind::TemplateLiteral(raw) => self.parse_template_literal(raw, token.span),
-            TokenKind::True => Ok(Expr::Bool(true, token.span)),
-            TokenKind::False => Ok(Expr::Bool(false, token.span)),
-            TokenKind::Null => Ok(Expr::Null(token.span)),
+            TokenKind::IntLiteral(value) => {
+                Ok(self.source.expression(ExprKind::Int(value, token.span)))
+            }
+            TokenKind::FloatLiteral(value) => {
+                Ok(self.source.expression(ExprKind::Float(value, token.span)))
+            }
+            TokenKind::StringLiteral(raw) => Ok(self
+                .source
+                .expression(ExprKind::String(strip_quotes(raw), token.span))),
+            TokenKind::TemplateLiteral(id) => {
+                let (raw, expressions) = self.tokens.template(id);
+                self.parse_template_literal(raw, expressions, token.span)
+            }
+            TokenKind::True => Ok(self.source.expression(ExprKind::Bool(true, token.span))),
+            TokenKind::False => Ok(self.source.expression(ExprKind::Bool(false, token.span))),
+            TokenKind::Null => Ok(self.source.expression(ExprKind::Null(token.span))),
             TokenKind::If => self.parse_if_expression(token.span),
             TokenKind::Match => self.parse_match_expression(token.span),
             TokenKind::Record => self.parse_record_literal(token.span),
@@ -1668,7 +1790,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     .advance()
                     .ok_or_else(|| self.error_here("expected module path in dynamic `import`"))?;
                 let TokenKind::StringLiteral(raw) = path.kind else {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         path.span,
                         "dynamic `import` requires a static string module path",
                     ));
@@ -1677,10 +1799,10 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     |kind| matches!(kind, TokenKind::RParen),
                     "expected `)` after dynamic module path",
                 )?;
-                Ok(Expr::DynamicImport {
+                Ok(self.source.expression(ExprKind::DynamicImport {
                     source: strip_quotes(raw),
                     span: token.span.merge(close.span),
-                })
+                }))
             }
             TokenKind::New => {
                 let class = self.expect_ident("expected class name after `new`")?;
@@ -1690,12 +1812,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     "expected `(` after class name",
                 )?;
                 let (args, close_span) = self.parse_args_after_open()?;
-                Ok(Expr::New {
+                Ok(self.source.expression(ExprKind::New {
                     class,
                     type_args,
                     args,
                     span: token.span.merge(close_span),
-                })
+                }))
             }
             TokenKind::Ident(name) => {
                 let ident = Ident {
@@ -1705,14 +1827,20 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
                     if name == "object" {
                         let literal = self.parse_record_literal_after_open(token.span)?;
-                        let Expr::RecordLiteral { entries, span } = literal else {
+                        let Expr {
+                            kind: ExprKind::RecordLiteral { entries, span },
+                            ..
+                        } = literal
+                        else {
                             unreachable!();
                         };
-                        return Ok(Expr::ObjectLiteral { entries, span });
+                        return Ok(self
+                            .source
+                            .expression(ExprKind::ObjectLiteral { entries, span }));
                     }
                     return self.parse_struct_literal_after_open(ident);
                 }
-                Ok(Expr::Ident(ident))
+                Ok(self.source.expression(ExprKind::Ident(ident)))
             }
             TokenKind::From => {
                 let ident = Ident {
@@ -1722,7 +1850,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 if self.match_kind(|kind| matches!(kind, TokenKind::LBrace)) {
                     return self.parse_struct_literal_after_open(ident);
                 }
-                Ok(Expr::Ident(ident))
+                Ok(self.source.expression(ExprKind::Ident(ident)))
             }
             TokenKind::LParen => {
                 let expr = self.parse_expression()?;
@@ -1730,14 +1858,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 Ok(expr)
             }
             TokenKind::LBracket => self.parse_array_literal_after_open(token.span),
-            _ => Err(ParseError::new(token.span, "expected expression")),
+            _ => Err(AdmittedParseError::new(token.span, "expected expression")),
         }
     }
 
     fn parse_if_expression(
         &mut self,
         keyword_span: Span,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
             "expected `(` after expression `if`",
@@ -1769,18 +1897,18 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::RBrace),
             "expected `}` after expression-if else value",
         )?;
-        Ok(Expr::If {
-            condition: self.arena.alloc(condition),
-            then_value: self.arena.alloc(then_value),
-            else_value: self.arena.alloc(else_value),
+        Ok(self.source.expression(ExprKind::If {
+            condition: admission::alloc(self.arena, self.admission, condition)?,
+            then_value: admission::alloc(self.arena, self.admission, then_value)?,
+            else_value: admission::alloc(self.arena, self.admission, else_value)?,
             span: keyword_span.merge(close.span),
-        })
+        }))
     }
 
     fn parse_match_expression(
         &mut self,
         keyword_span: Span,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         self.expect(
             |kind| matches!(kind, TokenKind::LParen),
             "expected `(` after `match`",
@@ -1794,7 +1922,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::LBrace),
             "expected `{` before match arms",
         )?;
-        let mut arms = BumpVec::new_in(self.arena);
+        let mut arms = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             let pattern_token = self
                 .advance()
@@ -1825,23 +1953,26 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 TokenKind::False => MatchPattern::Bool(false, pattern_token.span),
                 TokenKind::Minus => {
                     let literal = self.advance().ok_or_else(|| {
-                        ParseError::new(pattern_token.span, "expected integer after `-`")
+                        AdmittedParseError::new(pattern_token.span, "expected integer after `-`")
                     })?;
                     let TokenKind::IntLiteral(value) = literal.kind else {
-                        return Err(ParseError::new(
+                        return Err(AdmittedParseError::new(
                             literal.span,
                             "only integer literals may be negative match patterns",
                         ));
                     };
                     MatchPattern::Int(
                         value.checked_neg().ok_or_else(|| {
-                            ParseError::new(literal.span, "negative match pattern is out of range")
+                            AdmittedParseError::new(
+                                literal.span,
+                                "negative match pattern is out of range",
+                            )
                         })?,
                         pattern_token.span.merge(literal.span),
                     )
                 }
                 _ => {
-                    return Err(ParseError::new(
+                    return Err(AdmittedParseError::new(
                         pattern_token.span,
                         "expected enum, int, string, bool, or `_` match pattern",
                     ));
@@ -1857,7 +1988,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 pattern,
                 value,
                 span,
-            });
+            })?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -1867,22 +1998,22 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             "expected `}` after match arms",
         )?;
         if arms.is_empty() {
-            return Err(ParseError::new(
+            return Err(AdmittedParseError::new(
                 keyword_span.merge(close.span),
                 "a match expression requires at least one arm",
             ));
         }
-        Ok(Expr::Match {
-            value: self.arena.alloc(value),
+        Ok(self.source.expression(ExprKind::Match {
+            value: admission::alloc(self.arena, self.admission, value)?,
             arms: arms.into_bump_slice(),
             span: keyword_span.merge(close.span),
-        })
+        }))
     }
 
     fn parse_record_literal(
         &mut self,
         keyword_span: Span,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         self.expect(
             |kind| matches!(kind, TokenKind::LBrace),
             "expected `{` after `record`",
@@ -1893,8 +2024,8 @@ impl<'arena, 'src> Parser<'arena, 'src> {
     fn parse_record_literal_after_open(
         &mut self,
         keyword_span: Span,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
-        let mut entries = BumpVec::new_in(self.arena);
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
+        let mut entries = BumpVec::new_in(self.arena, self.admission);
         while !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             if self.match_kind(|kind| matches!(kind, TokenKind::Ellipsis)) {
                 let spread = self.previous_span();
@@ -1902,7 +2033,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 entries.push(RecordElement::Spread {
                     span: spread.merge(value.span()),
                     value,
-                });
+                })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
                 }
@@ -1920,8 +2051,9 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     span: token.span,
                 },
                 kind => Ident {
-                    name: property_identifier_name(kind)
-                        .ok_or_else(|| ParseError::new(token.span, "expected record key"))?,
+                    name: property_identifier_name(kind).ok_or_else(|| {
+                        AdmittedParseError::new(token.span, "expected record key")
+                    })?,
                     span: token.span,
                 },
             };
@@ -1934,7 +2066,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 key,
                 span: key.span.merge(value.span()),
                 value,
-            }));
+            }))?;
             if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                 break;
             }
@@ -1946,83 +2078,62 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             |kind| matches!(kind, TokenKind::RBrace),
             "expected `}` after record entries",
         )?;
-        Ok(Expr::RecordLiteral {
+        Ok(self.source.expression(ExprKind::RecordLiteral {
             entries: entries.into_bump_slice(),
             span: keyword_span.merge(close.span),
-        })
+        }))
     }
 
     fn parse_template_literal(
-        &mut self,
+        &self,
         raw: &'src str,
+        expressions: &[Span],
         span: Span,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
-        let content = raw
-            .strip_prefix('`')
-            .and_then(|value| value.strip_suffix('`'))
-            .unwrap_or(raw);
-        let content_offset = span.start + usize::from(raw.starts_with('`'));
-        let bytes = content.as_bytes();
-        let mut parts = BumpVec::new_in(self.arena);
-        let mut segment_start = 0usize;
-        let mut cursor = 0usize;
-
-        while cursor + 1 < bytes.len() {
-            if bytes[cursor] == b'\\' {
-                cursor = (cursor + 2).min(bytes.len());
-                continue;
-            }
-            if bytes[cursor] != b'$' || bytes[cursor + 1] != b'{' {
-                cursor += 1;
-                continue;
-            }
-
-            if segment_start < cursor {
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
+        let mut parts = BumpVec::new_in(self.arena, self.admission);
+        let mut segment_start = 1;
+        for expression in expressions {
+            let segment_end = expression.start - 2;
+            if segment_start < segment_end {
                 parts.push(TemplatePart::String(
-                    &content[segment_start..cursor],
-                    Span::new(content_offset + segment_start, content_offset + cursor),
-                ));
+                    &raw[segment_start..segment_end],
+                    Span::new(span.start + segment_start, span.start + segment_end),
+                ))?;
             }
-
-            let expression_start = cursor + 2;
-            let expression_end = find_template_expression_end(content, expression_start)
-                .ok_or_else(|| ParseError::new(span, "unterminated template interpolation"))?;
-            let expression_source = &content[expression_start..expression_end];
-            let mut parser = Parser::new_fragment(
+            let mut parser = ParserCore::new_fragment(
                 self.arena,
-                expression_source,
-                content_offset + expression_start,
+                &raw[expression.start..expression.end],
+                span.start + expression.start,
+                self.source,
+                self.admission,
             )?;
-            let expression = parser.parse_expression()?;
+            let value = parser.parse_expression()?;
             if !parser.is_at_end() {
                 return Err(parser.error_here("unexpected token in template interpolation"));
             }
-            parts.push(TemplatePart::Expr(expression));
-            cursor = expression_end + 1;
-            segment_start = cursor;
+            parts.push(TemplatePart::Expr(value))?;
+            segment_start = expression.end + 1;
         }
 
-        if segment_start < content.len() {
+        let content_end = raw.len() - 1;
+        if segment_start < content_end {
             parts.push(TemplatePart::String(
-                &content[segment_start..],
-                Span::new(
-                    content_offset + segment_start,
-                    content_offset + content.len(),
-                ),
-            ));
+                &raw[segment_start..content_end],
+                Span::new(span.start + segment_start, span.start + content_end),
+            ))?;
         }
 
-        Ok(Expr::Template {
+        Ok(self.source.expression(ExprKind::Template {
             parts: parts.into_bump_slice(),
             span,
-        })
+        }))
     }
 
     fn parse_array_literal_after_open(
         &mut self,
         open: Span,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
-        let mut elements = BumpVec::new_in(self.arena);
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
+        let mut elements = BumpVec::new_in(self.arena, self.admission);
 
         if !self.check(|kind| matches!(kind, TokenKind::RBracket)) {
             loop {
@@ -2032,9 +2143,9 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                     elements.push(ArrayElement::Spread {
                         span: spread.merge(value.span()),
                         value,
-                    });
+                    })?;
                 } else {
-                    elements.push(ArrayElement::Value(self.parse_expression()?));
+                    elements.push(ArrayElement::Value(self.parse_expression()?))?;
                 }
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
@@ -2046,22 +2157,22 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         }
 
         let close = self.expect(|kind| matches!(kind, TokenKind::RBracket), "expected `]`")?;
-        Ok(Expr::ArrayLiteral {
+        Ok(self.source.expression(ExprKind::ArrayLiteral {
             elements: elements.into_bump_slice(),
             span: open.merge(close.span),
-        })
+        }))
     }
 
     fn parse_struct_literal_after_open(
         &mut self,
         name: Ident<'src>,
-    ) -> Result<Expr<'arena, 'src>, ParseError> {
+    ) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         let open = self.previous_span();
-        let mut values = BumpVec::new_in(self.arena);
+        let mut values = BumpVec::new_in(self.arena, self.admission);
 
         if !self.check(|kind| matches!(kind, TokenKind::RBrace)) {
             loop {
-                values.push(self.parse_expression()?);
+                values.push(self.parse_expression()?)?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
                 }
@@ -2072,14 +2183,14 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         }
 
         let close = self.expect(|kind| matches!(kind, TokenKind::RBrace), "expected `}`")?;
-        Ok(Expr::StructLiteral {
+        Ok(self.source.expression(ExprKind::StructLiteral {
             name,
             values: values.into_bump_slice(),
             span: name.span.merge(open).merge(close.span),
-        })
+        }))
     }
 
-    fn parse_arrow_function(&mut self) -> Result<Expr<'arena, 'src>, ParseError> {
+    fn parse_arrow_function(&mut self) -> Result<Expr<'arena, 'src>, AdmittedParseError> {
         let open = self.expect(|kind| matches!(kind, TokenKind::LParen), "expected `(`")?;
         let params = self.parse_params_after_open()?;
         self.expect(|kind| matches!(kind, TokenKind::FatArrow), "expected `=>`")?;
@@ -2090,44 +2201,51 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         } else {
             let expr = self.parse_expression()?;
             let span = expr.span();
-            (ArrowBody::Expr(self.arena.alloc(expr)), span)
+            (
+                ArrowBody::Expr(admission::alloc(self.arena, self.admission, expr)?),
+                span,
+            )
         };
 
-        Ok(Expr::ArrowFunction {
+        Ok(self.source.expression(ExprKind::ArrowFunction {
             params,
             body,
             span: open.span.merge(body_span),
-        })
+        }))
     }
 
-    fn parse_params_after_open(&mut self) -> Result<&'arena [Param<'arena, 'src>], ParseError> {
-        let mut params = BumpVec::new_in(self.arena);
+    fn parse_params_after_open(
+        &mut self,
+    ) -> Result<&'arena [Param<'arena, 'src>], AdmittedParseError> {
+        let mut params = BumpVec::new_in(self.arena, self.admission);
         let mut saw_default = false;
         if !self.check(|kind| matches!(kind, TokenKind::RParen)) {
             loop {
-                let ty = self.parse_type()?;
+                let parameter = self.parse_parameter_type(true)?;
                 let name = self.expect_ident("expected parameter name")?;
                 let default = if self.match_kind(|kind| matches!(kind, TokenKind::Eq)) {
                     saw_default = true;
                     Some(self.parse_expression()?)
                 } else {
                     if saw_default {
-                        return Err(ParseError::new(
+                        return Err(AdmittedParseError::new(
                             name.span,
                             "required parameters cannot follow defaulted parameters",
                         ));
                     }
                     None
                 };
-                let span = default.as_ref().map_or(ty.span.merge(name.span), |value| {
-                    ty.span.merge(value.span())
-                });
+                let span = default
+                    .as_ref()
+                    .map_or(parameter.span.merge(name.span), |value| {
+                        parameter.span.merge(value.span())
+                    });
                 params.push(Param {
-                    ty,
+                    parameter,
                     name,
                     default,
                     span,
-                });
+                })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
                 }
@@ -2139,11 +2257,28 @@ impl<'arena, 'src> Parser<'arena, 'src> {
 
     fn parse_args_after_open(
         &mut self,
-    ) -> Result<(&'arena [Expr<'arena, 'src>], Span), ParseError> {
-        let mut args = BumpVec::new_in(self.arena);
+    ) -> Result<(&'arena [Argument<'arena, 'src>], Span), AdmittedParseError> {
+        let mut args = BumpVec::new_in(self.arena, self.admission);
         if !self.check(|kind| matches!(kind, TokenKind::RParen)) {
             loop {
-                args.push(self.parse_expression()?);
+                let modifier = if matches!(self.peek_kind(), Some(TokenKind::Ident("ref")))
+                    && self.check_next(|kind| matches!(kind, TokenKind::Ident(_) | TokenKind::From))
+                {
+                    Some(self.advance().expect("checked reference modifier").span)
+                } else {
+                    None
+                };
+                let expression = self.parse_expression()?;
+                let span = modifier.map_or(expression.span(), |span| span.merge(expression.span()));
+                args.push(Argument {
+                    expression,
+                    passing: if modifier.is_some() {
+                        ParameterPassing::MutableReference
+                    } else {
+                        ParameterPassing::Value
+                    },
+                    span,
+                })?;
                 if !self.match_kind(|kind| matches!(kind, TokenKind::Comma)) {
                     break;
                 }
@@ -2156,6 +2291,52 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Ok((args.into_bump_slice(), close.span))
     }
 
+    // `ref` remains an identifier. A declaration needs a complete following
+    // type/name pair; a function type needs a complete following type. The
+    // lookahead borrows tokens and never constructs a speculative syntax tree.
+    fn reference_parameter_at(
+        &self,
+        start: usize,
+        named: bool,
+    ) -> Result<bool, AdmittedParseError> {
+        if !matches!(self.lookahead_kind(start)?, Some(TokenKind::Ident("ref"))) {
+            return Ok(false);
+        }
+        let Some(end) = self.scan_type_end(start + 1)? else {
+            return Ok(false);
+        };
+        Ok(if named {
+            matches!(
+                self.lookahead_kind(end)?,
+                Some(TokenKind::Ident(_) | TokenKind::From)
+            )
+        } else {
+            matches!(
+                self.lookahead_kind(end)?,
+                Some(TokenKind::Comma | TokenKind::RParen)
+            )
+        })
+    }
+
+    fn parse_parameter_type(
+        &mut self,
+        named: bool,
+    ) -> Result<ParameterType<'arena, 'src>, AdmittedParseError> {
+        let modifier = self
+            .reference_parameter_at(self.cursor, named)?
+            .then(|| self.advance().expect("checked reference parameter").span);
+        let ty = self.parse_type()?;
+        Ok(ParameterType {
+            ty,
+            passing: if modifier.is_some() {
+                ParameterPassing::MutableReference
+            } else {
+                ParameterPassing::Value
+            },
+            span: modifier.map_or(ty.span, |span| span.merge(ty.span)),
+        })
+    }
+
     fn looks_like_object_declaration(&self) -> bool {
         matches!(self.peek_kind(), Some(TokenKind::Ident("object")))
             && self.check_next(|kind| matches!(kind, TokenKind::Ident(_) | TokenKind::From))
@@ -2165,19 +2346,26 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             )
     }
 
-    fn looks_like_typed_binding(&self) -> bool {
-        let Some(type_end) = self.scan_type_end(self.cursor) else {
-            return false;
-        };
-        matches!(
-            self.tokens.get(type_end).map(|token| &token.kind),
-            Some(TokenKind::Ident(_) | TokenKind::From)
-        )
+    fn lookahead_kind(&self, index: usize) -> Result<Option<&TokenKind<'src>>, AdmittedParseError> {
+        if let Some(admission) = self.admission {
+            admission.work(1)?;
+        }
+        Ok(self.tokens.get(index).map(|token| &token.kind))
     }
 
-    fn scan_type_end(&self, start: usize) -> Option<usize> {
+    fn looks_like_typed_binding(&self) -> Result<bool, AdmittedParseError> {
+        let Some(type_end) = self.scan_type_end(self.cursor)? else {
+            return Ok(false);
+        };
+        Ok(matches!(
+            self.lookahead_kind(type_end)?,
+            Some(TokenKind::Ident(_) | TokenKind::From)
+        ))
+    }
+
+    fn scan_type_end(&self, start: usize) -> Result<Option<usize>, AdmittedParseError> {
         let mut index = start;
-        match self.tokens.get(index).map(|token| &token.kind) {
+        match self.lookahead_kind(index)? {
             Some(
                 TokenKind::Int
                 | TokenKind::Float
@@ -2189,113 +2377,119 @@ impl<'arena, 'src> Parser<'arena, 'src> {
             ) => index += 1,
             Some(TokenKind::Ident(_) | TokenKind::From) => {
                 index += 1;
-                if matches!(
-                    self.tokens.get(index).map(|token| &token.kind),
-                    Some(TokenKind::Less)
-                ) {
+                if matches!(self.lookahead_kind(index)?, Some(TokenKind::Less)) {
                     index += 1;
                     loop {
-                        index = self.scan_type_end(index)?;
-                        if matches!(
-                            self.tokens.get(index).map(|token| &token.kind),
-                            Some(TokenKind::Comma)
-                        ) {
+                        let Some(end) = self.scan_type_end(index)? else {
+                            return Ok(None);
+                        };
+                        index = end;
+                        if matches!(self.lookahead_kind(index)?, Some(TokenKind::Comma)) {
                             index += 1;
                             continue;
                         }
                         break;
                     }
-                    if !matches!(
-                        self.tokens.get(index).map(|token| &token.kind),
-                        Some(TokenKind::Greater)
-                    ) {
-                        return None;
+                    if !matches!(self.lookahead_kind(index)?, Some(TokenKind::Greater)) {
+                        return Ok(None);
                     }
                     index += 1;
                 }
             }
             Some(TokenKind::Func) => {
                 index += 1;
-                if !matches!(self.tokens.get(index)?.kind, TokenKind::LParen) {
-                    return None;
+                if !matches!(self.lookahead_kind(index)?, Some(TokenKind::LParen)) {
+                    return Ok(None);
                 }
                 index += 1;
-                if !matches!(self.tokens.get(index)?.kind, TokenKind::RParen) {
+                let Some(kind) = self.lookahead_kind(index)? else {
+                    return Ok(None);
+                };
+                if !matches!(kind, TokenKind::RParen) {
                     loop {
-                        index = self.scan_type_end(index)?;
-                        if matches!(self.tokens.get(index)?.kind, TokenKind::Comma) {
+                        if self.reference_parameter_at(index, false)? {
+                            index += 1;
+                        }
+                        let Some(end) = self.scan_type_end(index)? else {
+                            return Ok(None);
+                        };
+                        index = end;
+                        let Some(kind) = self.lookahead_kind(index)? else {
+                            return Ok(None);
+                        };
+                        if matches!(kind, TokenKind::Comma) {
                             index += 1;
                             continue;
                         }
                         break;
                     }
                 }
-                if !matches!(self.tokens.get(index)?.kind, TokenKind::RParen) {
-                    return None;
+                if !matches!(self.lookahead_kind(index)?, Some(TokenKind::RParen)) {
+                    return Ok(None);
                 }
                 index += 1;
-                if !matches!(self.tokens.get(index)?.kind, TokenKind::ThinArrow) {
-                    return None;
+                if !matches!(self.lookahead_kind(index)?, Some(TokenKind::ThinArrow)) {
+                    return Ok(None);
                 }
-                index = self.scan_type_end(index + 1)?;
+                let Some(end) = self.scan_type_end(index + 1)? else {
+                    return Ok(None);
+                };
+                index = end;
             }
             Some(TokenKind::LParen) => {
-                index = self.scan_type_end(index + 1)?;
-                if !matches!(self.tokens.get(index)?.kind, TokenKind::RParen) {
-                    return None;
+                let Some(end) = self.scan_type_end(index + 1)? else {
+                    return Ok(None);
+                };
+                index = end;
+                if !matches!(self.lookahead_kind(index)?, Some(TokenKind::RParen)) {
+                    return Ok(None);
                 }
                 index += 1;
             }
-            _ => return None,
+            _ => return Ok(None),
         }
 
         loop {
             if matches!(
-                (
-                    self.tokens.get(index).map(|token| &token.kind),
-                    self.tokens.get(index + 1).map(|token| &token.kind),
-                ),
+                (self.lookahead_kind(index)?, self.lookahead_kind(index + 1)?),
                 (Some(TokenKind::LBracket), Some(TokenKind::RBracket))
             ) {
                 index += 2;
-            } else if matches!(
-                self.tokens.get(index).map(|token| &token.kind),
-                Some(TokenKind::Question)
-            ) {
+            } else if matches!(self.lookahead_kind(index)?, Some(TokenKind::Question)) {
                 index += 1;
             } else {
                 break;
             }
         }
 
-        if matches!(
-            self.tokens.get(index).map(|token| &token.kind),
-            Some(TokenKind::Pipe)
-        ) {
-            index = self.scan_type_end(index + 1)?;
+        if matches!(self.lookahead_kind(index)?, Some(TokenKind::Pipe)) {
+            let Some(end) = self.scan_type_end(index + 1)? else {
+                return Ok(None);
+            };
+            index = end;
         }
 
-        Some(index)
+        Ok(Some(index))
     }
 
-    fn is_arrow_function_start(&self) -> bool {
+    fn is_arrow_function_start(&self) -> Result<bool, AdmittedParseError> {
         let mut depth = 0usize;
         for index in self.cursor..self.tokens.len() {
-            match &self.tokens[index].kind {
-                TokenKind::LParen => depth += 1,
-                TokenKind::RParen => {
+            match self.lookahead_kind(index)? {
+                Some(TokenKind::LParen) => depth += 1,
+                Some(TokenKind::RParen) => {
                     depth = depth.saturating_sub(1);
                     if depth == 0 {
-                        return matches!(
-                            self.tokens.get(index + 1).map(|token| &token.kind),
+                        return Ok(matches!(
+                            self.lookahead_kind(index + 1)?,
                             Some(TokenKind::FatArrow)
-                        );
+                        ));
                     }
                 }
                 _ => {}
             }
         }
-        false
+        Ok(false)
     }
 
     fn peek_binary_op(&self) -> Option<(BinaryOp, u8)> {
@@ -2325,7 +2519,7 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         Some(op)
     }
 
-    fn expect_ident(&mut self, message: &'static str) -> Result<Ident<'src>, ParseError> {
+    fn expect_ident(&mut self, message: &'static str) -> Result<Ident<'src>, AdmittedParseError> {
         let token = self.advance().ok_or_else(|| self.error_here(message))?;
         match token.kind {
             TokenKind::Ident(name) => Ok(Ident {
@@ -2336,21 +2530,24 @@ impl<'arena, 'src> Parser<'arena, 'src> {
                 name: "from",
                 span: token.span,
             }),
-            _ => Err(ParseError::new(token.span, message)),
+            _ => Err(AdmittedParseError::new(token.span, message)),
         }
     }
 
-    fn expect_property_ident(&mut self, message: &'static str) -> Result<Ident<'src>, ParseError> {
+    fn expect_property_ident(
+        &mut self,
+        message: &'static str,
+    ) -> Result<Ident<'src>, AdmittedParseError> {
         let token = self.advance().ok_or_else(|| self.error_here(message))?;
         let name = property_identifier_name(token.kind)
-            .ok_or_else(|| ParseError::new(token.span, message))?;
+            .ok_or_else(|| AdmittedParseError::new(token.span, message))?;
         Ok(Ident {
             name,
             span: token.span,
         })
     }
 
-    fn expect_semicolon(&mut self) -> Result<Token<'src>, ParseError> {
+    fn expect_semicolon(&mut self) -> Result<Token<'src>, AdmittedParseError> {
         self.expect(
             |kind| matches!(kind, TokenKind::Semicolon),
             "expected `;` after statement",
@@ -2361,12 +2558,12 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         &mut self,
         predicate: impl FnOnce(&TokenKind<'src>) -> bool,
         message: &'static str,
-    ) -> Result<Token<'src>, ParseError> {
+    ) -> Result<Token<'src>, AdmittedParseError> {
         let token = self.advance().ok_or_else(|| self.error_here(message))?;
         if predicate(&token.kind) {
             Ok(token)
         } else {
-            Err(ParseError::new(token.span, message))
+            Err(AdmittedParseError::new(token.span, message))
         }
     }
 
@@ -2415,8 +2612,8 @@ impl<'arena, 'src> Parser<'arena, 'src> {
         self.cursor >= self.tokens.len()
     }
 
-    fn error_here(&self, message: impl Into<String>) -> ParseError {
-        ParseError::new(
+    fn error_here(&self, message: impl Into<String>) -> AdmittedParseError {
+        AdmittedParseError::new(
             self.peek_span()
                 .unwrap_or_else(|| Span::empty(self.source_len)),
             message,
@@ -2475,42 +2672,6 @@ fn property_identifier_name<'src>(kind: TokenKind<'src>) -> Option<&'src str> {
     })
 }
 
-fn find_template_expression_end(content: &str, start: usize) -> Option<usize> {
-    let bytes = content.as_bytes();
-    let mut cursor = start;
-    let mut depth = 1usize;
-    let mut quote = None;
-
-    while cursor < bytes.len() {
-        let byte = bytes[cursor];
-        if let Some(active_quote) = quote {
-            if byte == b'\\' {
-                cursor += 2;
-                continue;
-            }
-            if byte == active_quote {
-                quote = None;
-            }
-            cursor += 1;
-            continue;
-        }
-
-        match byte {
-            b'"' | b'`' => quote = Some(byte),
-            b'{' => depth += 1,
-            b'}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(cursor);
-                }
-            }
-            _ => {}
-        }
-        cursor += 1;
-    }
-    None
-}
-
 fn exported_item_name<'src>(item: &Item<'_, 'src>) -> Option<Ident<'src>> {
     match item {
         Item::Enum(decl) => Some(decl.name),
@@ -2533,6 +2694,141 @@ fn strip_quotes(raw: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn contextual_reference_arguments_preserve_ref_identifier_expressions() {
+        let arena = Bump::new();
+        let source = "f(ref x.field,ref ref,ref,ref(a),ref (a),ref[a],ref.field);";
+        let program = parse_source(&arena, source).unwrap();
+        let Item::Stmt(Stmt::Expr(Expr {
+            kind: ExprKind::Call { args, .. },
+            ..
+        })) = &program.items[0]
+        else {
+            panic!("call statement")
+        };
+        assert_eq!(args.len(), 7);
+        assert_eq!(
+            args.iter().map(|arg| arg.passing).collect::<Vec<_>>(),
+            vec![
+                ParameterPassing::MutableReference,
+                ParameterPassing::MutableReference,
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+            ]
+        );
+        assert!(matches!(args[0].expression.kind, ExprKind::Member { .. }));
+        assert!(matches!(
+            args[1].expression.kind,
+            ExprKind::Ident(Ident { name: "ref", .. })
+        ));
+        assert!(matches!(
+            args[2].expression.kind,
+            ExprKind::Ident(Ident { name: "ref", .. })
+        ));
+        for index in [3, 4] {
+            assert!(matches!(args[index].expression.kind, ExprKind::Call { .. }));
+        }
+        assert!(matches!(args[5].expression.kind, ExprKind::Index { .. }));
+        assert!(matches!(args[6].expression.kind, ExprKind::Member { .. }));
+        assert_eq!(&source[args[0].span.start..args[0].span.end], "ref x.field");
+        assert_eq!(
+            &source[args[0].expression.span().start..args[0].expression.span().end],
+            "x.field"
+        );
+    }
+
+    #[test]
+    fn contextual_reference_parameters_preserve_types_named_ref() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "void f(ref p,ref ref,ref int n,ref ref alias,ref<Point> generic,ref[] array,ref? maybe){} func(ref,ref int,ref ref)->void callback;").unwrap();
+        let Item::Function(function) = &program.items[0] else {
+            panic!("function")
+        };
+        assert_eq!(
+            function
+                .params
+                .iter()
+                .map(|param| param.parameter.passing)
+                .collect::<Vec<_>>(),
+            vec![
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+                ParameterPassing::MutableReference,
+                ParameterPassing::MutableReference,
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+                ParameterPassing::Value,
+            ]
+        );
+        assert!(matches!(
+            function.params[0].parameter.ty.kind,
+            TypeKind::Named { name: "ref", .. }
+        ));
+        assert!(matches!(
+            function.params[3].parameter.ty.kind,
+            TypeKind::Named { name: "ref", .. }
+        ));
+        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[1] else {
+            panic!("function type")
+        };
+        let TypeKind::Function { params, .. } = declaration.ty.kind else {
+            panic!("function type")
+        };
+        assert_eq!(
+            params.iter().map(|param| param.passing).collect::<Vec<_>>(),
+            vec![
+                ParameterPassing::Value,
+                ParameterPassing::MutableReference,
+                ParameterPassing::MutableReference
+            ]
+        );
+        assert!(matches!(
+            params[0].ty.kind,
+            TypeKind::Named { name: "ref", .. }
+        ));
+        assert!(matches!(
+            params[2].ty.kind,
+            TypeKind::Named { name: "ref", .. }
+        ));
+    }
+
+    #[test]
+    fn contextual_reference_records_cover_arrows_constructors_and_super() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "auto callback=(ref int value)=>value;auto x=new Box(ref value);class Box{init(int x){super(ref x);}}").unwrap();
+        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
+            panic!("arrow")
+        };
+        let ExprKind::ArrowFunction { params, .. } = declaration.initializer.as_ref().unwrap().kind
+        else {
+            panic!("arrow")
+        };
+        assert_eq!(
+            params[0].parameter.passing,
+            ParameterPassing::MutableReference
+        );
+        let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[1] else {
+            panic!("new")
+        };
+        let ExprKind::New { args, .. } = declaration.initializer.as_ref().unwrap().kind else {
+            panic!("new")
+        };
+        assert_eq!(args[0].passing, ParameterPassing::MutableReference);
+        let Item::Class(class) = &program.items[2] else {
+            panic!("class")
+        };
+        let ClassMember::Constructor(constructor) = &class.members[0] else {
+            panic!("constructor")
+        };
+        let Stmt::SuperCall { args, .. } = &constructor.body[0] else {
+            panic!("super")
+        };
+        assert_eq!(args[0].passing, ParameterPassing::MutableReference);
+    }
+
     use super::*;
 
     #[test]
@@ -2553,7 +2849,11 @@ mod tests {
             panic!("expected function");
         };
         let Stmt::Return {
-            value: Some(Expr::Match { arms, .. }),
+            value:
+                Some(Expr {
+                    kind: ExprKind::Match { arms, .. },
+                    ..
+                }),
             ..
         } = &function.body[0]
         else {
@@ -2576,9 +2876,9 @@ mod tests {
         assert!(matches!(
             &function.body[0],
             Stmt::Return {
-                value: Some(Expr::If { else_value, .. }),
+                value: Some(Expr { kind: ExprKind::If { else_value, .. }, .. }),
                 ..
-            } if matches!(else_value, Expr::If { .. })
+            } if matches!(else_value, Expr { kind: ExprKind::If { .. }, .. })
         ));
 
         let error = parse_source(&arena, "int choose(bool flag){return if(flag){1};}").unwrap_err();
@@ -2597,7 +2897,11 @@ mod tests {
             panic!("expected function");
         };
         let Stmt::Return {
-            value: Some(Expr::Match { arms, .. }),
+            value:
+                Some(Expr {
+                    kind: ExprKind::Match { arms, .. },
+                    ..
+                }),
             ..
         } = &function.body[0]
         else {
@@ -2654,7 +2958,11 @@ mod tests {
         let Item::Stmt(Stmt::VarDecl(declaration)) = &program.items[0] else {
             panic!("expected record declaration");
         };
-        let Some(Expr::RecordLiteral { entries, .. }) = &declaration.initializer else {
+        let Some(Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }) = &declaration.initializer
+        else {
             panic!("expected record literal");
         };
         assert_eq!(entries.len(), 2);
@@ -2676,7 +2984,11 @@ mod tests {
         let Item::Stmt(Stmt::VarDecl(array)) = &program.items[1] else {
             panic!("expected array declaration");
         };
-        let Some(Expr::ArrayLiteral { elements, .. }) = &array.initializer else {
+        let Some(Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        }) = &array.initializer
+        else {
             panic!("expected array literal");
         };
         assert!(matches!(elements[1], ArrayElement::Spread { .. }));
@@ -2684,7 +2996,11 @@ mod tests {
         let Item::Stmt(Stmt::VarDecl(record)) = &program.items[3] else {
             panic!("expected record declaration");
         };
-        let Some(Expr::RecordLiteral { entries, .. }) = &record.initializer else {
+        let Some(Expr {
+            kind: ExprKind::RecordLiteral { entries, .. },
+            ..
+        }) = &record.initializer
+        else {
             panic!("expected record literal");
         };
         assert!(matches!(entries[0], RecordElement::Spread { .. }));
@@ -2817,20 +3133,23 @@ mod tests {
         };
         assert!(matches!(
             first.initializer,
-            Some(Expr::Binary {
+            Some(Expr { kind: ExprKind::Binary {
                 lhs,
                 op: BinaryOp::Mul,
                 ..
-            }) if matches!(lhs, Expr::Update { prefix: true, op: UpdateOp::Increment, .. })
+            }, .. }) if matches!(lhs, Expr { kind: ExprKind::Update { prefix: true, op: UpdateOp::Increment, .. }, .. })
         ));
         let Item::Stmt(Stmt::VarDecl(second)) = &program.items[2] else {
             panic!("expected second declaration");
         };
         assert!(matches!(
             second.initializer,
-            Some(Expr::Update {
-                prefix: false,
-                op: UpdateOp::Decrement,
+            Some(Expr {
+                kind: ExprKind::Update {
+                    prefix: false,
+                    op: UpdateOp::Decrement,
+                    ..
+                },
                 ..
             })
         ));
@@ -2880,7 +3199,10 @@ mod tests {
         assert!(function.params[0].default.is_none());
         assert!(matches!(
             function.params[1].default,
-            Some(Expr::String("!", _))
+            Some(Expr {
+                kind: ExprKind::String("!", _),
+                ..
+            })
         ));
 
         let error = parse_source(
@@ -3018,7 +3340,13 @@ int result=from(3);"#,
         let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[1] else {
             panic!("expected variable declaration");
         };
-        assert!(matches!(binding.initializer, Some(Expr::Call { .. })));
+        assert!(matches!(
+            binding.initializer,
+            Some(Expr {
+                kind: ExprKind::Call { .. },
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -3056,7 +3384,13 @@ int result=from(3);"#,
             panic!("expected nullable binding");
         };
         assert!(matches!(label.ty.kind, TypeKind::Nullable(_)));
-        assert!(matches!(label.initializer, Some(Expr::Null(_))));
+        assert!(matches!(
+            label.initializer,
+            Some(Expr {
+                kind: ExprKind::Null(_),
+                ..
+            })
+        ));
         let Item::Stmt(Stmt::VarDecl(values)) = &program.items[1] else {
             panic!("expected nullable array binding");
         };
@@ -3082,7 +3416,7 @@ int result=from(3);"#,
             panic!("expected number function");
         };
         assert!(matches!(scale.return_type.kind, TypeKind::Float));
-        assert!(matches!(scale.params[0].ty.kind, TypeKind::Float));
+        assert!(matches!(scale.params[0].parameter.ty.kind, TypeKind::Float));
     }
 
     #[test]
@@ -3099,12 +3433,19 @@ int result=from(3);"#,
         };
         assert!(matches!(
             value.initializer,
-            Some(Expr::Binary {
-                op: BinaryOp::Nullish,
+            Some(Expr {
+                kind: ExprKind::Binary {
+                    op: BinaryOp::Nullish,
+                    ..
+                },
                 ..
             })
         ));
-        let Item::Stmt(Stmt::Expr(Expr::Assignment { op, .. })) = &program.items[2] else {
+        let Item::Stmt(Stmt::Expr(Expr {
+            kind: ExprKind::Assignment { op, .. },
+            ..
+        })) = &program.items[2]
+        else {
             panic!("expected nullish assignment expression");
         };
         assert_eq!(*op, AssignmentOp::Nullish);
@@ -3123,14 +3464,20 @@ int result=from(3);"#,
         };
         assert!(matches!(
             length.initializer,
-            Some(Expr::OptionalMember { .. })
+            Some(Expr {
+                kind: ExprKind::OptionalMember { .. },
+                ..
+            })
         ));
         let Item::Stmt(Stmt::VarDecl(first)) = &program.items[2] else {
             panic!("expected optional index binding");
         };
         assert!(matches!(
             first.initializer,
-            Some(Expr::OptionalIndex { .. })
+            Some(Expr {
+                kind: ExprKind::OptionalIndex { .. },
+                ..
+            })
         ));
     }
 
@@ -3167,7 +3514,11 @@ int result=from(3);"#,
             panic!("expected function");
         };
         let Stmt::Return {
-            value: Some(Expr::TypeCheck { target, .. }),
+            value:
+                Some(Expr {
+                    kind: ExprKind::TypeCheck { target, .. },
+                    ..
+                }),
             ..
         } = &function.body[0]
         else {
@@ -3189,8 +3540,11 @@ int result=from(3);"#,
         };
         assert!(matches!(
             binding.initializer,
-            Some(Expr::DynamicImport {
-                source: "./feature",
+            Some(Expr {
+                kind: ExprKind::DynamicImport {
+                    source: "./feature",
+                    ..
+                },
                 ..
             })
         ));
@@ -3270,19 +3624,31 @@ int result=from(3);"#,
         let Item::Stmt(Stmt::VarDecl(binding)) = &program.items[0] else {
             panic!("expected adapter binding");
         };
-        let Some(Expr::Call { callee, args, .. }) = &binding.initializer else {
+        let Some(Expr {
+            kind: ExprKind::Call { callee, args, .. },
+            ..
+        }) = &binding.initializer
+        else {
             panic!("expected adapter call");
         };
         assert!(matches!(
             callee,
-            Expr::Member {
+            Expr { kind: ExprKind::Member {
                 object,
                 property,
                 ..
-            } if property.name == "method10"
-                && matches!(object, Expr::Ident(identifier) if identifier.name == "JS")
+            }, .. } if property.name == "method10"
+                && matches!(object, Expr { kind: ExprKind::Ident(identifier), .. } if identifier.name == "JS")
         ));
-        let [Expr::ArrowFunction { params, .. }] = args else {
+        let [Argument {
+            expression:
+                Expr {
+                    kind: ExprKind::ArrowFunction { params, .. },
+                    ..
+                },
+            ..
+        }] = args
+        else {
             panic!("expected one callback");
         };
         assert_eq!(params.len(), 11);
@@ -3323,11 +3689,19 @@ int result=from(3);"#,
             .iter()
             .filter_map(|item| match item {
                 Item::Stmt(Stmt::VarDecl(VarDecl {
-                    initializer: Some(Expr::Member { property, .. }),
+                    initializer:
+                        Some(Expr {
+                            kind: ExprKind::Member { property, .. },
+                            ..
+                        }),
                     ..
                 }))
                 | Item::Stmt(Stmt::VarDecl(VarDecl {
-                    initializer: Some(Expr::OptionalMember { property, .. }),
+                    initializer:
+                        Some(Expr {
+                            kind: ExprKind::OptionalMember { property, .. },
+                            ..
+                        }),
                     ..
                 })) => Some(property.name),
                 _ => None,
@@ -3347,7 +3721,11 @@ int result=from(3);"#,
             matches!(&class.members[1], ClassMember::Field(field) if field.name.name == "async")
         );
         let Item::Stmt(Stmt::VarDecl(VarDecl {
-            initializer: Some(Expr::RecordLiteral { entries, .. }),
+            initializer:
+                Some(Expr {
+                    kind: ExprKind::RecordLiteral { entries, .. },
+                    ..
+                }),
             ..
         })) = &program.items[8]
         else {

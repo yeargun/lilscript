@@ -1,0 +1,516 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "remark-gfmlil",
+  "started": "2026-09-21T10:48:06.538Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/remark-gfmlil",
+  "workspace": "/tmp/lilscript-adapter-remark-gfmlil-JBlTRc/remark-gfmlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-gfmlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-gfmlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-remark-gfmlil-JBlTRc/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+  "derivation": {
+    "supported": true,
+    "script": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+    "originalSegments": [
+      "npm run build",
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/index.js"
+    ],
+    "segments": [
+      "npm run build",
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/index.js"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "deviations": [
+      "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+    ],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/remark-gfm.cjs",
+      "dist/remark-gfm.closed.js",
+      "dist/remark-gfm.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/remark-gfm.cjs",
+      "./dist/remark-gfm.closed.js",
+      "./dist/remark-gfm.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-gfmlil/node/report.json",
+    "sha256": "3d771ed73ad15f824ff66a7babaa0a28c23194e958b1807f2694c9831b7a8cbf",
+    "bytes": 90389
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes the upstream public API",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+      "file": "test/api.test.mjs",
+      "name": "registers micromark and mdast extensions",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+      "file": "test/api.test.mjs",
+      "name": "forwards options into the GFM combiners",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+      "file": "test/api.test.mjs",
+      "name": "works through processor.use(plugin, options)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+      "file": "test/api.test.mjs",
+      "name": "does not start an email autolink after escaped atext",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+      "file": "test/api.test.mjs",
+      "name": "@itslil/remark-gfm",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact whose exports stay callable",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "@itslil/remark-gfm closed lane",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/index.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+      "file": "test/official/index.js",
+      "name": "should not throw if not passed options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+      "file": "test/official/index.js",
+      "name": "remarkGfm",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+      "file": "test/official/index.js",
+      "name": "autolink-literal",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+      "file": "test/official/index.js",
+      "name": "strikethrough-default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+      "file": "test/official/index.js",
+      "name": "strikethrough-not-one",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+      "file": "test/official/index.js",
+      "name": "table",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+      "file": "test/official/index.js",
+      "name": "table-no-align",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+      "file": "test/official/index.js",
+      "name": "table-no-padding",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+      "file": "test/official/index.js",
+      "name": "table-string-length",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+      "file": "test/official/index.js",
+      "name": "tasklist",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+      "file": "test/official/index.js",
+      "name": "fixtures",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-remark-gfmlil-JBlTRc/remark-gfmlil/dist/remark-gfm.esm.js",
+      "sha256": "a8d896ef1f50bcbb93d9410b633d11f2bf445b3035dfe8f33816db333891f724",
+      "bytes": 33051
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-gfmlil-JBlTRc/remark-gfmlil/dist/remark-gfm.cjs",
+      "sha256": "0a2ccca3c4a5b34ae1ab42c84bdb4122c4ee09df14d5316ad822c8f31450f5dd",
+      "bytes": 37077
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-gfmlil-JBlTRc/remark-gfmlil/dist/remark-gfm.closed.js",
+      "sha256": "78334b0c993372d30b7b129e50baae3fbe34e0d55f1a66432f21fd67969aaa5c",
+      "bytes": 34282
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-gfmlil-JBlTRc/remark-gfmlil/dist/remark-gfm.esm.js",
+      "sha256": "a8d896ef1f50bcbb93d9410b633d11f2bf445b3035dfe8f33816db333891f724",
+      "bytes": 33051
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/remark-gfm.cjs",
+    "dist/remark-gfm.closed.js",
+    "dist/remark-gfm.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 6060.010063999987,
+  "completed": "2026-09-21T10:48:12.570Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "61c5e88c6b803b099c5afdb4f2b28b1a6c8b81db1afe78d4d7f104c5b7f66518",
+      "bytes": 915210
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "61c5e88c6b803b099c5afdb4f2b28b1a6c8b81db1afe78d4d7f104c5b7f66518",
+      "bytes": 915210
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "98e4c831bbf25f790c1b0bf0e6ff247331e4f161ac718a291b7c587a575415f6",
+      "bytes": 8795
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f25880f63698afa440b31746a07d24af4b94a659c95ee0a3823c8f9fd9235d61",
+      "bytes": 5228
+    },
+    {
+      "path": "node/loaded/484823-916863f9-9358-4307-8a84-f46f842f38f0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3ae485f8a2e0ffadd26351aef30df104347d89715fe186013faddff2f7542d87",
+      "bytes": 352
+    },
+    {
+      "path": "node/loaded/484823-dec9f5db-e59f-4a40-85c7-0a02051a8c21.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8ab527ba75c75b5632ded5509adc0c5aeb52f989c680bc9719b23a212e5dfc5c",
+      "bytes": 348
+    },
+    {
+      "path": "node/loaded/484824-45ac0fa0-3bb3-4ee1-aee2-176d35c3dbe2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8dd52e8b52dc3ca40350ef50e1df25ac2784fd415a6e3a01837922e5eb70d62e",
+      "bytes": 358
+    },
+    {
+      "path": "node/loaded/484826-e3b2d1d5-2b1c-4f65-8ed0-2cd979b82301.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "42bec72bd4d8d71500b6cd21a711e6b37ee8133d60f1def3ebb96e12a6213a38",
+      "bytes": 352
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "58eb3bda6730578f78d7442b70c163124da4f37497a1cb5bd7462f53195c4594",
+      "bytes": 525
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7cfe516923796a4d5dd62a97e5a3f5f191d1a7cc44ee9db5febdfc32f3415d40",
+      "bytes": 175
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3d771ed73ad15f824ff66a7babaa0a28c23194e958b1807f2694c9831b7a8cbf",
+      "bytes": 90389
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

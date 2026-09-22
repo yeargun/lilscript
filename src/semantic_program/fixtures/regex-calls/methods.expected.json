@@ -1,0 +1,18 @@
+[
+ ["test-raw-result",["regex","get-test","input",["call","test","first",true,1,"a"]],"alias"],
+ ["exec-raw-alias",["regex","get-exec","input",["call","exec","first",true,1,"a"]],"alias"],
+ ["test-getter-throws",["regex","get-test"],["throw","Error","getter"]],
+ ["test-argument-throws",["regex","get-test","input"],["throw","Error","argument"]],
+ ["exec-invocation-throws",["regex","get-exec","input",["call","exec","first",true,1,"a"]],["throw","Error","invoke"]],
+ ["replace-test-during-argument",["regex","get-test","input",["call","test","first",true,1,"a"]],"alias"],
+ ["replace-exec-during-argument",["regex","get-exec","input",["call","exec","first",true,1,"a"]],"alias"],
+ ["test-noncallable",["regex","get-test","input"],["throw","TypeError","native"]],
+ ["unused-test",["regex","get-test","input",["call","test","first",true,1,"a"]],"undefined"],
+ ["unused-exec",["regex","get-exec","input",["call","exec","first",true,1,"a"]],"undefined"],
+ ["argument-reentry",["regex","get-test","input","regex","get-test","input",["call","test","first",true,1,"inner"],["call","test","first",true,1,"outer"]],"alias"],
+ ["native-test-exec-dispatch",["regex","get-test","input","get-exec",["call","exec","first",true,1,"a"]],false],
+ ["symbol-replace-result",["input","get-replace","regex","replacement","get-symbol-replace",["symbol-replace",true,2,"a","-"]],"alias"],
+ ["symbol-replace-throws",["input","get-replace","regex","replacement","get-symbol-replace",["symbol-replace",true,2,"a","-"]],["throw","Error","replace"]],
+ ["symbol-getter-throws",["input","get-replace","regex","replacement","get-symbol-replace"],["throw","Error","symbol"]],
+ ["unused-symbol-replace",["input","get-replace","regex","replacement","get-symbol-replace",["symbol-replace",true,2,"a","-"]],"undefined"]
+]

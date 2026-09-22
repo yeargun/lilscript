@@ -1,0 +1,5 @@
+int withDefaults(int a, int b = 10, int c = 100) {
+  return a + b + c;
+}
+extern int read();int seed=read();
+print(withDefaults(seed));print(withDefaults(seed,1));print(withDefaults(seed,1,2));

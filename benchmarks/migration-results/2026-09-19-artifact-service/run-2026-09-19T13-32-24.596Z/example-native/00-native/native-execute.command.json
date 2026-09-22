@@ -1,0 +1,9 @@
+{
+  "command": [
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-32-24.596Z/example-native/00-native/native"
+  ],
+  "elapsed_ns": 1037356,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "68f4d5c1ad9d0be1b5ce3e717704b8fc99329e2ff866edc88e60c22f7f5c5f5d"
+}

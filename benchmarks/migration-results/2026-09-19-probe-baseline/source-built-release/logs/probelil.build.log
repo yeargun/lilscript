@@ -1,0 +1,52 @@
+probelil: both lanes match expected.out (42 lines, 4034 B optimized)
+
+lilscript-timing {"wall_ms":30801.0,"admission_ms":0.0,"admission_calls":575,"admission_mb":0.00,"direct_validate_ms":0.0,"direct_validate_calls":195,"direct_validate_mb":0.00,"probe_dropped_ms":0.0,"probe_dropped_calls":0,"probe_dropped_mb":0.00,"codec_ms":2043.4,"codec_calls":633,"codec_mb":2.46,"analyze_ms":341.7,"analyze_calls":429,"analyze_mb":1.66,"emit_ms":48638.3,"emit_calls":381,"emit_mb":0.01,"peephole_ms":4531.9,"peephole_calls":160,"peephole_mb":0.62,"cleanup_ms":0.0,"cleanup_calls":0,"cleanup_mb":0.00,"optimize_ms":163.5,"optimize_calls":9,"optimize_mb":0.00,"lex_ms":173.6,"lex_calls":4282,"lex_mb":16.42,"closers_ms":273.9,"closers_calls":36065,"closers_mb":95.20,"regions_ms":117.1,"regions_calls":736,"regions_mb":1.98,"scopes_ms":103.4,"scopes_calls":757,"scopes_mb":2.01,"bindings_ms":687.2,"bindings_calls":2465,"bindings_mb":6.60,"idle_fold_ms":2610.3,"idle_fold_calls":22713,"idle_fold_mb":85.57,"active_fold_ms":1796.7,"active_fold_calls":2276,"active_fold_mb":8.62,"scalar_fixpoint_ms":103.8,"scalar_fixpoint_runs":52,"scalar_fixpoint_max":2,"inline_fixpoint_ms":20.6,"inline_fixpoint_runs":14,"inline_fixpoint_max":23,"cleanup_entered":9,"cleanup_entered_sum":113,"cleanup_unbudgeted":17,"cleanup_unbudgeted_sum":0,"cleanup_skipped":0,"cleanup_skipped_sum":0,"cleanup_canonical_err":0,"cleanup_canonical_err_sum":0,"cleanup_canonical_same":0,"cleanup_canonical_same_sum":0,"cleanup_canonical_boundary":0,"cleanup_canonical_boundary_sum":0,"cleanup_canonical_refused":0,"cleanup_canonical_refused_sum":0,"cleanup_canonical_unprobed":0,"cleanup_canonical_unprobed_sum":0,"cleanup_canonical_pushed":9,"cleanup_canonical_pushed_sum":13644,"cleanup_shaped_pushed":2,"cleanup_shaped_pushed_sum":7,"cleanup_shaped_lost":8,"cleanup_shaped_lost_sum":11,"cleanup_shaped_refused":0,"cleanup_shaped_refused_sum":0,"rename_candidates":18,"rename_candidates_sum":71350,"rename_starved":0,"rename_starved_sum":0,"rename_idle":18,"rename_idle_sum":0,"rename_unparsed":0,"rename_unparsed_sum":0,"rename_refused":0,"rename_refused_sum":0,"rename_unprobed":0,"rename_unprobed_sum":0,"rename_won":0,"rename_won_sum":0,"idiom_candidates":0,"idiom_candidates_sum":0,"idiom_won":0,"idiom_won_sum":0,"idiom_lost":0,"idiom_lost_sum":0,"idiom_idle":0,"idiom_idle_sum":0,"rename_lost":0,"rename_lost_sum":0,"rename_templated":18,"rename_templated_sum":36,"rename_unsound":0,"rename_unsound_sum":0,"rename_ambiguous":0,"rename_ambiguous_sum":0,"memo_codec_hits":227,"memo_analyze_hits":7371}
+    652.5ms idle    302/622   idle/calls  fold_int32_coercions
+    468.0ms idle    454/454   idle/calls  fold_constructor_prototype_tables_to_classes
+    145.6ms idle    451/451   idle/calls  fold_arguments_length_countdown_for
+    112.0ms idle    454/454   idle/calls  fold_undefined_defaults_into_formals
+     97.0ms idle    328/328   idle/calls  declare_implicit_assignment_bindings
+     86.8ms idle    302/302   idle/calls  fold_forwarding_call_wrappers
+     79.0ms idle    303/303   idle/calls  fold_arguments_slice_to_rest
+     78.0ms idle    303/303   idle/calls  fold_indexed_arguments_to_formals
+     76.8ms idle    303/303   idle/calls  fold_arguments_length_formal_copies
+     64.9ms idle    302/302   idle/calls  fold_returned_temporaries
+     64.2ms idle    602/602   idle/calls  fold_single_use_function_values
+     61.6ms idle    752/756   idle/calls  remove_unused_standalone_vars
+     50.1ms idle    151/153   idle/calls  fold_identifier_copies
+     48.5ms idle    302/302   idle/calls  fold_dead_pure_identifier_assigns
+     23.4ms idle    151/151   idle/calls  fold_single_use_temporaries
+     19.4ms idle    151/151   idle/calls  fold_single_use_literal_bindings
+     15.5ms idle    151/151   idle/calls  strip_stale_set_prototype_of
+     15.2ms idle    305/305   idle/calls  fold_while_true_unit_increment_bounds
+     13.7ms idle    302/302   idle/calls  canonicalize_leaf_syntax
+     13.4ms idle    456/456   idle/calls  fold_conditional_return_tails
+     12.9ms idle    303/303   idle/calls  fold_value_binding_iife
+     12.6ms idle    151/151   idle/calls  drop_orphaned_class_identity_guards
+     12.5ms idle    313/313   idle/calls  fold_or_assignment_parens
+     12.4ms idle    151/151   idle/calls  fold_unread_prototype_aliases
+lilscript-timing {"wall_ms":9676.4,"admission_ms":0.0,"admission_calls":777,"admission_mb":0.00,"direct_validate_ms":0.0,"direct_validate_calls":30,"direct_validate_mb":0.00,"probe_dropped_ms":0.0,"probe_dropped_calls":0,"probe_dropped_mb":0.00,"codec_ms":6621.9,"codec_calls":1201,"codec_mb":9.27,"analyze_ms":870.4,"analyze_calls":896,"analyze_mb":6.77,"emit_ms":2238.6,"emit_calls":364,"emit_mb":0.01,"peephole_ms":8310.1,"peephole_calls":381,"peephole_mb":2.92,"cleanup_ms":0.0,"cleanup_calls":0,"cleanup_mb":0.00,"optimize_ms":2.0,"optimize_calls":1,"optimize_mb":0.00,"lex_ms":1246.1,"lex_calls":26215,"lex_mb":186.08,"closers_ms":654.7,"closers_calls":73476,"closers_mb":246.50,"regions_ms":361.9,"regions_calls":1658,"regions_mb":5.67,"scopes_ms":498.4,"scopes_calls":1660,"scopes_mb":5.59,"bindings_ms":583.8,"bindings_calls":3882,"bindings_mb":13.09,"idle_fold_ms":5060.0,"idle_fold_calls":50390,"idle_fold_mb":366.92,"active_fold_ms":2801.3,"active_fold_calls":9344,"active_fold_mb":68.47,"scalar_fixpoint_ms":0.4,"scalar_fixpoint_runs":4,"scalar_fixpoint_max":1,"inline_fixpoint_ms":0.0,"inline_fixpoint_runs":0,"inline_fixpoint_max":0,"cleanup_entered":8,"cleanup_entered_sum":96,"cleanup_unbudgeted":5,"cleanup_unbudgeted_sum":0,"cleanup_skipped":0,"cleanup_skipped_sum":0,"cleanup_canonical_err":0,"cleanup_canonical_err_sum":0,"cleanup_canonical_same":1,"cleanup_canonical_same_sum":0,"cleanup_canonical_boundary":0,"cleanup_canonical_boundary_sum":0,"cleanup_canonical_refused":0,"cleanup_canonical_refused_sum":0,"cleanup_canonical_unprobed":0,"cleanup_canonical_unprobed_sum":0,"cleanup_canonical_pushed":7,"cleanup_canonical_pushed_sum":16545,"cleanup_shaped_pushed":8,"cleanup_shaped_pushed_sum":19,"cleanup_shaped_lost":1,"cleanup_shaped_lost_sum":2,"cleanup_shaped_refused":0,"cleanup_shaped_refused_sum":0,"rename_candidates":0,"rename_candidates_sum":0,"rename_starved":0,"rename_starved_sum":0,"rename_idle":0,"rename_idle_sum":0,"rename_unparsed":0,"rename_unparsed_sum":0,"rename_refused":0,"rename_refused_sum":0,"rename_unprobed":0,"rename_unprobed_sum":0,"rename_won":0,"rename_won_sum":0,"idiom_candidates":0,"idiom_candidates_sum":0,"idiom_won":0,"idiom_won_sum":0,"idiom_lost":0,"idiom_lost_sum":0,"idiom_idle":0,"idiom_idle_sum":0,"rename_lost":0,"rename_lost_sum":0,"rename_templated":0,"rename_templated_sum":0,"rename_unsound":0,"rename_unsound_sum":0,"rename_ambiguous":0,"rename_ambiguous_sum":0,"memo_codec_hits":45,"memo_analyze_hits":7676}
+   1071.4ms idle   1132/1132  idle/calls  fold_constructor_prototype_tables_to_classes
+    573.5ms idle    760/1504  idle/calls  fold_int32_coercions
+    321.3ms idle   1132/1132  idle/calls  fold_undefined_defaults_into_formals
+    275.3ms idle    764/764   idle/calls  declare_implicit_assignment_bindings
+    252.1ms idle   1125/1125  idle/calls  fold_arguments_length_countdown_for
+    244.2ms idle    381/753   idle/calls  fold_identifier_copies
+    148.5ms idle    753/753   idle/calls  fold_forwarding_call_wrappers
+    120.0ms idle   1504/1504  idle/calls  fold_single_use_function_values
+    112.0ms idle    753/753   idle/calls  fold_dead_pure_identifier_assigns
+    110.8ms idle    796/1876  idle/calls  remove_unused_standalone_vars
+     91.3ms idle    381/753   idle/calls  fold_returned_temporaries
+     84.4ms idle    381/381   idle/calls  fold_single_use_temporaries
+     75.4ms idle    760/760   idle/calls  fold_indexed_arguments_to_formals
+     73.1ms idle    760/760   idle/calls  fold_arguments_slice_to_rest
+     63.2ms idle    760/760   idle/calls  fold_arguments_length_formal_copies
+     56.4ms idle    753/1125  idle/calls  fold_redundant_loop_body_braces
+     56.0ms idle    381/753   idle/calls  fold_single_use_literal_bindings
+     49.5ms idle    381/381   idle/calls  strip_stale_set_prototype_of
+     48.9ms idle    760/760   idle/calls  fold_while_true_unit_increment_bounds
+     47.0ms idle    760/760   idle/calls  fold_known_string_coercions
+     44.2ms idle    753/753   idle/calls  canonicalize_leaf_syntax
+     43.4ms idle    760/760   idle/calls  fold_value_binding_iife
+     41.6ms idle   1129/1129  idle/calls  fold_conditional_return_tails
+     38.9ms idle    764/764   idle/calls  fold_or_assignment_parens

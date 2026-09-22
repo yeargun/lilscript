@@ -1,0 +1,31 @@
+extern void keep(int slot,func(int)->int callback);
+extern int invoke(int slot,int delta);
+extern void clear(int slot);
+extern void clearAll();
+extern func(int)->int take(int slot);
+extern void expectLive(int count);
+extern void assertEmpty();
+
+func(int)->int counter(int seed){return (int delta)=>{seed+=delta;return seed;};}
+func(int)->int choose(bool first,int seed) {
+    auto prior=counter(seed);
+    return if(first){prior}else{counter(seed+100)};
+}
+func(int)->int nested(bool first,int seed) {
+    if(first) {
+        auto result=choose(false,seed);
+        if(seed>0){return result;}
+        return choose(true,seed);
+    }
+    return choose(true,seed+10);
+}
+void exercise() {
+    auto first=choose(true,2);auto second=choose(false,3);
+    print(first(1));print(second(1));
+    auto copied=first;first=second;
+    print(copied(2));print(first(2));
+    auto third=nested(true,5);auto fourth=nested(false,6);
+    print(third(1));print(fourth(1));
+    auto fifth=nested(true,0);print(fifth(1));
+}
+exercise();assertEmpty();

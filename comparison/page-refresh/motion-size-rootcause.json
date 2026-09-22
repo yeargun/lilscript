@@ -1,0 +1,1056 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-09-11T09:40:57.100419+00:00",
+  "purpose": "Structural size diagnosis, separate from published performance measurements. Diagnostic variants are not deployed.",
+  "publicationCommit": "d4e7a9c2261c8b4b3e264fec5717e970eaed1729",
+  "sourceCommit": "894693ba6474b0d6c3881c7b93414e1cfaf28401",
+  "compiler": {
+    "commit": "e5f7f254470ae4af178f3625b8b3dfd8fe501ad7",
+    "sha256": "14f7c2d1e631126a862cc59b6008cf1cb968198f0c07c4512c406805f13a0125"
+  },
+  "original": {
+    "commit": "adaf7a4e5368d704ea350669f6ac674fb26ff270",
+    "sha256": "a54042053fedf812fd51d31995c053d584464f225b5aaa57d9acf221e28b957d",
+    "raw": 137560,
+    "brotli11": 40141
+  },
+  "attribution": {
+    "scope": {
+      "defaultExports": 52,
+      "fullExports": 326,
+      "originalExports": 312,
+      "sharedDefaultExports": [
+        "GroupAnimation",
+        "GroupAnimationWithThen",
+        "MotionValue",
+        "SubscriptionManager",
+        "animate",
+        "animateMini",
+        "anticipate",
+        "backIn",
+        "backInOut",
+        "backOut",
+        "cancelFrame",
+        "circIn",
+        "circInOut",
+        "circOut",
+        "clamp",
+        "createScopedAnimate",
+        "cubicBezier",
+        "defaultEasing",
+        "delay",
+        "delayInSeconds",
+        "distance",
+        "distance2D",
+        "easeIn",
+        "easeInOut",
+        "easeOut",
+        "followValue",
+        "frame",
+        "getValueAsType",
+        "hover",
+        "inView",
+        "inertia",
+        "interpolate",
+        "isMotionValue",
+        "keyframes",
+        "mapValue",
+        "mix",
+        "motionValue",
+        "number",
+        "press",
+        "progress",
+        "resize",
+        "scroll",
+        "scrollInfo",
+        "spring",
+        "springValue",
+        "stagger",
+        "steps",
+        "transform",
+        "transformValue",
+        "wrap"
+      ],
+      "portOnlyDefaultExports": [
+        "getAsType",
+        "numberType"
+      ]
+    },
+    "full": {
+      "raw": 194166,
+      "gzip9": 61134,
+      "brotli11": 52586,
+      "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+      "minifiedSourceAttribution": {
+        "repo/src/.__compiled-full.mjs": 175673,
+        "repo/src/.__diagnostic-compat.mjs": 7123,
+        "repo/src/motion-dom/dom-host.ts": 2704,
+        "repo/src/control-compat.mjs": 1319,
+        "repo/src/motion-dom/weak-host.ts": 317,
+        "repo/src/motion-dom/string-host.ts": 97,
+        "repo/src/motion-dom/cast-host.ts": 39
+      },
+      "inputContributions": {
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/motion-dom/cast-host.ts": {
+          "bytesInOutput": 71
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/motion-dom/dom-host.ts": {
+          "bytesInOutput": 5598
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/motion-dom/weak-host.ts": {
+          "bytesInOutput": 660
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/motion-dom/string-host.ts": {
+          "bytesInOutput": 235
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/.__compiled-full.mjs": {
+          "bytesInOutput": 337111
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/.__diagnostic-full.mjs": {
+          "bytesInOutput": 0
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/control-compat.mjs": {
+          "bytesInOutput": 2373
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/.__diagnostic-compat.mjs": {
+          "bytesInOutput": 12082
+        },
+        "../../../tmp/motionlil-size-rootcause-20260911/repo/src/diagnostic-entry.mjs": {
+          "bytesInOutput": 0
+        }
+      },
+      "unmappedRawBytes": 6894
+    },
+    "coreOnly": {
+      "raw": 185098,
+      "gzip9": 58509,
+      "brotli11": 50271,
+      "sha256": "74ef5dd96ca0b7eb0a2ea1a508986c5fef92bb60584c241bd0e7e9ecaeb65d57"
+    },
+    "sharedOriginal": {
+      "raw": 109582,
+      "gzip9": 35284,
+      "brotli11": 31697,
+      "sha256": "1183193b9828a4ffb4db731af6bd89cac328e2e46c58aaa4bc08de6aa06f58c2"
+    },
+    "sharedModularPort": {
+      "raw": 149390,
+      "gzip9": 46772,
+      "brotli11": 37942,
+      "sha256": "d96d2471d98a7aa3362df5a7d83834d303ca4fc75284a3535cc4ee0c14fc9a27"
+    },
+    "sharedMonolithicPort": {
+      "raw": 137578,
+      "gzip9": 42976,
+      "brotli11": 37279,
+      "sha256": "1570ee41f15432e0fde062166194759be4eb8b40d7027deffc4725c44ae52d4f"
+    },
+    "ast": {
+      "port": {
+        "nodes": {
+          "Program": 1,
+          "FunctionDeclaration": 63,
+          "Identifier": 29117,
+          "BlockStatement": 1181,
+          "ReturnStatement": 620,
+          "ConditionalExpression": 565,
+          "BinaryExpression": 2728,
+          "UnaryExpression": 2414,
+          "Literal": 7005,
+          "CallExpression": 3217,
+          "MemberExpression": 5974,
+          "ExpressionStatement": 1224,
+          "LogicalExpression": 1870,
+          "ArrayExpression": 317,
+          "ArrowFunctionExpression": 991,
+          "IfStatement": 560,
+          "NewExpression": 164,
+          "VariableDeclaration": 996,
+          "VariableDeclarator": 2176,
+          "SequenceExpression": 1128,
+          "AssignmentExpression": 4736,
+          "AssignmentPattern": 57,
+          "FunctionExpression": 187,
+          "ObjectExpression": 411,
+          "Property": 1541,
+          "TemplateLiteral": 111,
+          "TemplateElement": 261,
+          "ForStatement": 223,
+          "SpreadElement": 21,
+          "ForInStatement": 66,
+          "TryStatement": 7,
+          "CatchClause": 7,
+          "ThrowStatement": 1,
+          "ContinueStatement": 2,
+          "BreakStatement": 6,
+          "ClassExpression": 23,
+          "ClassBody": 23,
+          "PropertyDefinition": 18,
+          "MethodDefinition": 119,
+          "ThisExpression": 299,
+          "ChainExpression": 36,
+          "ForOfStatement": 8,
+          "ObjectPattern": 2,
+          "Super": 2,
+          "RestElement": 4,
+          "UpdateExpression": 1,
+          "ExportNamedDeclaration": 1,
+          "ExportSpecifier": 326
+        },
+        "operators": {
+          "===": 15,
+          "void": 46,
+          "in": 6,
+          "&&": 1408,
+          "!=": 560,
+          "typeof": 678,
+          "instanceof": 4,
+          "==": 985,
+          "!": 1630,
+          "||": 381,
+          "<": 276,
+          "<=": 23,
+          "=": 4463,
+          ">=": 37,
+          ">": 84,
+          "-": 235,
+          "*": 201,
+          "/": 77,
+          "+": 164,
+          "*=": 11,
+          "|": 84,
+          "-=": 27,
+          "+=": 231,
+          "|=": 2,
+          "%": 3,
+          "??": 81,
+          "!==": 30,
+          "delete": 2,
+          "/=": 2,
+          "&": 2,
+          "++": 1
+        },
+        "memberNames": [
+          [
+            "length",
+            323
+          ],
+          [
+            "push",
+            159
+          ],
+          [
+            "add",
+            143
+          ],
+          [
+            "x",
+            121
+          ],
+          [
+            "isArray",
+            91
+          ],
+          [
+            "get",
+            88
+          ],
+          [
+            "set",
+            80
+          ],
+          [
+            "value",
+            57
+          ],
+          [
+            "duration",
+            49
+          ],
+          [
+            "has",
+            40
+          ],
+          [
+            "max",
+            38
+          ],
+          [
+            "state",
+            37
+          ],
+          [
+            "velocity",
+            37
+          ],
+          [
+            "values",
+            36
+          ],
+          [
+            "keyframes",
+            36
+          ],
+          [
+            "ease",
+            34
+          ],
+          [
+            "style",
+            32
+          ],
+          [
+            "startsWith",
+            31
+          ],
+          [
+            "done",
+            27
+          ],
+          [
+            "scale",
+            24
+          ],
+          [
+            "abs",
+            23
+          ],
+          [
+            "cancel",
+            22
+          ],
+          [
+            "calculatedDuration",
+            22
+          ],
+          [
+            "next",
+            22
+          ],
+          [
+            "exp",
+            21
+          ],
+          [
+            "restSpeed",
+            19
+          ],
+          [
+            "restDelta",
+            19
+          ],
+          [
+            "timestamp",
+            17
+          ],
+          [
+            "round",
+            17
+          ],
+          [
+            "damping",
+            16
+          ],
+          [
+            "sqrt",
+            16
+          ],
+          [
+            "setup",
+            15
+          ],
+          [
+            "update",
+            15
+          ],
+          [
+            "delete",
+            14
+          ],
+          [
+            "splice",
+            14
+          ]
+        ],
+        "stringLiterals": [
+          [
+            "number",
+            294
+          ],
+          [
+            "string",
+            187
+          ],
+          [
+            "object",
+            122
+          ],
+          [
+            "",
+            87
+          ],
+          [
+            "boolean",
+            49
+          ],
+          [
+            "y",
+            29
+          ],
+          [
+            "x",
+            19
+          ],
+          [
+            "function",
+            17
+          ],
+          [
+            "old",
+            17
+          ],
+          [
+            "new",
+            16
+          ],
+          [
+            "scale",
+            15
+          ],
+          [
+            "none",
+            15
+          ],
+          [
+            "change",
+            13
+          ],
+          [
+            "idle",
+            13
+          ],
+          [
+            "get",
+            12
+          ],
+          [
+            "undefined",
+            11
+          ],
+          [
+            "finished",
+            11
+          ],
+          [
+            "spring",
+            11
+          ],
+          [
+            "opacity",
+            11
+          ],
+          [
+            "keyframes",
+            10
+          ],
+          [
+            " ",
+            10
+          ],
+          [
+            "linear",
+            9
+          ],
+          [
+            "translateX",
+            9
+          ],
+          [
+            "translateY",
+            9
+          ],
+          [
+            "easeOut",
+            8
+          ]
+        ],
+        "largestFunctions": [
+          {
+            "name": "Dp",
+            "raw": 1597,
+            "head": "function Dp(...e){return rp(((e,n,r)=>{let t=((e,n,r,t)=>{if(null==e)return[];var l=rl(e,t,null),a=l.length;eu(a>0,q,J),t=[];for(var o,i,u,s"
+          },
+          {
+            "name": "ar",
+            "raw": 1453,
+            "head": "function ar(e){e.type=\"visual\";let n=null;e.current=n,e.parent=n,e.children=new Set,e.enteringChildren=n,e.depth=0,e.renderState={__proto__:"
+          },
+          {
+            "name": "Ct",
+            "raw": 778,
+            "head": "function Ct(e,n){e.animations=[];for(var r=0;r<n.length;r+=1)n[r]&&e.animations.push(n[r]);e.attachTimeline=n=>{for(var r,t,l=[],a=0;a<e.ani"
+          },
+          {
+            "name": "rp",
+            "raw": 465,
+            "head": "function rp(e){if(!e||\"object\"!=typeof e&&\"function\"!=typeof e)return e;if(\"function\"!=typeof e.cancel&&(e.cancel=\"function\"==typeof e.stop?"
+          },
+          {
+            "name": "St",
+            "raw": 342,
+            "head": "function St(e,n,r,t,l,a,o){e.unresolvedKeyframes=[];for(var i=n.length,u=0;u<i;)e.unresolvedKeyframes.push(n[u]),u+=1;e.onComplete=r,e.name="
+          },
+          {
+            "name": "Yr",
+            "raw": 204,
+            "head": "function Yr(e){let n=null;e.type=n,e.stiffness=n,e.damping=n,e.mass=n,e.duration=n,e.restDelta=n,e.restSpeed=n,e.velocity=n,e.ease=n,e.delay"
+          },
+          {
+            "name": "ki",
+            "raw": 184,
+            "head": "function ki(e){e.current=0,e.offset=[],e.progress=0,e.scrollLength=0,e.velocity=0,e.targetOffset=0,e.targetLength=0,e.containerLength=0,e.in"
+          },
+          {
+            "name": "Be",
+            "raw": 168,
+            "head": "function Be(e,n,r,t,l,a,o,i,u,s,f){e.keyframes=n,e.stiffness=r,e.damping=t,e.mass=l,e.velocity=a,e.duration=o,e.bounce=i,e.visualDuration=u,"
+          },
+          {
+            "name": "Vo",
+            "raw": 151,
+            "head": "function Vo(e,n){e.isActive=n,e.protectedKeys={__proto__:null},e.needsAnimating={__proto__:null},e.prevResolvedValues={__proto__:null},e.pre"
+          },
+          {
+            "name": "B",
+            "raw": 135,
+            "head": "function B(e){return\"undefined\"!=typeof HTMLElement&&e instanceof HTMLElement||\"undefined\"!=typeof SVGElement&&e instanceof SVGElement}"
+          },
+          {
+            "name": "un",
+            "raw": 121,
+            "head": "function un(e,n,r,t,l,a,o){e.test=n,e.parse=r,e.transform=t,e.createTransformer=l,e.defaultValue=a,e.getAnimatableNone=o}"
+          },
+          {
+            "name": "$",
+            "raw": 100,
+            "head": "function $(e){return!(\"undefined\"==typeof window||!window.matchMedia)&&window.matchMedia(e).matches}"
+          },
+          {
+            "name": "p",
+            "raw": 81,
+            "head": "function p(e,n,r){return\"ownerSVGElement\"in e&&\"getBBox\"in e?e.getBBox()[n]:e[r]}"
+          },
+          {
+            "name": "l",
+            "raw": 78,
+            "head": "function l(e){return\"undefined\"!=typeof EventTarget&&e instanceof EventTarget}"
+          },
+          {
+            "name": "np",
+            "raw": 73,
+            "head": "function np(e,n,r){if(!(n in e))try{Object.defineProperty(e,n,r)}catch{}}"
+          },
+          {
+            "name": "k",
+            "raw": 70,
+            "head": "function k(e,n){return window.getComputedStyle(e).getPropertyValue(n)}"
+          },
+          {
+            "name": "V",
+            "raw": 70,
+            "head": "function V(e){return(\"undefined\"==typeof window?globalThis:window)[e]}"
+          },
+          {
+            "name": "X",
+            "raw": 68,
+            "head": "function X(e,n,r){return void 0===r?e.substring(n):e.substring(n,r)}"
+          },
+          {
+            "name": "a",
+            "raw": 65,
+            "head": "function a(e){return null==e?[]:Array.from(e).filter(e=>null!=e)}"
+          },
+          {
+            "name": "ep",
+            "raw": 65,
+            "head": "function ep(e,n){return Promise.resolve(this.finished).then(e,n)}"
+          }
+        ]
+      },
+      "original": {
+        "nodes": {
+          "Program": 1,
+          "FunctionDeclaration": 268,
+          "Identifier": 18643,
+          "BlockStatement": 1002,
+          "ExpressionStatement": 727,
+          "LogicalExpression": 1180,
+          "BinaryExpression": 1301,
+          "UnaryExpression": 911,
+          "Literal": 2530,
+          "CallExpression": 2489,
+          "MemberExpression": 4791,
+          "VariableDeclaration": 898,
+          "VariableDeclarator": 1414,
+          "ArrayPattern": 26,
+          "RestElement": 22,
+          "ConditionalExpression": 394,
+          "IfStatement": 269,
+          "ReturnStatement": 529,
+          "ArrowFunctionExpression": 454,
+          "ObjectExpression": 433,
+          "SequenceExpression": 602,
+          "AssignmentExpression": 1026,
+          "ClassExpression": 24,
+          "ClassBody": 24,
+          "MethodDefinition": 277,
+          "FunctionExpression": 338,
+          "ThisExpression": 1333,
+          "ArrayExpression": 171,
+          "ForStatement": 58,
+          "UpdateExpression": 65,
+          "NewExpression": 134,
+          "TemplateLiteral": 51,
+          "TemplateElement": 131,
+          "DoWhileStatement": 1,
+          "AssignmentPattern": 165,
+          "Property": 1267,
+          "ObjectPattern": 167,
+          "SpreadElement": 118,
+          "ChainExpression": 142,
+          "ForInStatement": 29,
+          "EmptyStatement": 1,
+          "Super": 13,
+          "TryStatement": 6,
+          "CatchClause": 6,
+          "ForOfStatement": 33,
+          "ContinueStatement": 28,
+          "ThrowStatement": 1,
+          "AwaitExpression": 2,
+          "BreakStatement": 2,
+          "ExportNamedDeclaration": 1,
+          "ExportSpecifier": 312
+        },
+        "operators": {
+          "&&": 767,
+          "===": 246,
+          "-": 196,
+          ">": 31,
+          "<": 86,
+          "+": 140,
+          ">=": 20,
+          "==": 108,
+          "typeof": 119,
+          "!==": 169,
+          "void": 201,
+          "=": 970,
+          "/": 71,
+          "++": 60,
+          "*": 197,
+          "||": 359,
+          "%": 6,
+          "<=": 17,
+          "*=": 4,
+          "!=": 30,
+          "!": 530,
+          "+=": 38,
+          "-=": 6,
+          "/=": 7,
+          "??": 54,
+          "--": 5,
+          "%=": 1,
+          "in": 15,
+          "instanceof": 11,
+          "delete": 15,
+          "&": 2,
+          "**": 2
+        },
+        "memberNames": [
+          [
+            "x",
+            122
+          ],
+          [
+            "length",
+            119
+          ],
+          [
+            "set",
+            77
+          ],
+          [
+            "forEach",
+            66
+          ],
+          [
+            "min",
+            64
+          ],
+          [
+            "has",
+            60
+          ],
+          [
+            "push",
+            59
+          ],
+          [
+            "current",
+            53
+          ],
+          [
+            "max",
+            52
+          ],
+          [
+            "isArray",
+            37
+          ],
+          [
+            "parent",
+            36
+          ],
+          [
+            "add",
+            32
+          ],
+          [
+            "delete",
+            29
+          ],
+          [
+            "abs",
+            25
+          ],
+          [
+            "test",
+            23
+          ],
+          [
+            "startsWith",
+            23
+          ],
+          [
+            "now",
+            19
+          ],
+          [
+            "process",
+            15
+          ],
+          [
+            "round",
+            15
+          ],
+          [
+            "timestamp",
+            13
+          ],
+          [
+            "trim",
+            11
+          ],
+          [
+            "isProcessing",
+            10
+          ],
+          [
+            "cancel",
+            10
+          ],
+          [
+            "split",
+            10
+          ],
+          [
+            "clear",
+            9
+          ],
+          [
+            "subscriptions",
+            8
+          ],
+          [
+            "match",
+            8
+          ],
+          [
+            "indexOf",
+            5
+          ],
+          [
+            "reduce",
+            5
+          ],
+          [
+            "pow",
+            5
+          ],
+          [
+            "includes",
+            5
+          ],
+          [
+            "splice",
+            4
+          ],
+          [
+            "sin",
+            4
+          ],
+          [
+            "delta",
+            3
+          ],
+          [
+            "floor",
+            2
+          ]
+        ],
+        "stringLiterals": [
+          [
+            "string",
+            41
+          ],
+          [
+            "number",
+            35
+          ],
+          [
+            "",
+            34
+          ],
+          [
+            "function",
+            29
+          ],
+          [
+            "none",
+            19
+          ],
+          [
+            "y",
+            15
+          ],
+          [
+            "x",
+            14
+          ],
+          [
+            "new",
+            13
+          ],
+          [
+            "old",
+            12
+          ],
+          [
+            "finished",
+            10
+          ],
+          [
+            "keyframes",
+            9
+          ],
+          [
+            "change",
+            9
+          ],
+          [
+            "exit",
+            9
+          ],
+          [
+            "0",
+            8
+          ],
+          [
+            "object",
+            8
+          ],
+          [
+            "scale",
+            8
+          ],
+          [
+            "transform",
+            8
+          ],
+          [
+            ", ",
+            7
+          ],
+          [
+            "linear",
+            7
+          ],
+          [
+            "layout",
+            7
+          ],
+          [
+            "undefined",
+            6
+          ],
+          [
+            "opacity",
+            6
+          ],
+          [
+            "spring",
+            6
+          ],
+          [
+            "svg",
+            6
+          ],
+          [
+            "view-transition-name",
+            6
+          ]
+        ],
+        "largestFunctions": [
+          {
+            "name": "Pa",
+            "raw": 20484,
+            "head": "function Pa({attachResizeListener:t,defaultParent:e,measureScroll:n,checkIsScrollRoot:s,resetTransform:o}){return class{constructor(t={},n=e"
+          },
+          {
+            "name": "no",
+            "raw": 5778,
+            "head": "function no(){eo=null;const[t]=to;var n;t&&(e(to,n=t),eo=n,function(t){const{update:e,targets:n,resolveDefs:i,cropOverride:s,pairs:o,classNa"
+          },
+          {
+            "name": "El",
+            "raw": 2853,
+            "head": "function El(t={}){const{scope:n,reduceMotion:i,skipAnimations:s}=t;return function(t,o,r){let a,l=[];const u={};if(void 0!==i&&(u.reduceMoti"
+          },
+          {
+            "name": "Hl",
+            "raw": 2791,
+            "head": "function Hl(t,{container:e=document.scrollingElement,trackContentSize:n=!1,...s}={}){if(!e)return h;let o=zl.get(e);o||(o=new Set,zl.set(e,o"
+          },
+          {
+            "name": "ee",
+            "raw": 2473,
+            "head": "function ee(t=.3,e=.3){const n=\"object\"!=typeof t?{visualDuration:t,keyframes:[0,1],bounce:e}:t;let{restSpeed:s,restDelta:o}=n;const r=n.key"
+          },
+          {
+            "name": "kr",
+            "raw": 2358,
+            "head": "function kr(t){let e=function(t){return e=>Promise.all(e.map(({animation:e,options:n})=>ri(t,e,n)))}(t),n=Er(),i=!0,s=!1;const o=e=>(n,i)=>{"
+          },
+          {
+            "name": "In",
+            "raw": 1606,
+            "head": "function In(t={}){const e=function({strength:t=.5,peak:e=.5,direction:n,rotate:i=!1}={}){const s=!0===i?1:\"number\"==typeof i?i:0;let o;retur"
+          },
+          {
+            "name": "Ma",
+            "raw": 1544,
+            "head": "function Ma(t){const e=t.resumeFrom?.snapshot||t.snapshot;if(t.isLead()&&t.layout&&e&&t.hasListeners(\"didUpdate\")){const{layoutBox:n,measure"
+          },
+          {
+            "name": "z",
+            "raw": 1132,
+            "head": "function z(t,e){let n=!1,i=!0;const s={delta:0,timestamp:0,isProcessing:!1},o=()=>n=!0,a=N.reduce((t,e)=>(t[e]=function(t){let e=new Set,n=n"
+          },
+          {
+            "name": "ls",
+            "raw": 1026,
+            "head": "function ls(t,e,n={}){const[i,s,o]=qi(t,n),r=t=>{const i=t.currentTarget;if(!rs(t))return;if(as.has(t))return;is.add(i),n.stopPropagation&&a"
+          },
+          {
+            "name": "ll",
+            "raw": 974,
+            "head": "function ll(){const t=Qa;Qa=void 0,function(){if(H.isProcessing)return;const t=Z.now();H.delta=i(0,1e3/60,t-H.timestamp),H.timestamp=t,H.isP"
+          },
+          {
+            "name": "si",
+            "raw": 948,
+            "head": "function si(t,e,{delay:n=0,transitionOverride:i,type:s}={}){let{transition:o,transitionEnd:r,...a}=e;const l=t.getDefaultTransition();o=o?kn"
+          },
+          {
+            "name": "oi",
+            "raw": 788,
+            "head": "function oi(t,e,n={}){const i=Yn(t,e,\"exit\"===n.type?t.presenceContext?.custom:void 0);let{transition:s=t.getDefaultTransition()||{}}=i||{};"
+          },
+          {
+            "name": "ie",
+            "raw": 753,
+            "head": "function ie({keyframes:t,velocity:e=0,power:n=.8,timeConstant:i=325,bounceDamping:s=10,bounceStiffness:o=500,modifyTarget:r,min:a,max:l,rest"
+          },
+          {
+            "name": "Es",
+            "raw": 733,
+            "head": "function Es(t,e,n={}){const i=t.get();let s,o=null,r=i;const a=\"string\"==typeof i?i.replace(/[\\d.-]/g,\"\"):void 0,l=()=>{o&&(o.stop(),o=null)"
+          },
+          {
+            "name": "Zi",
+            "raw": 619,
+            "head": "function Zi(t,e,n={}){const[i,s,o]=qi(t,n);return i.forEach(t=>{let n,i=!1,o=!1;const r=e=>{n&&(n(e),n=void 0),t.removeEventListener(\"pointe"
+          },
+          {
+            "name": "We",
+            "raw": 614,
+            "head": "function We(){if(Ie){const t=Array.from(Oe).filter(t=>t.needsMeasurement),e=new Set(t.map(t=>t.element)),n=new Map;e.forEach(t=>{const e=fun"
+          },
+          {
+            "name": "rl",
+            "raw": 609,
+            "head": "function rl(t,e){let n=il.get(t);if(n)n.setOptions(ol(t,e));else{let i=co.get(t);i||(i=new ur({props:{},presenceContext:null,visualState:{la"
+          },
+          {
+            "name": "ws",
+            "raw": 600,
+            "head": "function ws(t,e){return\"function\"==typeof t?(n=t,xs.add(n),vs||(vs=()=>{const t={get width(){return window.innerWidth},get height(){return w"
+          },
+          {
+            "name": "Ns",
+            "raw": 598,
+            "head": "function Ns(t,e,n,i,s,o=[],r,a=[],l){const u=Ci(t);if(i)return u.map((t,u)=>{const c=e.get(t);if(c)return c;const h=i[u]??$s();return t.styl"
+          }
+        ]
+      }
+    },
+    "compression": "Raw UTF-8 bytes; gzip level 9 using Python gzip.compress with mtime=0; Brotli quality 11. Diagnostic variants use identical esbuild/Terser settings. Compressed differences are not additive source attribution."
+  },
+  "optimizationLevels": {
+    "0": {
+      "raw": 194166,
+      "gzip9": 61134,
+      "brotli11": 52586,
+      "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2"
+    },
+    "3": {
+      "raw": 194166,
+      "gzip9": 61134,
+      "brotli11": 52586,
+      "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2"
+    },
+    "9": {
+      "raw": 188489,
+      "gzip9": 59689,
+      "brotli11": 51351,
+      "sha256": "727e38ef01d25dac7710bc88cfe6052df34017c28518eeb2365feaff1786cd3a"
+    },
+    "13": {
+      "status": "compile-failed",
+      "error": "error: generated JavaScript parser failed: unresolved generated export binding at generated byte 183506\n  generated: ...fe as createRenderBatcher,Gk as cancelMicrotask,Ig as microtask,Fk as time,of as isDragActive,ka as isDragging,cl as setDragLock,dl as hover,<<<HERE>>>fl as press,Mi as isElementKeyboardAccessible,el as isElementTextInput,qf as isNodeOrChild...\n --> /tmp/motionlil-size-rootcause-20260911/repo/src/motion-dom/animation/keyframes/get-final.lil:50:12\n  |\n50 |     return resolvedKeyframes[index];\n  |            ^",
+      "diagnosis": "Generated export names press through a missing local binding. The flag change cannot be deployed."
+    }
+  },
+  "level9Checks": {
+    "passed": 37,
+    "failed": 0,
+    "scope": "The full ESM was replaced by level 9 output in an isolated checkout; default feature entries stayed at the published configuration. Existing browser suites exercised both full and default entries. Complete API compatibility and fresh paired performance were not established."
+  },
+  "nativeAnimationMethodWrappers": 15,
+  "interpretation": [
+    "Much of the implementation repeatedly re-enters JsValue and dynamic host access; emitted typeof syntax is 678 versus 119 in the original full entry. These counts identify code shape, not a quantified CPU attribution.",
+    "The port reconstructs JavaScript APIs with per-instance method wrappers and a separate compatibility implementation. Removing the compatibility layer alone leaves 185098 raw bytes; that diagnostic has a narrower public surface.",
+    "A monolithic compilation reduces the same 50-export port from 149390 to 137578 raw bytes. The original with those same exports is 109582 bytes. This shows build-structure overhead; the monolithic variant has not been approved as behavior-equivalent.",
+    "Level 9 reduces full-entry Brotli bytes from 52586 to 51351 (2.35%) and passes the existing browser checks. It does not explain or close the remaining gap to the original.",
+    "Correctness requirements must be preserved while removing redundant representation and conversion work. The original already implements the required behavior in fewer bytes."
+  ]
+}

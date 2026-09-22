@@ -1,0 +1,10 @@
+extern int read();
+int forHeaderBinding(int seed) {
+  int result = 0;
+  int[] values = [seed, seed + 1, seed + 2];
+  for (int i = 0; i < values.length; ++i) {
+    result += values[i];
+  }
+  return result;
+}
+print(forHeaderBinding(read()));print(forHeaderBinding(0));print(forHeaderBinding(-3));

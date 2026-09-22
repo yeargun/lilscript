@@ -1,0 +1,728 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "katexlil",
+  "started": "2026-09-21T10:47:00.156Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/katexlil",
+  "workspace": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/katexlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/katexlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-katexlil-Yf3TXN/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+  "derivation": {
+    "supported": true,
+    "script": "node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+    "originalSegments": [
+      "node --test test/*.test.mjs",
+      "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand"
+    ],
+    "segments": [
+      "node --test test/*.test.mjs",
+      "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs"
+    ],
+    "deviations": [
+      "original command also runs `node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand`, which is not the built-in test runner; this observation does not cover those cases"
+    ],
+    "uncovered": [
+      "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand"
+    ],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/contrib/auto-render.cjs",
+      "dist/contrib/auto-render.mjs",
+      "dist/contrib/copy-tex.cjs",
+      "dist/contrib/copy-tex.mjs",
+      "dist/contrib/mathtex-script-type.cjs",
+      "dist/contrib/mathtex-script-type.mjs",
+      "dist/contrib/mhchem.cjs",
+      "dist/contrib/mhchem.mjs",
+      "dist/contrib/render-a11y-string.cjs",
+      "dist/contrib/render-a11y-string.mjs",
+      "dist/katex.cjs",
+      "dist/katex.closed.js",
+      "dist/katex.mjs",
+      "katex.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/contrib/auto-render.cjs",
+      "./dist/contrib/auto-render.mjs",
+      "./dist/contrib/copy-tex.cjs",
+      "./dist/contrib/copy-tex.mjs",
+      "./dist/contrib/mathtex-script-type.cjs",
+      "./dist/contrib/mathtex-script-type.mjs",
+      "./dist/contrib/mhchem.cjs",
+      "./dist/contrib/mhchem.mjs",
+      "./dist/contrib/render-a11y-string.cjs",
+      "./dist/contrib/render-a11y-string.mjs",
+      "./dist/katex.cjs",
+      "./dist/katex.closed.js",
+      "./dist/katex.mjs",
+      "./katex.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/katexlil/node/report.json",
+    "sha256": "ac5a478e281fbd98b08fa53b1725880f5347c565404db982bbd7e320b32eda4f",
+    "bytes": 107991
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/browser-perf.test.mjs\",20,3,1,\"test\",\"renders the corpus identically and within the regression guard rail\",1]",
+      "file": "test/browser-perf.test.mjs",
+      "name": "renders the corpus identically and within the regression guard rail",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/browser-perf.test.mjs\",19,1,0,\"suite\",\"browser performance (Playwright, Chromium)\",1]",
+      "file": "test/browser-perf.test.mjs",
+      "name": "browser performance (Playwright, Chromium)",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/contrib-differential.test.mjs\",18,3,1,\"test\",\"contains no runtime JavaScript host modules\",1]",
+      "file": "test/contrib-differential.test.mjs",
+      "name": "contains no runtime JavaScript host modules",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/contrib-differential.test.mjs\",25,3,1,\"test\",\"matches official render-a11y-string outputs and errors\",1]",
+      "file": "test/contrib-differential.test.mjs",
+      "name": "matches official render-a11y-string outputs and errors",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/contrib-differential.test.mjs\",68,3,1,\"test\",\"matches official mhchem rendering across parser state machines\",1]",
+      "file": "test/contrib-differential.test.mjs",
+      "name": "matches official mhchem rendering across parser state machines",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/contrib-differential.test.mjs\",17,1,0,\"suite\",\"contrib LilScript parity\",1]",
+      "file": "test/contrib-differential.test.mjs",
+      "name": "contrib LilScript parity",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",38,3,1,\"test\",\"renders x^2 with MathML and HTML\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "renders x^2 with MathML and HTML",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",47,3,1,\"test\",\"renders frac\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "renders frac",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",56,3,1,\"test\",\"matches the upstream root exports\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "matches the upstream root exports",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",82,3,1,\"test\",\"honors throwOnError and errorColor\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "honors throwOnError and errorColor",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",90,3,1,\"test\",\"pins option keys on the library artifact\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "pins option keys on the library artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",98,3,1,\"test\",\"render appends a DOM tree and covers the TeX surface\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "render appends a DOM tree and covers the TeX surface",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",124,3,1,\"test\",\"closed artifact performs the core call\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "closed artifact performs the core call",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/katex.test.mjs\",37,1,0,\"suite\",\"@itslil/katex\",1]",
+      "file": "test/katex.test.mjs",
+      "name": "@itslil/katex",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",14,3,1,\"test\",\"reports the pinned upstream version in ESM, CJS, and the CLI\",1]",
+      "file": "test/package.test.mjs",
+      "name": "reports the pinned upstream version in ESM, CJS, and the CLI",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",27,3,1,\"test\",\"matches pinned upstream root and contrib export keys\",1]",
+      "file": "test/package.test.mjs",
+      "name": "matches pinned upstream root and contrib export keys",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",49,3,1,\"test\",\"renders stdin through the CLI\",1]",
+      "file": "test/package.test.mjs",
+      "name": "renders stdin through the CLI",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",59,3,1,\"test\",\"loads ESM and CommonJS contrib entry points\",1]",
+      "file": "test/package.test.mjs",
+      "name": "loads ESM and CommonJS contrib entry points",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",70,3,1,\"test\",\"loads browser builds as classic scripts\",1]",
+      "file": "test/package.test.mjs",
+      "name": "loads browser builds as classic scripts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",100,3,1,\"test\",\"matches official mhchem output\",1]",
+      "file": "test/package.test.mjs",
+      "name": "matches official mhchem output",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",113,3,1,\"test\",\"matches official output across the screenshot corpus\",1]",
+      "file": "test/package.test.mjs",
+      "name": "matches official output across the screenshot corpus",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",13,1,0,\"suite\",\"published surface\",1]",
+      "file": "test/package.test.mjs",
+      "name": "published surface",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",25,3,1,\"test\",\"ships the benchmark page and the corpus it shares with Node\",1]",
+      "file": "test/site.test.mjs",
+      "name": "ships the benchmark page and the corpus it shares with Node",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",31,3,1,\"test\",\"publishes results that name their sources and both worlds\",1]",
+      "file": "test/site.test.mjs",
+      "name": "publishes results that name their sources and both worlds",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/render-a11y-string.mjs",
+      "sha256": "808a4d2a48e438762bb978a799283948ab7f145700212bd6fb6be1834a195ded",
+      "bytes": 6911
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/mhchem.mjs",
+      "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+      "bytes": 42015
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.mjs",
+      "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+      "bytes": 274892
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.closed.js",
+      "sha256": "cf0f158f34d0796cba3f171fce1f5a888bdaf7128b0727d05b0f4277065185f6",
+      "bytes": 275209
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/mathtex-script-type.mjs",
+      "sha256": "7e256d4569d673e7bacd38ca15df15e283b33c30b25889c7d0ec74b21c32f796",
+      "bytes": 530
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.cjs",
+      "sha256": "bdeafc9329203138d0cad72456f21db9c673efd3155fcf39365bf4119266059b",
+      "bytes": 276695
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/render-a11y-string.mjs",
+      "sha256": "808a4d2a48e438762bb978a799283948ab7f145700212bd6fb6be1834a195ded",
+      "bytes": 6911
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.mjs",
+      "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+      "bytes": 274892
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/copy-tex.mjs",
+      "sha256": "bf0983e6edbe3743ea1b8b96b34da9ff6a28a06bb398a32d2dd32249f03a577e",
+      "bytes": 1312
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/mhchem.mjs",
+      "sha256": "8d46e54ef7fecd813b3a18ca7cb696fe74f148fcd377e5a14be6e2d6e57f2cf7",
+      "bytes": 42015
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/auto-render.cjs",
+      "sha256": "2b795d8717ac9041a9c52919176b13c37e91efb9f0c437f028d193f7d74bb812",
+      "bytes": 4057
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/render-a11y-string.cjs",
+      "sha256": "1b405c41ebe2147641f07c901965265136afd156c3e2999dff290a8f1ba565e7",
+      "bytes": 8622
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/auto-render.mjs",
+      "sha256": "01330af0bccf50a445d6ba95cea68c0e580d4f89395a06b9929652c99660c045",
+      "bytes": 2739
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/katex.js",
+      "sha256": "053a4aa4fd160948275966aa51c70c30cc87c6bae7ed3460ae61e9dc50a6fe53",
+      "bytes": 76
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/mhchem.cjs",
+      "sha256": "98b156f088ea22810f5201353b7baf79eace1c666acf59e41a873697e0ccfa41",
+      "bytes": 43086
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.closed.js",
+      "sha256": "cf0f158f34d0796cba3f171fce1f5a888bdaf7128b0727d05b0f4277065185f6",
+      "bytes": 275209
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.mjs",
+      "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+      "bytes": 274892
+    },
+    {
+      "path": "/tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/katex.mjs",
+      "sha256": "7f4a6b58a769eb518a6b1c0d489dc13ebf9d820706f4380fbd3a49305abb37fd",
+      "bytes": 274892
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/copy-tex.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-katexlil-Yf3TXN/katexlil/dist/contrib/mathtex-script-type.cjs"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [
+    "dist/contrib/copy-tex.cjs",
+    "dist/contrib/mathtex-script-type.cjs"
+  ],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/contrib/auto-render.cjs",
+    "dist/contrib/auto-render.mjs",
+    "dist/contrib/copy-tex.mjs",
+    "dist/contrib/mathtex-script-type.mjs",
+    "dist/contrib/mhchem.cjs",
+    "dist/contrib/mhchem.mjs",
+    "dist/contrib/render-a11y-string.cjs",
+    "dist/contrib/render-a11y-string.mjs",
+    "dist/katex.cjs",
+    "dist/katex.closed.js",
+    "dist/katex.mjs",
+    "katex.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 8538.368582,
+  "completed": "2026-09-21T10:47:08.666Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2f3493637bbc828d93ecc98883ef4eb41a34ff9740f6f146f2a11ee01fd9694d",
+      "bytes": 2537326
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2f3493637bbc828d93ecc98883ef4eb41a34ff9740f6f146f2a11ee01fd9694d",
+      "bytes": 2537326
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ed867796604099ca13608672267151851471053e6511b487e7d783f31e02b125",
+      "bytes": 9866
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "23e6b52a285b43051cdb5d9d09406a5aad19e2f1353afa7b2dee9748de31c22a",
+      "bytes": 7106
+    },
+    {
+      "path": "node/loaded/482689-19bee39c-19ec-4560-9309-e3d14413fc8b.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "69f61242a0ea528b2b3d593972ed094244a082a313419816ce1a43748c09896d",
+      "bytes": 357
+    },
+    {
+      "path": "node/loaded/482689-2d428859-2407-4c72-b355-291bdb21200e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ce3dd5efdc23bafaf6cefe4d476de314593117337a1cf64bab06d2b230df5680",
+      "bytes": 334
+    },
+    {
+      "path": "node/loaded/482689-f3c5b534-a182-4d0c-8bbb-5e72a5bdfd81.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4271ad4f6eaf827339a291954171ec8862b5523bf3e5933dddfbb11a535a39c3",
+      "bytes": 317
+    },
+    {
+      "path": "node/loaded/482690-9d4f8d15-c4d4-4a10-a269-4bf0e25b5adf.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "302364e35bfe7d71f35d5368b7e3f838b4b5afe5fc5cb0e1ac3a425adba28686",
+      "bytes": 329
+    },
+    {
+      "path": "node/loaded/482691-0401cc04-7b52-4681-af1b-4a4b137a8b54.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dde009e2566e573ce36c70cbc1d4955b9d694035795597cf03fe7b11a0c63714",
+      "bytes": 358
+    },
+    {
+      "path": "node/loaded/482691-0c85c679-7646-4e82-af11-9df4e9a42020.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "94b4a9bd672ea96e1ffe1e25db7ae88de64a4c87eb7a9904417d4061d4ad5068",
+      "bytes": 319
+    },
+    {
+      "path": "node/loaded/482691-2cc65361-b84d-40ec-b5bb-999943139cee.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "883acb75c33e8db1f8599c602d5197db3cbc99116cd2536ac6bc7d37060d791f",
+      "bytes": 357
+    },
+    {
+      "path": "node/loaded/482691-4ac7b169-e7ba-4e5b-a62f-bf67a97a6f71.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "83978179ad8098101fb83def2f2474d6715fedc5b4b06cf95d6848ad68cf6037",
+      "bytes": 317
+    },
+    {
+      "path": "node/loaded/482691-4e5e841a-11b6-4fca-a1b6-d28971c9a498.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "808086344bbb97cbb70bf946167a69cf112295010f1fbc1eb886d0bca51ae036",
+      "bytes": 337
+    },
+    {
+      "path": "node/loaded/482691-518dae73-dc3c-421a-be41-71e26b3adb4d.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cc071d1ff5f660c26e19ee6fcfcca077ecf760bd858110747a923217646de53a",
+      "bytes": 334
+    },
+    {
+      "path": "node/loaded/482691-56fad003-f760-48d1-aa03-d8da254cdcc4.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3daf753d80a6f6b8689a29fed64ed031012c975cf6de376e1429ae441077f803",
+      "bytes": 345
+    },
+    {
+      "path": "node/loaded/482691-6deee2fc-6633-49ff-9199-62bf385301d6.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "58960c74112ac34136d690f9807ce935b366a1e5e665777ffbaa417b6caf64d7",
+      "bytes": 359
+    },
+    {
+      "path": "node/loaded/482691-716d1864-6195-422a-b98c-cecd519b8962.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dab5c57ff16ed526437fd21f30f133852ed528aca1ab3da12b5ff7890142283b",
+      "bytes": 343
+    },
+    {
+      "path": "node/loaded/482691-b357f960-2eb9-4b3e-a4b5-e0cfe409f3b3.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d6e57852d34a00b353d65584c13764edabf1a0147f8920db63f9af11ea5e0c4f",
+      "bytes": 301
+    },
+    {
+      "path": "node/loaded/482691-b89c8c65-cef5-442a-bf96-14ac15028efc.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "649042c53e69d28a66d3d869d4cb3fb4ab161e05ff24a698be96d411993427a5",
+      "bytes": 336
+    },
+    {
+      "path": "node/loaded/482691-e61a0ba3-2030-4509-8056-873218df38aa.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "40d811fcc8a6832dd4f1b906cb42da09d0be5fef2ed10af322d27af191ceb4db",
+      "bytes": 329
+    },
+    {
+      "path": "node/loaded/482727-16b79f97-94ab-4283-83af-ddef6e400565.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dc08898bc8bd079bf9c706db25e726241813e1ee728bb96e30e34616ceacc8a3",
+      "bytes": 317
+    },
+    {
+      "path": "node/loaded/482734-3d108a07-72cd-4ce6-bba6-343371d3220e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e1dbd9afbdd3203293b31ff776fe20139e147d95cf4da9af4f9ad2ebe46c6e3c",
+      "bytes": 317
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "be6a56f502e6b8d76652cedbb1053093ad00436c177c1638dd78ecadfab8893a",
+      "bytes": 1335
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ac5a478e281fbd98b08fa53b1725880f5347c565404db982bbd7e320b32eda4f",
+      "bytes": 107991
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

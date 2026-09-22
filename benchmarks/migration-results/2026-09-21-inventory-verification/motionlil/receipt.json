@@ -1,0 +1,403 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "motionlil",
+  "started": "2026-09-21T10:47:21.725Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/motionlil",
+  "workspace": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/motionlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/motionlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-motionlil-u0hGc4/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+  "derivation": {
+    "supported": true,
+    "script": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+    "originalSegments": [
+      "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs"
+    ],
+    "segments": [
+      "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/node.test.mjs",
+      "test/terser.test.mjs",
+      "test/vite.test.mjs",
+      "test/shake.test.mjs"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/debug.cjs",
+      "dist/debug.js",
+      "dist/full.cjs",
+      "dist/full.js",
+      "dist/index.cjs",
+      "dist/index.js",
+      "dist/mini.cjs",
+      "dist/mini.js",
+      "dist/motionlil.global.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/debug.cjs",
+      "./dist/debug.js",
+      "./dist/full.cjs",
+      "./dist/full.js",
+      "./dist/index.cjs",
+      "./dist/index.js",
+      "./dist/mini.cjs",
+      "./dist/mini.js",
+      "./dist/motionlil.global.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/motionlil/node/report.json",
+    "sha256": "242e8f63be0e9472c3967e0b984b33ffa636ac6407465ff9b6849b9a277a81a4",
+    "bytes": 52210
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+      "file": "test/node.test.mjs",
+      "name": "ESM entry points load without a browser global",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+      "file": "test/node.test.mjs",
+      "name": "pure utilities and MotionValue behavior work",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+      "file": "test/node.test.mjs",
+      "name": "CommonJS entry points expose the same public names",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+      "file": "test/node.test.mjs",
+      "name": "every Motion DOM export is present on the full entry",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+      "file": "test/node.test.mjs",
+      "name": "default entry keeps the JS consumer API",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+      "file": "test/node.test.mjs",
+      "name": "public constructor compatibility covers common direct usage",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+      "file": "test/shake.test.mjs",
+      "name": "named imports do not pull the whole consumer graph",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+      "file": "test/terser.test.mjs",
+      "name": "the distributed animate module survives a second Terser pass",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+      "file": "test/vite.test.mjs",
+      "name": "Vite bundles the public package entry",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.js",
+      "sha256": "4720d017c032e85faa88dad2851a49226e25c4c323fabcc450a38bfe64875fbe",
+      "bytes": 504
+    },
+    {
+      "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.js",
+      "sha256": "380cdd5984c7736693a31b9cf937f43dde483baffa2d3bff9957552860401398",
+      "bytes": 181724
+    },
+    {
+      "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.js",
+      "sha256": "93f5cdfe1357d660994a944767a86692ec187e6749e0afe6c720daf82e92da4f",
+      "bytes": 764
+    },
+    {
+      "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.js",
+      "sha256": "60a4065d8ae2e68d52ed07e06bb1331e3dec4465518b2e967a394ce4c672b5f0",
+      "bytes": 34800
+    },
+    {
+      "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.cjs",
+      "sha256": "c8c0f6fe9431a45d78e9e514d9c20f7a9951f9b5d04819a09e26f685799348cc",
+      "bytes": 117367
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/motionlil.global.js"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [
+    "dist/debug.cjs",
+    "dist/full.cjs",
+    "dist/mini.cjs",
+    "dist/motionlil.global.js"
+  ],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/debug.js",
+    "dist/full.js",
+    "dist/index.cjs",
+    "dist/index.js",
+    "dist/mini.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 10102.931289,
+  "completed": "2026-09-21T10:47:31.794Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "441a969076b123273c332bbca3b0af64ba95b12b0907f9e0adb4e5153ac1149f",
+      "bytes": 1325735
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "441a969076b123273c332bbca3b0af64ba95b12b0907f9e0adb4e5153ac1149f",
+      "bytes": 1325735
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2940ee5c8ecb03f33a9b08782fa0ce1c894c42d6df767829c4437fad95643591",
+      "bytes": 4850
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bea9e6750bdabd5d3621c0d8aaf86fb782be24e0780f583fd8bc68ce938c16ed",
+      "bytes": 2856
+    },
+    {
+      "path": "node/loaded/483705-093319c1-3d01-4b39-9c54-cee1f7fe79e8.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "651788648f36cda782d0d6a04dc1fde8ea642c5956024e7d725da43edc21536e",
+      "bytes": 316
+    },
+    {
+      "path": "node/loaded/483705-30baadac-4fa0-4187-ae6d-d16ec26e50d3.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "97066f0dd6256d9711487b4294a88cfddee2cf33f2146c8a4f9a7bbeae7fdca1",
+      "bytes": 317
+    },
+    {
+      "path": "node/loaded/483705-6b7e5ff4-499f-43dd-aecc-5e41f2d3fbe4.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1b9f8cf5ba81b010403399fe9f89209e77f30fad8722e67e5eba2490f1b6a0e2",
+      "bytes": 316
+    },
+    {
+      "path": "node/loaded/483705-c7b3f34b-a15d-4820-9b17-c4b0ebe85b9f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f073f6ca9920cdc37736aa2343035518df4a13e5d8d37f99e8e1ae03219eeffd",
+      "bytes": 316
+    },
+    {
+      "path": "node/loaded/483705-eb934fa0-e04d-4332-ad89-8c7ce4e23a2c.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bea861a177587413056873a0095329517cb626d960e9fb70b5786373f66f0749",
+      "bytes": 323
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b68133bbbda0d2896a992bca9880e460788d215fdfcf256d60c141c6c893b07a",
+      "bytes": 877
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "242e8f63be0e9472c3967e0b984b33ffa636ac6407465ff9b6849b9a277a81a4",
+      "bytes": 52210
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

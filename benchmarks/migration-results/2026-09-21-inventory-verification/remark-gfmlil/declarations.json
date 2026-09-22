@@ -1,0 +1,271 @@
+{
+  "patterns": [
+    "test/*.test.mjs",
+    "test/official/index.js"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/remark-gfm.cjs",
+    "dist/remark-gfm.closed.js",
+    "dist/remark-gfm.esm.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+      "bytes": 406
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+      "bytes": 2650
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+      "bytes": 47236
+    },
+    {
+      "path": "package.json",
+      "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+      "bytes": 2259
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+      "bytes": 948
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+      "bytes": 3180
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+      "bytes": 1006
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+      "bytes": 9321
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+      "bytes": 104355
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+      "bytes": 2547
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "site/vendor/remark-parse.js",
+      "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+      "bytes": 35260
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+      "bytes": 2584
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+      "bytes": 1000
+    },
+    {
+      "path": "test/official/fixtures/autolink-literal/input.md",
+      "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+      "bytes": 1298
+    },
+    {
+      "path": "test/official/fixtures/autolink-literal/output.md",
+      "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+      "bytes": 2059
+    },
+    {
+      "path": "test/official/fixtures/autolink-literal/tree.json",
+      "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+      "bytes": 52219
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/input.md",
+      "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+      "bytes": 29
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/output.md",
+      "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+      "bytes": 37
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/tree.json",
+      "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+      "bytes": 2698
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/config.json",
+      "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+      "bytes": 27
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/input.md",
+      "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+      "bytes": 29
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/output.md",
+      "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+      "bytes": 37
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+      "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+      "bytes": 1951
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/config.json",
+      "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+      "bytes": 30
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/input.md",
+      "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+      "bytes": 40
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/tree.json",
+      "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+      "bytes": 4453
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/config.json",
+      "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+      "bytes": 32
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/input.md",
+      "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+      "bytes": 40
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/output.md",
+      "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+      "bytes": 28
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/tree.json",
+      "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+      "bytes": 4453
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/config.json",
+      "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+      "bytes": 63
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/input.md",
+      "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+      "bytes": 33
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/output.md",
+      "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+      "bytes": 35
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/tree.json",
+      "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+      "bytes": 3550
+    },
+    {
+      "path": "test/official/fixtures/table/input.md",
+      "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+      "bytes": 72
+    },
+    {
+      "path": "test/official/fixtures/table/output.md",
+      "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+      "bytes": 104
+    },
+    {
+      "path": "test/official/fixtures/table/tree.json",
+      "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+      "bytes": 11398
+    },
+    {
+      "path": "test/official/fixtures/tasklist/input.md",
+      "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+      "bytes": 30
+    },
+    {
+      "path": "test/official/fixtures/tasklist/output.md",
+      "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+      "bytes": 31
+    },
+    {
+      "path": "test/official/fixtures/tasklist/tree.json",
+      "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+      "bytes": 4467
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+      "bytes": 2422
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/types.test.ts",
+      "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+      "bytes": 492
+    },
+    {
+      "path": "types/remark-gfm.d.ts",
+      "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+      "bytes": 360
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1569 @@
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/anyunknown.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/apply.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/array.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/async-parsing.test.ts:262\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    /// nativeEnum\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  > enum nativeEnumTest {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"      asdf = \"qwer\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  > }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    // @ts-ignore\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/async-refinements.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/base.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/bigint.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/brand.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/catch.test.ts:122\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    test(\"native enum\", () => {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   enum Fruits {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        apple = \"apple\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        orange = \"orange\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1631\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\t\tthrow new Error(`Vitest failed to find ${message}. One of the following is possible:` + \"\\n- \\\"vitest\\\" is imported directly without running \\\"vitest\\\" command\" + \"\\n- \\\"vitest\\\" is imported inside \\\"globalSetup\\\" (to fix this, use \\\"setupFiles\\\" instead, because \\\"globalSetup\\\" runs in a different context)\" + \"\\n- \\\"vitest\\\" is imported inside Vite / Vitest config file\" + \"\\n- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues\\n\");\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\t\t      ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error: Vitest failed to find the current suite. One of the following is possible:\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- \"vitest\" is imported directly without running \"vitest\" command\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- \"vitest\" is imported inside \"globalSetup\" (to fix this, use \"setupFiles\" instead, because \"globalSetup\" runs in a different context)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- \"vitest\" is imported inside Vite / Vitest config file\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at assert (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1631:9)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at getCurrentSuite (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1666:2)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at Object.<anonymous> (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:2)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at chain (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/coalesce.test.ts:3:1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/codec-examples.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/codec.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/coerce.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/continuability.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/credit-card.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/custom.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/cyclic-data.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/date.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/datetime.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/deep-partial.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/default-locale.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/default.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/esm/resolve:274\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    throw new ERR_MODULE_NOT_FOUND(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"          ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/describe-meta-checks.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/description.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/detached-methods.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/discriminated-unions.test.ts:424\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    test(\"enum and nativeEnum\", () => {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   enum MyEnum {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        d = 0,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        e = \"e\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/enum.test.ts:27\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    test(\"enum from native enum\", () => {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   enum Fruits {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        Apple = \"apple\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        Banana = \"banana\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        Orange = 3,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"      // @ts-ignore\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/error-utils.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/error.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/file.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/firstparty.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/esm/resolve:274\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    throw new ERR_MODULE_NOT_FOUND(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"          ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/mini/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/fix-json-issue.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/mini/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/esm/resolve:274\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    throw new ERR_MODULE_NOT_FOUND(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"          ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/from-json-schema.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/from-json-schema.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/from-json-schema.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/function.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/global-config.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/hash.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/index.test.ts:316\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"      // TypeScript enum keys\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   enum Enum {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        A = 0,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        B = \"hi\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/mini/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/instance-footprint.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/mini/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/mini/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/instanceof.test.ts:8\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  abstract class AbstractBar {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    constructor(public val: string) {}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"                       ^^^^^^^^^^^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/intersection.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/issue-schema.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/jitless-allows-eval.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1631\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\t\tthrow new Error(`Vitest failed to find ${message}. One of the following is possible:` + \"\\n- \\\"vitest\\\" is imported directly without running \\\"vitest\\\" command\" + \"\\n- \\\"vitest\\\" is imported inside \\\"globalSetup\\\" (to fix this, use \\\"setupFiles\\\" instead, because \\\"globalSetup\\\" runs in a different context)\" + \"\\n- \\\"vitest\\\" is imported inside Vite / Vitest config file\" + \"\\n- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues\\n\");\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\t\t      ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error: Vitest failed to find the current suite. One of the following is possible:\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- \"vitest\" is imported directly without running \"vitest\" command\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- \"vitest\" is imported inside \"globalSetup\" (to fix this, use \"setupFiles\" instead, because \"globalSetup\" runs in a different context)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- \"vitest\" is imported inside Vite / Vitest config file\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"- Otherwise, it might be a Vitest bug. Please report it to https://github.com/vitest-dev/vitest/issues\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at assert (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1631:9)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at getCurrentSuite (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1666:2)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at Object.<anonymous> (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:2)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at chain (file:///home/azureuser/zodlil/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/json.test.ts:3:1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/lazy.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/literal.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/locales_ka.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/locales_ro.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/map.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/nan.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/nested-refine.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/nonoptional.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/nullable.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/number.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/object.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/optional.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/partial.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/pickomit.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/pipe.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/prefault.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/preprocess.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/primitive.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/promise.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/prototypes.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/readonly.test.ts:4\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    \n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  > enum testEnum {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"      A = 0,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"      B = 1,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  > }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/record.test.ts:20\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    \n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   enum Enum {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        Tuna = 0,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        Salmon = \"Shark\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >   }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/redos.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/refine.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/registries.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/set.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/standard-schema.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/string-formats.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/string.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/stringbool.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/template-literal.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/to-json-schema-methods.test.ts:223\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        test(\"nativeEnum\", () => {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >       enum Colors {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"            Red = \"red\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"            Green = \"green\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"            Blue = \"blue\",\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >       }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"          expectMethodMatch(z.nativeEnum(Colors));\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/to-json-schema.test.ts:1117\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"      test(\"record filters enum values to strings and numbers for required\", () => {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >     enum NumberEnum {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"          Zero = 0,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"          One = 1,\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  >     }\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"        const schema = z.record(z.enum(NumberEnum), z.string());\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript enum is not supported in strip-only mode\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at parseTypeScript (node:internal/modules/typescript:68:40)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at processTypeScriptCode (node:internal/modules/typescript:146:42)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at stripTypeScriptModuleTypes (node:internal/modules/typescript:209:22)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:660:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #translate (node:internal/modules/esm/loader:541:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at afterLoad (node:internal/modules/esm/loader:594:29)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:599:12)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #createModuleJob (node:internal/modules/esm/loader:623:36)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #getJobFromResolveResult (node:internal/modules/esm/loader:329:34)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:294:41) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/transform.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/tuple.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/union.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/url.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/validations.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"node:internal/modules/run_main:107\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    triggerUncaughtException(\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    ^\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js' imported from /tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/src/v4/classic/tests/void.test.ts\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Did you mean to import \"zod/v4/index.cjs\"?\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at moduleResolve (node:internal/modules/esm/resolve:864:10)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at defaultResolve (node:internal/modules/esm/resolve:990:11)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"    at #link (node:internal/modules/esm/module_job:208:49) {\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  code: 'ERR_MODULE_NOT_FOUND',\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"  url: 'file:///tmp/lilscript-baseline-zodlil-1jvb6u/zodlil/vendor/zod/packages/zod/v4/index.js'\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"}\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"\n"}
+{"kind":"diagnostic","event":"test:stderr","message":"Node.js v24.11.1\n"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 82"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 82"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 3741.245521"}

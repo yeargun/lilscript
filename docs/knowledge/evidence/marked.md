@@ -3,7 +3,7 @@
 Parent: [evidence](README.md). Required row:
 [library proof matrix](library-proof-matrix.md). Live snapshot:
 [`docs/current-status.md`](../../current-status.md). Historical investigation:
-[marked-01](../migration/board/notes/marked-01.md).
+marked-01 (archived: `repository/docs/knowledge/migration/board/notes/marked-01.md`).
 
 ## Boundaries
 

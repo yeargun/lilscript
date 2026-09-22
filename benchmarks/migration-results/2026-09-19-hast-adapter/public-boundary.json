@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "status": "unverified",
+  "node": "v24.11.1",
+  "harnessSha256": "46d4dac39b3218c64b4155ee97a6b4643de217ef177dc2144a021c86e6ebc49d",
+  "records": [
+    {
+      "label": "upstream",
+      "path": "/home/azureuser/hast-util-to-htmllil/node_modules/hast-util-to-html/index.js",
+      "sha256": "10984d1819cb0c036fe2fbb47047d2b3b670c38634680f346df4882674877450",
+      "bytes": 283,
+      "exports": [
+        {
+          "export": "toHtml",
+          "type": "function",
+          "name": "toHtml",
+          "length": 2,
+          "constructible": true,
+          "ownProperties": [
+            "length",
+            "name",
+            "prototype"
+          ],
+          "nameDescriptor": {
+            "value": "toHtml",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          "lengthDescriptor": {
+            "value": 2,
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          }
+        }
+      ]
+    },
+    {
+      "label": "source-built-esm",
+      "path": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil/dist/to-html.esm.js",
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101,
+      "exports": [
+        {
+          "export": "toHtml",
+          "type": "function",
+          "name": "kb",
+          "length": 2,
+          "constructible": false,
+          "ownProperties": [
+            "length",
+            "name"
+          ],
+          "nameDescriptor": {
+            "value": "kb",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          "lengthDescriptor": {
+            "value": 2,
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          }
+        }
+      ]
+    },
+    {
+      "label": "source-built-closed",
+      "path": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil/dist/to-html.closed.js",
+      "sha256": "5f141aa185acb302fc281e925d79fea6948454cc71e9398d204b34ed65cca82e",
+      "bytes": 29952,
+      "exports": [
+        {
+          "export": "toHtml",
+          "type": "function",
+          "name": "mb",
+          "length": 2,
+          "constructible": false,
+          "ownProperties": [
+            "length",
+            "name"
+          ],
+          "nameDescriptor": {
+            "value": "mb",
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          },
+          "lengthDescriptor": {
+            "value": 2,
+            "writable": false,
+            "enumerable": false,
+            "configurable": true
+          }
+        }
+      ]
+    }
+  ],
+  "sourceBuildRecordSha256": "0a3c34ff4c96f77ba1f8fb34dbaa3099431567cbc9837c2dc47224c3f5b7d675",
+  "sourceBuiltConfigurations": [
+    {
+      "path": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil/lilscript.toml",
+      "sha256": "41ada36aca53e769f897c9fb1dbfefc7061d0eaf2a47b82caa9735f4f6be1d1c",
+      "bytes": 652,
+      "content": "# reusable ESM — host-visible names stay\n[javascript]\npriority = \"size-first\"\n# 8.90: level 12 -> 15, measured -17 Brotli on this port's own\n# artifact. Swept across the fleet the level is nearly inert (-160 over 22,\n# and katexlil and react-markdownlil do not move at all), so it lands per\n# port where it pays rather than as a default.\noptimization_level = 15\n\ncost_model = \"brotli\"\nassume_pristine_builtins = true\nstrip_console = true\nlocal_name_reserve = 48\ncandidate_search = \"off\"\nfunction_spelling = \"arrow\"\npublic_aggregate_abi = \"named\"\n\n[mangle]\nidentifiers = true\nproperties = true\nexports = false\nextern_fields = true\npool_strings = true\n"
+    },
+    {
+      "path": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil/lilscript.closed.toml",
+      "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+      "bytes": 407,
+      "content": "# closed LilScript world — extern class keys may mangle\n[javascript]\npriority = \"size-first\"\noptimization_level = 12\ncost_model = \"brotli\"\nassume_pristine_builtins = true\nstrip_console = true\nlocal_name_reserve = 48\ncandidate_search = \"off\"\nfunction_spelling = \"arrow\"\npublic_aggregate_abi = \"named\"\n\n[mangle]\nidentifiers = true\nproperties = true\nexports = false\nextern_fields = false\npool_strings = true\n"
+    }
+  ],
+  "limitations": [
+    "Supplementary public-binding observation, not a replacement for original tests.",
+    "The original suite passes despite differing function names on the legacy compiler's delivered artifacts.",
+    "The ESM profile explicitly requests arrow spelling; constructibility differences therefore need boundary-contract review, not silent equivalence credit.",
+    "Upstream dependency closure is not pinned by this diagnostic; no competitive eligibility or size win follows.",
+    "CJS, UMD, installed-package, declaration and browser consumers remain required work."
+  ]
+}

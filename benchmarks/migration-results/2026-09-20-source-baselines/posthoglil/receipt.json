@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "posthoglil",
+  "started": "2026-09-20T18:40:47.329Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/posthoglil",
+  "workspace": "/tmp/lilscript-baseline-posthoglil-BfAfBL/posthoglil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "sourceSnapshot": {
+    "root": "/home/azureuser/posthoglil",
+    "files": 3856,
+    "sha256": "07317e3bd29a2ed3fd4d21695cdf12d34fd67f9d816541b15e8fae1f3f9e316a"
+  },
+  "committedArtifactsRemoved": [
+    "dist/autocapture.cjs",
+    "dist/autocapture.esm.js",
+    "dist/autocapture.raw.js",
+    "dist/error-tracking.cjs",
+    "dist/error-tracking.esm.js",
+    "dist/error-tracking.raw.js",
+    "dist/otlp.cjs",
+    "dist/otlp.esm.js",
+    "dist/otlp.raw.js",
+    "dist/posthog.bytes.js",
+    "dist/posthog.cjs",
+    "dist/posthog.closed.js",
+    "dist/posthog.esm.js",
+    "dist/posthog.gzip.js",
+    "dist/posthog.raw.js",
+    "dist/posthog.umd.js",
+    "dist/replay-core.cjs",
+    "dist/replay-core.esm.js",
+    "dist/replay-core.raw.js",
+    "dist/surveys.cjs",
+    "dist/surveys.esm.js",
+    "dist/surveys.raw.js"
+  ],
+  "build": {
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.09,
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=1 signal=null"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 4.129,
+  "completed": "2026-09-20T18:40:51.457Z",
+  "fingerprint": "5d1022929c292ba7777ad4669b390a2c2d3a5e09d92c44e25d246aadc398f05f"
+}

@@ -1,0 +1,75 @@
+TAP version 13
+# Subtest: TOML resources are what the run uses when no flag overrides them
+ok 1 - TOML resources are what the run uses when no flag overrides them
+  ---
+  duration_ms: 7.435281
+  ...
+# Subtest: command-line resource flags take precedence over TOML
+ok 2 - command-line resource flags take precedence over TOML
+  ---
+  duration_ms: 3.196969
+  ...
+# Subtest: thread counts never enter the policy fingerprint
+ok 3 - thread counts never enter the policy fingerprint
+  ---
+  duration_ms: 5.107756
+  ...
+# Subtest: the same inputs resolve to the same fingerprint
+ok 4 - the same inputs resolve to the same fingerprint
+  ---
+  duration_ms: 4.988182
+  ...
+# Subtest: development mode overrides the configured search and changes the fingerprint
+ok 5 - development mode overrides the configured search and changes the fingerprint
+  ---
+  duration_ms: 5.930262
+  ...
+# Subtest: effort follows optimization_level and appears in the receipt
+ok 6 - effort follows optimization_level and appears in the receipt
+  ---
+  duration_ms: 5.716162
+  ...
+# Subtest: an optimization level above 16 is refused
+ok 7 - an optimization level above 16 is refused
+  ---
+  duration_ms: 2.731129
+  ...
+# Subtest: an explicit tactic permission reaches the resolved policy
+ok 8 - an explicit tactic permission reaches the resolved policy
+  ---
+  duration_ms: 3.205765
+  ...
+# Subtest: an unknown key is an error, not a silently ignored setting
+ok 9 - an unknown key is an error, not a silently ignored setting
+  ---
+  duration_ms: 2.84978
+  ...
+# Subtest: an invalid resource limit is refused
+ok 10 - an invalid resource limit is refused
+  ---
+  duration_ms: 4.968126
+  ...
+# Subtest: a sibling-line optimizer knob is accepted, reported and still validated
+ok 11 - a sibling-line optimizer knob is accepted, reported and still validated
+  ---
+  duration_ms: 5.28151
+  ...
+# Subtest: a lilscript.toml beside the input is discovered without --config
+ok 12 - a lilscript.toml beside the input is discovered without --config
+  ---
+  duration_ms: 3.175408
+  ...
+# Subtest: an explicit --config wins over the discovered file
+ok 13 - an explicit --config wins over the discovered file
+  ---
+  duration_ms: 3.097653
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 121.552279

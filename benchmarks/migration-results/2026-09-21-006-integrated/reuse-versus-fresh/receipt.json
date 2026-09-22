@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T13:01:31.388Z",
+  "completed": "2026-09-21T13:01:31.504Z",
+  "wallSeconds": 0.114,
+  "command": "cargo",
+  "args": [
+    "test",
+    "--release",
+    "--lib",
+    "--",
+    "integrated_edit_reuse_and_fresh",
+    "--nocapture"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "environment": {},
+  "compiler": null,
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript_public_structs.rs",
+        "sha256": "c88e94da2ab3b33716c1518234dec2e929c432586a01a1d1c0ef189406c72b2e",
+        "bytes": 15424
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript_structs.rs",
+        "sha256": "c7e21bab37e7e6beac3809653657359126b7a4ca42a0b1ba5fa1a2250beea511",
+        "bytes": 13075
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript.rs",
+        "sha256": "1d91757ef8026684dcf4783a34097de89bbfb05f95d7ad6f99ecf28533ef75d3",
+        "bytes": 111328
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/structured_js/mod.rs",
+        "sha256": "1b91d97b48d0ce6285d6a551c3c388ec0ea711184aac5cf50a7c44508cb359ce",
+        "bytes": 28002
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript_struct_boundary_tests.rs",
+        "sha256": "5f5e9b528114b421750fb6bd50b0daf4ed3660877ec67af6186c6b57fc654eea",
+        "bytes": 24845
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/integrated_javascript_tests.rs",
+        "sha256": "ecbcccca50aac6048e3cde7520453649fb93915bf3786b17fa3e776ea4f51bdf",
+        "bytes": 56456
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/compiler_service_tests.rs",
+        "sha256": "b3226f749bb111bf6973614c69a46d06f4994762b9203ef10778d41b94b705b6",
+        "bytes": 64610
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/artifact_provenance.rs",
+        "sha256": "9e431ee741a81665540e23ce199ddaaa4bb215ef1e401d75e3a0fc457574e983",
+        "bytes": 29225
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/public-structs/entry.lil",
+        "sha256": "d02eb4a045c967b71e2f6b47866b490e7b4c5953a909285f854a788a6c91945f",
+        "bytes": 285
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/public-structs/geometry.lil",
+        "sha256": "3101f2dcecf24f1201a02b2db56b447950d74eb3de9342a4795339aa4d9438df",
+        "bytes": 129
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "cfdb5751714a5c26ddf98fe4e9efacef84cdf4e05c52afbc17618add82ba4a5f",
+    "bytes": 241
+  },
+  "stderr": {
+    "sha256": "b29b1bdf4f1f947c730418f223dd67deda99d385d6bc982e4a28a18a55e57a4f",
+    "bytes": 8450
+  },
+  "passed": true,
+  "fingerprint": "0a17630e5d9b33309a9b0a1cddedd258b467abdc8e11fee320482f2918dde203"
+}

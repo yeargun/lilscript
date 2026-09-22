@@ -573,6 +573,34 @@ class omits `init`; inherited exports require explicit `init` with `super(...)`.
 Internal inheritance is preserved as named base classes plus `extends`/`super`. Ordinary `export class`
 continues to export only the instance type and may dissolve completely.
 
+An internal class may extend a host (`extern`) class. That is how a typed class
+becomes a real `Error` subclass — native prototype chain, `instanceof`, `stack`
+and `message` — without `JsValue` prototype ceremony:
+
+```lilscript
+extern class Error {
+  string message;
+  init(string message);   // the host constructor, for `super(...)` only
+}
+
+class VFileMessage extends Error {
+  string reason;
+  init(string reason) {
+    super(reason);
+    this.reason = reason;
+  }
+}
+export constructor VFileMessage;
+```
+
+This emits `class VFileMessage extends Error{…constructor(e){super(e);…}}`. A
+class with a host ancestor always stays a real named class, exported or not,
+because its instances are host objects; it is never dissolved into flat data.
+An extern class may declare its host constructor with `init(params);` at most
+once and without parameter defaults; it is still never constructed with `new`
+from LilScript. An extern class cannot extend an internal class. Host-class
+inheritance is JavaScript-only: native targets refuse it with a diagnostic.
+
 Relative imports must begin with `./` or `../` and resolve to `.lil` files.
 Bare imports resolve only through a verified `lilscript.lock`. Static imports
 may form cycles. Interfaces in a strongly connected component are resolved
@@ -645,6 +673,15 @@ struct Point {
 
 Point point = Point{10, 20};
 ```
+
+A struct is a value, so the compiler may store it however it likes inside a
+program. An exported function that takes or returns a struct shows JavaScript
+callers a plain object, `{x: 10, y: 20}`, with the fields as own properties in
+declaration order. Each call returns a fresh object. An incoming object is read
+once per field when the call starts, so changing it afterwards changes nothing.
+The function keeps its source name, arity and constructibility. A struct inside
+an array, map, set, record, callback or nullable at an export is rejected with a
+diagnostic, because a copy there would break sharing the caller can observe.
 
 Classes may define fields, one `init` constructor, and methods. `this` is
 available in constructor and method bodies.
@@ -944,5 +981,5 @@ The implemented pipeline is documented in
 [current architecture](knowledge/compilation/current-architecture.md). The
 Closure responsibility comparison is
 [optimization-coverage.md](optimization-coverage.md). Project-wide completion
-criteria and current state live in [roadmap](roadmap.md) and
+criteria and current state live in the [migration plan](migration/index.md) and
 [current status](current-status.md), not in the language semantics contract.

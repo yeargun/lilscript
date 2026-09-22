@@ -1,0 +1,35 @@
+{
+  "files": [
+    "test/official/index.js",
+    "test/public-api.test.mjs",
+    "test/stream-api.test.mjs"
+  ],
+  "fixtures": [
+    {
+      "path": "package.json",
+      "sha256": "a0150ae6ced1bc81001715308c02054a08faf188817714474f88d05c733ccf47",
+      "bytes": 2560
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "bc24b0f7167a86189c3b1187f146c7e6355fe53dad41544b672cdca6b4619e33",
+      "bytes": 39541
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "7c4ea4b51e610658f0e1f9348e2fda4ade0b5ac846cc5b56d624eea00db4dc27",
+      "bytes": 6674
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43",
+      "bytes": 1607
+    },
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab",
+      "bytes": 386
+    }
+  ],
+  "prerequisites": []
+}

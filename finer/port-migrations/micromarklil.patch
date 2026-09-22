@@ -1,0 +1,38 @@
+--- a/src/core/attention.lil
++++ b/src/core/attention.lil
+@@ -6,7 +6,7 @@
+ import { kCharacterGroupPunctuation } from "../symbol/constants.lil";
+ import { tAttentionSequence, tEmphasis, tEmphasisSequence, tEmphasisText, tStrong, tStrongSequence, tStrongText } from "../symbol/types.lil";
+ 
+-struct PointView {
++extern class PointView {
+   float _bufferIndex;
+   float _index;
+   float line;
+@@ -14,13 +14,13 @@
+   float offset;
+ }
+ 
+-struct TokenView {
++extern class TokenView {
+   string type;
+   PointView start;
+   PointView end;
+ }
+ 
+-struct AttentionTokenView {
++extern class AttentionTokenView {
+   string type;
+   PointView start;
+   PointView end;
+--- a/src/initialize/document.lil
++++ b/src/initialize/document.lil
+@@ -198,7 +198,7 @@
+   });
+ 
+   JsValue thereIsNoNewContainer = JS.method1((JsValue _s, JsValue code) => {
+-    objSetVal(objGet(objGet(self, "parser"), "lazy"), objGet(call0(objGet(self, "now"), self), "line"), st.continued != arrLen(st.stack));
++    objSetVal(objGet(objGet(self, "parser"), "lazy"), objGet(call0(objGet(self, "now"), self), "line"), st.continued != st.stack.length);
+     st.lineStartOffset = JS.number(objGet(call0(objGet(self, "now"), self), "offset"));
+     return call1(flowStart, JS.undefined(), code);
+   });

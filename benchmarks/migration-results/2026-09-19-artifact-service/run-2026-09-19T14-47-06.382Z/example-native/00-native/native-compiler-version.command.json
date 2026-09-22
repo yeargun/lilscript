@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/usr/bin/x86_64-linux-gnu-gcc-13",
+    "--version"
+  ],
+  "elapsed_ns": 1867706,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "ae487f55927d605284a32711e4ecf6bc3be2bcd5a9de414ace0936264b741f85"
+}

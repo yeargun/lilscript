@@ -88,8 +88,9 @@ type.
 
 Dynamic specifiers must be string literals. This keeps the graph deterministic,
 lets the type checker load the exact export interface, and prevents a runtime
-filesystem search. Dynamic cycles are legal; static import cycles remain a
-compile error.
+filesystem search. Dynamic and static import cycles are legal. Static cycles
+retain live bindings and once-only initialization; eager reads before a binding
+is initialized remain errors.
 
 Lazy-only modules are initialization-free: they may declare functions, structs,
 and classes, but may not contain top-level executable statements or variables.

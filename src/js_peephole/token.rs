@@ -512,6 +512,22 @@ pub(crate) fn template_has_substitution(text: &str) -> bool {
     false
 }
 
+/// Conservatively account for a binding that a template token may reference.
+/// Substitutions are opaque to the token stream. A false positive only keeps
+/// a binding; a false negative could remove a live callback or captured cell.
+pub(crate) fn template_may_reference(text: &str, name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let bytes = text.as_bytes();
+    let boundary = |byte: u8| !(byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$');
+    text.match_indices(name).any(|(at, _)| {
+        let before = at.checked_sub(1).is_none_or(|index| boundary(bytes[index]));
+        let after = bytes.get(at + name.len()).is_none_or(|byte| boundary(*byte));
+        before && after
+    })
+}
+
 pub(crate) fn scan_template(bytes: &[u8], start: usize) -> Result<usize, JavaScriptParseError> {
     let mut cursor = start + 1;
     while cursor < bytes.len() {

@@ -1,0 +1,1 @@
+let a;let b;a=(0,{from:function(value){return value+ 1|0;}}.from);let from=a;b=void console.log(from(4));

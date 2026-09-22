@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "test-discovery-attempt",
+  "workload": "zodlil",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "node_modules/vitest/dist/cli.js",
+    "list",
+    "--config",
+    "vitest.config.ts",
+    "--json",
+    "--no-file-parallelism",
+    "--maxWorkers",
+    "1",
+    "--no-cache"
+  ],
+  "cwd": "/home/azureuser/zodlil",
+  "runtime": {
+    "version": "v24.11.1",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "config": {
+    "path": "vitest.config.ts",
+    "sha256": "e5c1a2bf81369fdbb757dbf58392f39bcaef637907ee02357266b30e0c7b56f6",
+    "bytes": 1445
+  },
+  "runner": {
+    "path": "node_modules/vitest/dist/cli.js",
+    "sha256": "35346c38bc8e52886ebd7d013d5de64ef5adde9ccec0435c8fac3cc9b6368f3c",
+    "bytes": 284
+  },
+  "exitCode": 0,
+  "signal": null,
+  "elapsedMs": 17451.933283000002,
+  "reportedCaseCount": 1353,
+  "stdout": {
+    "path": "zodlil-list.stdout",
+    "sha256": "9c369bcb8dc18424fe06e78b149a5b8974792f7d4be613dd80964588c067f11b",
+    "bytes": 217943
+  },
+  "stderr": {
+    "path": "zodlil-list.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "certification": "unverified",
+  "limitations": [
+    "Discovery only; no test results or compiler build.",
+    "An unsuccessful collection cannot freeze a complete required-case inventory.",
+    "Existing suite exclusions in vitest.config.ts are retained and require explicit coverage review."
+  ]
+}

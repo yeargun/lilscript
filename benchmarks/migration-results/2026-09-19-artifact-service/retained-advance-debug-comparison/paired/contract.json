@@ -1,0 +1,210 @@
+{
+  "arguments": {
+    "codec": "/tmp/lilscript-parse-once-baseline-20260919/lilscript-codec",
+    "driver": "/tmp/lilscript-parse-once-baseline-20260919/semantic-integrated",
+    "edits": 16,
+    "fixture": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+    "input_manifest": null,
+    "level": null,
+    "memory": 256000000,
+    "mode": "paired",
+    "output": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/retained-advance-debug-comparison/paired",
+    "pairs": 5,
+    "retain_at": 1,
+    "work": 200000000
+  },
+  "codec_sha256": "eb9029c2bfd457f77b2b97174bf51001d13f98cc9a7950c925ad649fe9229ee5",
+  "driver_sha256": "1b51189a13a1dfa065d9da36727c3fd8a1df97f4a23d08879b162e54d321433b",
+  "fixture": {
+    "config.toml": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+    "editable.lil": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+    "entry.lil": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+    "expected.json": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221",
+    "factory/barrel.lil": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+    "factory/boot.lil": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+    "factory/entry.lil": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+    "factory/factory.lil": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+    "factory/public.lil": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+    "factory/state.lil": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+    "host.js": "96e6296d9aed1b15e6e3f210157a8eb2683f406f844da0f12073a2f9c2d3f281",
+    "marked-api.lil": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+    "marked/rules-oracle-origin.json": "3b21906d6f4ff0c01a9df57c0926ab4904ca686217c8d47832e0cf19a812711b",
+    "marked/rules-oracle-table.json": "52ae0c11927a3b657d148d6ab1ce505c764586a004323fe9e9e290d05fd868fb",
+    "marked/rules-oracle.mjs": "93b0ef9379d83269af7d4e48f45faa0d67fab6d8a8376de5b365935d57126b54",
+    "marked/rules.lil": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+    "marked/str-slice.lil": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+    "marked/str.original.lil": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+    "native-entry.lil": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+    "native.expected.out": "68f4d5c1ad9d0be1b5ce3e717704b8fc99329e2ff866edc88e60c22f7f5c5f5d",
+    "origin.json": "6b11fbdced48f403f3a55a9332b29286e015c0fa78856a58a7f2eb2ce1f95819",
+    "products.lil": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+    "setup.js": "48d959dc33792a8b45e466a6dabecfeab19db3a1b3ffb245f951eb0af268362d"
+  },
+  "input_contract": {
+    "allowed_modes": [
+      "direct",
+      "search",
+      "retain",
+      "advance"
+    ],
+    "complete_inventory": true,
+    "config": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+    "entry": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+    "files": [
+      {
+        "bytes": 541,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856"
+      },
+      {
+        "bytes": 115,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+        "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0"
+      },
+      {
+        "bytes": 610,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99"
+      },
+      {
+        "bytes": 2346,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/expected.json",
+        "sha256": "1551cdf8167cbb4d9e9c2ef9ec2e67752f7d01cf34aceb194c5dfa2bfe106221"
+      },
+      {
+        "bytes": 292,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+        "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2"
+      },
+      {
+        "bytes": 82,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+        "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175"
+      },
+      {
+        "bytes": 204,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+        "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0"
+      },
+      {
+        "bytes": 918,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+        "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e"
+      },
+      {
+        "bytes": 168,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+        "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703"
+      },
+      {
+        "bytes": 321,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+        "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c"
+      },
+      {
+        "bytes": 1264,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/host.js",
+        "sha256": "96e6296d9aed1b15e6e3f210157a8eb2683f406f844da0f12073a2f9c2d3f281"
+      },
+      {
+        "bytes": 2384,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules-oracle-origin.json",
+        "sha256": "3b21906d6f4ff0c01a9df57c0926ab4904ca686217c8d47832e0cf19a812711b"
+      },
+      {
+        "bytes": 15833,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules-oracle-table.json",
+        "sha256": "52ae0c11927a3b657d148d6ab1ce505c764586a004323fe9e9e290d05fd868fb"
+      },
+      {
+        "bytes": 5149,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules-oracle.mjs",
+        "sha256": "93b0ef9379d83269af7d4e48f45faa0d67fab6d8a8376de5b365935d57126b54"
+      },
+      {
+        "bytes": 20051,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+        "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a"
+      },
+      {
+        "bytes": 1513,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+        "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025"
+      },
+      {
+        "bytes": 9602,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str.original.lil",
+        "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54"
+      },
+      {
+        "bytes": 925,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+        "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55"
+      },
+      {
+        "bytes": 73,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669"
+      },
+      {
+        "bytes": 24,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native.expected.out",
+        "sha256": "68f4d5c1ad9d0be1b5ce3e717704b8fc99329e2ff866edc88e60c22f7f5c5f5d"
+      },
+      {
+        "bytes": 5624,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/origin.json",
+        "sha256": "6b11fbdced48f403f3a55a9332b29286e015c0fa78856a58a7f2eb2ce1f95819"
+      },
+      {
+        "bytes": 955,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil",
+        "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778"
+      },
+      {
+        "bytes": 1124,
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/setup.js",
+        "sha256": "48d959dc33792a8b45e466a6dabecfeab19db3a1b3ffb245f951eb0af268362d"
+      }
+    ],
+    "golden": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/expected.json",
+    "host": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/host.js",
+    "kind": "original-or-scaling",
+    "manifest": null,
+    "modules": [
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/editable.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+      "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/products.lil"
+    ],
+    "root": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture",
+    "setup": "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/setup.js"
+  },
+  "method": "Alternating retained/advance order; all trials kept. Compiler build/pin and worker provenance are supplied by the enclosing receipt. No general speed or competitor claim.",
+  "native_compiler": null,
+  "native_flags": null,
+  "required_modules": [
+    "editable.lil",
+    "entry.lil",
+    "factory/barrel.lil",
+    "factory/boot.lil",
+    "factory/entry.lil",
+    "factory/factory.lil",
+    "factory/public.lil",
+    "factory/state.lil",
+    "marked-api.lil",
+    "marked/rules.lil",
+    "marked/str-slice.lil",
+    "products.lil"
+  ],
+  "runner_sha256": "0954ccc1c118af872a117f33f93e5264cb0ff99df7e6c71638d9f7f30dc1a90b",
+  "schema": 1
+}

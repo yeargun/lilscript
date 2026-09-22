@@ -1,0 +1,14 @@
+
+running 9 tests
+test semantic_program::native_tests::closure_tests::callback_output_header_handoff_refusal_and_unwind_release_the_same_owner ... ok
+test semantic_program::native_tests::closure_tests::module_tests::original_product_module_composes_with_retained_factory_callbacks_in_one_program ... ok
+test semantic_program::native_tests::closure_tests::public_source_factory_qualified_callbacks_compile_as_separate_translation_units ... ok
+test semantic_program::native_tests::closure_tests::public_path_factory_qualified_reentrant_callbacks_compile_as_separate_translation_units ... ok
+test semantic_program::native_tests::closure_tests::plain_struct_captures_keep_independent_values_and_shared_sibling_cells ... ok
+test semantic_program::native_tests::closure_tests::callable_identity_and_prepared_callee_survive_later_argument_replacement ... ok
+test semantic_program::native_tests::closure_tests::overlapping_reference_paths_and_reentrant_host_clear_keep_live_owners ... ok
+test semantic_program::native_tests::closure_tests::managed_select_and_nested_returns_transfer_before_cleanup ... ok
+test semantic_program::native_tests::closure_tests::iteration_boxes_continue_break_and_temporary_owners_do_not_accumulate ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 2883 filtered out; finished in 2.78s
+

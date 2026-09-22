@@ -1,0 +1,1 @@
+let a;let b;a=(0,{sum:function(point){return (point[0]|0)+ (point[1]|0)|0;}}.sum);let sum=a;let point=[13,29];b=void console.log(sum(point));

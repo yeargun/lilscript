@@ -1,3 +1,5 @@
+use crate::ast::ExprKind;
+use crate::semantic::StructType;
 use std::fmt::Write;
 
 use crate::stable_hash::StableHashMap as AHashMap;
@@ -137,15 +139,14 @@ pub fn compile_to_js<'ast, 'src>(program: &Program<'ast, 'src>) -> Result<String
     emit_optimized_ir_js(&ir).map_err(Into::into)
 }
 
-pub struct JsEmitter<'src> {
+pub struct JsEmitter<'sem, 'src> {
     options: CodegenOptions,
     mangler: Mangler,
     scopes: Vec<Scope<'src>>,
     enums: AHashMap<&'src str, IndexMap<&'src str, i64>>,
     structs: AHashMap<&'src str, StructLayout<'src>>,
     classes: AHashMap<&'src str, ClassLayout<'src>>,
-    expression_types: AHashMap<Span, Type<'src>>,
-    binding_types: AHashMap<Span, Type<'src>>,
+    semantics: Option<&'sem SemanticModel<'sem, 'src>>,
 }
 
 #[derive(Debug, Default)]
@@ -165,7 +166,7 @@ struct ClassLayout<'src> {
     members: IndexMap<&'src str, String>,
 }
 
-impl<'src> JsEmitter<'src> {
+impl<'sem, 'src> JsEmitter<'sem, 'src> {
     pub fn new(options: CodegenOptions) -> Self {
         Self {
             options,
@@ -174,8 +175,7 @@ impl<'src> JsEmitter<'src> {
             enums: AHashMap::default(),
             structs: AHashMap::default(),
             classes: AHashMap::default(),
-            expression_types: AHashMap::default(),
-            binding_types: AHashMap::default(),
+            semantics: None,
         }
     }
 
@@ -195,10 +195,21 @@ impl<'src> JsEmitter<'src> {
     pub fn emit_checked_program<'ast>(
         mut self,
         program: &Program<'ast, 'src>,
-        semantics: &SemanticModel<'src>,
+        semantics: &'sem SemanticModel<'sem, 'src>,
     ) -> Result<String, CodegenError> {
-        self.expression_types = semantics.expression_types().clone();
-        self.binding_types = semantics.binding_types().clone();
+        if !semantics.belongs_to(program.source_identity()) {
+            return Err(CodegenError::new(
+                program.span,
+                "semantic facts belong to a different source program",
+            ));
+        }
+        if let Some(span) = crate::lower::reference_parameter_span(semantics) {
+            return Err(CodegenError::new(
+                span,
+                "legacy JavaScript reference parameters are not supported",
+            ));
+        }
+        self.semantics = Some(semantics);
         self.prepare_program(program)?;
 
         let mut out = String::new();
@@ -595,7 +606,7 @@ impl<'src> JsEmitter<'src> {
                     if index != 0 {
                         out.push(',');
                     }
-                    self.emit_expr(argument, out)?;
+                    self.emit_expr(&argument.expression, out)?;
                 }
                 out.push_str(");");
                 Ok(())
@@ -810,10 +821,14 @@ impl<'src> JsEmitter<'src> {
     ) -> Result<(), CodegenError> {
         let js_name = self.declare_name(decl.name)?;
         let semantic_struct = self
-            .binding_types
-            .get(&decl.name.span)
+            .semantics
+            .and_then(|semantics| semantics.binding_type(decl.name.span))
             .and_then(|ty| match ty {
-                Type::Struct(name) | Type::StructInstance { name, .. } => Some(*name),
+                Type::Struct(StructType { name, .. })
+                | Type::StructInstance {
+                    declaration: StructType { name, .. },
+                    ..
+                } => Some(*name),
                 _ => None,
             });
         let syntax_struct =
@@ -838,24 +853,48 @@ impl<'src> JsEmitter<'src> {
         out: &mut String,
     ) -> Result<(), CodegenError> {
         match expr {
-            Expr::Int(value, _) => write!(out, "{value}").expect("writing to String cannot fail"),
-            Expr::Float(value, _) => write_float(*value, out),
-            Expr::String(value, _) => write_string_literal(value, out),
-            Expr::Bool(value, _) => out.push_str(if *value { "true" } else { "false" }),
-            Expr::Null(_) => out.push_str("null"),
-            Expr::DynamicImport { source, .. } => {
+            Expr {
+                kind: ExprKind::Int(value, _),
+                ..
+            } => write!(out, "{value}").expect("writing to String cannot fail"),
+            Expr {
+                kind: ExprKind::Float(value, _),
+                ..
+            } => write_float(*value, out),
+            Expr {
+                kind: ExprKind::String(value, _),
+                ..
+            } => write_string_literal(value, out),
+            Expr {
+                kind: ExprKind::Bool(value, _),
+                ..
+            } => out.push_str(if *value { "true" } else { "false" }),
+            Expr {
+                kind: ExprKind::Null(_),
+                ..
+            } => out.push_str("null"),
+            Expr {
+                kind: ExprKind::DynamicImport { source, .. },
+                ..
+            } => {
                 out.push_str("import(");
                 write_string_literal(source, out);
                 out.push(')');
             }
-            Expr::Ident(ident) => {
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
+            } => {
                 if ident.name == "this" {
                     out.push_str("this");
                 } else {
                     out.push_str(self.resolve_name(ident).unwrap_or(ident.name));
                 }
             }
-            Expr::ArrayLiteral { elements, .. } => {
+            Expr {
+                kind: ExprKind::ArrayLiteral { elements, .. },
+                ..
+            } => {
                 out.push('[');
                 for (index, element) in elements.iter().enumerate() {
                     if index > 0 {
@@ -871,7 +910,10 @@ impl<'src> JsEmitter<'src> {
                 }
                 out.push(']');
             }
-            Expr::RecordLiteral { entries, .. } => {
+            Expr {
+                kind: ExprKind::RecordLiteral { entries, .. },
+                ..
+            } => {
                 out.push_str("{__proto__:null");
                 for entry in *entries {
                     out.push(',');
@@ -895,7 +937,10 @@ impl<'src> JsEmitter<'src> {
                 }
                 out.push('}');
             }
-            Expr::ObjectLiteral { entries, .. } => {
+            Expr {
+                kind: ExprKind::ObjectLiteral { entries, .. },
+                ..
+            } => {
                 out.push('{');
                 for (index, element) in entries.iter().enumerate() {
                     if index != 0 {
@@ -919,14 +964,20 @@ impl<'src> JsEmitter<'src> {
                 }
                 out.push('}');
             }
-            Expr::StructLiteral { name, values, span } => {
+            Expr {
+                kind: ExprKind::StructLiteral { name, values, span },
+                ..
+            } => {
                 if self.options.dissolve_structs {
                     self.emit_struct_literal(name, values, *span, out)?;
                 } else {
                     self.emit_object_literal(name, values, *span, out)?;
                 }
             }
-            Expr::New { class, args, .. } => {
+            Expr {
+                kind: ExprKind::New { class, args, .. },
+                ..
+            } => {
                 let name = self.resolve_name(class).ok_or_else(|| {
                     CodegenError::new(class.span, format!("unknown class `{}`", class.name))
                 })?;
@@ -937,24 +988,38 @@ impl<'src> JsEmitter<'src> {
                     if index != 0 {
                         out.push(',');
                     }
-                    self.emit_expr(arg, out)?;
+                    self.emit_expr(&arg.expression, out)?;
                 }
                 out.push(')');
             }
-            Expr::Member {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
-                if matches!(object, Expr::Ident(Ident { name: "Task", .. })) {
+                if matches!(
+                    object,
+                    Expr {
+                        kind: ExprKind::Ident(Ident { name: "Task", .. }),
+                        ..
+                    }
+                ) {
                     out.push_str("Promise.");
                     out.push_str(property.name);
                 } else {
                     self.emit_member_expr(object, *property, *span, out)?;
                 }
             }
-            Expr::OptionalMember {
-                object, property, ..
+            Expr {
+                kind:
+                    ExprKind::OptionalMember {
+                        object, property, ..
+                    },
+                ..
             } => {
                 out.push('(');
                 self.emit_expr(object, out)?;
@@ -962,8 +1027,17 @@ impl<'src> JsEmitter<'src> {
                 out.push_str(property.name);
                 out.push_str("??null)");
             }
-            Expr::Call { callee, args, .. } => {
-                if matches!(callee, Expr::Ident(Ident { name: "print", .. })) {
+            Expr {
+                kind: ExprKind::Call { callee, args, .. },
+                ..
+            } => {
+                if matches!(
+                    callee,
+                    Expr {
+                        kind: ExprKind::Ident(Ident { name: "print", .. }),
+                        ..
+                    }
+                ) {
                     out.push_str("console.log");
                 } else {
                     self.emit_expr(callee, out)?;
@@ -973,11 +1047,14 @@ impl<'src> JsEmitter<'src> {
                     if index > 0 {
                         out.push(',');
                     }
-                    self.emit_expr(arg, out)?;
+                    self.emit_expr(&arg.expression, out)?;
                 }
                 out.push(')');
             }
-            Expr::ArrowFunction { params, body, .. } => {
+            Expr {
+                kind: ExprKind::ArrowFunction { params, body, .. },
+                ..
+            } => {
                 self.push_scope();
                 out.push('(');
                 for (index, param) in params.iter().enumerate() {
@@ -1000,22 +1077,34 @@ impl<'src> JsEmitter<'src> {
                 }
                 self.pop_scope();
             }
-            Expr::Unary { op, expr, .. } => {
+            Expr {
+                kind: ExprKind::Unary { op, expr, .. },
+                ..
+            } => {
                 out.push_str(match op {
                     UnaryOp::Neg => "-",
                     UnaryOp::Not => "!",
                 });
                 self.emit_parenthesized_if_binary(expr, out)?;
             }
-            Expr::Await { task, .. } => {
+            Expr {
+                kind: ExprKind::Await { task, .. },
+                ..
+            } => {
                 out.push_str("await(");
                 self.emit_expr(task, out)?;
                 out.push(')');
             }
-            Expr::Binary { op, lhs, rhs, .. } => {
+            Expr {
+                kind: ExprKind::Binary { op, lhs, rhs, .. },
+                ..
+            } => {
                 self.emit_binary_expr(*op, lhs, rhs, out)?;
             }
-            Expr::TypeCheck { value, target, .. } => match target.kind {
+            Expr {
+                kind: ExprKind::TypeCheck { value, target, .. },
+                ..
+            } => match target.kind {
                 TypeKind::Int | TypeKind::Float => {
                     out.push_str("typeof(");
                     self.emit_expr(value, out)?;
@@ -1048,23 +1137,33 @@ impl<'src> JsEmitter<'src> {
                     ));
                 }
             },
-            Expr::Index { object, index, .. } => {
+            Expr {
+                kind: ExprKind::Index { object, index, .. },
+                ..
+            } => {
                 self.emit_expr(object, out)?;
                 out.push('[');
                 self.emit_expr(index, out)?;
                 out.push(']');
             }
-            Expr::OptionalIndex { object, index, .. } => {
+            Expr {
+                kind: ExprKind::OptionalIndex { object, index, .. },
+                ..
+            } => {
                 out.push('(');
                 self.emit_expr(object, out)?;
                 out.push_str("?.[");
                 self.emit_expr(index, out)?;
                 out.push_str("]??null)");
             }
-            Expr::If {
-                condition,
-                then_value,
-                else_value,
+            Expr {
+                kind:
+                    ExprKind::If {
+                        condition,
+                        then_value,
+                        else_value,
+                        ..
+                    },
                 ..
             } => {
                 out.push('(');
@@ -1075,7 +1174,10 @@ impl<'src> JsEmitter<'src> {
                 self.emit_expr(else_value, out)?;
                 out.push(')');
             }
-            Expr::Match { value, arms, span } => {
+            Expr {
+                kind: ExprKind::Match { value, arms, span },
+                ..
+            } => {
                 if arms.is_empty() {
                     return Err(CodegenError::new(*span, "match expression has no arms"));
                 }
@@ -1121,15 +1223,23 @@ impl<'src> JsEmitter<'src> {
                 self.emit_expr(value, out)?;
                 out.push(')');
             }
-            Expr::Assignment {
-                op, target, value, ..
+            Expr {
+                kind:
+                    ExprKind::Assignment {
+                        op, target, value, ..
+                    },
+                ..
             } => {
                 self.emit_expr(target, out)?;
                 out.push_str(assignment_op_js(*op));
                 self.emit_expr(value, out)?;
             }
-            Expr::Update {
-                op, target, prefix, ..
+            Expr {
+                kind:
+                    ExprKind::Update {
+                        op, target, prefix, ..
+                    },
+                ..
             } => {
                 let operator = match op {
                     UpdateOp::Increment => "++",
@@ -1143,7 +1253,10 @@ impl<'src> JsEmitter<'src> {
                     out.push_str(operator);
                 }
             }
-            Expr::Template { parts, .. } => {
+            Expr {
+                kind: ExprKind::Template { parts, .. },
+                ..
+            } => {
                 out.push('`');
                 for part in *parts {
                     match part {
@@ -1250,7 +1363,11 @@ impl<'src> JsEmitter<'src> {
         span: Span,
         out: &mut String,
     ) -> Result<(), CodegenError> {
-        if let Expr::Ident(enum_name) = object {
+        if let Expr {
+            kind: ExprKind::Ident(enum_name),
+            ..
+        } = object
+        {
             if let Some(value) = self
                 .enums
                 .get(enum_name.name)
@@ -1261,14 +1378,22 @@ impl<'src> JsEmitter<'src> {
             }
         }
         if self.options.dissolve_structs {
-            let semantic_struct =
-                self.expression_types
-                    .get(&object.span())
-                    .and_then(|ty| match ty {
-                        Type::Struct(name) | Type::StructInstance { name, .. } => Some(*name),
-                        _ => None,
-                    });
-            let scoped_struct = if let Expr::Ident(object_ident) = object {
+            let semantic_struct = self
+                .semantics
+                .and_then(|semantics| semantics.expression_type(object.id))
+                .and_then(|ty| match ty {
+                    Type::Struct(StructType { name, .. })
+                    | Type::StructInstance {
+                        declaration: StructType { name, .. },
+                        ..
+                    } => Some(*name),
+                    _ => None,
+                });
+            let scoped_struct = if let Expr {
+                kind: ExprKind::Ident(object_ident),
+                ..
+            } = object
+            {
                 self.resolve_var_struct_type(object_ident.name)
             } else {
                 None
@@ -1305,7 +1430,9 @@ impl<'src> JsEmitter<'src> {
             | Type::ClassInstance {
                 name: class_name, ..
             },
-        ) = self.expression_types.get(&object.span())
+        ) = self
+            .semantics
+            .and_then(|semantics| semantics.expression_type(object.id))
         {
             let emitted = self.class_member_name(class_name, property)?.to_string();
             self.emit_expr(object, out)?;
@@ -1375,8 +1502,14 @@ impl<'src> JsEmitter<'src> {
         out: &mut String,
     ) -> Result<(), CodegenError> {
         let needs_parens = match expr {
-            Expr::Assignment { .. } => true,
-            Expr::Binary { op, .. } => {
+            Expr {
+                kind: ExprKind::Assignment { .. },
+                ..
+            } => true,
+            Expr {
+                kind: ExprKind::Binary { op, .. },
+                ..
+            } => {
                 let child = binary_precedence(*op);
                 let parent = binary_precedence(parent);
                 child < parent
@@ -1414,7 +1547,13 @@ impl<'src> JsEmitter<'src> {
         expr: &Expr<'ast, 'src>,
         out: &mut String,
     ) -> Result<(), CodegenError> {
-        let needs_parens = matches!(expr, Expr::Binary { .. });
+        let needs_parens = matches!(
+            expr,
+            Expr {
+                kind: ExprKind::Binary { .. },
+                ..
+            }
+        );
         if needs_parens {
             out.push('(');
         }

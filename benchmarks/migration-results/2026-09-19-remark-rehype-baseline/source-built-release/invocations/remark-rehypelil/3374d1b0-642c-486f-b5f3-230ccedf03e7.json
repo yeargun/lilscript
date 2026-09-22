@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "kind": "compiler-invocation",
+  "id": "3374d1b0-642c-486f-b5f3-230ccedf03e7",
+  "compiler": {
+    "path": "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/lilscript",
+    "sha256": "e0c4cb31f2bf306512767d296e8411f58652e52f12ad158a4d7733acc60712bd",
+    "bytes": 18000040
+  },
+  "contractSha256": "97751a8f0350acacb838002ed811a7bc231ea929f7d8083d3c23e52e309f9b79",
+  "cwd": "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/workspaces/remark-rehypelil",
+  "args": [
+    "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/workspaces/remark-rehypelil/src/entry.lil",
+    "--target",
+    "js-module",
+    "--config",
+    "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/workspaces/remark-rehypelil/lilscript.toml",
+    "-o",
+    "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/workspaces/remark-rehypelil/dist/remark-rehype.raw.js"
+  ],
+  "inputSha256": "ec70fd7eb9d380e0a173f4941adadfa06b856743f95425e6b21aeab1e3749542",
+  "inputs": [
+    {
+      "path": ".github/workflows/pages.yml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+      "bytes": 887
+    },
+    {
+      "path": ".gitignore",
+      "kind": "file",
+      "executable": false,
+      "sha256": "befbb01e1cafe574986501e54d11bdb193dcd174a9780c9f64434a63ea91f450",
+      "bytes": 63
+    },
+    {
+      "path": "LICENSE",
+      "kind": "file",
+      "executable": false,
+      "sha256": "219c138192de46366164088cc40be8477618d247b9e1262e76014b5fc846f908",
+      "bytes": 1091
+    },
+    {
+      "path": "NOTICE.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ec85149a0a827de1b1ff991226d8ab10e232c39b0e36ef6d498bf96f243fe5f5",
+      "bytes": 478
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af3bca99c8a98a630cea6912657be544db16c27562fb4f9b001d94dae68f52d1",
+      "bytes": 1151
+    },
+    {
+      "path": "_site/.nojekyll",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "_site/app.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "_site/index.html",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+      "bytes": 9335
+    },
+    {
+      "path": "_site/official.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+      "bytes": 39783
+    },
+    {
+      "path": "_site/remark-rehype.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "448cfd61c2cf02740ca6dd401d2318f4f53ce880b1663fa1a5239a543a2c9dd0",
+      "bytes": 13669
+    },
+    {
+      "path": "_site/results.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+      "bytes": 2527
+    },
+    {
+      "path": "_site/styles.css",
+      "kind": "file",
+      "executable": false,
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "lilscript.closed.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+      "bytes": 407
+    },
+    {
+      "path": "lilscript.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+      "bytes": 722
+    },
+    {
+      "path": "package-lock.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+      "bytes": 51867
+    },
+    {
+      "path": "package.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+      "bytes": 2170
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+      "bytes": 951
+    },
+    {
+      "path": "scripts/build.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+      "bytes": 3208
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+      "bytes": 1133
+    },
+    {
+      "path": "site/app.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+      "bytes": 9335
+    },
+    {
+      "path": "site/official.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+      "bytes": 39783
+    },
+    {
+      "path": "site/results.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+      "bytes": 2527
+    },
+    {
+      "path": "site/styles.css",
+      "kind": "file",
+      "executable": false,
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "src/entry.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1013bd8ff1f5f84a97ac7065b79a758db4e69191a80ed573fdf2386b06e4bdeb",
+      "bytes": 2092
+    },
+    {
+      "path": "src/hast/convert.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0a1b84c293a46c7203021074a62f6dce5478ca08b0434d86d68c45f334f76cde",
+      "bytes": 31133
+    },
+    {
+      "path": "src/hast/entry.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3498410b6bea1055d749396993452d7f09c5af84862aa7e8fe3de43f1e56565",
+      "bytes": 458
+    },
+    {
+      "path": "src/hast/types.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8cedef100ce0b759088a08c4ecf6c9e63dde6ee699cac217fd585ac1add5ff7d",
+      "bytes": 10261
+    },
+    {
+      "path": "test/api.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+      "bytes": 3572
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+      "bytes": 578
+    },
+    {
+      "path": "test/official/test.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+      "bytes": 3758
+    },
+    {
+      "path": "test/site.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+      "bytes": 984
+    },
+    {
+      "path": "test/types.test.ts",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+      "bytes": 960
+    },
+    {
+      "path": "tsconfig.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+      "bytes": 269
+    },
+    {
+      "path": "types/remark-rehype.d.ts",
+      "kind": "file",
+      "executable": false,
+      "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+      "bytes": 5341
+    }
+  ],
+  "configuration": {
+    "path": "lilscript.toml",
+    "location": "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/workspaces/remark-rehypelil/lilscript.toml",
+    "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+    "bytes": 722
+  },
+  "output": {
+    "path": "/tmp/lilscript-remark-rehypelil-baseline-x5Kwul/portgate/workspaces/remark-rehypelil/dist/remark-rehype.raw.js",
+    "previous": null,
+    "sha256": "6773d15a8e06a497990c6cebb766df5757a61ddde4584bac76e222ed67e9c414",
+    "bytes": 14103
+  },
+  "exitCode": 0,
+  "signal": null,
+  "error": null,
+  "elapsedMs": 50417.126086,
+  "inputAfterSha256": "ec70fd7eb9d380e0a173f4941adadfa06b856743f95425e6b21aeab1e3749542",
+  "compilerAfterSha256": "e0c4cb31f2bf306512767d296e8411f58652e52f12ad158a4d7733acc60712bd",
+  "validationErrors": []
+}

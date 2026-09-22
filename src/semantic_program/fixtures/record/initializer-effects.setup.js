@@ -1,0 +1,1 @@
+globalThis.value=n=>{console.log(n);if(n===2)throw 23;return n;};

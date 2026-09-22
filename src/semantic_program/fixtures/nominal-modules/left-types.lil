@@ -1,0 +1,2 @@
+import { Axis, Box } from "./motion-geometry";
+export { Axis as Interval, Box as Frame };

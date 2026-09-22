@@ -1,0 +1,11 @@
+
+running 6 tests
+test structured_js::naming::allocation_tests::name_index_checks_exact_scope_and_name_even_in_a_collision_cluster ... ok
+test structured_js::naming::allocation_tests::partial_lazy_cache_admission_failure_does_not_install_or_leak_it ... ok
+test structured_js::naming::allocation_tests::preparation_exhaustion_and_invalid_target_release_every_partial_buffer ... ok
+test structured_js::naming::allocation_tests::installed_lazy_caches_survive_failed_prints_and_release_with_output ... ok
+test structured_js::naming::allocation_tests::prepared_output_matches_all_inspection_styles_and_transfers_only_artifact_capacity ... ok
+test structured_js::naming::allocation_tests::large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2934 filtered out; finished in 0.05s
+

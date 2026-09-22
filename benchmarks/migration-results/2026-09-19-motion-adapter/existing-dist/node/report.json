@@ -1,0 +1,400 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/node/events.jsonl",
+    "test/node.test.mjs",
+    "test/terser.test.mjs",
+    "test/vite.test.mjs",
+    "test/shake.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/node.test.mjs",
+      "sha256": "dd41723dafa45e7de3c121acb9f3875e101c5158a298ce3d2bd983a2fa26da82",
+      "bytes": 4345
+    },
+    {
+      "path": "test/terser.test.mjs",
+      "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+      "bytes": 1022
+    },
+    {
+      "path": "test/vite.test.mjs",
+      "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+      "bytes": 1190
+    },
+    {
+      "path": "test/shake.test.mjs",
+      "sha256": "99288d00227525dde7e9753108e05c76b6b81eebe19100ad0b973b8f137b227f",
+      "bytes": 1513
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/node.test.mjs",
+      "test/terser.test.mjs",
+      "test/vite.test.mjs",
+      "test/shake.test.mjs"
+    ],
+    "files": [
+      "test/node.test.mjs",
+      "test/shake.test.mjs",
+      "test/terser.test.mjs",
+      "test/vite.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/node/observe.mjs",
+    "sha256": "25d316f00833fb7561520b8dc5c626e17edbc458cf4d5aecbcd06b1d9196d3bb",
+    "bytes": 1153,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "supervision": {
+    "timeoutMs": 88220,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+        "file": "test/node.test.mjs",
+        "name": "ESM entry points load without a browser global",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+        "file": "test/node.test.mjs",
+        "name": "pure utilities and MotionValue behavior work",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+        "file": "test/node.test.mjs",
+        "name": "CommonJS entry points expose the same public names",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+        "file": "test/node.test.mjs",
+        "name": "every Motion DOM export is present on the full entry",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+        "file": "test/node.test.mjs",
+        "name": "default entry keeps the JS consumer API",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+        "file": "test/node.test.mjs",
+        "name": "public constructor compatibility covers common direct usage",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]",
+        "file": "test/node.test.mjs",
+        "name": "MotionValue uses its public prototype and preserves method defaults",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]",
+        "file": "test/node.test.mjs",
+        "name": "group compatibility preserves existing native accessors and completion promises",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+        "file": "test/shake.test.mjs",
+        "name": "named imports do not pull the whole consumer graph",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+        "file": "test/terser.test.mjs",
+        "name": "the distributed animate module survives a second Terser pass",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+        "file": "test/vite.test.mjs",
+        "name": "Vite bundles the public package entry",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/index.js",
+        "sha256": "93f5cdfe1357d660994a944767a86692ec187e6749e0afe6c720daf82e92da4f",
+        "bytes": 764
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/index.cjs",
+        "sha256": "fe0ab1eacccff575fa2a561bcfe2dee0db2c4fe9adeb2b4a5cd46424b377e7d4",
+        "bytes": 149939
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/animate.js",
+        "sha256": "b292a7f6a1744666ae9a5cb1f7bb7183c78f43cd6cdeeb2ad0b85fc2c55e223f",
+        "bytes": 110269
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/animate-mini.js",
+        "sha256": "a73d94c86ed032b16393422cf2358722ca5a1f496cc7f2ebb2b3b88ad05892f5",
+        "bytes": 14741
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/scroll.js",
+        "sha256": "2b2cd4b23bb80517784c32d7d51ecdc49691a745c77ae1674a67c85813f431e6",
+        "bytes": 16688
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/gestures.js",
+        "sha256": "82c74f9ce9efd0761a4e1cebce86ea756795acdee0be1812e7aaaebaaefb52bb",
+        "bytes": 4234
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/viewport.js",
+        "sha256": "1716cc2721d7ccd024a671740970f65cdab23f75c051b80a0b7308e37f16ff26",
+        "bytes": 1346
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/resize.js",
+        "sha256": "93c9be79be56975f2e83d91f1e60d07e49f67ca0da4bf0095c191a793ea1a8aa",
+        "bytes": 1874
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js",
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/mini.js",
+        "sha256": "f30b77cc4cfbee09f144b280172b0f40bf457e358483784b30ef0e517384ed10",
+        "bytes": 20627
+      },
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/debug.js",
+        "sha256": "cd908eae596a6c8ad9e7e085e0c0c38fb872c6f830b3020566245c5b2d8710c8",
+        "bytes": 510
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/index.cjs",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/index.cjs",
+        "format": "commonjs",
+        "sha256": "fe0ab1eacccff575fa2a561bcfe2dee0db2c4fe9adeb2b4a5cd46424b377e7d4",
+        "bytes": 149939,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/debug.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/debug.js",
+        "format": "module",
+        "sha256": "cd908eae596a6c8ad9e7e085e0c0c38fb872c6f830b3020566245c5b2d8710c8",
+        "bytes": 510,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/viewport.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/viewport.js",
+        "format": "module",
+        "sha256": "1716cc2721d7ccd024a671740970f65cdab23f75c051b80a0b7308e37f16ff26",
+        "bytes": 1346,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/mini.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/mini.js",
+        "format": "module",
+        "sha256": "f30b77cc4cfbee09f144b280172b0f40bf457e358483784b30ef0e517384ed10",
+        "bytes": 20627,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/scroll.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/scroll.js",
+        "format": "module",
+        "sha256": "2b2cd4b23bb80517784c32d7d51ecdc49691a745c77ae1674a67c85813f431e6",
+        "bytes": 16688,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/index.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/index.js",
+        "format": "module",
+        "sha256": "93f5cdfe1357d660994a944767a86692ec187e6749e0afe6c720daf82e92da4f",
+        "bytes": 764,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/resize.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/resize.js",
+        "format": "module",
+        "sha256": "93c9be79be56975f2e83d91f1e60d07e49f67ca0da4bf0095c191a793ea1a8aa",
+        "bytes": 1874,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/animate.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/animate.js",
+        "format": "module",
+        "sha256": "b292a7f6a1744666ae9a5cb1f7bb7183c78f43cd6cdeeb2ad0b85fc2c55e223f",
+        "bytes": 110269,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/gestures.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/gestures.js",
+        "format": "module",
+        "sha256": "82c74f9ce9efd0761a4e1cebce86ea756795acdee0be1812e7aaaebaaefb52bb",
+        "bytes": 4234,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/animate-mini.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/animate-mini.js",
+        "format": "module",
+        "sha256": "a73d94c86ed032b16393422cf2358722ca5a1f496cc7f2ebb2b3b88ad05892f5",
+        "bytes": 14741,
+        "pid": 1522937
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js",
+        "format": "module",
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166,
+        "pid": 1522937
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+    "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+    "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+    "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+    "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+    "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+    "[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]",
+    "[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]",
+    "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+    "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+    "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]"
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "arm": "preserved-release-original-probe",
+  "compiler": {
+    "source": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript",
+    "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e"
+  },
+  "codec": {
+    "source": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+    "sha256": "d55c6f33119cb11153f21145f45058ef3ed188c04554cc198af242f4b12e1ef9",
+    "bytes": 2601824
+  },
+  "workloadManifest": {
+    "path": "/home/azureuser/lilscript/benchmarks/libraries/maintained-workloads.json",
+    "sha256": "3c48ee5262c9107587ea62e42ac993cb459d84e17762c6f7310b7cedc96e4716",
+    "testContracts": [
+      {
+        "path": "hast-util-to-htmllil.required-tests.json",
+        "sha256": "f8c64147e4da01233034025034a07b318d01a59629adb3f8eeec8de27073eea3",
+        "bytes": 72608
+      },
+      {
+        "path": "markedlil.profiles.tests.json",
+        "sha256": "513e0c12316d445476e05af8ed65d83dd760f635eac720c1b4c070f5adc17ecb",
+        "bytes": 12346
+      },
+      {
+        "path": "probelil.required-tests.json",
+        "sha256": "4b206ff63edc83031282ca46f9bdc77152cfd59da6523f2526aeb3cff1c45d0d",
+        "bytes": 2093
+      },
+      {
+        "path": "zodlil.required-tests.json",
+        "sha256": "62b4a957ae770d84a074c6edf15df03553e7a01e36413ffb3f50ba320d037cf7",
+        "bytes": 180317
+      }
+    ]
+  },
+  "repoHead": "06b8da20d417b1ca9f78efb32552fe70d2b41cc4",
+  "host": {
+    "cpus": 8
+  },
+  "ports": [
+    "probelil"
+  ]
+}

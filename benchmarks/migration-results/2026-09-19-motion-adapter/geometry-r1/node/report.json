@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/node/events.jsonl",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "sha256": "0802763b6d890a2e41d02fe28f10cd97040b3f2b11446e9ed879999155659f62",
+      "bytes": 3676
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs"
+    ],
+    "files": [
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/node/observe.mjs",
+    "sha256": "cde3c166a15d0012b7db56108d61249b7f9eaa3a09b418128071e714fef0f444",
+    "bytes": 410,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "supervision": {
+    "timeoutMs": 29113,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"upstream: copying preserves destination and leaf identity\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "upstream: copying preserves destination and leaf identity",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"upstream: overlapping source observes the preceding destination write\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "upstream: overlapping source observes the preceding destination write",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"upstream: a later getter throw preserves earlier writes and access order\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "upstream: a later getter throw preserves earlier writes and access order",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"upstream: a setter replacing the next leaf is visible to the next call\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "upstream: a setter replacing the next leaf is visible to the next call",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"upstream: aliased box axes receive both deltas in order\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "upstream: aliased box axes receive both deltas in order",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"candidate: copying preserves destination and leaf identity\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "candidate: copying preserves destination and leaf identity",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"candidate: overlapping source observes the preceding destination write\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "candidate: overlapping source observes the preceding destination write",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"candidate: a later getter throw preserves earlier writes and access order\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "candidate: a later getter throw preserves earlier writes and access order",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"candidate: a setter replacing the next leaf is visible to the next call\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "candidate: a setter replacing the next leaf is visible to the next call",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"candidate: aliased box axes receive both deltas in order\",1]",
+        "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+        "name": "candidate: aliased box axes receive both deltas in order",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js",
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166
+      },
+      {
+        "path": "/home/azureuser/motionlil/node_modules/motion/dist/es/index.mjs",
+        "sha256": "e8b3bd835b26516fab931d12489d84d0267f94f25c64db434237af19527f1355",
+        "bytes": 35
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js",
+        "url": "file:///tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil/dist/full.js",
+        "format": "module",
+        "sha256": "b4a3328d68d3514804647a58248fa800522ebb767cc212fdda130b4c19c280a2",
+        "bytes": 194166,
+        "pid": 1531506
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/home/azureuser/motionlil/node_modules/motion/dist/es/index.mjs",
+        "url": "file:///home/azureuser/motionlil/node_modules/motion/dist/es/index.mjs",
+        "format": "module",
+        "sha256": "e8b3bd835b26516fab931d12489d84d0267f94f25c64db434237af19527f1355",
+        "bytes": 35,
+        "pid": 1531506
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"upstream: copying preserves destination and leaf identity\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"upstream: overlapping source observes the preceding destination write\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"upstream: a later getter throw preserves earlier writes and access order\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"upstream: a setter replacing the next leaf is visible to the next call\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"upstream: aliased box axes receive both deltas in order\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"candidate: copying preserves destination and leaf identity\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"candidate: overlapping source observes the preceding destination write\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"candidate: a later getter throw preserves earlier writes and access order\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"candidate: a setter replacing the next leaf is visible to the next call\",1]",
+    "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"candidate: aliased box axes receive both deltas in order\",1]"
+  ]
+}

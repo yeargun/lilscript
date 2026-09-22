@@ -1,0 +1,1 @@
+let a;let b;let c;let d;a=(0,{increment:function(value){return value+ 1|0;}}.increment);let increment=a;b=(0,{twice:function(value){return increment(increment(value));}}.twice);let twice=b;c=(0,{fourTimes:function(value){return twice(twice(value));}}.fourTimes);let fourTimes=c;d=void console.log(fourTimes(1));

@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "markedlil",
+  "started": "2026-09-20T18:35:05.068Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/markedlil",
+  "workspace": "/tmp/lilscript-baseline-markedlil-dVu7H3/markedlil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "sourceSnapshot": {
+    "root": "/home/azureuser/markedlil",
+    "files": 104,
+    "sha256": "41a47a645f2708a9c9093264182cd466fa44793b71b2a8a5110075bdf293cb50"
+  },
+  "committedArtifactsRemoved": [
+    "dist/marked.bytes.js",
+    "dist/marked.cjs",
+    "dist/marked.closed.js",
+    "dist/marked.esm.js",
+    "dist/marked.gzip.js",
+    "dist/marked.raw.js",
+    "dist/marked.umd.js"
+  ],
+  "build": {
+    "status": null,
+    "signal": "SIGTERM",
+    "error": "command deadline exceeded",
+    "wallSeconds": 300.105,
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": true,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=null signal=SIGTERM command deadline exceeded"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 301.037,
+  "completed": "2026-09-20T18:40:06.105Z",
+  "fingerprint": "e84cb2ef0ba86efacc7f7ed222582061536766402ae0682c51fbf75f7445ae78"
+}

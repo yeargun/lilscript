@@ -1,0 +1,17 @@
+{
+  "pid": 1530264,
+  "status": 1,
+  "signal": null,
+  "error": null,
+  "stdout": "{\"output\":\"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry\",\"passed\":false,\"inputsStable\":true,\"failure\":\"test evidence must be outside the input workspace\"}\n",
+  "stderr": "",
+  "supervision": {
+    "timeoutMs": 60000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  }
+}

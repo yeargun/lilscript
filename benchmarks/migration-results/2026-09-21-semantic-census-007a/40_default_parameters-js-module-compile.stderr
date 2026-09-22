@@ -1,0 +1,15 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/40_default_parameters.lil:17:1
+  |
+17 | class Counter {
+  int base;
+
+  init(int base = 10) {
+    this.base = base;
+  }
+
+  int add(int amount = 3) {
+    return this.base + amount;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

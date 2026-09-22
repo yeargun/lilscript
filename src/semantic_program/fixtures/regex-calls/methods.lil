@@ -1,0 +1,9 @@
+extern Regex regexValue();
+extern string inputValue();
+extern string replacementValue();
+export bool testCall() { return regexValue().test(inputValue()); }
+export JsValue execCall() { return regexValue().exec(inputValue()); }
+export void unusedTest() { regexValue().test(inputValue()); }
+export void unusedExec() { regexValue().exec(inputValue()); }
+export string replaceCall() { return inputValue().replace(regexValue(), replacementValue()); }
+export void unusedReplace() { inputValue().replace(regexValue(), replacementValue()); }

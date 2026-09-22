@@ -1,0 +1,2 @@
+import {productScore} from "./products.lil";
+print(productScore(32,14));

@@ -1,0 +1,10 @@
+--- a/src/number.lil
++++ b/src/number.lil
+@@ -1,6 +1,7 @@
+ import { isBool, isFiniteNum, isNum, isStr, toNum, toStr, undef } from "./host.lil";
+ import { isNumber } from "./types.lil";
+ 
++extern JsValue Number;
+ export number clampToRange(
+   JsValue value,
+   number min,

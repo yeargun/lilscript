@@ -1,0 +1,597 @@
+// probelil -- the migration's inner loop.
+//
+// Not a port of anything. Every block below exists to make one language feature
+// observable in the output, so that a compiler change that breaks it shows up as
+// a changed line here rather than as a failing test suite in a 130-second port
+// build. Keep it deterministic: no clocks, no randomness, no host state.
+//
+// `extern int read()` is the opacity valve. Constant folding is strong enough to
+// evaluate most of this at compile time, which would make the probe test the
+// folder rather than the emitter, so anything that must survive to runtime is
+// seeded from `read()`.
+
+extern int read();
+
+// ---------------------------------------------------------------- arithmetic
+
+int arithmetic(int seed) {
+  int a = seed * 3 + 7;
+  int b = a % 5;
+  int c = a / 2;
+  int d = (a ^ b) & 255;
+  int e = a << 3;
+  int f = a >> 2;
+  int g = a >>> 1;
+  int h = -a;
+  a += 1;
+  a -= 2;
+  a *= 3;
+  a ^= 9;
+  a |= 4;
+  a &= 255;
+  return a + b + c + d + e + f + g + h;
+}
+
+float floating(int seed) {
+  float x = seed;
+  float y = x / 4.0;
+  float z = y * 2.5 - 1.5;
+  return z;
+}
+
+bool logic(int seed) {
+  bool p = seed > 0 && seed < 100;
+  bool q = seed == 3 || seed != 4;
+  bool r = !p;
+  return p && q || r;
+}
+
+// ------------------------------------------------------------- control flow
+
+int loops(int seed) {
+  int total = 0;
+  for (int i = 0; i < 6; i++) {
+    if (i == 2) { continue; }
+    if (i == 5) { break; }
+    total += i * seed;
+  }
+  int j = 0;
+  while (j < 4) {
+    total ^= j;
+    j++;
+  }
+  int k = 0;
+  while (k < 3) {
+    total += 1;
+    k++;
+  }
+  return total;
+}
+
+int branches(int seed) {
+  if (seed < 0) {
+    return -1;
+  } else if (seed == 0) {
+    return 0;
+  } else {
+    if (seed > 10) { return 2; }
+    return 1;
+  }
+}
+
+// ------------------------------------------------- functions and generics
+
+int withDefaults(int a, int b = 10, int c = 100) {
+  return a + b + c;
+}
+
+T identity<T>(T value) {
+  return value;
+}
+
+int applyTwice(int value, func(int)->int f) {
+  return f(f(value));
+}
+
+// ------------------------------------------------------------- closures
+
+func(int)->int counter(int start) {
+  int total = start;
+  return (int amount) => { total += amount; return total; };
+}
+
+int closures(int seed) {
+  func(int)->int bump = counter(seed);
+  int first = bump(1);
+  int second = bump(2);
+  int captured = seed * 2;
+  func()->int read2 = () => captured;
+  return first + second + read2();
+}
+
+// -------------------------------------------------------------- classes
+
+class Shape {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  int area() {
+    return this.width * this.height;
+  }
+
+  int grow(int by) {
+    this.width += by;
+    return this.width;
+  }
+
+  func()->int areaThunk() {
+    return () => this.width * this.height;
+  }
+}
+
+class Labelled extends Shape {
+  string label;
+
+  init(int width, int height, string label) {
+    super(width, height);
+    this.label = label;
+  }
+
+  string describe() {
+    return this.label;
+  }
+}
+
+class Holder {
+  int seed;
+  func(int)->int transform;
+
+  init(int seed, func(int)->int transform) {
+    this.seed = seed;
+    this.transform = transform;
+  }
+
+  int apply(int amount) {
+    func(int)->int local = this.transform;
+    return local(this.seed + amount);
+  }
+}
+
+int classes(int seed) {
+  Shape shape = new Shape(seed, 3);
+  Labelled tagged = new Labelled(seed, 4, "tag");
+  Shape viewed = tagged;
+  func()->int thunk = shape.areaThunk();
+  Holder holder = new Holder(seed, (int v) => v ^ 5);
+  int total = shape.area() + shape.grow(2) + thunk();
+  total += tagged.area() + viewed.area() + tagged.describe().length;
+  total += holder.apply(3);
+  return total;
+}
+
+// -------------------------------------------------------------- records
+
+int records(int seed) {
+  Record<int> point = record{ x: seed, y: seed * 2 };
+  point.x = (point.x ?? 0) + 1;
+  int viaDot = point.x ?? 0;
+  int viaIndex = point["y"] ?? 0;
+  Record<int> alias = point;
+  alias.x = 42;
+  return viaDot + viaIndex + (point.x ?? 0);
+}
+
+// --------------------------------------------------------------- arrays
+
+int arrays(int seed) {
+  int[] values = [seed, seed + 1, seed + 2];
+  values.push(seed + 3);
+  int popped = values.pop();
+  int[] doubled = values.map((int v) => v * 2);
+  int[] kept = values.filter((int v) => (v & 1) == 0);
+  int folded = values.reduce((int acc, int v) => acc + v, 0);
+  int seen = 0;
+  values.forEach((int v) => { seen += v; });
+  int[] alias = values;
+  alias[0] = alias[0] + 1;
+  return popped + doubled.length + kept.length + folded + seen + values[0] + values.length;
+}
+
+// -------------------------------------------------------------- strings
+
+int strings(int seed) {
+  string a = "probe";
+  string b = a + "-lil";
+  string t = `seed=${seed} len=${b.length}`;
+  int code = b.charCodeAt(1);
+  int found = t.indexOf("len");
+  string sliced = b.slice(0, 5);
+  return b.length + t.length + code + found + sliced.length;
+}
+
+// --------------------------------------------------------- map and set
+
+int collections(int seed) {
+  Map<string, int> map = new Map<string, int>();
+  map.set("a", seed);
+  map.set("b", seed * 2);
+  Set<int> set = new Set<int>();
+  set.add(seed);
+  set.add(seed);
+  set.add(seed + 1);
+  int total = map.size + set.size;
+  if (map.has("a")) { total += map.get("a") ?? 0; }
+  return total;
+}
+
+// ------------------------------------------------------------ nullable
+
+int nullable(int seed) {
+  int? maybe = null;
+  if (seed > 0) { maybe = seed; }
+  int resolved = maybe ?? -1;
+  Record<int> holder = record{ v: seed };
+  int optional = holder.v ?? 0;
+  return resolved + optional;
+}
+
+// ---------------------------------------------------------- exceptions
+
+int exceptions(int seed) {
+  int total = 0;
+  try {
+    if (seed >= 0) {
+      throw "seeded";
+    }
+    total += 1;
+  } catch (auto caught) {
+    total += 10;
+  } finally {
+    total += 100;
+  }
+  return total;
+}
+
+// --------------------------------------------------------- typed arrays
+
+int memory(int seed) {
+  ArrayBuffer storage = new ArrayBuffer(8);
+  Uint8Array bytes = new Uint8Array(storage);
+  bytes[0] = seed;
+  bytes[1] = seed >>> 8;
+  bytes[2] = 255;
+  Uint8Array view = bytes.subarray(1, 4);
+  int previous = view[0]++;
+  return bytes[0] + bytes[1] + bytes[2] + previous + view.byteOffset + view.length;
+}
+
+// ------------------------------------------------------------- structs
+
+struct Pair {
+  int left;
+  int right;
+}
+
+int structs(int seed) {
+  Pair pair = Pair{seed, seed * 3};
+  int sum = pair.left + pair.right;
+  pair.left = pair.left + 1;
+  return sum + pair.left;
+}
+
+// ------------------------------------- known defect classes, as regressions
+//
+// Each block below is the shape of a defect that has actually shipped. They are
+// here so that the neighbourhood stays covered, not because the specific bug is
+// still live.
+
+int probeCalls = 0;
+bool sideEffect(int value) {
+  probeCalls += 1;
+  return (value & 1) == 0;
+}
+
+// live-8: a local-phi selection whose condition has side effects was rendered
+// twice -- once materialised, once inlined -- so the calls happened twice.
+int duplicatedGate(int seed) {
+  int a = 1;
+  int b = seed;
+  bool gate = sideEffect(a) && ((a ^ b) < 0) || sideEffect(b);
+  int old = b++;
+  b += old;
+  if (gate) { --b; } else { ++b; }
+  return b;
+}
+
+// live-2's neighbourhood: `this` captured lexically by an arrow inside a method,
+// then escaping the object it came from.
+class Escaper {
+  int value;
+  init(int value) { this.value = value; }
+  func()->int escape() {
+    return () => this.value * 3;
+  }
+  func(int)->int adder() {
+    return (int extra) => this.value + extra;
+  }
+}
+
+int escapingThis(int seed) {
+  Escaper one = new Escaper(seed);
+  Escaper two = new Escaper(seed * 2);
+  func()->int a = one.escape();
+  func()->int b = two.escape();
+  func(int)->int c = one.adder();
+  one.value = seed + 100;
+  return a() + b() + c(5);
+}
+
+// bug 7's neighbourhood: a generic function whose parameter type mentions the
+// type parameter inside a function type.
+bool sameParity(int previous, int next) {
+  return previous % 2 == next % 2;
+}
+
+bool compareWith<T>(T value, func(T,T)->bool compare) {
+  return compare(value, value);
+}
+
+// The fold that deleted a live binding declared in a `for` header.
+int forHeaderBinding(int seed) {
+  int result = 0;
+  int[] values = [seed, seed + 1, seed + 2];
+  for (int i = 0; i < values.length; ++i) {
+    result += values[i];
+  }
+  return result;
+}
+
+// The fold that read a template literal as one opaque token and lost the use.
+int templateBinding(int seed) {
+  int live = seed * 2;
+  string rendered = `value=${live}`;
+  return rendered.length;
+}
+
+// charCodeAt out of range is NaN, and `NaN|0` is 0 -- the coercion is not
+// elidable just because the result is typed `int`.
+int codeAt(string text, int index) {
+  return text.charCodeAt(index);
+}
+
+// Nested closures over a loop variable: one instance per iteration.
+int loopCaptures(int seed) {
+  (func()->int)[] thunks = [];
+  for (int i = 0; i < 3; i++) {
+    int captured = i * seed;
+    thunks.push(() => captured);
+  }
+  int total = 0;
+  for (int j = 0; j < thunks.length; j++) {
+    total += thunks[j]();
+  }
+  return total;
+}
+
+// Short-circuit operands that must not be reordered or evaluated twice.
+int shortCircuit(int seed) {
+  probeCalls = 0;
+  bool a = sideEffect(seed) || sideEffect(seed + 1);
+  bool b = sideEffect(seed + 2) && sideEffect(seed + 3);
+  int calls = probeCalls;
+  int flags = 0;
+  if (a) { flags += 1; }
+  if (b) { flags += 2; }
+  return calls * 10 + flags;
+}
+
+// ------------------------------------------------------- iteration forms
+
+// `for (T k in obj)` and `for (T v of list)` are their own emitter shapes, each
+// with a buffered body and a bracelessness decision.
+int forInOver(int seed) {
+  Record<int> counts = record{ a: seed, b: seed * 2, c: seed * 3 };
+  int total = 0;
+  for (string key in counts) {
+    total += key.length;
+    total += counts[key] ?? 0;
+  }
+  return total;
+}
+
+// A real `for...of` needs an iterable the compiler cannot index: an array is
+// lowered to a counted loop, a `Set` is refused, and only a generator reaches
+// the `ForOf` emitter shape.
+generator int upTo(int limit) {
+  for (int i = 0; i < limit; i++) {
+    yield i;
+  }
+}
+
+int forOfGenerator(int seed) {
+  int total = 0;
+  for (int value of upTo(seed)) {
+    total += value;
+  }
+  for (int value of upTo(3)) total += 1;
+  return total;
+}
+
+int forOfOver(int seed) {
+  int total = 0;
+  // `inline for` unrolls into a counted loop and never reaches the `ForOf`
+  // emitter, so the real one is here too.
+  inline for (int value of [1, 2, 3, 4]) {
+    total += value * seed;
+  }
+  int[] runtime = [seed, seed + 1, seed + 2];
+  for (int value of runtime) {
+    total += value;
+  }
+  for (int value of runtime) total += 1;
+  return total;
+}
+
+// A single-statement loop body is the case that gets its braces removed.
+int bracelessBodies(int seed) {
+  int total = 0;
+  for (int i = 0; i < 4; i++) total += i;
+  Record<int> counts = record{ k: seed };
+  for (string key in counts) total += key.length;
+  int j = 0;
+  while (j < 3) j++;
+  return total + j;
+}
+
+// ------------------------------------------------------- loop spellings
+//
+// `loop_spelling` is not a config key -- it is `Auto`, varied only by a decision
+// family -- so the three emitter shapes have to be provoked from source.
+// `Auto` reuses whichever keyword the artifact already has more of, and the
+// non-compact `for(;;){..if(exit)break..}` fallback appears when a loop's exit
+// test cannot be hoisted into the header.
+
+int whileShaped(int seed) {
+  int total = 0;
+  int j = seed;
+  while (j > 0) { total ^= j; j--; }
+  int k = seed;
+  while (k > 0) total += k--;
+  return total;
+}
+
+// `while(n>0){n--;..}` is rotated to `while(n--){..}` when the decrement is the
+// body's first statement -- and only then. Both spellings, plus one where the
+// decrement is not first and the rotation must not fire.
+int guardedDecrement(int seed) {
+  int total = 0;
+  int n = seed;
+  while (n > 0) { n--; total += n; }
+  int m = seed;
+  while (m > 0) { --m; total += m * 2; }
+  int k = seed;
+  while (k > 0) { total += k; k--; }
+  // The rotation's gate: the counter must be unused until the loop's exit.
+  // Every loop above reads its counter in the body, so none of them rotate;
+  // this one only counts.
+  int q = seed;
+  while (q > 0) { q--; total += seed; }
+  int r = seed;
+  while (r > 0) { --r; total += 3; }
+  return total;
+}
+
+int midExitLoop(int seed) {
+  int total = 0;
+  int i = 0;
+  while (true) {
+    total += i;
+    if (total > seed * 4) { break; }
+    i++;
+    if (i > 20) { break; }
+  }
+  return total;
+}
+
+// The non-compact shape: `for(..;;){ header; if(exit)break; body }`. A loop is
+// "compact" only when its header and exit blocks emit nothing, so a condition
+// that has to do work each iteration forces the fallback. It appears in mobxlil
+// (10x), posthoglil (4x) and zodlil, and in **no** test case -- which is why it
+// is here.
+int stepCalls = 0;
+int stepDown(int v) { stepCalls += 1; return v - 1; }
+
+int headerWorkLoop(int seed) {
+  int total = 0;
+  int i = seed;
+  while (stepDown(i) > 0) {
+    total += i;
+    i--;
+    if (i < 0) { break; }
+  }
+  return total + stepCalls;
+}
+
+int nestedLoops(int seed) {
+  int total = 0;
+  for (int i = 0; i < 3; i++) {
+    int j = 0;
+    while (j < i) {
+      if (j == 1) { j++; continue; }
+      total += i * j + seed;
+      j++;
+    }
+  }
+  return total;
+}
+
+// ----------------------------------------------------------------- main
+
+int seed = read();
+print(arithmetic(seed));
+print(floating(seed));
+print(logic(seed));
+print(loops(seed));
+print(branches(seed));
+print(branches(0 - seed));
+print(withDefaults(seed));
+print(withDefaults(seed, 1));
+print(withDefaults(seed, 1, 2));
+print(identity(seed));
+print(applyTwice(seed, (int v) => v + 3));
+print(closures(seed));
+print(classes(seed));
+print(records(seed));
+print(arrays(seed));
+print(strings(seed));
+print(collections(seed));
+print(nullable(seed));
+print(exceptions(seed));
+print(memory(seed));
+print(structs(seed));
+probeCalls = 0;
+print(duplicatedGate(seed));
+print(probeCalls);
+print(escapingThis(seed));
+print(compareWith(seed, sameParity));
+print(forHeaderBinding(seed));
+print(templateBinding(seed));
+print(codeAt("ab", 0));
+print(codeAt("", 0));
+print(codeAt("ab", 0 - 1));
+print(loopCaptures(seed));
+print(shortCircuit(seed));
+print(forInOver(seed));
+print(forOfOver(seed));
+print(forOfGenerator(seed));
+print(whileShaped(seed));
+print(headerWorkLoop(seed));
+print(guardedDecrement(seed));
+print(midExitLoop(seed));
+print(nestedLoops(seed));
+print(bracelessBodies(seed));
+
+// live-12 (2026-09-05): an `if` body of [try/catch, statement] is two
+// statements. The text classifier saw no top-level `;` after the try's braces
+// and spelled the body braceless, moving the second statement outside the
+// `if`. The text-era compiler prints 21 here; the correct value is 14.
+int live12Total = 0;
+void live12Absorb(int raw, bool coerce) {
+  int value = raw;
+  if (coerce) {
+    try {
+      value = raw * 2;
+    } catch (auto caught) {
+      return;
+    }
+    live12Total = live12Total + value;
+  }
+}
+live12Absorb(read(), true);
+live12Absorb(read(), false);
+print(live12Total);

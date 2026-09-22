@@ -1,0 +1,19 @@
+export string slice(string s, int start, int end) {
+  return s.slice(start, end);
+}
+
+export string sliceFrom(string s, int start) {
+  return s.slice(start);
+}
+
+export string[] splitLines(string src) {
+  return src.split("\n");
+}
+
+export string firstLine(string src) {
+  int n = src.indexOf("\n");
+  if (n < 0) {
+    return src;
+  }
+  return slice(src, 0, n);
+}

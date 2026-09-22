@@ -1,0 +1,26 @@
+
+running 21 tests
+test semantic_program::publication_tests::adoption_rejects_external_arc_owners_and_accounts_nested_payload_capacity ... ok
+test semantic_program::publication_tests::adoption_budget_failures_release_partial_units_tables_and_index ... ok
+test semantic_program::publication_tests::candidate_policy_unknown_and_truncated_results_publish_nothing ... ok
+test semantic_program::publication_tests::helper_publication_reuses_owned_facts_and_the_same_semantic_snapshot ... ok
+test semantic_program::publication_tests::helper_recipe_checks_permissions_on_insertion_rebase_and_output_and_rejects_stale_body ... ok
+test semantic_program::publication_tests::immutable_target_binding_shares_contract_storage_across_codec_and_effort_policies ... ok
+test semantic_program::publication_tests::contract_changes_reject_candidate_and_output_reuse_without_changing_sources ... ok
+test semantic_program::publication_tests::bounded_slot_reuse_rejects_stale_and_foreign_store_ids ... ok
+test semantic_program::publication_tests::rejected_helper_preparation_or_fact_query_reclaims_pending_evidence ... ok
+test semantic_program::publication_tests::last_sibling_releases_original_domain_units_and_tables ... ok
+test semantic_program::publication_tests::rejected_source_adoption_and_unsupported_package_do_not_bind_the_store ... ok
+test semantic_program::publication_tests::scalar_siblings_share_semantics_and_release_evidence_after_final_owner ... ok
+test semantic_program::publication_tests::checked_source_branch_publishes_semantics_and_uses_together ... ok
+test semantic_program::publication_tests::borrowed_place_patch_derives_complete_cell_use_changes ... ok
+test semantic_program::publication_tests::invalid_types_forward_reads_and_stale_dependencies_leave_base_usable ... ok
+test semantic_program::publication_tests::failed_first_target_releases_provisional_contract_and_allows_a_different_retry ... ok
+test semantic_program::publication_tests::repeated_operation_patches_rebuild_operands_without_retaining_dead_ranges ... ok
+test semantic_program::publication_tests::source_edits_clear_choices_and_explicit_rebase_rejects_stale_participants ... ok
+test semantic_program::publication_tests::physical_siblings_share_one_snapshot_with_constant_fork_work_and_storage ... ok
+test semantic_program::publication_tests::rejected_scalar_publication_releases_completed_analysis_and_map_allocations ... ok
+test semantic_program::publication_tests::work_and_memory_failures_restore_baseline_even_after_copy_or_index_work ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 2822 filtered out; finished in 0.22s
+

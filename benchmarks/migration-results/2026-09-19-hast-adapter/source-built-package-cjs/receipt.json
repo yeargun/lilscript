@@ -1,0 +1,626 @@
+{
+  "schema": 1,
+  "started": "2026-09-19T16:24:28.419Z",
+  "passed": false,
+  "qualification": "unverified",
+  "kind": "installed-package-cjs-supplement",
+  "commands": [
+    {
+      "label": "pack",
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "args": [
+        "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/bin/npm-cli.js",
+        "pack",
+        "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil",
+        "--offline",
+        "--ignore-scripts",
+        "--json",
+        "--pack-destination",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/packed"
+      ],
+      "cwd": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "wall_ns": 1142010173,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/pack.stdout",
+        "sha256": "1a171c585c83d309c879b3b240ce45242cb89816aa11ec3d9386c648661c9dbf",
+        "bytes": 3034
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/pack.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "label": "install",
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "args": [
+        "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/bin/npm-cli.js",
+        "install",
+        "--prefix",
+        "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--package-lock=false",
+        "--omit=dev",
+        "--json",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/packed/itslil-hast-util-to-html-9.0.7.tgz"
+      ],
+      "cwd": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr",
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "wall_ns": 448531634,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/install.stdout",
+        "sha256": "aa0b01fd2b743232c95e0b2e158a95968becce7cfd110815b991aca346cddac5",
+        "bytes": 322
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/install.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    {
+      "label": "smoke",
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "args": [
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/package-cjs-smoke.mjs",
+        "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/loaded",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/smoke-results.json"
+      ],
+      "cwd": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer",
+      "status": 1,
+      "signal": null,
+      "error": null,
+      "wall_ns": 55757833,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/smoke.stdout",
+        "sha256": "a23c213e5b289f8ba7bbaa4ef978731116bb756b3113d5072e5f4dc30470fddc",
+        "bytes": 2237
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/smoke.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    }
+  ],
+  "requiredCases": [
+    "package-resolution",
+    "named-exports",
+    "public-name",
+    "public-arity",
+    "text",
+    "escaping",
+    "invalid-argument",
+    "array-input"
+  ],
+  "scope": "unchanged source-built legacy HAST delivery, offline local tarball consumer, eight supplementary cases",
+  "limitations": [
+    "These supplementary cases do not replace the original 460 identities or establish complete CJS API coverage.",
+    "Public name is required to remain toHtml; an observed legacy name is not accepted as a replacement contract.",
+    "The original h('b') and h('i') array fixture is expanded into equivalent plain HAST element objects; no upstream or hastscript package is loaded by this consumer.",
+    "Package creation and installation explicitly disable lifecycle scripts; earlier unchanged check:pack/check:site evidence remains separate.",
+    "No library/compiler rebuild, compiler/library source edit, network dependency installation or new codec measurement is performed.",
+    "UMD/browser, declaration consumers, constructibility and complete dependency/delivery coverage remain open; no D2/D5 or semantic-backend claim.",
+    "Source snapshots exclude .git, node_modules, target and .cache; installed published files are compared with the pack inventory and Node/npm tool identities are recorded."
+  ],
+  "parents": {
+    "sourceBuild": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built/hast-util-to-htmllil.json",
+      "sha256": "0a3c34ff4c96f77ba1f8fb34dbaa3099431567cbc9837c2dc47224c3f5b7d675",
+      "bytes": 298483
+    },
+    "buildManifest": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built/manifest.json",
+      "sha256": "e9e256873f6138e17b25641d44323495d5b3f66daf2fa0aa41b67c3a81c3ba99",
+      "bytes": 1490
+    },
+    "compilerQualification": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T13-05-45.258Z/receipt.json",
+      "sha256": "cd424638e1d82eba84df5d9dcbafe58455f82c375e8009d7db7b0dead67340bc",
+      "bytes": 22298
+    },
+    "compilerInputsSha256": "dc3be0375ba356193b5aab674044c8b6cf021c7eb5faa9d2f689996472c09160",
+    "originalSuite": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built/tests/hast-util-to-htmllil/report.json",
+      "sha256": "a6c11faed0eba02d2614adebe54221907f9ff1a9d1dd5e501715339c95f762d2",
+      "bytes": 273851
+    },
+    "originalAdditionalChecks": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/receipt.json",
+      "sha256": "753f8619613608a88532a7e230dbeb8fbaf8e8219f813d512162f3b480ecc8e0",
+      "bytes": 17083
+    },
+    "publicBoundary": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/public-boundary.json",
+      "sha256": "0c81cbe4f11b49708cb7b208ac5d5bfafd5e8a134b9452962126c630563e317f",
+      "bytes": 5125
+    }
+  },
+  "caseOrigins": {
+    "named-exports": {
+      "file": "test/to-html.test.mjs",
+      "line": 19
+    },
+    "text": {
+      "file": "test/official/text.js",
+      "line": 8
+    },
+    "escaping": {
+      "file": "test/official/text.js",
+      "line": 11
+    },
+    "invalid-argument": {
+      "file": "test/official/core.js",
+      "line": 13
+    },
+    "array-input": {
+      "file": "test/official/core.js",
+      "line": 31,
+      "fixture": "explicit HAST equivalent of h('b'), h('i')"
+    },
+    "public-name": {
+      "receipt": "public-boundary.json",
+      "record": "upstream",
+      "expected": "toHtml"
+    },
+    "public-arity": {
+      "receipt": "public-boundary.json",
+      "record": "upstream",
+      "expected": 2
+    },
+    "package-resolution": {
+      "file": "package.json",
+      "field": "exports...require"
+    }
+  },
+  "environment": {
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_cache": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/npm-cache",
+      "npm_config_userconfig": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/empty.npmrc"
+    },
+    "otherwise": "inherited",
+    "removed": [
+      "NODE_TEST_CONTEXT"
+    ]
+  },
+  "consumer": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer",
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "npmCli": {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm/bin/npm-cli.js",
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+      "bytes": 54
+    },
+    "npmVersion": "11.6.2"
+  },
+  "tarball": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-package-cjs/packed/itslil-hast-util-to-html-9.0.7.tgz",
+    "sha256": "c9ab094bf62e21030fb84056aeca5fbc6bf5a4ff40e3d44e921bde56f51792bb",
+    "bytes": 30862
+  },
+  "packagedFiles": [
+    {
+      "path": "dist/to-html.cjs",
+      "sha256": "6251b2367acc1a9875fe44fc3ff78cb622056ae1551dbdcfd4d560d4c4e659fb",
+      "bytes": 31100
+    },
+    {
+      "path": "dist/to-html.closed.js",
+      "sha256": "5f141aa185acb302fc281e925d79fea6948454cc71e9398d204b34ed65cca82e",
+      "bytes": 29952
+    },
+    {
+      "path": "dist/to-html.d.ts",
+      "sha256": "da4ddc9d09fff5d40cb628ab4f6b903c118d10a37c72e3bd727783d6f6bc7eef",
+      "bytes": 1005
+    },
+    {
+      "path": "dist/to-html.esm.js",
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.umd.js",
+      "sha256": "5730dc50aceb38311e0868aa54dd98d4d474e47ba43639eb85d43c1887a36bdf",
+      "bytes": 31171
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "219c138192de46366164088cc40be8477618d247b9e1262e76014b5fc846f908",
+      "bytes": 1091
+    },
+    {
+      "path": "NOTICE.md",
+      "sha256": "face38b8fb382c576f2276a8719e6bcbe838ba57d00718aad4663240974d7d65",
+      "bytes": 493
+    },
+    {
+      "path": "package.json",
+      "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+      "bytes": 1884
+    },
+    {
+      "path": "README.md",
+      "sha256": "aeabc8dbb2f7c313f07d2012b964d2bbc642e285794322e58506eb4abf85c062",
+      "bytes": 887
+    },
+    {
+      "path": "src/index.lil",
+      "sha256": "0fa477ec92851ed6e58e8a4cdfdefc64a0d326748ed2542487c47b5bd2fa45d8",
+      "bytes": 164
+    },
+    {
+      "path": "src/lib/entities.lil",
+      "sha256": "da241d65eb99b3d8116c6ca6372d4708b633d93127e77897f8ec39e5e53eb886",
+      "bytes": 5781
+    },
+    {
+      "path": "src/lib/handle/comment.lil",
+      "sha256": "4c1b705c415968848cd5d2e0c9e1a2403e81e75b19e6213c8b70a67320fb8079",
+      "bytes": 499
+    },
+    {
+      "path": "src/lib/handle/doctype.lil",
+      "sha256": "a18bff27907fecde3ffd44c6c1adbd2a6513e8e9f0356444aa6c7acc5547f501",
+      "bytes": 339
+    },
+    {
+      "path": "src/lib/handle/element.lil",
+      "sha256": "f3abf6c3c4bcbeead650d23b02a5e5b6b1b5ba7f5afe0c5848811ad00ddb1c9c",
+      "bytes": 6032
+    },
+    {
+      "path": "src/lib/handle/index.lil",
+      "sha256": "f8b1a787209af8672c29f01185dd99e6c575e4d4a2abc3a0479bb2b8aef1fb87",
+      "bytes": 1257
+    },
+    {
+      "path": "src/lib/handle/raw.lil",
+      "sha256": "68d551152ba36a178112cbf1f397b3e85243377611b6e35e35cd010de9bdc14f",
+      "bytes": 294
+    },
+    {
+      "path": "src/lib/handle/root.lil",
+      "sha256": "b2ec07dec13d0892da360201fb7ab15d868c6ffcdf9653cbe28e290da3cc9847",
+      "bytes": 181
+    },
+    {
+      "path": "src/lib/handle/text.lil",
+      "sha256": "3aaabda981f5c88d0d107f90b76f0f314baf7f5320593049019b04c1ff41b100",
+      "bytes": 567
+    },
+    {
+      "path": "src/lib/index.lil",
+      "sha256": "26c55ae933415e3b0e0b1a3c677c1680224c6e9833ccab40460468e8f9248856",
+      "bytes": 2486
+    },
+    {
+      "path": "src/lib/omission/closing.lil",
+      "sha256": "3f6e927f30745ed944c537b23214544f6a4e8be90faed591cde4f23b9fbfcd70",
+      "bytes": 4116
+    },
+    {
+      "path": "src/lib/omission/omission.lil",
+      "sha256": "349a475265c135b94e6612b27bee5350c45518162fe86c84ae2555cd738de90f",
+      "bytes": 513
+    },
+    {
+      "path": "src/lib/omission/opening.lil",
+      "sha256": "b0554c4639e81d743effc460c4e5b5504b96864cd493d583704452e8393be7da",
+      "bytes": 3550
+    },
+    {
+      "path": "src/lib/omission/util/siblings.lil",
+      "sha256": "f66f24cfed228c58d234253ded8ac3266d36ab866028083cbff806c1cdaa50fe",
+      "bytes": 932
+    },
+    {
+      "path": "src/lib/schema-data.lil",
+      "sha256": "d8af02546e95f0422caa52f0905cb9fb4fe8bb5138c62ba29f1a16e1536f7ec3",
+      "bytes": 18501
+    },
+    {
+      "path": "src/lib/schema.lil",
+      "sha256": "0df18e11024aafb9f6bc52eb6b35403299745fd8be29eed15865a0ea5ac67ce3",
+      "bytes": 3621
+    },
+    {
+      "path": "src/lib/types.lil",
+      "sha256": "00ef68aa24de78cca81260ca6c375673129e228f40763718bd0fdf2a946b857d",
+      "bytes": 6348
+    }
+  ],
+  "packagedManifest": {
+    "path": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil/package.json",
+    "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+    "bytes": 1884
+  },
+  "installedManifest": {
+    "path": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html/package.json",
+    "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+    "bytes": 1884
+  },
+  "cases": [
+    {
+      "id": "package-resolution",
+      "status": "pass"
+    },
+    {
+      "id": "named-exports",
+      "status": "pass"
+    },
+    {
+      "id": "public-name",
+      "status": "fail",
+      "message": "Expected values to be strictly equal:\n\n'kb' !== 'toHtml'\n",
+      "expected": "toHtml",
+      "actual": "kb"
+    },
+    {
+      "id": "public-arity",
+      "status": "pass"
+    },
+    {
+      "id": "text",
+      "status": "pass"
+    },
+    {
+      "id": "escaping",
+      "status": "pass"
+    },
+    {
+      "id": "invalid-argument",
+      "status": "pass"
+    },
+    {
+      "id": "array-input",
+      "status": "pass"
+    }
+  ],
+  "observed": {
+    "exports": [
+      "toHtml"
+    ],
+    "name": "kb",
+    "arity": 2
+  },
+  "dependencyClosure": {
+    "passed": true,
+    "loadedCommonJsFiles": [
+      "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html/dist/to-html.cjs"
+    ]
+  },
+  "loadedArtifacts": [
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html/dist/to-html.cjs",
+      "url": "file:///tmp/lilscript-hast-package-cjs-20260919-th7HJr/consumer/node_modules/@itslil/hast-util-to-html/dist/to-html.cjs",
+      "format": "commonjs",
+      "sha256": "6251b2367acc1a9875fe44fc3ff78cb622056ae1551dbdcfd4d560d4c4e659fb",
+      "bytes": 31100,
+      "pid": 822389
+    }
+  ],
+  "behavioralSmokePassed": true,
+  "publicNamePreserved": false,
+  "completedAllCases": true,
+  "failure": {
+    "message": "One or more required supplementary cases failed; expectations and artifacts remain unchanged"
+  },
+  "inputsStable": true,
+  "workspaceUnchanged": true,
+  "originalUnchanged": true,
+  "installedUnchanged": true,
+  "completed": "2026-09-19T16:24:31.324Z",
+  "outputs": [
+    {
+      "path": "inputs-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4faf4493156ad556017585aab58d6265162f82c1f8013a9e15465a4afbb3dfe3",
+      "bytes": 4446
+    },
+    {
+      "path": "inputs-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4faf4493156ad556017585aab58d6265162f82c1f8013a9e15465a4afbb3dfe3",
+      "bytes": 4446
+    },
+    {
+      "path": "install.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "install.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "aa0b01fd2b743232c95e0b2e158a95968becce7cfd110815b991aca346cddac5",
+      "bytes": 322
+    },
+    {
+      "path": "installed-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "aee42aa0c3631755a773776147ad48e013e5d7fdc5328fb5c9f3fd4d6c01af29",
+      "bytes": 5515
+    },
+    {
+      "path": "installed-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "aee42aa0c3631755a773776147ad48e013e5d7fdc5328fb5c9f3fd4d6c01af29",
+      "bytes": 5515
+    },
+    {
+      "path": "installed-package.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+      "bytes": 1884
+    },
+    {
+      "path": "loaded/822389-cbdd4473-7b50-457d-9676-4b74968e6b46.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "34e86324ce9f9f5ec2efa36e39ebdd66060aadd7ffb95a47d6f647f3f87f8585",
+      "bytes": 418
+    },
+    {
+      "path": "original-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1c7cfa529b21fffb3e93703d17b45b19ab2a837c860074dbf3c34e4d9d43a76f",
+      "bytes": 18737
+    },
+    {
+      "path": "original-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1c7cfa529b21fffb3e93703d17b45b19ab2a837c860074dbf3c34e4d9d43a76f",
+      "bytes": 18737
+    },
+    {
+      "path": "pack.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "pack.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1a171c585c83d309c879b3b240ce45242cb89816aa11ec3d9386c648661c9dbf",
+      "bytes": 3034
+    },
+    {
+      "path": "packaged-package.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+      "bytes": 1884
+    },
+    {
+      "path": "packed/itslil-hast-util-to-html-9.0.7.tgz",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c9ab094bf62e21030fb84056aeca5fbc6bf5a4ff40e3d44e921bde56f51792bb",
+      "bytes": 30862
+    },
+    {
+      "path": "smoke-results.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9dc2d8fefea2c02d8ab567d9a7f70a79c1e31c854c0065edd0ba114aa80e7a4f",
+      "bytes": 3013
+    },
+    {
+      "path": "smoke.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9274f1bb61802300c469b4d5ea8ab6d532747146e0f899ffee239bd402b7f291",
+      "bytes": 2744
+    },
+    {
+      "path": "smoke.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "smoke.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a23c213e5b289f8ba7bbaa4ef978731116bb756b3113d5072e5f4dc30470fddc",
+      "bytes": 2237
+    },
+    {
+      "path": "source-build-manifest.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e9e256873f6138e17b25641d44323495d5b3f66daf2fa0aa41b67c3a81c3ba99",
+      "bytes": 1490
+    },
+    {
+      "path": "source-build.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0a3c34ff4c96f77ba1f8fb34dbaa3099431567cbc9837c2dc47224c3f5b7d675",
+      "bytes": 298483
+    },
+    {
+      "path": "workspace-after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "160b166590fc341be5c6a82b2a0170b0c158fa3c481232d7d0af8cbadc878f28",
+      "bytes": 18774
+    },
+    {
+      "path": "workspace-before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "160b166590fc341be5c6a82b2a0170b0c158fa3c481232d7d0af8cbadc878f28",
+      "bytes": 18774
+    },
+    {
+      "path": "wrapper.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01b1b13c7267deb1f55e7c5e425c4bd4e2599ed192d2cb98f5bf947ec4208abe",
+      "bytes": 16542
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+
+running 1 test
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... FAILED
+
+failures:
+
+---- timing::tests::semantic_phase_timing_is_observational_and_covers_refusal stdout ----
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1757762) panicked at src/timing_tests.rs:212:13:
+
+running 1 test
+test timing::tests::semantic_phase_timing_is_observational_and_covers_refusal ... FAILED
+
+failures:
+
+failures:
+    timing::tests::semantic_phase_timing_is_observational_and_covers_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2939 filtered out; finished in 0.08s
+
+
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1757764) panicked at src/timing_tests.rs:189:5:
+assertion `left == right` failed
+  left: Number(1)
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    timing::tests::semantic_phase_timing_is_observational_and_covers_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2939 filtered out; finished in 0.09s
+

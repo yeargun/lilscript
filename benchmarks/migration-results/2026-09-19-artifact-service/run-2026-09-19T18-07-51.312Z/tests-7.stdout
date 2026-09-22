@@ -1,0 +1,7 @@
+
+running 2 tests
+test semantic_program::module_publication_tests::sparse_edit_rejects_invalid_types_without_global_verifier_workspace ... ok
+test semantic_program::module_publication_tests::global_module_metadata_does_not_reanalyze_unrelated_bodies_or_leak_shared_tables ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2868 filtered out; finished in 0.37s
+

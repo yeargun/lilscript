@@ -1,0 +1,13 @@
+[
+  ["get", "omitted"], ["needle", "omitted"], ["call", "omitted", "abc", 1, "x", "omitted"], ["result", 1],
+  ["get", "explicit"], ["needle", "explicit"], ["position"], ["call", "explicit", "abc", 2, "x", 0], ["result", 2],
+  ["get", "undefined"], ["needle", "undefined"], ["position"], ["call", "undefined", "abc", 2, "x", "undefined"], ["result", 2],
+  ["get", "old"], ["needle", "replace"], ["call", "old", "abc", 1, "x", "omitted"], ["result", 1],
+  ["get", "new"], ["needle", "after-replace"], ["call", "new", "abc", 1, "x", "omitted"], ["result", 1],
+  ["get", "throw"], ["caught", true],
+  ["get", "arg"], ["needle", "argument-throw"], ["caught", true],
+  ["get", "reentry"], ["needle", "reenter"], ["get", "reentry"], ["needle", "reenter"], ["position"],
+  ["call", "reentry", "inner", 2, "x", 0], ["nested", 2], ["call", "reentry", "outer", 1, "x", "omitted"], ["result", 1],
+  ["get", "overflow"], ["needle", "overflow"], ["call", "overflow", "abc", 1, "x", "omitted"], ["result", 1],
+  ["get", "coerce"], ["needle", "coerce"], ["call", "coerce", "abc", 1, "x", "omitted"], ["coerce"], ["caught", true]
+]

@@ -1,0 +1,6 @@
+warning: /tmp/lilscript-baseline-rehype-stringifylil-ugT3mJ/rehype-stringifylil/lilscript.toml: `javascript.name_ordering = "idiom-converged"` selects a naming strategy this compiler does not implement; it is accepted and has no effect, and the default naming is used
+error: cannot resolve LilScript module /tmp/lilscript-baseline-rehype-stringifylil-ugT3mJ/rehype-stringifylil/src/lib/../../../hast-util-to-htmllil/src/index.lil: No such file or directory (os error 2)
+ --> /tmp/lilscript-baseline-rehype-stringifylil-ugT3mJ/rehype-stringifylil/src/lib/index.lil:1:1
+  |
+ 1 | import { toHtml } from "../../../hast-util-to-htmllil/src/index.lil";
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

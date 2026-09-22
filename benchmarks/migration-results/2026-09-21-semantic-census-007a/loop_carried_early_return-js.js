@@ -1,0 +1,1 @@
+let a;let b;let c;a=(0,{countUntil:function(stop){let count=0;while(count<12){count=count+ 1|0;if(count===stop){return count;}}return count;}}.countUntil);let countUntil=a;b=void console.log(countUntil(3));c=void console.log(countUntil(99));

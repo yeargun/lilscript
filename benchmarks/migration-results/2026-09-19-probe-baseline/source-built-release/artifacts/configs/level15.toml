@@ -1,0 +1,38 @@
+[package]
+name = "probelil"
+version = "0.0.0"
+abi = 1
+entry = "src/probe.lil"
+
+[optimization]
+preset = "maximum"
+call_site_specialization = true
+identical_function_folding = true
+
+[javascript]
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+public_aggregate_abi = "positional"
+assume_pristine_builtins = true
+strip_console = false
+pool_numeric_literals = true
+candidate_search = "production"
+candidate_limit = 1536
+candidate_byte_budget = 1048576
+candidate_beam_width = 12
+local_name_reserve = 48
+stable_local_names = true
+function_spelling = "function"
+# finer 048: this port is held to upstream parity on every lane of its own benchmark
+function_scope = true # internals in one function scope: V8 context slots, not module cells
+truthy_nullable_checks = false # a class test as `!=null`, not truthiness (3.2 ns against 3.8)
+
+[mangle]
+identifiers = true
+properties = false
+exports = false
+pool_strings = true
+
+[bundle]
+mode = "single"

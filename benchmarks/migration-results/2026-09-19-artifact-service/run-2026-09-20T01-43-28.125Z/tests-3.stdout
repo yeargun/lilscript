@@ -1,0 +1,7 @@
+
+running 2 tests
+test semantic_program::search_reference_runtime_tests::reference_oracle_and_small_cap_finalization_execute_exact_observations ... ok
+test semantic_program::search_reference_runtime_tests::reference_search_reaches_mixed_fields_and_inline_under_larger_fixed_cap ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2937 filtered out; finished in 2.73s
+

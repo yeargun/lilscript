@@ -1,0 +1,967 @@
+{
+  "schemaVersion": 1,
+  "kind": "migration-step-001-gap-census",
+  "step": "001",
+  "complete": false,
+  "workloads": [
+    {
+      "id": "cnlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/cnlil",
+      "sourceFiles": 5,
+      "testFiles": 8,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "hast-util-to-htmllil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/hast-util-to-htmllil",
+      "sourceFiles": 17,
+      "testFiles": 40,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "jquerylil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/jquerylil",
+      "sourceFiles": 134,
+      "testFiles": 2,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "katexlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/katexlil",
+      "sourceFiles": 98,
+      "testFiles": 18,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "markedlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/markedlil",
+      "sourceFiles": 6,
+      "testFiles": 7,
+      "validFrozenNodeCases": 75,
+      "gaps": [
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "mdast-util-from-markdownlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/mdast-util-from-markdownlil",
+      "sourceFiles": 58,
+      "testFiles": 5,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "mdast-util-to-hastlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/mdast-util-to-hastlil",
+      "sourceFiles": 3,
+      "testFiles": 32,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "micromarklil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/micromarklil",
+      "sourceFiles": 60,
+      "testFiles": 51,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "mobxlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/mobxlil",
+      "sourceFiles": 114,
+      "testFiles": 49,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "monacolil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/monacolil",
+      "sourceFiles": 1054,
+      "testFiles": 1,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "motionlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/tmp/motionlil-cost-audit-20260911/current",
+      "sourceFiles": 365,
+      "testFiles": 11,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "esbuild"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "motion"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "playwright"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "terser"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "typescript"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "vite"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "playcanvaslil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/playcanvaslil",
+      "sourceFiles": 5,
+      "testFiles": 200,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "artifact-entry-inventory-empty"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "posthoglil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/posthoglil",
+      "sourceFiles": 29,
+      "testFiles": 228,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "input-symlinks-require-explicit-root-review",
+          "count": 2
+        },
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "react-markdownlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/react-markdownlil",
+      "sourceFiles": 79,
+      "testFiles": 8,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "rehype-katexlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/rehype-katexlil",
+      "sourceFiles": 95,
+      "testFiles": 6,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "rehype-stringifylil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/rehype-stringifylil",
+      "sourceFiles": 2,
+      "testFiles": 3,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "@types/hast"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "unified"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "rehypelil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/rehypelil",
+      "sourceFiles": 40,
+      "testFiles": 28,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "remark-breakslil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/remark-breakslil",
+      "sourceFiles": 5,
+      "testFiles": 5,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "remark-gfmlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/remark-gfmlil",
+      "sourceFiles": 40,
+      "testFiles": 5,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "remark-mathlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/remark-mathlil",
+      "sourceFiles": 12,
+      "testFiles": 5,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "remark-parselil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/remark-parselil",
+      "sourceFiles": 58,
+      "testFiles": 6,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "remark-rehypelil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/remark-rehypelil",
+      "sourceFiles": 4,
+      "testFiles": 5,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "remarklil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/remarklil",
+      "sourceFiles": 118,
+      "testFiles": 9,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "solidlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/solidlil",
+      "sourceFiles": 72,
+      "testFiles": 17,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "unifiedlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/unifiedlil",
+      "sourceFiles": 6,
+      "testFiles": 21,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "vuelil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/tmp/lilscript-page-refresh-20260910/current/vuelil",
+      "sourceFiles": 232,
+      "testFiles": 72,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "default-build-script-missing-requires-adapter"
+        },
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "artifact-entry-inventory-empty"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "@vue/consolidate"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "@vue/reactivity"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "@vue/shared"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "estree-walker"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "hash-sum"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "lru-cache"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "magic-string"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "merge-source-map"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "minimatch"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "postcss"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "postcss-modules"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "postcss-selector-parser"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "pug"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "sass"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "source-map-js"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "dependencies",
+          "name": "vue"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "@babel/parser"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "@vitejs/plugin-vue"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "@vue/compiler-sfc"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "jsdom"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "playwright"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "typescript"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "vite"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "vitest"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "zodlil",
+      "required": true,
+      "kind": "maintained-library",
+      "workspace": "/home/azureuser/zodlil",
+      "sourceFiles": 5,
+      "testFiles": 191,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "input-symlinks-require-explicit-root-review",
+          "count": 4
+        },
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "declared-artifact-missing",
+          "path": "dist/core.cjs"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "probelil",
+      "required": true,
+      "kind": "feature-canary",
+      "workspace": "/home/azureuser/probelil",
+      "sourceFiles": 1,
+      "testFiles": 0,
+      "validFrozenNodeCases": 2,
+      "gaps": [
+        {
+          "code": "package-metadata-missing-or-invalid",
+          "error": "ENOENT"
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": {
+            "script": "scripts/configs.mjs",
+            "profiles": 22,
+            "identity": {
+              "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+              "bytes": 5251
+            },
+            "status": "source-qualified-matrix-artifact-and-golden-replay-pending",
+            "negativeEvidence": "001-probe-matrix-negative-20260912.json"
+          }
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    },
+    {
+      "id": "lil-solidjs",
+      "required": true,
+      "kind": "related-checkout",
+      "workspace": "/home/azureuser/lil-solidjs",
+      "sourceFiles": 8,
+      "testFiles": 6,
+      "validFrozenNodeCases": 0,
+      "gaps": [
+        {
+          "code": "production-test-adapter-missing"
+        },
+        {
+          "code": "frozen-required-case-inventory-missing"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "@solidjs/signals"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "@solidjs/vite-plugin"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "@solidjs/web"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "esbuild"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "playwright"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "solid-js"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "terser"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "typescript"
+        },
+        {
+          "code": "dependency-metadata-missing",
+          "role": "devDependencies",
+          "name": "vite"
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ]
+    }
+  ],
+  "crossCutting": [
+    {
+      "gap": "new baseline build and production-artifact test receipts for all declared boundaries/profiles",
+      "ownerSteps": [
+        "001",
+        "014"
+      ]
+    },
+    {
+      "gap": "27 missing production test adapters; Zod discovery is a required-case inventory but not an execution observer",
+      "ownerSteps": [
+        "001",
+        "007"
+      ]
+    },
+    {
+      "gap": "transitive source/runtime dependency resolution identities, including symlink roots",
+      "ownerSteps": [
+        "001",
+        "008",
+        "011"
+      ]
+    },
+    {
+      "gap": "complete language feature and supported suite/consumer qualification map",
+      "ownerSteps": [
+        "001",
+        "007",
+        "011"
+      ]
+    },
+    {
+      "gap": "eligible competitor recipes with equivalent API/runtime assumptions, explicit nonempty comparison set",
+      "ownerSteps": [
+        "001",
+        "013"
+      ]
+    },
+    {
+      "gap": "frozen finite boundary x release-profile x codec matrix, numeric cost envelopes and disjoint tuning/validation sets",
+      "ownerSteps": [
+        "001",
+        "012",
+        "014"
+      ]
+    },
+    {
+      "gap": "milestone-progress validator accepting complete source-built evidence; this inventory validator deliberately cannot certify milestones",
+      "ownerSteps": [
+        "001",
+        "014"
+      ]
+    }
+  ],
+  "sourceSupport": "public-entrypoints.json",
+  "additionalDiscovery": [
+    "mobxlil-discovery.json",
+    "katexlil-discovery.json",
+    "zodlil.required-cases.json"
+  ],
+  "noScopeReduction": true
+}

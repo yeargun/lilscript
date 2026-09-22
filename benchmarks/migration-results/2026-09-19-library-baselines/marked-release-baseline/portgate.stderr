@@ -1,0 +1,6 @@
+[portgate] arm source-pinned-release-marked: compiler 3d8e45059024, 1 ports
+[portgate] markedlil: building (--compile)
+[portgate] markedlil: build=untrustworthy (build command failed)
+[portgate] recorded 1 ports to /tmp/lilscript-marked-release-20260919-mNHGEb/portgate
+[portgate] UNTRUSTWORTHY BUILDS (1): markedlil
+[portgate] a build that did not happen is a failed run, not a fast one

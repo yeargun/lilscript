@@ -1,3 +1,4 @@
+use crate::literal::StringValue;
 use crate::semantic::{EscapeState, SymbolId, Type};
 use crate::span::Span;
 
@@ -33,7 +34,7 @@ pub enum ConstValue {
     Int(i64),
     Float(f64),
     Bool(bool),
-    String(String),
+    String(StringValue),
     Null,
 }
 
@@ -123,6 +124,15 @@ pub struct IrModule {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ControlFlowModule<'src> {
     pub functions: Vec<ControlFlowFunction<'src>>,
+    /// String values authored inside an `@pool` region, collected at lowering
+    /// time and keyed by value rather than by location.
+    ///
+    /// Location does not survive the optimizer: an `@pool` function is a normal
+    /// inlining candidate, and once its body is folded into a caller the region
+    /// it was written in no longer exists. Keying by value is also the exact
+    /// granularity the pool works at — one alias serves every occurrence of a
+    /// literal, so there is no such thing as pooling half of them.
+    pub pinned_pool_strings: std::collections::BTreeSet<StringValue>,
     pub globals: Vec<IrGlobal<'src>>,
     pub foreign_imports: Vec<IrForeignImport<'src>>,
     pub js_host_aliases: Vec<JsHostAlias>,
@@ -246,6 +256,9 @@ pub struct ControlFlowFunction<'src> {
     pub name: Option<&'src str>,
     pub kind: FunctionKind<'src>,
     pub origin: FunctionOrigin,
+    /// Behaviour pinned to this function by an `@` attribute in source. Survives
+    /// the project objective; see `ast::RegionPolicy`.
+    pub region: crate::ast::RegionPolicy,
     pub declared_pure: bool,
     pub is_async: bool,
     pub is_generator: bool,
@@ -477,6 +490,61 @@ pub enum LoweringObligation {
 }
 
 impl ControlFlowModule<'_> {
+    /// A hand-built or externally edited legacy IR must not bypass the source
+    /// boundary's rejection of signatures the value-only IR cannot implement.
+    /// This borrows its existing type owners and retains no scan view.
+    pub(crate) fn reference_parameter_span(&self) -> Option<Span> {
+        for global in &self.globals {
+            if global.ty.contains_mutable_reference_parameters() {
+                return Some(global.span);
+            }
+        }
+        for function in &self.functions {
+            let types = std::iter::once(&function.return_type)
+                .chain(function.params.iter().map(|parameter| &parameter.ty))
+                .chain(function.locals.iter().map(|local| &local.ty))
+                .chain(
+                    function
+                        .blocks
+                        .iter()
+                        .flat_map(|block| block.phis.iter().map(|phi| &phi.ty)),
+                )
+                .chain(function.blocks.iter().flat_map(|block| {
+                    block
+                        .instructions
+                        .iter()
+                        .filter_map(|instruction| instruction.ty.as_ref())
+                }));
+            if types
+                .into_iter()
+                .any(Type::contains_mutable_reference_parameters)
+            {
+                return Some(function.span);
+            }
+            for instruction in function.blocks.iter().flat_map(|block| &block.instructions) {
+                if let ControlFlowOp::TypeCheck { target, .. } = &instruction.op {
+                    if target.contains_mutable_reference_parameters() {
+                        return Some(instruction.span);
+                    }
+                }
+            }
+        }
+        for layout in self.structs.iter().chain(&self.classes) {
+            if layout
+                .fields
+                .iter()
+                .any(|field| field.ty.contains_mutable_reference_parameters())
+            {
+                return Some(
+                    self.functions
+                        .get(self.entry.0 as usize)
+                        .map_or(Span::default(), |function| function.span),
+                );
+            }
+        }
+        None
+    }
+
     pub fn runtime_exported_functions(&self) -> Vec<FunctionId> {
         let mut exported = self
             .exports
@@ -575,6 +643,17 @@ impl ControlFlowModule<'_> {
             .flat_map(|block| &block.instructions)
     }
 }
+
+/// The method name of a `HostCall` that is really a host-class `super(...)`.
+///
+/// An internal class may extend a host (`extern`) class such as `Error`. Its
+/// constructor must call the host constructor with `super(...)` before touching
+/// `this`, but there is no LilScript function to call. The call rides on a
+/// non-pure `HostCall` on `this`, which every analysis already treats as an
+/// opaque, non-removable effect on its receiver — exactly what `super(...)` is —
+/// and only the JavaScript emitter reads the name. It contains a NUL, so no real
+/// host method can collide with it.
+pub const HOST_SUPER_METHOD: &str = "\u{0}super";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ControlFlowOp<'src> {
@@ -713,7 +792,7 @@ pub enum ControlFlowOp<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TemplateOperand {
-    String(String),
+    String(StringValue),
     Value(ValueId),
 }
 
@@ -729,260 +808,8 @@ pub enum RecordOperand<'src> {
     Spread(ValueId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Intrinsic {
-    Print,
-    TaskResolve,
-    TaskReject,
-    TaskAll,
-    IntImul,
-    IntToString,
-    IntToUnsignedString,
-    UnwrapNullable,
-    UnwrapUnion,
-    ArrayLength,
-    ArrayMap,
-    ArrayFilter,
-    ArrayReduce,
-    ArrayForEach,
-    ArrayPush,
-    ArrayPop,
-    ArrayIndexOf,
-    ArrayIncludes,
-    ArrayJoin,
-    ArraySome,
-    ArrayEvery,
-    ArrayFindIndex,
-    ArrayConcat,
-    ArrayCopyWithin,
-    ArrayReverse,
-    ArraySlice,
-    ArraySplice,
-    ArrayFill,
-    TypedArraySet,
-    TypedArrayFill,
-    TypedArrayCopyWithin,
-    MapNew,
-    MapSize,
-    MapGet,
-    MapSet,
-    MapHas,
-    MapDelete,
-    MapClear,
-    SetNew,
-    SetSize,
-    SetAdd,
-    SetHas,
-    SetDelete,
-    SetClear,
-    RecordKeys,
-    RecordValues,
-    RecordHasOwn,
-    RecordAssign,
-    JsonStringify,
-    JsonParse,
-    ArrayBufferNew,
-    SharedArrayBufferNew,
-    BufferByteLength,
-    BufferSlice,
-    Int8ArrayNew,
-    Int8ArrayLength,
-    Int8ArrayByteLength,
-    Int8ArrayByteOffset,
-    Int8ArrayBuffer,
-    Int8ArraySlice,
-    Int8ArraySubarray,
-    Uint8ArrayNew,
-    Uint8ArrayLength,
-    Uint8ArrayByteLength,
-    Uint8ArrayByteOffset,
-    Uint8ArrayBuffer,
-    Uint8ArraySlice,
-    Uint8ArraySubarray,
-    Uint8ClampedArrayNew,
-    Uint8ClampedArrayLength,
-    Uint8ClampedArrayByteLength,
-    Uint8ClampedArrayByteOffset,
-    Uint8ClampedArrayBuffer,
-    Uint8ClampedArraySlice,
-    Uint8ClampedArraySubarray,
-    Int16ArrayNew,
-    Int16ArrayLength,
-    Int16ArrayByteLength,
-    Int16ArrayByteOffset,
-    Int16ArrayBuffer,
-    Int16ArraySlice,
-    Int16ArraySubarray,
-    Uint16ArrayNew,
-    Uint16ArrayLength,
-    Uint16ArrayByteLength,
-    Uint16ArrayByteOffset,
-    Uint16ArrayBuffer,
-    Uint16ArraySlice,
-    Uint16ArraySubarray,
-    Int32ArrayNew,
-    Int32ArrayLength,
-    Int32ArrayByteLength,
-    Int32ArrayByteOffset,
-    Int32ArrayBuffer,
-    Int32ArraySlice,
-    Int32ArraySubarray,
-    Uint32ArrayNew,
-    Uint32ArrayLength,
-    Uint32ArrayByteLength,
-    Uint32ArrayByteOffset,
-    Uint32ArrayBuffer,
-    Uint32ArraySlice,
-    Uint32ArraySubarray,
-    Float32ArrayNew,
-    Float32ArrayLength,
-    Float32ArrayByteLength,
-    Float32ArrayByteOffset,
-    Float32ArrayBuffer,
-    Float32ArraySlice,
-    Float32ArraySubarray,
-    Float64ArrayNew,
-    Float64ArrayLength,
-    Float64ArrayByteLength,
-    Float64ArrayByteOffset,
-    Float64ArrayBuffer,
-    Float64ArraySlice,
-    Float64ArraySubarray,
-    SymbolNew,
-    RegexNew,
-    RegexTest,
-    RegexSource,
-    RegexFlags,
-    RegexGlobal,
-    RegexIgnoreCase,
-    RegexMultiline,
-    RegexDotAll,
-    RegexSticky,
-    RegexUnicode,
-    FloatAbs,
-    FloatFloor,
-    FloatCeil,
-    FloatRound,
-    FloatSqrt,
-    FloatSin,
-    FloatCos,
-    FloatAcos,
-    FloatExp,
-    FloatLog,
-    FloatTan,
-    FloatAtan2,
-    FloatHypot,
-    FloatMin,
-    FloatMax,
-    FloatToInt,
-    StringLength,
-    StringCharCodeAt,
-    StringCharAt,
-    StringIncludes,
-    StringIndexOf,
-    StringLastIndexOf,
-    StringRepeat,
-    StringStartsWith,
-    StringEndsWith,
-    StringToUpperCase,
-    StringToLowerCase,
-    StringTrim,
-    StringTrimStart,
-    StringTrimEnd,
-    StringSearch,
-    StringSlice,
-    StringReplace,
-    StringSplit,
-    StringCodePointLength,
-    JsStringSlice,
-    JsStringIndexOf,
-    JsStringReplace,
-    JsStringMatch,
-    JsStringSplit,
-    JsRegexExec,
-    JsTruthy,
-    JsIsArray,
-    JsIsObject,
-    JsPlainObject,
-    JsUndefined,
-    JsTypeOf,
-    JsIsNullish,
-    JsIsFalse,
-    JsIsUndefined,
-    JsStringify,
-    JsDateNow,
-    JsParseFloat,
-    JsParseInt,
-    JsIsFinite,
-    JsEncodeURI,
-    JsEncodeURIComponent,
-    JsObjectCreate,
-    JsGetPrototypeOf,
-    JsMathPI,
-    JsNullProtoObject,
-    JsObjectConstructor,
-    JsWindow,
-    JsDocument,
-    JsSetTimeout,
-    JsClearTimeout,
-    JsDomParserNew,
-    JsXMLHttpRequestNew,
-    JsNumber,
-    JsAdd,
-    JsMod,
-    JsLessThan,
-    JsLessThanOrEqual,
-    JsGreaterThan,
-    JsGreaterThanOrEqual,
-    JsStrictEqual,
-    JsStrictNotEqual,
-    JsCall,
-    JsInvoke,
-    JsApply,
-    JsMethod0,
-    JsMethod1,
-    JsMethod2,
-    JsMethod3,
-    JsMethod4,
-    JsMethod5,
-    JsMethod6,
-    JsMethod7,
-    JsMethod8,
-    JsMethod9,
-    JsMethod10,
-    JsMethodRest,
-    JsStaticRest,
-    JsGetProperty,
-    JsDeleteProperty,
-    JsHasProperty,
-    JsInProperty,
-    JsBox,
-    JsArrayPush,
-    JsArrayPop,
-    JsArraySlice,
-    JsArrayIndexOf,
-    JsArraySort,
-    JsArraySplice,
-    JsArrayConcatApply,
-    JsArrayJoin,
-    JsArrayShift,
-    JsArrayUnshift,
-    JsArrayFlat,
-    JsConstruct,
-    JsIsFunctionValue,
-    JsIsWindowValue,
-    JsDefineConfigurable,
-    JsDefineIterator,
-    JsArrayIterator,
-    JsConsoleWarn,
-    JsRequestAnimationFrameOrNull,
-    JsForInKey,
-    JsForInHasNext,
-    JsForOfValue,
-    JsForOfHasNext,
-    GeneratorYield,
-    GeneratorYieldDelegated,
-}
+// One language operation identity is shared by every backend.
+pub use crate::primitive::Intrinsic;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
@@ -999,4 +826,49 @@ pub enum Terminator {
     Return(Option<ValueId>),
     Throw(ValueId),
     Unreachable,
+}
+
+#[cfg(test)]
+mod reference_parameter_tests {
+    use super::*;
+    use crate::primitive::ParameterPassing;
+    use crate::semantic::{FunctionParameter, FunctionSignature, FunctionType};
+
+    #[test]
+    fn legacy_emitters_reject_reference_signatures_in_existing_ir_type_owners() {
+        let arena = bumpalo::Bump::new();
+        let syntax = crate::parse_source(&arena, "print(1);").unwrap();
+        let checked = crate::analyze(&syntax).unwrap();
+        let mut module = crate::lower::lower_to_control_flow(&syntax, &checked).unwrap();
+        crate::optimizer::optimize_control_flow(&mut module).unwrap();
+        let signature = Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![FunctionParameter {
+                ty: Type::Int,
+                passing: ParameterPassing::MutableReference,
+                default: None,
+            }],
+            return_type: Box::new(Type::Void),
+        }));
+        // This public IR entry bypasses source parsing/lowering; even a nested
+        // signature in a declared field cannot be silently emitted as a value.
+        module.structs.push(AggregateLayout {
+            name: "Holder",
+            base: None,
+            object: false,
+            external: false,
+            identity_observed: false,
+            fields: vec![AggregateField {
+                name: "callable",
+                index: 0,
+                ty: Type::Array(Box::new(signature)),
+            }],
+        });
+        for error in [
+            crate::codegen_ir_js::emit_optimized_ir_js(&module).unwrap_err(),
+            crate::codegen_ir_js::emit_optimized_ir_js_module(&module).unwrap_err(),
+            crate::codegen_native::emit_native_c(&module).unwrap_err(),
+        ] {
+            assert!(error.message.contains("reference parameters"), "{error}");
+        }
+    }
 }

@@ -1,0 +1,12 @@
+string joinLines(string[] lines) {
+  string out = "";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      out = out + "\n";
+    }
+    out = out + lines[i];
+    i = i + 1;
+  }
+  return out;
+}

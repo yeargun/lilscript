@@ -1,0 +1,1 @@
+let a;let b;a=(0,{apply:function(factor,input){let a;a=(0,{scale:(value)=>{return value*factor|0;}}.scale);let scale=a;return scale(input);}}.apply);let apply=a;b=void console.log(apply(7,6));

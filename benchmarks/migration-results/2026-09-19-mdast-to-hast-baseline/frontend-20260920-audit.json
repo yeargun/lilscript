@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "kind": "mdast-frontend-release-read-only-audit",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "receipt": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-frontend-20260920/receipt.json",
+    "sha256": "cb3783ef3c05c443cacc25d4ae20042f0ab39fb964c6647bc161a033c149196e",
+    "bytes": 147701
+  },
+  "supervisor": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/frontend-20260920-supervisor.json",
+    "sha256": "0f13750cd1127b65d675d1afb3101532fb470ba99a9070abd1733707018153fb",
+    "bytes": 4270
+  },
+  "previous": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-after-retirement/receipt.json",
+    "sha256": "f02752899c5970ab11fb91e098dd6a2cdf3bb883b945a99fee3dc488b68853e1",
+    "bytes": 143990
+  },
+  "outputFiles": 122,
+  "inputPins": 25,
+  "snapshots": {
+    "source": {
+      "root": "/home/azureuser/mdast-util-to-hastlil",
+      "sha256": "1552e7ad23e86027077da675c75e7a00772ab4682d905994da9554f07e37a158",
+      "entries": 61,
+      "files": 61
+    },
+    "original": {
+      "root": "/home/azureuser/mdast-util-to-hastlil",
+      "sha256": "6d2cfa43ca142817fd995f169e9db7a7203a91bbc50ca7126e04f5a095cb7699",
+      "entries": 67,
+      "files": 67
+    },
+    "workspace": {
+      "root": "/tmp/lilscript-mdast-util-to-hastlil-baseline-6ooeOS/portgate/workspaces/mdast-util-to-hastlil",
+      "sha256": "1552e7ad23e86027077da675c75e7a00772ab4682d905994da9554f07e37a158",
+      "entries": 61,
+      "files": 61
+    },
+    "project-dependencies": {
+      "root": "/home/azureuser/mdast-util-to-hastlil/node_modules",
+      "sha256": "c8f91146c7392584269956870b221c86075d7a4dddcd12c5da6119fe05dcef51",
+      "entries": 1507,
+      "files": 1321
+    },
+    "npm-runtime": {
+      "root": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm",
+      "sha256": "291d4d025534431af9501fd99ae494678422fa89f07bb8cdee26d096ad3f2ba9",
+      "entries": 2643,
+      "files": 2106
+    }
+  },
+  "originalCases": 152,
+  "loadedArtifacts": 4,
+  "allFiveArtifactsByteIdentical": true,
+  "artifacts": [
+    {
+      "path": "dist/to-hast.cjs",
+      "objective": null,
+      "sha256": "936ac508b85968a3fd8c55e6b831471630bdf9ceb46b39462fa9b47eb44b5958",
+      "raw": 15355,
+      "gzip9": 5401,
+      "brotli11": 4915
+    },
+    {
+      "path": "dist/to-hast.closed.js",
+      "objective": null,
+      "sha256": "7d5b839e443cfd3c54073ee4ac1bfcf0fae8c10b7ba0e1bf6fe04070a0b727a2",
+      "raw": 14491,
+      "gzip9": 5341,
+      "brotli11": 4855
+    },
+    {
+      "path": "dist/to-hast.esm.js",
+      "objective": null,
+      "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+      "raw": 13965,
+      "gzip9": 4753,
+      "brotli11": 4288
+    },
+    {
+      "path": "dist/to-hast.raw.js",
+      "objective": null,
+      "sha256": "43e40a3c049f80c987270c20c00bd588e8ee77a87b0782b8453929ffa29528ca",
+      "raw": 13866,
+      "gzip9": 4683,
+      "brotli11": 4210
+    },
+    {
+      "path": "dist/to-hast.umd.js",
+      "objective": null,
+      "sha256": "6a97500a49f65d4b79a9dbfcbe1cdfe4627dbf30e6ad0388b68cafe60990ef80",
+      "raw": 15426,
+      "gzip9": 5432,
+      "brotli11": 4941
+    }
+  ],
+  "buildMs": 48218,
+  "invocations": [
+    {
+      "output": "to-hast.closed.js",
+      "elapsedMs": 272.264021
+    },
+    {
+      "output": "to-hast.raw.js",
+      "elapsedMs": 47666.323184
+    }
+  ],
+  "scope": "Original unchanged two-invocation/type/152-case/package boundary; not installed-package, CJS behavior, browser, site, semantic-backend or competitor qualification",
+  "limitations": [
+    "No repeated or isolated timing samples; elapsed times are diagnostic only",
+    "Legacy compiler path remains the library backend",
+    "Inherited additionalRequiredCoverage text still lists check:pack as unexecuted; actual separate command and packageDryRunPassed govern this scoped check; frozen receipts unchanged"
+  ]
+}

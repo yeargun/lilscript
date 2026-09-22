@@ -1,0 +1,21 @@
+
+running 16 tests
+test semantic_program::target_contract_tests::local_arguments_shadow_does_not_create_an_ambient_function_obligation ... ok
+test semantic_program::target_contract_tests::explicit_callable_spelling_preserves_names_and_arity_with_selected_constructibility ... ok
+test semantic_program::target_contract_tests::mutable_builtin_integer_results_normalize_after_lookup_arguments_and_receiver_call ... ok
+test semantic_program::target_contract_tests::logging_stripping_preserves_shadowed_calls_and_separately_observed_foreign_values ... ok
+test semantic_program::target_contract_tests::logging_contract_preserves_arguments_and_throws_and_controls_host_lookups ... ok
+test semantic_program::target_contract_tests::closure_spelling_preserves_lexical_module_this ... ok
+test semantic_program::target_contract_tests::disabled_identifier_mangling_preserves_legal_source_cells_and_rejects_mangled_plans ... ok
+test semantic_program::target_contract_tests::stripping_rejects_non_void_debug_calls_without_fabricating_a_result ... ok
+test semantic_program::target_contract_tests::unsupported_normal_closure_over_module_arguments_rejects_before_output ... ok
+test semantic_program::target_contract_tests::print_return_expression_is_void_and_keeps_host_throw_completion_when_enabled ... ok
+test semantic_program::target_contract_tests::root_export_contract_controls_only_the_public_module_boundary ... ok
+test semantic_program::target_contract_tests::module_arguments_lookup_stays_lazy_and_observes_each_global_read ... ok
+test semantic_program::target_contract_tests::own_arguments_and_lexical_descendant_arguments_survive_callable_spelling_policies ... ok
+test semantic_program::target_contract_tests::sibling_closures_share_the_owner_arguments_object_with_capture_before_branch_execution ... ok
+test semantic_program::target_contract_tests::declared_receivers_and_lexical_descendants_preserve_their_enclosing_receiver ... ok
+test semantic_program::target_contract_tests::record_nullish_and_catch_contracts_preserve_getters_and_lazy_fallback_in_both_representations ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 2846 filtered out; finished in 0.25s
+

@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "kind": "remark-gfm-inventory-read-only-audit",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "receipt": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/receipt.json",
+    "sha256": "b584655ac815c09b7a7c6353d06757cc24cceef4f9a421050664662ef1ad32b0",
+    "bytes": 31773
+  },
+  "inventory": {
+    "path": "benchmarks/libraries/remark-gfmlil.required-tests.json",
+    "sha256": "42d537f47dfb744d02d67a2b3957d8ca8a02ec3caa0da3fecdac9f216a016c4d",
+    "bytes": 39163
+  },
+  "supervisor": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/supervisor.json",
+    "sha256": "bc7389df7701c82c6f111c6d8605dcd1e3a0ab5ec0b42dda356493d65485bd17",
+    "bytes": 3605
+  },
+  "features": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/public-features.json",
+    "sha256": "f721b00c68e0b7aec1b7620436aff1c272741d5ab5601d4ab71fd8ec89e188b1",
+    "bytes": 2113
+  },
+  "outputs": 21,
+  "inputPins": 11,
+  "sourceFiles": 99,
+  "originalFiles": 105,
+  "workspaceFiles": 105,
+  "projectEntries": 1071,
+  "npmEntries": 2643,
+  "fixtures": 46,
+  "expectedTrees": 8,
+  "originalCases": 22,
+  "loads": 4,
+  "distinctArtifacts": 3,
+  "changedManifestRows": [
+    "remark-gfmlil"
+  ],
+  "correction": {
+    "initialManifest": {
+      "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/manifest-before-audit-correction.json",
+      "sha256": "10341e5b3c360b48f05ea7816a5abf71429a15e46e0630371aa78415f8c4b5fc",
+      "bytes": 104856
+    },
+    "note": "The first read-only audit detected that an ambiguous patch placed the adapter on Mdast-from-Markdown. Only our manifest edit was corrected; comparison now proves exactly the GFM row changed. No library test, source, fixture, config or receipt was rerun or rewritten."
+  },
+  "scope": "Existing-dist original test inventory and type prerequisite only; source build, full public compatibility, browser/site/installed-package and competitors remain open"
+}

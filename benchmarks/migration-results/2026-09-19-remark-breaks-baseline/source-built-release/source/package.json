@@ -1,0 +1,79 @@
+{
+  "name": "@itslil/remark-breaks",
+  "version": "4.0.2",
+  "description": "remark-breaks reimplemented in LilScript",
+  "keywords": [
+    "break",
+    "remark",
+    "breaks",
+    "linefeed",
+    "markdown",
+    "mdast",
+    "newline",
+    "plugin",
+    "remark-plugin",
+    "unified",
+    "lilscript",
+    "itslil"
+  ],
+  "homepage": "https://yeargun.github.io/remark-breakslil/",
+  "bugs": "https://github.com/yeargun/remark-breakslil/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeargun/remark-breakslil.git"
+  },
+  "license": "MIT",
+  "author": "yeargun",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/remark-breaks.cjs",
+  "module": "./dist/remark-breaks.esm.js",
+  "types": "./dist/remark-breaks.d.ts",
+  "unpkg": "./dist/remark-breaks.umd.js",
+  "jsdelivr": "./dist/remark-breaks.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/remark-breaks.d.ts",
+      "import": "./dist/remark-breaks.esm.js",
+      "require": "./dist/remark-breaks.cjs",
+      "default": "./dist/remark-breaks.esm.js"
+    },
+    "./closed": "./dist/remark-breaks.closed.js",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist/remark-breaks.esm.js",
+    "dist/remark-breaks.cjs",
+    "dist/remark-breaks.umd.js",
+    "dist/remark-breaks.closed.js",
+    "dist/remark-breaks.d.ts",
+    "LICENSE",
+    "NOTICE.md",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs --compile",
+    "build:site": "node scripts/build-site.mjs",
+    "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+    "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
+    "check:site": "npm run build:site && node --test test/site.test.mjs",
+    "check:pack": "node scripts/check-pack.mjs",
+    "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "rehype-stringify": "^10.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.0.0",
+    "typescript": "^5.0.0",
+    "unified": "^11.0.0"
+  }
+}

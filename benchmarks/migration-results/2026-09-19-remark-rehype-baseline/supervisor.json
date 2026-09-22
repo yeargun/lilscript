@@ -1,0 +1,75 @@
+{
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/source-built-release"
+  ],
+  "before": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs",
+      "sha256": "4ebf5a13ce99a8a4ee0f6c5e0348b5b1d7c9f029bafc99a69f93177771f47bb9",
+      "bytes": 3897
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/qualify-node-library.mjs",
+      "sha256": "a71dd3c68a8ed4a64a553b70767c127c3b2fb0723c3073e7392d599cc6a409c4",
+      "bytes": 24164
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "after": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs",
+      "sha256": "4ebf5a13ce99a8a4ee0f6c5e0348b5b1d7c9f029bafc99a69f93177771f47bb9",
+      "bytes": 3897
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/qualify-node-library.mjs",
+      "sha256": "a71dd3c68a8ed4a64a553b70767c127c3b2fb0723c3073e7392d599cc6a409c4",
+      "bytes": 24164
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 630000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "elapsedMs": 57004.754011,
+  "stdout": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/supervisor.stdout",
+    "sha256": "11a0a3f8a9ccb1b1dd40cf6bbd0aa6bcdf4f29c3aea8ca084b07063dff8a20f4",
+    "bytes": 247
+  },
+  "stderr": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/supervisor.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

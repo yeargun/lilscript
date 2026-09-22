@@ -1,0 +1,14 @@
+extern string[] lines();
+string joinLines(string[] lines) {
+  string out = "";
+  int i = 0;
+  while (i < lines.length) {
+    if (i > 0) {
+      out = out + "\n";
+    }
+    out = out + lines[i];
+    i = i + 1;
+  }
+  return out;
+}
+print(joinLines([]));print(joinLines(["only"]));print(joinLines(lines()));

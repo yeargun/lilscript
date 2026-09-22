@@ -1,0 +1,43 @@
+✔ a real fast invocation produces a complete receipt without a duration floor (47.950741ms)
+✔ timing text cannot substitute for a compiler invocation (0.322803ms)
+✔ the production wrapper forwards explicit arguments and records its actual cwd (35.581143ms)
+✔ an exit-zero compiler that writes nothing cannot inherit old dist bytes (31.883878ms)
+✔ a failed compiler cannot be accepted even if it writes output (34.954187ms)
+✔ the exact intended compiler is required before touching an old output (1.94361ms)
+✔ changes to inputs during compilation reject the receipt (30.10949ms)
+✔ post-build output substitution and changed contracts are detected (58.401957ms)
+✔ source identity includes configuration and generated files without git (7.05189ms)
+✔ an explicit configuration outside the port is captured as an input (29.908133ms)
+✔ output declarations cannot move source inputs or escape via a symlink (1.401147ms)
+✔ all required tests must execute and pass against the production bytes (12.214532ms)
+✔ unknown or ambiguous test evidence fails closed (1.233624ms)
+✔ canonical measurements reject missing, duplicated, or incomplete rows (1.277896ms)
+✔ inventory preserves missing and related rows without executing scripts (37.823483ms)
+✔ source-file imports are not misclassified as sibling directories (12.037827ms)
+✔ config and installed dependency identities participate in the inventory (32.68802ms)
+✔ recovery does not hide the missing recorded workspace or duplicate identities (17.025908ms)
+✔ declared missing dependency roots reject the shared input snapshot (6.507193ms)
+✔ Vitest inventory pins original configuration and keeps additional coverage gaps (23.291591ms)
+✔ Node inventory detects newly selected files from the original test glob (26.704394ms)
+✔ a missing runtime dependency cannot pass frozen production cases (629.705452ms)
+✔ node_modules code is an explicit limitation of the shared default snapshot (52.735ms)
+✔ frozen case inventories reject empty cases and changed source or fixture identities (103.629038ms)
+✔ declared adapter inputs and configurations stay gaps when missing (17.436951ms)
+✔ inventory validation rejects omissions, tampered hashes, role changes and completion claims (22.351294ms)
+✔ production tests capture exact ESM and CommonJS bytes without changing loaders (680.641671ms)
+✔ removing a required case cannot turn a passing subset into certification (543.861378ms)
+✔ tests loading a development artifact cannot certify the production artifact (542.047292ms)
+✔ an empty test file cannot establish a case inventory (238.314311ms)
+✔ inventory discovery retains failed and skipped declarations (290.97954ms)
+✔ artifacts executed by a nested Node process are observed as well (295.120986ms)
+✔ unchanged case names cannot conceal changed required test source (610.716581ms)
+✔ new files selected by the original glob cannot disappear from a frozen adapter (574.991228ms)
+✔ imported test source identities cannot change behind stable entry files and case names (574.668834ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4440.748772

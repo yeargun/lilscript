@@ -1,0 +1,184 @@
+
+> playcanvaslil@0.1.0 test:upstream
+> node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js
+
+
+
+  Preprocessor
+    ✔ returns false for MORPH_A
+    ✔ returns false for MORPH_B
+    ✔ returns true for $
+    ✔ returns true for TEST1
+    ✔ returns true for TEST2
+    ✔ returns true for TEST3
+    ✔ returns true for TEST4
+    ✔ returns false for TEST5
+    ✔ returns true for TEST6
+    ✔ returns false for TEST7
+    ✔ returns false for TEST8
+    ✔ returns false for TEST9
+    ✔ returns true for TEST10
+    ✔ returns false for TEST11
+    ✔ returns false for TEST12
+    ✔ returns true for TEST13
+    ✔ returns false for TEST14
+    ✔ returns true for INC1
+    ✔ returns false for INC2
+    ✔ returns true for nested
+    ✔ returns true for CMP1
+    ✔ returns false for CMP2
+    ✔ returns true for CMP3
+    ✔ returns true for CMP4
+    ✔ returns false for CMP5
+    ✔ returns false for any leftover hash symbols
+    ✔ returns true for working integer injection
+    ✔ returns true for working string injection
+    ✔ returns true for loop injection
+    ✔ returns true for ANDS1
+    ✔ returns false for ANDS2
+    ✔ returns true for ORS1
+    ✔ returns true for ORS2
+    ✔ returns true for ORS3
+    ✔ returns true for PREC1 (without parentheses, A || B && UNDEFINED)
+    ✔ returns false for PREC2 (with parentheses, (A || B) && UNDEFINED)
+    ✔ returns true for PREC3 (nested parentheses)
+    ✔ returns true for PREC4 (complex expression with parentheses)
+    ✔ returns true for PREC5 (parentheses with comparisons)
+    ✔ returns true for PREC6 (mixed defined and comparisons)
+    ✔ returns true for PREC7 (defined() parentheses not treated as precedence)
+    ✔ returns true for PREC8 (multiple levels of nesting)
+    ✔ returns true for PREC9 (spaces inside precedence parens)
+    ✔ returns true for NUM1 (#if 1 is truthy)
+    ✔ returns false for NUM2 (#if 0 is falsy)
+    ✔ returns true for NUM3 (#if 42 non-zero is truthy)
+    ✔ returns false for NUM4 (#if 0.0 is falsy)
+    ✔ returns true for NUM5 (#if 1 && defined(A))
+    ✔ returns true for NUM6 (#if 0 || defined(A))
+    ✔ returns false for EDGE1 (#if 3 == 3 is unsupported, must not parse "3" as truthy)
+    ✔ returns false for EDGE2 (#if 0 != 1 is unsupported, must not parse "0" as falsy for wrong reason)
+    ✔ returns false for EDGE3 (#if 5 > 3 is unsupported, must not parse "5" as truthy)
+
+  WebgpuShaderProcessorWGSL
+    ✔ inserts generated declarations after WGSL directives
+    ✔ generates dual-source fragment outputs
+    sample_mask builtin
+      ✔ adds the sample_mask output when the shader assigns it
+      ✔ does not add the sample_mask output for a comparison
+      ✔ combines fragDepth and sample_mask outputs
+      ✔ adds the sample_mask fragment input when read through the input struct
+      ✔ adds the sample_mask fragment input when read through the private global
+      ✔ does not add the sample_mask fragment input when unused
+
+  WebgpuShaderProcessorWGSL - compute reflection
+    ✔ reflects a read_write storage buffer (regex fix)
+    ✔ reflects a read-only storage buffer
+    ✔ reflects a texture and its sampler (two slots)
+    ✔ detects unfilterable-float (uff) textures
+    ✔ collapses loose uniforms into a single uniform buffer and renames access
+    ✔ combines storage buffers, a texture, and uniforms in one reflected group
+    ✔ uses group 0 when no caller bind group format is supplied
+    ✔ is a no-op when there is nothing to reflect (strictly additive)
+    ✔ ignores workgroup, private and local variables
+    ✔ reflects a write-only storage texture
+    ✔ round-trips a read_write storage texture
+    ✔ reflects a sampled texture + sampler + storage texture (edge-detect layout, group 0)
+    ✔ reflects the particles-simulation pattern (loose uniforms + rw/ro storage, group 0)
+    ✔ leaves explicitly-bound resources untouched while reflecting simplified ones
+    ✔ does not fabricate a sampler when a texture is the last declared resource
+    ✔ reflects a multisampled color texture without a sampler
+    ✔ reflects a multisampled depth texture
+    ✔ maps integer component types on a multisampled color texture
+
+
+  78 passing (51ms)
+
+
+
+  Preprocessor
+    ✔ returns false for MORPH_A
+    ✔ returns false for MORPH_B
+    ✔ returns true for $
+    ✔ returns true for TEST1
+    ✔ returns true for TEST2
+    ✔ returns true for TEST3
+    ✔ returns true for TEST4
+    ✔ returns false for TEST5
+    ✔ returns true for TEST6
+    ✔ returns false for TEST7
+    ✔ returns false for TEST8
+    ✔ returns false for TEST9
+    ✔ returns true for TEST10
+    ✔ returns false for TEST11
+    ✔ returns false for TEST12
+    ✔ returns true for TEST13
+    ✔ returns false for TEST14
+    ✔ returns true for INC1
+    ✔ returns false for INC2
+    ✔ returns true for nested
+    ✔ returns true for CMP1
+    ✔ returns false for CMP2
+    ✔ returns true for CMP3
+    ✔ returns true for CMP4
+    ✔ returns false for CMP5
+    ✔ returns false for any leftover hash symbols
+    ✔ returns true for working integer injection
+    ✔ returns true for working string injection
+    ✔ returns true for loop injection
+    ✔ returns true for ANDS1
+    ✔ returns false for ANDS2
+    ✔ returns true for ORS1
+    ✔ returns true for ORS2
+    ✔ returns true for ORS3
+    ✔ returns true for PREC1 (without parentheses, A || B && UNDEFINED)
+    ✔ returns false for PREC2 (with parentheses, (A || B) && UNDEFINED)
+    ✔ returns true for PREC3 (nested parentheses)
+    ✔ returns true for PREC4 (complex expression with parentheses)
+    ✔ returns true for PREC5 (parentheses with comparisons)
+    ✔ returns true for PREC6 (mixed defined and comparisons)
+    ✔ returns true for PREC7 (defined() parentheses not treated as precedence)
+    ✔ returns true for PREC8 (multiple levels of nesting)
+    ✔ returns true for PREC9 (spaces inside precedence parens)
+    ✔ returns true for NUM1 (#if 1 is truthy)
+    ✔ returns false for NUM2 (#if 0 is falsy)
+    ✔ returns true for NUM3 (#if 42 non-zero is truthy)
+    ✔ returns false for NUM4 (#if 0.0 is falsy)
+    ✔ returns true for NUM5 (#if 1 && defined(A))
+    ✔ returns true for NUM6 (#if 0 || defined(A))
+    ✔ returns false for EDGE1 (#if 3 == 3 is unsupported, must not parse "3" as truthy)
+    ✔ returns false for EDGE2 (#if 0 != 1 is unsupported, must not parse "0" as falsy for wrong reason)
+    ✔ returns false for EDGE3 (#if 5 > 3 is unsupported, must not parse "5" as truthy)
+
+  WebgpuShaderProcessorWGSL
+    ✔ inserts generated declarations after WGSL directives
+    ✔ generates dual-source fragment outputs
+    sample_mask builtin
+      ✔ adds the sample_mask output when the shader assigns it
+      ✔ does not add the sample_mask output for a comparison
+      ✔ combines fragDepth and sample_mask outputs
+      ✔ adds the sample_mask fragment input when read through the input struct
+      ✔ adds the sample_mask fragment input when read through the private global
+      ✔ does not add the sample_mask fragment input when unused
+
+  WebgpuShaderProcessorWGSL - compute reflection
+    ✔ reflects a read_write storage buffer (regex fix)
+    ✔ reflects a read-only storage buffer
+    ✔ reflects a texture and its sampler (two slots)
+    ✔ detects unfilterable-float (uff) textures
+    ✔ collapses loose uniforms into a single uniform buffer and renames access
+    ✔ combines storage buffers, a texture, and uniforms in one reflected group
+    ✔ uses group 0 when no caller bind group format is supplied
+    ✔ is a no-op when there is nothing to reflect (strictly additive)
+    ✔ ignores workgroup, private and local variables
+    ✔ reflects a write-only storage texture
+    ✔ round-trips a read_write storage texture
+    ✔ reflects a sampled texture + sampler + storage texture (edge-detect layout, group 0)
+    ✔ reflects the particles-simulation pattern (loose uniforms + rw/ro storage, group 0)
+    ✔ leaves explicitly-bound resources untouched while reflecting simplified ones
+    ✔ does not fabricate a sampler when a texture is the last declared resource
+    ✔ reflects a multisampled color texture without a sampler
+    ✔ reflects a multisampled depth texture
+    ✔ maps integer component types on a multisampled color texture
+
+
+  78 passing (62ms)
+

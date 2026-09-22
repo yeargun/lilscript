@@ -6,6 +6,62 @@ The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
 Unknown keys and invalid numeric limits are errors.
 
+The new semantic JavaScript pipeline under migration also reads this search
+schedule. These settings do not reroute the legacy optimizer or affect native
+compilation:
+
+```toml
+[policy.search]
+codec_schedule = "staged" # staged | immediate
+render_batch = 8          # fixed render batch; must be positive
+diversity_interval = 4    # structural/artifact exploration cadence; must be positive
+```
+
+Staged scheduling groups rendered candidates before codec measurement.
+Immediate scheduling scores each artifact through the same search and output
+machinery with a minimal queue. Batch size and diversity cadence remain fixed
+for the compilation; resource exhaustion stops work instead of changing them.
+Existing `[javascript]` proposal, codec-probe, candidate and byte caps still
+apply. Resolved JavaScript policy receipts include the complete schedule and
+its version; native policies have no JavaScript search objective.
+
+For this semantic pipeline, search schedule version 3 preserves
+`javascript.candidate_proposal_limit` with one meaning: optional complete-artifact
+attempts, one per attempted naming plan. Failed attempts still count. Source
+inventory visits, proof queries and compatible recipe unions consume the common
+analysis-work budget, separately from this artifact ceiling. Inventory storage
+is admitted against memory and work limits; a small artifact allowance does not
+hide later source opportunities. Cached Unknown and Truncated proofs remain
+distinct and are skipped only under the same pinned source, output contract and
+fixed query bounds. Stronger bounds require a fresh attempt.
+
+Version 3 also serves an old pending structural cursor every
+`diversity_interval` expansion attempts and protects one such cursor within the
+existing beam. Other turns retain objective-guided ranking. The same configured
+interval controls old-artifact selection at staged scoring events; artifact
+scoring and structural expansion have distinct clocks. This keeps an early
+profitable choice from indefinitely starving every surviving branch that omits
+it. It does not guarantee exhaustive exploration under finite limits. At beam
+width one, continuation progress can discard descendants; a wider beam is needed
+for simultaneous branch breadth. Remaining budgets do not silently alter this
+schedule.
+
+A proved shared-call layout adds no search child when every sealed creator is
+already covered by an exact selected inline helper. This per-parent support
+check consumes analysis work and is reported as `inactive_function_layouts`; it
+spends no artifact proposal or codec probe. Explicitly published layouts and the
+global proof seed remain available.
+
+The mandatory direct artifact and its requested scores precede optional search.
+`terminal_codec_probe_limit` caps optional encodes; retained candidate count and
+bytes bound queued artifacts together with per-codec winners. Exhausting artifact
+attempts can still drain already rendered artifacts through the remaining codec
+and work allowance. Receipts expose artifact attempts, structural attempts,
+proof queries, skipped proofs, renders and codec calls separately. Changing the
+schedule version can change explored artifacts at the same numeric limits; it
+does not promise equal work or general monotonic quality across different caps.
+The legacy optimizer's separate accounting is described below.
+
 ```toml
 [compiler.resources]
 # threads = 12 # omit to use RAYON_NUM_THREADS or the host/Rayon default
@@ -57,6 +113,7 @@ function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
 local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
 stable_local_names = true # preserve source-local affinity across generated kernels
 local_name_coalescing = true # reuse bindings for SSA values with disjoint live ranges
+# emit_pure_annotations = false # retain checked pure-export contracts for downstream ESM tree shaking
 # function_scope = true # single-bundle internals inside one function scope; exports assigned outside (V8 context slots instead of module cells)
 # truthy_nullable_checks = false # `x!==null` instead of `x` for always-truthy nullables; default off under the performance priorities
 # function_spelling = "arrow" # arrow | function; see public-ABI note below
@@ -319,16 +376,22 @@ nonconstructible (for example Nano ID's published browser arrows). The
 benchmark verifier checks arity and constructibility before a result is
 eligible, so this setting cannot silently buy bytes by changing that API.
 
-It does, however, change what a bare `this` means inside a **closure**. A body
-that reads the ambient `extern JsValue this` is receiver-bound when it is
-spelled `function` and lexically bound when it is spelled as an arrow, and both
-spellings are valid JavaScript, so no downstream gate separates them. Only a
-declared function is guaranteed receiver-bound
-(`emits_ordinary_function_expression`). Ask for a receiver with `JS.methodN` /
-`JS.methodRest` ([language](language-v0.1.md)), which means the same thing under
-every spelling; reading ambient `this` from a closure and expecting the receiver
-is a bug that only shows up once the search changes the spelling
-(finer/hypotheses/061).
+Source closures inherit their enclosing `this` and `arguments`; changing
+callable syntax must preserve that lexical ownership. Declared functions that
+need their own receiver or arguments, directly or through lexical descendants,
+require ordinary-function syntax even when arrows are requested. Use
+`JS.methodN` / `JS.methodRest` ([language](language-v0.1.md)) to request a
+host-callable receiver explicitly.
+
+The legacy emitter still has a known violation: forcing `"function"` can rebind
+a closure's ambient `this` to the closure's caller
+([061](../finer/hypotheses/061-the-arrow-spelling-rebinds-this/README.md)). This
+is a compiler hazard, not an additional language meaning selected by this
+option. The new semantic output path preserves the lexical owner with shared
+activation captures. Its currently unsupported combination of an ordinary
+closure and module-level ambient `arguments` rejects before output rather than
+moving a potentially throwing global lookup to module initialization. That
+path is still under migration; it is not yet the production replacement.
 
 `javascript.public_aggregate_abi` defaults to `"named"`: structs and classes
 that cross a reusable JavaScript boundary use stable named fields, including
@@ -676,6 +739,13 @@ colors using non-semantic source-local affinity, with deterministic definition
 order as the fallback. It does not alter liveness or the number of slots; it
 makes duplicated numerical and generated kernels retain similar local
 spellings for transport compression.
+`emit_pure_annotations = true` adds `/*@__PURE__*/` to direct calls bound to
+checked `export pure` functions in the final single-module JavaScript. The pass
+resolves bindings, including export aliases, and leaves shadowed names and
+property calls alone. Argument evaluation remains observable. The default is
+false. This is optimization metadata; type annotations still add no runtime
+validation. Explicit source casts and type tests retain their semantics.
+
 `function_scope = true` wraps a single-bundle module's internal bindings in one
 function scope and assigns the export bindings outside it (`var a,b;(function(){…;a=x;b=y})();export{a as x,b as y}`).
 V8 reaches a module-scope binding through a module cell — several dependent loads — and a

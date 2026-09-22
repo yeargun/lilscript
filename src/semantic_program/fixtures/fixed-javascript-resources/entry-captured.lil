@@ -1,0 +1,25 @@
+import { Point, score } from "./producer";
+
+Point state=Point{0,0};
+
+auto resetState=(int x,int y)=>{
+    state=Point{x,y};
+};
+auto runState=(int x,int y)=>{
+    state=Point{x,y};
+    Point saved=state;
+    return score(saved);
+};
+auto readState=()=>state.x;
+
+export void reset(int x,int y) {
+    resetState(x,y);
+}
+
+export int run(int x,int y) {
+    return runState(x,y);
+}
+
+export int currentX() {
+    return readState();
+}

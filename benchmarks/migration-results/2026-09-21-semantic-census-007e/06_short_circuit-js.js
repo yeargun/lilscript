@@ -1,0 +1,1 @@
+let a;let b;let c;a=(0,{probe:function(value){calls=calls+ 1|0;return value;}}.probe);let probe=a;let calls=0;let result=probe(false)&&probe(true)||probe(true);b=void console.log(result);c=void console.log(calls);

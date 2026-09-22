@@ -1,0 +1,11 @@
+import {Point, translate} from "./geometry.lil";
+export {translate as move};
+
+export Point origin() { return Point{0, 0}; }
+export int manhattan(Point a, Point b) {
+  int dx = a.x - b.x;
+  int dy = a.y - b.y;
+  if (dx < 0) { dx = -dx; }
+  if (dy < 0) { dy = -dy; }
+  return dx + dy;
+}

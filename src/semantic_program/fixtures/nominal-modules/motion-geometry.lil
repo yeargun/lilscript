@@ -1,0 +1,33 @@
+export struct Point {
+  float x;
+  float y;
+}
+
+export struct Axis {
+  float min;
+  float max;
+}
+
+export struct Box {
+  Axis x;
+  Axis y;
+}
+
+export struct BoundingBox {
+  float top;
+  float right;
+  float bottom;
+  float left;
+}
+
+export struct AxisDelta {
+  float translate;
+  float scale;
+  float origin;
+  float originPoint;
+}
+
+export struct Delta {
+  AxisDelta x;
+  AxisDelta y;
+}

@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "scope": "focused debug artifact admission, shared recipe ownership, public scoped service and original example consumers; not milestone certification",
+  "started": "2026-09-19T13:55:30.127Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 5.758348999999981
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 17.03090100000003
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 12.548122999999975
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 6.329705999999987
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--lib",
+        "--bin",
+        "lilscript",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 68616.424286
+    },
+    {
+      "label": "tests-0",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler_service::"
+      ],
+      "status": 101,
+      "signal": null,
+      "ms": 2409.0305769999977
+    }
+  ],
+  "semanticCore": false,
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack"
+  ],
+  "inputSha256": "975f847de7c246f1b384bba832c4086d953dc70eab1b58c248f7854d8d3b63fe",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "testBinaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "sha256": "2bdd83aa027a6110ddf97c3c20277c8463fdc47ea9955fb306a03ffc4e7709eb",
+      "bytes": 390383608
+    },
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-88c9d4a211b5d4f5",
+      "sha256": "592543ff71509e3996e548115a6034953eb31b2dad5917ea2f5a7598d0422a75",
+      "bytes": 198702328
+    }
+  ],
+  "focusedTests": [],
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: tests-0: \n\nrunning 20 tests\ntest compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources ... ok\ntest compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history ... FAILED\ntest compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission ... ok\ntest compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence ... ok\ntest compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization ... ok\ntest compiler_service::tests::resource_owner_exists_before_discovery_and_parse ... ok\ntest compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic ... ok\ntest compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error ... ok\ntest compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission ... ok\ntest compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget ... ok\ntest compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback ... ok\ntest compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release ... ok\ntest compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget ... ok\ntest compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api ... ok\ntest compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child ... ok\ntest compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs ... ok\ntest compiler_service::tests::source_service_returns_independently_scored_qualified_winners ... ok\ntest compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects ... ok\ntest compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work ... ok\ntest compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service ... ok\n\nfailures:\n\n---- compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history stdout ----\n\nthread 'compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history' (352509) panicked at src/compiler_service_tests.rs:856:22:\ncalled `Result::unwrap()` on an `Err` value: Publication(Budget(BaselineNotSealed))\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history\n\ntest result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 2727 filtered out; finished in 2.39s\n\n\n\n101 !== 0\n\n    at run (file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:54:10)\n    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:92:20\n    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+  "inputsStable": true,
+  "completed": "2026-09-19T13:56:42.543Z"
+}

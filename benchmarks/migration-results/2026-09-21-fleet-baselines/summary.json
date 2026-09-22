@@ -1,0 +1,926 @@
+{
+  "schema": 1,
+  "kind": "source-baseline-batch",
+  "runId": "2026-09-21-fleet-baselines",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "started": "2026-09-21T00:07:56.323Z",
+  "qualified": [
+    {
+      "library": "rehype-katexlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 0.228,
+      "artifacts": 5,
+      "cases": {
+        "required": 67,
+        "executed": 67,
+        "failed": []
+      },
+      "measurements": {
+        "dist/rehype-katex.cjs": {
+          "raw": 284846,
+          "gzip": 70032,
+          "brotli": 57736
+        },
+        "dist/rehype-katex.closed.js": {
+          "raw": 2364,
+          "gzip": 1065,
+          "brotli": 951
+        },
+        "dist/rehype-katex.esm.js": {
+          "raw": 2235,
+          "gzip": 1033,
+          "brotli": 898
+        },
+        "dist/rehype-katex.raw.js": {
+          "raw": 1532,
+          "gzip": 857,
+          "brotli": 729
+        },
+        "dist/rehype-katex.umd.js": {
+          "raw": 284687,
+          "gzip": 69985,
+          "brotli": 57663
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "hast-util-to-htmllil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 0.734,
+      "artifacts": 5,
+      "cases": {
+        "required": 460,
+        "executed": 460,
+        "failed": []
+      },
+      "measurements": {
+        "dist/to-html.cjs": {
+          "raw": 31100,
+          "gzip": 10259,
+          "brotli": 9100
+        },
+        "dist/to-html.closed.js": {
+          "raw": 29952,
+          "gzip": 9816,
+          "brotli": 8668
+        },
+        "dist/to-html.esm.js": {
+          "raw": 30101,
+          "gzip": 9971,
+          "brotli": 8807
+        },
+        "dist/to-html.raw.js": {
+          "raw": 30005,
+          "gzip": 9904,
+          "brotli": 8750
+        },
+        "dist/to-html.umd.js": {
+          "raw": 31171,
+          "gzip": 10287,
+          "brotli": 9129
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "remark-breakslil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 11.558,
+      "artifacts": 5,
+      "cases": {
+        "required": 23,
+        "executed": 23,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-breaks.cjs": {
+          "raw": 3793,
+          "gzip": 1678,
+          "brotli": 1525
+        },
+        "dist/remark-breaks.closed.js": {
+          "raw": 2767,
+          "gzip": 1364,
+          "brotli": 1225
+        },
+        "dist/remark-breaks.esm.js": {
+          "raw": 2783,
+          "gzip": 1243,
+          "brotli": 1118
+        },
+        "dist/remark-breaks.raw.js": {
+          "raw": 2695,
+          "gzip": 1178,
+          "brotli": 1058
+        },
+        "dist/remark-breaks.umd.js": {
+          "raw": 3900,
+          "gzip": 1708,
+          "brotli": 1550
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "remark-mathlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 12.596,
+      "artifacts": 5,
+      "cases": {
+        "required": 63,
+        "executed": 63,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-math.cjs": {
+          "raw": 7796,
+          "gzip": 3058,
+          "brotli": 2753
+        },
+        "dist/remark-math.closed.js": {
+          "raw": 6675,
+          "gzip": 2756,
+          "brotli": 2534
+        },
+        "dist/remark-math.esm.js": {
+          "raw": 6382,
+          "gzip": 2533,
+          "brotli": 2290
+        },
+        "dist/remark-math.raw.js": {
+          "raw": 6298,
+          "gzip": 2472,
+          "brotli": 2236
+        },
+        "dist/remark-math.umd.js": {
+          "raw": 7891,
+          "gzip": 3092,
+          "brotli": 2785
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "remark-rehypelil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 28.353,
+      "artifacts": 5,
+      "cases": {
+        "required": 21,
+        "executed": 21,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-rehype.cjs": {
+          "raw": 15627,
+          "gzip": 5512,
+          "brotli": 4970
+        },
+        "dist/remark-rehype.closed.js": {
+          "raw": 14820,
+          "gzip": 5441,
+          "brotli": 4923
+        },
+        "dist/remark-rehype.esm.js": {
+          "raw": 14192,
+          "gzip": 4845,
+          "brotli": 4351
+        },
+        "dist/remark-rehype.raw.js": {
+          "raw": 14103,
+          "gzip": 4781,
+          "brotli": 4286
+        },
+        "dist/remark-rehype.umd.js": {
+          "raw": 15734,
+          "gzip": 5548,
+          "brotli": 4999
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "mdast-util-to-hastlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 30.505,
+      "artifacts": 5,
+      "cases": {
+        "required": 152,
+        "executed": 152,
+        "failed": []
+      },
+      "measurements": {
+        "dist/to-hast.cjs": {
+          "raw": 15355,
+          "gzip": 5401,
+          "brotli": 4915
+        },
+        "dist/to-hast.closed.js": {
+          "raw": 14491,
+          "gzip": 5341,
+          "brotli": 4855
+        },
+        "dist/to-hast.esm.js": {
+          "raw": 13965,
+          "gzip": 4753,
+          "brotli": 4288
+        },
+        "dist/to-hast.raw.js": {
+          "raw": 13866,
+          "gzip": 4683,
+          "brotli": 4210
+        },
+        "dist/to-hast.umd.js": {
+          "raw": 15426,
+          "gzip": 5432,
+          "brotli": 4941
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "rehype-stringifylil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 0.594,
+      "artifacts": 5,
+      "cases": {
+        "required": 13,
+        "executed": 13,
+        "failed": []
+      },
+      "measurements": {
+        "dist/rehype-stringify.cjs": {
+          "raw": 31430,
+          "gzip": 10590,
+          "brotli": 9364
+        },
+        "dist/rehype-stringify.closed.js": {
+          "raw": 30259,
+          "gzip": 10117,
+          "brotli": 8941
+        },
+        "dist/rehype-stringify.esm.js": {
+          "raw": 30377,
+          "gzip": 10312,
+          "brotli": 9093
+        },
+        "dist/rehype-stringify.raw.js": {
+          "raw": 30282,
+          "gzip": 10244,
+          "brotli": 9045
+        },
+        "dist/rehype-stringify.umd.js": {
+          "raw": 31555,
+          "gzip": 10618,
+          "brotli": 9398
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "unifiedlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 54.444,
+      "artifacts": 8,
+      "cases": {
+        "required": 227,
+        "executed": 227,
+        "failed": []
+      },
+      "measurements": {
+        "dist/unified.cjs": {
+          "raw": 21780,
+          "gzip": 6207,
+          "brotli": 5553
+        },
+        "dist/unified.closed.js": {
+          "raw": 14616,
+          "gzip": 5173,
+          "brotli": 4671
+        },
+        "dist/unified.esm.js": {
+          "raw": 14567,
+          "gzip": 5155,
+          "brotli": 4654
+        },
+        "dist/unified.raw.js": {
+          "raw": 14530,
+          "gzip": 5116,
+          "brotli": 4624
+        },
+        "dist/unified.umd.js": {
+          "raw": 22921,
+          "gzip": 6239,
+          "brotli": 5562
+        },
+        "dist/vfile.cjs": {
+          "raw": 12112,
+          "gzip": 3631,
+          "brotli": 3247
+        },
+        "dist/vfile.esm.js": {
+          "raw": 7823,
+          "gzip": 2905,
+          "brotli": 2617
+        },
+        "dist/vfile.raw.js": {
+          "raw": 7761,
+          "gzip": 2849,
+          "brotli": 2573
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "solidlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 24.597,
+      "artifacts": 16,
+      "cases": {
+        "required": 50,
+        "executed": 50,
+        "failed": []
+      },
+      "measurements": {
+        "dist/compat.js": {
+          "raw": 7818,
+          "gzip": 1887,
+          "brotli": 1681
+        },
+        "dist/core.cjs": {
+          "raw": 8849,
+          "gzip": 3551,
+          "brotli": 3179
+        },
+        "dist/core.js": {
+          "raw": 8267,
+          "gzip": 3326,
+          "brotli": 2979
+        },
+        "dist/dom-tables.js": {
+          "raw": 3701,
+          "gzip": 1500,
+          "brotli": 1290
+        },
+        "dist/full.cjs": {
+          "raw": 18460,
+          "gzip": 6935,
+          "brotli": 6150
+        },
+        "dist/full.js": {
+          "raw": 17833,
+          "gzip": 6651,
+          "brotli": 5942
+        },
+        "dist/index.bundle.js": {
+          "raw": 18588,
+          "gzip": 6851,
+          "brotli": 6268
+        },
+        "dist/index.cjs": {
+          "raw": 20190,
+          "gzip": 7383,
+          "brotli": 6690
+        },
+        "dist/index.js": {
+          "raw": 18588,
+          "gzip": 6851,
+          "brotli": 6268
+        },
+        "dist/lil-web.cjs": {
+          "raw": 15840,
+          "gzip": 6020,
+          "brotli": 5344
+        },
+        "dist/lil-web.js": {
+          "raw": 15228,
+          "gzip": 5777,
+          "brotli": 5151
+        },
+        "dist/solid-api.js": {
+          "raw": 19796,
+          "gzip": 5001,
+          "brotli": 4454
+        },
+        "dist/solidlil.global.js": {
+          "raw": 18379,
+          "gzip": 6877,
+          "brotli": 6115
+        },
+        "dist/web-api.js": {
+          "raw": 16347,
+          "gzip": 4506,
+          "brotli": 3993
+        },
+        "dist/web.cjs": {
+          "raw": 47242,
+          "gzip": 15940,
+          "brotli": 14242
+        },
+        "dist/web.js": {
+          "raw": 38129,
+          "gzip": 13391,
+          "brotli": 11951
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "jquerylil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 1232.36,
+      "artifacts": 5,
+      "cases": {
+        "required": 8,
+        "executed": 8,
+        "failed": []
+      },
+      "measurements": {
+        "dist/jquery.cjs": {
+          "raw": 81549,
+          "gzip": 31426,
+          "brotli": 28163
+        },
+        "dist/jquery.esm.js": {
+          "raw": 81495,
+          "gzip": 31416,
+          "brotli": 28153
+        },
+        "dist/jquery.impl.js": {
+          "raw": 81398,
+          "gzip": 31359,
+          "brotli": 28095
+        },
+        "dist/jquery.raw.js": {
+          "raw": 81398,
+          "gzip": 31359,
+          "brotli": 28095
+        },
+        "dist/jquery.umd.js": {
+          "raw": 81451,
+          "gzip": 31395,
+          "brotli": 28117
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "micromarklil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 272.251,
+      "artifacts": 9,
+      "cases": {
+        "required": 1963,
+        "executed": 1963,
+        "failed": []
+      },
+      "measurements": {
+        "dist/micromark.cjs": {
+          "raw": 84275,
+          "gzip": 30275,
+          "brotli": 25943
+        },
+        "dist/micromark.closed.js": {
+          "raw": 99871,
+          "gzip": 33133,
+          "brotli": 28013
+        },
+        "dist/micromark.esm.js": {
+          "raw": 83525,
+          "gzip": 30015,
+          "brotli": 25684
+        },
+        "dist/micromark.raw.js": {
+          "raw": 93066,
+          "gzip": 32296,
+          "brotli": 27410
+        },
+        "dist/micromark.stream.cjs": {
+          "raw": 92803,
+          "gzip": 30859,
+          "brotli": 26162
+        },
+        "dist/micromark.stream.js": {
+          "raw": 86572,
+          "gzip": 29670,
+          "brotli": 25245
+        },
+        "dist/micromark.stream.raw.js": {
+          "raw": 86450,
+          "gzip": 29581,
+          "brotli": 25211
+        },
+        "dist/micromark.test.js": {
+          "raw": 32341,
+          "gzip": 13196,
+          "brotli": 11236
+        },
+        "dist/micromark.umd.js": {
+          "raw": 84364,
+          "gzip": 30326,
+          "brotli": 25929
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    }
+  ],
+  "unqualified": [
+    {
+      "library": "posthoglil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 122.081,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "the build left these artifacts empty, so they were not rebuilt: dist/autocapture.cjs, dist/autocapture.esm.js, dist/autocapture.raw.js, dist/error-tracking.cjs, dist/error-tracking.esm.js, dist/error-tracking.raw.js, dist/otlp.cjs, dist/otlp.esm.js, dist/otlp.raw.js, dist/replay-core.cjs, dist/replay-core.esm.js, dist/replay-core.raw.js, dist/surveys.cjs, dist/surveys.esm.js, dist/surveys.raw.js"
+    },
+    {
+      "library": "remark-gfmlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 144.054,
+      "artifacts": 5,
+      "cases": {
+        "required": 22,
+        "executed": 22,
+        "failed": [
+          "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+          "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+          "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+          "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]"
+        ]
+      },
+      "measurements": {
+        "dist/remark-gfm.cjs": {
+          "raw": 36910,
+          "gzip": 12766,
+          "brotli": 11335
+        },
+        "dist/remark-gfm.closed.js": {
+          "raw": 34706,
+          "gzip": 12833,
+          "brotli": 11532
+        },
+        "dist/remark-gfm.esm.js": {
+          "raw": 32696,
+          "gzip": 11575,
+          "brotli": 10307
+        },
+        "dist/remark-gfm.raw.js": {
+          "raw": 32614,
+          "gzip": 11512,
+          "brotli": 10251
+        },
+        "dist/remark-gfm.umd.js": {
+          "raw": 36999,
+          "gzip": 12821,
+          "brotli": 11363
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": "test command failed; test did not pass: [\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]; test did not pass: [\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]; test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]; test did not pass: [\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]; required case did not pass: [\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]; required case did not pass: [\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]; required case did not pass: [\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]; required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]"
+    },
+    {
+      "library": "rehypelil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 598.72,
+      "artifacts": 4,
+      "cases": {
+        "required": 164,
+        "executed": 152,
+        "failed": []
+      },
+      "measurements": {
+        "dist/rehype.cjs": {
+          "raw": 172091,
+          "gzip": 61122,
+          "brotli": 51120
+        },
+        "dist/rehype.closed.js": {
+          "raw": 167088,
+          "gzip": 60603,
+          "brotli": 50958
+        },
+        "dist/rehype.esm.js": {
+          "raw": 171605,
+          "gzip": 60936,
+          "brotli": 50960
+        },
+        "dist/rehype.umd.js": {
+          "raw": 172455,
+          "gzip": 61274,
+          "brotli": 51278
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": "test command failed; required case did not pass: [\"test/parse5-modules.test.mjs\",109,3,1,\"test\",\"matches Unicode and entity code-point handling\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",123,3,1,\"test\",\"matches complete and incrementally supplied entity references\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",199,3,1,\"test\",\"matches foreign-content adjustment and integration rules\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",251,3,1,\"test\",\"matches preprocessing across malformed input and chunk boundaries\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",307,3,1,\"test\",\"matches preprocessor lookahead, insertion, and buffer dropping\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",336,3,1,\"test\",\"matches the default tree adapter's mutation semantics\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",362,3,1,\"test\",\"matches active-formatting-list ordering and Noah's Ark enforcement\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",392,3,1,\"test\",\"matches open-element-stack mutation, scope, and callback ordering\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",57,1,0,\"suite\",\"isolated parse5 LilScript modules\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",58,3,1,\"test\",\"matches all parse-error codes and reverse attribute lookup\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",64,3,1,\"test\",\"matches HTML tag IDs and element sets\",1]; required case did not pass: [\"test/parse5-modules.test.mjs\",85,3,1,\"test\",\"matches doctype conformance and document mode\",1]"
+    },
+    {
+      "library": "mdast-util-from-markdownlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 149.321,
+      "artifacts": 5,
+      "cases": null,
+      "measurements": {
+        "dist/from-markdown.cjs": {
+          "raw": 102880,
+          "gzip": 32618,
+          "brotli": 27691
+        },
+        "dist/from-markdown.closed.js": {
+          "raw": 89161,
+          "gzip": 30662,
+          "brotli": 26055
+        },
+        "dist/from-markdown.esm.js": {
+          "raw": 88270,
+          "gzip": 30874,
+          "brotli": 26283
+        },
+        "dist/from-markdown.raw.js": {
+          "raw": 88160,
+          "gzip": 30792,
+          "brotli": 26205
+        },
+        "dist/from-markdown.umd.js": {
+          "raw": 102987,
+          "gzip": 32679,
+          "brotli": 27772
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": null
+    },
+    {
+      "library": "remark-parselil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 134.436,
+      "artifacts": 5,
+      "cases": null,
+      "measurements": {
+        "dist/remark-parse.cjs": {
+          "raw": 101963,
+          "gzip": 32182,
+          "brotli": 27276
+        },
+        "dist/remark-parse.closed.js": {
+          "raw": 88343,
+          "gzip": 30768,
+          "brotli": 26154
+        },
+        "dist/remark-parse.esm.js": {
+          "raw": 87350,
+          "gzip": 30393,
+          "brotli": 25906
+        },
+        "dist/remark-parse.raw.js": {
+          "raw": 87263,
+          "gzip": 30323,
+          "brotli": 25773
+        },
+        "dist/remark-parse.umd.js": {
+          "raw": 102039,
+          "gzip": 32237,
+          "brotli": 27283
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": null
+    },
+    {
+      "library": "remarklil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 687.71,
+      "artifacts": 7,
+      "cases": null,
+      "measurements": {
+        "dist/remark.cjs": {
+          "raw": 185707,
+          "gzip": 48976,
+          "brotli": 41120
+        },
+        "dist/remark.closed.js": {
+          "raw": 128435,
+          "gzip": 43794,
+          "brotli": 37267
+        },
+        "dist/remark.closed.raw.js": {
+          "raw": 128487,
+          "gzip": 43792,
+          "brotli": 37188
+        },
+        "dist/remark.esm.js": {
+          "raw": 125976,
+          "gzip": 42878,
+          "brotli": 36534
+        },
+        "dist/remark.raw.js": {
+          "raw": 126028,
+          "gzip": 42867,
+          "brotli": 36463
+        },
+        "dist/remark.test.js": {
+          "raw": 126103,
+          "gzip": 42937,
+          "brotli": 36569
+        },
+        "dist/remark.umd.js": {
+          "raw": 192432,
+          "gzip": 49299,
+          "brotli": 41276
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": null
+    },
+    {
+      "library": "mobxlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 103.436,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "the build left these artifacts empty, so they were not rebuilt: dist/mobx.esm.js.mjs"
+    },
+    {
+      "library": "zodlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 146.826,
+      "artifacts": 11,
+      "cases": null,
+      "measurements": {
+        "dist/async-api.js": {
+          "raw": 4004,
+          "gzip": 885,
+          "brotli": 770
+        },
+        "dist/compat.js": {
+          "raw": 13706,
+          "gzip": 3789,
+          "brotli": 3400
+        },
+        "dist/core.js": {
+          "raw": 1043,
+          "gzip": 329,
+          "brotli": 272
+        },
+        "dist/index.cjs": {
+          "raw": 263218,
+          "gzip": 59134,
+          "brotli": 49525
+        },
+        "dist/index.js": {
+          "raw": 7811,
+          "gzip": 1856,
+          "brotli": 1647
+        },
+        "dist/locales.js": {
+          "raw": 90,
+          "gzip": 91,
+          "brotli": 74
+        },
+        "dist/mini.js": {
+          "raw": 69,
+          "gzip": 67,
+          "brotli": 62
+        },
+        "dist/official-json-schema.js": {
+          "raw": 34378,
+          "gzip": 7390,
+          "brotli": 6568
+        },
+        "dist/regexes.js": {
+          "raw": 7156,
+          "gzip": 2157,
+          "brotli": 1945
+        },
+        "dist/visit.js": {
+          "raw": 4550,
+          "gzip": 1284,
+          "brotli": 1133
+        },
+        "dist/zod.core.js": {
+          "raw": 124409,
+          "gzip": 34932,
+          "brotli": 29682
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": null
+    },
+    {
+      "library": "motionlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 141.932,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "katexlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 573.294,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "the build left these artifacts empty, so they were not rebuilt: dist/data-host.js, dist/katex.check.js, dist/katex.closed.bundled.js, dist/katex.dev.raw.js"
+    },
+    {
+      "library": "markedlil",
+      "passed": false,
+      "sourceBuilt": true,
+      "buildWallSeconds": 362.62,
+      "artifacts": 7,
+      "cases": null,
+      "measurements": {
+        "dist/marked.bytes.js": {
+          "raw": 33556,
+          "gzip": 11066,
+          "brotli": 9905
+        },
+        "dist/marked.cjs": {
+          "raw": 37343,
+          "gzip": 11298,
+          "brotli": 10153
+        },
+        "dist/marked.closed.js": {
+          "raw": 33981,
+          "gzip": 10399,
+          "brotli": 9287
+        },
+        "dist/marked.esm.js": {
+          "raw": 34179,
+          "gzip": 10447,
+          "brotli": 9395
+        },
+        "dist/marked.gzip.js": {
+          "raw": 34418,
+          "gzip": 10502,
+          "brotli": 9412
+        },
+        "dist/marked.raw.js": {
+          "raw": 34095,
+          "gzip": 10388,
+          "brotli": 9336
+        },
+        "dist/marked.umd.js": {
+          "raw": 37414,
+          "gzip": 11344,
+          "brotli": 10208
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": null
+    }
+  ],
+  "completed": "2026-09-21T01:29:44.210Z"
+}

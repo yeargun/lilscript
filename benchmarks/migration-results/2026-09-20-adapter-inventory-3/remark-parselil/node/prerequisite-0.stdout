@@ -1,0 +1,4 @@
+
+> @itslil/remark-parse@11.0.2 check:types
+> tsc --project tsconfig.json
+

@@ -1,0 +1,151 @@
+{
+  "patterns": [
+    "test/shader-processing.test.mjs"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/shader-processing.closed.js",
+    "dist/shader-processing.closed.official.js",
+    "dist/shader-processing.js",
+    "dist/shader-processing.official.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.toml",
+      "sha256": "3f1a798fd1b048db4d90e8788112144088c7df09daf605a8dac3bafbae107f04",
+      "bytes": 418
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+      "bytes": 60594
+    },
+    {
+      "path": "package.json",
+      "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+      "bytes": 1474
+    },
+    {
+      "path": "scripts/analyze-compression.mjs",
+      "sha256": "53d8371f1c70c89aa83658bfe5b73ade6eb4433cf827a357b37fe55c605f4e72",
+      "bytes": 2990
+    },
+    {
+      "path": "scripts/benchmark-worker.mjs",
+      "sha256": "9c44350415e9235e65a99db8e1d261baa8bc2c65bddd62c2722a4f160cf5f9b5",
+      "bytes": 1320
+    },
+    {
+      "path": "scripts/benchmark.mjs",
+      "sha256": "eb81f2f5ff26353fc9b5c662c6b1cb79ad8fa46baa730d40793e493538cfb827",
+      "bytes": 3430
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "68fbd7c5d856d5f7f3563b37568385ac2456aa8ddb074f707c0439278852ff2f",
+      "bytes": 1359
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "5fff734e8fd5756003e13cc02123decdf6790feea852fc80aba9ec48ae542d6f",
+      "bytes": 4487
+    },
+    {
+      "path": "scripts/measure.mjs",
+      "sha256": "e7356b662af43a99c0e16061a104b630a6631275857b2c6dcaf8f12694af5141",
+      "bytes": 6700
+    },
+    {
+      "path": "scripts/test-upstream.mjs",
+      "sha256": "90282344e7268e4ea705b9df6868f578e727c96e92e1568e1463b048fb25500e",
+      "bytes": 1187
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "91a50a10bd4055730eb2f157914163df8faa998c9ab35718f2cc10b64a20d1ec",
+      "bytes": 3214
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "cbb3f64f60b9410a3485bb8ab8cc3f0a37dfdc5514e2e6d4d6a0e3da4d96f337",
+      "bytes": 7614
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "835f77cbdd5312a76426a9088c0474700bf2346f71b1fa3793660967d73b604b",
+      "bytes": 10500
+    },
+    {
+      "path": "test/redirect-loader.mjs",
+      "sha256": "a94f9bc42bf62f40e5578958de264ee4dc4df72feb464b2d41e761253b2c0053",
+      "bytes": 1147
+    },
+    {
+      "path": "test/register-loader.mjs",
+      "sha256": "e95015f9ad5909fd837689bfdae0310bf9ce265caa51a2ae35d58701cdfdbda8",
+      "bytes": 93
+    },
+    {
+      "path": "test/shader-processing.test.mjs",
+      "sha256": "026e5a9838f5fc1ae9740203f8657ea106793cc5511dc347c13fedb4318ba510",
+      "bytes": 5772
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "4e14148114317ee1018845f27dcd57d2a885d7fc48941a92e48b71e0e7539dd5",
+      "bytes": 2237
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-test:upstream",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "test:upstream"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        }
+      ]
+    },
+    {
+      "id": "original-test:differential",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "test:differential"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "dead53a323c9e08cab4c7baaf21cdcc95eee14b38aa60ad067c2c07cb058f606",
+          "bytes": 1474
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "13fdb98e3c388b8944c7156a8aff8314d03a430ae6d40a4b00197c52180bb048",
+          "bytes": 60594
+        }
+      ]
+    }
+  ]
+}

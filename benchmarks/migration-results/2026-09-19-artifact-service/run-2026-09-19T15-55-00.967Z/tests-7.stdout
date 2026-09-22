@@ -1,0 +1,18 @@
+
+running 13 tests
+test output_budget::boxed_tests::boxed_value_is_admitted_until_actual_drop_and_scope_release ... ok
+test output_budget::boxed_tests::zero_size_box_observes_drop_without_memory_admission ... ok
+test output_budget::boxed_tests::boxed_memory_or_work_refusal_drops_input_once_and_retains_nothing ... ok
+test output_budget::tests::denied_growth_keeps_original_noncopy_storage_and_does_not_steal_baseline_reserve ... ok
+test output_budget::tests::exact_capacity_checks_zst_and_temporary_inspection_wrappers_use_same_allocator ... ok
+test output_budget::tests::callback_error_and_unwind_release_only_their_scope_and_drop_values_once ... ok
+test output_budget::tests::nested_phase_promotes_only_live_result_and_drops_scratch_before_transfer ... ok
+test output_budget::tests::exact_layout_growth_moves_overaligned_noncopy_values_once_and_counts_overlap ... ok
+test output_budget::tests::partition_transfer_preserves_reservation_and_refused_token ... ok
+test output_budget::tests::retained_artifact_transfer_is_nonduplicating_owner_checked_and_move_safe ... ok
+test output_budget::tests::shared_ledger_callback_keeps_other_owners_separate_from_target_classes ... ok
+test output_budget::tests::strings_preserve_unicode_and_lone_surrogates_with_exact_backing_charges ... ok
+test output_budget::tests::text_growth_and_copy_work_fail_before_mutating_existing_text ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2824 filtered out; finished in 0.00s
+

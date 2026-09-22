@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/home/azureuser/jquerylil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/existing-dist/node/events.jsonl",
+    "test/compat.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/compat.test.mjs",
+      "sha256": "fa47b1550ed83e757fe0f8b79178d6ea15d1cfdc2ccf78ed44d88a58ddd37145",
+      "bytes": 4495
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/compat.test.mjs"
+    ],
+    "files": [
+      "test/compat.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/existing-dist/node/observe.mjs",
+    "sha256": "23c5d1284c4e677ae41d0a9873470a8f0ebc46f44e05fc68da4a304f6ab3d1b1",
+    "bytes": 359,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "supervision": {
+    "timeoutMs": 88665,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "exports the 3.7.1 surface",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches core utilities",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "matches Deferred resolve/reject",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "renders callback changes through the same public tween instance",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "ships the compiler-selected compact ESM, not a pretty-printed wrapper",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "loads from CommonJS",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "selects, classes, and events",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]",
+        "file": "test/compat.test.mjs",
+        "name": "@itslil/jquery vs jquery@3.7.1",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+        "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+        "bytes": 81828
+      },
+      {
+        "path": "/home/azureuser/jquerylil/dist/jquery.cjs",
+        "sha256": "322590bb5a5e29ce3f4e2edfc358b7093732e6a7f93cf1a53a875bd8a5a5ec7f",
+        "bytes": 81882
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+        "url": "file:///home/azureuser/jquerylil/dist/jquery.esm.js",
+        "format": "module",
+        "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+        "bytes": 81828,
+        "pid": 1293207
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/home/azureuser/jquerylil/dist/jquery.cjs",
+        "url": "file:///home/azureuser/jquerylil/dist/jquery.cjs",
+        "format": "commonjs",
+        "sha256": "322590bb5a5e29ce3f4e2edfc358b7093732e6a7f93cf1a53a875bd8a5a5ec7f",
+        "bytes": 81882,
+        "pid": 1293207
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]",
+    "[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]",
+    "[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]",
+    "[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]",
+    "[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]",
+    "[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]",
+    "[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]",
+    "[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]"
+  ]
+}

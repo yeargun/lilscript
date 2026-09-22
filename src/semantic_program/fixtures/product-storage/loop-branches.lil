@@ -1,0 +1,13 @@
+struct State { int first; int unused; }
+auto first=()=>0;
+auto second=()=>0;
+int index=0;
+while(index<2) {
+    State state=State{index,10};
+    State saved=state;
+    state.first+=100;
+    if(index==0) { first=()=>saved.first+state.first; }
+    else { second=()=>saved.first+state.first; }
+    index+=1;
+}
+print(first());print(second());print(first());

@@ -1,0 +1,11 @@
+extern int read();
+int records(int seed) {
+  Record<int> point = record{ x: seed, y: seed * 2 };
+  point.x = (point.x ?? 0) + 1;
+  int viaDot = point.x ?? 0;
+  int viaIndex = point["y"] ?? 0;
+  Record<int> alias = point;
+  alias.x = 42;
+  return viaDot + viaIndex + (point.x ?? 0);
+}
+print(records(read()));print(records(0));print(records(-3));

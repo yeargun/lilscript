@@ -1,0 +1,1 @@
+const target={base:2,get go(){console.log("get");return function(value){console.log("old:"+this.base);return this.base+value}}};function object(){return target}function argument(){console.log("arg");target.base=7;Object.defineProperty(target,"go",{value:()=>999});return 3}

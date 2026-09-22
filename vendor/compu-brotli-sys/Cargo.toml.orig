@@ -1,0 +1,26 @@
+[package]
+name = "compu-brotli-sys"
+version = "1.1.0"
+authors = ["Douman <douman@gmx.se>"]
+edition = "2018"
+keywords = ["brotli"]
+description = "Bindings to brotli C library"
+license = "BSL-1.0"
+repository = "https://github.com/DoumanAsh/compu-brotli-sys"
+documentation = "https://docs.rs/crate/compu-brotli-sys"
+
+[dependencies.libc]
+version = "0.2"
+default-features = false
+
+[build-dependencies.bindgen]
+version = "0.69"
+optional = true
+
+[build-dependencies]
+cc = "1"
+
+[features]
+download-sources = []
+# Used internally to generate lib.rs
+build-bindgen = ["bindgen"]

@@ -1,0 +1,86 @@
+{
+  "pin": "mdast-util-to-hast@13.2.1",
+  "package": "@itslil/mdast-util-to-hast",
+  "file": "to-hast",
+  "lilExport": "toHast",
+  "officialExport": "toHast",
+  "node": "v22.21.1",
+  "codec": "lilscript-codec gzip-9 / brotli-11",
+  "runtime": "Node v22.21.1",
+  "warmupDiscard": 3,
+  "comparison": "Official rows are an esbuild bundle of mdast-util-to-hast@13.2.1 plus its runtime graph, then Terser or esbuild. LilScript is the compiled npm file. Closed is extern_fields=false.",
+  "spec": {
+    "total": 148,
+    "pass": 148,
+    "label": "official suite"
+  },
+  "play": {
+    "kind": "json-json",
+    "sample": "{\n  \"type\": \"root\",\n  \"children\": [\n    {\n      \"type\": \"heading\",\n      \"depth\": 1,\n      \"children\": [\n        {\n          \"type\": \"text\",\n          \"value\": \"mdast\"\n        }\n      ]\n    },\n    {\n      \"type\": \"paragraph\",\n      \"children\": [\n        {\n          \"type\": \"strong\",\n          \"children\": [\n            {\n              \"type\": \"text\",\n              \"value\": \"JSON\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+  },
+  "size": [
+    {
+      "id": "official",
+      "name": "Official mdast-util-to-hast@13.2.1 graph",
+      "raw": 39281,
+      "gzip9": 8715,
+      "brotli11": 7797,
+      "note": "esbuild bundle of the published package plus runtime deps",
+      "diagnostic": false
+    },
+    {
+      "id": "official-terser-mangle",
+      "name": "Official · Terser mangle on",
+      "raw": 16715,
+      "gzip9": 5388,
+      "brotli11": 4862,
+      "note": "Terser compress of that graph, mangle: true",
+      "baseline": true
+    },
+    {
+      "id": "official-terser-nomangle",
+      "name": "Official · Terser mangle off",
+      "raw": 24632,
+      "gzip9": 6491,
+      "brotli11": 5883,
+      "note": "Terser compress of that graph, mangle: false"
+    },
+    {
+      "id": "official-esbuild",
+      "name": "Official · esbuild minify",
+      "raw": 17289,
+      "gzip9": 5765,
+      "brotli11": 5245,
+      "note": "esbuild minify of that graph"
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/mdast-util-to-hast · library",
+      "raw": 14246,
+      "gzip9": 4709,
+      "brotli11": 4262,
+      "note": "LilScript js-module, extern_fields true. The npm ESM.",
+      "primary": true
+    },
+    {
+      "id": "itslil-closed",
+      "name": "@itslil/mdast-util-to-hast · closed",
+      "raw": 14939,
+      "gzip9": 5367,
+      "brotli11": 4845,
+      "note": "Same source, extern_fields false; diagnostic only"
+    }
+  ],
+  "throughput": [
+    {
+      "id": "official",
+      "name": "mdast-util-to-hast@13.2.1",
+      "documentMs": 0.0990420000002814
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/mdast-util-to-hast",
+      "documentMs": 0.023791999999957625
+    }
+  ]
+}

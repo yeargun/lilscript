@@ -1,0 +1,5 @@
+
+thread 'timing::tests::semantic_phase_timing_is_observational_and_covers_refusal' (1786124) panicked at src/timing_tests.rs:252:13:
+intentional timing guard unwind
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+phase-run-resource {"wall_seconds":0.02,"user_seconds":0.01,"system_seconds":0.00,"max_rss_kib":20140}

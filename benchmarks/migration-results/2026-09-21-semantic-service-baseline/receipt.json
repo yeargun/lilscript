@@ -1,0 +1,552 @@
+{
+  "schema": 1,
+  "kind": "semantic-service-baseline",
+  "created": "2026-09-21T12:18:30.303Z",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/5386ed8bedd3b93ebb19a520e7ec05df440b10038d7eee8ff121f3b13dba9412/lilscript",
+    "sha256": "5386ed8bedd3b93ebb19a520e7ec05df440b10038d7eee8ff121f3b13dba9412",
+    "bytes": 17930816,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "config": {
+    "path": "/home/azureuser/lilscript/tests/config/no-optimization.toml",
+    "sha256": "1f796338933bd7bd7875a2e9cf0f5917b79c7c19de598bb92d5baf38096e74b5",
+    "bytes": 240
+  },
+  "timing": {
+    "cold": "First invocation after the page cache has not seen the binary or inputs in this session: no warmup run, caches not primed.",
+    "warm": "After at least one discarded warmup invocation of the same binary on the same inputs, with the OS page cache holding them.",
+    "samples": 5,
+    "discardedWarmups": 1,
+    "statistic": "median",
+    "interleaving": "Alternate arms within one session rather than running all of one arm first; a host under changing load otherwise assigns its drift to whichever arm ran later.",
+    "threads": "RAYON_NUM_THREADS pinned for every timed comparison; recorded in the receipt.",
+    "noise": [
+      "Deterministic codec byte differences are real at any magnitude; a byte delta needs no repetition.",
+      "Timing needs repetition. A wall-clock difference smaller than the interquartile range of either arm is not a result.",
+      "This host is a burstable instance whose throughput halves once CPU credits drain, so timed comparisons record the host and the elapsed session time.",
+      "Instruction alignment moves hot-loop timings by up to 17% on this host, so a timing delta from a single build is compared against a no-op perturbation build before it is believed."
+    ]
+  },
+  "scope": "every tests/cases program the semantic backend compiles; development mode; one thread; a baseline, not a speed claim",
+  "summary": {
+    "javascript": {
+      "firstArtifactMs": {
+        "cases": 38,
+        "median": 3.069,
+        "p95": 5.814,
+        "max": 6.675
+      },
+      "wallMs": {
+        "cases": 38,
+        "median": 12.048,
+        "p95": 14.876,
+        "max": 16.27
+      },
+      "rssMb": {
+        "cases": 38,
+        "median": 11.133,
+        "p95": 11.461,
+        "max": 11.543
+      }
+    },
+    "native": {
+      "wallMs": {
+        "cases": 22,
+        "median": 8.262,
+        "p95": 11.325,
+        "max": 11.48
+      },
+      "rssMb": {
+        "cases": 22,
+        "median": 9.035,
+        "p95": 9.383,
+        "max": 9.41
+      }
+    }
+  },
+  "rows": [
+    {
+      "case": "01_constants",
+      "target": "js-module",
+      "firstArtifactMs": 2.461435,
+      "wallMs": 13.443985999999995,
+      "rssMb": 10.8984375,
+      "wallIqrMs": 0.8231230000000096
+    },
+    {
+      "case": "02_algebraic",
+      "target": "js-module",
+      "firstArtifactMs": 2.699459,
+      "wallMs": 9.025848999999994,
+      "rssMb": 11.140625,
+      "wallIqrMs": 1.043693999999988
+    },
+    {
+      "case": "03_branches",
+      "target": "js-module",
+      "firstArtifactMs": 2.504425,
+      "wallMs": 7.426393000000019,
+      "rssMb": 10.88671875,
+      "wallIqrMs": 2.4407360000000153
+    },
+    {
+      "case": "04_while",
+      "target": "js-module",
+      "firstArtifactMs": 4.203867,
+      "wallMs": 12.215163000000018,
+      "rssMb": 11.015625,
+      "wallIqrMs": 3.7481900000000223
+    },
+    {
+      "case": "05_for_control",
+      "target": "js-module",
+      "firstArtifactMs": 3.752285,
+      "wallMs": 13.000478999999984,
+      "rssMb": 10.8828125,
+      "wallIqrMs": 0.5007830000000695
+    },
+    {
+      "case": "06_short_circuit",
+      "target": "js-module",
+      "firstArtifactMs": 3.103623,
+      "wallMs": 12.828122000000008,
+      "rssMb": 11.35546875,
+      "wallIqrMs": 7.994506999999999
+    },
+    {
+      "case": "07_deep_functions",
+      "target": "js-module",
+      "firstArtifactMs": 4.801313,
+      "wallMs": 14.529387999999926,
+      "rssMb": 10.90234375,
+      "wallIqrMs": 4.234344999999962
+    },
+    {
+      "case": "08_recursion",
+      "target": "js-module",
+      "firstArtifactMs": 5.055165,
+      "wallMs": 14.369001000000026,
+      "rssMb": 11.01953125,
+      "wallIqrMs": 1.5547239999999647
+    },
+    {
+      "case": "09_closure_capture",
+      "target": "js-module",
+      "firstArtifactMs": 4.318011,
+      "wallMs": 13.240374999999972,
+      "rssMb": 11.03125,
+      "wallIqrMs": 3.660673999999972
+    },
+    {
+      "case": "10_function_value",
+      "target": "js-module",
+      "firstArtifactMs": 2.496531,
+      "wallMs": 13.176199999999994,
+      "rssMb": 10.90625,
+      "wallIqrMs": 5.8431490000000395
+    },
+    {
+      "case": "11_array_index",
+      "target": "js-module",
+      "firstArtifactMs": 2.262875,
+      "wallMs": 11.648190999999997,
+      "rssMb": 11.05078125,
+      "wallIqrMs": 8.767202999999995
+    },
+    {
+      "case": "17_struct",
+      "target": "js-module",
+      "firstArtifactMs": 2.651931,
+      "wallMs": 11.200618000000077,
+      "rssMb": 11.01171875,
+      "wallIqrMs": 4.813406000000214
+    },
+    {
+      "case": "18_nested_struct",
+      "target": "js-module",
+      "firstArtifactMs": 2.419788,
+      "wallMs": 8.2008229999999,
+      "rssMb": 11.15234375,
+      "wallIqrMs": 1.3417500000002747
+    },
+    {
+      "case": "22_shadowing",
+      "target": "js-module",
+      "firstArtifactMs": 3.413643,
+      "wallMs": 11.959471000000121,
+      "rssMb": 11.015625,
+      "wallIqrMs": 2.7074649999999565
+    },
+    {
+      "case": "23_global_constant",
+      "target": "js-module",
+      "firstArtifactMs": 2.487644,
+      "wallMs": 12.130244000000175,
+      "rssMb": 11.05078125,
+      "wallIqrMs": 1.3258299999999963
+    },
+    {
+      "case": "24_global_mutation",
+      "target": "js-module",
+      "firstArtifactMs": 2.739705,
+      "wallMs": 12.00934600000005,
+      "rssMb": 11.140625,
+      "wallIqrMs": 4.251542999999856
+    },
+    {
+      "case": "25_nested_control",
+      "target": "js-module",
+      "firstArtifactMs": 2.703447,
+      "wallMs": 8.184749999999894,
+      "rssMb": 11.2421875,
+      "wallIqrMs": 1.2351079999998547
+    },
+    {
+      "case": "27_string_case",
+      "target": "js-module",
+      "firstArtifactMs": 2.129215,
+      "wallMs": 7.713147999999819,
+      "rssMb": 11.0546875,
+      "wallIqrMs": 1.356740999999829
+    },
+    {
+      "case": "28_integer_zero_division",
+      "target": "js-module",
+      "firstArtifactMs": 2.224112,
+      "wallMs": 9.348821999999927,
+      "rssMb": 10.86328125,
+      "wallIqrMs": 2.6527450000000954
+    },
+    {
+      "case": "30_dead_code",
+      "target": "js-module",
+      "firstArtifactMs": 4.067705,
+      "wallMs": 13.599941000000172,
+      "rssMb": 11.04296875,
+      "wallIqrMs": 4.2212320000001
+    },
+    {
+      "case": "31_string_array",
+      "target": "js-module",
+      "firstArtifactMs": 2.74801,
+      "wallMs": 13.416545000000042,
+      "rssMb": 11.140625,
+      "wallIqrMs": 6.593900000000076
+    },
+    {
+      "case": "32_boolean_logic",
+      "target": "js-module",
+      "firstArtifactMs": 2.347443,
+      "wallMs": 8.602278999999953,
+      "rssMb": 10.88671875,
+      "wallIqrMs": 2.5053689999999733
+    },
+    {
+      "case": "33_algorithms",
+      "target": "js-module",
+      "firstArtifactMs": 4.75649,
+      "wallMs": 11.48376700000017,
+      "rssMb": 11.359375,
+      "wallIqrMs": 7.274508999999853
+    },
+    {
+      "case": "37_named_function_callback",
+      "target": "js-module",
+      "firstArtifactMs": 3.033394,
+      "wallMs": 11.00061699999992,
+      "rssMb": 11.18359375,
+      "wallIqrMs": 4.481764999999996
+    },
+    {
+      "case": "38_contextual_from",
+      "target": "js-module",
+      "firstArtifactMs": 2.293001,
+      "wallMs": 9.130396999999903,
+      "rssMb": 11.05078125,
+      "wallIqrMs": 4.293610000000172
+    },
+    {
+      "case": "39_function_array",
+      "target": "js-module",
+      "firstArtifactMs": 2.933266,
+      "wallMs": 7.777088999999933,
+      "rssMb": 11.40625,
+      "wallIqrMs": 4.027137999999923
+    },
+    {
+      "case": "closure_factory_variant",
+      "target": "js-module",
+      "firstArtifactMs": 6.675496,
+      "wallMs": 14.875821999999971,
+      "rssMb": 11.54296875,
+      "wallIqrMs": 2.4667709999998806
+    },
+    {
+      "case": "deferred_aggregate_values",
+      "target": "js-module",
+      "firstArtifactMs": 3.285544,
+      "wallMs": 12.269105999999738,
+      "rssMb": 11.25390625,
+      "wallIqrMs": 4.309014999999363
+    },
+    {
+      "case": "function_subsumption",
+      "target": "js-module",
+      "firstArtifactMs": 5.81387,
+      "wallMs": 14.846330999999736,
+      "rssMb": 11.4609375,
+      "wallIqrMs": 7.544652999999926
+    },
+    {
+      "case": "integer_multiplication",
+      "target": "js-module",
+      "firstArtifactMs": 3.147617,
+      "wallMs": 9.895504000000074,
+      "rssMb": 11.15234375,
+      "wallIqrMs": 2.1027650000000904
+    },
+    {
+      "case": "integer_range_elision",
+      "target": "js-module",
+      "firstArtifactMs": 2.688609,
+      "wallMs": 8.81215199999997,
+      "rssMb": 11.01171875,
+      "wallIqrMs": 7.801782999999432
+    },
+    {
+      "case": "interprocedural_array_length",
+      "target": "js-module",
+      "firstArtifactMs": 2.611615,
+      "wallMs": 12.626668999999765,
+      "rssMb": 11.125,
+      "wallIqrMs": 5.281511999999566
+    },
+    {
+      "case": "interprocedural_finite_values",
+      "target": "js-module",
+      "firstArtifactMs": 5.36704,
+      "wallMs": 13.616982000000007,
+      "rssMb": 11.26953125,
+      "wallIqrMs": 4.752348999999867
+    },
+    {
+      "case": "interprocedural_values",
+      "target": "js-module",
+      "firstArtifactMs": 3.46004,
+      "wallMs": 9.498662999999851,
+      "rssMb": 11.30078125,
+      "wallIqrMs": 3.5326829999999063
+    },
+    {
+      "case": "ir_inlining_variant",
+      "target": "js-module",
+      "firstArtifactMs": 3.122339,
+      "wallMs": 8.856825999999728,
+      "rssMb": 11.14453125,
+      "wallIqrMs": 0.4361340000000382
+    },
+    {
+      "case": "loop_carried_early_return",
+      "target": "js-module",
+      "firstArtifactMs": 3.764719,
+      "wallMs": 16.27036599999974,
+      "rssMb": 11.39453125,
+      "wallIqrMs": 2.5287130000001525
+    },
+    {
+      "case": "nested_short_circuit",
+      "target": "js-module",
+      "firstArtifactMs": 4.757151,
+      "wallMs": 13.204412000000048,
+      "rssMb": 11.17578125,
+      "wallIqrMs": 6.505813999999646
+    },
+    {
+      "case": "string_code_units",
+      "target": "js-module",
+      "firstArtifactMs": 5.67282,
+      "wallMs": 12.086133999999674,
+      "rssMb": 11.4140625,
+      "wallIqrMs": 2.5805899999995745
+    },
+    {
+      "case": "01_constants",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 7.673340999999709,
+      "rssMb": 8.7578125,
+      "wallIqrMs": 1.9299150000001646
+    },
+    {
+      "case": "02_algebraic",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 10.922814000000017,
+      "rssMb": 9.0390625,
+      "wallIqrMs": 4.7177160000001095
+    },
+    {
+      "case": "04_while",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 10.981579000000238,
+      "rssMb": 9.015625,
+      "wallIqrMs": 6.147245999999541
+    },
+    {
+      "case": "05_for_control",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 5.690203999999994,
+      "rssMb": 8.88671875,
+      "wallIqrMs": 5.182556000000204
+    },
+    {
+      "case": "07_deep_functions",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 10.15518400000019,
+      "rssMb": 9.03125,
+      "wallIqrMs": 1.3564769999998134
+    },
+    {
+      "case": "08_recursion",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 11.324941000000308,
+      "rssMb": 9.05859375,
+      "wallIqrMs": 2.8502880000000914
+    },
+    {
+      "case": "09_closure_capture",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 7.786700999999994,
+      "rssMb": 9.05078125,
+      "wallIqrMs": 2.501980999999887
+    },
+    {
+      "case": "10_function_value",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 5.665226999999959,
+      "rssMb": 9.03125,
+      "wallIqrMs": 0.6079949999998462
+    },
+    {
+      "case": "17_struct",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 5.928139999999985,
+      "rssMb": 8.984375,
+      "wallIqrMs": 0.7196360000002642
+    },
+    {
+      "case": "18_nested_struct",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 10.878412000000026,
+      "rssMb": 9.0078125,
+      "wallIqrMs": 4.625704999999925
+    },
+    {
+      "case": "22_shadowing",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.311163999999735,
+      "rssMb": 8.88671875,
+      "wallIqrMs": 2.1415459999998347
+    },
+    {
+      "case": "25_nested_control",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.525814999999966,
+      "rssMb": 9.0703125,
+      "wallIqrMs": 1.8002739999997175
+    },
+    {
+      "case": "28_integer_zero_division",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 5.8097569999999905,
+      "rssMb": 9.16015625,
+      "wallIqrMs": 1.206938999999693
+    },
+    {
+      "case": "30_dead_code",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.202944000000116,
+      "rssMb": 8.88671875,
+      "wallIqrMs": 1.769532000000254
+    },
+    {
+      "case": "32_boolean_logic",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.82936399999926,
+      "rssMb": 9.08984375,
+      "wallIqrMs": 4.676390999999967
+    },
+    {
+      "case": "33_algorithms",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.12375399999928,
+      "rssMb": 9.20703125,
+      "wallIqrMs": 1.2629280000001017
+    },
+    {
+      "case": "37_named_function_callback",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.47360000000026,
+      "rssMb": 9.1953125,
+      "wallIqrMs": 1.7042090000004464
+    },
+    {
+      "case": "38_contextual_from",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 9.0174820000002,
+      "rssMb": 8.89453125,
+      "wallIqrMs": 0.9187429999992673
+    },
+    {
+      "case": "closure_factory_variant",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 7.320657999999639,
+      "rssMb": 9.3828125,
+      "wallIqrMs": 7.577272000000448
+    },
+    {
+      "case": "function_subsumption",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 11.47994800000015,
+      "rssMb": 9.41015625,
+      "wallIqrMs": 3.6450800000002346
+    },
+    {
+      "case": "interprocedural_values",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.213459000000512,
+      "rssMb": 9,
+      "wallIqrMs": 4.756083000000217
+    },
+    {
+      "case": "loop_carried_early_return",
+      "target": "c",
+      "firstArtifactMs": null,
+      "wallMs": 8.167924000000312,
+      "rssMb": 9.1484375,
+      "wallIqrMs": 4.650677999999971
+    }
+  ],
+  "passed": true,
+  "fingerprint": "d61785d00459347b8a9591882e9c8ad8882e2524d62de7f465e75c576a811d35"
+}

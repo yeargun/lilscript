@@ -1,0 +1,4 @@
+
+> playcanvaslil@0.1.0 test:differential
+> node src/shader-processing/shader-processor-glsl.differential.mjs && node src/shader-processing/shader-definition-utils.differential.mjs
+

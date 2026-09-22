@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "kind": "inventory-verification-batch",
+  "runId": "2026-09-21-inventory-verification",
+  "results": [
+    {
+      "library": "hast-util-to-htmllil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "jquerylil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "katexlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "markedlil",
+      "status": "not-verifiable-here",
+      "reason": "inventory kind required-node-case-inventory"
+    },
+    {
+      "library": "mdast-util-to-hastlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "micromarklil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "motionlil",
+      "status": "drifted",
+      "appeared": 0,
+      "disappeared": 2,
+      "suitePassed": true
+    },
+    {
+      "library": "posthoglil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "rehype-katexlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "rehype-stringifylil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "rehypelil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "remark-breakslil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "remark-gfmlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "remark-mathlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "remark-rehypelil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "solidlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    },
+    {
+      "library": "unifiedlil",
+      "status": "verified",
+      "appeared": 0,
+      "disappeared": 0,
+      "suitePassed": true
+    }
+  ]
+}

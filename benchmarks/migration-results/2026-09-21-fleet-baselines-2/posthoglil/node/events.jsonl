@@ -1,0 +1,37 @@
+{"kind":"test-case","id":"[\"test/api.test.mjs\",85,3,1,\"test\",\"keeps every public kernel name exact in the compiler output\",1]","file":"test/api.test.mjs","name":"keeps every public kernel name exact in the compiler output","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",92,3,1,\"test\",\"exposes the same named surface as default\",1]","file":"test/api.test.mjs","name":"exposes the same named surface as default","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",84,1,0,\"suite\",\"@itslil/posthog-js JS library API\",1]","file":"test/api.test.mjs","name":"@itslil/posthog-js JS library API","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",24,3,1,\"test\",\"parses the official hyphenated, hex, brace, and urn forms\",1]","file":"test/compat.test.mjs","name":"parses the official hyphenated, hex, brace, and urn forms","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",37,3,1,\"test\",\"matches official fromFieldsV7\",1]","file":"test/compat.test.mjs","name":"matches official fromFieldsV7","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",44,3,1,\"test\",\"generates version-7 and version-4 strings\",1]","file":"test/compat.test.mjs","name":"generates version-7 and version-4 strings","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",23,1,0,\"suite\",\"uuid\",1]","file":"test/compat.test.mjs","name":"uuid","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",84,3,1,\"test\",\"normalizes v2 flags the same way\",1]","file":"test/compat.test.mjs","name":"normalizes v2 flags the same way","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",88,3,1,\"test\",\"normalizes v1 flags the same way\",1]","file":"test/compat.test.mjs","name":"normalizes v1 flags the same way","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",100,3,1,\"test\",\"minimizes $feature_flag_called properties from the same allowlist\",1]","file":"test/compat.test.mjs","name":"minimizes $feature_flag_called properties from the same allowlist","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",54,1,0,\"suite\",\"feature flags\",1]","file":"test/compat.test.mjs","name":"feature flags","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",118,3,1,\"test\",\"sanitizes cookie names\",1]","file":"test/compat.test.mjs","name":"sanitizes cookie names","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",124,3,1,\"test\",\"parses official cookie fixtures\",1]","file":"test/compat.test.mjs","name":"parses official cookie fixtures","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",141,3,1,\"test\",\"roundtrips serialize → parse as anonymous\",1]","file":"test/compat.test.mjs","name":"roundtrips serialize → parse as anonymous","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",149,3,1,\"test\",\"reads cookies from a header store\",1]","file":"test/compat.test.mjs","name":"reads cookies from a header store","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",155,3,1,\"test\",\"matches consent cookie names and opt-out\",1]","file":"test/compat.test.mjs","name":"matches consent cookie names and opt-out","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",117,1,0,\"suite\",\"cookies and consent\",1]","file":"test/compat.test.mjs","name":"cookies and consent","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",169,3,1,\"test\",\"routes US, EU, custom, and app hosts\",1]","file":"test/compat.test.mjs","name":"routes US, EU, custom, and app hosts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",188,3,1,\"test\",\"matches the token-bucket updates\",1]","file":"test/compat.test.mjs","name":"matches the token-bucket updates","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",197,3,1,\"test\",\"batches, offsets, and sorts unload requests\",1]","file":"test/compat.test.mjs","name":"batches, offsets, and sorts unload requests","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",168,1,0,\"suite\",\"router, rate limit, queue\",1]","file":"test/compat.test.mjs","name":"router, rate limit, queue","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",218,3,1,\"test\",\"matches the default blocked UA list and lookups\",1]","file":"test/compat.test.mjs","name":"matches the default blocked UA list and lookups","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",217,1,0,\"suite\",\"bot detection\",1]","file":"test/compat.test.mjs","name":"bot detection","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",245,3,1,\"test\",\"matches string helpers and person-property hashes\",1]","file":"test/compat.test.mjs","name":"matches string helpers and person-property hashes","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",264,3,1,\"test\",\"matches clamp, remote config, and sample-rate checks\",1]","file":"test/compat.test.mjs","name":"matches clamp, remote config, and sample-rate checks","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",304,3,1,\"test\",\"matches portable type, json, and url helpers\",1]","file":"test/compat.test.mjs","name":"matches portable type, json, and url helpers","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",244,1,0,\"suite\",\"strings, numbers, types, json, url\",1]","file":"test/compat.test.mjs","name":"strings, numbers, types, json, url","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",337,3,1,\"test\",\"resolves config and consumes tokens the same way\",1]","file":"test/compat.test.mjs","name":"resolves config and consumes tokens the same way","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",336,1,0,\"suite\",\"bucketed rate limiter\",1]","file":"test/compat.test.mjs","name":"bucketed rate limiter","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 21"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 8"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 21"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 150.026482"}

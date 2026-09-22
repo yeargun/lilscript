@@ -97,6 +97,20 @@ pub static CODEC: Bucket = Bucket::new("codec");
 pub static ANALYZE: Bucket = Bucket::new("analyze");
 /// IR to JavaScript text, including the inline text folds that follow it.
 pub static EMIT: Bucket = Bucket::new("emit");
+/// Semantic JS and target phases. These scopes count attempts, including
+/// refusal/unwind. Times are accumulated elapsed durations, not process CPU.
+/// Naming includes lazy scoped-name preparation; byte totals are not defined.
+pub static JS_DEMAND: Bucket = Bucket::new("js_demand");
+pub static JS_FORMATION: Bucket = Bucket::new("js_formation");
+pub static TARGET_VERIFY: Bucket = Bucket::new("target_verify");
+pub static TARGET_EDITION: Bucket = Bucket::new("target_edition");
+pub static TARGET_BASIS: Bucket = Bucket::new("target_basis");
+pub static TARGET_NAMES: Bucket = Bucket::new("target_names");
+pub static TARGET_PRINT: Bucket = Bucket::new("target_print");
+/// Common admitted encoder attempts, including inspection and legacy callers.
+/// These can overlap the legacy CODEC bucket; raw measurement is excluded.
+pub static CANONICAL_GZIP: Bucket = Bucket::new("canonical_gzip");
+pub static CANONICAL_BROTLI: Bucket = Bucket::new("canonical_brotli");
 /// The parsed peephole over already-emitted JavaScript.
 pub static PEEPHOLE: Bucket = Bucket::new("peephole");
 /// Terminal cleanup passes over already-emitted JavaScript.
@@ -197,6 +211,17 @@ const BYTE_BUCKETS: [&Bucket; 16] = [
     &ACTIVE_FOLD,
 ];
 const ITERATION_BUCKETS: [&Bucket; 2] = [&SCALAR_FIXPOINT, &INLINE_FIXPOINT];
+const PHASE_BUCKETS: [&Bucket; 9] = [
+    &JS_DEMAND,
+    &JS_FORMATION,
+    &TARGET_VERIFY,
+    &TARGET_EDITION,
+    &TARGET_BASIS,
+    &TARGET_NAMES,
+    &TARGET_PRINT,
+    &CANONICAL_GZIP,
+    &CANONICAL_BROTLI,
+];
 /// Deterministic event counters, reported as `<name>` (events) and
 /// `<name>_sum`.
 const EVENT_BUCKETS: [&Bucket; 27] = [
@@ -292,8 +317,8 @@ pub fn idle_fold_report(limit: usize) -> Option<String> {
 }
 
 /// Render the telemetry as one JSON object, or `None` when the caller did not
-/// ask for it. CPU columns are summed across Rayon workers, so they can exceed
-/// wall clock on a parallel search.
+/// ask for it. Durations accumulate elapsed scopes, including overlapping work
+/// across Rayon workers, so they are neither additive wall time nor process CPU.
 pub fn report(wall_nanos: u128) -> Option<String> {
     if !enabled() {
         return None;
@@ -316,6 +341,14 @@ pub fn report(wall_nanos: u128) -> Option<String> {
             ms = nanos as f64 / 1.0e6,
         ));
     }
+    for bucket in PHASE_BUCKETS {
+        let (nanos, calls, _) = bucket.snapshot();
+        out.push_str(&format!(
+            r#","{name}_ms":{ms:.3},"{name}_calls":{calls}"#,
+            name = bucket.name,
+            ms = nanos as f64 / 1.0e6,
+        ));
+    }
     for bucket in EVENT_BUCKETS {
         let (_, calls, sum) = bucket.snapshot();
         out.push_str(&format!(
@@ -329,3 +362,7 @@ pub fn report(wall_nanos: u128) -> Option<String> {
     ));
     Some(out)
 }
+
+#[cfg(test)]
+#[path = "timing_tests.rs"]
+mod tests;

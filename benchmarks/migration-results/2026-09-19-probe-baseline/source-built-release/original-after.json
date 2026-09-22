@@ -1,0 +1,76 @@
+{
+  "root": "/home/azureuser/probelil",
+  "files": [
+    {
+      "path": ".gitignore",
+      "kind": "file",
+      "executable": false,
+      "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+      "bytes": 20
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+      "bytes": 908
+    },
+    {
+      "path": "dist/probe.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f2d2dcfef53e520cc464ada0c653ec51ae8c47c263fa220e34c9be3b680d99ad",
+      "bytes": 3780
+    },
+    {
+      "path": "dist/probe.none.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0a7a7ce67f361a8986546d1ffeb5b566ed58a18edd66a7bcf117dab44b02a75b",
+      "bytes": 7049
+    },
+    {
+      "path": "dist/run.cjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f035a3b2b410814f8f2cdaf17f6ef7307c5b2011548a03981996419b4cbd7129",
+      "bytes": 70
+    },
+    {
+      "path": "expected.out",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+      "bytes": 136
+    },
+    {
+      "path": "lilscript.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+      "bytes": 958
+    },
+    {
+      "path": "scripts/build.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+      "bytes": 4311
+    },
+    {
+      "path": "scripts/configs.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+      "bytes": 5251
+    },
+    {
+      "path": "src/probe.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+      "bytes": 15299
+    }
+  ],
+  "sha256": "3b94a3a5c095cd96bdc1b27d39630e66346b5332b840d11e0473b014700a12cf"
+}

@@ -1,0 +1,224 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-jquery-inventory-discovery",
+  "started": "2026-09-19T20:52:06.295Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "boundsMs": {
+    "externalSupervisor": 90000,
+    "sharedAttempt": 90000,
+    "nodeSuiteCeiling": 90000
+  },
+  "originalCommand": "node --test test/compat.test.mjs",
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": ""
+    },
+    "otherwise": "inherited; no npm command or package installation executes"
+  },
+  "limitations": [
+    "Existing distribution only; no compiler execution, source-built qualification, canonical size replay or new runtime assertions.",
+    "The original test loads candidate dist/jquery.esm.js and dist/jquery.cjs. Installed jquery@3.7.1 supplies separate expected observations, not the candidate implementation.",
+    "Candidate ESM has the original behavioral checks. The original CommonJS check observes version and export aliases; it is not a full CJS behavioral suite or installed-package consumer.",
+    "JSDOM executes the original DOM tests in Node, not a real browser. UMD/browser, declaration checking, check:names, check:pack, and check:site remain outside this original npm-test selection.",
+    "No prerequisite is declared by original npm test; no closed artifact exists. No npm command executes, so no global npm runtime is attributed to this discovery.",
+    "Source, complete installed project dependencies including symlink destinations, Node and observer tools are pinned; OS libraries and the whole host environment are not hermetic.",
+    "The historical name_ordering configuration is preserved unchanged. Existing-dist results do not establish compatibility with a current compiler or the narrower two-invocation typed-library qualification recipe."
+  ],
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/existing-dist/node/report.json",
+    "sha256": "84ac3f585b27e7525bd5713fc295b7fe729dd0bc9e2a00b0a9fdfea57b53585e",
+    "bytes": 7636
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "exports the 3.7.1 surface",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches core utilities",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "matches Deferred resolve/reject",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "renders callback changes through the same public tween instance",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "ships the compiler-selected compact ESM, not a pretty-printed wrapper",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "loads from CommonJS",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "selects, classes, and events",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]",
+      "file": "test/compat.test.mjs",
+      "name": "@itslil/jquery vs jquery@3.7.1",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 2494.762937,
+  "completed": "2026-09-19T20:52:08.790Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "94040c92c5e02d391bd1fd0e743238442609c62c580f95f98f8164417003f960",
+      "bytes": 513812
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "94040c92c5e02d391bd1fd0e743238442609c62c580f95f98f8164417003f960",
+      "bytes": 513812
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3e68bf0ca5a9a5d723ea031857bac539c2dd010974ec5d467836fc8fd4a7a788",
+      "bytes": 692
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9550a008dd4c120622e3bdc39c7a1c58de2f9d052b9811ec118050c481d48751",
+      "bytes": 7876
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "19488290580c229ca991ab1f3f4a8eb029ab7d943c0f9599a60d9f6afb0ad9d5",
+      "bytes": 2427
+    },
+    {
+      "path": "node/loaded/1293207-0ba53c0c-3a6d-49df-933a-a016a0b5a2c8.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9c965c6cd4584d98871fdc1378ef058f85c4f2e973f88ff30f5696c6b8101202",
+      "bytes": 281
+    },
+    {
+      "path": "node/loaded/1293207-b3f52568-5beb-482c-90bb-1b3a812f747f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "690466b33bf13dd7fc848525c98abb5b078e7e3a35e7a1ccac1276abeb472cb5",
+      "bytes": 277
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "23c5d1284c4e677ae41d0a9873470a8f0ebc46f44e05fc68da4a304f6ab3d1b1",
+      "bytes": 359
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "84ac3f585b27e7525bd5713fc295b7fe729dd0bc9e2a00b0a9fdfea57b53585e",
+      "bytes": 7636
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

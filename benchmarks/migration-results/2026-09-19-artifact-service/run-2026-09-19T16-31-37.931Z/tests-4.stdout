@@ -1,0 +1,17 @@
+
+running 12 tests
+test semantic_program::publication::rewrites::tests::checked_fold_rejects_wrong_result_rule_version_dependencies_and_policy ... ok
+test semantic_program::publication::rewrites::tests::fold_proofs_are_owner_and_snapshot_bound_without_invalidating_live_parent_proofs ... ok
+test semantic_program::publication::rewrites::tests::native_formation_cannot_erase_checked_fold_permission ... ok
+test semantic_program::publication::rewrites::tests::folding_permission_survives_original_literal_output_source_edits_and_artifact_retention ... ok
+test semantic_program::publication::rewrites::tests::refused_fold_work_memory_and_slots_preserve_source_and_resource_accounting ... ok
+test semantic_program::publication::rewrites::tests::equivalent_snapshots_keep_distinct_recipe_identity_but_share_checked_baseline_meaning ... ok
+test semantic_program::publication::rewrites::tests::integer_annotations_do_not_authorize_literal_folding_or_erase_raw_js_coercions ... ok
+test semantic_program::publication::rewrites::tests::source_change_can_replace_seven_with_nine_but_cannot_claim_equivalence ... ok
+test semantic_program::publication::rewrites::tests::literal_integer_fold_preserves_parent_and_freshens_only_changed_unit_facts ... ok
+test semantic_program::publication::rewrites::tests::checked_fold_unwind_and_deadline_restore_parent_indices_identities_and_artifacts ... ok
+test semantic_program::publication::rewrites::tests::literal_integer_fold_matches_i32_contract_and_independent_javascript_execution ... ok
+test semantic_program::publication::rewrites::tests::checked_integer_folds_preserve_native_overflow_division_and_binary64_multiplication ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 2831 filtered out; finished in 1.22s
+

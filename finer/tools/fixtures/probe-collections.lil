@@ -1,0 +1,14 @@
+extern int read();
+int collections(int seed) {
+  Map<string, int> map = new Map<string, int>();
+  map.set("a", seed);
+  map.set("b", seed * 2);
+  Set<int> set = new Set<int>();
+  set.add(seed);
+  set.add(seed);
+  set.add(seed + 1);
+  int total = map.size + set.size;
+  if (map.has("a")) { total += map.get("a") ?? 0; }
+  return total;
+}
+print(collections(read()));print(collections(0));print(collections(-3));

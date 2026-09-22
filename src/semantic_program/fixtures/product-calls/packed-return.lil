@@ -1,0 +1,10 @@
+struct Pair { int x; int y; }
+Pair step(Pair local, int delta) {
+    Pair saved=local;
+    local.x+=delta;
+    return saved;
+}
+Pair state=Pair{1,2};
+Pair result=step(state,5);
+result.y=9;
+print(result.x);print(result.y);print(state.x);print(state.y);

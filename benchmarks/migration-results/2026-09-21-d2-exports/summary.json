@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "kind": "source-baseline-batch",
+  "runId": "2026-09-21-d2-exports",
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/5e5232c0cd29305a227793f1989da83203e013283bf0584b5d5488791ce1e2f2/lilscript",
+    "sha256": "5e5232c0cd29305a227793f1989da83203e013283bf0584b5d5488791ce1e2f2",
+    "bytes": 17913040,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "started": "2026-09-21T11:18:52.445Z",
+  "qualified": [
+    {
+      "library": "hast-util-to-htmllil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 1.017,
+      "artifacts": 5,
+      "cases": {
+        "required": 460,
+        "executed": 460,
+        "failed": []
+      },
+      "measurements": {
+        "dist/to-html.cjs": {
+          "raw": 31118,
+          "gzip": 10269,
+          "brotli": 9120
+        },
+        "dist/to-html.closed.js": {
+          "raw": 29960,
+          "gzip": 9822,
+          "brotli": 8670
+        },
+        "dist/to-html.esm.js": {
+          "raw": 30109,
+          "gzip": 9976,
+          "brotli": 8816
+        },
+        "dist/to-html.raw.js": {
+          "raw": 30013,
+          "gzip": 9908,
+          "brotli": 8748
+        },
+        "dist/to-html.umd.js": {
+          "raw": 31189,
+          "gzip": 10296,
+          "brotli": 9126
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "mdast-util-to-hastlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 50.533,
+      "artifacts": 5,
+      "cases": {
+        "required": 152,
+        "executed": 152,
+        "failed": []
+      },
+      "measurements": {
+        "dist/to-hast.cjs": {
+          "raw": 14852,
+          "gzip": 5465,
+          "brotli": 4927
+        },
+        "dist/to-hast.closed.js": {
+          "raw": 14507,
+          "gzip": 5347,
+          "brotli": 4849
+        },
+        "dist/to-hast.esm.js": {
+          "raw": 13446,
+          "gzip": 4806,
+          "brotli": 4297
+        },
+        "dist/to-hast.raw.js": {
+          "raw": 13347,
+          "gzip": 4736,
+          "brotli": 4221
+        },
+        "dist/to-hast.umd.js": {
+          "raw": 14923,
+          "gzip": 5494,
+          "brotli": 4951
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    }
+  ],
+  "unqualified": [],
+  "completed": "2026-09-21T11:19:50.377Z"
+}

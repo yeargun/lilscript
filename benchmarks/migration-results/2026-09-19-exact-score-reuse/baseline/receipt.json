@@ -1,0 +1,658 @@
+{
+  "schemaVersion": 1,
+  "kind": "focused-search-baseline-replay",
+  "status": "passed",
+  "runtime": {
+    "version": "v24.11.1",
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "baselineBinary": {
+    "path": "/tmp/lilscript-search-baseline-20260919/baseline-test-binary",
+    "sha256": "ee469d7176533a075ee7b4ee48696cb4f624567955a386232f639339cc4976ed",
+    "bytes": 381962400,
+    "profile": {
+      "debug_assertions": true,
+      "debuginfo": 2,
+      "opt_level": "0",
+      "overflow_checks": true,
+      "test": true
+    }
+  },
+  "codeIdentity": {
+    "sourcePin": "source-pin.json",
+    "buildEvidence": "build-evidence.json",
+    "verifiedSourceFileCount": 976
+  },
+  "historicalBuild": {
+    "command": [
+      "cargo",
+      "test",
+      "--all-targets",
+      "--no-run",
+      "--message-format=json-render-diagnostics"
+    ],
+    "cwd": "/home/azureuser/lilscript",
+    "environmentOverrides": {
+      "CARGO_TARGET_DIR": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3",
+      "CARGO_TERM_COLOR": "never",
+      "LILSCRIPT_NATIVE_CC": "/usr/bin/cc",
+      "LILSCRIPT_NATIVE_CLANG": "/tmp/lilscript-native-core-20260913/toolchain/root/usr/bin/clang-18",
+      "RUST_BACKTRACE": "0"
+    }
+  },
+  "tests": [
+    {
+      "name": "twelve-state",
+      "cwd": "/home/azureuser/lilscript",
+      "executable": "/tmp/lilscript-search-baseline-20260919/baseline-test-binary",
+      "arguments": [
+        "--exact",
+        "semantic_program::search_tests::structural_discovery_matches_independent_twelve_state_oracle_and_measured_union",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "command": [
+        "env",
+        "PATH=/home/azureuser/.nvm/versions/node/v24.11.1/bin:$PATH",
+        "/usr/bin/time",
+        "-f",
+        "wall_seconds=%e user_seconds=%U system_seconds=%S max_rss_kib=%M",
+        "-o",
+        "/tmp/lilscript-search-baseline-20260919/twelve-state.time",
+        "/tmp/lilscript-search-baseline-20260919/baseline-test-binary",
+        "--exact",
+        "semantic_program::search_tests::structural_discovery_matches_independent_twelve_state_oracle_and_measured_union",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "shellExpansion": "The invoking bash shell expanded $PATH from the existing environment. Node 24.11.1 was prepended; the remaining inherited PATH was not archived.",
+      "stdoutAndStderr": {
+        "originalPath": "/tmp/lilscript-search-baseline-20260919/twelve-state.log",
+        "archive": "twelve-state.log",
+        "shellRedirection": "> /tmp/lilscript-search-baseline-20260919/twelve-state.log 2>&1"
+      },
+      "exitCode": 0,
+      "result": {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 2691,
+        "libtestElapsedSeconds": 1.53
+      },
+      "time": {
+        "wall_seconds": 1.53,
+        "user_seconds": 1.18,
+        "system_seconds": 0.36,
+        "max_rss_kib": 46964
+      },
+      "selectedTests": [
+        "semantic_program::search_tests::structural_discovery_matches_independent_twelve_state_oracle_and_measured_union"
+      ]
+    },
+    {
+      "name": "staged",
+      "cwd": "/home/azureuser/lilscript",
+      "executable": "/tmp/lilscript-search-baseline-20260919/baseline-test-binary",
+      "arguments": [
+        "semantic_program::search_staged_tests::",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "command": [
+        "env",
+        "PATH=/home/azureuser/.nvm/versions/node/v24.11.1/bin:$PATH",
+        "/usr/bin/time",
+        "-f",
+        "wall_seconds=%e user_seconds=%U system_seconds=%S max_rss_kib=%M",
+        "-o",
+        "/tmp/lilscript-search-baseline-20260919/staged.time",
+        "/tmp/lilscript-search-baseline-20260919/baseline-test-binary",
+        "semantic_program::search_staged_tests::",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "shellExpansion": "The invoking bash shell expanded $PATH from the existing environment. Node 24.11.1 was prepended; the remaining inherited PATH was not archived.",
+      "stdoutAndStderr": {
+        "originalPath": "/tmp/lilscript-search-baseline-20260919/staged.log",
+        "archive": "staged.log",
+        "shellRedirection": "> /tmp/lilscript-search-baseline-20260919/staged.log 2>&1"
+      },
+      "exitCode": 0,
+      "result": {
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filteredOut": 2687,
+        "libtestElapsedSeconds": 2.29
+      },
+      "time": {
+        "wall_seconds": 2.28,
+        "user_seconds": 1.95,
+        "system_seconds": 0.36,
+        "max_rss_kib": 46896
+      },
+      "selectedTests": [
+        "semantic_program::search_staged_tests::finite_factory_union_and_exact_winners_match_immediate_and_staged_schedules",
+        "semantic_program::search_staged_tests::fixed_schedule_probe_prefixes_are_deterministic_and_additional_probes_do_not_regress",
+        "semantic_program::search_staged_tests::queue_pressure_scores_an_old_trial_without_losing_the_incoming_trial",
+        "semantic_program::search_staged_tests::raw_only_search_bypasses_the_codec_queue_under_both_schedules",
+        "semantic_program::search_staged_tests::requested_codecs_keep_separate_winners_and_diversity_reaches_a_real_raw_loser"
+      ]
+    }
+  ],
+  "observations": {
+    "factoryOracle": {
+      "case": "factory",
+      "proposals": 35,
+      "proof_queries": 9,
+      "unknown_proofs": 5,
+      "truncated_proofs": 0,
+      "inventory_truncated": false,
+      "conflicting_choices": 4,
+      "duplicate_states": 0,
+      "structures": 12,
+      "renders": 36,
+      "codec_probes": 70,
+      "admitted_artifacts": 36,
+      "beam_evictions": 0,
+      "stop": null,
+      "best_sizes": [
+        205,
+        159,
+        124
+      ],
+      "measured_count": 36,
+      "unique_recipe_hash_count": 12,
+      "brotli_naming_literal_local_minimum": {
+        "base": 143,
+        "literal_only": 144,
+        "naming_only": 144,
+        "combined": 142
+      }
+    },
+    "completeScheduleComparisons": [
+      {
+        "fixture": "Factory",
+        "schedule": "Immediate",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 384,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 35,
+        "structures": 12,
+        "renders": 36,
+        "optionalCodecProbes": 70,
+        "measuredCount": 36,
+        "queuedArtifacts": 0,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 9534156,
+        "peakRetainedBytes": 4027064,
+        "searchElapsedSeconds": 0.125945035,
+        "stopped": null
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 384,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 35,
+        "structures": 12,
+        "renders": 36,
+        "optionalCodecProbes": 70,
+        "measuredCount": 36,
+        "queuedArtifacts": 35,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 9541882,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.123803435,
+        "stopped": null
+      }
+    ],
+    "fixedScheduleProbeCurve": [
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 0,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 0,
+        "structures": 1,
+        "renders": 1,
+        "optionalCodecProbes": 0,
+        "measuredCount": 1,
+        "queuedArtifacts": 0,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          293,
+          202,
+          162
+        ],
+        "optionalLogicalWork": 0,
+        "peakRetainedBytes": 2783788,
+        "searchElapsedSeconds": 0.00427532,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 1,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 0,
+        "structures": 1,
+        "renders": 1,
+        "optionalCodecProbes": 0,
+        "measuredCount": 1,
+        "queuedArtifacts": 0,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          293,
+          202,
+          162
+        ],
+        "optionalLogicalWork": 0,
+        "peakRetainedBytes": 2783788,
+        "searchElapsedSeconds": 0.004311198,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 2,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 8,
+        "structures": 3,
+        "renders": 9,
+        "optionalCodecProbes": 2,
+        "measuredCount": 2,
+        "queuedArtifacts": 8,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          209,
+          163,
+          129
+        ],
+        "optionalLogicalWork": 298618,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.011462546,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 4,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 17,
+        "structures": 6,
+        "renders": 18,
+        "optionalCodecProbes": 4,
+        "measuredCount": 3,
+        "queuedArtifacts": 17,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 599862,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.018158996,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 8,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 26,
+        "structures": 9,
+        "renders": 27,
+        "optionalCodecProbes": 8,
+        "measuredCount": 5,
+        "queuedArtifacts": 26,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 1172275,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.028580268,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 8,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 26,
+        "structures": 9,
+        "renders": 27,
+        "optionalCodecProbes": 8,
+        "measuredCount": 5,
+        "queuedArtifacts": 26,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 1172275,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.031680446,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 16,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 31,
+        "structures": 11,
+        "renders": 32,
+        "optionalCodecProbes": 16,
+        "measuredCount": 9,
+        "queuedArtifacts": 31,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 2268051,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.043555943,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 32,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 35,
+        "structures": 12,
+        "renders": 36,
+        "optionalCodecProbes": 32,
+        "measuredCount": 17,
+        "queuedArtifacts": 35,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 4433563,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.070466716,
+        "stopped": "Limit(CodecProbes)"
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "All",
+        "proposalLimit": 384,
+        "codecProbeLimit": 96,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 35,
+        "structures": 12,
+        "renders": 36,
+        "optionalCodecProbes": 70,
+        "measuredCount": 36,
+        "queuedArtifacts": 35,
+        "baselineSizes": [
+          293,
+          202,
+          162
+        ],
+        "winnerSizes": [
+          205,
+          159,
+          124
+        ],
+        "optionalLogicalWork": 9541882,
+        "peakRetainedBytes": 4027576,
+        "searchElapsedSeconds": 0.123697107,
+        "stopped": null
+      }
+    ],
+    "rawOnly": [
+      {
+        "fixture": "Factory",
+        "schedule": "Immediate",
+        "objectives": "One(Raw)",
+        "proposalLimit": 384,
+        "codecProbeLimit": 0,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 35,
+        "structures": 12,
+        "renders": 36,
+        "optionalCodecProbes": 0,
+        "measuredCount": 36,
+        "queuedArtifacts": 0,
+        "baselineSizes": [
+          293,
+          null,
+          null
+        ],
+        "winnerSizes": [
+          205,
+          null,
+          null
+        ],
+        "optionalLogicalWork": 126173,
+        "peakRetainedBytes": 4025816,
+        "searchElapsedSeconds": 0.023008158,
+        "stopped": null
+      },
+      {
+        "fixture": "Factory",
+        "schedule": "Staged",
+        "objectives": "One(Raw)",
+        "proposalLimit": 384,
+        "codecProbeLimit": 0,
+        "retainedLimit": 24,
+        "renderBatch": 8,
+        "diversityInterval": 4,
+        "proposals": 35,
+        "structures": 12,
+        "renders": 36,
+        "optionalCodecProbes": 0,
+        "measuredCount": 36,
+        "queuedArtifacts": 0,
+        "baselineSizes": [
+          293,
+          null,
+          null
+        ],
+        "winnerSizes": [
+          205,
+          null,
+          null
+        ],
+        "optionalLogicalWork": 126173,
+        "peakRetainedBytes": 4025816,
+        "searchElapsedSeconds": 0.019004234,
+        "stopped": null
+      }
+    ],
+    "rawLargerBrotliWinner": {
+      "fixture": "Factory",
+      "schedule": "Staged",
+      "objectives": "All",
+      "proposalLimit": 384,
+      "codecProbeLimit": 384,
+      "retainedLimit": 24,
+      "renderBatch": 8,
+      "diversityInterval": 1,
+      "proposals": 8,
+      "structures": 3,
+      "renders": 9,
+      "optionalCodecProbes": 16,
+      "measuredCount": 9,
+      "queuedArtifacts": 8,
+      "baselineSizes": [
+        293,
+        202,
+        162
+      ],
+      "winnerSizes": [
+        289,
+        199,
+        155
+      ],
+      "optionalLogicalWork": 2184323,
+      "peakRetainedBytes": 3131751,
+      "searchElapsedSeconds": 0.033357787,
+      "stopped": null,
+      "winnerRawByteLengths": [
+        289,
+        289,
+        297
+      ],
+      "winnerNaming": [
+        "Global",
+        "Scoped",
+        "Scoped"
+      ],
+      "diversityScores": 8
+    }
+  },
+  "limitations": [
+    "Debug test profile with optimization level zero and assertions enabled. These are one-shot diagnostic times, not release compiler speed claims.",
+    "Focused microprogram tests only; no full library suite or fleet replay was performed.",
+    "The naming/string four-point interaction proves that independently worse output choices can combine to win, but it does not prove expansion through a losing structural parent. The literal recipe already improves its parent under its best naming.",
+    "Probe-prefix monotonicity holds for the fixed schedule and unchanged proposal, pool, beam, and other caps used by the test; it is not a claim across all optimization configurations.",
+    "The cached binary was matched to historical build receipts and every source input was verified before implementation. This run did not rebuild the baseline.",
+    "Initial exploratory runs used default Node 20.19.0. Those logs remain in /tmp with -node20 names and are excluded from this evidence. All six archived test results were rerun with pinned Node 24.11.1.",
+    "The complete inherited shell environment was not archived. Explicit runtime selection and the historical build environment are recorded."
+  ],
+  "artifacts": [
+    {
+      "path": "twelve-state.log",
+      "sha256": "e5f3e4372fa19edb5b6f352bbf17f1ecba8f4589c3480756bbee76aca7542554",
+      "bytes": 35845
+    },
+    {
+      "path": "twelve-state.time",
+      "sha256": "d25c686452aa247fcd8e47ec0ecca8e57e2612dc3d1b480ab2104036c3595871",
+      "bytes": 74
+    },
+    {
+      "path": "staged.log",
+      "sha256": "7e6ed4a4b92b1f0d1fafae290ddd49f95633c5bf395ffedbe82145ac0b066c7e",
+      "bytes": 32829
+    },
+    {
+      "path": "staged.time",
+      "sha256": "143b9a3f978fd4c7453e77eac5d4017aaf7ebbd9002e17696e7b73bc0b9f92ca",
+      "bytes": 74
+    },
+    {
+      "path": "source-pin.json",
+      "sha256": "a2c11a0bc11417398d98c413229eeca53ad4422bc4a9f4faac7f6e8004cd4d21",
+      "bytes": 121902
+    },
+    {
+      "path": "build-evidence.json",
+      "sha256": "7083998bade2c44ff0019eeb400ea363afa5132661fa6bc468bb97340fabd861",
+      "bytes": 2883
+    }
+  ]
+}

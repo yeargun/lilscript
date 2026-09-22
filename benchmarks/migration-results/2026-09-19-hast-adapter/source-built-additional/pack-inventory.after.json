@@ -1,0 +1,629 @@
+{
+  "root": "/tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil",
+  "files": [
+    {
+      "path": ".github/workflows/pages.yml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+      "bytes": 887
+    },
+    {
+      "path": ".gitignore",
+      "kind": "file",
+      "executable": false,
+      "sha256": "befbb01e1cafe574986501e54d11bdb193dcd174a9780c9f64434a63ea91f450",
+      "bytes": 63
+    },
+    {
+      "path": "LICENSE",
+      "kind": "file",
+      "executable": false,
+      "sha256": "219c138192de46366164088cc40be8477618d247b9e1262e76014b5fc846f908",
+      "bytes": 1091
+    },
+    {
+      "path": "NOTICE.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "face38b8fb382c576f2276a8719e6bcbe838ba57d00718aad4663240974d7d65",
+      "bytes": 493
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "aeabc8dbb2f7c313f07d2012b964d2bbc642e285794322e58506eb4abf85c062",
+      "bytes": 887
+    },
+    {
+      "path": "_site/.nojekyll",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "_site/app.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "_site/index.html",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5933b7230f67a710670d16eb638b2bcb1afa518dd0f94cad14deb5d9bc43419c",
+      "bytes": 9493
+    },
+    {
+      "path": "_site/official.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6b2f81d4f3d11537eff8afe2d7250bccfb10cef33944365b8104014eb4cf4a7e",
+      "bytes": 58318
+    },
+    {
+      "path": "_site/results.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "87f7b6914a59a32fa1e9cce050e61545d8e4864536871c3f32d9312110a4f900",
+      "bytes": 2582
+    },
+    {
+      "path": "_site/styles.css",
+      "kind": "file",
+      "executable": false,
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "_site/to-html.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.cjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6251b2367acc1a9875fe44fc3ff78cb622056ae1551dbdcfd4d560d4c4e659fb",
+      "bytes": 31100
+    },
+    {
+      "path": "dist/to-html.closed.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5f141aa185acb302fc281e925d79fea6948454cc71e9398d204b34ed65cca82e",
+      "bytes": 29952
+    },
+    {
+      "path": "dist/to-html.d.ts",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da4ddc9d09fff5d40cb628ab4f6b903c118d10a37c72e3bd727783d6f6bc7eef",
+      "bytes": 1005
+    },
+    {
+      "path": "dist/to-html.esm.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+      "bytes": 30101
+    },
+    {
+      "path": "dist/to-html.raw.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "397dd261cec9d981eb18640f260abea7d1a97634de6fd0d7e8c2cc8782f9dea7",
+      "bytes": 30005
+    },
+    {
+      "path": "dist/to-html.umd.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5730dc50aceb38311e0868aa54dd98d4d474e47ba43639eb85d43c1887a36bdf",
+      "bytes": 31171
+    },
+    {
+      "path": "lilscript.closed.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+      "bytes": 407
+    },
+    {
+      "path": "lilscript.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "41ada36aca53e769f897c9fb1dbfefc7061d0eaf2a47b82caa9735f4f6be1d1c",
+      "bytes": 652
+    },
+    {
+      "path": "package-lock.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6e3b95e32c4a23da521f8e5956ff1a89f43bac12e46d1ba6667545e89931f94e",
+      "bytes": 30978
+    },
+    {
+      "path": "package.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fedf6b9138c8512adf5c5dddceca3c0a7f33633be277c2cbfc45766660160df1",
+      "bytes": 1884
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "622dc4bf394e7854a293a48688658bf55c66bb6349c15cbdcac356fe0df850f4",
+      "bytes": 945
+    },
+    {
+      "path": "scripts/build.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2471e7f5eac3bde268172fd1c351968e4f305d4d595bf8448f5df449f6aef7d7",
+      "bytes": 3173
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "57be8787ee3eea3340eb8afdc9f848c57b725039833b5767e0521b33289a76fd",
+      "bytes": 1010
+    },
+    {
+      "path": "scripts/generate-schema.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dbfb2ecf1d36334897f0d739f3382cf30d5cbbfdd6c77703c0fcd1f5719d95d4",
+      "bytes": 1111
+    },
+    {
+      "path": "site/app.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5933b7230f67a710670d16eb638b2bcb1afa518dd0f94cad14deb5d9bc43419c",
+      "bytes": 9493
+    },
+    {
+      "path": "site/official.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6b2f81d4f3d11537eff8afe2d7250bccfb10cef33944365b8104014eb4cf4a7e",
+      "bytes": 58318
+    },
+    {
+      "path": "site/results.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "87f7b6914a59a32fa1e9cce050e61545d8e4864536871c3f32d9312110a4f900",
+      "bytes": 2582
+    },
+    {
+      "path": "site/styles.css",
+      "kind": "file",
+      "executable": false,
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "src/index.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0fa477ec92851ed6e58e8a4cdfdefc64a0d326748ed2542487c47b5bd2fa45d8",
+      "bytes": 164
+    },
+    {
+      "path": "src/lib/entities.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da241d65eb99b3d8116c6ca6372d4708b633d93127e77897f8ec39e5e53eb886",
+      "bytes": 5781
+    },
+    {
+      "path": "src/lib/handle/comment.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c1b705c415968848cd5d2e0c9e1a2403e81e75b19e6213c8b70a67320fb8079",
+      "bytes": 499
+    },
+    {
+      "path": "src/lib/handle/doctype.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a18bff27907fecde3ffd44c6c1adbd2a6513e8e9f0356444aa6c7acc5547f501",
+      "bytes": 339
+    },
+    {
+      "path": "src/lib/handle/element.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f3abf6c3c4bcbeead650d23b02a5e5b6b1b5ba7f5afe0c5848811ad00ddb1c9c",
+      "bytes": 6032
+    },
+    {
+      "path": "src/lib/handle/index.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f8b1a787209af8672c29f01185dd99e6c575e4d4a2abc3a0479bb2b8aef1fb87",
+      "bytes": 1257
+    },
+    {
+      "path": "src/lib/handle/raw.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "68d551152ba36a178112cbf1f397b3e85243377611b6e35e35cd010de9bdc14f",
+      "bytes": 294
+    },
+    {
+      "path": "src/lib/handle/root.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b2ec07dec13d0892da360201fb7ab15d868c6ffcdf9653cbe28e290da3cc9847",
+      "bytes": 181
+    },
+    {
+      "path": "src/lib/handle/text.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3aaabda981f5c88d0d107f90b76f0f314baf7f5320593049019b04c1ff41b100",
+      "bytes": 567
+    },
+    {
+      "path": "src/lib/index.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "26c55ae933415e3b0e0b1a3c677c1680224c6e9833ccab40460468e8f9248856",
+      "bytes": 2486
+    },
+    {
+      "path": "src/lib/omission/closing.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3f6e927f30745ed944c537b23214544f6a4e8be90faed591cde4f23b9fbfcd70",
+      "bytes": 4116
+    },
+    {
+      "path": "src/lib/omission/omission.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "349a475265c135b94e6612b27bee5350c45518162fe86c84ae2555cd738de90f",
+      "bytes": 513
+    },
+    {
+      "path": "src/lib/omission/opening.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b0554c4639e81d743effc460c4e5b5504b96864cd493d583704452e8393be7da",
+      "bytes": 3550
+    },
+    {
+      "path": "src/lib/omission/util/siblings.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f66f24cfed228c58d234253ded8ac3266d36ab866028083cbff806c1cdaa50fe",
+      "bytes": 932
+    },
+    {
+      "path": "src/lib/schema-data.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d8af02546e95f0422caa52f0905cb9fb4fe8bb5138c62ba29f1a16e1536f7ec3",
+      "bytes": 18501
+    },
+    {
+      "path": "src/lib/schema.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0df18e11024aafb9f6bc52eb6b35403299745fd8be29eed15865a0ea5ac67ce3",
+      "bytes": 3621
+    },
+    {
+      "path": "src/lib/types.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "00ef68aa24de78cca81260ca6c375673129e228f40763718bd0fdf2a946b857d",
+      "bytes": 6348
+    },
+    {
+      "path": "test/character-references.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2ab420facfb11298e9e2346c5e574e6e62b1ab30261372bccbf45960d36bc690",
+      "bytes": 3293
+    },
+    {
+      "path": "test/official/attribute.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2ee018f879218f5cc7247346baa64139c910c8bc402f8fcf0f42326ea494d345",
+      "bytes": 44589
+    },
+    {
+      "path": "test/official/comment.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "215406a5e66e24e77616787ae1e315a43417be8836a0017ebe40fef21f74dd4a",
+      "bytes": 1921
+    },
+    {
+      "path": "test/official/core.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0a21f33339389a6c864945f9f5399283b5adad74cf2be5106760a57a5f382abc",
+      "bytes": 1103
+    },
+    {
+      "path": "test/official/doctype.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af911d6ee122d35c39a4496b5f56586cbb150bb71720cac07c46ee8b93ae81ac",
+      "bytes": 758
+    },
+    {
+      "path": "test/official/element.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3c9632b2ea2a0119947758bc68969a9ed69bff083b3719bb8e9a37404567671e",
+      "bytes": 2776
+    },
+    {
+      "path": "test/official/index.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0f8fc39e85e7b7266626bebe6a8450b1fc852eb5b9e87882309c69c48dcf7b6c",
+      "bytes": 388
+    },
+    {
+      "path": "test/official/omission-closing-body.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7696d306c2d049ae4ffdda07c6b5fd09184b118f47e915e23471b9300f5e7f69",
+      "bytes": 899
+    },
+    {
+      "path": "test/official/omission-closing-caption.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f71657e8a5d814d19e13238257336d8ce2116b84716d7538de563d40790c429f",
+      "bytes": 1336
+    },
+    {
+      "path": "test/official/omission-closing-colgroup.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e2c137b2d334e8ac80a5e7d87c6144bedff8738e3c6f77d0f134ae9b59bbd6c3",
+      "bytes": 1266
+    },
+    {
+      "path": "test/official/omission-closing-dd.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a2d94b9f2ea15bdbaebd9bbaefa979cf00dec9fa4cb5550fb1ccda93f95ffbe8",
+      "bytes": 1141
+    },
+    {
+      "path": "test/official/omission-closing-dt.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4aaffb8d98d2397d1c31208d2f8953953f88d8ff90e800885db5b3ed48ce8dbd",
+      "bytes": 1159
+    },
+    {
+      "path": "test/official/omission-closing-head.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "625739e6ec26a0ceb39e216bffb1cf0ca49a50b52b9e419f092e6b580abca182",
+      "bytes": 1152
+    },
+    {
+      "path": "test/official/omission-closing-html.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a36b1f0dd71bf50b2a7a2a1da496106115e50ffdaf9cdd35a3d8a721cb7f2ac9",
+      "bytes": 985
+    },
+    {
+      "path": "test/official/omission-closing-li.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c1834819f983c8c016646d26b4e8f764d92d78a089ec394dfb0caa5458a077c9",
+      "bytes": 936
+    },
+    {
+      "path": "test/official/omission-closing-menuitem.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "20cc065b73cfb3b2c253fbd54a156c497f1826d67a40ef05656c3aedf07f33a5",
+      "bytes": 2087
+    },
+    {
+      "path": "test/official/omission-closing-optgroup.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "75ade959c0fb11f24b2ab82250838b0356dccce96ba3b8db17cbd186667453e8",
+      "bytes": 1084
+    },
+    {
+      "path": "test/official/omission-closing-option.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4ff0e22c8192e1568e132e292f2f398cfee85d67d9a994274115674b5b925638",
+      "bytes": 1278
+    },
+    {
+      "path": "test/official/omission-closing-p.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9d95fd3ed7decde7e61c7877da09dfb14342f9cd206f25e01817840f5819c21e",
+      "bytes": 2362
+    },
+    {
+      "path": "test/official/omission-closing-rp-rt.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1031762b931b710d31a217d64e872eef4d9ac0e63d4f15e4a8d8dece6202cd48",
+      "bytes": 1612
+    },
+    {
+      "path": "test/official/omission-closing-tbody.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8669c856f9379a9bf0faf15ff5fa2183ac203dc82a6a9220d95c9eb10ed8366f",
+      "bytes": 1230
+    },
+    {
+      "path": "test/official/omission-closing-td-th.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7ff87a201a4a4f1b1d9c64e2fb803273479e3591338697280a4789cd2ccf35b6",
+      "bytes": 1568
+    },
+    {
+      "path": "test/official/omission-closing-tfoot.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f6ac3c07f74bcf1d244cadb064e3376dbf34f102c7d849cdfb0563469686534e",
+      "bytes": 782
+    },
+    {
+      "path": "test/official/omission-closing-thead.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c34445320346e538658c4614babc4186c27beafcb185a827242bc72cedc779e6",
+      "bytes": 1272
+    },
+    {
+      "path": "test/official/omission-closing-tr.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "032339ffeb95fa3805922bfe0d0e861f94793213b5d64ba3e76337bd13669c3e",
+      "bytes": 764
+    },
+    {
+      "path": "test/official/omission-closing.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da5245afec1ac2a55abd7538d822607348846d63fd7256ea5d75f8f836634497",
+      "bytes": 756
+    },
+    {
+      "path": "test/official/omission-opening-body.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "bb7646596b84642c8c56288f6ecc9998a349507b0f52d7bc4f535200711125af",
+      "bytes": 2071
+    },
+    {
+      "path": "test/official/omission-opening-colgroup.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6d2db9966e4ec176024fda5d07c04e34481fd3cb470e245b41c3b2b908bd5f21",
+      "bytes": 1528
+    },
+    {
+      "path": "test/official/omission-opening-head.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ba6d77ce00645c85147ceb5d4271fb4a4039b73ba7d91a8147e639dbd658dafe",
+      "bytes": 1432
+    },
+    {
+      "path": "test/official/omission-opening-html.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0270842acf2157d190de363e672e6d17425d84513b6d813fcf8eb48a73dd8397",
+      "bytes": 791
+    },
+    {
+      "path": "test/official/omission-opening-tbody.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "508cd050c4f21bc997fa13bb6014c04900549153b553fa2bad75b77d47ba5881",
+      "bytes": 1165
+    },
+    {
+      "path": "test/official/omission-opening.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "41bf5e97da5aaed9ebcd95b1e4ccf0640629fff50f25d8012b62a1198a797c8b",
+      "bytes": 282
+    },
+    {
+      "path": "test/official/omission.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e26ef0c25bdd0c17bdd37357057abbc807b6c4cad80df969ebee7f092973216f",
+      "bytes": 1221
+    },
+    {
+      "path": "test/official/raw.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6241feb585c37be12d35127b63e726e4d379810b235d6a73d98a9879dcc3bc7d",
+      "bytes": 732
+    },
+    {
+      "path": "test/official/root.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6e390299a6e4736a0c51f6dfeff254ef410370a24d443dd6e3da2d1afd620c5d",
+      "bytes": 735
+    },
+    {
+      "path": "test/official/security.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "521457bfe2c70b923aab7d6b08d72200b5a9e5d372743939403abf6b35a1b8c0",
+      "bytes": 1281
+    },
+    {
+      "path": "test/official/svg.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "05404e3b0afc97e1f3ddbdcae09a102b00b67b7a07eeda66a7ea33db6f59887e",
+      "bytes": 13895
+    },
+    {
+      "path": "test/official/text.js",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da97a13cdae9ec975a313b79cb8757085e233a949525baaf4833714be51c849b",
+      "bytes": 1166
+    },
+    {
+      "path": "test/site.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/to-html.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9326647190e6fcd1d17d69040e8e031cf767ddaf592cc5046f54d3c4888a89c0",
+      "bytes": 3020
+    },
+    {
+      "path": "types/to-html.d.ts",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da4ddc9d09fff5d40cb628ab4f6b903c118d10a37c72e3bd727783d6f6bc7eef",
+      "bytes": 1005
+    }
+  ],
+  "sha256": "4f44a945d225546c34d3b66c30948eb3c36d8e9235e158054f804de1ff7c896e"
+}

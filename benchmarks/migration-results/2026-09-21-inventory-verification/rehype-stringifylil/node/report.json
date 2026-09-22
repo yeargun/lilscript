@@ -1,0 +1,914 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/rehype-stringifylil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/closed.test.mjs",
+    "test/site.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+      "bytes": 4177
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+      "bytes": 593
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/closed.test.mjs",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/rehype-stringifylil/node/observe.mjs",
+    "sha256": "31e9d5402a071186e79c33ddba87e8e55032636af7a675f5c2aaabf10ebbdfac",
+    "bytes": 585,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "actual": {
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+          "bytes": 966
+        },
+        "actual": {
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+          "bytes": 966
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+          "bytes": 19067
+        },
+        "actual": {
+          "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+          "bytes": 19067
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+          "bytes": 1962
+        },
+        "actual": {
+          "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+          "bytes": 1962
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+          "bytes": 954
+        },
+        "actual": {
+          "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+          "bytes": 954
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+          "bytes": 3235
+        },
+        "actual": {
+          "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+          "bytes": 3235
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+          "bytes": 1073
+        },
+        "actual": {
+          "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+          "bytes": 1073
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+          "bytes": 9384
+        },
+        "actual": {
+          "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+          "bytes": 9384
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+          "bytes": 58600
+        },
+        "actual": {
+          "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+          "bytes": 58600
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+          "bytes": 2593
+        },
+        "actual": {
+          "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+          "bytes": 2593
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+          "bytes": 4177
+        },
+        "actual": {
+          "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+          "bytes": 4177
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+          "bytes": 593
+        },
+        "actual": {
+          "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+          "bytes": 593
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/types/rehype-stringify.d.ts",
+        "expected": {
+          "path": "types/rehype-stringify.d.ts",
+          "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+          "bytes": 1169
+        },
+        "actual": {
+          "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+          "bytes": 1169
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "actual": {
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+          "bytes": 966
+        },
+        "actual": {
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+          "bytes": 966
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+          "bytes": 19067
+        },
+        "actual": {
+          "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+          "bytes": 19067
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+          "bytes": 1962
+        },
+        "actual": {
+          "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+          "bytes": 1962
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+          "bytes": 954
+        },
+        "actual": {
+          "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+          "bytes": 954
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+          "bytes": 3235
+        },
+        "actual": {
+          "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+          "bytes": 3235
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+          "bytes": 1073
+        },
+        "actual": {
+          "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+          "bytes": 1073
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+          "bytes": 9384
+        },
+        "actual": {
+          "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+          "bytes": 9384
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+          "bytes": 58600
+        },
+        "actual": {
+          "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+          "bytes": 58600
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+          "bytes": 2593
+        },
+        "actual": {
+          "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+          "bytes": 2593
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+          "bytes": 4177
+        },
+        "actual": {
+          "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+          "bytes": 4177
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+          "bytes": 593
+        },
+        "actual": {
+          "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+          "bytes": 593
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/types/rehype-stringify.d.ts",
+        "expected": {
+          "path": "types/rehype-stringify.d.ts",
+          "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+          "bytes": 1169
+        },
+        "actual": {
+          "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+          "bytes": 1169
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "actual": {
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+          "bytes": 966
+        },
+        "actual": {
+          "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+          "bytes": 966
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+          "bytes": 19067
+        },
+        "actual": {
+          "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+          "bytes": 19067
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+          "bytes": 1962
+        },
+        "actual": {
+          "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+          "bytes": 1962
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+          "bytes": 954
+        },
+        "actual": {
+          "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+          "bytes": 954
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+          "bytes": 3235
+        },
+        "actual": {
+          "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+          "bytes": 3235
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+          "bytes": 1073
+        },
+        "actual": {
+          "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+          "bytes": 1073
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+          "bytes": 9384
+        },
+        "actual": {
+          "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+          "bytes": 9384
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+          "bytes": 58600
+        },
+        "actual": {
+          "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+          "bytes": 58600
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+          "bytes": 2593
+        },
+        "actual": {
+          "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+          "bytes": 2593
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+          "bytes": 4177
+        },
+        "actual": {
+          "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+          "bytes": 4177
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+          "bytes": 593
+        },
+        "actual": {
+          "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+          "bytes": 593
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/types/rehype-stringify.d.ts",
+        "expected": {
+          "path": "types/rehype-stringify.d.ts",
+          "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+          "bytes": 1169
+        },
+        "actual": {
+          "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+          "bytes": 1169
+        },
+        "matches": true
+      }
+    ]
+  },
+  "supervision": {
+    "timeoutMs": 598775,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"exports only the default plugin\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exports only the default plugin",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",35,3,1,\"test\",\"compiles a paragraph hast node to html\",1]",
+        "file": "test/api.test.mjs",
+        "name": "compiles a paragraph hast node to html",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",43,3,1,\"test\",\"emits input type from properties\",1]",
+        "file": "test/api.test.mjs",
+        "name": "emits input type from properties",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",57,3,1,\"test\",\"escapes text and joins className arrays\",1]",
+        "file": "test/api.test.mjs",
+        "name": "escapes text and joins className arrays",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",70,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+        "file": "test/api.test.mjs",
+        "name": "keeps pinned keys in the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",78,3,1,\"test\",\"merges processor settings before explicit options\",1]",
+        "file": "test/api.test.mjs",
+        "name": "merges processor settings before explicit options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",88,3,1,\"test\",\"passes all character-reference options to the serializer\",1]",
+        "file": "test/api.test.mjs",
+        "name": "passes all character-reference options to the serializer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",118,3,1,\"test\",\"copies own settings without prototype pollution\",1]",
+        "file": "test/api.test.mjs",
+        "name": "copies own settings without prototype pollution",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",29,1,0,\"suite\",\"rehype-stringify\",1]",
+        "file": "test/api.test.mjs",
+        "name": "rehype-stringify",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "ships a closed artifact with the default export",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype-stringify closed\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "rehype-stringify closed",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.cjs",
+        "sha256": "195361c7db3d503292ff9dd1699df2bbe5b5b0f46bf8cd87534706330320edb7",
+        "bytes": 31130
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.closed.js",
+        "sha256": "5c4806ead034a786ba01bc8e0e23dd5436c0208e579eaa91895869b388ba3869",
+        "bytes": 29238
+      },
+      {
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.esm.js",
+        "sha256": "4ad241896dedbd14d8187ffdde40d9127d2cc86a76da3612f48d311eb42c9af1",
+        "bytes": 29299
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.esm.js",
+        "url": "file:///tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.esm.js",
+        "format": "module",
+        "sha256": "4ad241896dedbd14d8187ffdde40d9127d2cc86a76da3612f48d311eb42c9af1",
+        "bytes": 29299,
+        "pid": 484289
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.closed.js",
+        "url": "file:///tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.closed.js",
+        "format": "module",
+        "sha256": "5c4806ead034a786ba01bc8e0e23dd5436c0208e579eaa91895869b388ba3869",
+        "bytes": 29238,
+        "pid": 484290
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-rehype-stringifylil-B6JDxR/rehype-stringifylil/dist/rehype-stringify.cjs"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",30,3,1,\"test\",\"exports only the default plugin\",1]",
+    "[\"test/api.test.mjs\",35,3,1,\"test\",\"compiles a paragraph hast node to html\",1]",
+    "[\"test/api.test.mjs\",43,3,1,\"test\",\"emits input type from properties\",1]",
+    "[\"test/api.test.mjs\",57,3,1,\"test\",\"escapes text and joins className arrays\",1]",
+    "[\"test/api.test.mjs\",70,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+    "[\"test/api.test.mjs\",78,3,1,\"test\",\"merges processor settings before explicit options\",1]",
+    "[\"test/api.test.mjs\",88,3,1,\"test\",\"passes all character-reference options to the serializer\",1]",
+    "[\"test/api.test.mjs\",118,3,1,\"test\",\"copies own settings without prototype pollution\",1]",
+    "[\"test/api.test.mjs\",29,1,0,\"suite\",\"rehype-stringify\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype-stringify closed\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

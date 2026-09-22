@@ -1,0 +1,62 @@
+class Shape {
+  int width;
+  int height;
+
+  init(int width, int height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  int area() {
+    return this.width * this.height;
+  }
+
+  int grow(int by) {
+    this.width += by;
+    return this.width;
+  }
+
+  func()->int areaThunk() {
+    return () => this.width * this.height;
+  }
+}
+
+class Labelled extends Shape {
+  string label;
+
+  init(int width, int height, string label) {
+    super(width, height);
+    this.label = label;
+  }
+
+  string describe() {
+    return this.label;
+  }
+}
+
+class Holder {
+  int seed;
+  func(int)->int transform;
+
+  init(int seed, func(int)->int transform) {
+    this.seed = seed;
+    this.transform = transform;
+  }
+
+  int apply(int amount) {
+    func(int)->int local = this.transform;
+    return local(this.seed + amount);
+  }
+}
+
+int classes(int seed) {
+  Shape shape = new Shape(seed, 3);
+  Labelled tagged = new Labelled(seed, 4, "tag");
+  Shape viewed = tagged;
+  func()->int thunk = shape.areaThunk();
+  Holder holder = new Holder(seed, (int v) => v ^ 5);
+  int total = shape.area() + shape.grow(2) + thunk();
+  total += tagged.area() + viewed.area() + tagged.describe().length;
+  total += holder.apply(3);
+  return total;
+}

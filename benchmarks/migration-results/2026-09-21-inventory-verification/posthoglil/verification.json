@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "posthoglil",
+  "inventory": {
+    "path": "benchmarks/libraries/posthoglil.required-tests.json",
+    "sha256": "93e3017a08a5f8fc644f1d56a3d1d6f0d430c0c75be0c4e9a00e45498d34bc71",
+    "bytes": 136280
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/posthoglil/receipt.json",
+    "sha256": "1fcae171aa10be239668d49f4bd84a3a0c18724854982fbb7795c5414aa59d78",
+    "bytes": 19475
+  },
+  "frozenCases": 29,
+  "observedCases": 29,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",85,3,1,\"test\",\"keeps every public kernel name exact in the compiler output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",92,3,1,\"test\",\"exposes the same named surface as default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",84,1,0,\"suite\",\"@itslil/posthog-js JS library API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",24,3,1,\"test\",\"parses the official hyphenated, hex, brace, and urn forms\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",37,3,1,\"test\",\"matches official fromFieldsV7\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"generates version-7 and version-4 strings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",23,1,0,\"suite\",\"uuid\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",84,3,1,\"test\",\"normalizes v2 flags the same way\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",88,3,1,\"test\",\"normalizes v1 flags the same way\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",100,3,1,\"test\",\"minimizes $feature_flag_called properties from the same allowlist\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",54,1,0,\"suite\",\"feature flags\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",118,3,1,\"test\",\"sanitizes cookie names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",124,3,1,\"test\",\"parses official cookie fixtures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",141,3,1,\"test\",\"roundtrips serialize → parse as anonymous\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",149,3,1,\"test\",\"reads cookies from a header store\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",155,3,1,\"test\",\"matches consent cookie names and opt-out\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",117,1,0,\"suite\",\"cookies and consent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",169,3,1,\"test\",\"routes US, EU, custom, and app hosts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",188,3,1,\"test\",\"matches the token-bucket updates\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",197,3,1,\"test\",\"batches, offsets, and sorts unload requests\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",168,1,0,\"suite\",\"router, rate limit, queue\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",218,3,1,\"test\",\"matches the default blocked UA list and lookups\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",217,1,0,\"suite\",\"bot detection\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",245,3,1,\"test\",\"matches string helpers and person-property hashes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",264,3,1,\"test\",\"matches clamp, remote config, and sample-rate checks\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",304,3,1,\"test\",\"matches portable type, json, and url helpers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",244,1,0,\"suite\",\"strings, numbers, types, json, url\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",337,3,1,\"test\",\"resolves config and consumes tokens the same way\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",336,1,0,\"suite\",\"bucketed rate limiter\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

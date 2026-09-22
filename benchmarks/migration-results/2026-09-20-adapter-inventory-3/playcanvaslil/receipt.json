@@ -1,0 +1,302 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "playcanvaslil",
+  "started": "2026-09-20T18:27:39.531Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/playcanvaslil",
+  "workspace": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-playcanvaslil-iFboQX/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not.",
+    "Entry files were taken from the dist directory; the package declares no published entry point, so this is a reduced boundary; the workload manifest declares none for this library."
+  ],
+  "originalTestScript": "npm run build && npm run test:artifact",
+  "derivation": {
+    "supported": true,
+    "script": "npm run build && npm run test:artifact",
+    "originalSegments": [
+      "npm run build",
+      "npm run test:artifact"
+    ],
+    "segments": [
+      "npm run build",
+      "npm run test:artifact",
+      "test:artifact: npm run test:upstream",
+      "test:artifact: npm run test:differential",
+      "test:artifact: node --test test/shader-processing.test.mjs"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-test:upstream",
+        "script": "test:upstream",
+        "segment": "npm run test:upstream"
+      },
+      {
+        "id": "original-test:differential",
+        "script": "test:differential",
+        "segment": "npm run test:differential"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/shader-processing.test.mjs"
+    ],
+    "deviations": [
+      "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task",
+      "followed `npm run test:artifact` to its own script to reach the test runner: npm run test:upstream && npm run test:differential && node --test test/shader-processing.test.mjs"
+    ],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/shader-processing.closed.js",
+      "dist/shader-processing.closed.official.js",
+      "dist/shader-processing.js",
+      "dist/shader-processing.official.js"
+    ],
+    "absent": [],
+    "source": "dist directory; the package declares no published entry point, so this is a reduced boundary",
+    "declared": [
+      "dist/shader-processing.closed.js",
+      "dist/shader-processing.closed.official.js",
+      "dist/shader-processing.js",
+      "dist/shader-processing.official.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/playcanvaslil/node/report.json",
+    "sha256": "4fadbe2f8849a423a8d8b34b97558ae4d985bd64ce58bd7c6cc42431a240ebf8",
+    "bytes": 41806
+  },
+  "observedCases": [],
+  "loadedArtifacts": [],
+  "prerequisites": [
+    {
+      "id": "original-test:upstream",
+      "attempted": true,
+      "status": 0
+    },
+    {
+      "id": "original-test:differential",
+      "attempted": true,
+      "status": 1
+    }
+  ],
+  "discoveryErrors": [
+    "prerequisite original-test:differential did not complete successfully",
+    "test command failed",
+    "required test inventory missing or ambiguous",
+    "executed test report missing",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.closed.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.closed.official.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-playcanvaslil-iFboQX/playcanvaslil/dist/shader-processing.official.js",
+    "Node suite was not executed because a prerequisite did not pass"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [
+    "dist/shader-processing.closed.js",
+    "dist/shader-processing.closed.official.js",
+    "dist/shader-processing.js",
+    "dist/shader-processing.official.js"
+  ],
+  "unexpectedErrors": [
+    "prerequisite original-test:differential did not complete successfully",
+    "test command failed",
+    "executed test report missing",
+    "Node suite was not executed because a prerequisite did not pass"
+  ],
+  "exercisedArtifacts": [],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 19183.305958999998,
+  "completed": "2026-09-20T18:27:58.700Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4d090495f018a57a363c2ad5be8cfcb559fd883c1adc77ee1d88b5383263993d",
+      "bytes": 3403408
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4d090495f018a57a363c2ad5be8cfcb559fd883c1adc77ee1d88b5383263993d",
+      "bytes": 3403408
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a90d7ef00cd8e1663d5c4863af9adf7f3a09ac913d5ab21e234a7022343584b3",
+      "bytes": 4391
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "894c969c81b5325fd6d0bfcf1652940d108e72ee74b5dbfd55e38c0729c1bbe5",
+      "bytes": 17783
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e199a44f9494342f09ead499aedeefa2bfd2a4bdfd164d3e955ca7d0c22f78ba",
+      "bytes": 649
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "81ea321c8b3be33679bd3f0fbbd0f2b8e0030f1fa36ea81438087b5e4ffea592",
+      "bytes": 8480
+    },
+    {
+      "path": "node/prerequisite-1.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7ab122c5593ead8c318f983f16a63c03fad41c5e026ef2fad2fa8c190870c464",
+      "bytes": 1352
+    },
+    {
+      "path": "node/prerequisite-1.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c025e2382555fdfb076d9e5c165e6d4a4036029006cef6cf6b9dbe646edb340c",
+      "bytes": 181
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4fadbe2f8849a423a8d8b34b97558ae4d985bd64ce58bd7c6cc42431a240ebf8",
+      "bytes": 41806
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "894c969c81b5325fd6d0bfcf1652940d108e72ee74b5dbfd55e38c0729c1bbe5",
+      "bytes": 17783
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "jquerylil",
+  "started": "2026-09-20T23:53:11.556Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/jquerylil",
+  "workspace": "/tmp/lilscript-baseline-jquerylil-aoda5W/jquerylil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/jquerylil",
+    "candidates": [
+      "/home/azureuser/jquerylil",
+      "/home/azureuser/jquerylil",
+      "/tmp/lilscript-page-refresh-20260910/current/jquerylil"
+    ],
+    "recorded": "/home/azureuser/jquerylil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/91c863beac0a8ed5f0537507c2a79409a3c9f125a2c142508b333c48ce989a9c/lilscript",
+    "sha256": "91c863beac0a8ed5f0537507c2a79409a3c9f125a2c142508b333c48ce989a9c",
+    "bytes": 17886272,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ]
+}

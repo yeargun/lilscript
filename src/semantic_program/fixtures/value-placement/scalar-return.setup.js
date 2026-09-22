@@ -1,0 +1,1 @@
+globalThis.valuePlacementObserve=library=>{const inputs=[0,7,-3,2147483647];console.log(JSON.stringify([inputs.map(n=>library.arithmetic(n)),inputs.map(n=>library.identity(n)),library.arithmetic.name,library.arithmetic.length]));};

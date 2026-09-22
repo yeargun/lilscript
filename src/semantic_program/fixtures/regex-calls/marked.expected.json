@@ -1,0 +1,18 @@
+[
+ ["arity",3,2,2,1],
+ ["tabs",[97,32,32,32,98]],
+ ["tabs",[32,32,32,32]],
+ ["tabs",[32,32]],
+ ["tabs",[97,98,32,32,32,32,32,122]],
+ ["tabs",[55357,56832,32,32,88]],
+ ["tabs",[0,55296,32,32,90]],
+ ["tabs",[]],
+ ["indent","one\nsecond\nthird\nunindented",0],
+ ["indent-again","x\ny",0],
+ ["exec",["\t",0],1],
+ ["exec",["\t",2],3],
+ ["exec",null,0],
+ ["test",true,1,false,0],
+ ["replace","-a-b",0],
+ ["blank",true,false]
+]

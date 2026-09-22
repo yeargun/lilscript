@@ -1,0 +1,321 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "mobxlil",
+  "started": "2026-09-21T09:37:43.689Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/mobxlil",
+  "workspace": "/tmp/lilscript-baseline-mobxlil-1nG5UD/mobxlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/mobxlil",
+    "candidates": [
+      "/home/azureuser/mobxlil",
+      "/home/azureuser/mobxlil",
+      "/tmp/lilscript-page-refresh-20260910/current/mobxlil"
+    ],
+    "recorded": "/home/azureuser/mobxlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The committed distribution also carried dist/mobx.esm.js.mjs, which this build does not produce; they are stale and are not measured.",
+    "This library has no frozen required-case inventory, so these bytes are measured but not qualified by any test."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/mobxlil",
+    "files": 556,
+    "sha256": "e5de1927008656d148ba9144fb3146f768b9729dfd5d8a400a5b972cf3902523"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/mobxlil/config/dev.toml",
+        "sha256": "a0676a8c30c8b9cfc9c6f2fe15a677d89209c5338e4f8df470e99b1220cdfcd1",
+        "bytes": 453
+      },
+      {
+        "path": "/home/azureuser/mobxlil/config/perf.toml",
+        "sha256": "15c1dec745765dc87eb9fca0cbd3423f917091dd21d2ef0caf305dc332b51cbe",
+        "bytes": 785
+      },
+      {
+        "path": "/home/azureuser/mobxlil/config/production.min.toml",
+        "sha256": "25e3f6f7b59d8aac62434d64b0b1f48d39fe3ef85ae41ef23c9a0ba272e86991",
+        "bytes": 1591
+      },
+      {
+        "path": "/home/azureuser/mobxlil/lilscript.toml",
+        "sha256": "dac309765067eb2a72bdf618917f06c126a75b68c1744122ec88d4378b26c6e4",
+        "bytes": 2671
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/index.js",
+    "dist/mobx.cjs.development.js",
+    "dist/mobx.cjs.production.js",
+    "dist/mobx.cjs.production.min.js",
+    "dist/mobx.dev.esm.js",
+    "dist/mobx.esm.development.js",
+    "dist/mobx.esm.js",
+    "dist/mobx.esm.js.mjs",
+    "dist/mobx.esm.production.min.js",
+    "dist/mobx.mjs",
+    "dist/mobx.umd.development.js",
+    "dist/mobx.umd.production.js",
+    "dist/mobx.umd.production.min.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 149.821,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "notRebuilt": [
+    "dist/mobx.esm.js.mjs"
+  ],
+  "artifacts": [
+    {
+      "path": "dist/index.js",
+      "sha256": "d3f67adc0979c1eb51d60f3848c52f0277d3901608badf96e5ee0b722bb41557",
+      "bytes": 185,
+      "sizes": {
+        "raw": 185,
+        "gzip": 142,
+        "brotli": 111
+      }
+    },
+    {
+      "path": "dist/mobx.cjs.development.js",
+      "sha256": "63e184b8c18b053d84699e82b95f3115bd9a698bc42ed309a3216535581254dc",
+      "bytes": 168276,
+      "sizes": {
+        "raw": 168276,
+        "gzip": 39222,
+        "brotli": 32115
+      }
+    },
+    {
+      "path": "dist/mobx.cjs.production.js",
+      "sha256": "3d558dd74fe71853545fc1e9926e3a412b113777916b1f5da27d7e635a54ed04",
+      "bytes": 77984,
+      "sizes": {
+        "raw": 77984,
+        "gzip": 19221,
+        "brotli": 17085
+      }
+    },
+    {
+      "path": "dist/mobx.cjs.production.min.js",
+      "sha256": "91103b23a56b23f736a11787456182237461f7a693438f34369aec130fc601ff",
+      "bytes": 84156,
+      "sizes": {
+        "raw": 84156,
+        "gzip": 20266,
+        "brotli": 17979
+      }
+    },
+    {
+      "path": "dist/mobx.dev.esm.js",
+      "sha256": "943f57455af3fc5849431b280eb8af22b11443558f74f21478dce96f8e9b6b22",
+      "bytes": 132654,
+      "sizes": {
+        "raw": 132654,
+        "gzip": 35197,
+        "brotli": 29449
+      }
+    },
+    {
+      "path": "dist/mobx.esm.development.js",
+      "sha256": "943f57455af3fc5849431b280eb8af22b11443558f74f21478dce96f8e9b6b22",
+      "bytes": 132654,
+      "sizes": {
+        "raw": 132654,
+        "gzip": 35197,
+        "brotli": 29449
+      }
+    },
+    {
+      "path": "dist/mobx.esm.js",
+      "sha256": "801847be550b250575e42028f249f6d9bf108e16492886d28a2ba1e1269318ad",
+      "bytes": 56464,
+      "sizes": {
+        "raw": 56464,
+        "gzip": 16813,
+        "brotli": 15187
+      }
+    },
+    {
+      "path": "dist/mobx.esm.production.min.js",
+      "sha256": "94679e4e4f76480f4624aa0a5c0e695afdfc947a93826d8e0e81b6ef7810e752",
+      "bytes": 58884,
+      "sizes": {
+        "raw": 58884,
+        "gzip": 17320,
+        "brotli": 15570
+      }
+    },
+    {
+      "path": "dist/mobx.mjs",
+      "sha256": "801847be550b250575e42028f249f6d9bf108e16492886d28a2ba1e1269318ad",
+      "bytes": 56464,
+      "sizes": {
+        "raw": 56464,
+        "gzip": 16813,
+        "brotli": 15187
+      }
+    },
+    {
+      "path": "dist/mobx.umd.development.js",
+      "sha256": "b9c5ff9dcee6bc666106af10bde0558814807c0e62c658a09a98bfd2725313bd",
+      "bytes": 178106,
+      "sizes": {
+        "raw": 178106,
+        "gzip": 39696,
+        "brotli": 32390
+      }
+    },
+    {
+      "path": "dist/mobx.umd.production.js",
+      "sha256": "54979759089354e12ddb878900f5617d8240e269387af8b0e7ce938b86fad4f9",
+      "bytes": 83008,
+      "sizes": {
+        "raw": 83008,
+        "gzip": 19454,
+        "brotli": 17251
+      }
+    },
+    {
+      "path": "dist/mobx.umd.production.min.js",
+      "sha256": "bcba28d9fc53d25d586cf209d2f72c08578500cb7872fd681b524959c2dbdaca",
+      "bytes": 89644,
+      "sizes": {
+        "raw": 89644,
+        "gzip": 20563,
+        "brotli": 18153
+      }
+    }
+  ],
+  "measurements": {
+    "dist/index.js": {
+      "raw": 185,
+      "gzip": 142,
+      "brotli": 111
+    },
+    "dist/mobx.cjs.development.js": {
+      "raw": 168276,
+      "gzip": 39222,
+      "brotli": 32115
+    },
+    "dist/mobx.cjs.production.js": {
+      "raw": 77984,
+      "gzip": 19221,
+      "brotli": 17085
+    },
+    "dist/mobx.cjs.production.min.js": {
+      "raw": 84156,
+      "gzip": 20266,
+      "brotli": 17979
+    },
+    "dist/mobx.dev.esm.js": {
+      "raw": 132654,
+      "gzip": 35197,
+      "brotli": 29449
+    },
+    "dist/mobx.esm.development.js": {
+      "raw": 132654,
+      "gzip": 35197,
+      "brotli": 29449
+    },
+    "dist/mobx.esm.js": {
+      "raw": 56464,
+      "gzip": 16813,
+      "brotli": 15187
+    },
+    "dist/mobx.esm.production.min.js": {
+      "raw": 58884,
+      "gzip": 17320,
+      "brotli": 15570
+    },
+    "dist/mobx.mjs": {
+      "raw": 56464,
+      "gzip": 16813,
+      "brotli": 15187
+    },
+    "dist/mobx.umd.development.js": {
+      "raw": 178106,
+      "gzip": 39696,
+      "brotli": 32390
+    },
+    "dist/mobx.umd.production.js": {
+      "raw": 83008,
+      "gzip": 19454,
+      "brotli": 17251
+    },
+    "dist/mobx.umd.production.min.js": {
+      "raw": 89644,
+      "gzip": 20563,
+      "brotli": 18153
+    }
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 156.565,
+  "completed": "2026-09-21T09:40:20.219Z",
+  "fingerprint": "0a22fb50a4278dc5581af7736d1765d8e618c409efb83383e403274b81b94ccb"
+}

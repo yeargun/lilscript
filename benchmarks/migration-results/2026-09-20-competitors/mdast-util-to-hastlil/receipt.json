@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "kind": "competitor-recipe-run",
+  "boundary": "mdast-util-to-hastlil",
+  "started": "2026-09-20T22:30:30.379Z",
+  "passed": true,
+  "ourArtifact": {
+    "path": "/home/azureuser/mdast-util-to-hastlil/dist/to-hast.esm.js",
+    "sha256": "8d29b1f9390d4676511e7df19ac2152ecd175e896f0fd26c86eabed51c18f98f",
+    "bytes": 14023
+  },
+  "upstream": {
+    "directory": "/home/azureuser/mdast-util-to-hastlil/node_modules/mdast-util-to-hast",
+    "name": "mdast-util-to-hast",
+    "version": "13.2.1",
+    "entry": "index.js",
+    "externals": []
+  },
+  "competitors": [
+    {
+      "id": "terser@5.51.2/terser",
+      "recipe": "terser",
+      "tool": {
+        "name": "terser",
+        "version": "5.51.2",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/terser/package.json",
+          "sha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+          "bytes": 3334
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/terser",
+          "sha256": "312a3f9b37d3f5316ee384bfdc347313dae6f0f9056c44b3cae56c8e4e9f4496",
+          "bytes": 444
+        }
+      },
+      "renames": "locals and top-level module bindings (`-m --module`); property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/mdast-util-to-hastlil/terser.min.js",
+      "sha256": "9e8f4b17637a246caead4975d9481d096bba4b7a4bcbfb9d30a59c54c561845b",
+      "bytes": 16709,
+      "sizes": {
+        "raw": 16709,
+        "gzip": 5385,
+        "brotli": 4857
+      },
+      "exports": [
+        "defaultFootnoteBackContent",
+        "defaultFootnoteBackLabel",
+        "defaultHandlers",
+        "toHast"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 1.192,
+      "massMatches": true,
+      "comparable": true
+    },
+    {
+      "id": "esbuild@0.28.1/esbuild",
+      "recipe": "esbuild",
+      "tool": {
+        "name": "esbuild",
+        "version": "0.28.1",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+          "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+          "bytes": 3980
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+          "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+          "bytes": 11407472
+        }
+      },
+      "renames": "locals and top-level bindings; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/mdast-util-to-hastlil/esbuild.min.js",
+      "sha256": "488562853166d60b0a6d81f37cbc47e0b365550ce4021a87aedbf209e848aa96",
+      "bytes": 17289,
+      "sizes": {
+        "raw": 17289,
+        "gzip": 5765,
+        "brotli": 5245
+      },
+      "exports": [
+        "defaultFootnoteBackContent",
+        "defaultFootnoteBackLabel",
+        "defaultHandlers",
+        "toHast"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 1.233,
+      "massMatches": true,
+      "comparable": true
+    },
+    {
+      "id": "rolldown@1.2.5/oxc",
+      "recipe": "oxc",
+      "tool": {
+        "name": "rolldown",
+        "version": "1.2.5",
+        "home": "/home/azureuser/markedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/markedlil/node_modules/rolldown/package.json",
+          "sha256": "6be75efa1a51c115f17375d1fc4713f70392bff70335045ec5cf7eeaf1228c96",
+          "bytes": 6127
+        },
+        "binary": {
+          "path": "/home/azureuser/markedlil/node_modules/.bin/rolldown",
+          "sha256": "4f32d8fafabe786e739f8be56df684e56def00e63a32858ad9d5ede57406bc6c",
+          "bytes": 46
+        }
+      },
+      "renames": "locals and top-level bindings through Rolldown's Oxc minifier; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/mdast-util-to-hastlil/oxc.min.js",
+      "sha256": "a509cffba99116f0c1b1d4a75d277b0d743dd729cc6a86a41031804a547067b3",
+      "bytes": 16729,
+      "sizes": {
+        "raw": 16729,
+        "gzip": 5510,
+        "brotli": 5008
+      },
+      "exports": [
+        "defaultFootnoteBackContent",
+        "defaultFootnoteBackLabel",
+        "defaultHandlers",
+        "toHast"
+      ],
+      "surfaceMatches": true,
+      "missingFromOurs": [],
+      "extraInOurs": [],
+      "rawRatio": 1.193,
+      "massMatches": true,
+      "comparable": true
+    }
+  ],
+  "refused": [],
+  "limitations": [
+    "Byte construction only. These artifacts are not executed, so this receipt is not behavior evidence.",
+    "Each recipe states its own renaming policy; the comparison is only as fair as that statement.",
+    "The bundle leaves external exactly what our artifact imports. A boundary that bundles a different dependency graph is not comparable and says so."
+  ],
+  "bundle": {
+    "tool": {
+      "name": "esbuild",
+      "version": "0.28.1",
+      "home": "/home/azureuser/unifiedlil/node_modules",
+      "package": {
+        "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      },
+      "binary": {
+        "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      }
+    },
+    "args": [
+      "/home/azureuser/mdast-util-to-hastlil/node_modules/mdast-util-to-hast/index.js",
+      "--bundle",
+      "--format=esm",
+      "--target=es2020",
+      "--outfile=/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/mdast-util-to-hastlil/upstream.bundle.mjs"
+    ],
+    "output": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/mdast-util-to-hastlil/upstream.bundle.mjs",
+      "sha256": "d3efd294cdfacd06c3661508ac882d94b83c8b63c3019968edfb14f3bb3d7e2e",
+      "bytes": 40306
+    }
+  },
+  "ourSizes": {
+    "raw": 14023,
+    "gzip": 4713,
+    "brotli": 4232
+  },
+  "bundleSizes": {
+    "raw": 40306,
+    "gzip": 8739,
+    "brotli": 7817
+  },
+  "publicSurface": {
+    "ours": [
+      "defaultFootnoteBackContent",
+      "defaultFootnoteBackLabel",
+      "defaultHandlers",
+      "toHast"
+    ]
+  },
+  "comparable": true,
+  "completed": "2026-09-20T22:30:31.248Z",
+  "fingerprint": "43ed759249d7574837f31d5e40759b17817481a58a5f29a68320e69ca2611384"
+}

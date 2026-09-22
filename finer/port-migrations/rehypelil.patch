@@ -1,0 +1,236 @@
+--- a/src/parse5/common/token.lil
++++ b/src/parse5/common/token.lil
+@@ -12,11 +12,18 @@
+   Hibernation
+ }
+ 
+-export struct Attribute {
++export class Attribute {
+   string name;
+   string value;
+   string? namespace;
+   string? prefix;
++
++  init(string name, string value, string? namespace, string? prefix) {
++    this.name = name;
++    this.value = value;
++    this.namespace = namespace;
++    this.prefix = prefix;
++  }
+ }
+ 
+ export class Location {
+@@ -32,16 +39,25 @@
+   Map<string, Location> attrs;
+ }
+ 
+-export struct DoctypeToken {
++export class DoctypeToken {
+   TokenType type;
+   string? name;
+   bool forceQuirks;
+   string? publicId;
+   string? systemId;
+   Location? location;
++
++  init(TokenType type, string? name, bool forceQuirks, string? publicId, string? systemId, Location? location) {
++    this.type = type;
++    this.name = name;
++    this.forceQuirks = forceQuirks;
++    this.publicId = publicId;
++    this.systemId = systemId;
++    this.location = location;
++  }
+ }
+ 
+-export struct TagToken {
++export class TagToken {
+   TokenType type;
+   string tagName;
+   TagId tagID;
+@@ -50,23 +66,51 @@
+   Attribute[] attrs;
+   TagLocation? location;
+   JsValue serializedLocation;
++
++  init(TokenType type, string tagName, TagId tagID, bool selfClosing, bool ackSelfClosing, Attribute[] attrs, TagLocation? location, JsValue serializedLocation) {
++    this.type = type;
++    this.tagName = tagName;
++    this.tagID = tagID;
++    this.selfClosing = selfClosing;
++    this.ackSelfClosing = ackSelfClosing;
++    this.attrs = attrs;
++    this.location = location;
++    this.serializedLocation = serializedLocation;
++  }
+ }
+ 
+-export struct CommentToken {
++export class CommentToken {
+   TokenType type;
+   string data;
+   Location? location;
++
++  init(TokenType type, string data, Location? location) {
++    this.type = type;
++    this.data = data;
++    this.location = location;
++  }
+ }
+ 
+-export struct CharacterToken {
++export class CharacterToken {
+   TokenType type;
+   string chars;
+   Location? location;
++
++  init(TokenType type, string chars, Location? location) {
++    this.type = type;
++    this.chars = chars;
++    this.location = location;
++  }
+ }
+ 
+-export struct EofToken {
++export class EofToken {
+   TokenType type;
+   Location? location;
++
++  init(TokenType type, Location? location) {
++    this.type = type;
++    this.location = location;
++  }
+ }
+ 
+ export pure string? getTokenAttr(TagToken token, string attrName) {
+--- a/src/parse5/parser/index.lil
++++ b/src/parse5/parser/index.lil
+@@ -62,7 +62,7 @@
+   int i = 0;
+   while (i < length) {
+     JsValue item = value[i];
+-    Attribute attr = Attribute{JS.string(JS.get(item, "name")), JS.string(JS.get(item, "value")), null, null};
++    Attribute attr = new Attribute(JS.string(JS.get(item, "name")), JS.string(JS.get(item, "value")), null, null);
+     JsValue namespace = JS.get(item, "namespace");
+     JsValue prefix = JS.get(item, "prefix");
+     if (namespace is string) attr.namespace = namespace;
+@@ -155,11 +155,11 @@
+     this.stopped = false;
+     this.currentTokenType = TokenType.Eof;
+     this.currentTokenLocation = null;
+-    this.currentTagToken = TagToken{TokenType.Character, "", TagId.Unknown, false, false, [], null, JS.undefined()};
+-    this.currentCharacterToken = CharacterToken{TokenType.Character, "", null};
+-    this.currentCommentToken = CommentToken{TokenType.Comment, "", null};
+-    this.currentDoctypeToken = DoctypeToken{TokenType.Doctype, null, false, null, null, null};
+-    this.currentEofToken = EofToken{TokenType.Eof, null};
++    this.currentTagToken = new TagToken(TokenType.Character, "", TagId.Unknown, false, false, [], null, JS.undefined());
++    this.currentCharacterToken = new CharacterToken(TokenType.Character, "", null);
++    this.currentCommentToken = new CommentToken(TokenType.Comment, "", null);
++    this.currentDoctypeToken = new DoctypeToken(TokenType.Doctype, null, false, null, null, null);
++    this.currentEofToken = new EofToken(TokenType.Eof, null);
+ 
+     Parser parser = this;
+     JsValue tokenizerHandler = JS.object("onParseError", JS.undefined());
+@@ -355,7 +355,7 @@
+   }
+ 
+   void insertFakeElement(string tagName, TagId tagID) {
+-    TagToken token = TagToken{TokenType.StartTag, tagName, tagID, false, false, [], null, JS.undefined()};
++    TagToken token = new TagToken(TokenType.StartTag, tagName, tagID, false, false, [], null, JS.undefined());
+     this.insertElement(token, namespaceUri(Namespace.Html));
+   }
+ 
+--- a/src/parse5/tokenizer/index.lil
++++ b/src/parse5/tokenizer/index.lil
+@@ -312,12 +312,12 @@
+     this.entityStartPos = 0;
+     this.consumedAfterSnapshot = -1;
+     this.currentLocation = null;
+-    this.currentCharacterToken = CharacterToken{TokenType.Character, "", null};
++    this.currentCharacterToken = new CharacterToken(TokenType.Character, "", null);
+     this.hasCharacterToken = false;
+-    this.currentTagToken = TagToken{TokenType.Character, "", TagId.Unknown, false, false, [], null, JS.undefined()};
+-    this.currentCommentToken = CommentToken{TokenType.Comment, "", null};
+-    this.currentDoctypeToken = DoctypeToken{TokenType.Doctype, null, false, null, null, null};
+-    this.currentAttr = Attribute{"", "", null, null};
++    this.currentTagToken = new TagToken(TokenType.Character, "", TagId.Unknown, false, false, [], null, JS.undefined());
++    this.currentCommentToken = new CommentToken(TokenType.Comment, "", null);
++    this.currentDoctypeToken = new DoctypeToken(TokenType.Doctype, null, false, null, null, null);
++    this.currentAttr = new Attribute("", "", null, null);
+     this.preprocessor = new Preprocessor(handler);
+     this.currentLocation = this.getCurrentLocation(-1);
+     Tokenizer tokenizer = this;
+@@ -439,33 +439,33 @@
+   }
+ 
+   void createStartTagToken() {
+-    TagToken token = TagToken{TokenType.StartTag, "", TagId.Unknown, false, false, [], this.getCurrentTagLocation(1), JS.undefined()};
++    TagToken token = new TagToken(TokenType.StartTag, "", TagId.Unknown, false, false, [], this.getCurrentTagLocation(1), JS.undefined());
+     this.currentTagToken = token;
+   }
+ 
+   void createEndTagToken() {
+-    TagToken token = TagToken{TokenType.EndTag, "", TagId.Unknown, false, false, [], this.getCurrentTagLocation(2), JS.undefined()};
++    TagToken token = new TagToken(TokenType.EndTag, "", TagId.Unknown, false, false, [], this.getCurrentTagLocation(2), JS.undefined());
+     this.currentTagToken = token;
+   }
+ 
+   void createCommentToken(int offset) {
+-    CommentToken token = CommentToken{TokenType.Comment, "", this.getCurrentLocation(offset)};
++    CommentToken token = new CommentToken(TokenType.Comment, "", this.getCurrentLocation(offset));
+     this.currentCommentToken = token;
+   }
+ 
+   void createDoctypeToken(string? initialName) {
+-    DoctypeToken token = DoctypeToken{TokenType.Doctype, initialName, false, null, null, this.currentLocation};
++    DoctypeToken token = new DoctypeToken(TokenType.Doctype, initialName, false, null, null, this.currentLocation);
+     this.currentDoctypeToken = token;
+   }
+ 
+   void createCharacterToken(TokenType type, string chars) {
+-    CharacterToken token = CharacterToken{type, chars, this.currentLocation};
++    CharacterToken token = new CharacterToken(type, chars, this.currentLocation);
+     this.currentCharacterToken = token;
+     this.hasCharacterToken = true;
+   }
+ 
+   void createAttr(string firstCharacter) {
+-    this.currentAttr = Attribute{firstCharacter, "", null, null};
++    this.currentAttr = new Attribute(firstCharacter, "", null, null);
+     this.currentLocation = this.getCurrentLocation(0);
+   }
+ 
+@@ -593,7 +593,7 @@
+       location.endOffset = location.startOffset;
+     }
+     this.emitCurrentCharacterToken(location);
+-    EofToken token = EofToken{TokenType.Eof, location};
++    EofToken token = new EofToken(TokenType.Eof, location);
+     this.typedHandler.onEof(token);
+     this.active = false;
+   }
+--- a/test/parse5-modules.lil
++++ b/test/parse5-modules.lil
+@@ -115,7 +115,7 @@
+ }
+ 
+ DoctypeToken doctypeToken(string name, bool hasName, string publicId, bool hasPublicId, string systemId, bool hasSystemId) {
+-  DoctypeToken token = DoctypeToken{TokenType.Doctype, null, false, null, null, null};
++  DoctypeToken token = new DoctypeToken(TokenType.Doctype, null, false, null, null, null);
+   if (hasName) token.name = name;
+   token.forceQuirks = false;
+   if (hasPublicId) token.publicId = publicId;
+@@ -196,11 +196,11 @@
+ }
+ 
+ Attribute attribute(string name, string value) {
+-  return Attribute{name, value, null, null};
++  return new Attribute(name, value, null, null);
+ }
+ 
+ TagToken tagToken(string name, string attrName, string attrValue) {
+-  TagToken token = TagToken{TokenType.StartTag, name, getTagID(name), false, false, [], null, JS.undefined()};
++  TagToken token = new TagToken(TokenType.StartTag, name, getTagID(name), false, false, [], null, JS.undefined());
+   if (attrName.length > 0) token.attrs.push(attribute(attrName, attrValue));
+   return token;
+ }

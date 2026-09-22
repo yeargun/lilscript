@@ -1,0 +1,759 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "solidlil",
+  "started": "2026-09-20T18:33:22.267Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/solidlil",
+  "workspace": "/tmp/lilscript-adapter-solidlil-mwOyi2/solidlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/solidlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/solidlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-solidlil-mwOyi2/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test test/node.test.mjs test/vite.test.mjs test/coverage.test.mjs test/jfb.test.mjs test/apps-e2e.test.mjs",
+  "derivation": {
+    "supported": true,
+    "script": "node --test test/node.test.mjs test/vite.test.mjs test/coverage.test.mjs test/jfb.test.mjs test/apps-e2e.test.mjs",
+    "originalSegments": [
+      "node --test test/node.test.mjs test/vite.test.mjs test/coverage.test.mjs test/jfb.test.mjs test/apps-e2e.test.mjs"
+    ],
+    "segments": [
+      "node --test test/node.test.mjs test/vite.test.mjs test/coverage.test.mjs test/jfb.test.mjs test/apps-e2e.test.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/node.test.mjs",
+      "test/vite.test.mjs",
+      "test/coverage.test.mjs",
+      "test/jfb.test.mjs",
+      "test/apps-e2e.test.mjs"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/full.cjs",
+      "dist/full.js",
+      "dist/index.cjs",
+      "dist/index.js",
+      "dist/solidlil.global.js",
+      "dist/web.cjs",
+      "dist/web.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/full.cjs",
+      "./dist/full.js",
+      "./dist/index.cjs",
+      "./dist/index.js",
+      "./dist/solidlil.global.js",
+      "./dist/web.cjs",
+      "./dist/web.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/solidlil/node/report.json",
+    "sha256": "71361bd4c37e40ad71dd69b1ecbf87d3847850792e2da4988324ff9e0430a190",
+    "bytes": 281739
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"counter: Counter\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "counter: Counter",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"effects: Split effects\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "effects: Split effects",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"form-binding: Form binding\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "form-binding: Form binding",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"context-theme: Context\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "context-theme: Context",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"async-profile: Async memo\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "async-profile: Async memo",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"optimistic-save: Optimistic action\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "optimistic-save: Optimistic action",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"reveal-feed: Reveal feed\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "reveal-feed: Reveal feed",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"projection-filter: Projection\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "projection-filter: Projection",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"show-switch: Show / Switch\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "show-switch: Show / Switch",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"repeat-grid: Repeat grid\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "repeat-grid: Repeat grid",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"nested-tree: Nested tree\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "nested-tree: Nested tree",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"error-reset: Error reset\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "error-reset: Error reset",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"todolist: Todo list\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "todolist: Todo list",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"store-cart: Store cart\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "store-cart: Store cart",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"kanban: Kanban board\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "kanban: Kanban board",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"inbox: Inbox\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "inbox: Inbox",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"marketplace: Lil marketplace\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "marketplace: Lil marketplace",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"keyed: Keyed table\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "keyed: Keyed table",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"spreadsheet: Spreadsheet\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "spreadsheet: Spreadsheet",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"svg-clock: SVG clock\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "svg-clock: SVG clock",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/apps-e2e.test.mjs\",389,3,0,\"test\",\"portal-modal: Portal modal\",1]",
+      "file": "test/apps-e2e.test.mjs",
+      "name": "portal-modal: Portal modal",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",12,1,0,\"test\",\"every solid-js export exists on @itslil/solidjs\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "every solid-js export exists on @itslil/solidjs",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",17,1,0,\"test\",\"every @solidjs/web export exists on @itslil/solidjs/web\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "every @solidjs/web export exists on @itslil/solidjs/web",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",22,1,0,\"test\",\"createProjection and reconcile keep keyed identity\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "createProjection and reconcile keep keyed identity",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",41,1,0,\"test\",\"mapArray and For map a list\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "mapArray and For map a list",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",52,1,0,\"test\",\"Reveal holds later Loading slots until earlier ones settle\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "Reveal holds later Loading slots until earlier ones settle",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",77,1,0,\"test\",\"ssr helpers and renderToString produce HTML\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "ssr helpers and renderToString produce HTML",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",85,1,0,\"test\",\"hydrate claims existing nodes and does not wipe the root\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "hydrate claims existing nodes and does not wipe the root",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",103,1,0,\"test\",\"mapArray reuses mapped nodes by identity\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "mapArray reuses mapped nodes by identity",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",116,1,0,\"test\",\"createStore setter can replace by returning a new value\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "createStore setter can replace by returning a new value",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",126,1,0,\"test\",\"createMemo lazy waits for the first read\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "createMemo lazy waits for the first read",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",140,1,0,\"test\",\"createEffect defer skips the first apply\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "createEffect defer skips the first apply",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/coverage.test.mjs\",153,1,0,\"test\",\"default-less createContext throws outside a provider\",1]",
+      "file": "test/coverage.test.mjs",
+      "name": "default-less createContext throws outside a provider",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/jfb.test.mjs\",64,1,0,\"test\",\"the source-aligned keyed bundles have the same observable behavior\",1]",
+      "file": "test/jfb.test.mjs",
+      "name": "the source-aligned keyed bundles have the same observable behavior",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",7,1,0,\"test\",\"queued writes stay invisible until flush\",1]",
+      "file": "test/node.test.mjs",
+      "name": "queued writes stay invisible until flush",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",18,1,0,\"test\",\"tuple createSignal matches the Solid 2.0 consumer shape\",1]",
+      "file": "test/node.test.mjs",
+      "name": "tuple createSignal matches the Solid 2.0 consumer shape",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",32,1,0,\"test\",\"createMemo is allocated once and tracks the source\",1]",
+      "file": "test/node.test.mjs",
+      "name": "createMemo is allocated once and tracks the source",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",43,1,0,\"test\",\"split createEffect applies after compute\",1]",
+      "file": "test/node.test.mjs",
+      "name": "split createEffect applies after compute",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",61,1,0,\"test\",\"createSelector only notifies matching keys\",1]",
+      "file": "test/node.test.mjs",
+      "name": "createSelector only notifies matching keys",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",85,1,0,\"test\",\"createStore mutates a draft\",1]",
+      "file": "test/node.test.mjs",
+      "name": "createStore mutates a draft",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",97,1,0,\"test\",\"fan-out subscribe notifies every observer and forgets recycled slots\",1]",
+      "file": "test/node.test.mjs",
+      "name": "fan-out subscribe notifies every observer and forgets recycled slots",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",129,1,0,\"test\",\"dropping a dependency stops updates from that signal\",1]",
+      "file": "test/node.test.mjs",
+      "name": "dropping a dependency stops updates from that signal",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",151,1,0,\"test\",\"disposing a root recycles effect slots\",1]",
+      "file": "test/node.test.mjs",
+      "name": "disposing a root recycles effect slots",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",161,1,0,\"test\",\"public entries export createSelector\",1]",
+      "file": "test/node.test.mjs",
+      "name": "public entries export createSelector",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",166,1,0,\"test\",\"NotReady from a nested effect wakes the parent Loading effect\",1]",
+      "file": "test/node.test.mjs",
+      "name": "NotReady from a nested effect wakes the parent Loading effect",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",196,1,0,\"test\",\"createMemo settles a thenable and flips isPending\",1]",
+      "file": "test/node.test.mjs",
+      "name": "createMemo settles a thenable and flips isPending",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",214,1,0,\"test\",\"action reverts createOptimistic writes on failure\",1]",
+      "file": "test/node.test.mjs",
+      "name": "action reverts createOptimistic writes on failure",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",228,1,0,\"test\",\"createUniqueId is stable per call and children flattens\",1]",
+      "file": "test/node.test.mjs",
+      "name": "createUniqueId is stable per call and children flattens",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",238,1,0,\"test\",\"CommonJS entry exposes the same public names\",1]",
+      "file": "test/node.test.mjs",
+      "name": "CommonJS entry exposes the same public names",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+      "file": "test/vite.test.mjs",
+      "name": "Vite bundles the public package entry",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/web.js",
+      "sha256": "dccbfd262b65e2c9ef76ede7fbefd4b2680f0a0a07df00c98f72b44e097940ce",
+      "bytes": 38029
+    },
+    {
+      "path": "/tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/index.js",
+      "sha256": "c1101b727964ef6b1aa043b886987bb04abfc8f445beb440ca7068c9062a816d",
+      "bytes": 18563
+    },
+    {
+      "path": "/tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/index.js",
+      "sha256": "c1101b727964ef6b1aa043b886987bb04abfc8f445beb440ca7068c9062a816d",
+      "bytes": 18563
+    },
+    {
+      "path": "/tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/index.cjs",
+      "sha256": "6bfbb5142c5cbe1bce1daf5773bb235ef5a510e6ce4af0d99a571930215c948e",
+      "bytes": 20135
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/full.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/full.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/solidlil.global.js",
+    "production artifact was not tested: /tmp/lilscript-adapter-solidlil-mwOyi2/solidlil/dist/web.cjs",
+    "required fixture differs: site/demo-e2e.json"
+  ],
+  "mutatedFixtures": [
+    "site/demo-e2e.json"
+  ],
+  "untestedEntries": [
+    "dist/full.cjs",
+    "dist/full.js",
+    "dist/solidlil.global.js",
+    "dist/web.cjs"
+  ],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/index.cjs",
+    "dist/index.js",
+    "dist/web.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [
+    "site/demo-e2e.json"
+  ],
+  "elapsedMs": 16962.41259000002,
+  "completed": "2026-09-20T18:33:39.214Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "524ca550b09cbdc8b78afaccb3d155d7de7a2cc1fb2492dfb88a1dfe0be51a0d",
+      "bytes": 1888204
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dc2d0460c50e4471c5bb2f540b7819c043f18005ff1b727caa75d97d4c98a9b5",
+      "bytes": 1888204
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c3c7198c0285e67ee5cae8ba57c743be698b75beb3aba431ec51fa530b7e6942",
+      "bytes": 29454
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "894c969c81b5325fd6d0bfcf1652940d108e72ee74b5dbfd55e38c0729c1bbe5",
+      "bytes": 17783
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cfa24ab8e203322d4a854ca9c2d3e6075f2f836ef3aa01392743e42d90f2aab8",
+      "bytes": 12426
+    },
+    {
+      "path": "node/loaded/3437405-2304ce0f-5cc7-40e6-bbab-c528e4a2d2fe.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "050600b484f04e12f33c11bdb3cec13de183e827564722c89361a7bec3e1bf4c",
+      "bytes": 311
+    },
+    {
+      "path": "node/loaded/3437405-faa8ff44-78de-4d08-8403-703958b86338.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f4c6f5889daea909946f445ca507c58d517544825d55ef5415bd662ec1972812",
+      "bytes": 315
+    },
+    {
+      "path": "node/loaded/3437407-877818cd-603c-4e5a-bf62-4a59abbb7e8e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "3ee6ac2eb49310a1f2452bd15db47f408ff3824c4fb13347fda3c419c5163c78",
+      "bytes": 315
+    },
+    {
+      "path": "node/loaded/3437407-b3349e8f-eef9-445b-9444-e9ce0595c32c.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "24b1ae71c264810cbf1e588196cc58bc50ce6e5588c9bd539456811aed3911d2",
+      "bytes": 319
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "acaf442d4b79c7bd11e4f786978e0350a24adee4f230d19de2229268eb68b3f7",
+      "bytes": 723
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "71361bd4c37e40ad71dd69b1ecbf87d3847850792e2da4988324ff9e0430a190",
+      "bytes": 281739
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "894c969c81b5325fd6d0bfcf1652940d108e72ee74b5dbfd55e38c0729c1bbe5",
+      "bytes": 17783
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

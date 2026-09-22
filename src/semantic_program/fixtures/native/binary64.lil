@@ -1,0 +1,17 @@
+float large = 9007199254740992.0;
+float rounded = large + 1.0;
+print((rounded - large) == 0.0);
+float first = 1.0000000000000002;
+float second = 0.9999999999999998;
+print((first * second - 1.0) == 0.0);
+print((0.1 + 0.2) == 0.3);
+float negative = -0.0;
+print(negative == 0.0);
+print((1.0 / negative) < 0.0);
+print((1.0 / 0.0) > 0.0);
+float invalid = 0.0 / 0.0;
+print(invalid == invalid);
+print(invalid != invalid);
+print((invalid < 0.0) == false);
+float positive = -negative;
+print((1.0 / positive) > 0.0);

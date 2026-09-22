@@ -1,5 +1,7 @@
 # Competitor technique inventory: oxc_minifier vs terser vs LilScript
 
+**Historical multi-date inventory.** Current capability requirements and their verification belong to the [compiler design](../../docs/compiler-design.md#compression-capabilities-to-preserve-and-exceed) and [single migration plan](../../docs/migration/index.md#009-reusable-compression-families). The September 12 review is preserved in the external planning archive. Neither this inventory nor a prior local result establishes current parity or universally superior policy.
+
 Standing homework (objective.md §7, harvest), not tied to a hypothesis folder. Read directly from the
 vendored sources below; nothing was downloaded.
 
@@ -448,8 +450,15 @@ same or a strictly better outcome — that distinction is called out per row.
   objective's stated pain point about long compile times — worth a dedicated hypothesis folder.
 - **#6 (quote-style granularity)** and **#13 (`Math.pow`→`**` for non-constant operands)** are the
   two genuine PARTIAL gaps found; both are small, bounded peephole additions if pursued.
-- **#8/#9** are honestly unverified rather than confirmed-absent; they'd need a few more targeted
-  greps (or a small compiled-output experiment) before claiming a gap.
+- **#8/#9** were honestly unverified rather than confirmed-absent. **Measured 2026-09-10 (ledger
+  8.76), by the compiled-output experiment this line asks for, and both are settled as *not worth
+  having*.** The shapes do occur: across 22 shipped artifacts, `String(` 116 times, `Number(` 10,
+  `Boolean(` 2, `new Array(` 7, `new Object(` 0 — including eight `String(<numeric literal>)` that
+  a constant fold would take. Applying the two unconditionally-safe rewrites (`new Array(x)` →
+  `Array(x)`, `String(<literal>)` → the string literal) to the artifacts saves raw bytes and
+  **costs compressed ones**: katexlil −20 raw / **+99 Brotli**, mobxlil −8 raw / **+9**. `new Array(`
+  is a phrase the codec already stores once, and deleting `new ` breaks the repeat. So #9 is N/A as
+  suspected, and #8's constant case is real but negative under the objective's own cost model.
 - Everything else checked (#1-5, #7, #10-12, #14-21) is not just present but in several cases
   (numeric-literal exponentiation spelling, `packed_string_array`'s multi-delimiter search,
   loop-weighted+entropy-aware property mangling, and above all the real-codec `cost_model` search)
@@ -501,15 +510,15 @@ The survey's headline finding. Caps landed in `src/optimizer.rs`
 Worth recording alongside it: the survey inferred this was likely causing the long compile times.
 It was not. Measured convergence on the jQuery port is **2** rounds for the scalar pipeline and
 **12** for the inlining pipeline, together under 6% of wall clock — see
-[004](../004-peephole-relex-tax/README.md). The cap is a correctness/robustness fix, and the real
+[004](../hypotheses/004-peephole-relex-tax/README.md). The cap is a correctness/robustness fix, and the real
 compile-time cause was elsewhere. A structural gap and a performance cause are different claims.
 
 ---
 
 # Addendum 2 — terser's statement sequencing, read against LilScript's gap
 
-Prompted by [013](../013-statement-density/README.md): jQueryLil emits **2.06x** Terser's assignment
-statements, and [016](../016-marked-size-regression/README.md) showed a regression whose whole
+Prompted by [013](../hypotheses/013-statement-density/README.md): jQueryLil emits **2.06x** Terser's assignment
+statements, and [016](../hypotheses/016-marked-size-regression/README.md) showed a regression whose whole
 signature was **+479 `;` and −388 `,`**. So the obvious question is what terser does to merge
 statements that LilScript does not.
 
@@ -564,3 +573,124 @@ artifact roughly cancel; the actual cost was the **+261 `var`/`let` keywords** (
 `merge_adjacent_declarations` — it is not splitting a declarator list in the first place.** That is
 an SSA-destruction decision, upstream of every fold discussed here. Recorded so the terser pass is
 not ported on the strength of its name.
+
+---
+
+## I. Where the scoring point is, and who owns spelling (harvest 2026-09-05, migration 7′)
+
+Read for historical `migration/012-second-look.md` §3 before the "one emission, many
+prints" step. The question: in each tool, at what point is an artifact's shape final, what does the
+printer decide on its own, and is anything ever chosen by comparing two renderings?
+
+| tool | pipeline order | what the printer decides | size comparisons |
+|---|---|---|---|
+| **Terser 5.44.0** | `lib/minify.js:262-280`: `Compressor.compress(toplevel)` (AST→AST: `sequences`, `join_vars`, `booleans` (`!0`), `conditionals`, `if_return`, `collapse_vars`, `unused`, `arrows` — all in `compress/index.js:223-279` defaults) → `figure_out_scope` → `compute_char_frequency` + `mangle_names` (`:270-274`) → `mangle_properties` → `OutputStream` | `lib/output.js:267-295` defaults: `quote_style`, `semicolons`, `braces`, `wrap_iife`, `wrap_func_args`, `shorthand`, `ascii_only`, `keep_numbers`, `quote_keys` — separators, quotes, grouping only; `make_num` (`:2432-2448`) prints a number in every spelling and takes the shortest (`best_of`, `:2416`) | during compress, `best_of(compressor, a, b)` (`compress/common.js:186`) compares `size()` **estimates** of two AST nodes (statement or expression context); the printer compares lengths only for number literals. Nothing is ever scored on non-final text: every transform is on the AST and the printer is last |
+| **Oxc minifier 0.147.0** | `src/lib.rs:88-104`: `compress` (`Compressor`) then `mangle` (`Mangler`), then `oxc_codegen` (not vendored) | codegen options only (`minify`, quotes, …); the peephole (`compression_pass::run_peephole_pass`) owns every shape | none by rendering; the peephole loop is a fixed point capped at `max_iterations` or 10 with a `debug_assert` (`src/compressor.rs:105-141`) |
+| **Closure (master)** | `DefaultPassConfig.getFinalizations()` (~`:700-801`): `coalesceVariableNames` (737) → `peepholeOptimizationsOnceNonNormalized` (742) → `collapseVariableDeclarations` (752) → `denormalize` (756) → `renameVars` (766) → `renameLabels` (771) → `latePeepholeOptimizations` (775: `StatementFusion`, `PeepholeFoldConstants`) → `rescopeGlobalSymbols` (785) → `optimizeToEs6` (790) → validity checks (800-801) → `CodePrinter` | `CodePrinter.Builder` (`:546-609`): `setPrettyPrint`, `setLineBreak`, `setOutputTypes`, license/strict tagging — lexical only; `CodeGenerator` chooses the quote character by counting quotes (`:1485-1520`, `preferSingleQuotes` tiebreak), quotes keyword properties when asked (`:1047-1053`), parenthesises by precedence (`opRequiresParentheses`, `addExpr`, `:1360-1416`), delegates spaces and terminators to `CodeConsumer` (`maybeInsertSpace`, `endStatement`, `:251-274`); booleans print as `true`/`false` (`:1133-1136` — the `!0` spelling is a peephole pass, not the printer's) | no pass in `DefaultPassConfig` compares printings; ordering is by `assertPassOrder`; the generator never compares lengths |
+
+**Verdict for LilScript.** All three keep one rule we break: *the last transform runs before the
+printer, and nothing is scored between them.* Our candidate stages score the emitter's text before
+the peephole normalises it (`compiler.rs` `select_javascript_candidate_global` scores raw
+emissions; `finalize_javascript_candidates_with_parallelism:5714-5870` peepholes only an admitted
+prefix of finalists and lets raw and peepholed leaves compete; `apply_selected_canonical_peephole`
+runs once more on the winner). Terser's `best_of` is the closest thing to our search and it compares
+*AST size estimates during compress*, i.e. before mangling and printing — the cheap-predictor role
+`planned-architecture.md` §4 already assigns to raw deltas. The real-codec comparison of whole
+artifacts stays ours alone (row 21); what we adopt is where the printer sits. Also confirmed: the
+printer-only option set in each tool is small (quotes, separators, grouping, number spelling), and
+every shape spelling (`!0`, sequences, joined declarations, ternaries, arrows) is an AST transform
+with the printer faithful to the tree — which is where `braceless_control_bodies`,
+`comma_expressions`, `mutation_spelling` and `compact_boolean_literals` belong for us too: nodes
+that carry the value, a render that spells it.
+
+## J. The single-use assignment collapse, as Terser and Oxc do it (harvest 2026-09-05, for G4/G5)
+
+Read before the tree-side collapse of `x=<expr>; …x…` (phase 6, G4/G5): Terser
+`lib/compress/tighten-body.js` (`collapse`, 1,530 lines) and Oxc
+`oxc_minifier/src/peephole/minimize_statements.rs`
+(`substitute_single_use_symbol_*`, ~1,960 lines, a port of esbuild's
+`substituteSingleUseSymbolInExpr`).
+
+**Terser `collapse_vars`.** Per statement list, from the end: a *candidate* is an
+assignment, `var` definition or `++/--` whose lhs is a local (`get_lhs`: not
+`const`/`let`/`using`, not a logical assignment; a definition only when its
+symbol has references left, and when referenced more than once only if
+mangleable). A scanner then walks the statements *after* it looking for the
+first read. It aborts on: any other assignment to the same lhs or a logical
+assignment; `await`, `yield`, `using`, `debugger`, `with`, `try`, `class`,
+`export`, destructuring, labels/loop control; a call on the lhs when the lhs is
+a property access; optional chains; iteration statements other than `for`
+(and inside `for`, anything but `init`); an undeclared symbol read when the
+candidate is not replaced everywhere (`replace_all`); `_NOINLINE` call
+annotations. It stops (without aborting) at the first node the value could
+observe: a call, a `case` test, the non-condition arm of `?:`/`||`/`&&`/`if`
+(`find_stop`, `stop_if_hit`), unless the candidate's rhs is free of side
+effects. Replacement happens only when the read is the *first* thing that
+touches the lhs (`lhs.equivalent_to(node)` with `can_replace`), and the
+candidate is then removed (`remove_candidate`) or its definition kept as a
+bare `var`. `replace_all_symbols` — replace every remaining read — is
+allowed only when the rhs has no side effects and the symbol has exactly
+one (definition) or two (assignment) references left. `may_modify` and
+`side_effects_external` treat any reference from another function scope as a
+possible write.
+
+**Oxc / esbuild.** Runs while a statement list is being rebuilt: when the
+statement being appended has an expression slot and the *previous* statement
+is a `var`/`let`/`const` declaration, each declarator from the end is tried
+(`substitute_single_use_symbol_in_expression_from_declarators`): the binding
+must have one read and no writes (`symbol_value.references`), not be a catch
+variable, not be "implicitly observable" (exported, eval), and the init's name
+must not need keeping. The expression walk is in evaluation order and
+returns three verdicts — `Some(true)` substituted, `Some(false)` stop (the
+value could be observed differently), `None` keep looking — per node kind:
+identifiers stop only when the read can be reordered past a TDZ or a mutation
+(`identifier_read_blocks_reorder`); an assignment stops when its target has
+side effects or, with a side-effecting replacement, when it is compound; a
+logical/conditional right arm is entered only when the replacement is
+side-effect-free; calls, member reads, spreads, `import()` are gated the same
+way; the fallthrough rule is *"if neither the replacement nor this node has
+side effects, keep looking; if either side is a literal, keep looking;
+otherwise stop"*. Substituted declarators are drained from the declaration.
+
+**What both have that our tree does not yet.** A reference count per binding
+delivered with the value (`uses` exists on the IR side; the tree's
+`ScopeTree` has `referenced` with multiplicity after the fact), an
+evaluation-order walk that can say "the read is the first observable thing
+after the assignment", and a side-effect predicate on nodes (`JsFacts::PURE`
+and `NO_THROW` are the bits, delivered for source-origin nodes). The text
+folds that do this today — `fold_identifier_copies`, `fold_single_use_temporaries`,
+`fold_returned_temporaries`, `fold_single_use_literal_bindings`,
+`fold_chained_*_assigns` — re-derive all three from tokens per call.
+
+## K. How often the peephole runs (read 2026-09-06, for the `peephole_scope` knob, migration 7.27)
+
+Section I's rule, read once more for the search: in every tool the peephole runs **once per
+program**, inside the transform loop, and no candidate is ever re-folded to be compared. Terser's
+`best_of` (`lib/compress/index.js`) compares two ASTs by `print_to_string().length` *during*
+`compress` and picks one — a cheap predictor, not a second compress. Closure's
+`PeepholeOptimizationsPass` sits in `getOptimizations()`'s loop and runs to a fixpoint on the one
+program; the `CodePrinter` is last and decides nothing by size. Oxc and esbuild run their
+`minimize_statements` / `js_parser` simplifications once, then print. Our search ran the text chain
+on every entropy source and every admitted leaf (jquerylil: 630 runs, two thirds of the CPU with the
+search on); with the emitter writing the chain's shapes itself (7.25–7.26) the exploratory runs
+decide little. `javascript.peephole_scope = "terminal"` is the competitors' shape: fold what ships,
+once. Measured on the pool before the default moves.
+
+**Terminal shape challengers (migration 7.36).** None of the five scores a rewrite by the bytes
+it ships: Terser's `Compressor.compress` re-runs its passes while the AST keeps shrinking
+(`passes`, node count as the measure) and `collapse_vars`/`reduce_vars` apply wherever their
+admission holds; Closure's `CollapseVariableDeclarations`/`InlineVariables` and Oxc's
+`substitute_single_use_symbol` likewise decide by shape, never by a codec. esbuild and SWC have
+no rewrite that is conditional on output size at all. LilScript's terminal ledger already
+scored naming and string-pooling challengers by the configured codec on the finalist; the
+tree's off-for-cause shapes (the single-use collapse first) now enter through the same slot,
+one re-emission each, kept only when smaller. The fleet A/B that motivated it (7.34: the
+collapse on every emission, +128 net, six wins, six losses) is the measurement none of the
+five could have made, because none of them has a search whose plan choice a rewrite can move.
+
+**Addendum (7.38).** The challenger that is comparable to the finalist is a *print of the
+finalist's own tree* with the shape applied on the tree, not a re-emission of its plan: a fresh
+emission lacks the finishing (the rename family, the late cleanup) the artifact already carries,
+and lost 71–101 bytes on markedlil with the shape doing nothing. Terser has no equivalent because
+it has no finishing to lose: its passes are the whole pipeline. The re-print is the shape of
+Phase 7′ -- shapes as prints of one tree, scored by the codec, the finishing paid once.

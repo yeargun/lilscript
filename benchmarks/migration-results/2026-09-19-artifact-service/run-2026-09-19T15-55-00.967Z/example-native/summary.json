@@ -1,0 +1,106 @@
+{
+  "complete": true,
+  "issues": [],
+  "pairs": [],
+  "qualified": true,
+  "runs": [
+    {
+      "artifacts": [],
+      "checks": [
+        {
+          "command": [
+            "/usr/bin/x86_64-linux-gnu-gcc-13",
+            "--version"
+          ],
+          "elapsed_ns": 1487018,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "ae487f55927d605284a32711e4ecf6bc3be2bcd5a9de414ace0936264b741f85"
+        },
+        {
+          "command": [
+            "/usr/bin/x86_64-linux-gnu-gcc-13",
+            "-std=c11",
+            "-fno-fast-math",
+            "-ffp-contract=off",
+            "-O2",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/00-native/native.c",
+            "-lm",
+            "-o",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/00-native/native"
+          ],
+          "compiler": {
+            "path": "/usr/bin/x86_64-linux-gnu-gcc-13",
+            "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+            "version": "x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+          },
+          "elapsed_ns": 55191422,
+          "executable_bytes": 16104,
+          "executable_sha256": "0ec601211fe9b3d5640254d87b00538b13bd6d2e5752b1c367874054b658b844",
+          "exit_code": 0,
+          "qualification": "One C O2 driver-artifact execution with canonical FP flags; the separate library gate supplies both compilers/O0/O2/UBSan.",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "command": [
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/00-native/native"
+          ],
+          "elapsed_ns": 1047106,
+          "executable_sha256": "0ec601211fe9b3d5640254d87b00538b13bd6d2e5752b1c367874054b658b844",
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "68f4d5c1ad9d0be1b5ce3e717704b8fc99329e2ff866edc88e60c22f7f5c5f5d"
+        }
+      ],
+      "command": [
+        "/usr/bin/time",
+        "-o",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/00-native.time",
+        "-f",
+        "wall_s=%e\nuser_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nexit=%x",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/examples/semantic-integrated",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/00-native",
+        "--mode",
+        "native",
+        "--edits",
+        "4",
+        "--work",
+        "200000000",
+        "--memory",
+        "256000000"
+      ],
+      "copied_payload_bytes": 0,
+      "counter_scope": {
+        "copied_payload_bytes": "all edits including the common first fork",
+        "post_fork": "edits after the common first fork; same interval as edit_ns",
+        "reused_units": "all edits including the common first fork"
+      },
+      "directory": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T15-55-00.967Z/example-native/00-native",
+      "edit_ns": 0,
+      "elapsed_ns": 10090316,
+      "exit_code": 0,
+      "issues": [],
+      "mode": "native",
+      "ordinal": 0,
+      "post_fork_copied_payload_bytes": 0,
+      "post_fork_reused_units": 0,
+      "process": {
+        "exit": 0.0,
+        "peak_rss_kib": 14964.0,
+        "system_s": 0.0,
+        "user_s": 0.0,
+        "wall_s": 0.0
+      },
+      "qualified": true,
+      "report_sha256": "ac9995bdc2d2ae76a4bac09692805e009c71ea38fb76709371629ef1d915ec73",
+      "reused_units": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

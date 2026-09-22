@@ -1,0 +1,405 @@
+{
+  "schema": 1,
+  "kind": "source-baseline-batch",
+  "runId": "2026-09-20-source-baselines",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "started": "2026-09-20T18:35:00.291Z",
+  "qualified": [
+    {
+      "library": "hast-util-to-htmllil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 0.734,
+      "artifacts": 5,
+      "cases": {
+        "required": 460,
+        "executed": 460,
+        "failed": []
+      },
+      "measurements": {
+        "dist/to-html.cjs": {
+          "raw": 31100,
+          "gzip": 10259,
+          "brotli": 9100
+        },
+        "dist/to-html.closed.js": {
+          "raw": 29952,
+          "gzip": 9816,
+          "brotli": 8668
+        },
+        "dist/to-html.esm.js": {
+          "raw": 30101,
+          "gzip": 9971,
+          "brotli": 8807
+        },
+        "dist/to-html.raw.js": {
+          "raw": 30005,
+          "gzip": 9904,
+          "brotli": 8750
+        },
+        "dist/to-html.umd.js": {
+          "raw": 31171,
+          "gzip": 10287,
+          "brotli": 9129
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "mdast-util-to-hastlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 36.327,
+      "artifacts": 5,
+      "cases": {
+        "required": 152,
+        "executed": 152,
+        "failed": []
+      },
+      "measurements": {
+        "dist/to-hast.cjs": {
+          "raw": 15355,
+          "gzip": 5401,
+          "brotli": 4915
+        },
+        "dist/to-hast.closed.js": {
+          "raw": 14491,
+          "gzip": 5341,
+          "brotli": 4855
+        },
+        "dist/to-hast.esm.js": {
+          "raw": 13965,
+          "gzip": 4753,
+          "brotli": 4288
+        },
+        "dist/to-hast.raw.js": {
+          "raw": 13866,
+          "gzip": 4683,
+          "brotli": 4210
+        },
+        "dist/to-hast.umd.js": {
+          "raw": 15426,
+          "gzip": 5432,
+          "brotli": 4941
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "rehype-katexlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 0.19,
+      "artifacts": 5,
+      "cases": {
+        "required": 67,
+        "executed": 67,
+        "failed": []
+      },
+      "measurements": {
+        "dist/rehype-katex.cjs": {
+          "raw": 284846,
+          "gzip": 70032,
+          "brotli": 57736
+        },
+        "dist/rehype-katex.closed.js": {
+          "raw": 2364,
+          "gzip": 1065,
+          "brotli": 951
+        },
+        "dist/rehype-katex.esm.js": {
+          "raw": 2235,
+          "gzip": 1033,
+          "brotli": 898
+        },
+        "dist/rehype-katex.raw.js": {
+          "raw": 1532,
+          "gzip": 857,
+          "brotli": 729
+        },
+        "dist/rehype-katex.umd.js": {
+          "raw": 284687,
+          "gzip": 69985,
+          "brotli": 57663
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "remark-breakslil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 7.98,
+      "artifacts": 5,
+      "cases": {
+        "required": 23,
+        "executed": 23,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-breaks.cjs": {
+          "raw": 3793,
+          "gzip": 1678,
+          "brotli": 1525
+        },
+        "dist/remark-breaks.closed.js": {
+          "raw": 2767,
+          "gzip": 1364,
+          "brotli": 1225
+        },
+        "dist/remark-breaks.esm.js": {
+          "raw": 2783,
+          "gzip": 1243,
+          "brotli": 1118
+        },
+        "dist/remark-breaks.raw.js": {
+          "raw": 2695,
+          "gzip": 1178,
+          "brotli": 1058
+        },
+        "dist/remark-breaks.umd.js": {
+          "raw": 3900,
+          "gzip": 1708,
+          "brotli": 1550
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "remark-mathlil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 13.068,
+      "artifacts": 5,
+      "cases": {
+        "required": 63,
+        "executed": 63,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-math.cjs": {
+          "raw": 7796,
+          "gzip": 3058,
+          "brotli": 2753
+        },
+        "dist/remark-math.closed.js": {
+          "raw": 6675,
+          "gzip": 2756,
+          "brotli": 2534
+        },
+        "dist/remark-math.esm.js": {
+          "raw": 6382,
+          "gzip": 2533,
+          "brotli": 2290
+        },
+        "dist/remark-math.raw.js": {
+          "raw": 6298,
+          "gzip": 2472,
+          "brotli": 2236
+        },
+        "dist/remark-math.umd.js": {
+          "raw": 7891,
+          "gzip": 3092,
+          "brotli": 2785
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    },
+    {
+      "library": "remark-rehypelil",
+      "passed": true,
+      "sourceBuilt": true,
+      "buildWallSeconds": 34.883,
+      "artifacts": 5,
+      "cases": {
+        "required": 21,
+        "executed": 21,
+        "failed": []
+      },
+      "measurements": {
+        "dist/remark-rehype.cjs": {
+          "raw": 15627,
+          "gzip": 5512,
+          "brotli": 4970
+        },
+        "dist/remark-rehype.closed.js": {
+          "raw": 14820,
+          "gzip": 5441,
+          "brotli": 4923
+        },
+        "dist/remark-rehype.esm.js": {
+          "raw": 14192,
+          "gzip": 4845,
+          "brotli": 4351
+        },
+        "dist/remark-rehype.raw.js": {
+          "raw": 14103,
+          "gzip": 4781,
+          "brotli": 4286
+        },
+        "dist/remark-rehype.umd.js": {
+          "raw": 15734,
+          "gzip": 5548,
+          "brotli": 4999
+        }
+      },
+      "envelopeExceeded": null,
+      "reason": ""
+    }
+  ],
+  "unqualified": [
+    {
+      "library": "jquerylil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.041,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "katexlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.088,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "markedlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 300.105,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=null signal=SIGTERM command deadline exceeded"
+    },
+    {
+      "library": "micromarklil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.078,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "motionlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": null,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "ENOENT: no such file or directory, lstat '/tmp/motionlil-cost-audit-20260911/current/node_modules'"
+    },
+    {
+      "library": "posthoglil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.09,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "rehype-stringifylil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.085,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "rehypelil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.08,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "remark-gfmlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.082,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "solidlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.113,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "unifiedlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": 0.085,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "build did not complete: status=1 signal=null"
+    },
+    {
+      "library": "zodlil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": null,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "directory symlink needs its own input root: /home/azureuser/zodlil/vendor/zod/.codex/skills"
+    },
+    {
+      "library": "probelil",
+      "passed": false,
+      "sourceBuilt": false,
+      "buildWallSeconds": null,
+      "artifacts": 0,
+      "cases": null,
+      "measurements": null,
+      "envelopeExceeded": null,
+      "reason": "the workload manifest records no build command for this library"
+    }
+  ],
+  "completed": "2026-09-20T18:42:06.288Z"
+}

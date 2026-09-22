@@ -1,0 +1,1078 @@
+{
+  "schema": 1,
+  "kind": "search reclamation accounting audit",
+  "reviewer": "root; no independent agent review",
+  "passed": true,
+  "compilerInputs": {
+    "sha256": "728ed9ca7f4aeedc901844d91385cb6c79d371e3d920a34cbb4703387e93adb6",
+    "verified": 980,
+    "changedFromPrerequisite": [
+      "src/compilation_policy.rs",
+      "src/semantic_program/search.rs",
+      "src/semantic_program/search_cursor_tests.rs",
+      "src/semantic_program/search_entries.rs",
+      "src/semantic_program/search_selection.rs"
+    ]
+  },
+  "qualifications": [
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json",
+        "sha256": "d83ddbb84e84c13396cf5804d13a8cd28e1d1bef80aeba94646f0a7672fbcba9",
+        "bytes": 8819
+      },
+      "passed": true,
+      "acceptedTests": [
+        {
+          "filter": "publication::search::",
+          "passed": 27
+        },
+        {
+          "filter": "search_entries::",
+          "passed": 5
+        },
+        {
+          "filter": "search_tests::",
+          "passed": 15
+        },
+        {
+          "filter": "compilation_policy::",
+          "passed": 31
+        },
+        {
+          "filter": "compiler_service",
+          "passed": 33
+        }
+      ],
+      "failures": [],
+      "cargoFresh": false,
+      "binary": {
+        "path": "/tmp/lilscript-search-reclamation-initial-20260920/lilscript-c737e884cfca95f9",
+        "sha256": "55fa535b2736773d78a96e4add97a22e09a0faef4b85a257dd9db9c25d86268d",
+        "bytes": 416523968
+      },
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "20e1062b4a485a397d4e059d745d7bff8964d97c81167a50ae57df0867fd0c2d",
+          "bytes": 132
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "f2e1630c4be2580e73ff2777153efe35ed8b868630067566709d2bfa17118330",
+          "bytes": 178163
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "0aed9677ea28348add7053879344735a5fd75d3bcb0da10cd09b12a2c6aa58de",
+          "bytes": 177586
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "0aed9677ea28348add7053879344735a5fd75d3bcb0da10cd09b12a2c6aa58de",
+          "bytes": 177586
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "d83ddbb84e84c13396cf5804d13a8cd28e1d1bef80aeba94646f0a7672fbcba9",
+          "bytes": 8819
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "59c0c714b1028e61f51e39ced9d374a6c7cb4cfabf2a673bec0ae308f70cb459",
+          "bytes": 4053
+        },
+        {
+          "path": "tests-1.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-1.stdout",
+          "sha256": "27f5ea7724608052bc95798c3ac88e7f567f60dbff3be84470c4ce72d5f3b611",
+          "bytes": 717
+        },
+        {
+          "path": "tests-2.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-2.stdout",
+          "sha256": "7f341ef2bdf6da1e0ae8e769967f96250fc33719daf61f8c059b23954ea81195",
+          "bytes": 1956
+        },
+        {
+          "path": "tests-3.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-3.stdout",
+          "sha256": "8960b5a469d1ac774fdf535c79aaf8386a26aab340c19db6b2c64a86880d1681",
+          "bytes": 3225
+        },
+        {
+          "path": "tests-4.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-4.stdout",
+          "sha256": "d16d5e7d078b4cdc0cf109c2741cbd56a8572f3d670431f12ed5550225aca6c4",
+          "bytes": 3686
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json",
+        "sha256": "841921f75221eae9d9edaeee057ae8e5da55d8734e5c177cf7bd0d9e009daa00",
+        "bytes": 11054
+      },
+      "passed": false,
+      "acceptedTests": [
+        {
+          "filter": "publication::search::cursor_tests::",
+          "passed": 6
+        },
+        {
+          "filter": "search_staged_tests::",
+          "passed": 5
+        },
+        {
+          "filter": "search_target_reuse_tests::",
+          "passed": 7
+        },
+        {
+          "filter": "search_reference_runtime_tests::",
+          "passed": 2
+        },
+        {
+          "filter": "search_string_group_tests::",
+          "passed": 1
+        },
+        {
+          "filter": "search_naming_neighborhood_tests::",
+          "passed": 1
+        }
+      ],
+      "failures": [
+        {
+          "filter": "integrated_public_tests::",
+          "message": "empty or failed filter: integrated_public_tests::"
+        }
+      ],
+      "cargoFresh": false,
+      "binary": {
+        "path": "/tmp/lilscript-search-reclamation-baseline-20260920/lilscript-c737e884cfca95f9",
+        "sha256": "b1457d368b0f0f8d8263b85f5ed9331f72bb8c7b41ae15c5c77ab58ee31a5720",
+        "bytes": 416534344
+      },
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "88ec2bc32c2243e0ef361bc2573849aaa3be0b10ec26d3119eeb2668f25e3f14",
+          "bytes": 132
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "08e97d433092f478b22e594cf22d64083e3893ecea69cca9ea96382df24f4e1c",
+          "bytes": 178163
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "41152f0c59c2341193b89dbf3cb55b8a39b2f0e306e07cc7812e75e7137d941b",
+          "bytes": 177586
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "41152f0c59c2341193b89dbf3cb55b8a39b2f0e306e07cc7812e75e7137d941b",
+          "bytes": 177586
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "841921f75221eae9d9edaeee057ae8e5da55d8734e5c177cf7bd0d9e009daa00",
+          "bytes": 11054
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "334864888ad5c146dc3967e27fccd6fc24a769cb25a85b515c535e357e1f0be6",
+          "bytes": 891
+        },
+        {
+          "path": "tests-1.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-1.stdout",
+          "sha256": "6192dc6dfebdc5612fb51bf0fff58c619368dede286a59b47c6a7c866367f0d9",
+          "bytes": 741
+        },
+        {
+          "path": "tests-2.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-2.stdout",
+          "sha256": "d1ed10063b2c42110b1731a01f85bfe7cb50b7b369ee95bd3e398d9d56cd48b3",
+          "bytes": 955
+        },
+        {
+          "path": "tests-3.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-3.stdout",
+          "sha256": "e0c140299bef677f47edc68968cf2976c6212626daf24d5fb5f469ff2f6496bc",
+          "bytes": 383
+        },
+        {
+          "path": "tests-4.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-4.stdout",
+          "sha256": "420b66e0c1b4a6a8f63a65643b37c4ca78c0c329a7ab60a4c23ec8cac1a994d7",
+          "bytes": 254
+        },
+        {
+          "path": "tests-5.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-5.stdout",
+          "sha256": "79888155d18e941374a24e62a56944e6f6694fed6975c28e201d0d962622776b",
+          "bytes": 249
+        },
+        {
+          "path": "tests-6.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-6.stdout",
+          "sha256": "12d5ab8d76ee0d2b21c7b76c567a549083cb00298d5438b31f14b42b49f91e94",
+          "bytes": 116
+        }
+      ]
+    },
+    {
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json",
+        "sha256": "3d77a8fb060275a41c7f91030443bc13a0439f2bc2d2f938b3cd4ac181fddc07",
+        "bytes": 5797
+      },
+      "passed": true,
+      "acceptedTests": [
+        {
+          "filter": "integrated_javascript_tests::",
+          "passed": 8
+        }
+      ],
+      "failures": [],
+      "cargoFresh": true,
+      "binary": {
+        "path": "/tmp/lilscript-search-reclamation-baseline-20260920/lilscript-c737e884cfca95f9",
+        "sha256": "b1457d368b0f0f8d8263b85f5ed9331f72bb8c7b41ae15c5c77ab58ee31a5720",
+        "bytes": 416534344
+      },
+      "outputs": [
+        {
+          "path": "build-tests.stderr",
+          "sha256": "ceddc815a481307909e0791f229b4609ad75e093c6300cfccda5aeb20c680eb2",
+          "bytes": 73
+        },
+        {
+          "path": "build-tests.stdout",
+          "sha256": "420b239a91101e94ef748c0c7bcf563c7d74a7f8d8a0b23adef6e35800fcc077",
+          "bytes": 178162
+        },
+        {
+          "path": "cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "inputs-after.json",
+          "sha256": "41152f0c59c2341193b89dbf3cb55b8a39b2f0e306e07cc7812e75e7137d941b",
+          "bytes": 177586
+        },
+        {
+          "path": "inputs-before.json",
+          "sha256": "41152f0c59c2341193b89dbf3cb55b8a39b2f0e306e07cc7812e75e7137d941b",
+          "bytes": 177586
+        },
+        {
+          "path": "node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "receipt.json",
+          "sha256": "3d77a8fb060275a41c7f91030443bc13a0439f2bc2d2f938b3cd4ac181fddc07",
+          "bytes": 5797
+        },
+        {
+          "path": "rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "tests-0.stdout",
+          "sha256": "a628fc3fb6e77415fb6f29f6fec953d41a4b2f5629ae839432b92ab8a12097cf",
+          "bytes": 1292
+        }
+      ]
+    }
+  ],
+  "accepted": {
+    "uniqueTests": 135,
+    "testExecutions": 141,
+    "newTests": 4,
+    "tests": [
+      {
+        "name": "compilation_policy::tests::absent_deadline_has_no_clock_owner_and_large_limits_do_not_overflow",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_entry_guard_checks_phase_and_deadline_without_mutating_allowances",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_first_deadline_seal_failure_and_clone_keep_cleanup_available",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_first_fixed_partition_compatibility_and_extreme_caps",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_first_limits_cap_plans_and_reject_unavailable_terminal_reserve",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_first_phase_gates_are_atomic_including_zero_admissions",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_first_seal_opens_only_actual_remaining_headroom",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::baseline_first_terminal_work_is_reserved_before_and_after_seal",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::cloned_ledgers_keep_the_compilation_deadline_origin",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::deadline_blocks_memory_admission_but_always_allows_cleanup",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::deadline_checks_all_work_admissions_without_partial_charges",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::deadlines_are_explicit_cooperative_limits",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::every_schedule_field_changes_the_receipt_without_changing_contract_or_caps",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::exact_size_ranking_does_not_quantize_away_real_bytes",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::explicit_codec_budgets_are_part_of_the_resolved_identity",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::explicit_search_schedules_round_trip_through_the_common_config_owner",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::hard_constraints_precede_size_and_explicit_tactic_permissions",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::invalid_search_cadences_and_unknown_schedule_controls_are_rejected",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::legacy_and_new_permissions_have_the_same_resolved_identity",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::legacy_lists_cannot_reenable_off_through_another_producer",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::logging_and_boundaries_are_independent_of_effort_and_codec",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::native_policy_has_no_search_objective_or_schedule_identity",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::native_policy_ignores_javascript_effort_and_build_choices",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::optional_work_and_memory_cannot_consume_the_direct_artifact_reserve",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::search_schedule_defaults_and_partial_configuration_are_resolved_once",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::startup_effort_and_recurring_permissions_are_candidate_specific",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::stronger_cached_analysis_cannot_leak_into_lower_effort",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::unavailable_baseline_and_overflow_fail_without_partial_charges",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::version_and_level_boundaries_are_explicit",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compilation_policy::tests::zero_optional_work_still_has_a_measured_direct_route",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::budget_tests::service_cache_requests_partition_metadata_and_refuse_tiny_capacity_as_resources",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::budget_tests::small_no_search_service_needs_no_optional_cache_admission",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::budget_tests::small_service_options_and_policy_limits_have_the_same_search_budget",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::deadline_at_adoption_discards_prepared_graph_before_releasing_its_charge",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::default_service_preserves_target_metadata_after_factory_finalization",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::delivered_rewrite_metadata_survives_finalization_and_marks_inherited_history",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::explicit_zero_specialization_matches_omitted_source_and_module_compilation",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::integrated_original_modules_execute_through_fast_and_searched_public_service",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::native_and_all_reject_unknown_required_runtime_evidence",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::native_and_all_share_checked_meaning_without_native_codec_work",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_copy",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_checker_refusal_releases_source_buffers_but_preserves_owned_diagnostic",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_factory_finalizes_and_releases_source_before_resuming_same_panic",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_factory_finalizes_before_source_release_on_success_and_callback_error",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_factory_parses_each_canonical_module_once_and_releases_syntax_before_backend",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_post_discovery_work_refusal_releases_sources_before_returning",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_service_preserves_original_module_initialization_callbacks_and_public_objects",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_source_memory_refusal_is_typed_without_diagnostic_source_copy",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::path_store_refusal_releases_prepared_graph_then_factory_source_buffers",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::resource_owner_exists_before_discovery_and_parse",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::scoped_direct_delivery_cannot_bypass_runtime_admission",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::scoped_package_delivery_refusal_releases_handoffs_without_discarding_inputs",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::scoped_search_and_default_service_share_winners_handoff_and_budget",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::scoped_source_edit_keeps_one_owner_and_delivers_qualified_parent_and_child",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::semantic_service_rejects_legacy_ast_specialization_before_io_or_work",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::source_checker_and_conversion_work_refusals_remain_typed_at_the_public_boundary",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::source_factory_finalizes_without_claiming_caller_source_release",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::source_parser_memory_refusal_remains_typed_at_the_public_boundary",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::source_service_returns_independently_scored_qualified_winners",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "compiler_service::tests::store_construction_refusal_returns_the_owner_for_prepared_graph_cleanup",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_observation_tests::document_consumer_literal_modes_compose_with_the_existing_portfolio_and_fixed_search",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_observation_tests::document_consumer_runs_with_live_observed_literals_and_zero_optional_work",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_original_modules_deliver_the_complete_api_with_zero_optional_work",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_private_edit_changes_the_public_observation_and_reuses_unrelated_facts",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_record_helper_string_product_and_call_portfolio_preserves_one_event_oracle",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_search_winners_belong_to_the_exact_executed_measured_union",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::integrated_value_reference_module_executes_unchanged_through_native_and_javascript",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::integrated_javascript_tests::public_factory_qualifies_combined_recipes_with_exact_scores_and_original_observations",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-44-07.345Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::cursor_tests::partial_finish_refusal_keeps_exact_incumbent_and_releases_discovery_owners",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::cursor_tests::partial_reclaim_refusal_preserves_pins_and_unvisited_states",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::cursor_tests::reclaim_scan_skips_active_states_and_charges_empty_state_slots",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::cursor_tests::refused_cursor_scan_preserves_progress_and_exact_incumbent",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::cursor_tests::structural_age_turns_preserve_quality_turns_and_use_canonical_ties",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::cursor_tests::width_one_keeps_a_waiting_cursor_but_never_an_exhausted_tail",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::function_support_tests::inactive_transport_keeps_stale_and_script_guards_at_their_owners",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::function_support_tests::inactive_transport_query_refusal_is_not_a_negative_proof_or_allocation",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::function_support_tests::shared_transport_requires_every_exact_creator_and_survives_compatible_children",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::memory_tests::cold_memory_refusal_scores_existing_names_and_preserves_fixed_probe_prefixes",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::memory_tests::refused_facts_session_releases_prepared_proof_but_keeps_owned_cache",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::memory_tests::zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::complete_package_keeps_consumer_and_producer_recipes_after_all_candidates_are_disposed",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::complete_package_qualification_owns_both_streams_and_retains_dependency_provenance",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::final_package_cost_uses_merged_risk_and_never_fabricates_unknown_runtime_evidence",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::invalid_producer_seed_preserves_baseline_and_zero_optional_does_not_consume_inputs",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::preexisting_consumers_share_complete_codec_selection_and_execute_every_observation",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::required_consumer_root_preserves_delivery_in_zero_and_optional_search",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::required_consumer_search_selects_exact_distinct_product_and_function_families",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::shared_producer_text_counts_once_and_package_handoff_is_atomic",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::sparse_pool_scan_is_admitted_and_whole_pool_keeps_constant_work",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::resource_tests::stale_supplied_input_is_not_a_choice_conflict_and_fragment_root_is_refused",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::publication::search::selection::reuse_tests::staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_entries::tests::backing_growth_charges_coexisting_buffers_and_releases_original_domain",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_entries::tests::denied_growth_and_aggregate_overflow_preserve_existing_artifacts",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_entries::tests::pin_lookup_admits_each_visited_slot_and_stops_at_the_first_match",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_entries::tests::real_artifact_slots_reuse_without_copying_text_or_codec_scores",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_entries::tests::rejected_disposal_returns_all_owned_entries_then_empty_release_succeeds",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_naming_neighborhood_tests::source_name_overrides_have_a_qualified_finite_structural_neighborhood",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_reference_runtime_tests::reference_oracle_and_small_cap_finalization_execute_exact_observations",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_reference_runtime_tests::reference_search_reaches_mixed_fields_and_inline_under_larger_fixed_cap",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_staged_tests::finite_factory_union_and_exact_winners_match_immediate_and_staged_schedules",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_staged_tests::fixed_schedule_probe_prefixes_are_deterministic_and_additional_probes_do_not_regress",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_staged_tests::queue_pressure_scores_an_old_trial_without_losing_the_incoming_trial",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_staged_tests::raw_only_search_bypasses_the_codec_queue_under_both_schedules",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_staged_tests::requested_codecs_keep_separate_winners_and_diversity_reaches_a_real_raw_loser",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_string_group_tests::manual_joint_string_pool_has_a_qualified_finite_oracle_beyond_singleton_discovery",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::literal_only_continuation_reuses_target_with_naming_search_disabled",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::no_continuation_drops_target_before_seal_without_optional_naming_work",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::observer_panics_release_target_and_each_naming_basis",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::one_target_two_bases_preserve_three_styles_and_exact_old_artifacts",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::optional_preparation_refusal_drops_target_and_preserves_qualified_baseline",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::public_service_transfers_winners_without_reforming_targets",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_target_reuse_tests::structural_children_still_form_distinct_targets",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-43-28.125Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::artifact_identity::qualified_winner_keeps_complete_recipe_after_search_and_source_disposal",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::discovery::cold_low_search_and_high_warmed_low_search_keep_exact_winners_and_request_charges",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::discovery::one_artifact_attempt_can_reach_a_literal_after_many_unavailable_helpers",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::discovery::one_closed_product_proof_covers_its_copy_hints_without_a_facts_cache",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::discovery::private_product_transport_search_is_independent_and_retries_under_stronger_caps",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::discovery::truncated_queries_are_skipped_within_the_request_and_retried_with_stronger_bounds",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::invalid_ledger_and_missing_runtime_evidence_reject_before_search_work_or_storage",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::one_retained_artifact_allows_replacement_but_rejects_a_divergent_codec_union",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::panicking_observer_releases_losing_artifact_provenance_and_search_storage",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::real_gzip_and_brotli_winners_survive_independently",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::structural_discovery_matches_independent_twelve_state_oracle_and_measured_union",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::taking_one_shared_winner_moves_its_buffer_and_consumes_all_objective_aliases",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      },
+      {
+        "name": "semantic_program::search_tests::zero_optional_work_seals_a_completely_scored_direct_baseline",
+        "receipt": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T01-42-00.883Z/receipt.json"
+      }
+    ],
+    "reuse": "105 unchanged non-cursor tests from initial successful binary; six strengthened cursor checks plus 16 additional search and eight integrated JS checks use final binary"
+  },
+  "beforeSource": [
+    {
+      "path": "/tmp/lilscript-search-reclamation-before-20260920/src/compilation_policy.rs",
+      "sha256": "3908bae70301a44c4ec81239b6e676d3b9e550f8e5f437b15ec262c9247f8237",
+      "bytes": 82922
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-before-20260920/src/semantic_program/search.rs",
+      "sha256": "8f9ad762dcbcac8a783a8f986093f8903ea4ab9eac8d67e9ffbb6f295f260eae",
+      "bytes": 64681
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-before-20260920/src/semantic_program/search_cursor_tests.rs",
+      "sha256": "76945968ccc07b75cf86174b9408acbfb8ef2eef1a4de38759da63e7d978d3bf",
+      "bytes": 8817
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-before-20260920/src/semantic_program/search_entries.rs",
+      "sha256": "2d658c44a04a6cd3781ffab7c6b3f8c40b53109d2a1212fbed2cbaf4ff6ba9d3",
+      "bytes": 20408
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-before-20260920/src/semantic_program/search_selection.rs",
+      "sha256": "9530f75dbf55decbd6a4ae10aceb5ef1422759c614c44bca72dd2e3f76289de1",
+      "bytes": 23192
+    }
+  ],
+  "afterSource": [
+    {
+      "path": "/tmp/lilscript-search-reclamation-baseline-20260920/src/compilation_policy.rs",
+      "sha256": "d4a86a1b101db1843eb3d8738e428be5dc9963c737436426f92e67bc60a5362b",
+      "bytes": 83078
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-baseline-20260920/src/semantic_program/search.rs",
+      "sha256": "cea71541905907d1da5681088ed82f2798e617d2d7049c90797ecb54e4526cb6",
+      "bytes": 64405
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-baseline-20260920/src/semantic_program/search_cursor_tests.rs",
+      "sha256": "9056caa137d868bfcd679f85a10cabb222689fc7ecbcc08c140086627d9d4eb2",
+      "bytes": 13609
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-baseline-20260920/src/semantic_program/search_entries.rs",
+      "sha256": "6bb9fc619a0d25bbd49174f3d8e8c098a3f29ab819893552a4d1f5668e23dede",
+      "bytes": 23905
+    },
+    {
+      "path": "/tmp/lilscript-search-reclamation-baseline-20260920/src/semantic_program/search_selection.rs",
+      "sha256": "b606bc40795d9b05c2a9b23e6127f4e6c506027ac17cea4cb0ad8d1dc13a0026",
+      "bytes": 23257
+    }
+  ],
+  "design": {
+    "path": "docs/compiler-design.md",
+    "sha256": "659911967aa490b1e7db340b7d76399307aa86baa3c7761ef252508d0b5a5bbb",
+    "bytes": 16688
+  },
+  "replay": {
+    "path": "benchmarks/migration-results/2026-09-20-search-reclamation/receipt.json",
+    "sha256": "6ba8376c74031f670b8eb4b98f34abed7178abde531f72765e19ab79bbc208c7",
+    "bytes": 3976
+  },
+  "review": [
+    "Pin visits charge physical slots including holes, stop at first match, and skip unused capacity.",
+    "State visits precede state inspection; active states avoid pin scans during reclaim and empty states avoid pin scans during finish.",
+    "Refusal can follow already completed releases, but never releases pinned or unvisited candidates; owner Drop still releases all remaining backing.",
+    "Schedule identity changes to 22; no new retained owner, cache, search default, output representation or artifact mutation.",
+    "32 rows preserve every reported field except analysis and optional logical-work tariff; 24 oracle records are exactly equal."
+  ],
+  "limitations": [
+    "Logical-work precision is not measured wall/CPU speed or an asymptotic change.",
+    "No held-out libraries, release or fleet rerun; no equivalent-rewrite rediscovery.",
+    "One zero-match filter refusal is preserved; accepted tests are enumerated, not inferred from that failed receipt."
+  ]
+}

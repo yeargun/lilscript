@@ -1,5 +1,7 @@
 # LilScript
 
+**Planning consolidated, 2026-09-19:** [one target architecture](docs/compiler-design.md) and [one migration plan](docs/migration/index.md), with all steps and progress in that single file. Implementation gates remain unverified.
+
 **LilScript is built to make correct web programs smaller than equivalent JavaScript.**
 
 Site: [lilscript.eddocu.com](https://lilscript.eddocu.com/)
@@ -26,8 +28,9 @@ meaning and eligible comparisons are defined by the
 [verification contract](docs/knowledge/verification/README.md); tracked reports
 and scoped interpretations are indexed under
 [evidence](docs/knowledge/evidence/README.md).
-The standing optimization loop — the contract handed to every agent, the fleet standings,
-and the hypothesis log — lives in [finer/](finer/README.md).
+Language/compiler redesign follows [compiler design](docs/compiler-design.md)
+and its [migration plan](docs/migration/index.md). Open language decisions remain explicit. Former migration plans are retired;
+[finer/](finer/README.md) retains measurement tools and historical experiments.
 
 ## How it compresses JS finer than Vite / Oxc / Terser / esbuild
 

@@ -1,0 +1,92 @@
+{
+  "pin": "remark-breaks@4.0.0",
+  "package": "@itslil/remark-breaks",
+  "file": "remark-breaks",
+  "lilExport": "default",
+  "officialExport": "default",
+  "node": "v22.21.1",
+  "codec": "lilscript-codec gzip-9 / brotli-11",
+  "runtime": "Node v22.21.1",
+  "warmupDiscard": 3,
+  "comparison": "Official rows are an esbuild bundle of remark-breaks@4.0.0 plus its runtime graph, then Terser or esbuild. LilScript is the compiled npm file. Closed is extern_fields=false.",
+  "spec": {
+    "total": 20,
+    "pass": 20,
+    "label": "tests passing"
+  },
+  "play": {
+    "kind": "md-plugin",
+    "sample": "line\nwith a break",
+    "samples": [
+      {
+        "label": "softbreak",
+        "value": "line\nwith a break"
+      }
+    ]
+  },
+  "size": [
+    {
+      "id": "official",
+      "name": "Official remark-breaks@4.0.0 graph",
+      "raw": 8981,
+      "gzip9": 2647,
+      "brotli11": 2335,
+      "note": "esbuild bundle of the published package plus runtime deps",
+      "diagnostic": false
+    },
+    {
+      "id": "official-terser-mangle",
+      "name": "Official · Terser mangle on",
+      "raw": 2988,
+      "gzip9": 1284,
+      "brotli11": 1173,
+      "note": "Terser compress of that graph, mangle: true",
+      "baseline": true
+    },
+    {
+      "id": "official-terser-nomangle",
+      "name": "Official · Terser mangle off",
+      "raw": 4633,
+      "gzip9": 1627,
+      "brotli11": 1456,
+      "note": "Terser compress of that graph, mangle: false"
+    },
+    {
+      "id": "official-esbuild",
+      "name": "Official · esbuild minify",
+      "raw": 3085,
+      "gzip9": 1375,
+      "brotli11": 1261,
+      "note": "esbuild minify of that graph"
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/remark-breaks · library",
+      "raw": 2746,
+      "gzip9": 1261,
+      "brotli11": 1131,
+      "note": "LilScript js-module, extern_fields true. The npm ESM.",
+      "primary": true
+    },
+    {
+      "id": "itslil-closed",
+      "name": "@itslil/remark-breaks · closed",
+      "raw": 3039,
+      "gzip9": 1386,
+      "brotli11": 1241,
+      "note": "Same source, extern_fields false; diagnostic only"
+    }
+  ],
+  "throughput": [
+    {
+      "id": "official",
+      "name": "remark-breaks@4.0.0",
+      "documentMs": 0.20466699999997218
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/remark-breaks",
+      "documentMs": 0.0946669999993901
+    }
+  ]
+}

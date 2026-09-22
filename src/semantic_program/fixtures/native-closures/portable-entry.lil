@@ -1,0 +1,10 @@
+import {installCounter} from "./portable-factory.lil";
+extern int invoke(int slot,int delta);
+extern void clear(int slot);
+extern void clearAll();
+extern func(int)->int take(int slot);
+extern void expectLive(int count);
+extern void assertEmpty();
+installCounter(2,0);installCounter(10,1);
+print(invoke(0,3));print(invoke(1,1));print(invoke(0,2));
+clearAll();assertEmpty();

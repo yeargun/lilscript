@@ -1,0 +1,7 @@
+[portgate] arm preserved-release-original-probe: compiler 3d8e45059024, 1 ports
+[portgate] probelil: building (--compile)
+[portgate] probelil: testing
+[portgate] probelil: build=ok 41s tests=pass evidence=unverified
+[portgate] recorded 1 ports to /tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate
+[portgate] UNVERIFIED REQUIRED TESTS (1): probelil
+[portgate] evidence is retained; an inventory run or failing suite cannot return a verified gate result

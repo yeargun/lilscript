@@ -1,0 +1,24 @@
+extern string receiver();
+extern int begin();
+extern int ending();
+extern string separator();
+
+export string sliceOmitted() { return receiver().slice(begin()); }
+export string sliceExplicit() { return receiver().slice(begin(), ending()); }
+export string[] splitValue() { return receiver().split(separator()); }
+export void unusedSlice() { receiver().slice(begin(), ending()); }
+export void unusedSplit() { receiver().split(separator()); }
+export string[] mutateSplit() {
+  string[] result = receiver().split(separator());
+  result[0] = "written";
+  return result;
+}
+export void discardSplitLength() { receiver().split(separator()).length; }
+export string coercedSlice() {
+  string value = receiver().slice(begin());
+  return value + "!";
+}
+export void discardCoercedSlice() {
+  string value = receiver().slice(begin());
+  value + "!";
+}

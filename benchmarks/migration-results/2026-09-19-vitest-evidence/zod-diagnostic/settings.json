@@ -1,0 +1,27 @@
+{
+  "cwd": "/home/azureuser/zodlil",
+  "config": "/home/azureuser/zodlil/vitest.config.ts",
+  "vitestNode": "/home/azureuser/zodlil/node_modules/vitest/dist/node.js",
+  "artifactPaths": [
+    "/home/azureuser/zodlil/dist/index.js",
+    "/home/azureuser/zodlil/dist/zod.core.js",
+    "/home/azureuser/zodlil/dist/compat.js",
+    "/home/azureuser/zodlil/dist/visit.js",
+    "/home/azureuser/zodlil/dist/async-api.js",
+    "/home/azureuser/zodlil/dist/official-json-schema.js",
+    "/home/azureuser/zodlil/dist/regexes.js",
+    "/home/azureuser/zodlil/dist/core.js",
+    "/home/azureuser/zodlil/dist/mini.js"
+  ],
+  "forbiddenSources": [
+    {
+      "root": "vendor/zod/packages/zod/src",
+      "except": [
+        "vendor/zod/packages/zod/src/v4/classic/tests"
+      ]
+    }
+  ],
+  "results": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-vitest-evidence/zod-diagnostic/results.json",
+  "routes": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-vitest-evidence/zod-diagnostic/routes.json",
+  "collectOnly": false
+}

@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T13:01:31.543Z",
+  "completed": "2026-09-21T13:02:20.584Z",
+  "wallSeconds": 49.038,
+  "command": "cargo",
+  "args": [
+    "test",
+    "--release",
+    "--lib"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "environment": {
+    "LILSCRIPT_NATIVE_CLANG": "/home/azureuser/toolchains/clang-18/clang"
+  },
+  "compiler": null,
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/toolchains/clang-18/usr/lib/llvm-18/bin/clang-18",
+        "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+        "bytes": 140592
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript_public_structs.rs",
+        "sha256": "c88e94da2ab3b33716c1518234dec2e929c432586a01a1d1c0ef189406c72b2e",
+        "bytes": 15424
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript_structs.rs",
+        "sha256": "c7e21bab37e7e6beac3809653657359126b7a4ca42a0b1ba5fa1a2250beea511",
+        "bytes": 13075
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript.rs",
+        "sha256": "1d91757ef8026684dcf4783a34097de89bbfb05f95d7ad6f99ecf28533ef75d3",
+        "bytes": 111328
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/structured_js/mod.rs",
+        "sha256": "1b91d97b48d0ce6285d6a551c3c388ec0ea711184aac5cf50a7c44508cb359ce",
+        "bytes": 28002
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/javascript_struct_boundary_tests.rs",
+        "sha256": "5f5e9b528114b421750fb6bd50b0daf4ed3660877ec67af6186c6b57fc654eea",
+        "bytes": 24845
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/integrated_javascript_tests.rs",
+        "sha256": "ecbcccca50aac6048e3cde7520453649fb93915bf3786b17fa3e776ea4f51bdf",
+        "bytes": 56456
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/compiler_service_tests.rs",
+        "sha256": "b3226f749bb111bf6973614c69a46d06f4994762b9203ef10778d41b94b705b6",
+        "bytes": 64610
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/artifact_provenance.rs",
+        "sha256": "9e431ee741a81665540e23ce199ddaaa4bb215ef1e401d75e3a0fc457574e983",
+        "bytes": 29225
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/public-structs/entry.lil",
+        "sha256": "d02eb4a045c967b71e2f6b47866b490e7b4c5953a909285f854a788a6c91945f",
+        "bytes": 285
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/fixtures/public-structs/geometry.lil",
+        "sha256": "3101f2dcecf24f1201a02b2db56b447950d74eb3de9342a4795339aa4d9438df",
+        "bytes": 129
+      },
+      {
+        "path": "/home/azureuser/toolchains/clang-18/clang",
+        "sha256": "80de4e6a8cd83f301bc1e9a4cd8b71c927d75d4aa7009908a7ceea29482a75ac",
+        "bytes": 283
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "b3c297bfa69311f0a7d8518244da1a4c358ba1a09fa4b0b27420d8e8e3a5d17b",
+    "bytes": 298462
+  },
+  "stderr": {
+    "sha256": "d74acf241a720dfc0b9d942d9f35fc919489498d0f8c1694b678a10b534abea4",
+    "bytes": 7964
+  },
+  "passed": true,
+  "fingerprint": "3db4957ad2957a1133008ba3a401a50dffa51bab98130867510f341a7c6976e8"
+}

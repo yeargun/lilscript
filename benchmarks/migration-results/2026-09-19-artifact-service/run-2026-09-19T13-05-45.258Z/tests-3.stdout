@@ -1,0 +1,20 @@
+
+running 15 tests
+test semantic_program::artifacts::native::tests::native_host_header_is_qualified_retained_and_transferred_with_c ... ok
+test semantic_program::artifacts::native::tests::native_handoff_is_typed_zero_copy_and_rejects_foreign_consumed_and_stale_receipts ... ok
+test semantic_program::artifacts::admission_tests::baseline_receipts_survive_byte_disposal_but_cannot_cross_source_meanings ... ok
+test semantic_program::artifacts::admission_tests::qualification_rejects_changed_formation_contract_but_inspection_remains_available ... ok
+test semantic_program::artifacts::native::tests::retained_native_files_reduce_memory_available_during_javascript_formation ... ok
+test semantic_program::artifacts::scores_tests::completed_artifact_owners_preserve_compilation_send ... ok
+test semantic_program::artifacts::scores_tests::compressed_zero_is_unmeasured_and_refusals_preserve_complete_coordinates ... ok
+test semantic_program::artifacts::native::tests::javascript_exact_score_reuse_skips_native_slots_without_consuming_them ... ok
+test semantic_program::artifacts::reuse_tests::score_identity_preserves_dependency_bytes_and_separate_streams ... ok
+test semantic_program::artifacts::native::tests::native_qualification_rejects_unknown_constraints_but_preserves_inspection ... ok
+test semantic_program::artifacts::scores_tests::concurrent_codec_publication_keeps_both_exact_scores ... ok
+test semantic_program::artifacts::admission_tests::direct_artifacts_require_exact_scores_and_known_required_runtime_evidence ... ok
+test semantic_program::artifacts::reuse_tests::discarded_donors_leave_no_score_history_or_retained_bytes ... ok
+test semantic_program::artifacts::reuse_tests::refused_reuse_does_not_publish_a_partially_found_codec ... ok
+test semantic_program::artifacts::reuse_tests::retained_equal_bytes_reuse_requested_codecs_without_merging_records ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 2704 filtered out; finished in 0.01s
+

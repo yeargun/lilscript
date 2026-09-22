@@ -1,0 +1,10 @@
+extern string needle();
+extern int position();
+
+export int omitted(string value) {
+  return value.indexOf(needle());
+}
+
+export int explicit(string value) {
+  return value.indexOf(needle(), position());
+}

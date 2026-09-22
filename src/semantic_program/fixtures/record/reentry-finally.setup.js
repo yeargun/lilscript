@@ -1,0 +1,1 @@
+let retained,calls=0;globalThis.visit=(read,change)=>{retained=read;console.log(read());change();console.log(read());if(++calls===2)throw 23;};globalThis.saved=()=>retained();

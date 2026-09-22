@@ -1,0 +1,1 @@
+let a;let values=["A","B","C"];let result="";{let a;let index=0;for(;index<(values.length|0);a=index,index=a+ 1|0,a){result=result+ (values[index]??"");}}a=void console.log(result);

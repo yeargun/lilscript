@@ -1,0 +1,10 @@
+
+running 5 tests
+test semantic::class_ownership_tests::hierarchy_resolution_moves_own_field_and_method_payloads_without_cloning ... ok
+test semantic::class_ownership_tests::canonical_class_and_object_signatures_finalize_pending_default_bindings ... ok
+test semantic::class_ownership_tests::merged_object_members_keep_order_identity_and_shared_callable_payloads ... ok
+test semantic::class_ownership_tests::hierarchy_errors_keep_original_spans_messages_and_own_member_storage ... ok
+test semantic::class_ownership_tests::three_level_generic_inheritance_preserves_substitutions_and_declaring_slots ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2890 filtered out; finished in 0.00s
+

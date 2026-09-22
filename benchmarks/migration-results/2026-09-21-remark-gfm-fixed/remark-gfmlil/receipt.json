@@ -1,0 +1,314 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "remark-gfmlil",
+  "started": "2026-09-21T11:14:22.059Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/remark-gfmlil",
+  "workspace": "/tmp/lilscript-baseline-remark-gfmlil-hybQNo/remark-gfmlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/remark-gfmlil",
+    "candidates": [
+      "/home/azureuser/remark-gfmlil",
+      "/home/azureuser/remark-gfmlil",
+      "/tmp/lilscript-page-refresh-20260910/current/remark-gfmlil"
+    ],
+    "recorded": "/home/azureuser/remark-gfmlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/23113fd57d6b7b95f286f223bb413777d780af0e1ddf779400edf819b523f007/lilscript",
+    "sha256": "23113fd57d6b7b95f286f223bb413777d780af0e1ddf779400edf819b523f007",
+    "bytes": 17910416,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/remark-gfmlil",
+    "files": 99,
+    "sha256": "ff11a1d27f731b5c1d568a63f85386e9d251431d4ce5afa284447a7f092728f0"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/23113fd57d6b7b95f286f223bb413777d780af0e1ddf779400edf819b523f007/lilscript",
+        "sha256": "23113fd57d6b7b95f286f223bb413777d780af0e1ddf779400edf819b523f007",
+        "bytes": 17910416
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/remark-gfmlil/lilscript.closed.toml",
+        "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+        "bytes": 406
+      },
+      {
+        "path": "/home/azureuser/remark-gfmlil/lilscript.toml",
+        "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+        "bytes": 2650
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/remark-gfm.cjs",
+    "dist/remark-gfm.closed.js",
+    "dist/remark-gfm.esm.js",
+    "dist/remark-gfm.raw.js",
+    "dist/remark-gfm.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 177.881,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "notRebuilt": [],
+  "artifacts": [
+    {
+      "path": "dist/remark-gfm.cjs",
+      "sha256": "5b32309040b0ddca4136ddf2a53f34180b3578291ab6520852e47f59b1b9735f",
+      "bytes": 36842,
+      "sizes": {
+        "raw": 36842,
+        "gzip": 12746,
+        "brotli": 11340
+      }
+    },
+    {
+      "path": "dist/remark-gfm.closed.js",
+      "sha256": "392d49ea49fef9b2e9706c99a13698db59d50bc8f04045d9aabd6b3675bc2f4c",
+      "bytes": 34706,
+      "sizes": {
+        "raw": 34706,
+        "gzip": 12833,
+        "brotli": 11532
+      }
+    },
+    {
+      "path": "dist/remark-gfm.esm.js",
+      "sha256": "c9d225ade72dd2c8d10292f741bd899e006c36a14eaf8cbecd775fbd0ea58071",
+      "bytes": 32703,
+      "sizes": {
+        "raw": 32703,
+        "gzip": 11564,
+        "brotli": 10346
+      }
+    },
+    {
+      "path": "dist/remark-gfm.raw.js",
+      "sha256": "cb15885979f407165f49ba169feada9729c0b81b41f00405ab5f929696f0ed76",
+      "bytes": 32621,
+      "sizes": {
+        "raw": 32621,
+        "gzip": 11501,
+        "brotli": 10254
+      }
+    },
+    {
+      "path": "dist/remark-gfm.umd.js",
+      "sha256": "ba371890437710276794870cb90c8b6d6a8bec25e3c82d477104e2497e2e61c8",
+      "bytes": 36931,
+      "sizes": {
+        "raw": 36931,
+        "gzip": 12801,
+        "brotli": 11424
+      }
+    }
+  ],
+  "measurements": {
+    "dist/remark-gfm.cjs": {
+      "raw": 36842,
+      "gzip": 12746,
+      "brotli": 11340
+    },
+    "dist/remark-gfm.closed.js": {
+      "raw": 34706,
+      "gzip": 12833,
+      "brotli": 11532
+    },
+    "dist/remark-gfm.esm.js": {
+      "raw": 32703,
+      "gzip": 11564,
+      "brotli": 10346
+    },
+    "dist/remark-gfm.raw.js": {
+      "raw": 32621,
+      "gzip": 11501,
+      "brotli": 10254
+    },
+    "dist/remark-gfm.umd.js": {
+      "raw": 36931,
+      "gzip": 12801,
+      "brotli": 11424
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 2.601,
+  "cases": {
+    "required": 22,
+    "executed": 22,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/remark-gfm.esm.js",
+      "sha256": "c9d225ade72dd2c8d10292f741bd899e006c36a14eaf8cbecd775fbd0ea58071",
+      "bytes": 32703
+    },
+    {
+      "path": "dist/remark-gfm.cjs",
+      "sha256": "5b32309040b0ddca4136ddf2a53f34180b3578291ab6520852e47f59b1b9735f",
+      "bytes": 36842
+    },
+    {
+      "path": "dist/remark-gfm.closed.js",
+      "sha256": "392d49ea49fef9b2e9706c99a13698db59d50bc8f04045d9aabd6b3675bc2f4c",
+      "bytes": 34706
+    },
+    {
+      "path": "dist/remark-gfm.esm.js",
+      "sha256": "c9d225ade72dd2c8d10292f741bd899e006c36a14eaf8cbecd775fbd0ea58071",
+      "bytes": 32703
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 180.495,
+  "completed": "2026-09-21T11:17:22.502Z",
+  "fingerprint": "a7ace4b4f69c32d78f9e8489290e3b28a6fd5c17e25c5e92943d7aada10ca1cf"
+}

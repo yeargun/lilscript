@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "runner-test-file-inventory",
+  "workload": "katexlil",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--experimental-vm-modules",
+    "node_modules/jest/bin/jest.js",
+    "--config",
+    "test/official/jest.config.mjs",
+    "--listTests",
+    "--json",
+    "--runInBand"
+  ],
+  "cwd": "/home/azureuser/katexlil",
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "version": "v24.11.1",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "config": {
+    "path": "test/official/jest.config.mjs",
+    "sha256": "363ed4eec351c7cf425f3ce8a27ea69c123f6aac20b72695af4a4027d389b33a",
+    "bytes": 240
+  },
+  "runner": {
+    "path": "node_modules/jest/bin/jest.js",
+    "sha256": "2a9b435eab8a343bd09fe285b2e2043ff9ff89fae4e1d1f46ba3df28659d8a2c",
+    "bytes": 324
+  },
+  "exitCode": 0,
+  "elapsedMs": 296.521179,
+  "testFiles": [
+    {
+      "path": "test/official/contrib/auto-render-spec.js",
+      "sha256": "15e84593142489a34b1fe6d56dae8bf3ffaeec6bec1fd47599857ed82ec8a832",
+      "bytes": 12995
+    },
+    {
+      "path": "test/official/contrib/render-a11y-string-spec.js",
+      "sha256": "ca0e818ae7c46c670fb8aed7040f5932946ab512fae8294865421bd0cbe3c263",
+      "bytes": 18792
+    },
+    {
+      "path": "test/official/dup-spec.js",
+      "sha256": "de41473c6895be03e8e8d26dfba1c0860b3956cc9546f8f67722c00f5a30c839",
+      "bytes": 555
+    },
+    {
+      "path": "test/official/errors-spec.js",
+      "sha256": "b39d1ffab8e65170bef028b3970fd5a41a32bafa1fb137e7efe69a734880f764",
+      "bytes": 14203
+    },
+    {
+      "path": "test/official/katex-spec.js",
+      "sha256": "003b622b3cf1f49d893cc9fd38d694c57bab2ca673cea08b46586ac3ed099982",
+      "bytes": 162446
+    },
+    {
+      "path": "test/official/mathml-spec.js",
+      "sha256": "dd0e3d979af4c2cf3dab6af4a23c3bcdce290c6d7e37f2dee8946d486e4c7cf1",
+      "bytes": 5743
+    },
+    {
+      "path": "test/official/screenshotter-spec.js",
+      "sha256": "301101846baaf36ddd6b6976a3a607724bc011e9580adc52ff1a69c261bb3315",
+      "bytes": 645
+    },
+    {
+      "path": "test/official/unicode-spec.js",
+      "sha256": "67b56a175f8c1ad560f7869543da817db885c6aba19d9d9af382bfc04fe666d1",
+      "bytes": 6529
+    }
+  ],
+  "individualCaseInventory": "pending",
+  "certification": "unverified",
+  "limits": [
+    "Runner-selected files only. No test bodies executed and no individual case IDs discovered.",
+    "Other package-declared test commands and suite adapters remain required."
+  ]
+}

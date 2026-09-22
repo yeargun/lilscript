@@ -1,0 +1,21 @@
+extern int read();
+int loops(int seed) {
+  int total = 0;
+  for (int i = 0; i < 6; i++) {
+    if (i == 2) { continue; }
+    if (i == 5) { break; }
+    total += i * seed;
+  }
+  int j = 0;
+  while (j < 4) {
+    total ^= j;
+    j++;
+  }
+  int k = 0;
+  while (k < 3) {
+    total += 1;
+    k++;
+  }
+  return total;
+}
+print(loops(read()));print(loops(0));print(loops(-3));

@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "kind": "micromark-existing-dist-read-only-audit",
+  "reviewer": "root; no independent agent review",
+  "receipt": {
+    "path": "benchmarks/migration-results/2026-09-19-micromark-adapter/existing-dist/receipt.json",
+    "sha256": "7644929e24cbfae5c25ca9ef4fb79bcdceb177130b3e1934e53595f3d74fccb5",
+    "bytes": 647824
+  },
+  "report": {
+    "path": "benchmarks/migration-results/2026-09-19-micromark-adapter/existing-dist/node/report.json",
+    "sha256": "3ca7f78d21c3ee046f64c016cd3927dadd37c059a75f53022727072e2494b658",
+    "bytes": 895370
+  },
+  "inventory": {
+    "path": "benchmarks/libraries/micromarklil.required-tests.json",
+    "sha256": "b2470f1bfae826f6997d650b96eeee9b95e339ecaf8f4cd3ec89289843185b83",
+    "bytes": 246622
+  },
+  "features": {
+    "path": "benchmarks/migration-results/2026-09-19-micromark-adapter/public-features.json",
+    "sha256": "ddbd331912120fc2f7e3ca4e10c1ba46d157046210b962588c47dfb083c0a1df",
+    "bytes": 4623
+  },
+  "supervisor": {
+    "path": "benchmarks/migration-results/2026-09-19-micromark-adapter/supervisor.json",
+    "sha256": "b6d6171fd9643d5c96cc5d9d4d85390c71829741bbbcadec73ff65a4b73f1917",
+    "bytes": 600
+  },
+  "counts": {
+    "outputs": 24,
+    "inputPins": 8,
+    "sourceFiles": 137,
+    "fullTreeFiles": 148,
+    "dependencyEntries": 872,
+    "dependencyFiles": 754,
+    "dependencyBytes": 61887035,
+    "cases": 1963,
+    "productionArtifacts": 6,
+    "testOnlyArtifacts": 1,
+    "passiveLoads": 11
+  },
+  "validated": {
+    "beforeAfterCurrentSource": true,
+    "completeDependencyDirectoryFileSymlinkTree": true,
+    "outputPins": true,
+    "toolRuntimePins": true,
+    "allCaseIdentities": true,
+    "exactRequiredLoads": true
+  },
+  "scope": "No tests or compiler re-executed; discovery report remains unverified because it started without a frozen required inventory.",
+  "manifestRow": {
+    "id": "micromarklil",
+    "kind": "maintained-library",
+    "required": true,
+    "workspace": "/home/azureuser/micromarklil",
+    "workspaceCandidates": [
+      "/home/azureuser/micromarklil",
+      "/tmp/lilscript-page-refresh-20260910/current/micromarklil"
+    ],
+    "portHeadAtInventory": "2d673ff23be844b9ba9781a85e16cbbbe5f6bafd",
+    "package": {
+      "name": "@itslil/micromark",
+      "version": "4.0.3",
+      "declaredEntryFiles": [
+        "./dist/micromark.cjs",
+        "./dist/micromark.closed.js",
+        "./dist/micromark.esm.js",
+        "./dist/micromark.stream.cjs",
+        "./dist/micromark.stream.js"
+      ]
+    },
+    "upstream": {
+      "repository": "https://github.com/micromark/micromark.git",
+      "commit": "3fae15528f69dfaf2a8865a7f7d92bfb4abd7bc9",
+      "package": "micromark",
+      "version": "4.0.2",
+      "directory": "packages/micromark"
+    },
+    "recordedComparisonScope": "micromark@4.0.2 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+    "recordedUpstreamEntry": "packages/micromark/index.js",
+    "recordedExternalDependencies": [],
+    "build": {
+      "recordedCommand": "node scripts/build.mjs --compile --force",
+      "packageScripts": {
+        "build": "node scripts/build.mjs --compile",
+        "build:site": "node scripts/build-site.mjs"
+      },
+      "adapterStatus": "original-four-invocation-build-inspected-source-replay-pending"
+    },
+    "tests": {
+      "recordedCommand": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+      "packageScripts": {
+        "test": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+        "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+      },
+      "adapterStatus": "original-existing-dist-cases-frozen-source-replay-pending",
+      "requiredCaseInventory": "micromarklil.required-tests.json",
+      "nodeAdapter": {
+        "files": [
+          "test/official/index.js",
+          "test/public-api.test.mjs",
+          "test/stream-api.test.mjs"
+        ],
+        "artifacts": [
+          "dist/micromark.esm.js",
+          "dist/micromark.cjs",
+          "dist/micromark.closed.js",
+          "dist/micromark.stream.js",
+          "dist/micromark.stream.cjs",
+          "dist/micromark.umd.js",
+          "dist/micromark.test.js"
+        ],
+        "caseInventory": "micromarklil.required-tests.json"
+      }
+    },
+    "configurations": [
+      {
+        "path": "lilscript.closed.toml",
+        "sha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab"
+      },
+      {
+        "path": "lilscript.toml",
+        "sha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43"
+      }
+    ],
+    "objectives": [
+      "raw",
+      "gzip",
+      "brotli"
+    ],
+    "primaryObjective": "brotli",
+    "worlds": [
+      "open",
+      "closed"
+    ],
+    "acceptanceStatus": "unverified",
+    "pending": [
+      "Audit exact public boundary and comparison entry.",
+      "Freeze production artifact and test identities.",
+      "Rebuild valid incumbent and eligible baselines.",
+      "Calibrate and pin compilation/runtime budgets."
+    ],
+    "currentDisposition": {
+      "status": "production-adapter-and-profile-recovery-pending",
+      "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+      "row": "micromarklil"
+    }
+  },
+  "manifest": {
+    "path": "benchmarks/libraries/maintained-workloads.json",
+    "sha256": "21e8e997ff569d78969aa5c7856c05acb9f1af5fc5e851ad4732704076211c9a",
+    "bytes": 103635
+  },
+  "inventoryCheck": {
+    "path": "benchmarks/migration-results/2026-09-19-micromark-adapter/inventory-check.json",
+    "sha256": "19db202af8005501bffa0d59511965a4a5011224f9462e52cf475eca9a60bec9",
+    "bytes": 55271
+  }
+}

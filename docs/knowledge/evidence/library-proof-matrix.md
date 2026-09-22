@@ -3,7 +3,7 @@
 Parent: [evidence](README.md). Measurement contract:
 [verification](../verification/README.md). Live numbers:
 [`docs/current-status.md`](../../current-status.md). Migration:
-[planned migration](../migration/planned-migration.md).
+[single migration plan](../../migration/index.md).
 
 This page defines what must be proved for a real-library compression claim. It
 does not copy size results. Tracked generated reports own numbers.

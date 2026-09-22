@@ -1,0 +1,1 @@
+let a;let language="Lil"+ "Script";let version=1;let stable=true;a=void console.log(`${language}:${version}:${stable}`);

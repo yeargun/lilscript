@@ -1,0 +1,8 @@
+
+running 3 tests
+test structured_js::print::budget_tests::a_failed_optional_render_preserves_the_already_rendered_incumbent ... ok
+test structured_js::print::budget_tests::byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget ... ok
+test structured_js::print::budget_tests::admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2937 filtered out; finished in 0.03s
+

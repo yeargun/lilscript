@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "kind": "frozen-inventory-verification",
+  "library": "remark-rehypelil",
+  "inventory": {
+    "path": "benchmarks/libraries/remark-rehypelil.required-tests.json",
+    "sha256": "87a17c0cfb2899f4a6e571732aad4207cb60e948e98d2cc716cadfcc45fb23cf",
+    "bytes": 17761
+  },
+  "discovery": {
+    "path": "benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/receipt.json",
+    "sha256": "d9c614c5516bc0ca050a1cdd55f1f7ce34baa12d31df80b30dc121b89a01f656",
+    "bytes": 16809
+  },
+  "frozenCases": 21,
+  "observedCases": 21,
+  "appeared": [],
+  "disappeared": [],
+  "suitePassed": true,
+  "inputsStable": true,
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "passed": true
+}

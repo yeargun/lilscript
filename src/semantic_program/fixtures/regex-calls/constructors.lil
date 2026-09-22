@@ -1,0 +1,8 @@
+extern string pattern();
+extern string flags();
+export Regex constructOne() { return new Regex(pattern()); }
+export Regex constructTwo() { return new Regex(pattern(), flags()); }
+export void unusedOne() { new Regex(pattern()); }
+export void unusedTwo() { new Regex(pattern(), flags()); }
+export void invalidPattern() { new Regex("["); }
+export void invalidFlags() { new Regex("x", "gg"); }

@@ -1,0 +1,76 @@
+{
+  "kind": "post-baseline-explicit-null-schema-hardening",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--test",
+    "finer/tools/portgate-timeouts.test.mjs"
+  ],
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "inputs": [
+    {
+      "path": "finer/tools/portgate-timeouts.test.mjs",
+      "sha256": "07fddd1ae109b423ef02124d89e52f7c74d26d873829688a080302175632fcf4",
+      "bytes": 5569
+    },
+    {
+      "path": "finer/tools/portgate.mjs",
+      "sha256": "4606716b4c242167e0241cfde9af06a2a733e4fe6dbe1e46b471ad046c7b728e",
+      "bytes": 29042
+    },
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/compiler-receipt.mjs",
+      "sha256": "5a7e926e71b4b8f6c86c3a12e6d0f7d2ee048662bb00eb42fcf01d841a5b92b8",
+      "bytes": 824
+    },
+    {
+      "path": "finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 33554432,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "206d1d9b8dd8dac5691d6e4215b4481d08120cc5834fd1f558cfc9e7148ea1e1",
+    "bytes": 414
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

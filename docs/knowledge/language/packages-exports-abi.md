@@ -11,7 +11,8 @@ wrapper. Initialization runs once in dependency-first order.
 
 Compilation world and public roots determine what an export means; artifact
 format determines how it is delivered. The current compiler still couples some
-of these choices, which is tracked in the planned migration.
+of these choices; the [migration plan](../../migration/index.md#008-whole-program-js-and-delivery)
+assigns their replacement to the target/delivery owner.
 
 | World/boundary | Export behavior |
 |---|---|

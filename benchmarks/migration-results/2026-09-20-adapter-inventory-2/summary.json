@@ -1,0 +1,357 @@
+{
+  "schema": 1,
+  "kind": "adapter-inventory-batch",
+  "started": "2026-09-20T18:24:35.941Z",
+  "runId": "2026-09-20-adapter-inventory-2",
+  "selected": [
+    "cnlil",
+    "katexlil",
+    "mdast-util-from-markdownlil",
+    "mobxlil",
+    "monacolil",
+    "playcanvaslil",
+    "posthoglil",
+    "react-markdownlil",
+    "rehypelil",
+    "remark-parselil",
+    "remarklil",
+    "solidlil",
+    "vuelil",
+    "zodlil"
+  ],
+  "applied": true,
+  "frozen": [
+    {
+      "library": "katexlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/katexlil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 26,
+      "exercised": [
+        "dist/contrib/auto-render.cjs",
+        "dist/contrib/auto-render.mjs",
+        "dist/contrib/copy-tex.mjs",
+        "dist/contrib/mathtex-script-type.mjs",
+        "dist/contrib/mhchem.cjs",
+        "dist/contrib/mhchem.mjs",
+        "dist/contrib/render-a11y-string.cjs",
+        "dist/contrib/render-a11y-string.mjs",
+        "dist/katex.cjs",
+        "dist/katex.closed.js",
+        "dist/katex.mjs",
+        "katex.js"
+      ],
+      "untested": [
+        "dist/contrib/copy-tex.cjs",
+        "dist/contrib/mathtex-script-type.cjs"
+      ],
+      "absent": [],
+      "deviations": [
+        "original command also runs `node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand`, which is not the built-in test runner; this observation does not cover those cases"
+      ],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "katexlil.required-tests.json",
+      "testCases": 21,
+      "suiteNodes": 5
+    },
+    {
+      "library": "posthoglil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/posthoglil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 29,
+      "exercised": [
+        "dist/posthog.esm.js"
+      ],
+      "untested": [
+        "dist/autocapture.cjs",
+        "dist/autocapture.esm.js",
+        "dist/error-tracking.cjs",
+        "dist/error-tracking.esm.js",
+        "dist/otlp.cjs",
+        "dist/otlp.esm.js",
+        "dist/posthog.cjs",
+        "dist/replay-core.cjs",
+        "dist/replay-core.esm.js",
+        "dist/surveys.cjs",
+        "dist/surveys.esm.js"
+      ],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "posthoglil.required-tests.json",
+      "testCases": 21,
+      "suiteNodes": 8
+    },
+    {
+      "library": "rehypelil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/rehypelil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 164,
+      "exercised": [
+        "dist/rehype.cjs",
+        "dist/rehype.closed.js",
+        "dist/rehype.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "rehypelil.required-tests.json",
+      "testCases": 159,
+      "suiteNodes": 5
+    }
+  ],
+  "gaps": [
+    {
+      "library": "cnlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/cnlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [
+        "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+      ],
+      "unsupported": [
+        "segment does not run the built-in test runner: node scripts/test-upstream.mjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/test-upstream.mjs",
+      "reason": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/test-upstream.mjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "mdast-util-from-markdownlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/mdast-util-from-markdownlil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 750,
+      "exercised": [
+        "dist/from-markdown.cjs",
+        "dist/from-markdown.closed.js",
+        "dist/from-markdown.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "test command failed",
+        "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+      ],
+      "failure": null,
+      "reason": "test command failed; test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]; test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "mobxlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/mobxlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "segment does not run the built-in test runner: node scripts/build.mjs --dev",
+        "segment does not run the built-in test runner: node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/build.mjs --dev; segment does not run the built-in test runner: node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+      "reason": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/build.mjs --dev; segment does not run the built-in test runner: node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "monacolil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/monacolil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "package.json declares no test script"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test command cannot be observed: package.json declares no test script",
+      "reason": "original test command cannot be observed: package.json declares no test script",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "playcanvaslil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/playcanvaslil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [
+        "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task",
+        "original command also runs `node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js`, which is not the built-in test runner; this observation does not cover those cases",
+        "original command also runs `node src/shader-processing/shader-processor-glsl.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases",
+        "original command also runs `node src/shader-processing/shader-definition-utils.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases",
+        "followed `npm run test:artifact` to its own script to reach the test runner: npm run test:upstream && npm run test:differential && node --test test/shader-processing.test.mjs",
+        "original command also runs `node scripts/test-upstream.mjs dist/shader-processing.js dist/shader-processing.official.js`, which is not the built-in test runner; this observation does not cover those cases",
+        "original command also runs `node src/shader-processing/shader-processor-glsl.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases",
+        "original command also runs `node src/shader-processing/shader-definition-utils.differential.mjs`, which is not the built-in test runner; this observation does not cover those cases"
+      ],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": "no declared entry file exists in the workspace",
+      "reason": "no declared entry file exists in the workspace",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "react-markdownlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/react-markdownlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": "dependency snapshot byte limit exceeded",
+      "reason": "dependency snapshot byte limit exceeded",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "remark-parselil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/remark-parselil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 20,
+      "exercised": [
+        "dist/remark-parse.cjs",
+        "dist/remark-parse.closed.js",
+        "dist/remark-parse.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "test command failed",
+        "test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+        "test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+        "test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+        "test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+        "test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+        "test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+        "test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+        "test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+        "test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+        "test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+        "test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+        "test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+        "test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+        "test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+        "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+      ],
+      "failure": null,
+      "reason": "test command failed; test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]; test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]; test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]; test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]; test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]; test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]; test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]; test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]; test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]; test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]; test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]; test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]; test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]; test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]; test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]; test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "remarklil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/remarklil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [
+        "original command also runs `node scripts/shared-sources.mjs`, which is not the built-in test runner; this observation does not cover those cases"
+      ],
+      "unsupported": [
+        "check:sources: segment does not run the built-in test runner: node scripts/shared-sources.mjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test command cannot be observed: check:sources: segment does not run the built-in test runner: node scripts/shared-sources.mjs",
+      "reason": "original test command cannot be observed: check:sources: segment does not run the built-in test runner: node scripts/shared-sources.mjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "solidlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/solidlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 50,
+      "exercised": [
+        "dist/index.cjs",
+        "dist/index.js",
+        "dist/web.js"
+      ],
+      "untested": [
+        "dist/full.cjs",
+        "dist/full.js",
+        "dist/solidlil.global.js",
+        "dist/web.cjs"
+      ],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "reason": "",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "vuelil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/vuelil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": "no declared entry file exists in the workspace",
+      "reason": "no declared entry file exists in the workspace",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "zodlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory-2/zodlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "segment does not run the built-in test runner: node scripts/build.mjs --compile",
+        "segment does not run the built-in test runner: node scripts/test.mjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/build.mjs --compile; segment does not run the built-in test runner: node scripts/test.mjs",
+      "reason": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/build.mjs --compile; segment does not run the built-in test runner: node scripts/test.mjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    }
+  ],
+  "completed": "2026-09-20T18:25:43.347Z",
+  "manifestSha256": "d593fb139f479df590f249c6464a53bd66f70e9b377d4825fdd491a1c63e814a",
+  "fingerprint": "aea155788add7a7a8e557eae0be13ed828707e1634dd569ea3cfe23753bc3401"
+}

@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "zodlil",
+  "started": "2026-09-20T18:33:40.882Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/zodlil",
+  "workspace": "/tmp/lilscript-adapter-zodlil-bHyEwz/zodlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/zodlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/zodlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-zodlil-bHyEwz/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node scripts/build.mjs --compile && node scripts/test.mjs",
+  "derivation": {
+    "supported": false,
+    "script": "node scripts/build.mjs --compile && node scripts/test.mjs",
+    "originalSegments": [
+      "node scripts/build.mjs --compile",
+      "node scripts/test.mjs"
+    ],
+    "segments": [
+      "node scripts/build.mjs --compile",
+      "node scripts/test.mjs"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [],
+    "deviations": [],
+    "uncovered": [
+      "node scripts/build.mjs --compile",
+      "node scripts/test.mjs"
+    ],
+    "unsupported": [
+      "segment does not run the built-in test runner: node scripts/build.mjs --compile",
+      "segment does not run the built-in test runner: node scripts/test.mjs"
+    ]
+  },
+  "failure": {
+    "message": "original test command cannot be observed: segment does not run the built-in test runner: node scripts/build.mjs --compile; segment does not run the built-in test runner: node scripts/test.mjs",
+    "stack": "AssertionError [ERR_ASSERTION]: original test command cannot be observed: segment does not run the built-in test runner: node scripts/build.mjs --compile; segment does not run the built-in test runner: node scripts/test.mjs\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:160:5)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:128:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:178:85"
+  },
+  "inputsStable": false,
+  "validationFailure": {
+    "message": "directory symlink needs its own input root: /home/azureuser/zodlil/vendor/zod/.codex/skills",
+    "stack": "Error: directory symlink needs its own input root: /home/azureuser/zodlil/vendor/zod/.codex/skills\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:47:45)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at visit (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:50:53)\n    at snapshotInputs (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:57:29)\n    at capture (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:132:31)\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:227:21)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:128:27)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+  },
+  "elapsedMs": 410.7619640000048,
+  "completed": "2026-09-20T18:33:41.278Z",
+  "outputs": [
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

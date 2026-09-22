@@ -1,0 +1,1 @@
+[["plain",18,31],["scalar-object",true],["coerce","number"],["reentry",20],["coerce","number"],["object",18],["scalar-symbol",true],["symbol-throw",true],["scalar-bigint",true],["bigint-throw",true],["throwing",1],["throwing",2],["caught","second read"]]

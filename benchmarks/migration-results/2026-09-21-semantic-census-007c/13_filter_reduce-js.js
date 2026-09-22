@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;let values=[1,2,3,4,5,6];b=values.filter((a=(0,(value)=>{return (value%2|0)===0;}),a));let selected=b;d=selected.reduce((c=(0,(sum,value)=>{return sum+ value|0;}),c),0);let total=d;e=void console.log(total);

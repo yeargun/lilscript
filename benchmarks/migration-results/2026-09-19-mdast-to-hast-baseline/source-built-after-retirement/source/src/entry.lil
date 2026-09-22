@@ -1,0 +1,14 @@
+import {
+  convertToHast,
+  makeDefaultHandlers,
+  makeFootnoteBackContent,
+  makeFootnoteBackLabel
+} from "./convert.lil";
+
+export JsValue toHast(JsValue tree, JsValue opt = JS.undefined()) {
+  return convertToHast(tree, opt);
+}
+
+export JsValue defaultHandlers = makeDefaultHandlers();
+export JsValue defaultFootnoteBackContent = makeFootnoteBackContent();
+export JsValue defaultFootnoteBackLabel = makeFootnoteBackLabel();

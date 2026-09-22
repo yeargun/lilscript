@@ -57,7 +57,7 @@ proof permits. Dead enclosing code may still disappear. The first end-to-end
 obligation is implemented conservatively: affected candidates preserve source
 `|0` and skip target-text rewrites that cannot carry it. Globally unambiguous
 operation identity and final-byte witnesses remain
-[planned target work](planned-architecture.md#5-target-js-boundary).
+planned target work (archived: `repository/docs/knowledge/compilation/planned-architecture.md#5-target-js-boundary`).
 
 Likewise, the target reusable-library mode does not disable optimization. It freezes an
 `AbiManifest` for unknown JavaScript consumers, while the linked internal graph
@@ -114,7 +114,7 @@ on `callbacks.lil`, `function_spelling = arrow` and `stable_local_names =
 false` are each tied with the incumbent; together they are −6 Brotli. Across
 six jQuery modules the pair is −106; on the full artifact the same pair is
 only −11 because a richer context already recovered most of it
-([jquery-01](../migration/board/notes/jquery-01.md)). The elegant response is
+(jquery-01 (archived: `repository/docs/knowledge/migration/board/notes/jquery-01.md`)). The elegant response is
 a **declared joint family** for a measured non-monotone pair — the same
 pattern as `pure_helper_inlining` × dense tables — not a 2⁷⁴ Cartesian and
 not a port-local TOML that hard-wires the pair.
@@ -217,6 +217,6 @@ A forked library that still loses is classified before any compiler change:
    vendored unminified host files. Rewrite representation, do not add a fold.
 4. **Legitimate dynamic hatch** — clsx. Measure and keep `JsValue`.
 
-The [planned migration](../migration/planned-migration.md) assigns those classes
-to evidence, legality, incumbent recovery, reusable proof, port, or search work.
+The [migration plan](../../migration/index.md#013-compression-qualification) assigns
+losses to evidence, facts, reusable families, ports, search or delivery owners.
 None belongs in a library-specific matcher in `js_peephole`.

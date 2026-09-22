@@ -1,0 +1,1 @@
+let a;let b;let c;let values=[-19,7,2147483647];let safe=((values[0]|0)%10|0)+ 5;let product=((values[1]|0)%10|0)*((values[1]|0)%10|0)|0;let wrapped=(values[2]|0)+ 1|0;a=void console.log(safe);b=void console.log(product);c=void console.log(wrapped);

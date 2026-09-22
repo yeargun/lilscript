@@ -1,0 +1,1 @@
+let a;let b;let c;let d;a=(0,{createValues:function(typed){if(typed){return new Float32Array(2);}return [0,0];}}.createValues);let createValues=a;b=(0,{exercise:function(values){let a;let b;values[0]=1.25;a=void console.log(values[0]);b=void console.log(values["length"]|0);}}.exercise);let exercise=b;c=exercise(createValues(true));d=exercise(createValues(false));

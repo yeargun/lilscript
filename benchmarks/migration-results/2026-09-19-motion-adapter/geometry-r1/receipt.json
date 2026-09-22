@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "kind": "motion-public-geometry-observation",
+  "passed": true,
+  "started": "2026-09-19T23:24:49.497Z",
+  "sourceBuilt": false,
+  "parent": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/receipt.json",
+    "sha256": "13478e56418f011009b0b74e39fd92065f4516d22294fe4a2550eb34909d3b77",
+    "bytes": 12019
+  },
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": ""
+    }
+  },
+  "limits": {
+    "sharedAttemptMs": 30000,
+    "externalSupervisorMs": 60000
+  },
+  "scope": "Five new independent observation tests against upstream and retained candidate, not original-suite identities, a compiler repair or a D2 decision",
+  "inputs": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-supplement.mjs",
+      "sha256": "755bbaacf53e7694b94143c72f42f866dd113fa72be413d7d4760f455154c5df",
+      "bytes": 6180
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "sha256": "0802763b6d890a2e41d02fe28f10cd97040b3f2b11446e9ed879999155659f62",
+      "bytes": 3676
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ],
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/node/report.json",
+    "sha256": "22f6e7068be4a661e4f52ccbb4f91ea9667e87b03950ca3d58d923c99c60abe2",
+    "bytes": 12407
+  },
+  "cases": [
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"upstream: copying preserves destination and leaf identity\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "upstream: copying preserves destination and leaf identity",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"upstream: overlapping source observes the preceding destination write\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "upstream: overlapping source observes the preceding destination write",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"upstream: a later getter throw preserves earlier writes and access order\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "upstream: a later getter throw preserves earlier writes and access order",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"upstream: a setter replacing the next leaf is visible to the next call\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "upstream: a setter replacing the next leaf is visible to the next call",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"upstream: aliased box axes receive both deltas in order\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "upstream: aliased box axes receive both deltas in order",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",12,3,0,\"test\",\"candidate: copying preserves destination and leaf identity\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "candidate: copying preserves destination and leaf identity",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",24,3,0,\"test\",\"candidate: overlapping source observes the preceding destination write\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "candidate: overlapping source observes the preceding destination write",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",34,3,0,\"test\",\"candidate: a later getter throw preserves earlier writes and access order\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "candidate: a later getter throw preserves earlier writes and access order",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",53,3,0,\"test\",\"candidate: a setter replacing the next leaf is visible to the next call\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "candidate: a setter replacing the next leaf is visible to the next call",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs\",72,3,0,\"test\",\"candidate: aliased box axes receive both deltas in order\",1]",
+      "file": "../../../home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "name": "candidate: aliased box axes receive both deltas in order",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "errors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 1987.4958609999999,
+  "completed": "2026-09-19T23:24:51.484Z",
+  "outputs": [
+    {
+      "path": "inputs.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ae1216950d65d952135205f2792b4ea8467e1d941873ec31c00643df71b7bb70",
+      "bytes": 1564
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "09c63eba323e34a3fa8f9b985dad148f22e6e93eaa45956bf9c71a9259849d48",
+      "bytes": 5197
+    },
+    {
+      "path": "node/loaded/1531506-4d063ac3-28b7-4377-927c-3015b1fc13bc.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f619408fa38f5668c43ca3c407ec2ff70571432c4d3481626157364704524b94",
+      "bytes": 344
+    },
+    {
+      "path": "node/loaded/1531506-6b508acc-3bc6-4076-ad5e-c9361938064e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7d434913ebe3e1abbd4c23177d57ee307554b64751f1a56152eb8033296b48fa",
+      "bytes": 316
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cde3c166a15d0012b7db56108d61249b7f9eaa3a09b418128071e714fef0f444",
+      "bytes": 410
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "22f6e7068be4a661e4f52ccbb4f91ea9667e87b03950ca3d58d923c99c60abe2",
+      "bytes": 12407
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "sources/geometry-supplement.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "755bbaacf53e7694b94143c72f42f866dd113fa72be413d7d4760f455154c5df",
+      "bytes": 6180
+    },
+    {
+      "path": "sources/geometry.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0802763b6d890a2e41d02fe28f10cd97040b3f2b11446e9ed879999155659f62",
+      "bytes": 3676
+    },
+    {
+      "path": "sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

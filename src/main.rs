@@ -37,6 +37,12 @@ enum ExplainFormat {
     Json,
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum Backend {
+    Legacy,
+    Semantic,
+}
+
 #[derive(Debug, Parser)]
 #[command(name = "lilscript")]
 #[command(version)]
@@ -52,6 +58,10 @@ struct Args {
     /// Compilation target.
     #[arg(long, value_enum, default_value_t = Target::Js)]
     target: Target,
+
+    /// Explicit migration backend. The semantic backend diagnoses unsupported input.
+    #[arg(long, value_enum, default_value_t = Backend::Legacy)]
+    backend: Backend,
 
     /// Explicit config path. Otherwise `lilscript.toml` is discovered from the input directory.
     #[arg(long)]
@@ -88,6 +98,12 @@ struct Args {
     /// Print compiler inputs as JSON for an external incremental build graph, then exit.
     #[arg(long, hide = true)]
     print_dependencies: bool,
+
+    /// Print the fully resolved compilation policy for this input, target and
+    /// configuration — after defaults, the TOML file and command-line overrides
+    /// are combined — as a versioned JSON receipt with its fingerprint, then exit.
+    #[arg(long)]
+    print_policy: bool,
 }
 
 fn main() {
@@ -109,6 +125,13 @@ fn run() -> Result<(), String> {
     let args = Args::parse();
     let mut loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
+    let config_label = loaded
+        .path
+        .as_ref()
+        .map_or_else(|| "lilscript.toml".to_string(), |path| path.display().to_string());
+    for note in loaded.config.unimplemented_knobs() {
+        eprintln!("warning: {config_label}: {note}");
+    }
     apply_resource_overrides(&mut loaded.config, args.jobs, args.codec_jobs);
     if args.write_lock {
         let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
@@ -122,6 +145,12 @@ fn run() -> Result<(), String> {
     }
     if args.print_dependencies {
         return print_dependencies(&args.input, &loaded);
+    }
+    if args.print_policy {
+        return print_policy(&args, &loaded);
+    }
+    if matches!(args.backend, Backend::Semantic) {
+        return run_semantic(&args, &loaded.config);
     }
     if let Some(output) = &args.profile_template {
         let profile = profile_template_path_configured(&args.input, &loaded.config)
@@ -239,6 +268,84 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
+fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
+    use lilscript::{compile_path_semantic, ServiceOptions, ServiceTarget};
+    if args.profile_template.is_some() {
+        return Err("the semantic backend does not yet support profile templates".into());
+    }
+    let options = ServiceOptions {
+        target: match args.target {
+            Target::Js | Target::JsModule => ServiceTarget::JavaScript,
+            Target::C | Target::Native => ServiceTarget::Native,
+            Target::All => ServiceTarget::All,
+        },
+        preserve_root_exports: matches!(args.target, Target::JsModule),
+        // Whole ports exceed the library default: Micromark's 303 KB of
+        // source uses 354M units. This interim CLI ceiling stops a runaway
+        // compile after roughly 16 s at that rate; 012 sets the cost policy.
+        // `LILSCRIPT_SEMANTIC_WORK` overrides it for measurement, and policy
+        // resources still restrict it.
+        logical_work: std::env::var("LILSCRIPT_SEMANTIC_WORK")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(4_000_000_000),
+        ..ServiceOptions::default()
+    };
+    let result = compile_path_semantic(&args.input, config, options).map_err(|error| {
+        error
+            .diagnostic
+            .as_ref()
+            .map(render_module_diagnostic)
+            .unwrap_or_else(|| error.to_string())
+    })?;
+    if let Some(format) = args.explain {
+        match format {
+            ExplainFormat::Json => eprintln!(
+                "{}",
+                serde_json::to_string_pretty(result.report()).map_err(|error| error.to_string())?
+            ),
+            ExplainFormat::Human => eprintln!(
+                "semantic backend\n{}",
+                serde_json::to_string_pretty(result.report()).map_err(|error| error.to_string())?
+            ),
+        }
+    }
+    let codec = config.javascript.cost_model;
+    match args.target {
+        Target::Js | Target::JsModule => write_or_print(
+            args.output.as_deref(),
+            result
+                .javascript(codec)
+                .ok_or("missing selected JavaScript artifact")?
+                .javascript(),
+        ),
+        Target::C => write_or_print(
+            args.output.as_deref(),
+            result.native_c().ok_or("missing native C artifact")?,
+        ),
+        Target::Native | Target::All => {
+            let base = args
+                .output
+                .clone()
+                .unwrap_or_else(|| args.input.with_extension(""));
+            ensure_parent(&base)?;
+            let c = result.native_c().ok_or("missing native C artifact")?;
+            if matches!(args.target, Target::All) {
+                fs::write(
+                    base.with_extension("js"),
+                    result
+                        .javascript(codec)
+                        .ok_or("missing selected JavaScript artifact")?
+                        .javascript(),
+                )
+                .map_err(|error| error.to_string())?;
+                fs::write(base.with_extension("c"), c).map_err(|error| error.to_string())?;
+            }
+            compile_native_inner(c, &base, true)
+        }
+    }
+}
+
 fn apply_resource_overrides(
     config: &mut ProjectConfig,
     jobs: Option<NonZeroUsize>,
@@ -250,6 +357,38 @@ fn apply_resource_overrides(
     if let Some(codec_jobs) = codec_jobs {
         config.compiler.resources.codec_workers = codec_jobs;
     }
+}
+
+/// The resolved policy as the compiler will use it, so a port author can see
+/// every axis — contract, objective, effort, tactic permissions, resources and
+/// constraints — without reading source, and a receipt can pin its fingerprint.
+fn print_policy(args: &Args, loaded: &lilscript::config::LoadedConfig) -> Result<(), String> {
+    use lilscript::compilation_policy::CompilationRequest;
+    let request = match args.target {
+        Target::C | Target::Native => CompilationRequest::Native,
+        Target::Js => CompilationRequest::JavaScript { preserve_root_exports: false },
+        Target::JsModule | Target::All => CompilationRequest::JavaScript { preserve_root_exports: true },
+    };
+    let policy = loaded.config.resolve_policy(request)?;
+    let fingerprint: String = policy.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect();
+    let resources = &loaded.config.compiler.resources;
+    let receipt = serde_json::json!({
+        "config": loaded.path.as_ref().map(|path| path.display().to_string()),
+        "unimplemented_knobs": loaded.config.unimplemented_knobs(),
+        // How this run executes, after command-line overrides. Deliberately
+        // outside the fingerprint: thread counts must never change the output.
+        "execution": {
+            "threads": resources.threads.map(|threads| threads.get()),
+            "codec_workers": resources.codec_workers.get(),
+            "mode": format!("{:?}", args.mode),
+            "backend": format!("{:?}", args.backend),
+            "target": format!("{:?}", args.target),
+        },
+        "fingerprint": fingerprint,
+        "policy": policy.receipt(),
+    });
+    println!("{}", serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?);
+    Ok(())
 }
 
 fn print_dependencies(
@@ -599,8 +738,10 @@ fn write_or_print(output: Option<&Path>, contents: &str) -> Result<(), String> {
         fs::write(output, contents)
             .map_err(|error| format!("failed to write {}: {error}", output.display()))
     } else {
-        println!("{contents}");
-        Ok(())
+        std::io::stdout()
+            .lock()
+            .write_all(contents.as_bytes())
+            .map_err(|error| format!("failed to write stdout: {error}"))
     }
 }
 
@@ -616,9 +757,16 @@ fn ensure_parent(output: &Path) -> Result<(), String> {
 }
 
 fn compile_native(c: &str, output: &Path) -> Result<(), String> {
+    compile_native_inner(c, output, false)
+}
+
+fn compile_native_inner(c: &str, output: &Path, strict_numeric: bool) -> Result<(), String> {
     let compiler = std::env::var("CC").unwrap_or_else(|_| "clang".to_string());
     let mut command = Command::new(&compiler);
     command.args(["-x", "c", "-std=c11", "-O3"]);
+    if strict_numeric {
+        command.args(["-fno-fast-math", "-ffp-contract=off"]);
+    }
     #[cfg(target_os = "macos")]
     command.arg("-Wl,-no_uuid");
     command.arg("-o").arg(output).arg("-");

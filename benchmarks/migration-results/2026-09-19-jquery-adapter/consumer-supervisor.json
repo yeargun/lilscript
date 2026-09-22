@@ -1,0 +1,75 @@
+{
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supplement.mjs"
+  ],
+  "before": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supplement.mjs",
+      "sha256": "4e533d675a4376da7632fd2f64eb72d94efc87bbdf9b0009f5b410b83c796b77",
+      "bytes": 11738
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    }
+  ],
+  "after": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supplement.mjs",
+      "sha256": "4e533d675a4376da7632fd2f64eb72d94efc87bbdf9b0009f5b410b83c796b77",
+      "bytes": 11738
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    }
+  ],
+  "inputsStable": true,
+  "pid": 1324411,
+  "status": 1,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "elapsedMs": 6458.542204,
+  "stdout": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supervisor.stdout",
+    "sha256": "e4b648c10b3a3df754dd707339ab8e030733e3842499421cf26df854f05fc78d",
+    "bytes": 226
+  },
+  "stderr": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supervisor.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

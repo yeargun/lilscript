@@ -1,0 +1,1561 @@
+{
+  "port": "markedlil",
+  "source": {
+    "head": "dbfaf30fb162a0f100e5d97c232d263b84d1cfd3",
+    "dirtyFiles": null,
+    "snapshot": {
+      "root": "/home/azureuser/markedlil",
+      "files": [
+        {
+          "path": ".github/workflows/pages.yml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+          "bytes": 887
+        },
+        {
+          "path": ".gitignore",
+          "kind": "file",
+          "executable": false,
+          "sha256": "21cdf5febd456dc17c6f4c4a44e0e148c490451f608c6261d7a43541a2d30f44",
+          "bytes": 134
+        },
+        {
+          "path": ".tmp-stability.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "35895c67902130f6245761009b9671f6dd2ca193fe69de2744434794849ca98e",
+          "bytes": 3080
+        },
+        {
+          "path": ".tmp/lanes/itslil-bytes.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "3dc58af697df1cb9b87fd40b3ea354bcd4d9539dd50bf241bf1d76ed30b3a0e3",
+          "bytes": 33621
+        },
+        {
+          "path": ".tmp/lanes/itslil-closed.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8ee7bda9891022698303d40581941a2062f50723fa6495bd7767f958b37ed8c6",
+          "bytes": 34092
+        },
+        {
+          "path": ".tmp/lanes/itslil-gzip.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "df63a41fa760eceaa71d444fadcef1584e65d9ad76160e5332fe433240485a55",
+          "bytes": 34598
+        },
+        {
+          "path": ".tmp/lanes/itslil.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "1bb0c2af2217363fd4985fcb98b679bec8b844b8518f5d9dae4da5f331c97886",
+          "bytes": 34798
+        },
+        {
+          "path": ".tmp/lanes/parse-oxc-mangle.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "dd2cf74f60729e3c015aef341be6c125158c2d39d1aed93ef79bb68e04948cf7",
+          "bytes": 37022
+        },
+        {
+          "path": ".tmp/lanes/parse-oxc-nomangle.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "da25895372b6261a5b168432d833d2df7ada0997b668f246f97d479b07a134d8",
+          "bytes": 47547
+        },
+        {
+          "path": ".tmp/lanes/parse-terser-mangle.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "4a8480eda0482c312d1dd00cecc79ec9f323047a85ff54076f7bf25aa3119243",
+          "bytes": 37725
+        },
+        {
+          "path": ".tmp/lanes/parse-terser-nomangle.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "568533a2a3b4fff67f82c699c9f5c05726f1c8c50d09dd79457713e4e805db8e",
+          "bytes": 48444
+        },
+        {
+          "path": ".tmp/lanes/parse.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+          "bytes": 67247
+        },
+        {
+          "path": ".tmp/official-parse-only.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+          "bytes": 67247
+        },
+        {
+          "path": ".tmp/perf/bench.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8d59c60899fa1e18d72c9221203100ae2830740ffb51e81d09ae1a10d4b329e3",
+          "bytes": 1579
+        },
+        {
+          "path": ".tmp/perf/heap-lil/Heap.20260904.093455.3500790.0.001.heapprofile",
+          "kind": "file",
+          "executable": false,
+          "sha256": "2ee511879d44271038b24c7cd25266c4452246b601323fe11935839f87e9d717",
+          "bytes": 7678
+        },
+        {
+          "path": ".tmp/perf/heap-off/Heap.20260904.093500.3500810.0.001.heapprofile",
+          "kind": "file",
+          "executable": false,
+          "sha256": "d70dacb9781018887907ec1068df51713ddfff00f1688d6a6afdc5b790a59a21",
+          "bytes": 6192
+        },
+        {
+          "path": ".tmp/perf/lilscript.balanced.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ba13614f07fd8d5251291f36d04fee82d8306cbd59b3cdc60a58ec0cf183e30a",
+          "bytes": 322
+        },
+        {
+          "path": ".tmp/perf/lilscript.performance-first.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "182713a5be02fceea1b64e8eb7df614524228e563dd08ea4957a1564c1080801",
+          "bytes": 331
+        },
+        {
+          "path": ".tmp/perf/lilscript.realistic-performance-first.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "fcc1960f844a1809c7c87083bae42762e88edb760541fbab12eaddc19ff8a718",
+          "bytes": 341
+        },
+        {
+          "path": ".tmp/perf/marked.balanced.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "48cdf8d72fdf7a581de0ac0d535173c3e09b9d2bd78606f985153cd12d8c2add",
+          "bytes": 34152
+        },
+        {
+          "path": ".tmp/perf/marked.performance-first.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e38ebfae96ca6ae936abcfc26d83e11f3b1ef39a99ee85b6d64e20a3bcd1c1e7",
+          "bytes": 51514
+        },
+        {
+          "path": ".tmp/perf/marked.realistic-performance-first.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "50cc7bc2add71abed51144d76e3fb72bd95da4775786a9ebe2e397031a31ab16",
+          "bytes": 34496
+        },
+        {
+          "path": ".tmp/perf/official.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+          "bytes": 67247
+        },
+        {
+          "path": ".tmp/perf/prof-lil/CPU.20260904.093349.3500308.0.001.cpuprofile",
+          "kind": "file",
+          "executable": false,
+          "sha256": "cf218749339a79db851dcf73680f848c378c8f85d771637af6345359a69f47a3",
+          "bytes": 105474
+        },
+        {
+          "path": ".tmp/perf/prof-off/CPU.20260904.093352.3500320.0.001.cpuprofile",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8df0f92c685e303168a92ade7b4ca8df2754d20d68b03693f672268d65a0b6db",
+          "bytes": 109873
+        },
+        {
+          "path": ".tmp/perf/prof.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "6043bb14f86c089b2e8cd3d281ebea8efbfbd256d1792962781550f7694de8e3",
+          "bytes": 359
+        },
+        {
+          "path": ".tmp/perf/read-heap.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "28865afa61fd1a1c987b9456e246f3e3c7bcd012f6a7e4363e60105e2902f4ba",
+          "bytes": 1263
+        },
+        {
+          "path": ".tmp/perf/read-prof.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "0b625c312c76c67aef0a13ed024ae9b70003536f90f01c829f4b9585d75c0cfc",
+          "bytes": 1627
+        },
+        {
+          "path": ".tmp/perf/repro.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "d8097ab34fabf5770ee934edfff2f640fae7c4651cdc2dbe24b2c2102c27f25e",
+          "bytes": 189
+        },
+        {
+          "path": ".tmp/perf/repro2.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "04bb799969a2ae4e456740e68dc2ec56cc806f1658b526ce5a3facb5f8f440d5",
+          "bytes": 289
+        },
+        {
+          "path": ".tmp/perf/run-when-quiet.sh",
+          "kind": "file",
+          "executable": true,
+          "sha256": "ccec3292980aa7b50cfb713c8d1de1f372577127a311f714ba905ae3463fad74",
+          "bytes": 271
+        },
+        {
+          "path": ".tmp/perf/scale.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "f28c6be7adc84cf56f75bd1c4775cb2bcab5a48306c4ed21979aaacda082bad1",
+          "bytes": 1236
+        },
+        {
+          "path": ".tmp/perf/sweep.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "75717c07391efc71151c73e1ef16fd26454a8dfebf89dcb37fbc4fc845844069",
+          "bytes": 2587
+        },
+        {
+          "path": "LICENSE",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ea025995077568c0b26061d7d13dbe718efbeceb4d94ee6c2ec4cb39e8149012",
+          "bytes": 1139
+        },
+        {
+          "path": "NOTICE.md",
+          "kind": "file",
+          "executable": false,
+          "sha256": "1c6c1f4410fc804155ddf3b91b0b0841b917a632125710524ce9055af24a8f21",
+          "bytes": 489
+        },
+        {
+          "path": "README.md",
+          "kind": "file",
+          "executable": false,
+          "sha256": "1aa7a9d430a99d6651bc89511dc58f1ab4e72eebc4ab979130b25ce94645e6df",
+          "bytes": 8816
+        },
+        {
+          "path": "_site/.nojekyll",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "_site/app.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "d4d72d97e043217ebbc3c7ccd38e61b823b220b855db564abf3d6b86e109ee80",
+          "bytes": 15761
+        },
+        {
+          "path": "_site/bench.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "58ffe89d51a23eef11a943cbeb673a603694771d3387a915359b2307b1692ffb",
+          "bytes": 4824
+        },
+        {
+          "path": "_site/compiler-comparison.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "5cbb9a90295ca7069c86eef65b6cb404ab42127bd064399e49f50364d0512805",
+          "bytes": 4881
+        },
+        {
+          "path": "_site/corpus.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "48273c789ec44f8639d50bd858e3b9a6dfd6faf82cebbb0230128e25e81bd4a8",
+          "bytes": 39722
+        },
+        {
+          "path": "_site/index.html",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ff4e94f7f42ad6429c354432dba732d87000063f28586adabae0fb3064ec0176",
+          "bytes": 14430
+        },
+        {
+          "path": "_site/marked-official.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+          "bytes": 67247
+        },
+        {
+          "path": "_site/marked.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "1bb0c2af2217363fd4985fcb98b679bec8b844b8518f5d9dae4da5f331c97886",
+          "bytes": 34798
+        },
+        {
+          "path": "_site/results.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "040cfa88135d35b5fa3172c8d4046cf53657b5af02abea8b0d4ef25b3973fcad",
+          "bytes": 10271
+        },
+        {
+          "path": "_site/styles.css",
+          "kind": "file",
+          "executable": false,
+          "sha256": "a0bd1b8a0574c78caa2428f077025123aadeef6947e442e78e6149d78a82e297",
+          "bytes": 16900
+        },
+        {
+          "path": "e2e-out/report.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "6ad7434f7b9bde20eeb02b6391ddef9714764fe75234db6ade23b3f0a59b774e",
+          "bytes": 4356
+        },
+        {
+          "path": "e2e/run.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "80c1b6a89ee14ad452eb9f8dfc745ad5b424722d76a9220f01369b5da6624b8e",
+          "bytes": 9659
+        },
+        {
+          "path": "lilscript.bytes.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "2a3b9c59ab21829bb6aeac4974f171629e75336292abcaa2e7e09e37d67bb412",
+          "bytes": 321
+        },
+        {
+          "path": "lilscript.closed.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "991e1f117c085f0028c8607f1f86812a79464d80c25002d2130bf3c676858a0e",
+          "bytes": 325
+        },
+        {
+          "path": "lilscript.gzip.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7edbbb56eb269296e0e907857141b4f59afe86f49634fc041383e4a23613bb74",
+          "bytes": 322
+        },
+        {
+          "path": "lilscript.sourcemap-analysis.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "b31d7f35c2f812eba6da5b82a92b75788523341300b3250a91f2cdde7700da3c",
+          "bytes": 422
+        },
+        {
+          "path": "lilscript.sourcemap-hidden.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "70801e39b0cf90a81f8ce35541263d782985e9eb5630907b26bbe88b44472f21",
+          "bytes": 380
+        },
+        {
+          "path": "lilscript.sourcemap-inline.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "9bdbdedd9aefa5aea71d93a48aa332959f5a95e959eddee0e86560f78d5bc81b",
+          "bytes": 380
+        },
+        {
+          "path": "lilscript.sourcemap-linked.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "2bc7f73bff76b116afcaa72ba60f261188481919a82e37a0e53a6323550757c1",
+          "bytes": 380
+        },
+        {
+          "path": "lilscript.toml",
+          "kind": "file",
+          "executable": false,
+          "sha256": "5295859e6b49be4dd54553e16c29adc988f14bb656db79ccb75c7f09779973bb",
+          "bytes": 1164
+        },
+        {
+          "path": "official/marked-18.0.10/LICENSE",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+          "bytes": 2942
+        },
+        {
+          "path": "official/marked-18.0.10/README.md",
+          "kind": "file",
+          "executable": false,
+          "sha256": "bcd8468154ceb607e6fddef357bd278ecdaa0e1f696d0bfca482fbf15d67c79b",
+          "bytes": 170
+        },
+        {
+          "path": "official/marked-18.0.10/src/Lexer.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "467cd16a48d9697e0b1ea156dd323c14c762091b2f872d07560c323f37eba7f6",
+          "bytes": 14416
+        },
+        {
+          "path": "official/marked-18.0.10/src/MarkedOptions.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "744801a1617d778828c76143e49656147ad4ffb1230031f90c50412d12608fd3",
+          "bytes": 6248
+        },
+        {
+          "path": "official/marked-18.0.10/src/Parser.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "cc59b367d29faf7b7f6f8b454b577fe1acf3bf531f0a6840c8f01fc6316fbfe5",
+          "bytes": 5937
+        },
+        {
+          "path": "official/marked-18.0.10/src/Renderer.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "5ce201643e9c138f949d012fedf51bae0bef58d5f039f81421778d626d3594ca",
+          "bytes": 5956
+        },
+        {
+          "path": "official/marked-18.0.10/src/TextRenderer.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "80a8581c9b13b90956b497bb7a555d4018b29da7a9b284f6662932f8d2987b44",
+          "bytes": 1129
+        },
+        {
+          "path": "official/marked-18.0.10/src/Tokenizer.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7aa01f8b7132d43e0f05628cb271c400ace1cc6849a108ae3f649a56f73b89eb",
+          "bytes": 31216
+        },
+        {
+          "path": "official/marked-18.0.10/src/Tokens.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "9c59724a1ee47581c1fb907253dd3af361dcff9fdf68436f5304eca912229e23",
+          "bytes": 3710
+        },
+        {
+          "path": "official/marked-18.0.10/src/defaults.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "fc15453d9c34ba9e51476f792eab6896652ade89cc03f635cdb2f25ac0d68475",
+          "bytes": 745
+        },
+        {
+          "path": "official/marked-18.0.10/src/helpers.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "a9de2f30f37412670d543af9cac4b8406278bd3fc4963caad7ac2ec8b70c2275",
+          "bytes": 3784
+        },
+        {
+          "path": "official/marked-18.0.10/src/rules.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "cd88013cf476eee063d13b3c50cdccd53ed069fab0c12db62747f25c59dd1d84",
+          "bytes": 22734
+        },
+        {
+          "path": "package-lock.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e7c184d025956b7d8c85af9335cff9a13364ef6f1ee8c36e6ee6d1d1fba58eab",
+          "bytes": 43832
+        },
+        {
+          "path": "package.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "aa07a6a8d20035a6af2c0c013a52e15317b7f58f63324eee2372c4c7615d6f24",
+          "bytes": 1992
+        },
+        {
+          "path": "reports/bench.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "6ad7434f7b9bde20eeb02b6391ddef9714764fe75234db6ade23b3f0a59b774e",
+          "bytes": 4356
+        },
+        {
+          "path": "reports/sizes.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "7e59ae493c8c5d9dfb66b7542cbe2bbfca8d06e877f928580b42b3e99edfc045",
+          "bytes": 4563
+        },
+        {
+          "path": "scripts/build-site.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "098b302ced28b0b139940ea7dfa25e9cfd275479aac80e3293cb4be46bcb68a7",
+          "bytes": 2522
+        },
+        {
+          "path": "scripts/build.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "a159c50978ffcc7ab825c8dc54e2785daf787a95f6f437688c2c0d0b405dfc24",
+          "bytes": 3491
+        },
+        {
+          "path": "scripts/check-pack.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "259e79bdc7909968b3ce55a37afc4960a8033b6e927c62672e7934fcb81ad22e",
+          "bytes": 952
+        },
+        {
+          "path": "scripts/codec.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+          "bytes": 1272
+        },
+        {
+          "path": "scripts/generate-rules.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8a0751952693c6d178b7264d7e2b9622a63a0216f5099e35a6e3865815fb303f",
+          "bytes": 20925
+        },
+        {
+          "path": "scripts/measure.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8f845b06401d469b3f09e0dc00f1e97aa6e16e8ef6d0ecfaa0500c6007966972",
+          "bytes": 5118
+        },
+        {
+          "path": "scripts/minify-lanes.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "0a1d2befbf82bf557696c69c634daa514b4f95a1b4ad31b3c04bda174fef2936",
+          "bytes": 2625
+        },
+        {
+          "path": "scripts/official-parse-bundle.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "57173c492a0cb7faeef00039ffa9bcfe41ba8e538898cba7aed253bc79534157",
+          "bytes": 713
+        },
+        {
+          "path": "scripts/official-parse-entry.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "871ad25c877c92ecf61239098d363ca25135c11ae2a2f1adeeb4715669f90ddf",
+          "bytes": 1295
+        },
+        {
+          "path": "scripts/spec.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "96a5d6bcb872ff137014c2f1871600f754b2284e7c49216275d1141749c1f68f",
+          "bytes": 1343
+        },
+        {
+          "path": "scripts/write-results.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "17e2688bf2fe4a948c355ca11a1e445275568e937fc5ff22cf0b9c3935c7df31",
+          "bytes": 2800
+        },
+        {
+          "path": "site/app.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "d4d72d97e043217ebbc3c7ccd38e61b823b220b855db564abf3d6b86e109ee80",
+          "bytes": 15761
+        },
+        {
+          "path": "site/bench.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "58ffe89d51a23eef11a943cbeb673a603694771d3387a915359b2307b1692ffb",
+          "bytes": 4824
+        },
+        {
+          "path": "site/compiler-comparison.js",
+          "kind": "file",
+          "executable": false,
+          "sha256": "5cbb9a90295ca7069c86eef65b6cb404ab42127bd064399e49f50364d0512805",
+          "bytes": 4881
+        },
+        {
+          "path": "site/index.html",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ff4e94f7f42ad6429c354432dba732d87000063f28586adabae0fb3064ec0176",
+          "bytes": 14430
+        },
+        {
+          "path": "site/results.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "040cfa88135d35b5fa3172c8d4046cf53657b5af02abea8b0d4ef25b3973fcad",
+          "bytes": 10271
+        },
+        {
+          "path": "site/styles.css",
+          "kind": "file",
+          "executable": false,
+          "sha256": "a0bd1b8a0574c78caa2428f077025123aadeef6947e442e78e6149d78a82e297",
+          "bytes": 16900
+        },
+        {
+          "path": "src/entry.lil",
+          "kind": "file",
+          "executable": false,
+          "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5",
+          "bytes": 2958
+        },
+        {
+          "path": "src/lexer.lil",
+          "kind": "file",
+          "executable": false,
+          "sha256": "e23437960935b0a62a97ade3696e6a3a0a68cea3c187cf5d57cd234cdde656b1",
+          "bytes": 39073
+        },
+        {
+          "path": "src/parse.lil",
+          "kind": "file",
+          "executable": false,
+          "sha256": "a2861173f019f7e6fecfe9fcc1670d563258e2d8fc33b298ef73213cc0cba456",
+          "bytes": 8425
+        },
+        {
+          "path": "src/rules.lil",
+          "kind": "file",
+          "executable": false,
+          "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+          "bytes": 20051
+        },
+        {
+          "path": "src/str.lil",
+          "kind": "file",
+          "executable": false,
+          "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+          "bytes": 9602
+        },
+        {
+          "path": "src/types.lil",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ef4efd2a8dc01b22b5bb181fe7beb9246cb00c13b2cb1227ae02730652c0d9a1",
+          "bytes": 3366
+        },
+        {
+          "path": "test/api.test.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "3de988d56f65ddaf7510a3b952d5341bbe61caf24727889a0896774cb5b2d78f",
+          "bytes": 6004
+        },
+        {
+          "path": "test/closed.test.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ca2e9d19200311373418de7131752516025a3e09733639b63c244afc8b8a5d1f",
+          "bytes": 2004
+        },
+        {
+          "path": "test/compat.test.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "0923daf39ccf25a5eadbc97e91c5c26a80e32a6dcc85f2dcf9bb230ce7bfd4b1",
+          "bytes": 2456
+        },
+        {
+          "path": "test/official-parse.test.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "1d2bbca29febdf937c238d5ede739ad21c12334b321c143c898261a271c99f1c",
+          "bytes": 1320
+        },
+        {
+          "path": "test/options.test.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "19f6ce8363248b41a4d9b45b7a9fc79abdea0c66cbe830d1ed37848e79efe74f",
+          "bytes": 4907
+        },
+        {
+          "path": "test/site.test.mjs",
+          "kind": "file",
+          "executable": false,
+          "sha256": "1f51f5de40aa96c015c40d8476f4c58279fd7e88347c0621f8b4f57cdd294fcb",
+          "bytes": 7136
+        },
+        {
+          "path": "test/specs/commonmark.0.31.2.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        {
+          "path": "test/specs/gfm.0.29.json",
+          "kind": "file",
+          "executable": false,
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        {
+          "path": "types/marked.d.ts",
+          "kind": "file",
+          "executable": false,
+          "sha256": "8817f58467cb6f5f74c423514fe46619bff6fe84b390383f1c50993642ddfc28",
+          "bytes": 873
+        }
+      ],
+      "sha256": "41a47a645f2708a9c9093264182cd466fa44793b71b2a8a5110075bdf293cb50"
+    }
+  },
+  "workspace": "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil",
+  "contractSha256": "e41dc933e1fa8e228b87cb6b6a885a5204bc71b7d2a84417cac2d60fb1d4e7a5",
+  "build": {
+    "args": [
+      "scripts/build.mjs",
+      "--compile"
+    ],
+    "status": null,
+    "signal": "SIGTERM",
+    "error": "command deadline exceeded",
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": true,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    },
+    "elapsedMs": 300010,
+    "trust": "untrustworthy",
+    "why": "build command failed",
+    "timing": {
+      "lines": 1,
+      "wall_ms": 244730.6,
+      "emit_ms": 403233,
+      "emit_calls": 268,
+      "codec_ms": 13299.9,
+      "codec_calls": 541,
+      "peephole_ms": 27845.6,
+      "optimize_ms": 1653.3,
+      "lex_calls": 23924,
+      "closers_calls": 19371,
+      "idle_fold_calls": 9681,
+      "active_fold_calls": 2750
+    },
+    "invocations": [
+      {
+        "schemaVersion": 1,
+        "kind": "compiler-invocation",
+        "id": "42e061e9-5e57-41cb-bda7-64a5fdfe2b04",
+        "compiler": {
+          "path": "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/lilscript",
+          "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+          "bytes": 17828488
+        },
+        "contractSha256": "e41dc933e1fa8e228b87cb6b6a885a5204bc71b7d2a84417cac2d60fb1d4e7a5",
+        "cwd": "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil",
+        "args": [
+          "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil/src/entry.lil",
+          "--target",
+          "js-module",
+          "--config",
+          "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil/lilscript.toml",
+          "-o",
+          "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil/dist/marked.raw.js"
+        ],
+        "inputSha256": "2671d3dcd13f48d8ba836eca977d101597b65c169dbb5ee1134fe6d7f278e004",
+        "inputs": [
+          {
+            "path": ".github/workflows/pages.yml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+            "bytes": 887
+          },
+          {
+            "path": ".gitignore",
+            "kind": "file",
+            "executable": false,
+            "sha256": "21cdf5febd456dc17c6f4c4a44e0e148c490451f608c6261d7a43541a2d30f44",
+            "bytes": 134
+          },
+          {
+            "path": ".lilscript-test-adapter/suite.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "01615e2df144de28cfa6ab3b0720ca39097835cef404799e2a65c6632d5f8641",
+            "bytes": 3359
+          },
+          {
+            "path": ".tmp-stability.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "35895c67902130f6245761009b9671f6dd2ca193fe69de2744434794849ca98e",
+            "bytes": 3080
+          },
+          {
+            "path": ".tmp/lanes/itslil-bytes.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "3dc58af697df1cb9b87fd40b3ea354bcd4d9539dd50bf241bf1d76ed30b3a0e3",
+            "bytes": 33621
+          },
+          {
+            "path": ".tmp/lanes/itslil-closed.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8ee7bda9891022698303d40581941a2062f50723fa6495bd7767f958b37ed8c6",
+            "bytes": 34092
+          },
+          {
+            "path": ".tmp/lanes/itslil-gzip.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "df63a41fa760eceaa71d444fadcef1584e65d9ad76160e5332fe433240485a55",
+            "bytes": 34598
+          },
+          {
+            "path": ".tmp/lanes/itslil.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1bb0c2af2217363fd4985fcb98b679bec8b844b8518f5d9dae4da5f331c97886",
+            "bytes": 34798
+          },
+          {
+            "path": ".tmp/lanes/parse-oxc-mangle.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "dd2cf74f60729e3c015aef341be6c125158c2d39d1aed93ef79bb68e04948cf7",
+            "bytes": 37022
+          },
+          {
+            "path": ".tmp/lanes/parse-oxc-nomangle.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "da25895372b6261a5b168432d833d2df7ada0997b668f246f97d479b07a134d8",
+            "bytes": 47547
+          },
+          {
+            "path": ".tmp/lanes/parse-terser-mangle.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4a8480eda0482c312d1dd00cecc79ec9f323047a85ff54076f7bf25aa3119243",
+            "bytes": 37725
+          },
+          {
+            "path": ".tmp/lanes/parse-terser-nomangle.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "568533a2a3b4fff67f82c699c9f5c05726f1c8c50d09dd79457713e4e805db8e",
+            "bytes": 48444
+          },
+          {
+            "path": ".tmp/lanes/parse.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+            "bytes": 67247
+          },
+          {
+            "path": ".tmp/official-parse-only.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+            "bytes": 67247
+          },
+          {
+            "path": ".tmp/perf/bench.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8d59c60899fa1e18d72c9221203100ae2830740ffb51e81d09ae1a10d4b329e3",
+            "bytes": 1579
+          },
+          {
+            "path": ".tmp/perf/heap-lil/Heap.20260904.093455.3500790.0.001.heapprofile",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2ee511879d44271038b24c7cd25266c4452246b601323fe11935839f87e9d717",
+            "bytes": 7678
+          },
+          {
+            "path": ".tmp/perf/heap-off/Heap.20260904.093500.3500810.0.001.heapprofile",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d70dacb9781018887907ec1068df51713ddfff00f1688d6a6afdc5b790a59a21",
+            "bytes": 6192
+          },
+          {
+            "path": ".tmp/perf/lilscript.balanced.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ba13614f07fd8d5251291f36d04fee82d8306cbd59b3cdc60a58ec0cf183e30a",
+            "bytes": 322
+          },
+          {
+            "path": ".tmp/perf/lilscript.performance-first.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "182713a5be02fceea1b64e8eb7df614524228e563dd08ea4957a1564c1080801",
+            "bytes": 331
+          },
+          {
+            "path": ".tmp/perf/lilscript.realistic-performance-first.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "fcc1960f844a1809c7c87083bae42762e88edb760541fbab12eaddc19ff8a718",
+            "bytes": 341
+          },
+          {
+            "path": ".tmp/perf/marked.balanced.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "48cdf8d72fdf7a581de0ac0d535173c3e09b9d2bd78606f985153cd12d8c2add",
+            "bytes": 34152
+          },
+          {
+            "path": ".tmp/perf/marked.performance-first.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e38ebfae96ca6ae936abcfc26d83e11f3b1ef39a99ee85b6d64e20a3bcd1c1e7",
+            "bytes": 51514
+          },
+          {
+            "path": ".tmp/perf/marked.realistic-performance-first.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "50cc7bc2add71abed51144d76e3fb72bd95da4775786a9ebe2e397031a31ab16",
+            "bytes": 34496
+          },
+          {
+            "path": ".tmp/perf/official.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+            "bytes": 67247
+          },
+          {
+            "path": ".tmp/perf/prof-lil/CPU.20260904.093349.3500308.0.001.cpuprofile",
+            "kind": "file",
+            "executable": false,
+            "sha256": "cf218749339a79db851dcf73680f848c378c8f85d771637af6345359a69f47a3",
+            "bytes": 105474
+          },
+          {
+            "path": ".tmp/perf/prof-off/CPU.20260904.093352.3500320.0.001.cpuprofile",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8df0f92c685e303168a92ade7b4ca8df2754d20d68b03693f672268d65a0b6db",
+            "bytes": 109873
+          },
+          {
+            "path": ".tmp/perf/prof.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6043bb14f86c089b2e8cd3d281ebea8efbfbd256d1792962781550f7694de8e3",
+            "bytes": 359
+          },
+          {
+            "path": ".tmp/perf/read-heap.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "28865afa61fd1a1c987b9456e246f3e3c7bcd012f6a7e4363e60105e2902f4ba",
+            "bytes": 1263
+          },
+          {
+            "path": ".tmp/perf/read-prof.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0b625c312c76c67aef0a13ed024ae9b70003536f90f01c829f4b9585d75c0cfc",
+            "bytes": 1627
+          },
+          {
+            "path": ".tmp/perf/repro.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d8097ab34fabf5770ee934edfff2f640fae7c4651cdc2dbe24b2c2102c27f25e",
+            "bytes": 189
+          },
+          {
+            "path": ".tmp/perf/repro2.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "04bb799969a2ae4e456740e68dc2ec56cc806f1658b526ce5a3facb5f8f440d5",
+            "bytes": 289
+          },
+          {
+            "path": ".tmp/perf/run-when-quiet.sh",
+            "kind": "file",
+            "executable": true,
+            "sha256": "ccec3292980aa7b50cfb713c8d1de1f372577127a311f714ba905ae3463fad74",
+            "bytes": 271
+          },
+          {
+            "path": ".tmp/perf/scale.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "f28c6be7adc84cf56f75bd1c4775cb2bcab5a48306c4ed21979aaacda082bad1",
+            "bytes": 1236
+          },
+          {
+            "path": ".tmp/perf/sweep.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "75717c07391efc71151c73e1ef16fd26454a8dfebf89dcb37fbc4fc845844069",
+            "bytes": 2587
+          },
+          {
+            "path": "LICENSE",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ea025995077568c0b26061d7d13dbe718efbeceb4d94ee6c2ec4cb39e8149012",
+            "bytes": 1139
+          },
+          {
+            "path": "NOTICE.md",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1c6c1f4410fc804155ddf3b91b0b0841b917a632125710524ce9055af24a8f21",
+            "bytes": 489
+          },
+          {
+            "path": "README.md",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1aa7a9d430a99d6651bc89511dc58f1ab4e72eebc4ab979130b25ce94645e6df",
+            "bytes": 8816
+          },
+          {
+            "path": "_site/.nojekyll",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "bytes": 0
+          },
+          {
+            "path": "_site/app.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d4d72d97e043217ebbc3c7ccd38e61b823b220b855db564abf3d6b86e109ee80",
+            "bytes": 15761
+          },
+          {
+            "path": "_site/bench.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "58ffe89d51a23eef11a943cbeb673a603694771d3387a915359b2307b1692ffb",
+            "bytes": 4824
+          },
+          {
+            "path": "_site/compiler-comparison.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5cbb9a90295ca7069c86eef65b6cb404ab42127bd064399e49f50364d0512805",
+            "bytes": 4881
+          },
+          {
+            "path": "_site/corpus.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "48273c789ec44f8639d50bd858e3b9a6dfd6faf82cebbb0230128e25e81bd4a8",
+            "bytes": 39722
+          },
+          {
+            "path": "_site/index.html",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ff4e94f7f42ad6429c354432dba732d87000063f28586adabae0fb3064ec0176",
+            "bytes": 14430
+          },
+          {
+            "path": "_site/marked-official.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7e1b4a7f6795075dc5afc7734df82d6bea190ced503ec353ad684074baa2ba6d",
+            "bytes": 67247
+          },
+          {
+            "path": "_site/marked.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1bb0c2af2217363fd4985fcb98b679bec8b844b8518f5d9dae4da5f331c97886",
+            "bytes": 34798
+          },
+          {
+            "path": "_site/results.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "040cfa88135d35b5fa3172c8d4046cf53657b5af02abea8b0d4ef25b3973fcad",
+            "bytes": 10271
+          },
+          {
+            "path": "_site/styles.css",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a0bd1b8a0574c78caa2428f077025123aadeef6947e442e78e6149d78a82e297",
+            "bytes": 16900
+          },
+          {
+            "path": "e2e-out/report.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6ad7434f7b9bde20eeb02b6391ddef9714764fe75234db6ade23b3f0a59b774e",
+            "bytes": 4356
+          },
+          {
+            "path": "e2e/run.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "80c1b6a89ee14ad452eb9f8dfc745ad5b424722d76a9220f01369b5da6624b8e",
+            "bytes": 9659
+          },
+          {
+            "path": "lilscript.bytes.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2a3b9c59ab21829bb6aeac4974f171629e75336292abcaa2e7e09e37d67bb412",
+            "bytes": 321
+          },
+          {
+            "path": "lilscript.closed.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "991e1f117c085f0028c8607f1f86812a79464d80c25002d2130bf3c676858a0e",
+            "bytes": 325
+          },
+          {
+            "path": "lilscript.gzip.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7edbbb56eb269296e0e907857141b4f59afe86f49634fc041383e4a23613bb74",
+            "bytes": 322
+          },
+          {
+            "path": "lilscript.sourcemap-analysis.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "b31d7f35c2f812eba6da5b82a92b75788523341300b3250a91f2cdde7700da3c",
+            "bytes": 422
+          },
+          {
+            "path": "lilscript.sourcemap-hidden.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "70801e39b0cf90a81f8ce35541263d782985e9eb5630907b26bbe88b44472f21",
+            "bytes": 380
+          },
+          {
+            "path": "lilscript.sourcemap-inline.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9bdbdedd9aefa5aea71d93a48aa332959f5a95e959eddee0e86560f78d5bc81b",
+            "bytes": 380
+          },
+          {
+            "path": "lilscript.sourcemap-linked.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2bc7f73bff76b116afcaa72ba60f261188481919a82e37a0e53a6323550757c1",
+            "bytes": 380
+          },
+          {
+            "path": "lilscript.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5295859e6b49be4dd54553e16c29adc988f14bb656db79ccb75c7f09779973bb",
+            "bytes": 1164
+          },
+          {
+            "path": "official/marked-18.0.10/LICENSE",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c",
+            "bytes": 2942
+          },
+          {
+            "path": "official/marked-18.0.10/README.md",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bcd8468154ceb607e6fddef357bd278ecdaa0e1f696d0bfca482fbf15d67c79b",
+            "bytes": 170
+          },
+          {
+            "path": "official/marked-18.0.10/src/Lexer.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "467cd16a48d9697e0b1ea156dd323c14c762091b2f872d07560c323f37eba7f6",
+            "bytes": 14416
+          },
+          {
+            "path": "official/marked-18.0.10/src/MarkedOptions.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "744801a1617d778828c76143e49656147ad4ffb1230031f90c50412d12608fd3",
+            "bytes": 6248
+          },
+          {
+            "path": "official/marked-18.0.10/src/Parser.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "cc59b367d29faf7b7f6f8b454b577fe1acf3bf531f0a6840c8f01fc6316fbfe5",
+            "bytes": 5937
+          },
+          {
+            "path": "official/marked-18.0.10/src/Renderer.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5ce201643e9c138f949d012fedf51bae0bef58d5f039f81421778d626d3594ca",
+            "bytes": 5956
+          },
+          {
+            "path": "official/marked-18.0.10/src/TextRenderer.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "80a8581c9b13b90956b497bb7a555d4018b29da7a9b284f6662932f8d2987b44",
+            "bytes": 1129
+          },
+          {
+            "path": "official/marked-18.0.10/src/Tokenizer.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7aa01f8b7132d43e0f05628cb271c400ace1cc6849a108ae3f649a56f73b89eb",
+            "bytes": 31216
+          },
+          {
+            "path": "official/marked-18.0.10/src/Tokens.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9c59724a1ee47581c1fb907253dd3af361dcff9fdf68436f5304eca912229e23",
+            "bytes": 3710
+          },
+          {
+            "path": "official/marked-18.0.10/src/defaults.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "fc15453d9c34ba9e51476f792eab6896652ade89cc03f635cdb2f25ac0d68475",
+            "bytes": 745
+          },
+          {
+            "path": "official/marked-18.0.10/src/helpers.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a9de2f30f37412670d543af9cac4b8406278bd3fc4963caad7ac2ec8b70c2275",
+            "bytes": 3784
+          },
+          {
+            "path": "official/marked-18.0.10/src/rules.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "cd88013cf476eee063d13b3c50cdccd53ed069fab0c12db62747f25c59dd1d84",
+            "bytes": 22734
+          },
+          {
+            "path": "package-lock.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e7c184d025956b7d8c85af9335cff9a13364ef6f1ee8c36e6ee6d1d1fba58eab",
+            "bytes": 43832
+          },
+          {
+            "path": "package.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "aa07a6a8d20035a6af2c0c013a52e15317b7f58f63324eee2372c4c7615d6f24",
+            "bytes": 1992
+          },
+          {
+            "path": "reports/bench.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6ad7434f7b9bde20eeb02b6391ddef9714764fe75234db6ade23b3f0a59b774e",
+            "bytes": 4356
+          },
+          {
+            "path": "reports/sizes.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7e59ae493c8c5d9dfb66b7542cbe2bbfca8d06e877f928580b42b3e99edfc045",
+            "bytes": 4563
+          },
+          {
+            "path": "scripts/build-site.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "098b302ced28b0b139940ea7dfa25e9cfd275479aac80e3293cb4be46bcb68a7",
+            "bytes": 2522
+          },
+          {
+            "path": "scripts/build.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a159c50978ffcc7ab825c8dc54e2785daf787a95f6f437688c2c0d0b405dfc24",
+            "bytes": 3491
+          },
+          {
+            "path": "scripts/check-pack.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "259e79bdc7909968b3ce55a37afc4960a8033b6e927c62672e7934fcb81ad22e",
+            "bytes": 952
+          },
+          {
+            "path": "scripts/codec.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ac28e57945f080021068d4f0782424dd44ccc0191a1d899bd3f3f50c9d82e0e0",
+            "bytes": 1272
+          },
+          {
+            "path": "scripts/generate-rules.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8a0751952693c6d178b7264d7e2b9622a63a0216f5099e35a6e3865815fb303f",
+            "bytes": 20925
+          },
+          {
+            "path": "scripts/measure.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8f845b06401d469b3f09e0dc00f1e97aa6e16e8ef6d0ecfaa0500c6007966972",
+            "bytes": 5118
+          },
+          {
+            "path": "scripts/minify-lanes.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0a1d2befbf82bf557696c69c634daa514b4f95a1b4ad31b3c04bda174fef2936",
+            "bytes": 2625
+          },
+          {
+            "path": "scripts/official-parse-bundle.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "57173c492a0cb7faeef00039ffa9bcfe41ba8e538898cba7aed253bc79534157",
+            "bytes": 713
+          },
+          {
+            "path": "scripts/official-parse-entry.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "871ad25c877c92ecf61239098d363ca25135c11ae2a2f1adeeb4715669f90ddf",
+            "bytes": 1295
+          },
+          {
+            "path": "scripts/spec.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "96a5d6bcb872ff137014c2f1871600f754b2284e7c49216275d1141749c1f68f",
+            "bytes": 1343
+          },
+          {
+            "path": "scripts/write-results.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "17e2688bf2fe4a948c355ca11a1e445275568e937fc5ff22cf0b9c3935c7df31",
+            "bytes": 2800
+          },
+          {
+            "path": "site/app.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d4d72d97e043217ebbc3c7ccd38e61b823b220b855db564abf3d6b86e109ee80",
+            "bytes": 15761
+          },
+          {
+            "path": "site/bench.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "58ffe89d51a23eef11a943cbeb673a603694771d3387a915359b2307b1692ffb",
+            "bytes": 4824
+          },
+          {
+            "path": "site/compiler-comparison.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5cbb9a90295ca7069c86eef65b6cb404ab42127bd064399e49f50364d0512805",
+            "bytes": 4881
+          },
+          {
+            "path": "site/index.html",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ff4e94f7f42ad6429c354432dba732d87000063f28586adabae0fb3064ec0176",
+            "bytes": 14430
+          },
+          {
+            "path": "site/results.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "040cfa88135d35b5fa3172c8d4046cf53657b5af02abea8b0d4ef25b3973fcad",
+            "bytes": 10271
+          },
+          {
+            "path": "site/styles.css",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a0bd1b8a0574c78caa2428f077025123aadeef6947e442e78e6149d78a82e297",
+            "bytes": 16900
+          },
+          {
+            "path": "src/entry.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5",
+            "bytes": 2958
+          },
+          {
+            "path": "src/lexer.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e23437960935b0a62a97ade3696e6a3a0a68cea3c187cf5d57cd234cdde656b1",
+            "bytes": 39073
+          },
+          {
+            "path": "src/parse.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a2861173f019f7e6fecfe9fcc1670d563258e2d8fc33b298ef73213cc0cba456",
+            "bytes": 8425
+          },
+          {
+            "path": "src/rules.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+            "bytes": 20051
+          },
+          {
+            "path": "src/str.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+            "bytes": 9602
+          },
+          {
+            "path": "src/types.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ef4efd2a8dc01b22b5bb181fe7beb9246cb00c13b2cb1227ae02730652c0d9a1",
+            "bytes": 3366
+          },
+          {
+            "path": "test/api.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "3de988d56f65ddaf7510a3b952d5341bbe61caf24727889a0896774cb5b2d78f",
+            "bytes": 6004
+          },
+          {
+            "path": "test/closed.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ca2e9d19200311373418de7131752516025a3e09733639b63c244afc8b8a5d1f",
+            "bytes": 2004
+          },
+          {
+            "path": "test/compat.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0923daf39ccf25a5eadbc97e91c5c26a80e32a6dcc85f2dcf9bb230ce7bfd4b1",
+            "bytes": 2456
+          },
+          {
+            "path": "test/official-parse.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1d2bbca29febdf937c238d5ede739ad21c12334b321c143c898261a271c99f1c",
+            "bytes": 1320
+          },
+          {
+            "path": "test/options.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "19f6ce8363248b41a4d9b45b7a9fc79abdea0c66cbe830d1ed37848e79efe74f",
+            "bytes": 4907
+          },
+          {
+            "path": "test/site.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1f51f5de40aa96c015c40d8476f4c58279fd7e88347c0621f8b4f57cdd294fcb",
+            "bytes": 7136
+          },
+          {
+            "path": "test/specs/commonmark.0.31.2.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+            "bytes": 140872
+          },
+          {
+            "path": "test/specs/gfm.0.29.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+            "bytes": 8884
+          },
+          {
+            "path": "types/marked.d.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8817f58467cb6f5f74c423514fe46619bff6fe84b390383f1c50993642ddfc28",
+            "bytes": 873
+          }
+        ],
+        "configuration": {
+          "path": "lilscript.toml",
+          "location": "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil/lilscript.toml",
+          "sha256": "5295859e6b49be4dd54553e16c29adc988f14bb656db79ccb75c7f09779973bb",
+          "bytes": 1164
+        },
+        "output": {
+          "path": "/tmp/lilscript-marked-release-20260919-mNHGEb/portgate/workspaces/markedlil/dist/marked.raw.js",
+          "previous": null,
+          "sha256": "c08107d23ed741a987e8d9297f8f93594749c57323b1f03e7467b399120621de",
+          "bytes": 34092
+        },
+        "exitCode": 0,
+        "signal": null,
+        "error": null,
+        "elapsedMs": 244740.185977,
+        "inputAfterSha256": "2671d3dcd13f48d8ba836eca977d101597b65c169dbb5ee1134fe6d7f278e004",
+        "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+        "validationErrors": []
+      }
+    ],
+    "tail": "    144.8ms idle    142/142   idle/calls  fold_forwarding_call_wrappers\n     86.7ms idle    213/213   idle/calls  fold_arguments_length_countdown_for\n     80.5ms idle     74/140   idle/calls  fold_single_use_temporaries\n     80.1ms idle     74/136   idle/calls  fold_self_assignment_chains\n     77.0ms idle     74/74    idle/calls  fold_coalesced_or_returns\n     76.7ms idle    193/193   idle/calls  fold_undefined_defaults_into_formals\n     62.4ms idle     48/48    idle/calls  fold_guarded_and_addends\n     61.4ms idle     48/48    idle/calls  fold_guarded_assign_into_call_predicate\n     54.8ms idle    143/275   idle/calls  fold_redundant_loop_body_braces\n     46.6ms idle    208/208   idle/calls  fold_copied_member_presence\n     44.4ms idle     74/74    idle/calls  fold_not_gt_zero_length\n     41.3ms idle     74/74    idle/calls  strip_stale_set_prototype_of"
+  },
+  "artifacts": [],
+  "tests": null
+}

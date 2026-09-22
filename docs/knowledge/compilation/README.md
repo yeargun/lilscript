@@ -12,7 +12,8 @@ artifacts; the configured objective ranks only legal alternatives.
 
 - [Architecture router](architecture.md) — authority and reading order
 - [Current architecture](current-architecture.md) — implemented pipeline and gaps
-- [Planned architecture](planned-architecture.md) — smallest intended replacement
+- [Proposed design](../../compiler-design.md) — objective, target contracts and open language decisions
+- [Single migration plan](../../migration/index.md) — all bounded steps and verified progress in one file
 - [Objectives](objectives.md) — size/performance × raw/gzip/Brotli; exact vs heuristic
 - [Decision registry](decision-registry.md) — implemented choice census
 - [Global optima](global-optima.md) — why local “smaller” can lose gzip/Brotli
@@ -47,8 +48,8 @@ artifacts; the configured objective ranks only legal alternatives.
 
 ## Planning
 
-- [Planned migration](../migration/planned-migration.md) is the executable order.
-- [Ledger](../migration/board/LEDGER.md) is live task state.
-- [Goal architecture](goal-architecture.md) and
-  [phase 07](../migration/07-global-compressor.md) are archived design history;
-  they do not override the smaller current plan.
+The old migration is retired and archived outside the repository.
+[Compiler design](../../compiler-design.md) owns the proposed target;
+[migration/index.md](../../migration/index.md) owns the new implementation sequence.
+The first steps freeze evidence and settle remaining language decisions. No
+implementation milestone is complete merely because a plan exists.

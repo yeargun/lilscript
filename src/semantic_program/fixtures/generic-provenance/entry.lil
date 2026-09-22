@@ -1,0 +1,18 @@
+import {Point} from "./point";
+import {snapshot} from "./snapshot";
+
+int score(Point point) {
+    point.x+=1;
+    return point.x+point.y;
+}
+
+export int genericScore(int seed,int width) {
+    Point live=Point{seed,width};
+    Point saved=snapshot(live);
+    live.x+=10;
+    return score(saved)+live.x;
+}
+
+export int genericScalar(int value) {
+    return snapshot(value);
+}

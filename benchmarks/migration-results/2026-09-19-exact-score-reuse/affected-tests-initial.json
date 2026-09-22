@@ -1,0 +1,28 @@
+{
+  "binary": {
+    "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+    "sha256": "e658a7bb51e5cfcaab22726fc351f6e0eb60ca3a6748bad496dc6dc1245ae773",
+    "bytes": 382892584
+  },
+  "args": [
+    "semantic_program::search_tests::",
+    "semantic_program::search_staged_tests::",
+    "semantic_program::publication::search::",
+    "semantic_program::artifacts::",
+    "semantic_program::artifact_provenance::",
+    "semantic_program::artifact_lifetime_tests::",
+    "semantic_program::search_entries::",
+    "--skip",
+    "identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "node": "v24.11.1",
+  "exitCode": 0,
+  "signal": null,
+  "elapsedMs": 15248.494310999999,
+  "log": {
+    "sha256": "a89997a971ebf5da36230d961990a8e7d9857def3368982935a72d92cd5719aa",
+    "bytes": 187923
+  }
+}

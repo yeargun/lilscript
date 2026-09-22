@@ -1,0 +1,17 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/29_class_scalar_replacement.lil:1:1
+  |
+ 1 | class Vector {
+  float x;
+  float y;
+
+  init(float x, float y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  float lengthSquared() {
+    return this.x * this.x + this.y * this.y;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,944 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "rehype-katexlil",
+  "started": "2026-09-20T18:20:20.213Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/rehype-katexlil",
+  "workspace": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "boundsMs": {
+    "suite": 240000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-katexlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-katexlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/npm-cache"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run check:types && node --test test/official/test.js test/*.test.mjs",
+  "derivation": {
+    "supported": true,
+    "script": "npm run check:types && node --test test/official/test.js test/*.test.mjs",
+    "segments": [
+      "npm run check:types",
+      "node --test test/official/test.js test/*.test.mjs"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/official/test.js",
+      "test/*.test.mjs"
+    ],
+    "deviations": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/rehype-katex.cjs",
+      "dist/rehype-katex.closed.js",
+      "dist/rehype-katex.esm.js"
+    ],
+    "absent": []
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-katexlil/node/report.json",
+    "sha256": "7e2c82b8c2f7b36beb4180d4e6b9876530b1180924346d32e668f2afe31da5e0",
+    "bytes": 68993
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/audit.test.mjs\",104,3,1,\"test\",\"preserves the upstream rehype-katex module paths\",1]",
+      "file": "test/audit.test.mjs",
+      "name": "preserves the upstream rehype-katex module paths",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/audit.test.mjs\",109,3,1,\"test\",\"covers every KaTeX 0.16.22 source module by upstream filename\",1]",
+      "file": "test/audit.test.mjs",
+      "name": "covers every KaTeX 0.16.22 source module by upstream filename",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/audit.test.mjs\",121,3,1,\"test\",\"vendors the exact KaTeX 0.16.22 metric and Unicode mappings\",1]",
+      "file": "test/audit.test.mjs",
+      "name": "vendors the exact KaTeX 0.16.22 metric and Unicode mappings",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/audit.test.mjs\",136,3,1,\"test\",\"pins package, lockfile, declarations, and artifact exports\",1]",
+      "file": "test/audit.test.mjs",
+      "name": "pins package, lockfile, declarations, and artifact exports",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/audit.test.mjs\",103,1,0,\"suite\",\"source, data, and artifact audit\",1]",
+      "file": "test/audit.test.mjs",
+      "name": "source, data, and artifact audit",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/test.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",19,11,1,\"test\",\"should transform math with katex\",1]",
+      "file": "test/official/test.js",
+      "name": "should transform math with katex",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",49,11,1,\"test\",\"should support markdown fenced code\",1]",
+      "file": "test/official/test.js",
+      "name": "should support markdown fenced code",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should integrate with `remark-math`\",1]",
+      "file": "test/official/test.js",
+      "name": "should integrate with `remark-math`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",104,11,1,\"test\",\"should transform `.math-inline.math-display` math with `displayMode: true`\",1]",
+      "file": "test/official/test.js",
+      "name": "should transform `.math-inline.math-display` math with `displayMode: true`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",131,11,1,\"test\",\"should support `macros`\",1]",
+      "file": "test/official/test.js",
+      "name": "should support `macros`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",151,11,1,\"test\",\"should handle errors, support `errorColor`\",1]",
+      "file": "test/official/test.js",
+      "name": "should handle errors, support `errorColor`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",204,11,1,\"test\",\"should support `strict: ignore`\",1]",
+      "file": "test/official/test.js",
+      "name": "should support `strict: ignore`",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",224,11,1,\"test\",\"should support comments\",1]",
+      "file": "test/official/test.js",
+      "name": "should support comments",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",249,11,1,\"test\",\"should not crash on non-parse errors\",1]",
+      "file": "test/official/test.js",
+      "name": "should not crash on non-parse errors",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",12,1,0,\"test\",\"rehype-katex\",1]",
+      "file": "test/official/test.js",
+      "name": "rehype-katex",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"empty expression\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "empty expression",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"plain symbols\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "plain symbols",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML line-ending preprocessing\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "HTML line-ending preprocessing",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"superscripts and subscripts\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "superscripts and subscripts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fractions\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "fractions",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"roots and generated SVG paths\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "roots and generated SVG paths",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy delimiters\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "stretchy delimiters",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"matrix environments\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "matrix environments",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"array rules and SVG lines\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "array rules and SVG lines",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy accents\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "stretchy accents",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"horizontal braces\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "horizontal braces",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"enclosures\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "enclosures",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fonts and colors\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "fonts and colors",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"text and consecutive MathML text\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "text and consecutive MathML text",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"unicode fallback classes\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "unicode fallback classes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"mathematical alphanumeric fonts\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "mathematical alphanumeric fonts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"spacing nodes\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "spacing nodes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"commutative diagrams\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "commutative diagrams",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted anchors\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "trusted anchors",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted image nodes\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "trusted image nodes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML classes\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "trusted HTML classes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML identifiers\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "trusted HTML identifiers",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML styles\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "trusted HTML styles",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted data attributes\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "trusted data attributes",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML-only output\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "HTML-only output",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"MathML-only output\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "MathML-only output",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"left equation numbers\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "left equation numbers",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"flush-left display\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "flush-left display",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"minimum rule thickness\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "minimum rule thickness",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"custom macros\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "custom macros",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",82,3,1,\"test\",\"preserves a non-math tree and ignores scalar className\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "preserves a non-math tree and ignores scalar className",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",89,3,1,\"test\",\"does not transform a matching root element without a parent\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "does not transform a matching root element without a parent",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",96,3,1,\"test\",\"uses display mode when both math classes are present\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "uses display mode when both math classes are present",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",107,3,1,\"test\",\"uses preformatted text and replaces the pre for language-math\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "uses preformatted text and replaces the pre for language-math",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",135,3,1,\"test\",\"matches preformatted text extraction for nested HAST\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "matches preformatted text extraction for nested HAST",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",160,3,1,\"test\",\"transforms each math sibling without revisiting replacements\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "transforms each math sibling without revisiting replacements",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",170,3,1,\"test\",\"matches official ParseError recovery and diagnostics\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "matches official ParseError recovery and diagnostics",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",191,3,1,\"test\",\"matches HTML null preprocessing in ParseError output\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "matches HTML null preprocessing in ParseError output",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",206,3,1,\"test\",\"rejects invalid trusted HTML attribute names like KaTeX toMarkup\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "rejects invalid trusted HTML attribute names like KaTeX toMarkup",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",227,3,1,\"test\",\"preserves upstream truthy errorColor coercion on non-parse errors\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "preserves upstream truthy errorColor coercion on non-parse errors",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",245,3,1,\"test\",\"shares the runtime mhchem registry\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "shares the runtime mhchem registry",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",257,3,1,\"test\",\"shares macros registered through __defineMacro\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "shares macros registered through __defineMacro",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",269,3,1,\"test\",\"shares functions registered through __defineFunction\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "shares functions registered through __defineFunction",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/parity.test.mjs\",56,1,0,\"suite\",\"KaTeX 0.16.22 structural parity\",1]",
+      "file": "test/parity.test.mjs",
+      "name": "KaTeX 0.16.22 structural parity",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/rehype-katex.test.mjs\",10,3,1,\"test\",\"transforms span.math-inline x^2 into katex\",1]",
+      "file": "test/rehype-katex.test.mjs",
+      "name": "transforms span.math-inline x^2 into katex",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/rehype-katex.test.mjs\",30,3,1,\"test\",\"exports default as the plugin\",1]",
+      "file": "test/rehype-katex.test.mjs",
+      "name": "exports default as the plugin",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/rehype-katex.test.mjs\",36,3,1,\"test\",\"pins tree and option keys on the library artifact\",1]",
+      "file": "test/rehype-katex.test.mjs",
+      "name": "pins tree and option keys on the library artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/rehype-katex.test.mjs\",45,3,1,\"test\",\"closed artifact performs the core call\",1]",
+      "file": "test/rehype-katex.test.mjs",
+      "name": "closed artifact performs the core call",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/rehype-katex.test.mjs\",9,1,0,\"suite\",\"@itslil/rehype-katex\",1]",
+      "file": "test/rehype-katex.test.mjs",
+      "name": "@itslil/rehype-katex",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.closed.js",
+      "sha256": "a61d356d580802408b92e285ecde3792b3868fb2e541f543e5889fbc0470b07e",
+      "bytes": 2370
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.cjs",
+      "sha256": "e274901a2222240238d649f6f69fbc25fc6f2d22d1746bfd9602898e41ac0374",
+      "bytes": 284884
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.esm.js",
+      "sha256": "991ac8b52f0d4959483d0e9195056f4b58714319bc29b7cbc6cec78dc477119c",
+      "bytes": 2331
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.esm.js",
+      "sha256": "991ac8b52f0d4959483d0e9195056f4b58714319bc29b7cbc6cec78dc477119c",
+      "bytes": 2331
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.closed.js",
+      "sha256": "a61d356d580802408b92e285ecde3792b3868fb2e541f543e5889fbc0470b07e",
+      "bytes": 2370
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.esm.js",
+      "sha256": "991ac8b52f0d4959483d0e9195056f4b58714319bc29b7cbc6cec78dc477119c",
+      "bytes": 2331
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.closed.js",
+      "sha256": "a61d356d580802408b92e285ecde3792b3868fb2e541f543e5889fbc0470b07e",
+      "bytes": 2370
+    },
+    {
+      "path": "/tmp/lilscript-adapter-rehype-katexlil-r1HFdU/rehype-katexlil/dist/rehype-katex.esm.js",
+      "sha256": "991ac8b52f0d4959483d0e9195056f4b58714319bc29b7cbc6cec78dc477119c",
+      "bytes": 2331
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "untestedEntries": [],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/rehype-katex.cjs",
+    "dist/rehype-katex.closed.js",
+    "dist/rehype-katex.esm.js"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 4447.23792,
+  "completed": "2026-09-20T18:20:24.660Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ff783eeab03af74ab17ec0908866a4fb621d1b17b050667301b88907a3b0f090",
+      "bytes": 1080589
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ff783eeab03af74ab17ec0908866a4fb621d1b17b050667301b88907a3b0f090",
+      "bytes": 1080589
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "780c6777966589ce158b8ffe5490cd8bcc12511277510bacdd8f82014224d8e3",
+      "bytes": 3881
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "93524707ad134f9c47e9ab14d075846abcdf6b85412b71a3e0752d63a979a4b1",
+      "bytes": 13551
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "58acd61a66df89e0167f7940ec5273b96fd935e48c714f5ed7574075040568f4",
+      "bytes": 15809
+    },
+    {
+      "path": "node/loaded/3402038-1c98434d-2462-4e64-bd8e-5ab2f84160c0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1bf0b2a8e52006dbff3c4c54c41a6773c6d9dcb32e534d826dd5be9171d3d91d",
+      "bytes": 370
+    },
+    {
+      "path": "node/loaded/3402038-d0cd22be-07e0-44c8-ba8a-35df0fbb8ff9.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f56cb6613702c487308ea5796b15fd1bf1b9f6e4cdecab365e5005dc400cf982",
+      "bytes": 362
+    },
+    {
+      "path": "node/loaded/3402038-dd7e9af0-2e9b-487e-b91f-47913d600208.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5c4a087117ec1bbf2353168ebb18648b533b3af6361d68357cd5c3804e9e5ed8",
+      "bytes": 364
+    },
+    {
+      "path": "node/loaded/3402039-f448f0dc-d23b-4541-a4df-bc1804312b58.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1e8ba3aae80eb080b2340f042159d90615f1c97e5ba7dc7f73874eb2c1ca9a9e",
+      "bytes": 364
+    },
+    {
+      "path": "node/loaded/3402040-2185a6a3-6ba2-47b4-87fe-b1739b648a41.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c45d54648713f5c69e222cd158c670fc1effb13b15cdb1c746359cfb49bda61e",
+      "bytes": 370
+    },
+    {
+      "path": "node/loaded/3402040-820fe404-0467-4700-8055-746fa45b7516.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f945883356dd72f933504a20b45f03d576426b01e3855d89af810c44ce4f270d",
+      "bytes": 364
+    },
+    {
+      "path": "node/loaded/3402046-21da64d2-0752-4720-b29b-35e73cf94ae0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c3ab0e23414495a23fff7a4d3692ea2ddf8fbd3619596d815083b2c2b3079ed1",
+      "bytes": 370
+    },
+    {
+      "path": "node/loaded/3402046-9e1e7ed8-5ca4-4d82-9e4f-ffe42e98d2db.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "45b747875a53ac31b794ddff95cf9b3dfcd6e00802ed9892fff7ab50011fdee2",
+      "bytes": 364
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5a5d57164426eeb40491968496ad2b3489b0069f7feee8066c58b540716ac518",
+      "bytes": 540
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "aea655f14aa7c3209ce9bffcc84b2f0d2613bdc4ad36bf41db6d0e23847b2c2f",
+      "bytes": 163
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7e2c82b8c2f7b36beb4180d4e6b9876530b1180924346d32e668f2afe31da5e0",
+      "bytes": 68993
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "76e1fb4467ec9c473cecef68e7269c561e2127a89f87472b53b14c7ba11857cb",
+      "bytes": 4406
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "93524707ad134f9c47e9ab14d075846abcdf6b85412b71a3e0752d63a979a4b1",
+      "bytes": 13551
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

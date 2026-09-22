@@ -1,0 +1,136 @@
+{
+  "patterns": [
+    "test/*.test.mjs",
+    "test/official/test.js"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/remark-math.cjs",
+    "dist/remark-math.closed.js",
+    "dist/remark-math.esm.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+      "bytes": 406
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "dcf9963f7659bb29a51be4ae70b5d10188d186922a1ae3c51a3ed8b8b4f2f448",
+      "bytes": 393
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+      "bytes": 67566
+    },
+    {
+      "path": "package.json",
+      "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+      "bytes": 2381
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "8fc42b9ca2178422c3b211d4b92375051fc39c7468c92906de82069e4f314243",
+      "bytes": 949
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "ed3ebb5726feb0d7300590878606345a26707263eff40c0d773cbf8d6b34b8c3",
+      "bytes": 3189
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "b27a30bd8b6ca52458d53e03b4db0faeac9dbaef6dc2d2f5c887a1d82a9ce428",
+      "bytes": 1074
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "93497af71228d5b7ca64bbeac9bf529ef79e0ca1038ea9a2ee89753fce0f49b7",
+      "bytes": 9269
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "f80c4832481097f98289d5852b5fdff3a0b55f15d49dfb6d8e6397acf023d4c2",
+      "bytes": 15294
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "85037025cfe138adebe2c6052f4bb36a07054536b31ce2a90fb99cb0fbea0705",
+      "bytes": 2160
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "site/vendor/remark-parse.js",
+      "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+      "bytes": 35260
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "73db82d3853ff0a72704c0a491e481814771f9b5ff2d3cae85de46b98f8e694c",
+      "bytes": 3098
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "f7f62549510daa880c697584eed7a3a7be1d68865a909124d0c4265fa28c7bb0",
+      "bytes": 978
+    },
+    {
+      "path": "test/official/test.js",
+      "sha256": "8bee9c96f0244b97563dd33a17958972719bda0b64ef19895059f98e7b031955",
+      "bytes": 24680
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/types.test.ts",
+      "sha256": "3fb058ab9ca6ba26a1f3b793111dc2825da09c6f5e4b08ee8ccc96cc5368334f",
+      "bytes": 701
+    },
+    {
+      "path": "types/remark-math.d.ts",
+      "sha256": "5d99f806355fac25dae9a0d5bc58c74c59b5365deca662fdf4d2eed09ef63cc1",
+      "bytes": 1007
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "8ea3a68e1cf250c61da6c45287cdb0686cd74cd4f8bf9b78e2950652d08624f0",
+          "bytes": 2381
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "9ae5edc731dfa9a5bca6a615cd1fe78efdb18241211ee1b1016dc8d69fa9733a",
+          "bytes": 67566
+        }
+      ]
+    }
+  ]
+}

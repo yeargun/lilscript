@@ -1,0 +1,11 @@
+
+running 6 tests
+test semantic_program::native_struct_tests::native_place_check_rejects_uninitialized_root_before_rhs_without_leaking ... ok
+test semantic_program::native_struct_tests::native_struct_reference_fields_remain_explicitly_unsupported ... ok
+test semantic_program::native_struct_tests::refused_native_struct_output_releases_layouts_and_partial_text ... ok
+test semantic_program::native_struct_tests::native_empty_structs_have_no_observable_padding_field ... ok
+test semantic_program::native_struct_tests::native_struct_arguments_returns_assignment_values_and_field_effect_order ... ok
+test semantic_program::native_struct_tests::native_nested_value_copies_preserve_originals_and_immutable_utf16_backing ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2713 filtered out; finished in 0.68s
+

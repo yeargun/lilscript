@@ -1,0 +1,8 @@
+
+running 3 tests
+test compiler::tests::parsed_peephole_leaves_share_the_terminal_codec_budget ... ok
+test compiler::tests::parsed_peephole_applies_without_candidate_search ... ok
+test compiler::tests::parsed_peephole_is_independently_configurable ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2892 filtered out; finished in 0.07s
+

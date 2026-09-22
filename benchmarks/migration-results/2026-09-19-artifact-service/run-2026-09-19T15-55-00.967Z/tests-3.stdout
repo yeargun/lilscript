@@ -1,0 +1,18 @@
+
+running 13 tests
+test lexer::admission_tests::expired_lexing_refuses_before_scanning_and_still_releases_token_storage ... ok
+test lexer::admission_tests::successful_growth_records_live_capacity_and_overlap_peak ... ok
+test lexer::admission_tests::failed_growth_preserves_tokens_and_requires_old_plus_new_capacity ... ok
+test lexer::admission_tests::token_refusal_precedes_first_vector_allocation ... ok
+test lexer::admission_tests::admitted_token_streams_match_public_lexer_without_rebinding_source ... ok
+test lexer::tests::lexes_bitwise_and_shift_assignments_longest_first ... ok
+test lexer::tests::lexes_core_tokens ... ok
+test lexer::admission_tests::lexical_syntax_failure_and_panic_release_only_owned_tokens ... ok
+test lexer::tests::lexes_the_region_attribute_sigil ... ok
+test lexer::tests::malformed_template_nesting_fails_without_consuming_a_partial_literal ... ok
+test lexer::tests::lossless_lexing_partitions_comments_and_whitespace ... ok
+test lexer::tests::reports_unknown_input ... ok
+test lexer::tests::nested_templates_retain_boundaries_across_comments_quotes_and_physical_lines ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2824 filtered out; finished in 0.00s
+

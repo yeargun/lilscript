@@ -1,0 +1,9 @@
+
+running 4 tests
+test semantic_program::formation_budget_tests::completed_formation_unwinds_after_actual_module_drop_in_the_original_domain ... ok
+test semantic_program::formation_budget_tests::observed_literal_payloads_share_formation_admission_and_unwind_after_payload_drop ... ok
+test semantic_program::formation_budget_tests::late_literal_formation_denial_preserves_incumbent_and_cleans_demand_and_partial_module ... ok
+test semantic_program::formation_budget_tests::formation_charges_exact_live_module_capacity_and_releases_all_planning_scratch ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2936 filtered out; finished in 0.05s
+

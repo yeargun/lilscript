@@ -1,0 +1,1 @@
+let a;let value=4;{let a;let value=9;a=void console.log(value);}a=void console.log(value);

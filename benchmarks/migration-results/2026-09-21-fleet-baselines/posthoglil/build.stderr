@@ -1,0 +1,1 @@
+warning: /tmp/lilscript-baseline-posthoglil-souLfu/posthoglil/lilscript.toml: `javascript.terminal_cleanup_chain = true` enables a cleanup this compiler does not implement; it is accepted and has no effect

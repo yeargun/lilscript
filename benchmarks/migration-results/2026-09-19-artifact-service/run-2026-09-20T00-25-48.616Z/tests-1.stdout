@@ -1,0 +1,13 @@
+
+running 8 tests
+test semantic_program::from_source::tests::expired_lowering_does_not_allocate_or_release_another_owner ... ok
+test semantic_program::from_source::tests::type_clone_reconciles_its_own_spare_capacity_before_exact_preparation ... ok
+test semantic_program::from_source::tests::prepared_partition_rejects_an_unadmitted_program_instead_of_topping_up ... ok
+test semantic_program::from_source::tests::prepared_adoption_preserves_payload_addresses_without_charging_it_twice ... ok
+test semantic_program::from_source::tests::lowering_memory_and_work_refusals_restore_the_original_parent_charge ... ok
+test semantic_program::from_source::tests::full_store_and_reverse_index_refusal_discard_only_the_new_prepared_graph ... ok
+test semantic_program::from_source::tests::admitted_lower_matches_structure_and_runs_conversion_and_verification_once ... ok
+test semantic_program::from_source::tests::nested_types_and_transitive_captures_keep_the_same_graph_and_observation ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 2922 filtered out; finished in 0.03s
+

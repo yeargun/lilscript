@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T22:58:41.507Z",
+  "completed": "2026-09-21T23:07:06.082Z",
+  "wallSeconds": 504.574,
+  "command": "node",
+  "args": [
+    "finer/tools/semantic-port-tests.mjs",
+    "--compiler",
+    "/home/azureuser/lilscript-evidence/binaries/112bbc6a590ca9eb37865b1bf13d6e9d94662d58b10c49cf709fbe10c3e7e846/lilscript",
+    "--ports",
+    "micromarklil,zodlil,mdast-util-from-markdownlil,remarklil,hast-util-to-htmllil,unifiedlil,mdast-util-to-hastlil,rehypelil,remark-mathlil,markedlil,posthoglil,remark-breakslil,remark-gfmlil,remark-rehypelil,remark-parselil,rehype-stringifylil,cnlil,katexlil,jquerylil,monacolil,rehype-katexlil,mobxlil,probelil,react-markdownlil,playcanvaslil",
+    "--out",
+    "benchmarks/migration-results/2026-09-21-semantic-ports-007e/report.json"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "environment": {},
+  "compiler": null,
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript/finer/tools/semantic-port-tests.mjs",
+        "sha256": "767b307f71f0d2eddde9992e42dd01ede2e43b30ac46bb04968ebe9a18a339f3",
+        "bytes": 8376
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/cnlil.patch",
+        "sha256": "b0181ef75a50dbc614a1066137b8af329d6f362ec8c3bfaa000c0391762cf9fd",
+        "bytes": 362
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/jquerylil.patch",
+        "sha256": "b068643721e14b573a0f66e8246bdb72dc99a31d43fa107964c9c8851d48a851",
+        "bytes": 6285
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/katexlil.patch",
+        "sha256": "7ab0646323dacd8d7b62e04318cab40ebff70f187887de14e71d6aa577b79441",
+        "bytes": 626
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/mdast-util-from-markdownlil.patch",
+        "sha256": "51f8ec2aa21809a7075b3c7a1521346d06fbbdd489b3f899b5120959956e5d5a",
+        "bytes": 1298
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/micromarklil.patch",
+        "sha256": "91b4c44648dc0da9e053b1b3c00f4fb5df5301ece99e86602b4ee3c9075e450b",
+        "bytes": 1258
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/mobxlil.patch",
+        "sha256": "613c51eb8358886deab94fb5fde92aa041bfb979c11ad3b5371af8a7b28a1476",
+        "bytes": 1246
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/playcanvaslil.patch",
+        "sha256": "e33fad29891d0782800dc7f6950e2409fc4d94e5b61a43c7fdd97116ef63944d",
+        "bytes": 1674
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/posthoglil.patch",
+        "sha256": "919b63f79d426225466362b378b5f64b8f8e71f59c7b64e5cfa1819c724a6525",
+        "bytes": 273
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/react-markdownlil.patch",
+        "sha256": "3f91235dee58fd4a6b2740bb95d952974318dc2d22cb129a908140f4bbecfc61",
+        "bytes": 43084
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/rehypelil.patch",
+        "sha256": "04cc98de49e56bb37bcffb016610f78238f02047978430b187ce2dedbeb966df",
+        "bytes": 8990
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/remark-parselil.patch",
+        "sha256": "51f8ec2aa21809a7075b3c7a1521346d06fbbdd489b3f899b5120959956e5d5a",
+        "bytes": 1298
+      },
+      {
+        "path": "/home/azureuser/lilscript/finer/port-migrations/remarklil.patch",
+        "sha256": "2d64cd5d07acf292fa61a230be8eaecb0f9d4262b45480bd66e7c029f82f07ce",
+        "bytes": 1322
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/112bbc6a590ca9eb37865b1bf13d6e9d94662d58b10c49cf709fbe10c3e7e846/lilscript",
+        "sha256": "112bbc6a590ca9eb37865b1bf13d6e9d94662d58b10c49cf709fbe10c3e7e846",
+        "bytes": 18465704
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "668aa3a3c84cc491d47b754b1f9fafbd5b6d5220101bba7cfa3dd372cd5f55ff",
+    "bytes": 1216
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  "passed": true,
+  "fingerprint": "ee7e09c71c0950a661f4b8cedab1e4a2bc9b26212b8be220cd842176f65e32fe"
+}

@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "scope": "Read-only DWARF layout inspection on the preserved debug binaries; no target execution; this is per-frame layout, not whole-process RSS",
+  "rows": [
+    {
+      "name": "parent",
+      "binary": {
+        "path": "/tmp/lilscript-narrowing-admission-baseline-20260919/lilscript-c737e884cfca95f9",
+        "sha256": "7df4e1dde6914195aa34fb369db1f1a9f2a9e7a4ae9860f1798531e0ea4cdbbb",
+        "bytes": 414785392
+      },
+      "command": "/usr/bin/gdb",
+      "args": [
+        "-nx",
+        "-q",
+        "-batch",
+        "-iex",
+        "set auto-load off",
+        "-ex",
+        "set language c++",
+        "-ex",
+        "p sizeof(lilscript::semantic::BinaryContinuation)",
+        "/tmp/lilscript-narrowing-admission-baseline-20260919/lilscript-c737e884cfca95f9"
+      ],
+      "continuationBytes": 64,
+      "result": {
+        "pid": 1605081,
+        "status": 0,
+        "signal": null,
+        "stdout": "$1 = 64\n",
+        "stderr": "",
+        "supervision": {
+          "timeoutMs": 60000,
+          "killAfterMs": 1000,
+          "maxBuffer": 1048576,
+          "timedOut": false,
+          "childExitObserved": true,
+          "forcedPipeClosure": false,
+          "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+        }
+      }
+    },
+    {
+      "name": "current",
+      "binary": {
+        "path": "/tmp/lilscript-narrowing-input-baseline-20260920/lilscript-c737e884cfca95f9",
+        "sha256": "577d715df53a175d22376ba098d65c5e445a62070d2b3033550973c896d5e8d4",
+        "bytes": 415309016
+      },
+      "command": "/usr/bin/gdb",
+      "args": [
+        "-nx",
+        "-q",
+        "-batch",
+        "-iex",
+        "set auto-load off",
+        "-ex",
+        "set language c++",
+        "-ex",
+        "p sizeof(lilscript::semantic::BinaryContinuation)",
+        "-ex",
+        "p sizeof(lilscript::semantic::NarrowingInput)",
+        "/tmp/lilscript-narrowing-input-baseline-20260920/lilscript-c737e884cfca95f9"
+      ],
+      "continuationBytes": 80,
+      "inputBytes": 16,
+      "result": {
+        "pid": 1605137,
+        "status": 0,
+        "signal": null,
+        "stdout": "$1 = 80\n$2 = 16\n",
+        "stderr": "",
+        "supervision": {
+          "timeoutMs": 60000,
+          "killAfterMs": 1000,
+          "maxBuffer": 1048576,
+          "timedOut": false,
+          "childExitObserved": true,
+          "forcedPipeClosure": false,
+          "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+        }
+      }
+    }
+  ]
+}

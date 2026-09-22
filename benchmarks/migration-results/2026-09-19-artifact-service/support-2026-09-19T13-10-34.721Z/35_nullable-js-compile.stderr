@@ -1,0 +1,11 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/35_nullable.lil:26:1
+  |
+26 | class MaybeBox {
+  int? value;
+
+  init(int? value) {
+    this.value = value;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

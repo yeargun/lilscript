@@ -1,0 +1,94 @@
+{
+  "patterns": [
+    "test/*.test.mjs"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/rehype-stringify.cjs",
+    "dist/rehype-stringify.closed.js",
+    "dist/rehype-stringify.esm.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+      "bytes": 407
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+      "bytes": 966
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "8520aae3c2ec0d013c162af4e8d5b9b0f93637d083445a103752cfd9182d21b7",
+      "bytes": 19067
+    },
+    {
+      "path": "package.json",
+      "sha256": "8b0551921d320a4a2d69c6a8374a523ebde4c0e9a08fc62fd9cd9741ce2e8266",
+      "bytes": 1962
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "a2c0462622f736d5c44ac9b3401e30eab6f3b7e9b1560c50a59467905e863f8c",
+      "bytes": 954
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "2afe2737c12e09cde2fe199c290e12d85ccc3ad513078551038f5b10398582b7",
+      "bytes": 3235
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "783b46c2c08f1e8ca218eb681d4efe9a0f9659bf3c0b90e7c1a19b84c9e51899",
+      "bytes": 1073
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "a4d8e00fd7d573d72c550d39c9eef46506209a4d75d5dac8edc35a1a6800dab1",
+      "bytes": 9384
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "51c775f9c005caa3f489c5da36577c8baa36cc0879b984fd4a82872460bc5e34",
+      "bytes": 58600
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "3f34420c09b29bd93126f559d6f6f5ca3f7776f8bbe8a376f70b8fcc1a816a94",
+      "bytes": 2593
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "94bed3cd9d09c9451c99b378e86c9bfdb195fa1e4efa7396c9963899feed3848",
+      "bytes": 4177
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "9fe5d954f1f946ae1f56b7796ce09dd2c4e8c26bd42542256cbb7b7d38a1ed71",
+      "bytes": 593
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "types/rehype-stringify.d.ts",
+      "sha256": "a282bbbf5346766f6cfa3c122fb3395c7a1845662a44eca448b2b89012bc61f6",
+      "bytes": 1169
+    }
+  ],
+  "prerequisites": []
+}

@@ -1,0 +1,6 @@
+
+running 1 test
+test semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2939 filtered out; finished in 2.55s
+

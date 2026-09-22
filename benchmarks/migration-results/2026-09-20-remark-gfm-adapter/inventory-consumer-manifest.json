@@ -1,0 +1,99 @@
+{
+  "scope": "Single-row consumer projection of the canonical manifest; not another active manifest or whole-fleet inventory",
+  "libraries": [
+    {
+      "id": "remark-gfmlil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/remark-gfmlil",
+      "workspaceCandidates": [
+        "/home/azureuser/remark-gfmlil",
+        "/tmp/lilscript-page-refresh-20260910/current/remark-gfmlil"
+      ],
+      "portHeadAtInventory": "cb2550734ffc39296c9fb87d77665ec4ea06eba0",
+      "package": {
+        "name": "@itslil/remark-gfm",
+        "version": "4.0.3",
+        "declaredEntryFiles": [
+          "./dist/remark-gfm.cjs",
+          "./dist/remark-gfm.closed.js",
+          "./dist/remark-gfm.esm.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-gfm.git",
+        "commit": "109972e8a773bf5dac1d6d2da0776557f36971aa",
+        "package": "remark-gfm",
+        "version": "4.0.1",
+        "directory": "."
+      },
+      "recordedComparisonScope": "remark-gfm@4.0.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "pending-production-invocation-audit"
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "packageScripts": {
+          "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --noEmit --strict --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "existing-dist-original-cases-frozen-source-build-and-delivery-unverified",
+        "requiredCaseInventory": "/home/azureuser/lilscript/benchmarks/libraries/remark-gfmlil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/api.test.mjs",
+            "test/closed.test.mjs",
+            "test/site.test.mjs",
+            "test/official/index.js"
+          ],
+          "artifacts": [
+            "dist/remark-gfm.esm.js",
+            "dist/remark-gfm.cjs",
+            "dist/remark-gfm.closed.js"
+          ],
+          "caseInventory": "/home/azureuser/lilscript/benchmarks/libraries/remark-gfmlil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "remark-gfmlil"
+      }
+    }
+  ],
+  "additionalCoverage": []
+}

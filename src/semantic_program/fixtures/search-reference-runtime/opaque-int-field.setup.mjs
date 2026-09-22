@@ -1,0 +1,1 @@
+const payload={[Symbol.toPrimitive](hint){events.push('coerce:'+hint);return 4294967297;}};globalThis.opaque=()=>payload;globalThis.later=()=>{events.push('later');return 8};console.log=value=>events.push(value===payload?'raw-object':value);

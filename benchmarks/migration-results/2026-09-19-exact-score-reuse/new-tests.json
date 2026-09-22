@@ -1,0 +1,22 @@
+{
+  "binary": {
+    "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+    "sha256": "e658a7bb51e5cfcaab22726fc351f6e0eb60ca3a6748bad496dc6dc1245ae773",
+    "bytes": 382892584
+  },
+  "args": [
+    "semantic_program::artifacts::reuse_tests::",
+    "semantic_program::publication::search::selection::reuse_tests::",
+    "identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "node": "v24.11.1",
+  "exitCode": 101,
+  "signal": null,
+  "elapsedMs": 550.982241,
+  "log": {
+    "sha256": "6f4a81a90e982a9412dccd087c3413e83332a001ca8e2648dfdaef40b3a9a4ac",
+    "bytes": 1260
+  }
+}

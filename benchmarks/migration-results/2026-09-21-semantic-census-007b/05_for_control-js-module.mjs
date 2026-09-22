@@ -1,0 +1,1 @@
+let a;let total=0;{let a;let index=0;for(;index<10;a=index,index=a+ 1|0,a){if(index===2){continue;}if(index===7){break;}total=total+ index|0;}}a=void console.log(total);

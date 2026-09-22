@@ -1,0 +1,1 @@
+extern JsValue token();extern void caught(JsValue value);int helper(int value,JsValue error){if(value<0){throw error;}return value+1;}try{print(helper(-1,token()));}catch(auto error){caught(error);}

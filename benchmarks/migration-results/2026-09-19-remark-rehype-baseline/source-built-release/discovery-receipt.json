@@ -1,0 +1,876 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-remark-rehype-inventory-discovery",
+  "started": "2026-09-19T20:19:34.542Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "boundsMs": {
+    "externalSupervisor": 90000,
+    "sharedAttempt": 90000,
+    "typePrerequisite": 60000,
+    "nodeSuiteCeiling": 90000
+  },
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-remark-rehype-discovery-20260919-SnhzSY/npm-cache"
+    },
+    "otherwise": "inherited; original workspace .npmrc preserved if present"
+  },
+  "limitations": [
+    "Existing distribution only; no compiler execution, source-built qualification, canonical size replay or new runtime assertions.",
+    "The original upstream package supplies only numeric footnote helper reference values; candidate plugin behavior uses generated ESM, not an upstream plugin substitution.",
+    "Original Node selection exercises ESM behavior; its closed test only imports the artifact and checks callable-export shape. It does not execute CJS/UMD, install the package, rebuild the site or exercise a browser.",
+    "Project and global npm dependency contents are pinned, not a hermetic OS environment. The outer bound covers sequential prerequisite and suite commands together."
+  ],
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/node/report.json",
+    "sha256": "08298e4edb05cfaedcf65c1eff6fbf96b3462ffef6a81e07391bcf29dae6ef3a",
+    "bytes": 32223
+  },
+  "suiteExecuted": true,
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exports the plugin as default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exports the mdast-util-to-hast public helpers",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+      "file": "test/api.test.mjs",
+      "name": "preserves numeric footnote helper arguments like upstream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]",
+      "file": "test/api.test.mjs",
+      "name": "transforms a paragraph fixture into a p element",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]",
+      "file": "test/api.test.mjs",
+      "name": "maps unknown value nodes and task lists like upstream",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps pinned keys in the library artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]",
+      "file": "test/api.test.mjs",
+      "name": "remark-rehype",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact with the default export",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "remark-rehype closed",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/test.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate w/ options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate w/ options and explicit unknown 2nd parameter",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]",
+      "file": "test/official/test.js",
+      "name": "should mutate with `processor: undefined` and options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]",
+      "file": "test/official/test.js",
+      "name": "should bridge",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]",
+      "file": "test/official/test.js",
+      "name": "should bridge with options",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]",
+      "file": "test/official/test.js",
+      "name": "should understand bridge types",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]",
+      "file": "test/official/test.js",
+      "name": "should understand mutate types",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]",
+      "file": "test/official/test.js",
+      "name": "remarkRehype",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-test-types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "test:types"
+        ],
+        "timeoutMs": 60000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          {
+            "path": "tsconfig.json",
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          {
+            "path": "types/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          {
+            "path": "dist/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          {
+            "path": "test/types.test.ts",
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "test:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "actual": {
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "actual": {
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/tsconfig.json",
+          "expected": {
+            "path": "tsconfig.json",
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          "actual": {
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/types/remark-rehype.d.ts",
+          "expected": {
+            "path": "types/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "actual": {
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/dist/remark-rehype.d.ts",
+          "expected": {
+            "path": "dist/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "actual": {
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          "actual": {
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "actual": {
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "actual": {
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/node/prerequisite-0.stdout",
+        "sha256": "7bdad9343c0c053e914e1959698dda15620df64e9786efeb1c45f859eb5fc301",
+        "bytes": 59
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/node/prerequisite-0.stderr",
+        "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+        "bytes": 211
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "actual": {
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "actual": {
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/tsconfig.json",
+          "expected": {
+            "path": "tsconfig.json",
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          "actual": {
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/types/remark-rehype.d.ts",
+          "expected": {
+            "path": "types/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "actual": {
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/dist/remark-rehype.d.ts",
+          "expected": {
+            "path": "dist/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "actual": {
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          "actual": {
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "actual": {
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "actual": {
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "actual": {
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "actual": {
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/tsconfig.json",
+          "expected": {
+            "path": "tsconfig.json",
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          "actual": {
+            "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+            "bytes": 269
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/types/remark-rehype.d.ts",
+          "expected": {
+            "path": "types/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "actual": {
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/dist/remark-rehype.d.ts",
+          "expected": {
+            "path": "dist/remark-rehype.d.ts",
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "actual": {
+            "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+            "bytes": 5341
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          "actual": {
+            "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+            "bytes": 960
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "actual": {
+            "sha256": "fe73d4881cb93e2e2a08aa13f17dd29958209c0a1ab4f630eb3ebaadd8d55b9d",
+            "bytes": 3496
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/home/azureuser/remark-rehypelil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "actual": {
+            "sha256": "006dcaac6477a7a9e340ac2a91a6e9a6f6cd68b680c4aaff704803edca9569d7",
+            "bytes": 6031103
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 5222.02362,
+  "completed": "2026-09-19T20:19:39.764Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b992138e3156ea30fd02f65a2952b6b4cece13ed391e2ec99f2d7ed65d12446b",
+      "bytes": 869470
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b992138e3156ea30fd02f65a2952b6b4cece13ed391e2ec99f2d7ed65d12446b",
+      "bytes": 869470
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "04c918b8f5f786ac51cea85826d8c95a6dfc2a4a8039303e0591cf8e1b3d8c06",
+      "bytes": 3664
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4d86578f91df964dc4972fb89fc8111b7e47b514e79eee63e82969b77a197a14",
+      "bytes": 8895
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d952f8484ab0db76f85bdb87baf3a57a475a92cc4bf9ed02864bc43ce0f48276",
+      "bytes": 5299
+    },
+    {
+      "path": "node/loaded/1241846-e2c3e3dc-c7d0-4686-b385-53540e29690b.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f4b66bb6b648abfbd149d5664386c6b2deefbe1b4d85da367d73d7c04f8005e5",
+      "bytes": 309
+    },
+    {
+      "path": "node/loaded/1241847-02f0d1cd-7e96-4f17-bb87-a32dd9763660.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b178046d2405c00bab9a8e9df8f4261ca8deb3bb4f940b63d832e4de4be4da9d",
+      "bytes": 315
+    },
+    {
+      "path": "node/loaded/1241853-0c25ac6a-68ed-45da-a895-77954707ca50.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1b885f89867a5a068f3ed9b9d5ddcf5b1031b9e43ccbc627dbdcfdc05dbdbc65",
+      "bytes": 309
+    },
+    {
+      "path": "node/loaded/1241854-3cd4317b-e190-442b-ba0f-ad5429ce5eb6.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5230bd83e676792a797574568e539c74a5bb53e0f77bcbb1ecd0de3e9f6cba47",
+      "bytes": 309
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1446320c499908a93c3bf1486bdce11ce380f8a39d781054060b94ad0d8f7e21",
+      "bytes": 400
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7bdad9343c0c053e914e1959698dda15620df64e9786efeb1c45f859eb5fc301",
+      "bytes": 59
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "08298e4edb05cfaedcf65c1eff6fbf96b3462ffef6a81e07391bcf29dae6ef3a",
+      "bytes": 32223
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

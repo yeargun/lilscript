@@ -1,0 +1,168 @@
+{
+  "patterns": [
+    "test/node.test.mjs",
+    "test/terser.test.mjs",
+    "test/vite.test.mjs",
+    "test/shake.test.mjs"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/debug.cjs",
+    "dist/debug.js",
+    "dist/full.cjs",
+    "dist/full.js",
+    "dist/index.cjs",
+    "dist/index.js",
+    "dist/mini.cjs",
+    "dist/mini.js",
+    "dist/motionlil.global.js"
+  ],
+  "fixtures": [
+    {
+      "path": "package-lock.json",
+      "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+      "bytes": 40337
+    },
+    {
+      "path": "package.json",
+      "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+      "bytes": 2558
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+      "bytes": 527
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+      "bytes": 8502
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+      "bytes": 1176
+    },
+    {
+      "path": "scripts/measure-size.mjs",
+      "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+      "bytes": 3390
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+      "bytes": 3314
+    },
+    {
+      "path": "site/demo.css",
+      "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+      "bytes": 7929
+    },
+    {
+      "path": "site/demo.html",
+      "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+      "bytes": 350
+    },
+    {
+      "path": "site/demo.js",
+      "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+      "bytes": 12210
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+      "bytes": 6112
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+      "bytes": 2968
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+      "bytes": 9071
+    },
+    {
+      "path": "test/fixtures/vite/index.html",
+      "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+      "bytes": 195
+    },
+    {
+      "path": "test/fixtures/vite/main.js",
+      "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+      "bytes": 231
+    },
+    {
+      "path": "test/node.test.mjs",
+      "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+      "bytes": 2992
+    },
+    {
+      "path": "test/shake.test.mjs",
+      "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+      "bytes": 1434
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+      "bytes": 3663
+    },
+    {
+      "path": "test/terser.test.mjs",
+      "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+      "bytes": 1022
+    },
+    {
+      "path": "test/types/consumer.ts",
+      "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+      "bytes": 388
+    },
+    {
+      "path": "test/types/tsconfig.json",
+      "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+      "bytes": 240
+    },
+    {
+      "path": "test/vite.test.mjs",
+      "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+      "bytes": 1190
+    },
+    {
+      "path": "types/debug.d.ts",
+      "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+      "bytes": 80
+    },
+    {
+      "path": "types/dom.d.ts",
+      "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+      "bytes": 27
+    },
+    {
+      "path": "types/full.d.ts",
+      "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+      "bytes": 27
+    },
+    {
+      "path": "types/index.d.ts",
+      "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+      "bytes": 12044
+    },
+    {
+      "path": "types/mini.d.ts",
+      "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+      "bytes": 2915
+    },
+    {
+      "path": "types/motion-dom.d.ts",
+      "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+      "bytes": 204959
+    },
+    {
+      "path": "types/motion-utils.d.ts",
+      "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+      "bytes": 5249
+    }
+  ],
+  "prerequisites": []
+}

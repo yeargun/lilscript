@@ -1,0 +1,543 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/112bbc6a590ca9eb37865b1bf13d6e9d94662d58b10c49cf709fbe10c3e7e846/lilscript",
+    "sha256": "112bbc6a590ca9eb37865b1bf13d6e9d94662d58b10c49cf709fbe10c3e7e846"
+  },
+  "node": "v24.11.1",
+  "ports": [
+    {
+      "port": "micromarklil",
+      "head": "2d673ff23be844b9ba9781a85e16cbbbe5f6bafd",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/micromarklil.patch",
+        "sha256": "91b4c44648dc0da9e053b1b3c00f4fb5df5301ece99e86602b4ee3c9075e450b"
+      },
+      "build": {
+        "status": 0,
+        "ms": 4730,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 2142,
+        "tests": 1963,
+        "pass": 1963,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "zodlil",
+      "head": "b80748e784c5b40d6dd50d6f1ef220cd640ca0b2",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 4031,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 13865,
+        "tests": 1353,
+        "pass": 1353,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "mdast-util-from-markdownlil",
+      "head": "d4aa854ca8e32fb3ca97d20b24e83ba3fe85d8d9",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/mdast-util-from-markdownlil.patch",
+        "sha256": "51f8ec2aa21809a7075b3c7a1521346d06fbbdd489b3f899b5120959956e5d5a"
+      },
+      "build": {
+        "status": 0,
+        "ms": 3057,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 2167,
+        "tests": 744,
+        "pass": 743,
+        "fail": 1,
+        "failures": [
+          "has a markedlil-style lab with receipts",
+          "site"
+        ]
+      }
+    },
+    {
+      "port": "remarklil",
+      "head": "eba54a85e201d3955dc2a833a1b3646f270c845d",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/remarklil.patch",
+        "sha256": "2d64cd5d07acf292fa61a230be8eaecb0f9d4262b45480bd66e7c029f82f07ce"
+      },
+      "build": {
+        "status": 0,
+        "ms": 4203,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 4930,
+        "tests": 504,
+        "pass": 504,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "hast-util-to-htmllil",
+      "head": "167105bec6d9756591d210442aee53594224730d",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 330,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 393,
+        "tests": 456,
+        "pass": 456,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "unifiedlil",
+      "head": "4d5e4c8e9a42adfa1873d1753b70d1963a77c0de",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 476,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 2159,
+        "tests": 224,
+        "pass": 224,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "mdast-util-to-hastlil",
+      "head": "1c0fd2c5e19f2bf9b4d7a269365bcaa5b126c94f",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 480,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 1522,
+        "tests": 149,
+        "pass": 149,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "rehypelil",
+      "head": "18092d446404134707385f6ba13d52b5b3a3a92a",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/rehypelil.patch",
+        "sha256": "04cc98de49e56bb37bcffb016610f78238f02047978430b187ce2dedbeb966df"
+      },
+      "build": {
+        "status": 0,
+        "ms": 256312,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 6604,
+        "tests": 159,
+        "pass": 159,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "remark-mathlil",
+      "head": "93638861104d17d628ebd00debb272c52abb6b68",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 657,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 5758,
+        "tests": 60,
+        "pass": 60,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "markedlil",
+      "head": "dbfaf30fb162a0f100e5d97c232d263b84d1cfd3",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 5993,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 1407,
+        "tests": 29,
+        "pass": 28,
+        "fail": 1,
+        "failures": [
+          "mangles the JS option keys and keeps default parse working",
+          "@itslil/marked closed LilScript lane"
+        ]
+      }
+    },
+    {
+      "port": "posthoglil",
+      "head": "673f757a7a25247d2238198132149cc30ecd5a80",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/posthoglil.patch",
+        "sha256": "919b63f79d426225466362b378b5f64b8f8e71f59c7b64e5cfa1819c724a6525"
+      },
+      "build": {
+        "status": 0,
+        "ms": 950,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 502,
+        "tests": 21,
+        "pass": 21,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "remark-breakslil",
+      "head": "d7f4ff70bd1fc77a949e28d682ea67dc453d4ae4",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 322,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 2095,
+        "tests": 20,
+        "pass": 20,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "remark-gfmlil",
+      "head": "cb2550734ffc39296c9fb87d77665ec4ea06eba0",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 1336,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 6465,
+        "tests": 19,
+        "pass": 19,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "remark-rehypelil",
+      "head": "ff657cdbd08b82c116b13a371fad51a46ff996cf",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 1379,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 5861,
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "remark-parselil",
+      "head": "e85337286c51d44ce2bd85a645de1734befe1ced",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/remark-parselil.patch",
+        "sha256": "51f8ec2aa21809a7075b3c7a1521346d06fbbdd489b3f899b5120959956e5d5a"
+      },
+      "build": {
+        "status": 0,
+        "ms": 7785,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 4854,
+        "tests": 16,
+        "pass": 15,
+        "fail": 1,
+        "failures": [
+          "has a markedlil-style lab with receipts",
+          "site"
+        ]
+      }
+    },
+    {
+      "port": "rehype-stringifylil",
+      "head": "bf3b41f92103f23c05f0d76694fbf3776b81ad2f",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 1050,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 608,
+        "tests": 10,
+        "pass": 10,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "cnlil",
+      "head": "76a975fdbfdcd4b07752bb6462510bcc8a359812",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/cnlil.patch",
+        "sha256": "b0181ef75a50dbc614a1066137b8af329d6f362ec8c3bfaa000c0391762cf9fd"
+      },
+      "build": {
+        "status": 0,
+        "ms": 1329,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 15202,
+        "tests": 116358,
+        "pass": 116358,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "katexlil",
+      "head": "13cd81b9f47d9038112daf5aefea480e82e15f2b",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/katexlil.patch",
+        "sha256": "7ab0646323dacd8d7b62e04318cab40ebff70f187887de14e71d6aa577b79441"
+      },
+      "build": {
+        "status": 0,
+        "ms": 18610,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 19454,
+        "tests": 1251,
+        "pass": 1251,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "jquerylil",
+      "head": "36fabe84aa41aa630b504c7e84d3758a63fb0375",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/jquerylil.patch",
+        "sha256": "b068643721e14b573a0f66e8246bdb72dc99a31d43fa107964c9c8851d48a851"
+      },
+      "build": {
+        "status": 0,
+        "ms": 45914,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 1565,
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "failures": [
+          "test/compat.test.mjs"
+        ]
+      }
+    },
+    {
+      "port": "monacolil",
+      "head": "e7d810ba65940d55aabd659f5d7bb08eb97cc52b",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 3676,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 311,
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "failures": []
+      }
+    },
+    {
+      "port": "rehype-katexlil",
+      "head": "462b256a2766719aa132e2b84c4cd1837837a550",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 656,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 2673,
+        "tests": 63,
+        "pass": 63,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "mobxlil",
+      "head": "69c47f127fbe96e63e5ace4bfe08e6f35367f719",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/mobxlil.patch",
+        "sha256": "613c51eb8358886deab94fb5fde92aa041bfb979c11ad3b5371af8a7b28a1476"
+      },
+      "build": {
+        "status": 0,
+        "ms": 3088,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 14554,
+        "tests": 780,
+        "pass": 766,
+        "fail": 3,
+        "failures": [
+          "makeAutoObservable + production build #2751",
+          "Default debug names - production",
+          "User provided debug names are always respected"
+        ]
+      }
+    },
+    {
+      "port": "probelil",
+      "head": "3b2cf4e01b3e7d6a79c0319836308035e1a2b557",
+      "dirty": false,
+      "patch": null,
+      "build": null,
+      "test": {
+        "status": 0,
+        "ms": 479,
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "react-markdownlil",
+      "head": "c052c32fb9e63bb21543aa5f48b60c23596dccd9",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/react-markdownlil.patch",
+        "sha256": "3f91235dee58fd4a6b2740bb95d952974318dc2d22cb129a908140f4bbecfc61"
+      },
+      "build": {
+        "status": 1,
+        "ms": 214,
+        "errors": [
+          "      throw new Error(`${definition.id} revision ${sibling.revision} does not match ${expectedPackage.siblingRevision}`)",
+          "Error: unified revision 4d5e4c8e9a42adfa1873d1753b70d1963a77c0de does not match 80a4812a33a80b5626521451e130e1ddbf36a091"
+        ]
+      },
+      "test": {
+        "status": 1,
+        "ms": 404,
+        "tests": 8,
+        "pass": 1,
+        "fail": 7,
+        "failures": [
+          "public api",
+          "CommonJS export",
+          "runtime helpers are compiled from LilScript",
+          "browser graph is pure LilScript with React external",
+          "test/differential.test.mjs",
+          "test/official/test.jsx",
+          "test/parity.test.mjs"
+        ]
+      }
+    },
+    {
+      "port": "playcanvaslil",
+      "head": "93b94c605684e0a6dd89da09fe217e6f1b5036c9",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/playcanvaslil.patch",
+        "sha256": "e33fad29891d0782800dc7f6950e2409fc4d94e5b61a43c7fdd97116ef63944d"
+      },
+      "build": {
+        "status": 0,
+        "ms": 2571,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 3883,
+        "tests": 187,
+        "pass": 187,
+        "fail": 0,
+        "failures": []
+      }
+    }
+  ]
+}

@@ -2,8 +2,9 @@
 
 Parent: [language](README.md). Contract: [collections](../../language-v0.1.md#collection-literals-destructuring-and-iteration)
 and [standard library](../../language-v0.1.md#standard-library-surface). Compiler
-anchors: intrinsic selection in `src/lower.rs::member_intrinsic`, IR operations in
-`src/ir.rs::Intrinsic`, and intrinsic lowering in both code generators.
+anchors: receiver and contextual-call checking in `src/semantic.rs`, primitive
+resolution and shared operation identity in `src/primitive.rs` (re-exported as
+`src/ir.rs::Intrinsic`), and intrinsic lowering in both code generators.
 
 | Family | Semantic boundary | Typical JS representation |
 |---|---|---|

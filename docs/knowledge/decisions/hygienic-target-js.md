@@ -1,6 +1,6 @@
 # Use a narrow hygienic target-JS representation
 
-Status: planned. Parent: [design decisions](README.md).
+Status: historical rationale; current target is [compiler design A5](../../compiler-design.md#a5--target-identities-and-complete-delivery). Parent: [design decisions](README.md).
 
 ## Intent
 
@@ -22,8 +22,9 @@ module links, and observed ABI; it does not claim to prove program equivalence.
 
 ## Tradeoff
 
-The current parsed peephole remains a scored fallback during migration. Move a
-family only for correctness, obligation handling, or measured value. Do not
-build a full JavaScript frontend or a third general optimizer.
+The legacy compiler uses parsed peephole processing. In the replacement pipeline,
+families move through common semantic/target owners; silent fallback to the old
+pipeline cannot establish new-route support. An independent parser remains a
+verification tool. Do not build a third general optimizer.
 
-Plan: [planned migration](../migration/planned-migration.md).
+Plan: [ownership and replacement rules](../../migration/index.md#ownership-and-replacement-rules).

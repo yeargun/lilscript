@@ -1,0 +1,532 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "remark-parselil",
+  "started": "2026-09-20T18:20:37.973Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/remark-parselil",
+  "workspace": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "boundsMs": {
+    "suite": 240000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-remark-parselil-xoQufY/npm-cache"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+  "derivation": {
+    "supported": true,
+    "script": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+    "segments": [
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/index.js"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "deviations": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/remark-parse.cjs",
+      "dist/remark-parse.closed.js",
+      "dist/remark-parse.esm.js"
+    ],
+    "absent": []
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/node/report.json",
+    "sha256": "2e15167d96ad3a223917969d56e8b62281c71c0145293f91f7581385eae64a39",
+    "bytes": 55596
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",13,3,1,\"test\",\"exports only the upstream default\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exports only the upstream default",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+      "file": "test/api.test.mjs",
+      "name": "installs a parser that turns a heading into mdast",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+      "file": "test/api.test.mjs",
+      "name": "parses paragraphs, emphasis, strong, code, and lists",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+      "file": "test/api.test.mjs",
+      "name": "reads data keys at parse time",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+      "file": "test/api.test.mjs",
+      "name": "matches upstream property insertion order",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",74,3,1,\"test\",\"keeps host-visible plugin keys in the library artifact\",1]",
+      "file": "test/api.test.mjs",
+      "name": "keeps host-visible plugin keys in the library artifact",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+      "file": "test/api.test.mjs",
+      "name": "remark-parse",
+      "type": "suite",
+      "status": "fail",
+      "error": "4 subtests failed"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",12,3,1,\"test\",\"ships a closed artifact with the upstream export\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact with the upstream export",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "parses through unified with unmangled parser and data keys",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "remark-parse closed",
+      "type": "suite",
+      "status": "fail",
+      "error": "1 subtest failed"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/index.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+      "file": "test/official/index.js",
+      "name": "should parse",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+      "file": "test/official/index.js",
+      "name": "should support extensions",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+      "file": "test/official/index.js",
+      "name": "remark-parse",
+      "type": "test",
+      "status": "fail",
+      "error": "2 subtests failed"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+      "file": "test/package.test.mjs",
+      "name": "loads the ESM and CommonJS exports",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+      "file": "test/package.test.mjs",
+      "name": "loads the closed export",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+      "file": "test/package.test.mjs",
+      "name": "exposes a callable UMD global",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+      "file": "test/package.test.mjs",
+      "name": "package artifacts",
+      "type": "suite",
+      "status": "fail",
+      "error": "3 subtests failed"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "fail",
+      "error": "Expected values to be strictly equal:\n\n89641 !== 87764\n"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "fail",
+      "error": "1 subtest failed"
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+      "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+      "bytes": 87764
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+      "sha256": "8cd35c45fb5e2af87f88dca2920fc6bf4327af92c136760afb6d256e233ef9b5",
+      "bytes": 90476
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+      "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+      "bytes": 87764
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+      "sha256": "8cd35c45fb5e2af87f88dca2920fc6bf4327af92c136760afb6d256e233ef9b5",
+      "bytes": 90476
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.cjs",
+      "sha256": "c9db4446953b5bef9d2f8065d348189fec848e1eaa05650adbca5e742fdcba6c",
+      "bytes": 102365
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+      "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+      "bytes": 87764
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "test command failed",
+    "required test inventory missing or ambiguous",
+    "test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+    "test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+    "test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+    "test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+    "test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+    "test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+    "test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+    "test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+    "test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+    "test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+    "test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+    "test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+    "test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+    "test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+    "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ],
+  "untestedEntries": [],
+  "unexpectedErrors": [
+    "test command failed",
+    "test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+    "test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+    "test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+    "test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+    "test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+    "test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+    "test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+    "test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+    "test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+    "test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+    "test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+    "test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+    "test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+    "test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+    "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ],
+  "exercisedArtifacts": [
+    "dist/remark-parse.cjs",
+    "dist/remark-parse.closed.js",
+    "dist/remark-parse.esm.js"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 5443.370682000001,
+  "completed": "2026-09-20T18:20:43.416Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8bf28931feb63bb1377718f7b6ae1bfb2e17cb296684314af137118c7d2c9ed9",
+      "bytes": 972124
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8bf28931feb63bb1377718f7b6ae1bfb2e17cb296684314af137118c7d2c9ed9",
+      "bytes": 972124
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ba35139c73fdacdfc598dcb600108c0f9f50f69696c376dd2671b864565e7cae",
+      "bytes": 4351
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "93524707ad134f9c47e9ab14d075846abcdf6b85412b71a3e0752d63a979a4b1",
+      "bytes": 13551
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e0c7b072de2aa77429627ed26a66b5b54b8ddcd1f8255567ce30e393db69f1e6",
+      "bytes": 5633
+    },
+    {
+      "path": "node/loaded/3403004-47fda6b2-ef2e-48d4-b737-1886c20d7332.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f2a5d81ef338a3cd42ec492a827d72fda9fa5cfb75fd4be41b10213baf267510",
+      "bytes": 365
+    },
+    {
+      "path": "node/loaded/3403005-b85c0e39-e986-45b6-8c46-e9e18de3c88e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "249f0ce7d5c34565ccf747a3f9ead221f4f16783cecba2d244e0b711d25e87e8",
+      "bytes": 371
+    },
+    {
+      "path": "node/loaded/3403006-802065b2-b333-4a84-9edd-b053b30cba73.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9c47739d49fc1496a9ec8c74a023f9cb2d3a0ffad01210366a5b14cbd6453d3a",
+      "bytes": 365
+    },
+    {
+      "path": "node/loaded/3403007-05cff6e3-f944-47e8-b1c7-9b256d5eb0a5.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c2ace3d8864b8d6895223fd1c35f526ed1a7e8c2b9bf6ff12488ff69e6f3e510",
+      "bytes": 371
+    },
+    {
+      "path": "node/loaded/3403007-932c6cb2-7f33-4218-8299-5bf45f270e97.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "36201bc4f8dd6d9d1990a9ceb8bed89a6ee2380f87740d88f25133b59cf39255",
+      "bytes": 362
+    },
+    {
+      "path": "node/loaded/3403007-97c14af0-3180-402c-a532-e1af8b60a24e.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f5abbe34092daa1133113d5d1cf257dc12c4947d8acbf3a69ab7b2179a3ef830",
+      "bytes": 365
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8b451eea443585af55de7247e2bdb6c4814ddbbf4e0e91679b8da1c310f8e018",
+      "bytes": 540
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "812962fed03c9ff94bfade863c8219c5fcbfd7b72a8c720c8cd323811a2530d0",
+      "bytes": 74
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2e15167d96ad3a223917969d56e8b62281c71c0145293f91f7581385eae64a39",
+      "bytes": 55596
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "76e1fb4467ec9c473cecef68e7269c561e2127a89f87472b53b14c7ba11857cb",
+      "bytes": 4406
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "93524707ad134f9c47e9ab14d075846abcdf6b85412b71a3e0752d63a979a4b1",
+      "bytes": 13551
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

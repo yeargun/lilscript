@@ -1,3 +1,5 @@
+use crate::literal::StringValue;
+use crate::semantic::StructType;
 use std::fmt::Write;
 
 use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
@@ -29,6 +31,12 @@ pub fn emit_native_c_with_options(
     module: &ControlFlowModule<'_>,
     options: &NativeOptions,
 ) -> Result<String, CodegenError> {
+    if let Some(span) = module.reference_parameter_span() {
+        return Err(CodegenError::new(
+            span,
+            "legacy native reference parameters are not supported",
+        ));
+    }
     NativeEmitter {
         module,
         options: *options,
@@ -690,7 +698,7 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
             for layout in &self.module.structs {
                 if emitted.contains(layout.name)
                     || layout.fields.iter().any(
-                        |field| matches!(&field.ty, Type::Struct(name) if !emitted.contains(name)),
+                        |field| matches!(&field.ty, Type::Struct(StructType { name, .. }) if !emitted.contains(name)),
                     )
                 {
                     continue;
@@ -1292,8 +1300,9 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                     self.render_collection_value(*value, element, types, instruction.span)?;
                 write!(
                     out,
-                    "lilscript_map_set(v{},(LilScriptValue){{.tag=4,.s=\"{}\"}},{boxed});",
-                    object.0, property
+                    "lilscript_map_set(v{},(LilScriptValue){{.tag=4,.s={}}},{boxed});",
+                    object.0,
+                    render_c_source_string(property, instruction.span)?
                 )
                 .expect("writing to String cannot fail");
                 return Ok(());
@@ -1925,7 +1934,7 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
         write!(out, "v{}=lilscript_dup(\"\");", result.0).expect("writing to String cannot fail");
         for part in parts {
             let value = match part {
-                TemplateOperand::String(value) => format!("\"{value}\""),
+                TemplateOperand::String(value) => render_c_string(value, instruction.span)?,
                 TemplateOperand::Value(value) => {
                     self.render_string_value(*value, &types[value], instruction.span)?
                 }
@@ -1961,7 +1970,7 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
     ) -> Result<String, CodegenError> {
         let value = |value: ValueId| format!("v{}", value.0);
         Ok(match &instruction.op {
-            ControlFlowOp::Const(value) => render_c_const(value),
+            ControlFlowOp::Const(value) => render_c_const(value, instruction.span)?,
             ControlFlowOp::Unary { op, value: operand } => match (op, instruction.ty.as_ref()) {
                 (IrUnaryOp::Neg, Some(Type::Int)) => {
                     format!("(int32_t)(0u-(uint32_t){})", value(*operand))
@@ -2023,7 +2032,8 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                             keys.push(',');
                             values.push(',');
                         }
-                        write!(keys, "(LilScriptValue){{.tag=4,.s=\"{key}\"}}")
+                        write!(keys, "(LilScriptValue){{.tag=4,.s={}}}",
+                            render_c_source_string(key, instruction.span)?)
                             .expect("writing to String cannot fail");
                         values.push_str(&self.render_collection_value(
                             *value,
@@ -2093,7 +2103,8 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                     match operand {
                         RecordOperand::Entry(key, value) => {
                             kinds.push('0');
-                            write!(keys, "(LilScriptValue){{.tag=4,.s=\"{key}\"}}")
+                            write!(keys, "(LilScriptValue){{.tag=4,.s={}}}",
+                            render_c_source_string(key, instruction.span)?)
                                 .expect("writing to String cannot fail");
                             values.push_str(&self.render_collection_value(
                                 *value,
@@ -2218,14 +2229,15 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
                 )?
             }
             ControlFlowOp::RecordFieldGet { object, property } => format!(
-                "lilscript_map_get(v{},(LilScriptValue){{.tag=4,.s=\"{property}\"}})",
-                object.0
+                "lilscript_map_get(v{},(LilScriptValue){{.tag=4,.s={}}})",
+                object.0, render_c_source_string(property, instruction.span)?
             ),
             ControlFlowOp::RecordRest { object, excluded } => {
                 let keys = excluded
                     .iter()
-                    .map(|key| format!("(LilScriptValue){{.tag=4,.s=\"{key}\"}}"))
-                    .collect::<Vec<_>>()
+                    .map(|key| render_c_source_string(key, instruction.span)
+                        .map(|key| format!("(LilScriptValue){{.tag=4,.s={key}}}")))
+                    .collect::<Result<Vec<_>, _>>()?
                     .join(",");
                 format!(
                     "lilscript_record_rest(v{},{},(LilScriptValue[]){{{keys}}})",
@@ -3043,6 +3055,16 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
         signature: &crate::semantic::FunctionType<'src>,
         span: Span,
     ) -> Result<String, CodegenError> {
+        if signature
+            .params
+            .iter()
+            .any(|parameter| parameter.passing != crate::primitive::ParameterPassing::Value)
+        {
+            return Err(CodegenError::new(
+                span,
+                "legacy native reference parameters are not supported",
+            ));
+        }
         if args.len() != signature.params.len() || args.len() != arg_types.len() {
             return Err(CodegenError::new(
                 span,
@@ -3058,10 +3080,10 @@ static inline LilScriptString lilscript_json_record(LilScriptMap m){LilScriptJso
         let mut call = format!("((({cast})v{}.fn)(v{}.env", callee.0, callee.0);
         for ((arg, actual), parameter) in args.iter().zip(arg_types).zip(&signature.params) {
             call.push(',');
-            let normalized = self.render_value_conversion(arg, actual, parameter, span)?;
+            let normalized = self.render_value_conversion(arg, actual, &parameter.ty, span)?;
             call.push_str(&self.render_value_conversion(
                 &normalized,
-                parameter,
+                &parameter.ty,
                 &universal,
                 span,
             )?);
@@ -3697,11 +3719,18 @@ fn contains_js_value(ty: &Type<'_>) -> bool {
             args.iter().any(contains_js_value)
         }
         Type::Function(signature) => {
-            signature.params.iter().any(contains_js_value)
+            signature
+                .params
+                .iter()
+                .any(|parameter| contains_js_value(&parameter.ty))
                 || contains_js_value(&signature.return_type)
         }
         Type::GenericFunction(function) => {
-            function.signature.params.iter().any(contains_js_value)
+            function
+                .signature
+                .params
+                .iter()
+                .any(|parameter| contains_js_value(&parameter.ty))
                 || contains_js_value(&function.signature.return_type)
         }
         _ => false,
@@ -3722,11 +3751,18 @@ fn contains_generator(ty: &Type<'_>) -> bool {
             args.iter().any(contains_generator)
         }
         Type::Function(signature) => {
-            signature.params.iter().any(contains_generator)
+            signature
+                .params
+                .iter()
+                .any(|parameter| contains_generator(&parameter.ty))
                 || contains_generator(&signature.return_type)
         }
         Type::GenericFunction(function) => {
-            function.signature.params.iter().any(contains_generator)
+            function
+                .signature
+                .params
+                .iter()
+                .any(|parameter| contains_generator(&parameter.ty))
                 || contains_generator(&function.signature.return_type)
         }
         _ => false,
@@ -3747,10 +3783,18 @@ fn contains_regex(ty: &Type<'_>) -> bool {
             args.iter().any(contains_regex)
         }
         Type::Function(signature) => {
-            signature.params.iter().any(contains_regex) || contains_regex(&signature.return_type)
+            signature
+                .params
+                .iter()
+                .any(|parameter| contains_regex(&parameter.ty))
+                || contains_regex(&signature.return_type)
         }
         Type::GenericFunction(function) => {
-            function.signature.params.iter().any(contains_regex)
+            function
+                .signature
+                .params
+                .iter()
+                .any(|parameter| contains_regex(&parameter.ty))
                 || contains_regex(&function.signature.return_type)
         }
         _ => false,
@@ -4080,9 +4124,12 @@ fn c_type(ty: &Type<'_>) -> String {
         | Type::Float64Array => unreachable!("typed arrays handled above"),
         Type::Symbol => "LilScriptSymbol".to_string(),
         Type::Regex => "void*".to_string(),
-        Type::Struct(name) => aggregate_type_name("Struct", name),
+        Type::Struct(StructType { name, .. }) => aggregate_type_name("Struct", name),
         Type::Class(name) => aggregate_type_name("Class", name),
-        Type::StructInstance { name, .. } => aggregate_type_name("Struct", name),
+        Type::StructInstance {
+            declaration: StructType { name, .. },
+            ..
+        } => aggregate_type_name("Struct", name),
         Type::ClassInstance { name, .. } => aggregate_type_name("Class", name),
         Type::TypeParameter(_) | Type::Union(_) => "LilScriptValue".to_string(),
         Type::Function(_) | Type::GenericFunction(_) => "LilScriptClosure".to_string(),
@@ -4167,14 +4214,59 @@ fn aggregate_type_name(kind: &str, name: &str) -> String {
     encoded
 }
 
-fn render_c_const(value: &ConstValue) -> String {
-    match value {
+/// The native runtime currently uses UTF-8/WTF-8 bytes in C strings. Spell
+/// every byte independently; C hex escapes would consume following hex digits.
+fn render_c_string(value: &StringValue, span: Span) -> Result<String, CodegenError> {
+    let mut out = String::from("\"");
+    let mut byte = |byte: u8| match byte {
+        b'"' => out.push_str("\\\""),
+        b'\\' => out.push_str("\\\\"),
+        b'?' => out.push_str("\\?"),
+        32..=126 => out.push(byte as char),
+        _ => write!(out, "\\{byte:03o}").unwrap(),
+    };
+    for item in char::decode_utf16(value.code_units()) {
+        match item {
+            Ok('\0') => {
+                return Err(CodegenError::new(
+                    span,
+                    "embedded NUL string values require a length-bearing native string ABI",
+                ))
+            }
+            Ok(ch) => {
+                for encoded in ch.encode_utf8(&mut [0; 4]).bytes() {
+                    byte(encoded);
+                }
+            }
+            Err(error) => {
+                let unit = error.unpaired_surrogate();
+                byte((0xe0 | (unit >> 12)) as u8);
+                byte((0x80 | ((unit >> 6) & 0x3f)) as u8);
+                byte((0x80 | (unit & 0x3f)) as u8);
+            }
+        }
+    }
+    out.push('"');
+    Ok(out)
+}
+
+fn render_c_const(value: &ConstValue, span: Span) -> Result<String, CodegenError> {
+    Ok(match value {
         ConstValue::Int(value) => format!("((int32_t){value})"),
         ConstValue::Float(value) => format!("{value:.17}"),
         ConstValue::Bool(value) => value.to_string(),
-        ConstValue::String(value) => format!("\"{value}\""),
+        ConstValue::String(value) => return render_c_string(value, span),
         ConstValue::Null => "(LilScriptOptional){false,{0}}".to_string(),
-    }
+    })
+}
+
+/// Temporary adapter for legacy IR property slots that still borrow source
+/// spelling. Target spelling always consumes a decoded value.
+fn render_c_source_string(source: &str, span: Span) -> Result<String, CodegenError> {
+    let value = StringValue::decode_source(source).map_err(|error| {
+        CodegenError::new(span, format!("invalid native string escape: {error:?}"))
+    })?;
+    render_c_string(&value, span)
 }
 
 fn c_binary_operator(op: IrBinaryOp) -> &'static str {
@@ -4681,5 +4773,85 @@ mod tests {
         let c = emit_native_c(&ir).unwrap();
         assert!(!c.contains("_storage;"), "{c}");
         assert!(c.contains("=malloc(sizeof(E"), "{c}");
+    }
+    #[test]
+    fn decoded_strings_execute_in_native_c_before_and_after_folding() {
+        let source = r#"
+            string value="a\n\"\\\u{1f600}\ud800";
+            print(value.length);print(value.charCodeAt(6));
+            print(`first
+${`nested ${7}`}`);
+            print("quote: \" slash: \\");
+            Record<string> entries=record{"\x61b":"ok"};
+            print(Object.keys(entries).join(","));print(entries.ab??"none");
+        "#;
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "lilscript-native-values-{}-{stamp}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        for optimized in [false, true] {
+            if optimized {
+                optimize_control_flow(&mut ir).unwrap();
+            }
+            let c = emit_native_c(&ir).unwrap();
+            let input = dir.join(format!("values-{optimized}.c"));
+            let binary = dir.join(format!("values-{optimized}"));
+            std::fs::write(&input, c).unwrap();
+            let compile =
+                std::process::Command::new(std::env::var("CC").unwrap_or_else(|_| "cc".into()))
+                    .args(["-std=c11", "-O2"])
+                    .arg(&input)
+                    .args(["-lm", "-o"])
+                    .arg(&binary)
+                    .output()
+                    .unwrap();
+            assert!(
+                compile.status.success(),
+                "{}: {}",
+                input.display(),
+                String::from_utf8_lossy(&compile.stderr)
+            );
+            let result = std::process::Command::new(&binary).output().unwrap();
+            assert!(
+                result.status.success(),
+                "{}: {}",
+                binary.display(),
+                String::from_utf8_lossy(&result.stderr)
+            );
+            assert_eq!(
+                result.stdout,
+                b"7\n55296\nfirst\nnested 7\nquote: \" slash: \\\nab\nok\n",
+                "{}",
+                binary.display()
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn native_literal_nul_is_rejected_until_the_runtime_can_represent_it() {
+        for source in [
+            r#"print("a\0b");"#,
+            r#"Record<int> values=record{"a\0b":7};print(Object.keys(values).join(","));"#,
+        ] {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            let error = compile_to_c(&program).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("length-bearing native string ABI"),
+                "{error}"
+            );
+        }
     }
 }

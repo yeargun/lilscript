@@ -2,10 +2,13 @@
 
 Authority: source and tests. Status snapshot:
 [`docs/current-status.md`](../../current-status.md). Parent:
-[compilation](README.md). Target: [planned architecture](planned-architecture.md).
+[compilation](README.md). Future design: [joint discussion](../../compiler-design.md).
 
 This page describes implemented behavior in the 2026-08-29 checkout. It does
 not turn current limitations into design goals.
+
+The owner reset architecture planning on 2026-09-18. The gaps below are historical
+observations, not an approved implementation sequence. Current status is linked above.
 
 ## System Shape
 
@@ -187,5 +190,5 @@ Current counts and mixed size results live only in
 7. Defer unified chunk optimization until a maintained chunk workload defines a
    calibrated delivery objective.
 
-Execution order: [planned migration](../migration/planned-migration.md).
+Replacement execution order: [single migration plan](../../migration/index.md).
 Rationale: [design decisions](../decisions/README.md).

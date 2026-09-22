@@ -1,0 +1,5 @@
+extern JsValue event(string label);
+string forward(string input){string copied=input;return copied;}
+export void run(){
+    JS.and(forward("forward-input-with-exact-shared-abi"),event("forward-effect"));
+}

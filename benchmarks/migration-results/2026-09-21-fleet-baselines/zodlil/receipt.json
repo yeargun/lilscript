@@ -1,0 +1,309 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "zodlil",
+  "started": "2026-09-21T01:09:09.381Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/zodlil",
+  "workspace": "/tmp/lilscript-baseline-zodlil-24mmKV/zodlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/zodlil",
+    "candidates": [
+      "/home/azureuser/zodlil",
+      "/home/azureuser/zodlil",
+      "/tmp/lilscript-page-refresh-20260910/current/zodlil"
+    ],
+    "recorded": "/home/azureuser/zodlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "These directory symlinks are outside the input snapshot and their contents are unpinned: vendor/zod/.codex/skills.",
+    "The frozen inventory is `required-vitest-case-inventory` without entry patterns, which this driver does not execute; these bytes are measured but not qualified here."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force --prod",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [
+    "vendor/zod/.codex/skills"
+  ],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/zodlil",
+    "files": 755,
+    "sha256": "cfeda885c2154e16ac01927868a0cefc41a5699797cab91774a00d4c9ee3b0d7"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/zodlil/lilscript.bytes.toml",
+        "sha256": "768a70996f57bbf19698983f8c633c98ab4f03eebf1193bf626d81c7fb911455",
+        "bytes": 671
+      },
+      {
+        "path": "/home/azureuser/zodlil/lilscript.dev.toml",
+        "sha256": "ac4f4eca2aa831e5cd802d820da352d18099d502a13dac4056bdaefcdd1496e7",
+        "bytes": 403
+      },
+      {
+        "path": "/home/azureuser/zodlil/lilscript.gzip.toml",
+        "sha256": "92738c675b9247966a096946ca3d79c64d92aae9db8fb32b15000fc4f534b925",
+        "bytes": 672
+      },
+      {
+        "path": "/home/azureuser/zodlil/lilscript.nomangle.toml",
+        "sha256": "8abdf26f3b9ad7f9ee36fda3c1c1a99a601c3affdc5c30a6529bd8488fe6e30d",
+        "bytes": 405
+      },
+      {
+        "path": "/home/azureuser/zodlil/lilscript.toml",
+        "sha256": "09843acb2144c0625b5e338ff8572c6d93922b766d697a4034799896a36bf012",
+        "bytes": 1186
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/async-api.js",
+    "dist/compat.js",
+    "dist/core.js",
+    "dist/index.cjs",
+    "dist/index.js",
+    "dist/locales.js",
+    "dist/mini.js",
+    "dist/official-json-schema.js",
+    "dist/regexes.js",
+    "dist/visit.js",
+    "dist/zod.core.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 146.826,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/async-api.js",
+      "sha256": "284c993dcbd0f49e93e7b13f901a7aeaaf54a055f5bbafbabae0be5f16401f27",
+      "bytes": 4004,
+      "sizes": {
+        "raw": 4004,
+        "gzip": 885,
+        "brotli": 770
+      }
+    },
+    {
+      "path": "dist/compat.js",
+      "sha256": "0419cc663e9a138c7420c2e9bd20c93fb6b27e2246ab00a105d27d3761027016",
+      "bytes": 13706,
+      "sizes": {
+        "raw": 13706,
+        "gzip": 3789,
+        "brotli": 3400
+      }
+    },
+    {
+      "path": "dist/core.js",
+      "sha256": "e80e0e8f27339960f222203d67434a1ce68d3556f8804d5cbd124e4e7e55d919",
+      "bytes": 1043,
+      "sizes": {
+        "raw": 1043,
+        "gzip": 329,
+        "brotli": 272
+      }
+    },
+    {
+      "path": "dist/index.cjs",
+      "sha256": "d6d44e1e879e30cd21a586fdf9eb5b82f77a8a26321a61968bbee98875683e06",
+      "bytes": 263218,
+      "sizes": {
+        "raw": 263218,
+        "gzip": 59134,
+        "brotli": 49525
+      }
+    },
+    {
+      "path": "dist/index.js",
+      "sha256": "413f870a16b72ed9ea08398a95afd4b3306fc42aaefa0641b106e18479de7678",
+      "bytes": 7811,
+      "sizes": {
+        "raw": 7811,
+        "gzip": 1856,
+        "brotli": 1647
+      }
+    },
+    {
+      "path": "dist/locales.js",
+      "sha256": "070c3c2981625e3674672e53051be382a51eaf515bd78dc5f2142d89b45ed82d",
+      "bytes": 90,
+      "sizes": {
+        "raw": 90,
+        "gzip": 91,
+        "brotli": 74
+      }
+    },
+    {
+      "path": "dist/mini.js",
+      "sha256": "7bd2c1c718cc77b5ffec305e09b545d74cd97460c7cfb2a5ce2af87d2f21460a",
+      "bytes": 69,
+      "sizes": {
+        "raw": 69,
+        "gzip": 67,
+        "brotli": 62
+      }
+    },
+    {
+      "path": "dist/official-json-schema.js",
+      "sha256": "e39a9879bea27656d112beabe07fb87aaad703f57ad6f13eddcc7f8450d1de65",
+      "bytes": 34378,
+      "sizes": {
+        "raw": 34378,
+        "gzip": 7390,
+        "brotli": 6568
+      }
+    },
+    {
+      "path": "dist/regexes.js",
+      "sha256": "34d7d609a80c9abffde146ed4fb59dcf2c6f918905f7970aaa2e62b5924de02d",
+      "bytes": 7156,
+      "sizes": {
+        "raw": 7156,
+        "gzip": 2157,
+        "brotli": 1945
+      }
+    },
+    {
+      "path": "dist/visit.js",
+      "sha256": "01447938d1f252ba0649626edb038888f887325d3d762603cd0f7b9dae5aa6b8",
+      "bytes": 4550,
+      "sizes": {
+        "raw": 4550,
+        "gzip": 1284,
+        "brotli": 1133
+      }
+    },
+    {
+      "path": "dist/zod.core.js",
+      "sha256": "3164f0ee9dd1a10d79611703ce3ef396c0d00303cd44873f82e4205c2b431376",
+      "bytes": 124409,
+      "sizes": {
+        "raw": 124409,
+        "gzip": 34932,
+        "brotli": 29682
+      }
+    }
+  ],
+  "measurements": {
+    "dist/async-api.js": {
+      "raw": 4004,
+      "gzip": 885,
+      "brotli": 770
+    },
+    "dist/compat.js": {
+      "raw": 13706,
+      "gzip": 3789,
+      "brotli": 3400
+    },
+    "dist/core.js": {
+      "raw": 1043,
+      "gzip": 329,
+      "brotli": 272
+    },
+    "dist/index.cjs": {
+      "raw": 263218,
+      "gzip": 59134,
+      "brotli": 49525
+    },
+    "dist/index.js": {
+      "raw": 7811,
+      "gzip": 1856,
+      "brotli": 1647
+    },
+    "dist/locales.js": {
+      "raw": 90,
+      "gzip": 91,
+      "brotli": 74
+    },
+    "dist/mini.js": {
+      "raw": 69,
+      "gzip": 67,
+      "brotli": 62
+    },
+    "dist/official-json-schema.js": {
+      "raw": 34378,
+      "gzip": 7390,
+      "brotli": 6568
+    },
+    "dist/regexes.js": {
+      "raw": 7156,
+      "gzip": 2157,
+      "brotli": 1945
+    },
+    "dist/visit.js": {
+      "raw": 4550,
+      "gzip": 1284,
+      "brotli": 1133
+    },
+    "dist/zod.core.js": {
+      "raw": 124409,
+      "gzip": 34932,
+      "brotli": 29682
+    }
+  },
+  "inventoryKind": "required-vitest-case-inventory",
+  "inputsStable": true,
+  "elapsedSeconds": 150.683,
+  "completed": "2026-09-21T01:11:40.025Z",
+  "fingerprint": "60547acf23a4d380caf3d79b90e429c812baea414217f77109d21c10a761907a"
+}

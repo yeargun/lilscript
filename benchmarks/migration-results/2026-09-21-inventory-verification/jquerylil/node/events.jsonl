@@ -1,0 +1,16 @@
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]","file":"test/compat.test.mjs","name":"exports the 3.7.1 surface","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]","file":"test/compat.test.mjs","name":"matches core utilities","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]","file":"test/compat.test.mjs","name":"matches Deferred resolve/reject","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]","file":"test/compat.test.mjs","name":"renders callback changes through the same public tween instance","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]","file":"test/compat.test.mjs","name":"ships the compiler-selected compact ESM, not a pretty-printed wrapper","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]","file":"test/compat.test.mjs","name":"loads from CommonJS","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]","file":"test/compat.test.mjs","name":"selects, classes, and events","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]","file":"test/compat.test.mjs","name":"@itslil/jquery vs jquery@3.7.1","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 7"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 1"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 7"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 1107.194346"}

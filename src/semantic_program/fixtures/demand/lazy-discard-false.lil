@@ -1,0 +1,1 @@
+extern bool enabled();extern int argument(int n);bool helper(int unused){return true;}enabled()&&helper(argument(1));print(9);

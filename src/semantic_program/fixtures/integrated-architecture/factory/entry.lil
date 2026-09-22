@@ -1,0 +1,4 @@
+import {make,readLate,exposed,total,liveTotal,bootCount} from "./barrel.lil";
+extern void emit(string label,int value);
+emit("entry",readLate());
+export {make,readLate,exposed,total,liveTotal,bootCount};

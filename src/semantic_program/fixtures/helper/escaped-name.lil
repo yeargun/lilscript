@@ -1,0 +1,1 @@
+extern void inspect(func(int)->int value);int twice(int value){return value+value;}inspect(twice);print(twice(5));

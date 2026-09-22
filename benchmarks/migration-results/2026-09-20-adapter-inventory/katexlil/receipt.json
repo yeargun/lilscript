@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "katexlil",
+  "started": "2026-09-20T18:19:58.812Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/katexlil",
+  "workspace": "/tmp/lilscript-adapter-katexlil-TLXD6T/katexlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "boundsMs": {
+    "suite": 240000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/katexlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/katexlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-katexlil-TLXD6T/npm-cache"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+  "derivation": {
+    "supported": false,
+    "script": "node --test test/*.test.mjs && node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+    "segments": [
+      "node --test test/*.test.mjs",
+      "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand"
+    ],
+    "prerequisites": [],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs"
+    ],
+    "deviations": [],
+    "unsupported": [
+      "node segment does not run the built-in test runner: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand"
+    ]
+  },
+  "failure": {
+    "message": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+    "stack": "AssertionError [ERR_ASSERTION]: original test script is not a plain node --test command: node segment does not run the built-in test runner: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:115:5)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:125:27)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:175:85"
+  },
+  "inputsStable": false,
+  "validationFailure": {
+    "message": "ENOENT: no such file or directory, lstat '/tmp/lilscript-adapter-katexlil-TLXD6T/katexlil'",
+    "stack": "Error: ENOENT: no such file or directory, lstat '/tmp/lilscript-adapter-katexlil-TLXD6T/katexlil'\n    at realpathSync (node:fs:2776:29)\n    at snapshotInputs (file:///home/azureuser/lilscript/finer/tools/artifact-evidence.mjs:36:10)\n    at full (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:87:26)\n    at capture (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:89:92)\n    at discoverAdapter (file:///home/azureuser/lilscript/finer/tools/adapter-discovery.mjs:171:21)\n    at main (file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:125:27)\n    at async file:///home/azureuser/lilscript/finer/tools/adapter-inventory.mjs:175:85"
+  },
+  "elapsedMs": 595.140307,
+  "completed": "2026-09-20T18:19:59.407Z",
+  "outputs": [
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

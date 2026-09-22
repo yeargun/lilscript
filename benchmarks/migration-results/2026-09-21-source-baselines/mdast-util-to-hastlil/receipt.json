@@ -1,0 +1,832 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "mdast-util-to-hastlil",
+  "started": "2026-09-20T23:36:40.658Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/mdast-util-to-hastlil",
+  "workspace": "/tmp/lilscript-baseline-mdast-util-to-hastlil-iFK2w0/mdast-util-to-hastlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/mdast-util-to-hastlil",
+    "candidates": [
+      "/home/azureuser/mdast-util-to-hastlil",
+      "/home/azureuser/mdast-util-to-hastlil",
+      "/tmp/lilscript-page-refresh-20260910/current/mdast-util-to-hastlil"
+    ],
+    "recorded": "/home/azureuser/mdast-util-to-hastlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+    "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+    "bytes": 17886160,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/mdast-util-to-hastlil",
+    "files": 61,
+    "sha256": "1552e7ad23e86027077da675c75e7a00772ab4682d905994da9554f07e37a158"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+        "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+        "bytes": 17886160
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/mdast-util-to-hastlil/lilscript.closed.toml",
+        "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+        "bytes": 407
+      },
+      {
+        "path": "/home/azureuser/mdast-util-to-hastlil/lilscript.toml",
+        "sha256": "fc6418e6f09ff260f0fcddeb4c617903228a9443b0dbd9e00040f2afb64c4c7c",
+        "bytes": 394
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/to-hast.cjs",
+    "dist/to-hast.closed.js",
+    "dist/to-hast.esm.js",
+    "dist/to-hast.raw.js",
+    "dist/to-hast.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 25.336,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/to-hast.cjs",
+      "sha256": "936ac508b85968a3fd8c55e6b831471630bdf9ceb46b39462fa9b47eb44b5958",
+      "bytes": 15355,
+      "sizes": {
+        "raw": 15355,
+        "gzip": 5401,
+        "brotli": 4915
+      }
+    },
+    {
+      "path": "dist/to-hast.closed.js",
+      "sha256": "7d5b839e443cfd3c54073ee4ac1bfcf0fae8c10b7ba0e1bf6fe04070a0b727a2",
+      "bytes": 14491,
+      "sizes": {
+        "raw": 14491,
+        "gzip": 5341,
+        "brotli": 4855
+      }
+    },
+    {
+      "path": "dist/to-hast.esm.js",
+      "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+      "bytes": 13965,
+      "sizes": {
+        "raw": 13965,
+        "gzip": 4753,
+        "brotli": 4288
+      }
+    },
+    {
+      "path": "dist/to-hast.raw.js",
+      "sha256": "43e40a3c049f80c987270c20c00bd588e8ee77a87b0782b8453929ffa29528ca",
+      "bytes": 13866,
+      "sizes": {
+        "raw": 13866,
+        "gzip": 4683,
+        "brotli": 4210
+      }
+    },
+    {
+      "path": "dist/to-hast.umd.js",
+      "sha256": "6a97500a49f65d4b79a9dbfcbe1cdfe4627dbf30e6ad0388b68cafe60990ef80",
+      "bytes": 15426,
+      "sizes": {
+        "raw": 15426,
+        "gzip": 5432,
+        "brotli": 4941
+      }
+    }
+  ],
+  "measurements": {
+    "dist/to-hast.cjs": {
+      "raw": 15355,
+      "gzip": 5401,
+      "brotli": 4915
+    },
+    "dist/to-hast.closed.js": {
+      "raw": 14491,
+      "gzip": 5341,
+      "brotli": 4855
+    },
+    "dist/to-hast.esm.js": {
+      "raw": 13965,
+      "gzip": 4753,
+      "brotli": 4288
+    },
+    "dist/to-hast.raw.js": {
+      "raw": 13866,
+      "gzip": 4683,
+      "brotli": 4210
+    },
+    "dist/to-hast.umd.js": {
+      "raw": 15426,
+      "gzip": 5432,
+      "brotli": 4941
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 2.71,
+  "cases": {
+    "required": 152,
+    "executed": 152,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/to-hast.esm.js",
+      "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+      "bytes": 13965
+    },
+    {
+      "path": "dist/to-hast.esm.js",
+      "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+      "bytes": 13965
+    },
+    {
+      "path": "dist/to-hast.esm.js",
+      "sha256": "39e943689a5c6156b5aea68a5e8c1e8ea93e4cbc8d38d723f94aeaf5f7155125",
+      "bytes": 13965
+    },
+    {
+      "path": "dist/to-hast.closed.js",
+      "sha256": "7d5b839e443cfd3c54073ee4ac1bfcf0fae8c10b7ba0e1bf6fe04070a0b727a2",
+      "bytes": 14491
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/official/blockquote.js\",7,11,1,\"test\",\"should transform `blockquote` to a `blockquote` element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/blockquote.js\",6,1,0,\"test\",\"blockquote\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/break.js\",7,11,1,\"test\",\"should transform `break` to `br`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/break.js\",21,11,1,\"test\",\"should trim text after a `br` (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/break.js\",35,11,1,\"test\",\"should trim text after a `br` (#2)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/break.js\",49,11,1,\"test\",\"should trim text after a `br` (#3)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/break.js\",6,1,0,\"test\",\"break\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",7,11,1,\"test\",\"should transform `code` to a `pre` element (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",17,11,1,\"test\",\"should transform `code` to a `pre` element (#2)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",27,11,1,\"test\",\"should transform `code` to a `pre` element with language class\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",37,11,1,\"test\",\"should transform `lang` w/ spaces\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",44,11,1,\"test\",\"should support `meta`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",59,11,1,\"test\",\"should support tabs in code\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/code.js\",6,1,0,\"test\",\"code\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",22,11,1,\"test\",\"should throw on non-nodes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",34,11,1,\"test\",\"should prefer `data.hName` to tag names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",45,11,1,\"test\",\"should prefer `data.hChildren` to children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",56,11,1,\"test\",\"should support `data.hProperties`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",67,11,1,\"test\",\"should patch `position`s when given\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",90,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",127,11,1,\"test\",\"should patch `position`s when given\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",150,11,1,\"test\",\"should patch `position`s on `pre` and `code`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",187,11,1,\"test\",\"should transform unknown texts to `text`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",195,11,1,\"test\",\"should transform unknown parents to `div`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",203,11,1,\"test\",\"should transform unknown voids to `div`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",211,11,1,\"test\",\"should transform unknown nodes with `data.h*` properties\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",230,11,1,\"test\",\"should transform unknown nodes with `data.hChildren` only to `div`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",245,11,1,\"test\",\"should transform unknown nodes with `data.hProperties` only to a `element` node\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",270,11,1,\"test\",\"should override default handlers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",294,11,1,\"test\",\"should support files\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",317,11,1,\"test\",\"should support unknown nodes by default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",324,11,1,\"test\",\"should support `unknownHandler`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",335,11,1,\"test\",\"should support `passThrough`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/core.js\",12,1,0,\"test\",\"toHast\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/definition.js\",7,11,1,\"test\",\"should ignore `definition`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/definition.js\",18,11,1,\"test\",\"should prefer the first definition\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/definition.js\",6,1,0,\"test\",\"definition\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/delete.js\",7,11,1,\"test\",\"should transform `delete` to `del`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/delete.js\",6,1,0,\"test\",\"delete\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/emphasis.js\",7,11,1,\"test\",\"should transform `emphasis` to `em`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/emphasis.js\",6,1,0,\"test\",\"emphasis\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-definition.js\",7,11,1,\"test\",\"should ignore `footnoteDefinition`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-definition.js\",20,11,1,\"test\",\"should support a `footnoteDefinition`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-definition.js\",83,11,1,\"test\",\"should use the first `footnoteDefinition` if multiple exist\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-definition.js\",6,1,0,\"test\",\"footnoteDefinition\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-reference.js\",7,11,1,\"test\",\"should render `footnoteReference`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-reference.js\",25,11,1,\"test\",\"should render `footnoteReference`s (#2)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-reference.js\",43,11,1,\"test\",\"should not fail on non-string identifiers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote-reference.js\",6,1,0,\"test\",\"footnoteReference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",14,11,1,\"test\",\"should render `footnote`s (#1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",56,11,1,\"test\",\"should render footnotes in tables\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",100,11,1,\"test\",\"should render footnotes in table cells\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",135,11,1,\"test\",\"should render reused and resursive footnotes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",159,11,1,\"test\",\"should support `footnoteLabel`, `footnoteBackLabel`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",187,11,1,\"test\",\"should support `footnoteBackLabel` as a function\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",220,11,1,\"test\",\"should support `footnoteBackContent` as `string`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",245,11,1,\"test\",\"should support `footnoteBackContent` as a function`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",286,11,1,\"test\",\"should support an empty `clobberPrefix`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",308,11,1,\"test\",\"should support a `footnoteLabelTagName`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",330,11,1,\"test\",\"should support a `footnoteLabelProperties`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",352,11,1,\"test\",\"should support funky footnote identifiers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/footnote.js\",13,1,0,\"test\",\"footnote\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/heading.js\",7,11,1,\"test\",\"should transform `heading` to a `h[1-6]` element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/heading.js\",6,1,0,\"test\",\"heading\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/html.js\",6,11,1,\"test\",\"should ignore `html`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/html.js\",13,11,1,\"test\",\"should transform `html` to `raw` if `allowDangerousHtml` is given\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/html.js\",5,1,0,\"test\",\"HTML\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",7,11,1,\"test\",\"should fall back on `imageReference`s without definition\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",22,11,1,\"test\",\"should fall back on full `imageReference`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `imageReference`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",49,11,1,\"test\",\"should transform `imageReference`s to `img`s (1)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",66,11,1,\"test\",\"should transform `imageReference`s with an empty defined url to `img`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",83,11,1,\"test\",\"should fall back on the label on a full `imageReference` (GH-22)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image-reference.js\",6,1,0,\"test\",\"imageReference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image.js\",7,11,1,\"test\",\"should transform `image` to `img`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image.js\",18,11,1,\"test\",\"should transform `image` to `img` (missing `title`)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/image.js\",6,1,0,\"test\",\"image\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/inline-code.js\",7,11,1,\"test\",\"should transform `inlineCode` to a `code` element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/inline-code.js\",17,11,1,\"test\",\"should support tabs in inline code\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/inline-code.js\",24,11,1,\"test\",\"should change eols to spaces in inline code\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/inline-code.js\",6,1,0,\"test\",\"inlineCode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",7,11,1,\"test\",\"should fall back on `linkReference`s without definition\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",22,11,1,\"test\",\"should fall back on full `linkReference`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",34,11,1,\"test\",\"should fall back on collapsed `linkReference`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",49,11,1,\"test\",\"should fall back on the label on a full `linkReference` (GH-22)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",65,11,1,\"test\",\"should support link references with non-text content\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",80,11,1,\"test\",\"should transform `linkReference`s to `a`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",103,11,1,\"test\",\"should transform `linkReference`s with an empty defined url to `a`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link-reference.js\",6,1,0,\"test\",\"linkReference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link.js\",7,11,1,\"test\",\"should transform `link` to `a`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link.js\",19,11,1,\"test\",\"should transform `link` to `a` (w/o `title`)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link.js\",33,11,1,\"test\",\"should correctly decode/encode urls\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link.js\",50,11,1,\"test\",\"should correctly decode/encode dangerous characters\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/link.js\",6,1,0,\"test\",\"link\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",7,11,1,\"test\",\"should transform `listItem`s to a `li` element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",22,11,1,\"test\",\"should transform a spread `listItem`s to a `li` element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",38,11,1,\"test\",\"should detect that an item is spread, even when not explicitly set\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",54,11,1,\"test\",\"should support checkboxes in `listItem`s (`true`, tight item)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",74,11,1,\"test\",\"should support checkboxes in `listItem`s (`false`, loose item)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",102,11,1,\"test\",\"should support checkboxes in `listItem`s w/o paragraph\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",124,11,1,\"test\",\"should support checkboxes in `listItem`s that don’t start with paragraphs\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",156,11,1,\"test\",\"should support `listItem`s without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",163,11,1,\"test\",\"should support checkboxes in `listItem`s without children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",175,11,1,\"test\",\"should support lists in `listItem`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list-item.js\",6,1,0,\"test\",\"listItem\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list.js\",7,11,1,\"test\",\"should transform ordered lists to `ol`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list.js\",25,11,1,\"test\",\"should transform unordered lists to `ul`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list.js\",42,11,1,\"test\",\"should identify task list items in unordered lists\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list.js\",74,11,1,\"test\",\"should support `start` in ordered lists\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/list.js\",6,1,0,\"test\",\"list\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/paragraph.js\",7,11,1,\"test\",\"should transform `paragraph` to a `p` element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/paragraph.js\",6,1,0,\"test\",\"paragraph\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",7,11,1,\"test\",\"should map `root`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",11,11,1,\"test\",\"should transform root nodes w/ `hName`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",22,11,1,\"test\",\"should transform root nodes w/ `hName`, `hProperties`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",36,11,1,\"test\",\"should transform root nodes w/ `hName`, `hChildren`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/root.js\",6,1,0,\"test\",\"root\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/strong.js\",7,11,1,\"test\",\"should transform `strong` to `strong`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/strong.js\",6,1,0,\"test\",\"strong\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",7,11,1,\"test\",\"should transform `table`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",80,11,1,\"test\",\"should not add a `tbody` if w/o second row\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",101,11,1,\"test\",\"should handle a table node w/o rows\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",105,11,1,\"test\",\"should handle a table row node w/ cells\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",118,11,1,\"test\",\"should handle a table row node w/o cells\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",122,11,1,\"test\",\"should handle a table cell node w/ children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",132,11,1,\"test\",\"should handle a table cell node w/o children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/table.js\",6,1,0,\"test\",\"table\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",7,11,1,\"test\",\"should map `text`s\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",14,11,1,\"test\",\"should trim spaces and tabs around eols\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",21,11,1,\"test\",\"should transform text nodes w/ `hName` to an `element`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",31,11,1,\"test\",\"should ignore `hProperties` on text nodes w/o `hName`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",45,11,1,\"test\",\"should transform text nodes w/ `hProperties` and `hName` to an `element`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",59,11,1,\"test\",\"should not transform text nodes w/ `hChildren` w/o `hName` to an `element`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",73,11,1,\"test\",\"should transform text nodes w/ `hChildren` and `hName` to an `element`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/text.js\",6,1,0,\"test\",\"text\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/thematic-break.js\",7,11,1,\"test\",\"should transform `thematicBreak` to `hr`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/thematic-break.js\",6,1,0,\"test\",\"thematicBreak\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/toml.js\",6,11,1,\"test\",\"should ignore `toml`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/toml.js\",5,1,0,\"test\",\"toml\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/yaml.js\",6,11,1,\"test\",\"should ignore `yaml`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/yaml.js\",5,1,0,\"test\",\"yaml\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",101,3,1,\"test\",\"exports the upstream public API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",140,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",153,3,1,\"test\",\"keeps pinned option and tree keys in the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",160,3,1,\"test\",\"maps a mdast fixture to hast elements\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",218,3,1,\"test\",\"skips html when allowDangerousHtml is off\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",100,1,0,\"suite\",\"@itslil/mdast-util-to-hast library\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",229,3,1,\"test\",\"exists and still converts a tree\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/to-hast.test.mjs\",228,1,0,\"suite\",\"@itslil/mdast-util-to-hast closed lane\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 28.053,
+  "completed": "2026-09-20T23:37:08.677Z",
+  "fingerprint": "dc5274d972becc5ac0769673feec62c6ba2f189f3e5315fa4a81ff460585a6d7"
+}

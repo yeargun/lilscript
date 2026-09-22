@@ -1,0 +1,16 @@
+extern int read();
+int live12Total = 0;
+void live12Absorb(int raw, bool coerce) {
+  int value = raw;
+  if (coerce) {
+    try {
+      value = raw * 2;
+    } catch (auto caught) {
+      return;
+    }
+    live12Total = live12Total + value;
+  }
+}
+live12Absorb(read(), true);
+live12Absorb(read(), false);
+print(live12Total);

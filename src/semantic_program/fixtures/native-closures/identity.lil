@@ -1,0 +1,24 @@
+extern void keep(int slot,func(int)->int callback);
+extern int invoke(int slot,int delta);
+extern void clear(int slot);
+extern void clearAll();
+extern func(int)->int take(int slot);
+extern void expectLive(int count);
+extern void assertEmpty();
+
+func()->int makeZero(){return ()=>7;}
+int named(){return 9;}
+func(int)->int makeAdder(int bias){return (int value)=>value+bias;}
+void identities() {
+    auto first=makeZero();auto copied=first;auto second=makeZero();
+    print(first==copied);print(first==second);print(named==named);
+    print(first());print(second());assertEmpty();
+}
+void prepare() {
+    auto current=makeAdder(1);
+    print(current((current=makeAdder(100))(5)));
+    print(current(5));
+    auto copied=current;current=makeAdder(1000);
+    print(copied(2));print(current(2));
+}
+identities();assertEmpty();prepare();assertEmpty();

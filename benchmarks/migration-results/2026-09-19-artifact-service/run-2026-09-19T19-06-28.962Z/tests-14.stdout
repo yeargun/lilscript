@@ -1,0 +1,9 @@
+
+running 4 tests
+test formatter::tests::keeps_prefix_and_postfix_updates_attached ... ok
+test formatter::tests::formatting_is_idempotent_and_preserves_comments ... ok
+test formatter::tests::separates_a_closed_function_from_the_next_statement ... ok
+test formatter::tests::organizes_leading_imports ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2883 filtered out; finished in 0.00s
+

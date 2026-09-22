@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/tmp/lilscript-session-descriptor-baseline-20260919/lilscript-codec",
+    "--json",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/session-retained-observation/00-retain/baseline.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/session-retained-observation/00-retain/retained-branch.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/session-retained-observation/00-retain/final.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/session-retained-observation/00-retain/retained-branch-recheck.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/session-retained-observation/00-retain/baseline-recheck.mjs"
+  ],
+  "elapsed_ns": 142888241,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "88ddcdecea1aff18cb93f7e5a8965e456985d7b3042dea5caffbada8a6b349a7"
+}

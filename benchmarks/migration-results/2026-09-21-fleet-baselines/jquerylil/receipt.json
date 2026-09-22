@@ -1,0 +1,247 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "jquerylil",
+  "started": "2026-09-21T00:25:51.464Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/jquerylil",
+  "workspace": "/tmp/lilscript-baseline-jquerylil-PEXxBz/jquerylil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/jquerylil",
+    "candidates": [
+      "/home/azureuser/jquerylil",
+      "/home/azureuser/jquerylil",
+      "/tmp/lilscript-page-refresh-20260910/current/jquerylil"
+    ],
+    "recorded": "/home/azureuser/jquerylil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/jquerylil",
+    "files": 264,
+    "sha256": "1dc756bee987ba8867deb7f0356c3dc4c89dd26f60b8f74810f2ccd125c90b9c"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/jquerylil/lilscript.app.toml",
+        "sha256": "108ff61c171b95c58e4659f37f219829ed24668e5467c58dd0645bfb28efebbb",
+        "bytes": 497
+      },
+      {
+        "path": "/home/azureuser/jquerylil/lilscript.toml",
+        "sha256": "cf90474a61ee3b75bf94e93e6cd8e28b51535de31b76b128242ac0dc3ef2ec2b",
+        "bytes": 3791
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/jquery.cjs",
+    "dist/jquery.esm.js",
+    "dist/jquery.impl.js",
+    "dist/jquery.raw.js",
+    "dist/jquery.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 1232.36,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/jquery.cjs",
+      "sha256": "bbb482401fb47ce73976d53b8b1bd4c40a1e5a4b7393202c1db414dd8a18f15e",
+      "bytes": 81549,
+      "sizes": {
+        "raw": 81549,
+        "gzip": 31426,
+        "brotli": 28163
+      }
+    },
+    {
+      "path": "dist/jquery.esm.js",
+      "sha256": "c2cee404cb200bbf8a9144ea0d4e6309c0c413169264da610457773d331f28ad",
+      "bytes": 81495,
+      "sizes": {
+        "raw": 81495,
+        "gzip": 31416,
+        "brotli": 28153
+      }
+    },
+    {
+      "path": "dist/jquery.impl.js",
+      "sha256": "d941f8643ed1f8444950ed374cd2267320f027967efd0e374587dda7d0280a7e",
+      "bytes": 81398,
+      "sizes": {
+        "raw": 81398,
+        "gzip": 31359,
+        "brotli": 28095
+      }
+    },
+    {
+      "path": "dist/jquery.raw.js",
+      "sha256": "d941f8643ed1f8444950ed374cd2267320f027967efd0e374587dda7d0280a7e",
+      "bytes": 81398,
+      "sizes": {
+        "raw": 81398,
+        "gzip": 31359,
+        "brotli": 28095
+      }
+    },
+    {
+      "path": "dist/jquery.umd.js",
+      "sha256": "1d41f1ef8d0efcb8f9253a90f4e1262e528820ecb06358acd44fe355f6019191",
+      "bytes": 81451,
+      "sizes": {
+        "raw": 81451,
+        "gzip": 31395,
+        "brotli": 28117
+      }
+    }
+  ],
+  "measurements": {
+    "dist/jquery.cjs": {
+      "raw": 81549,
+      "gzip": 31426,
+      "brotli": 28163
+    },
+    "dist/jquery.esm.js": {
+      "raw": 81495,
+      "gzip": 31416,
+      "brotli": 28153
+    },
+    "dist/jquery.impl.js": {
+      "raw": 81398,
+      "gzip": 31359,
+      "brotli": 28095
+    },
+    "dist/jquery.raw.js": {
+      "raw": 81398,
+      "gzip": 31359,
+      "brotli": 28095
+    },
+    "dist/jquery.umd.js": {
+      "raw": 81451,
+      "gzip": 31395,
+      "brotli": 28117
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 2.478,
+  "cases": {
+    "required": 8,
+    "executed": 8,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/jquery.cjs",
+      "sha256": "bbb482401fb47ce73976d53b8b1bd4c40a1e5a4b7393202c1db414dd8a18f15e",
+      "bytes": 81549
+    },
+    {
+      "path": "dist/jquery.esm.js",
+      "sha256": "c2cee404cb200bbf8a9144ea0d4e6309c0c413169264da610457773d331f28ad",
+      "bytes": 81495
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/compat.test.mjs\",23,3,1,\"test\",\"exports the 3.7.1 surface\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",32,3,1,\"test\",\"matches core utilities\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",44,3,1,\"test\",\"matches Deferred resolve/reject\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",57,3,1,\"test\",\"renders callback changes through the same public tween instance\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",77,3,1,\"test\",\"ships the compiler-selected compact ESM, not a pretty-printed wrapper\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",86,3,1,\"test\",\"loads from CommonJS\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",95,3,1,\"test\",\"selects, classes, and events\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/compat.test.mjs\",22,1,0,\"suite\",\"@itslil/jquery vs jquery@3.7.1\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 1234.86,
+  "completed": "2026-09-21T00:46:26.288Z",
+  "fingerprint": "495c2650fcf943d8c1710e55c4c02c847ef4595731330e0e8b2b311c5e107fd3"
+}

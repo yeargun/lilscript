@@ -1,0 +1,881 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "rehypelil",
+  "started": "2026-09-21T09:40:20.255Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/rehypelil",
+  "workspace": "/tmp/lilscript-baseline-rehypelil-bw3Ftz/rehypelil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/rehypelil",
+    "candidates": [
+      "/home/azureuser/rehypelil",
+      "/home/azureuser/rehypelil",
+      "/tmp/lilscript-page-refresh-20260910/current/rehypelil"
+    ],
+    "recorded": "/home/azureuser/rehypelil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/rehypelil",
+    "files": 939,
+    "sha256": "89282b9ad8ba3e20186768793b6cccf41ec3bc03c28f2542b0419b12f36d4711"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/rehypelil/lilscript.closed.toml",
+        "sha256": "ab6ca4fbeb381a60880c96d2eb249883b745d14df4aff7f1094bc0ef796916b1",
+        "bytes": 410
+      },
+      {
+        "path": "/home/azureuser/rehypelil/lilscript.toml",
+        "sha256": "dbdf4f63e643aafbf51631851736f24f1dd171cc99fadbe09cb53161dfc28c23",
+        "bytes": 1680
+      },
+      {
+        "path": "/home/azureuser/rehypelil/test/parse5-modules.toml",
+        "sha256": "b9a8049002589190608b8b85c61ce5cb990dd426048e0b4538d4314f060dd210",
+        "bytes": 93
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/rehype.cjs",
+    "dist/rehype.closed.js",
+    "dist/rehype.esm.js",
+    "dist/rehype.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 1438.446,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "notRebuilt": [],
+  "artifacts": [
+    {
+      "path": "dist/rehype.cjs",
+      "sha256": "c8897d992cfe7d4299edd374aaa641454ace11bf3de6c13441553a4f55bbc0d3",
+      "bytes": 172091,
+      "sizes": {
+        "raw": 172091,
+        "gzip": 61122,
+        "brotli": 51120
+      }
+    },
+    {
+      "path": "dist/rehype.closed.js",
+      "sha256": "19333c75b15bcfbf254451d71391bc5f69eede68e79af4a30394650607c8bb06",
+      "bytes": 167088,
+      "sizes": {
+        "raw": 167088,
+        "gzip": 60603,
+        "brotli": 50958
+      }
+    },
+    {
+      "path": "dist/rehype.esm.js",
+      "sha256": "403198f9bd62ac465439d104eb33230c8e82f6c8f30871a169999e05954fea6d",
+      "bytes": 171605,
+      "sizes": {
+        "raw": 171605,
+        "gzip": 60936,
+        "brotli": 50960
+      }
+    },
+    {
+      "path": "dist/rehype.umd.js",
+      "sha256": "650f34263e243e20e94a573788985f1a9fa355bd20d1c37e8fa31c263470ab6b",
+      "bytes": 172455,
+      "sizes": {
+        "raw": 172455,
+        "gzip": 61274,
+        "brotli": 51278
+      }
+    }
+  ],
+  "measurements": {
+    "dist/rehype.cjs": {
+      "raw": 172091,
+      "gzip": 61122,
+      "brotli": 51120
+    },
+    "dist/rehype.closed.js": {
+      "raw": 167088,
+      "gzip": 60603,
+      "brotli": 50958
+    },
+    "dist/rehype.esm.js": {
+      "raw": 171605,
+      "gzip": 60936,
+      "brotli": 50960
+    },
+    "dist/rehype.umd.js": {
+      "raw": 172455,
+      "gzip": 61274,
+      "brotli": 51278
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 5.909,
+  "cases": {
+    "required": 164,
+    "executed": 164,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/rehype.cjs",
+      "sha256": "c8897d992cfe7d4299edd374aaa641454ace11bf3de6c13441553a4f55bbc0d3",
+      "bytes": 172091
+    },
+    {
+      "path": "dist/rehype.esm.js",
+      "sha256": "403198f9bd62ac465439d104eb33230c8e82f6c8f30871a169999e05954fea6d",
+      "bytes": 171605
+    },
+    {
+      "path": "dist/rehype.closed.js",
+      "sha256": "19333c75b15bcfbf254451d71391bc5f69eede68e79af4a30394650607c8bb06",
+      "bytes": 167088
+    },
+    {
+      "path": "dist/rehype.esm.js",
+      "sha256": "403198f9bd62ac465439d104eb33230c8e82f6c8f30871a169999e05954fea6d",
+      "bytes": 171605
+    },
+    {
+      "path": "dist/rehype.esm.js",
+      "sha256": "403198f9bd62ac465439d104eb33230c8e82f6c8f30871a169999e05954fea6d",
+      "bytes": 171605
+    },
+    {
+      "path": "dist/rehype.esm.js",
+      "sha256": "403198f9bd62ac465439d104eb33230c8e82f6c8f30871a169999e05954fea6d",
+      "bytes": 171605
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/api.test.mjs\",15,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",21,3,1,\"test\",\"processSync stringifies html\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",28,3,1,\"test\",\"passes string input to the embedded parser and decodes Uint8Array input\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",47,3,1,\"test\",\"returns a VFile-compatible artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",59,3,1,\"test\",\"keeps processor methods on the shared prototype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",68,3,1,\"test\",\"exposes and uses the same own processor state as unified\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",99,3,1,\"test\",\"coerces parser files with String and Symbol.toPrimitive\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",123,3,1,\"test\",\"applies character-reference settings to text and attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",144,3,1,\"test\",\"keeps pinned processor keys in the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",156,3,1,\"test\",\"keeps upstream module paths and omits build intermediates\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",180,3,1,\"test\",\"loads the UMD artifact as the rehype factory\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/api.test.mjs\",14,1,0,\"suite\",\"rehype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with named exports\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"rehype closed\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/differential.test.mjs\",80,3,1,\"test\",\"matches malformed selectors and case-sensitive SVG tag names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/differential.test.mjs\",88,3,1,\"test\",\"matches the installed upstream graph on every rehype fixture\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/differential.test.mjs\",95,3,1,\"test\",\"matches the installed upstream graph on every parse-error fixture\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/differential.test.mjs\",101,3,1,\"test\",\"matches deterministic malformed HTML fuzz cases\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/differential.test.mjs\",79,1,0,\"suite\",\"parse5 differential\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",19,11,1,\"test\",\"should expose the public api of `rehype`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",23,11,1,\"test\",\"should expose the public api of `rehype-parse`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",32,11,1,\"test\",\"should expose the public api of `rehype-stringify`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",41,11,1,\"test\",\"should accept a `string`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",77,11,1,\"test\",\"should prefer options given to `rehypeParse` over `settings`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",92,11,1,\"test\",\"should prefer options given to `rehypeStringify` over `settings`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",107,11,1,\"test\",\"should parse self-closing elements\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",143,11,1,\"test\",\"should not close unknown elements by default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",185,11,1,\"test\",\"should throw when `tree` is not a valid node\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",197,11,1,\"test\",\"should escape character references\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",209,11,1,\"test\",\"should encode character references (numbered by default)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",224,11,1,\"test\",\"should encode character references (named)\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",238,11,1,\"test\",\"should not close self-closing elements\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",252,11,1,\"test\",\"should close self-closing elements if `closeSelfClosing` is given\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",269,11,1,\"test\",\"should not close unknown elements by default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",286,11,1,\"test\",\"should close given `voids`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",300,11,1,\"test\",\"should not emit parse errors by default\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",307,11,1,\"test\",\"should emit parse errors when `emitParseErrors: true`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",320,11,1,\"test\",\"should ignore parse errors when the specific rule is turned off\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",336,11,1,\"test\",\"should emit parse errors when the specific rule is turned on\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",352,11,1,\"test\",\"should emit fatal parse errors when the specific rule is `2`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",367,11,1,\"test\",\"should emit warning parse errors when the specific rule is `1`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",18,1,0,\"test\",\"rehype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"adoption\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"aria\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"body-body-attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"body-html-attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"character-data\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"comment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"comments\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"directive-in-fragment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-almost-standards\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-legacy-double\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-legacy-single\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-nameless\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quirksmode-ibm\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quirksmode-xml\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quotes-double\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"doctype-quotes-single\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-attributes-names\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-auto-close-document\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-auto-close-fragment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-broken-close\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-children\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-closing\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-closing-attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-empty\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-loose-close-document\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-loose-close-fragment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-opening\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-void\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"element-void-close\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"empty-document\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"empty-fragment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"entities\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"entities-in-literals\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"html-in-svg-in-html\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"mathml\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"noscript\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"processing-instruction\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"quirksmode-off\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"quirksmode-on\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"svg\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"svg-in-html\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"verbose\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",395,13,1,\"test\",\"xhtml\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/api.js\",383,1,0,\"test\",\"fixtures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abandoned-head-element-child\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abrupt-closing-of-empty-comment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abrupt-doctype-public-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"abrupt-doctype-system-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"absence-of-digits-in-numeric-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"cdata-in-html-content\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"character-reference-outside-unicode-range\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"closing-of-element-with-open-child-elements\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"control-character-in-input-stream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"control-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"disallowed-content-in-noscript-in-head\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"duplicate-attribute\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"end-tag-with-attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"end-tag-with-trailing-solidus\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"end-tag-without-matching-open-element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-before-tag-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-cdata\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-comment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-doctype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-element-that-can-contain-only-text\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-script-html-comment-like-text\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"eof-in-tag\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"incorrectly-closed-comment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"incorrectly-opened-comment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"invalid-character-sequence-after-doctype-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"invalid-first-character-of-tag-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"misplaced-doctype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"misplaced-start-tag-for-head-element\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-attribute-value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype-public-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-doctype-system-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-end-tag-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-quote-before-doctype-public-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-quote-before-doctype-system-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-semicolon-after-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-after-doctype-public-keyword\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-after-doctype-system-keyword\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-before-doctype-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-between-attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"missing-whitespace-between-doctype-public-and-system-identifiers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"nested-comment\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"nested-noscript-in-head\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"non-conforming-doctype\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"non-void-html-element-start-tag-with-trailing-solidus\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"noncharacter-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"noncharacter-in-input-stream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"null-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"open-elements-left-after-eof\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"surrogate-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-character-after-doctype-system-identifier\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-character-in-attribute-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-character-in-unquoted-attribute-value\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-equals-sign-before-attribute-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-null-character\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-question-mark-instead-of-tag-name\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unexpected-solidus-in-tag\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",21,13,1,\"test\",\"unknown-named-character-reference\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",57,11,1,\"test\",\"surrogate-in-input-stream\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/parse-error.js\",9,1,0,\"test\",\"parse errors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",58,3,1,\"test\",\"matches all parse-error codes and reverse attribute lookup\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",64,3,1,\"test\",\"matches HTML tag IDs and element sets\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",85,3,1,\"test\",\"matches doctype conformance and document mode\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",109,3,1,\"test\",\"matches Unicode and entity code-point handling\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",123,3,1,\"test\",\"matches complete and incrementally supplied entity references\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",199,3,1,\"test\",\"matches foreign-content adjustment and integration rules\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",251,3,1,\"test\",\"matches preprocessing across malformed input and chunk boundaries\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",307,3,1,\"test\",\"matches preprocessor lookahead, insertion, and buffer dropping\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",336,3,1,\"test\",\"matches the default tree adapter's mutation semantics\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",362,3,1,\"test\",\"matches active-formatting-list ordering and Noah's Ark enforcement\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",392,3,1,\"test\",\"matches open-element-stack mutation, scope, and callback ordering\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parse5-modules.test.mjs\",57,1,0,\"suite\",\"isolated parse5 LilScript modules\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 1444.866,
+  "completed": "2026-09-21T10:04:25.087Z",
+  "fingerprint": "586968af15aa7c626a18f2585efcfc111d8b19417cacba2d04be8a99457bbad0"
+}

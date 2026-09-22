@@ -2,7 +2,7 @@ use crate::js_peephole::rewrite::{
     apply_token_rewrites, is_property_identifier, rewrite_identifier_span, top_level_stop,
 };
 use crate::js_peephole::scope::{
-    binding_is_observed_outside_span, name_is_bound_in_nested_function_between,
+    binding_is_observed_outside_span, enclosing_function_span, name_is_bound_in_nested_function_between,
     nested_function_end, parse_function_expression, same_scope_name_is_read_after,
     FunctionExpression,
 };
@@ -2490,7 +2490,9 @@ fn strip_redundant_set_prototype_of(source: &str) -> Result<(String, usize), Jav
                 if call_child_class(&tokens, open + 1, comma, &proto_aliases, index)
                     .is_some_and(|name| extended.contains(name))
                 {
-                    strip_set_prototype_of_call(&tokens, index, close, &mut replacements);
+                    if executes_at_module_level(&tokens, &matching_close, index) {
+                        strip_set_prototype_of_call(&tokens, index, close, &mut replacements);
+                    }
                     index = close + 1;
                     continue;
                 }
@@ -2627,7 +2629,9 @@ fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), Java
                         close,
                     )
                 {
-                    strip_set_prototype_of_call(&tokens, index, close, &mut replacements);
+                    if executes_at_module_level(&tokens, &matching_close, index) {
+                        strip_set_prototype_of_call(&tokens, index, close, &mut replacements);
+                    }
                     index = close + 1;
                     continue;
                 }
@@ -2636,6 +2640,48 @@ fn strip_dangling_set_prototype_of(source: &str) -> Result<(String, usize), Java
         index += 1;
     }
     Ok(apply_token_rewrites(source, replacements))
+}
+
+/// Whether the token at `at` runs as part of module initialization, rather
+/// than inside a function body that runs whenever it is later called.
+///
+/// Every `setPrototypeOf` removal below reasons in *text order*: an alias is
+/// "stale" or "dangling" because of what precedes or follows the call. That is
+/// execution order only for straight-line module code. A call inside a function
+/// body runs at call time, after the whole module has initialized, so an alias
+/// that is reassigned later in the text is already current when it executes.
+/// And the names these folds compare are minified: `i` in one function is not
+/// `i` in another. unifiedlil's `createMessage` lost its
+/// `Object.setPrototypeOf(message, messagePrototype)` to exactly this, and
+/// every `VFileMessage` stopped being `instanceof VFileMessage`.
+///
+/// A single function spanning most of the program is the module wrapper of a
+/// closed or UMD build; its body *is* module initialization.
+fn executes_at_module_level(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    at: usize,
+) -> bool {
+    match enclosing_function_span(tokens, matching_close, at) {
+        None => true,
+        Some((open, close)) => {
+            enclosing_function_span(tokens, matching_close, open).is_none()
+                && (close - open) * 2 >= tokens.len()
+        }
+    }
+}
+
+/// Whether two tokens sit directly in the same function body (or both at the
+/// top level), so a name read at one refers to the binding declared at the
+/// other rather than to an unrelated binding that minification spelled alike.
+fn same_function_scope(
+    tokens: &[Token<'_>],
+    matching_close: &[Option<usize>],
+    left: usize,
+    right: usize,
+) -> bool {
+    enclosing_function_span(tokens, matching_close, left)
+        == enclosing_function_span(tokens, matching_close, right)
 }
 
 pub(crate) fn strip_stale_set_prototype_of(
@@ -2799,7 +2845,9 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 proto_alias,
                 base_alias,
                 &set_proto_wrappers,
-            ) {
+            )
+            .filter(|_| same_function_scope(&tokens, &matching_close, decl_at, scan))
+            {
                 base = Some(parent);
                 preserved_set_proto = None;
                 fused_end = tokens[last].end;
@@ -2808,6 +2856,7 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
             }
             if let Some(last) =
                 consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
+                    .filter(|_| same_function_scope(&tokens, &matching_close, decl_at, scan))
             {
                 // Swallowing `setPrototypeOf` here lets later methods fold into
                 // the class, but it is not itself proof of `extends`. If the
@@ -3089,7 +3138,9 @@ pub(crate) fn fold_constructor_prototype_tables_to_classes(
                 .map(|(_, last)| last)
                 .or_else(|| {
                     consume_set_prototype_of(&tokens, scan, name, proto_alias, &set_proto_wrappers)
-                }) {
+                })
+                .filter(|_| same_function_scope(&tokens, &matching_close, decl_at, scan))
+                {
                     fused_end = tokens[last].end;
                     scan = skip_separators(&tokens, last + 1);
                 }
@@ -5727,6 +5778,23 @@ mod tests {
         fold_indexed_arguments_to_formals, fold_named_class_identity, fold_or_empty_object_assign,
         fold_undefined_defaults_into_formals, repair_async_functions, strip_stale_set_prototype_of,
     };
+
+    /// unifiedlil's `createMessage` shape: an *instance* is linked to a module
+    /// prototype alias inside a function body, and the alias is assigned its
+    /// real value later in the text. The body runs at call time, after that
+    /// assignment, so the call is live. Minification also reuses the alias's
+    /// name as an unrelated local elsewhere. Neither class fold may delete it:
+    /// both did, and every `VFileMessage` stopped being `instanceof VFileMessage`.
+    #[test]
+    fn an_instance_prototype_link_inside_a_function_body_survives_both_folds() {
+        let source = r#"var i={};function v(a){var b=new Error;Object.setPrototypeOf(b,i);b.x=a;return b}function w(){var i=1;return i}var m=function(a){return v(a)};i=m.prototype;Object.setPrototypeOf(m,Error);Object.setPrototypeOf(i,Error.prototype);"#;
+        let (stripped, _) = strip_stale_set_prototype_of(source).unwrap();
+        assert!(stripped.contains("Object.setPrototypeOf(b,i)"), "strip_stale_set_prototype_of: {stripped}");
+        let (folded, _) = fold_constructor_prototype_tables_to_classes(source).unwrap();
+        assert!(folded.contains("Object.setPrototypeOf(b,i)"), "fold_constructor_prototype_tables_to_classes: {folded}");
+        let (both, _) = strip_stale_set_prototype_of(&folded).unwrap();
+        assert!(both.contains("Object.setPrototypeOf(b,i)"), "both folds in sequence: {both}");
+    }
 
     /// A parameter list is its own TDZ scope, so a body assignment that reads a
     /// *later* formal cannot move into the defaults: every call omitting the

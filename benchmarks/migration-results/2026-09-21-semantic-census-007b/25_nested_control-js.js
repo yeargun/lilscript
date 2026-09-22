@@ -1,0 +1,1 @@
+let a;let total=0;{let a;let outer=0;for(;outer<4;a=outer,outer=a+ 1|0,a){let inner=0;while(inner<4){if(((outer+ inner|0)%2|0)===0){total=total+ (outer*inner|0)|0;}inner=inner+ 1|0;}}}a=void console.log(total);

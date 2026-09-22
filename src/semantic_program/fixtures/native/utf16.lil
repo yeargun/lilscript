@@ -1,0 +1,29 @@
+int read(string value, int position) { return value.charCodeAt(position); }
+string unit(string value, int position) { return value.charAt(position); }
+
+string value = "A\0\ud800\ud834\udd1e\udfffZ";
+print(value.length);
+print(value.charCodeAt(0));
+print(value.charCodeAt(1));
+print(value.charCodeAt(2));
+print(value.charCodeAt(3));
+print(value.charCodeAt(4));
+print(value.charCodeAt(5));
+print(value.charCodeAt(6));
+print(value.charCodeAt(-1));
+print(value.charCodeAt(7));
+string zero = value.charAt(1);
+print(zero.length);
+print(zero.charCodeAt(0));
+string high = value.charAt(3);
+print(high.length);
+print(high.charCodeAt(0));
+print(value.charAt(-1).length);
+print(value.charAt(7).length);
+string copied = high;
+print(copied.charCodeAt(0));
+string empty = "";
+print(empty.length);
+print(empty.charCodeAt(0));
+print(read(value, 4));
+print(unit(value, 5).charCodeAt(0));

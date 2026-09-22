@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "kind": "bounded-mdast-source-build-supervisor",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release"
+  ],
+  "started": "2026-09-19T19:31:06.698Z",
+  "completed": "2026-09-19T19:32:00.466Z",
+  "elapsedMs": 53767.84804,
+  "before": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "a60877315cfffc0b9d4db920c171698b066a91da374f62268db8a5ddf52da07e",
+      "bytes": 21956
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    }
+  ],
+  "after": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "a60877315cfffc0b9d4db920c171698b066a91da374f62268db8a5ddf52da07e",
+      "bytes": 21956
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    }
+  ],
+  "inputsStable": true,
+  "status": 1,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 630000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "a03c1800a716fe8fe63e4e314f77a12b1e2c42742036620ef456c51b97a9bb75",
+    "bytes": 23063
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

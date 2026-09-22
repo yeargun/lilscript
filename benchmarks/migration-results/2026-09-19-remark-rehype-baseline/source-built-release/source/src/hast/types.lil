@@ -1,0 +1,402 @@
+extern JsValue Object;
+extern JsValue String;
+extern JsValue structuredClone;
+
+export bool hasOwn(JsValue obj, string key) {
+  return JS.call(JS.get(JS.get(Object, "prototype"), "hasOwnProperty"), obj, key).truthy();
+}
+
+export string jsString(JsValue value) {
+  if (value is string) {
+    return value;
+  }
+  if (JS.isUndefined(value)) {
+    return "undefined";
+  }
+  if (JS.isNullish(value)) {
+    return "null";
+  }
+  return JS.string(JS.call(String, JS.undefined(), value));
+}
+
+export string stringField(JsValue node, string key) {
+  JsValue value = JS.get(node, key);
+  if (value is string) {
+    return value;
+  }
+  return "";
+}
+
+export string definitionId(JsValue node) {
+  return jsString(JS.get(node, "identifier")).toUpperCase();
+}
+
+export JsValue emptyChildren() {
+  return JS.array();
+}
+
+export JsValue arr1(JsValue a) {
+  JsValue out = JS.array();
+  JS.push(out, a);
+  return out;
+}
+
+export JsValue element(string tagName, JsValue properties, JsValue children) {
+  return JS.object("type", "element", "tagName", tagName, "properties", properties, "children", children);
+}
+
+export JsValue textNode(string value) {
+  return JS.object("type", "text", "value", value);
+}
+
+export JsValue rawNode(string value) {
+  return JS.object("type", "raw", "value", value);
+}
+
+export JsValue rootNode(JsValue children) {
+  return JS.object("type", "root", "children", children);
+}
+
+export void assignProps(JsValue target, JsValue source) {
+  if (JS.isUndefined(source) || JS.isNullish(source) || JS.typeOf(source) != "object") {
+    return;
+  }
+  for (string key in source) {
+    if (hasOwn(source, key)) {
+      target[key] = JS.get(source, key);
+    }
+  }
+}
+
+export JsValue cloneValue(JsValue value) {
+  return JS.call(structuredClone, JS.undefined(), value);
+}
+
+bool asciiAlphanumeric(int code) {
+  return (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+bool uriSafe(int code) {
+  if (code == 33 || code == 35 || code == 36 || code == 61 || code == 95 || code == 126) {
+    return true;
+  }
+  if (code >= 38 && code <= 59) {
+    return true;
+  }
+  if (code >= 63 && code <= 90) {
+    return true;
+  }
+  if (code >= 97 && code <= 122) {
+    return true;
+  }
+  return false;
+}
+
+string fromCharCode1(int code) {
+  JsValue value = JS.call(JS.get(String, "fromCharCode"), String, code);
+  if (value is string) {
+    return value;
+  }
+  return "";
+}
+
+string fromCharCode2(int a, int b) {
+  JsValue value = JS.call(JS.get(String, "fromCharCode"), String, a, b);
+  if (value is string) {
+    return value;
+  }
+  return "";
+}
+
+string encodeComponent(string value) {
+  return JS.encodeURIComponent(value);
+}
+
+export string normalizeUri(string value) {
+  string result = "";
+  int index = 0;
+  int start = 0;
+  int n = value.length;
+  while (index < n) {
+    int code = value.charCodeAt(index);
+    string replace = "";
+    int skip = 0;
+    if (code == 37 && index + 2 < n && asciiAlphanumeric(value.charCodeAt(index + 1)) && asciiAlphanumeric(value.charCodeAt(index + 2))) {
+      skip = 2;
+    } else if (code < 128) {
+      if (!uriSafe(code)) {
+        replace = fromCharCode1(code);
+      }
+    } else if (code > 55295 && code < 57344) {
+      int next = 0;
+      if (index + 1 < n) {
+        next = value.charCodeAt(index + 1);
+      }
+      if (code < 56320 && next > 56319 && next < 57344) {
+        replace = fromCharCode2(code, next);
+        skip = 1;
+      } else {
+        replace = "\uFFFD";
+      }
+    } else {
+      replace = fromCharCode1(code);
+    }
+    if (replace.length > 0) {
+      result = result + value.slice(start, index) + encodeComponent(replace);
+      start = index + skip + 1;
+      replace = "";
+    }
+    if (skip > 0) {
+      index = index + skip;
+    }
+    index = index + 1;
+  }
+  return result + value.slice(start);
+}
+
+string trimLine(string value, bool start, bool end) {
+  int startIndex = 0;
+  int endIndex = value.length;
+  if (start) {
+    while (startIndex < endIndex) {
+      int code = value.charCodeAt(startIndex);
+      if (code != 9 && code != 32) {
+        break;
+      }
+      startIndex = startIndex + 1;
+    }
+  }
+  if (end) {
+    while (endIndex > startIndex) {
+      int code = value.charCodeAt(endIndex - 1);
+      if (code != 9 && code != 32) {
+        break;
+      }
+      endIndex = endIndex - 1;
+    }
+  }
+  if (endIndex > startIndex) {
+    return value.slice(startIndex, endIndex);
+  }
+  return "";
+}
+
+export string trimLines(string source) {
+  Regex search = new Regex("\\r\\n|\\n|\\r", "g");
+  string result = "";
+  int last = 0;
+  JsValue found = search.exec(source);
+  while (!JS.isNullish(found)) {
+    int index = JS.number(JS.get(found, "index")).toInt();
+    JsValue full = found[0];
+    string matched = "";
+    if (full is string) {
+      matched = full;
+    }
+    result = result + trimLine(source.slice(last, index), last > 0, true) + matched;
+    last = index + matched.length;
+    found = search.exec(source);
+  }
+  return result + trimLine(source.slice(last), last > 0, false);
+}
+
+export string trimMarkdownSpaceStart(string value) {
+  int i = 0;
+  int n = value.length;
+  while (i < n) {
+    int c = value.charCodeAt(i);
+    if (c != 9 && c != 32) {
+      break;
+    }
+    i = i + 1;
+  }
+  return value.slice(i);
+}
+
+export JsValue wrapNodes(JsValue nodes, JsValue looseVal) {
+  bool loose = looseVal.truthy();
+  JsValue result = JS.array();
+  if (loose) {
+    JS.push(result, textNode("\n"));
+  }
+  int n = JS.number(JS.get(nodes, "length")).toInt();
+  int i = 0;
+  while (i < n) {
+    if (i > 0) {
+      JS.push(result, textNode("\n"));
+    }
+    JS.push(result, nodes[i]);
+    i = i + 1;
+  }
+  if (loose && n > 0) {
+    JS.push(result, textNode("\n"));
+  }
+  return result;
+}
+
+JsValue copyPoint(JsValue point) {
+  if (JS.isUndefined(point) || JS.isNullish(point) || JS.typeOf(point) != "object") {
+    return JS.undefined();
+  }
+  JsValue line = JS.get(point, "line");
+  JsValue column = JS.get(point, "column");
+  if (!(line is float) || JS.number(line) <= 0.0 || !(column is float) || JS.number(column) <= 0.0) {
+    return JS.undefined();
+  }
+  JsValue offset = JS.get(point, "offset");
+  JsValue out = JS.object();
+  out["line"] = line;
+  out["column"] = column;
+  if (offset is float && JS.number(offset) > -1.0) {
+    out["offset"] = offset;
+  } else {
+    out["offset"] = JS.undefined();
+  }
+  return out;
+}
+
+export JsValue copyPosition(JsValue node) {
+  JsValue pos = JS.get(node, "position");
+  if (JS.isUndefined(pos) || JS.isNullish(pos) || JS.typeOf(pos) != "object") {
+    return JS.undefined();
+  }
+  JsValue start = copyPoint(JS.get(pos, "start"));
+  JsValue end = copyPoint(JS.get(pos, "end"));
+  if (JS.isUndefined(start) || JS.isNullish(start) || JS.isUndefined(end) || JS.isNullish(end)) {
+    return JS.undefined();
+  }
+  return JS.object("start", start, "end", end);
+}
+
+export JsValue pointSide(JsValue node, string side) {
+  if (JS.isUndefined(node) || JS.isNullish(node) || JS.typeOf(node) != "object") {
+    return JS.undefined();
+  }
+  JsValue pos = JS.get(node, "position");
+  if (JS.isUndefined(pos) || JS.isNullish(pos) || JS.typeOf(pos) != "object") {
+    return JS.undefined();
+  }
+  return copyPoint(JS.get(pos, side));
+}
+
+export void patchNode(JsValue from, JsValue to) {
+  JsValue pos = copyPosition(from);
+  if (!(JS.isUndefined(pos) || JS.isNullish(pos))) {
+    to["position"] = pos;
+  }
+}
+
+export JsValue applyData(JsValue from, JsValue to) {
+  JsValue data = JS.get(from, "data");
+  if (JS.isUndefined(from) || JS.isNullish(from) || JS.isUndefined(data) || JS.isNullish(data)) {
+    return to;
+  }
+  JsValue result = to;
+  JsValue hName = JS.get(data, "hName");
+  JsValue hChildren = JS.get(data, "hChildren");
+  JsValue hProperties = JS.get(data, "hProperties");
+  if (hName is string) {
+    string name = hName;
+    JsValue t = JS.get(result, "type");
+    if (t is string && t == "element") {
+      result["tagName"] = name;
+    } else {
+      JsValue kids = JS.get(result, "children");
+      if (!JS.isArray(kids)) {
+        kids = arr1(result);
+      }
+      result = element(name, JS.object(), kids);
+    }
+  }
+  JsValue resultType = JS.get(result, "type");
+  if (resultType is string && resultType == "element" && !JS.isUndefined(hProperties) && !JS.isNullish(hProperties)) {
+    JsValue props = JS.get(result, "properties");
+    if (JS.isUndefined(props) || JS.isNullish(props)) {
+      props = JS.object();
+      result["properties"] = props;
+    }
+    assignProps(props, cloneValue(hProperties));
+  }
+  if (hasOwn(result, "children") && !JS.isUndefined(JS.get(result, "children")) && !JS.isNullish(JS.get(result, "children")) && !JS.isUndefined(hChildren) && !JS.isNullish(hChildren)) {
+    result["children"] = hChildren;
+  }
+  return result;
+}
+
+export string optionString(JsValue options, string key, string fallback) {
+  if (JS.isUndefined(options) || JS.isNullish(options)) {
+    return fallback;
+  }
+  JsValue value = JS.get(options, key);
+  if (value is string) {
+    return value;
+  }
+  return fallback;
+}
+
+export bool optionFlag(JsValue options, string key) {
+  if (JS.isUndefined(options) || JS.isNullish(options)) {
+    return false;
+  }
+  return JS.get(options, key).truthy();
+}
+
+export string firstLang(string lang) {
+  int i = 0;
+  int n = lang.length;
+  while (i < n) {
+    int c = lang.charCodeAt(i);
+    if (c <= 32) {
+      return lang.slice(0, i);
+    }
+    i = i + 1;
+  }
+  return lang;
+}
+
+export bool arrayIncludes(JsValue arr, string value) {
+  if (!JS.isArray(arr)) {
+    return false;
+  }
+  int n = JS.number(JS.get(arr, "length")).toInt();
+  int i = 0;
+  while (i < n) {
+    JsValue item = arr[i];
+    if (item is string && item == value) {
+      return true;
+    }
+    i = i + 1;
+  }
+  return false;
+}
+
+export int arrayIndexOf(JsValue arr, JsValue value) {
+  if (!JS.isArray(arr)) {
+    return -1;
+  }
+  int n = JS.number(JS.get(arr, "length")).toInt();
+  int i = 0;
+  while (i < n) {
+    if (arr[i] == value) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+export int stringIndexOf(JsValue arr, string value) {
+  if (!JS.isArray(arr)) {
+    return -1;
+  }
+  int n = JS.number(JS.get(arr, "length")).toInt();
+  int i = 0;
+  while (i < n) {
+    JsValue item = arr[i];
+    if (item is string && item == value) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}

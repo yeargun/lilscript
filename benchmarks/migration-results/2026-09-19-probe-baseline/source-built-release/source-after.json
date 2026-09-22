@@ -1,0 +1,55 @@
+{
+  "root": "/home/azureuser/probelil",
+  "files": [
+    {
+      "path": ".gitignore",
+      "kind": "file",
+      "executable": false,
+      "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+      "bytes": 20
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+      "bytes": 908
+    },
+    {
+      "path": "expected.out",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+      "bytes": 136
+    },
+    {
+      "path": "lilscript.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+      "bytes": 958
+    },
+    {
+      "path": "scripts/build.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+      "bytes": 4311
+    },
+    {
+      "path": "scripts/configs.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+      "bytes": 5251
+    },
+    {
+      "path": "src/probe.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+      "bytes": 15299
+    }
+  ],
+  "sha256": "1db0b6087d88e52cb10cda9f1cb8fa34a631e2571ed5afc0dedb6a11565c4530"
+}

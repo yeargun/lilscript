@@ -1,0 +1,42 @@
+--- a/lilscript.toml
++++ b/lilscript.toml
+@@ -20,7 +20,7 @@
+ # is a per-port win -- this port -92/-32/-19/-6 Brotli, rehypelil +209 -- so it is
+ # declared here rather than defaulted on.
+ idiom_directed_naming = true
+-priority = "realistic-performance-first"
++priority = "size-first"
+ optimization_level = 13
+ cost_model = "brotli"
+ # 8.24 (measured, fleet): the `function` spelling is -22 Brotli here -- the
+--- a/src/host.lil
++++ b/src/host.lil
+@@ -1,5 +1,5 @@
+ extern JsValue globalThis;
+-extern JsValue objectConstructor();
++extern JsValue Object;
+ extern JsValue Array;
+ extern JsValue Map;
+ extern JsValue Set;
+@@ -13,15 +13,18 @@
+ extern JsValue console;
+ extern JsValue Number;
+ extern JsValue String;
+-extern JsValue Date;
+ extern JsValue parseInt;
+ extern JsValue isNaN;
+ extern JsValue setTimeout;
+ extern JsValue clearTimeout;
+ extern JsValue queueMicrotask;
+-extern float dateNow();
++extern JsValue Date;
++// Not a host export: the legacy optimizer lowered this helper by name.
++float dateNow() {
++  return JS.number(JS.invoke(Date, "now"));
++}
+ 
+-JsValue objectCtor = objectConstructor();
++JsValue objectCtor = Object;
+ 
+ JsValue hasOwnPropertyFn = objectCtor["prototype"]["hasOwnProperty"];
+ JsValue objectIsFn = objectCtor["is"];

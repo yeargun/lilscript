@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "scope": "Shared Node library qualification owner and affected evidence helpers; no compiler or library build",
+  "started": "2026-09-19T20:34:46.733Z",
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "version": "v24.11.1",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "harness": {
+    "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "args": [
+      "--input-type=module",
+      "-e",
+      "\nimport assert from \"node:assert/strict\";\nimport {mkdirSync,readdirSync,readFileSync,statSync,writeFileSync} from \"node:fs\";\nimport {dirname,join,relative} from \"node:path\";\nimport {fileIdentity,fingerprint} from \"./finer/tools/artifact-evidence.mjs\";\nimport {runBoundedCommand} from \"./finer/tools/bounded-command.mjs\";\nconst root=process.cwd(), output=join(root,\"benchmarks/migration-results/2026-09-19-node-library-qualification\",`run-${new Date().toISOString().replaceAll(\":\",\"-\")}`);\nmkdirSync(output,{recursive:true});\nconst save=(name,value)=>writeFileSync(join(output,name),JSON.stringify(value,null,2)+\"\\n\");\nfunction inputs(){const files=[];function walk(path){if(statSync(path).isDirectory()){for(const name of readdirSync(path).sort())if(name!==\"__pycache__\")walk(join(path,name));}else files.push({path:relative(root,path),...fileIdentity(path)});}walk(join(root,\"finer/tools\"));for(const path of [\".nvmrc\",\"benchmarks/libraries/maintained-workloads.json\",\"benchmarks/libraries/mdast-util-to-hastlil.required-tests.json\",\"benchmarks/libraries/remark-rehypelil.required-tests.json\",\"benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs\",\"benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs\"])files.push({path,...fileIdentity(join(root,path))});files.sort((a,b)=>a.path.localeCompare(b.path));return{files,sha256:fingerprint(files)};}\nconst before=inputs();save(\"inputs-before.json\",before);\nconst receipt={schema:1,scope:\"Shared Node library qualification owner and affected evidence helpers; no compiler or library build\",started:new Date().toISOString(),runtime:{path:process.execPath,version:process.version,...fileIdentity(process.execPath)},harness:{command:process.execPath,args:process.execArgv,cwd:root},inputSha256:before.sha256,passed:false};\ntry{assert.equal(process.version,\"v24.11.1\");const args=[\"--test\",... [\"qualify-node-library\",\"artifact-evidence\",\"node-test-evidence\"].map(name=>`finer/tools/${name}.test.mjs`)];const start=performance.now();const result=await runBoundedCommand(process.execPath,args,{cwd:root,env:{...process.env,PATH:`${dirname(process.execPath)}:${process.env.PATH}`},timeoutMs:120000,encoding:\"utf8\",maxBuffer:16*1024*1024});writeFileSync(join(output,\"tests.stdout\"),result.stdout);writeFileSync(join(output,\"tests.stderr\"),result.stderr);receipt.command={command:process.execPath,args,status:result.status,signal:result.signal,error:result.error?.message,supervision:result.supervision,elapsedMs:performance.now()-start};assert.equal(result.status,0,result.stderr+\"\\n\"+result.stdout.slice(-8000));const count=name=>Number(result.stdout.match(new RegExp(`^(?:#|\\u2139) ${name} (\\\\d+)$`,\"m\"))?.[1]);receipt.tests={total:count(\"tests\"),passed:count(\"pass\"),failed:count(\"fail\"),cancelled:count(\"cancelled\"),skipped:count(\"skipped\")};assert(receipt.tests.total>0);assert.equal(receipt.tests.total,receipt.tests.passed);for(const name of[\"failed\",\"cancelled\",\"skipped\"])assert.equal(receipt.tests[name],0);receipt.passed=true;}catch(error){receipt.failure={message:error.message,stack:error.stack};process.exitCode=1;}finally{const after=inputs();save(\"inputs-after.json\",after);receipt.inputsStable=before.sha256===after.sha256;if(!receipt.inputsStable){receipt.passed=false;process.exitCode=1;}receipt.completed=new Date().toISOString();for(const name of[\"tests.stdout\",\"tests.stderr\"])if(receipt.command)receipt[name]={path:name,...fileIdentity(join(output,name))};save(\"receipt.json\",receipt);console.log(JSON.stringify({output,passed:receipt.passed,inputsStable:receipt.inputsStable,tests:receipt.tests,failure:receipt.failure?.message}));}\n"
+    ],
+    "cwd": "/home/azureuser/lilscript"
+  },
+  "inputSha256": "fd83cbbbd2f7c67ac8bd06682379ef7bc06fe7793e46fe129d2502cbfa28b358",
+  "passed": true,
+  "command": {
+    "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "args": [
+      "--test",
+      "finer/tools/qualify-node-library.test.mjs",
+      "finer/tools/artifact-evidence.test.mjs",
+      "finer/tools/node-test-evidence.test.mjs"
+    ],
+    "status": 0,
+    "signal": null,
+    "supervision": {
+      "timeoutMs": 120000,
+      "killAfterMs": 1000,
+      "maxBuffer": 16777216,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    },
+    "elapsedMs": 16129.06258
+  },
+  "tests": {
+    "total": 37,
+    "passed": 37,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "inputsStable": true,
+  "completed": "2026-09-19T20:35:03.071Z",
+  "tests.stdout": {
+    "path": "tests.stdout",
+    "sha256": "8a23dfd161b4534a8a943ee402093da0ea88746d307ace403225222f30a0893b",
+    "bytes": 3420
+  },
+  "tests.stderr": {
+    "path": "tests.stderr",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

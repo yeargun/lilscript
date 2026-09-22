@@ -1,0 +1,457 @@
+{
+  "schema": 1,
+  "kind": "adapter-inventory-batch",
+  "started": "2026-09-20T18:19:58.259Z",
+  "runId": "2026-09-20-adapter-inventory",
+  "selected": [
+    "cnlil",
+    "katexlil",
+    "mdast-util-from-markdownlil",
+    "mobxlil",
+    "monacolil",
+    "playcanvaslil",
+    "posthoglil",
+    "react-markdownlil",
+    "rehype-katexlil",
+    "rehype-stringifylil",
+    "rehypelil",
+    "remark-mathlil",
+    "remark-parselil",
+    "remarklil",
+    "solidlil",
+    "unifiedlil",
+    "vuelil",
+    "zodlil"
+  ],
+  "applied": true,
+  "frozen": [
+    {
+      "library": "rehype-katexlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-katexlil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 67,
+      "exercised": [
+        "dist/rehype-katex.cjs",
+        "dist/rehype-katex.closed.js",
+        "dist/rehype-katex.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "rehype-katexlil.required-tests.json",
+      "testCases": 63,
+      "suiteNodes": 4
+    },
+    {
+      "library": "rehype-stringifylil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/rehype-stringifylil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 13,
+      "exercised": [
+        "dist/rehype-stringify.closed.js",
+        "dist/rehype-stringify.esm.js"
+      ],
+      "untested": [
+        "dist/rehype-stringify.cjs"
+      ],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "rehype-stringifylil.required-tests.json",
+      "testCases": 10,
+      "suiteNodes": 3
+    },
+    {
+      "library": "remark-mathlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/remark-mathlil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 63,
+      "exercised": [
+        "dist/remark-math.cjs",
+        "dist/remark-math.closed.js",
+        "dist/remark-math.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [
+        "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+      ],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "remark-mathlil.required-tests.json",
+      "testCases": 60,
+      "suiteNodes": 3
+    },
+    {
+      "library": "unifiedlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/unifiedlil",
+      "passed": true,
+      "inputsStable": true,
+      "cases": 227,
+      "exercised": [
+        "dist/unified.cjs",
+        "dist/unified.closed.js",
+        "dist/unified.esm.js",
+        "dist/vfile.cjs",
+        "dist/vfile.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": null,
+      "inventory": "unifiedlil.required-tests.json",
+      "testCases": 224,
+      "suiteNodes": 3
+    }
+  ],
+  "gaps": [
+    {
+      "library": "cnlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/cnlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [
+        "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+      ],
+      "unsupported": [
+        "node segment does not run the built-in test runner: node scripts/test-upstream.mjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node scripts/test-upstream.mjs",
+      "reason": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node scripts/test-upstream.mjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "katexlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/katexlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "node segment does not run the built-in test runner: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+      "reason": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config test/official/jest.config.mjs --runInBand",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "mdast-util-from-markdownlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/mdast-util-from-markdownlil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 750,
+      "exercised": [
+        "dist/from-markdown.cjs",
+        "dist/from-markdown.closed.js",
+        "dist/from-markdown.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "test command failed",
+        "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+      ],
+      "failure": null,
+      "reason": "test command failed; test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]; test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "mobxlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/mobxlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "node segment does not run the built-in test runner: node scripts/build.mjs --dev",
+        "node segment does not run the built-in test runner: node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node scripts/build.mjs --dev; node segment does not run the built-in test runner: node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+      "reason": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node scripts/build.mjs --dev; node segment does not run the built-in test runner: node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "monacolil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/monacolil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "package.json declares no test script"
+      ],
+      "unexpectedErrors": [],
+      "failure": "Cannot read properties of undefined (reading 'split')",
+      "reason": "Cannot read properties of undefined (reading 'split')",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "playcanvaslil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/playcanvaslil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [
+        "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+      ],
+      "unsupported": [
+        "no node --test segment found"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test script is not a plain node --test command: no node --test segment found",
+      "reason": "original test script is not a plain node --test command: no node --test segment found",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "posthoglil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/posthoglil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": "scratch copy differs from the original workspace\n+ actual - expected\n... Skipped lines\n\n  [\n    {\n      bytes: 958,\n      executable: false,\n      kind: 'file',\n...\n      sha256: '4de1f74863cd2c158cbcac402592aa3516eb712db3471da4041a42137d0c142d',\n+     target: '/home/azureuser/posthoglil/vendor/posthog-js/playground/.pnpmfile.cjs'\n-     target: '../.pnpmfile.cjs'\n    },\n    {\n      bytes: 2682,\n      executable: false,\n      kind: 'file',\n...\n      sha256: '4de1f74863cd2c158cbcac402592aa3516eb712db3471da4041a42137d0c142d',\n+     target: '/home/azureuser/posthoglil/vendor/posthog-js/playground/.pnpmfile.cjs'\n-     target: '../.pnpmfile.cjs'\n    },\n    {\n      bytes: 1567,\n      executable: false,\n      kind: 'file',\n",
+      "reason": "scratch copy differs from the original workspace\n+ actual - expected\n... Skipped lines\n\n  [\n    {\n      bytes: 958,\n      executable: false,\n      kind: 'file',\n...\n      sha256: '4de1f74863cd2c158cbcac402592aa3516eb712db3471da4041a42137d0c142d',\n+     target: '/home/azureuser/posthoglil/vendor/posthog-js/playground/.pnpmfile.cjs'\n-     target: '../.pnpmfile.cjs'\n    },\n    {\n      bytes: 2682,\n      executable: false,\n      kind: 'file',\n...\n      sha256: '4de1f74863cd2c158cbcac402592aa3516eb712db3471da4041a42137d0c142d',\n+     target: '/home/azureuser/posthoglil/vendor/posthog-js/playground/.pnpmfile.cjs'\n-     target: '../.pnpmfile.cjs'\n    },\n    {\n      bytes: 1567,\n      executable: false,\n      kind: 'file',\n",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "react-markdownlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/react-markdownlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "segment is not a plain command: node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test script is not a plain node --test command: segment is not a plain command: node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx",
+      "reason": "original test script is not a plain node --test command: segment is not a plain command: node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    },
+    {
+      "library": "rehypelil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/rehypelil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 152,
+      "exercised": [
+        "dist/rehype.cjs",
+        "dist/rehype.closed.js",
+        "dist/rehype.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "test command failed"
+      ],
+      "failure": null,
+      "reason": "test command failed",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "remark-parselil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 20,
+      "exercised": [
+        "dist/remark-parse.cjs",
+        "dist/remark-parse.closed.js",
+        "dist/remark-parse.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "test command failed",
+        "test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+        "test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+        "test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+        "test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+        "test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+        "test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+        "test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+        "test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+        "test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+        "test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+        "test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+        "test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+        "test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+        "test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+        "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+      ],
+      "failure": null,
+      "reason": "test command failed; test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]; test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]; test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]; test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]; test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]; test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]; test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]; test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]; test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]; test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]; test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]; test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]; test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]; test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]; test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]; test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "remarklil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/remarklil",
+      "passed": false,
+      "inputsStable": true,
+      "cases": 508,
+      "exercised": [
+        "dist/remark.cjs",
+        "dist/remark.closed.js",
+        "dist/remark.esm.js"
+      ],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "test command failed",
+        "test did not pass: [\"test/api.test.mjs\",21,3,1,\"test\",\"processSync turns emphasis into markdown\",1]",
+        "test did not pass: [\"test/api.test.mjs\",29,3,1,\"test\",\"preserves caller-provided VFile identity in CommonJS\",1]",
+        "test did not pass: [\"test/api.test.mjs\",37,3,1,\"test\",\"preserves caller-provided VFile identity in ESM\",1]",
+        "test did not pass: [\"test/api.test.mjs\",42,3,1,\"test\",\"processSync honors settings.closeAtx\",1]",
+        "test did not pass: [\"test/api.test.mjs\",47,3,1,\"test\",\"round-trips lists and emphasis\",1]",
+        "test did not pass: [\"test/api.test.mjs\",54,3,1,\"test\",\"decodes byte input as UTF-8\",1]",
+        "test did not pass: [\"test/api.test.mjs\",14,1,0,\"suite\",\"remark\",1]",
+        "test did not pass: [\"test/closed.test.mjs\",17,3,1,\"test\",\"keeps the embedded processor operational\",1]",
+        "test did not pass: [\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark closed\",1]",
+        "test did not pass: [\"test/differential.test.mjs\",18,1,0,\"test\",\"parse and stringify match remark@15.0.1\",1]",
+        "test did not pass: [\"test/differential.test.mjs\",29,1,0,\"test\",\"external plugins observe the same file, order, and output\",1]",
+        "test did not pass: [\"test/official.test.mjs\",29,3,1,\"test\",\"matches mdast-util-from-markdown for all 660 cases\",1]",
+        "test did not pass: [\"test/official.test.mjs\",28,1,0,\"suite\",\"official CommonMark + GFM corpus\",1]",
+        "test did not pass: [\"test/official/remark.js\",15,11,1,\"test\",\"should process a file\",1]",
+        "test did not pass: [\"test/official/remark.js\",19,11,1,\"test\",\"should accept settings\",1]",
+        "test did not pass: [\"test/official/remark.js\",10,1,0,\"test\",\"remark\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",570,11,1,\"test\",\"should support an image (resource) in a block quote\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",254,1,0,\"test\",\"blockquote\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1783,11,1,\"test\",\"should support an image\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1788,11,1,\"test\",\"should support `alt`\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1796,11,1,\"test\",\"should support a url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1800,11,1,\"test\",\"should support a title\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1804,11,1,\"test\",\"should support a url and title\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1808,11,1,\"test\",\"should support an image w/ enclosed url w/ whitespace in url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1815,11,1,\"test\",\"should escape an opening angle bracket in `url` in an enclosed url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1822,11,1,\"test\",\"should escape a closing angle bracket in `url` in an enclosed url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1829,11,1,\"test\",\"should escape a backslash in `url` in an enclosed url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1836,11,1,\"test\",\"should encode a line ending in `url` in an enclosed url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1843,11,1,\"test\",\"should escape an opening paren in `url` in a raw url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1850,11,1,\"test\",\"should escape a closing paren in `url` in a raw url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1857,11,1,\"test\",\"should escape a backslash in `url` in a raw url\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1864,11,1,\"test\",\"should support control characters in images\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1871,11,1,\"test\",\"should escape a double quote in `title`\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1878,11,1,\"test\",\"should escape a backslash in `title`\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1885,11,1,\"test\",\"should support an image w/ title when `quote: \\\"'\\\"`\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1895,11,1,\"test\",\"should escape a quote in `title` in a title when `quote: \\\"'\\\"`\",1]",
+        "test did not pass: [\"test/official/to-markdown.js\",1782,1,0,\"test\",\"image\",1]"
+      ],
+      "failure": null,
+      "reason": "test command failed; test did not pass: [\"test/api.test.mjs\",21,3,1,\"test\",\"processSync turns emphasis into markdown\",1]; test did not pass: [\"test/api.test.mjs\",29,3,1,\"test\",\"preserves caller-provided VFile identity in CommonJS\",1]; test did not pass: [\"test/api.test.mjs\",37,3,1,\"test\",\"preserves caller-provided VFile identity in ESM\",1]; test did not pass: [\"test/api.test.mjs\",42,3,1,\"test\",\"processSync honors settings.closeAtx\",1]; test did not pass: [\"test/api.test.mjs\",47,3,1,\"test\",\"round-trips lists and emphasis\",1]; test did not pass: [\"test/api.test.mjs\",54,3,1,\"test\",\"decodes byte input as UTF-8\",1]; test did not pass: [\"test/api.test.mjs\",14,1,0,\"suite\",\"remark\",1]; test did not pass: [\"test/closed.test.mjs\",17,3,1,\"test\",\"keeps the embedded processor operational\",1]; test did not pass: [\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark closed\",1]; test did not pass: [\"test/differential.test.mjs\",18,1,0,\"test\",\"parse and stringify match remark@15.0.1\",1]; test did not pass: [\"test/differential.test.mjs\",29,1,0,\"test\",\"external plugins observe the same file, order, and output\",1]; test did not pass: [\"test/official.test.mjs\",29,3,1,\"test\",\"matches mdast-util-from-markdown for all 660 cases\",1]; test did not pass: [\"test/official.test.mjs\",28,1,0,\"suite\",\"official CommonMark + GFM corpus\",1]; test did not pass: [\"test/official/remark.js\",15,11,1,\"test\",\"should process a file\",1]; test did not pass: [\"test/official/remark.js\",19,11,1,\"test\",\"should accept settings\",1]; test did not pass: [\"test/official/remark.js\",10,1,0,\"test\",\"remark\",1]; test did not pass: [\"test/official/to-markdown.js\",570,11,1,\"test\",\"should support an image (resource) in a block quote\",1]; test did not pass: [\"test/official/to-markdown.js\",254,1,0,\"test\",\"blockquote\",1]; test did not pass: [\"test/official/to-markdown.js\",1783,11,1,\"test\",\"should support an image\",1]; test did not pass: [\"test/official/to-markdown.js\",1788,11,1,\"test\",\"should support `alt`\",1]; test did not pass: [\"test/official/to-markdown.js\",1796,11,1,\"test\",\"should support a url\",1]; test did not pass: [\"test/official/to-markdown.js\",1800,11,1,\"test\",\"should support a title\",1]; test did not pass: [\"test/official/to-markdown.js\",1804,11,1,\"test\",\"should support a url and title\",1]; test did not pass: [\"test/official/to-markdown.js\",1808,11,1,\"test\",\"should support an image w/ enclosed url w/ whitespace in url\",1]; test did not pass: [\"test/official/to-markdown.js\",1815,11,1,\"test\",\"should escape an opening angle bracket in `url` in an enclosed url\",1]; test did not pass: [\"test/official/to-markdown.js\",1822,11,1,\"test\",\"should escape a closing angle bracket in `url` in an enclosed url\",1]; test did not pass: [\"test/official/to-markdown.js\",1829,11,1,\"test\",\"should escape a backslash in `url` in an enclosed url\",1]; test did not pass: [\"test/official/to-markdown.js\",1836,11,1,\"test\",\"should encode a line ending in `url` in an enclosed url\",1]; test did not pass: [\"test/official/to-markdown.js\",1843,11,1,\"test\",\"should escape an opening paren in `url` in a raw url\",1]; test did not pass: [\"test/official/to-markdown.js\",1850,11,1,\"test\",\"should escape a closing paren in `url` in a raw url\",1]; test did not pass: [\"test/official/to-markdown.js\",1857,11,1,\"test\",\"should escape a backslash in `url` in a raw url\",1]; test did not pass: [\"test/official/to-markdown.js\",1864,11,1,\"test\",\"should support control characters in images\",1]; test did not pass: [\"test/official/to-markdown.js\",1871,11,1,\"test\",\"should escape a double quote in `title`\",1]; test did not pass: [\"test/official/to-markdown.js\",1878,11,1,\"test\",\"should escape a backslash in `title`\",1]; test did not pass: [\"test/official/to-markdown.js\",1885,11,1,\"test\",\"should support an image w/ title when `quote: \\\"'\\\"`\",1]; test did not pass: [\"test/official/to-markdown.js\",1895,11,1,\"test\",\"should escape a quote in `title` in a title when `quote: \\\"'\\\"`\",1]; test did not pass: [\"test/official/to-markdown.js\",1782,1,0,\"test\",\"image\",1]",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "solidlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/solidlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 50,
+      "exercised": [
+        "dist/index.cjs",
+        "dist/index.js",
+        "dist/web.js"
+      ],
+      "untested": [
+        "dist/full.cjs",
+        "dist/full.js",
+        "dist/solidlil.global.js",
+        "dist/web.cjs"
+      ],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [
+        "required fixture differs: site/demo-e2e.json"
+      ],
+      "failure": null,
+      "reason": "required fixture differs: site/demo-e2e.json",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "vuelil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/vuelil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [],
+      "unexpectedErrors": [],
+      "failure": "no declared entry file exists in the workspace",
+      "reason": "no declared entry file exists in the workspace",
+      "assignment": "original suite does not pass against the existing distribution; this is a required case, not a waiver"
+    },
+    {
+      "library": "zodlil",
+      "directory": "benchmarks/migration-results/2026-09-20-adapter-inventory/zodlil",
+      "passed": false,
+      "inputsStable": false,
+      "cases": 0,
+      "exercised": [],
+      "untested": [],
+      "absent": [],
+      "deviations": [],
+      "unsupported": [
+        "node segment does not run the built-in test runner: node scripts/build.mjs --compile",
+        "node segment does not run the built-in test runner: node scripts/test.mjs"
+      ],
+      "unexpectedErrors": [],
+      "failure": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node scripts/build.mjs --compile; node segment does not run the built-in test runner: node scripts/test.mjs",
+      "reason": "original test script is not a plain node --test command: node segment does not run the built-in test runner: node scripts/build.mjs --compile; node segment does not run the built-in test runner: node scripts/test.mjs",
+      "assignment": "adapter cannot be derived from the original command; freeze it by hand or record the runner as an explicit 007/011 task"
+    }
+  ],
+  "completed": "2026-09-20T18:21:22.269Z",
+  "manifestSha256": "e2604b36fab958795d40412650f6786157412eec5d95520fdd5fd626a542e6b6",
+  "fingerprint": "c39ca636e15a2ce8e79c5c58cbb685cf803b078786a76b5b18514d985822942a"
+}

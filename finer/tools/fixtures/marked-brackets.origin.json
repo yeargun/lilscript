@@ -1,0 +1,20 @@
+{
+  "source": "/home/azureuser/markedlil/src/str.lil",
+  "sourceSha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+  "span": {
+    "start": 2645,
+    "end": 3141
+  },
+  "originalFunctionSha256": "bbf28cfb36e7e26697e1038ba8f271d88d063cd79ed69c5ffe196c0c55d9a81c",
+  "adaptation": "Remove the export keyword for the closed source-slice entry; preserve every remaining function byte. Append an opaque six-input test harness.",
+  "fixtureSha256": "5c1a5be72ee41e77178bd6a41ea19527e6f7975247f03a363d9a198c7bbcc6ce",
+  "expected": "0\n7\n-1\n-2\n4\n2\n",
+  "samples": [
+    "))",
+    "ab(cd)e)tail",
+    "()",
+    "((x)",
+    "a\\)b)",
+    "\ud834\udd1e)text"
+  ]
+}

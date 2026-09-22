@@ -1,0 +1,100 @@
+{
+  "sha256": "a1a0bb60a4f0d585e6550fd2675b85386dba9139f9a44663fe5d08e5768e287a",
+  "files": [
+    {
+      "path": "../.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": ".nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-artifact-service/compare-parse-once.mjs",
+      "sha256": "afd424dd6b89d45dbc516599c57d41e2aba7a54bf375f9e56592d92b646c6989",
+      "bytes": 16223
+    },
+    {
+      "path": "finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/config.toml",
+      "sha256": "0c45ff277377699818695c28a2651c5ad6e5ef8f3460ad56dadbcb4d7cdee856",
+      "bytes": 541
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/editable.lil",
+      "sha256": "63af17cb08eb484f932bb49c6ee510e60fe3b2cd716c2084f51bfc38acc8c8c0",
+      "bytes": 115
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/entry.lil",
+      "sha256": "6c70b524c211d87499eff460e4f17f7ba255c2f38e2049cc56bd774a90baae99",
+      "bytes": 610
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/factory/barrel.lil",
+      "sha256": "f8c5944c6b526720811988235c19c3e7a7fd05bf0184f6fc5d326367c230cac2",
+      "bytes": 292
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/factory/boot.lil",
+      "sha256": "9c1ee4612243d81dffbdc5d661a1dcaa44d823e203a116def3828e4e53129175",
+      "bytes": 82
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/factory/entry.lil",
+      "sha256": "79ae06dd138c09b466c9085edefcca9ad3bcb64150b775157b44bb96c8fea6d0",
+      "bytes": 204
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/factory/factory.lil",
+      "sha256": "c3b9045f44670c9542060c519cc00215f094fa99883372cd006aa40f6d6db78e",
+      "bytes": 918
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/factory/public.lil",
+      "sha256": "cc22e4c84633da1750b0864458e7057762cfd132c44f046b6af7080f6c294703",
+      "bytes": 168
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/factory/state.lil",
+      "sha256": "0eee5eef9f329471b4334f0f0015b2ae849ef7de93446c7ffe02c5a342e1c52c",
+      "bytes": 321
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/marked-api.lil",
+      "sha256": "5c3049f46d84a7e6ff448feedcf945fa9afe3887fbdebdf6a0dc475fe0782f55",
+      "bytes": 925
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/marked/rules.lil",
+      "sha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+      "bytes": 20051
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/marked/str-slice.lil",
+      "sha256": "87b5f4d52601d60403c4b7372a767f836f72b58d8c3908cfc6d8c33f4b7c3025",
+      "bytes": 1513
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/marked/str.original.lil",
+      "sha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+      "bytes": 9602
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/native-entry.lil",
+      "sha256": "15fd96668431c925db340f383aadf1a72ffe8b88fe0a46686a159bdf95dff669",
+      "bytes": 73
+    },
+    {
+      "path": "src/semantic_program/fixtures/integrated-architecture/products.lil",
+      "sha256": "58cc646f62bb19b9ff4a4f9931221a32eeb24d87edbf23357842d0a635f3d778",
+      "bytes": 955
+    }
+  ]
+}

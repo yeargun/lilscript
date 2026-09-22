@@ -1,0 +1,1 @@
+int value=0;while(value<2){value+=1;}print(value);

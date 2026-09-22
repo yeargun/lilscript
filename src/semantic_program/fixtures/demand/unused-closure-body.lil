@@ -1,0 +1,1 @@
+extern int absent();int unused(){return absent();}print(1);

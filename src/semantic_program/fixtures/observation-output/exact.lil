@@ -1,0 +1,13 @@
+extern JsValue event(JsValue value);
+void touch(ref string value){event(value);value="reference-after";}
+export string exposed="public-exact";
+export string run(bool which){
+    string? mixed="mixed-exact";
+    JS.and(mixed,event("mixed-gate"));
+    mixed??event("unreachable-nullish");
+    event(mixed);
+    string shared="reference-before";
+    touch(ref shared);
+    event(shared);
+    return if(which){"return-yes"}else{"return-no"};
+}

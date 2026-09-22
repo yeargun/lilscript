@@ -221,5 +221,5 @@ Emission search now iterates cartesian axes and scored families from
 `src/decision_registry.rs`. Entropy mapping and several terminal neighborhoods
 remain specialized coordinator stages; late families can still lose when the
 work ledger exhausts. See [current architecture](current-architecture.md),
-[planned architecture](planned-architecture.md), and
+[target compiler design](../../compiler-design.md), and
 [decision registry](decision-registry.md).

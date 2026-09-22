@@ -1,0 +1,8 @@
+
+running 3 tests
+test compiler::tests::constructor_export_with_fields_respects_the_javascript_syntax_floor ... ok
+test compiler::tests::constructor_export_synthesizes_only_the_published_default_constructor ... ok
+test compiler::tests::constructor_export_preserves_explicit_inheritance ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2897 filtered out; finished in 1.52s
+

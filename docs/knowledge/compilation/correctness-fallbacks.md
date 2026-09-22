@@ -43,7 +43,7 @@ sizes and dependencies.
 A size win never overrides a semantic failure. A compiler crash, invalid emitted JS,
 nondeterministic artifact, or baseline-only mismatch is a red result with preserved
 artifacts for triage. Search ranking an unresolved binding is the same class of
-failure ([ident-05](../migration/board/notes/ident-05.md)); it is not a smaller
+failure (ident-05 (archived: `repository/docs/knowledge/migration/board/notes/ident-05.md`)); it is not a smaller
 program. [Current architecture](current-architecture.md) treats identity as blocking further search
 widening.
 

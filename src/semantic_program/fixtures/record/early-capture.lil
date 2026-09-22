@@ -1,0 +1,1 @@
+extern int invoke(func()->int read);func()->int make(){Record<int> state=record{x:invoke(()=>state.x??0)};return ()=>state.x??0;}try{print(make()());}catch(auto error){print(99);}

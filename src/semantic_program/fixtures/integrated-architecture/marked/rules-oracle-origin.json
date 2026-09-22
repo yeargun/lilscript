@@ -1,0 +1,40 @@
+{
+  "source": "Marked 18.0.10 installed upstream Lexer rules and tokenizer.rules.other; no generator execution",
+  "sourcePath": "/home/azureuser/markedlil/src/rules.lil",
+  "sourceSha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+  "upstreamPath": "/home/azureuser/markedlil/node_modules/marked/lib/marked.esm.js",
+  "upstreamSha256": "4cf47dfebb7f614a08fc0a579ab0fe407ff0ed2b717bf953040c85b2f493a4f0",
+  "oracleScriptSha256": "93b0ef9379d83269af7d4e48f45faa0d67fab6d8a8376de5b365935d57126b54",
+  "entries": 117,
+  "exactUpstreamEntries": 113,
+  "spellingAdjustments": [
+    {
+      "name": "nextBullet0",
+      "upstreamSource": "^ {0,0}(?:[*+-]|\\d{1,9}[.)])((?:[ \t][^\\n]*)?(?:\\n|$))",
+      "archivedSource": "^ {0,0}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))",
+      "reason": "The maintained generator uses escaped tab in this character class; upstream uses a literal tab. Preserve the library source spelling."
+    },
+    {
+      "name": "nextBullet1",
+      "upstreamSource": "^ {0,1}(?:[*+-]|\\d{1,9}[.)])((?:[ \t][^\\n]*)?(?:\\n|$))",
+      "archivedSource": "^ {0,1}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))",
+      "reason": "The maintained generator uses escaped tab in this character class; upstream uses a literal tab. Preserve the library source spelling."
+    },
+    {
+      "name": "nextBullet2",
+      "upstreamSource": "^ {0,2}(?:[*+-]|\\d{1,9}[.)])((?:[ \t][^\\n]*)?(?:\\n|$))",
+      "archivedSource": "^ {0,2}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))",
+      "reason": "The maintained generator uses escaped tab in this character class; upstream uses a literal tab. Preserve the library source spelling."
+    },
+    {
+      "name": "nextBullet3",
+      "upstreamSource": "^ {0,3}(?:[*+-]|\\d{1,9}[.)])((?:[ \t][^\\n]*)?(?:\\n|$))",
+      "archivedSource": "^ {0,3}(?:[*+-]|\\d{1,9}[.)])((?:[ \\t][^\\n]*)?(?:\\n|$))",
+      "reason": "The maintained generator uses escaped tab in this character class; upstream uses a literal tab. Preserve the library source spelling."
+    }
+  ],
+  "tableSerialization": "JSON.stringify(sorted array of [export name, RegExp.source, RegExp.flags]), with documented upstream tab spelling adjustments and no final newline",
+  "tableSha256": "8698289d18f63d5fcd837663cc674088fbdcc03b4ef2fc499e152e248f283be3",
+  "matchingArchivedDeclarations": 117,
+  "node": "v20.19.0"
+}

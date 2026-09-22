@@ -1,0 +1,2693 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/remark-gfmlil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/closed.test.mjs",
+    "test/site.test.mjs",
+    "test/official/index.js"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+      "bytes": 2584
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+      "bytes": 1000
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+      "bytes": 2422
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/closed.test.mjs",
+      "test/official/index.js",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/remark-gfmlil/node/observe.mjs",
+    "sha256": "fad87102ba506fae44c007d727dff37e17cef58d051fc6cf848f5d2d1cf044ad",
+    "bytes": 522,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650
+        },
+        "actual": {
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        "actual": {
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "actual": {
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+          "bytes": 948
+        },
+        "actual": {
+          "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+          "bytes": 948
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "actual": {
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+          "bytes": 1006
+        },
+        "actual": {
+          "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+          "bytes": 1006
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+          "bytes": 9321
+        },
+        "actual": {
+          "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+          "bytes": 9321
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+          "bytes": 104355
+        },
+        "actual": {
+          "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+          "bytes": 104355
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+          "bytes": 2547
+        },
+        "actual": {
+          "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+          "bytes": 2547
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+          "bytes": 2584
+        },
+        "actual": {
+          "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+          "bytes": 2584
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+          "bytes": 1000
+        },
+        "actual": {
+          "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+          "bytes": 1000
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/input.md",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/input.md",
+          "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+          "bytes": 1298
+        },
+        "actual": {
+          "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+          "bytes": 1298
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/output.md",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/output.md",
+          "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+          "bytes": 2059
+        },
+        "actual": {
+          "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+          "bytes": 2059
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/tree.json",
+          "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+          "bytes": 52219
+        },
+        "actual": {
+          "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+          "bytes": 52219
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/input.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/input.md",
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "actual": {
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/output.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/output.md",
+          "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+          "bytes": 37
+        },
+        "actual": {
+          "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+          "bytes": 37
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/tree.json",
+          "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+          "bytes": 2698
+        },
+        "actual": {
+          "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+          "bytes": 2698
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/config.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/config.json",
+          "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/input.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/input.md",
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "actual": {
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/output.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/output.md",
+          "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+          "bytes": 37
+        },
+        "actual": {
+          "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+          "bytes": 37
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+          "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+          "bytes": 1951
+        },
+        "actual": {
+          "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+          "bytes": 1951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/config.json",
+          "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+          "bytes": 30
+        },
+        "actual": {
+          "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+          "bytes": 30
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/input.md",
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "actual": {
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/tree.json",
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "actual": {
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/config.json",
+          "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+          "bytes": 32
+        },
+        "actual": {
+          "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+          "bytes": 32
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/input.md",
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "actual": {
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/output.md",
+          "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+          "bytes": 28
+        },
+        "actual": {
+          "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+          "bytes": 28
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/tree.json",
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "actual": {
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/config.json",
+          "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+          "bytes": 63
+        },
+        "actual": {
+          "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+          "bytes": 63
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/input.md",
+          "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+          "bytes": 33
+        },
+        "actual": {
+          "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+          "bytes": 33
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/output.md",
+          "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+          "bytes": 35
+        },
+        "actual": {
+          "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+          "bytes": 35
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/tree.json",
+          "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+          "bytes": 3550
+        },
+        "actual": {
+          "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+          "bytes": 3550
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table/input.md",
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+          "bytes": 72
+        },
+        "actual": {
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+          "bytes": 72
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table/output.md",
+          "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+          "bytes": 104
+        },
+        "actual": {
+          "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+          "bytes": 104
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table/tree.json",
+          "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+          "bytes": 11398
+        },
+        "actual": {
+          "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+          "bytes": 11398
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/input.md",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/input.md",
+          "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+          "bytes": 30
+        },
+        "actual": {
+          "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+          "bytes": 30
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/output.md",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/output.md",
+          "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+          "bytes": 31
+        },
+        "actual": {
+          "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+          "bytes": 31
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/tree.json",
+          "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+          "bytes": 4467
+        },
+        "actual": {
+          "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+          "bytes": 4467
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+          "bytes": 2422
+        },
+        "actual": {
+          "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+          "bytes": 2422
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        "actual": {
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/types/remark-gfm.d.ts",
+        "expected": {
+          "path": "types/remark-gfm.d.ts",
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        "actual": {
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650
+        },
+        "actual": {
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        "actual": {
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "actual": {
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+          "bytes": 948
+        },
+        "actual": {
+          "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+          "bytes": 948
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "actual": {
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+          "bytes": 1006
+        },
+        "actual": {
+          "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+          "bytes": 1006
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+          "bytes": 9321
+        },
+        "actual": {
+          "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+          "bytes": 9321
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+          "bytes": 104355
+        },
+        "actual": {
+          "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+          "bytes": 104355
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+          "bytes": 2547
+        },
+        "actual": {
+          "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+          "bytes": 2547
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+          "bytes": 2584
+        },
+        "actual": {
+          "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+          "bytes": 2584
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+          "bytes": 1000
+        },
+        "actual": {
+          "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+          "bytes": 1000
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/input.md",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/input.md",
+          "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+          "bytes": 1298
+        },
+        "actual": {
+          "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+          "bytes": 1298
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/output.md",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/output.md",
+          "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+          "bytes": 2059
+        },
+        "actual": {
+          "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+          "bytes": 2059
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/tree.json",
+          "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+          "bytes": 52219
+        },
+        "actual": {
+          "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+          "bytes": 52219
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/input.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/input.md",
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "actual": {
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/output.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/output.md",
+          "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+          "bytes": 37
+        },
+        "actual": {
+          "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+          "bytes": 37
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/tree.json",
+          "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+          "bytes": 2698
+        },
+        "actual": {
+          "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+          "bytes": 2698
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/config.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/config.json",
+          "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/input.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/input.md",
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "actual": {
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/output.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/output.md",
+          "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+          "bytes": 37
+        },
+        "actual": {
+          "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+          "bytes": 37
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+          "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+          "bytes": 1951
+        },
+        "actual": {
+          "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+          "bytes": 1951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/config.json",
+          "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+          "bytes": 30
+        },
+        "actual": {
+          "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+          "bytes": 30
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/input.md",
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "actual": {
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/tree.json",
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "actual": {
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/config.json",
+          "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+          "bytes": 32
+        },
+        "actual": {
+          "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+          "bytes": 32
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/input.md",
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "actual": {
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/output.md",
+          "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+          "bytes": 28
+        },
+        "actual": {
+          "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+          "bytes": 28
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/tree.json",
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "actual": {
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/config.json",
+          "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+          "bytes": 63
+        },
+        "actual": {
+          "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+          "bytes": 63
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/input.md",
+          "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+          "bytes": 33
+        },
+        "actual": {
+          "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+          "bytes": 33
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/output.md",
+          "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+          "bytes": 35
+        },
+        "actual": {
+          "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+          "bytes": 35
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/tree.json",
+          "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+          "bytes": 3550
+        },
+        "actual": {
+          "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+          "bytes": 3550
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table/input.md",
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+          "bytes": 72
+        },
+        "actual": {
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+          "bytes": 72
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table/output.md",
+          "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+          "bytes": 104
+        },
+        "actual": {
+          "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+          "bytes": 104
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table/tree.json",
+          "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+          "bytes": 11398
+        },
+        "actual": {
+          "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+          "bytes": 11398
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/input.md",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/input.md",
+          "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+          "bytes": 30
+        },
+        "actual": {
+          "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+          "bytes": 30
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/output.md",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/output.md",
+          "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+          "bytes": 31
+        },
+        "actual": {
+          "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+          "bytes": 31
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/tree.json",
+          "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+          "bytes": 4467
+        },
+        "actual": {
+          "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+          "bytes": 4467
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+          "bytes": 2422
+        },
+        "actual": {
+          "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+          "bytes": 2422
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        "actual": {
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/types/remark-gfm.d.ts",
+        "expected": {
+          "path": "types/remark-gfm.d.ts",
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        "actual": {
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "actual": {
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650
+        },
+        "actual": {
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        "actual": {
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "actual": {
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+          "bytes": 948
+        },
+        "actual": {
+          "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+          "bytes": 948
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "actual": {
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+          "bytes": 1006
+        },
+        "actual": {
+          "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+          "bytes": 1006
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+          "bytes": 9321
+        },
+        "actual": {
+          "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+          "bytes": 9321
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+          "bytes": 104355
+        },
+        "actual": {
+          "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+          "bytes": 104355
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+          "bytes": 2547
+        },
+        "actual": {
+          "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+          "bytes": 2547
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+          "bytes": 2584
+        },
+        "actual": {
+          "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+          "bytes": 2584
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+          "bytes": 1000
+        },
+        "actual": {
+          "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+          "bytes": 1000
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/input.md",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/input.md",
+          "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+          "bytes": 1298
+        },
+        "actual": {
+          "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+          "bytes": 1298
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/output.md",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/output.md",
+          "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+          "bytes": 2059
+        },
+        "actual": {
+          "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+          "bytes": 2059
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/autolink-literal/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/autolink-literal/tree.json",
+          "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+          "bytes": 52219
+        },
+        "actual": {
+          "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+          "bytes": 52219
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/input.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/input.md",
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "actual": {
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/output.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/output.md",
+          "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+          "bytes": 37
+        },
+        "actual": {
+          "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+          "bytes": 37
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-default/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-default/tree.json",
+          "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+          "bytes": 2698
+        },
+        "actual": {
+          "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+          "bytes": 2698
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/config.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/config.json",
+          "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/input.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/input.md",
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "actual": {
+          "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+          "bytes": 29
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/output.md",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/output.md",
+          "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+          "bytes": 37
+        },
+        "actual": {
+          "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+          "bytes": 37
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/strikethrough-not-one/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+          "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+          "bytes": 1951
+        },
+        "actual": {
+          "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+          "bytes": 1951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/config.json",
+          "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+          "bytes": 30
+        },
+        "actual": {
+          "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+          "bytes": 30
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/input.md",
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "actual": {
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-align/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-align/tree.json",
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "actual": {
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/config.json",
+          "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+          "bytes": 32
+        },
+        "actual": {
+          "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+          "bytes": 32
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/input.md",
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "actual": {
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+          "bytes": 40
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/output.md",
+          "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+          "bytes": 28
+        },
+        "actual": {
+          "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+          "bytes": 28
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-no-padding/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-no-padding/tree.json",
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "actual": {
+          "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+          "bytes": 4453
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/config.json",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/config.json",
+          "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+          "bytes": 63
+        },
+        "actual": {
+          "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+          "bytes": 63
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/input.md",
+          "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+          "bytes": 33
+        },
+        "actual": {
+          "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+          "bytes": 33
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/output.md",
+          "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+          "bytes": 35
+        },
+        "actual": {
+          "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+          "bytes": 35
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table-string-length/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table-string-length/tree.json",
+          "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+          "bytes": 3550
+        },
+        "actual": {
+          "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+          "bytes": 3550
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/input.md",
+        "expected": {
+          "path": "test/official/fixtures/table/input.md",
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+          "bytes": 72
+        },
+        "actual": {
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+          "bytes": 72
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/output.md",
+        "expected": {
+          "path": "test/official/fixtures/table/output.md",
+          "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+          "bytes": 104
+        },
+        "actual": {
+          "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+          "bytes": 104
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/table/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/table/tree.json",
+          "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+          "bytes": 11398
+        },
+        "actual": {
+          "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+          "bytes": 11398
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/input.md",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/input.md",
+          "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+          "bytes": 30
+        },
+        "actual": {
+          "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+          "bytes": 30
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/output.md",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/output.md",
+          "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+          "bytes": 31
+        },
+        "actual": {
+          "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+          "bytes": 31
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/fixtures/tasklist/tree.json",
+        "expected": {
+          "path": "test/official/fixtures/tasklist/tree.json",
+          "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+          "bytes": 4467
+        },
+        "actual": {
+          "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+          "bytes": 4467
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+          "bytes": 2422
+        },
+        "actual": {
+          "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+          "bytes": 2422
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "actual": {
+          "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+          "bytes": 758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        "actual": {
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/types/remark-gfm.d.ts",
+        "expected": {
+          "path": "types/remark-gfm.d.ts",
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        "actual": {
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-check-types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:types"
+        ],
+        "timeoutMs": 60000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "actual": {
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "actual": {
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/types/remark-gfm.d.ts",
+          "expected": {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.d.ts",
+          "expected": {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "actual": {
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "actual": {
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "actual": {
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 60000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/remark-gfmlil/node/prerequisite-0.stdout",
+        "sha256": "7cfe516923796a4d5dd62a97e5a3f5f191d1a7cc44ee9db5febdfc32f3415d40",
+        "bytes": 175
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/remark-gfmlil/node/prerequisite-0.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "actual": {
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "actual": {
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/types/remark-gfm.d.ts",
+          "expected": {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.d.ts",
+          "expected": {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "actual": {
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "actual": {
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "actual": {
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "actual": {
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "actual": {
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/types/remark-gfm.d.ts",
+          "expected": {
+            "path": "types/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.d.ts",
+          "expected": {
+            "path": "dist/remark-gfm.d.ts",
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "actual": {
+            "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+            "bytes": 360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/test/types.test.ts",
+          "expected": {
+            "path": "test/types.test.ts",
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "actual": {
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/package.json",
+          "expected": {
+            "path": "node_modules/typescript/package.json",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "actual": {
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/bin/tsc",
+          "expected": {
+            "path": "node_modules/typescript/bin/tsc",
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "actual": {
+            "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+            "bytes": 45
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/node_modules/typescript/lib/tsc.js",
+          "expected": {
+            "path": "node_modules/typescript/lib/tsc.js",
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "actual": {
+            "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+            "bytes": 267
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/eddocu/build/release:/home/azureuser/eddocupptx/build/release:/home/azureuser/.local/bin:/home/azureuser/.local/bin:/home/azureuser/.cargo/bin:/home/azureuser/.opencode/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.sdkman/candidates/springboot/current/bin:/home/azureuser/eddocu/build/release:/home/azureuser/.local/bin:/home/azureuser/eddocupptx/build/release:/home/azureuser/.bun/bin:/home/azureuser/.nvm/versions/node/v20.19.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/azureuser/.claude/remote/plugins/e386d0f8/f3b2ab7888e1fcd9/bin"
+  },
+  "supervision": {
+    "timeoutMs": 900000,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 1,
+    "requiredCases": [
+      "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+      "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+      "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+      "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+      "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+      "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+      "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+      "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+      "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+      "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+      "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+      "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+      "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+    ],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exposes the upstream public API",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+        "file": "test/api.test.mjs",
+        "name": "registers micromark and mdast extensions",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+        "file": "test/api.test.mjs",
+        "name": "forwards options into the GFM combiners",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+        "file": "test/api.test.mjs",
+        "name": "works through processor.use(plugin, options)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+        "file": "test/api.test.mjs",
+        "name": "does not start an email autolink after escaped atext",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+        "file": "test/api.test.mjs",
+        "name": "@itslil/remark-gfm",
+        "type": "suite",
+        "status": "fail",
+        "error": "1 subtest failed"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "ships a closed artifact whose exports stay callable",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "@itslil/remark-gfm closed lane",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/index.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+        "file": "test/official/index.js",
+        "name": "should not throw if not passed options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+        "file": "test/official/index.js",
+        "name": "remarkGfm",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+        "file": "test/official/index.js",
+        "name": "autolink-literal",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+        "file": "test/official/index.js",
+        "name": "strikethrough-default",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+        "file": "test/official/index.js",
+        "name": "strikethrough-not-one",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+        "file": "test/official/index.js",
+        "name": "table",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+        "file": "test/official/index.js",
+        "name": "table-no-align",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+        "file": "test/official/index.js",
+        "name": "table-no-padding",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+        "file": "test/official/index.js",
+        "name": "table-string-length",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+        "file": "test/official/index.js",
+        "name": "tasklist",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'call')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+        "file": "test/official/index.js",
+        "name": "fixtures",
+        "type": "test",
+        "status": "fail",
+        "error": "8 subtests failed"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.esm.js",
+        "sha256": "6033fba71e6b9df292b75883f7d21978111c52520abfd424124f3ed57c2a2ec7",
+        "bytes": 32696
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.cjs",
+        "sha256": "00cb82e0224886e21aa88efd67bb5fd9311adf4ec1a9bd99830e5a7a8a70da3a",
+        "bytes": 36910
+      },
+      {
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.closed.js",
+        "sha256": "392d49ea49fef9b2e9706c99a13698db59d50bc8f04045d9aabd6b3675bc2f4c",
+        "bytes": 34706
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.esm.js",
+        "url": "file:///tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.esm.js",
+        "format": "module",
+        "sha256": "6033fba71e6b9df292b75883f7d21978111c52520abfd424124f3ed57c2a2ec7",
+        "bytes": 32696,
+        "pid": 14959
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.cjs",
+        "url": "file:///tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.cjs",
+        "format": "commonjs",
+        "sha256": "00cb82e0224886e21aa88efd67bb5fd9311adf4ec1a9bd99830e5a7a8a70da3a",
+        "bytes": 36910,
+        "pid": 14959
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.closed.js",
+        "url": "file:///tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.closed.js",
+        "format": "module",
+        "sha256": "392d49ea49fef9b2e9706c99a13698db59d50bc8f04045d9aabd6b3675bc2f4c",
+        "bytes": 34706,
+        "pid": 14960
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.esm.js",
+        "url": "file:///tmp/lilscript-baseline-remark-gfmlil-frjOyg/remark-gfmlil/dist/remark-gfm.esm.js",
+        "format": "module",
+        "sha256": "6033fba71e6b9df292b75883f7d21978111c52520abfd424124f3ed57c2a2ec7",
+        "bytes": 32696,
+        "pid": 14961
+      }
+    ]
+  },
+  "errors": [
+    "test command failed",
+    "test did not pass: [\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+    "test did not pass: [\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+    "test did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+    "test did not pass: [\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+    "required case did not pass: [\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+    "required case did not pass: [\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+    "required case did not pass: [\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+    "required case did not pass: [\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+    "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+    "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+    "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+    "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+    "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+    "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+    "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+    "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

@@ -61,5 +61,5 @@ than the entire aligned-naming ceiling on the same file
 ([05](05-concentration.md)).
 
 The compiler already has the regime that produces it. It is off by default and
-reachable only through candidate search. [PLAN.md](PLAN.md) is about closing
-that gap.
+reachable only through candidate search in this historical inspection. Current
+reachability work belongs to [step 010](../../../migration/index.md#010-bounded-codec-search).

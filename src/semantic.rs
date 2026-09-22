@@ -1,16 +1,32 @@
+use crate::ast::ExprKind;
+use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
+use crate::primitive::ParameterPassing;
 use std::fmt;
 
 use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 use indexmap::IndexMap;
 
 use crate::ast::{
-    ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, ClassDecl, ClassMember,
-    ConstructorDecl, Expr, ExternClassMember, ExternDecl, ForInitializer, FunctionDecl, Ident,
-    Item, MatchPattern, Program, RecordElement, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef,
-    UnaryOp, UpdateOp, VarDecl,
+    Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, ClassDecl,
+    ClassMember, ConstructorDecl, Expr, ExternClassMember, ExternDecl, ForInitializer,
+    FunctionDecl, Ident, Item, MatchPattern, Program, RecordElement, SourceNodeId, Stmt,
+    StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
 };
 use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
+
+pub(crate) mod binary_types;
+mod modules;
+mod struct_cycles;
+pub(crate) mod type_admission;
+pub(crate) mod type_payload;
+pub(crate) mod type_relation;
+pub(crate) mod type_substitution;
+pub use modules::{
+    analyze_modules, CheckedModules, InterfaceTarget, ModuleExport, ModuleImport, ModuleInterface,
+    ModuleSemanticError,
+};
+pub(crate) use modules::{with_analyzed_modules, AdmittedModuleSemanticError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(pub u32);
@@ -136,10 +152,10 @@ pub enum Type<'src> {
     ModuleLoadError,
     Nullable(Box<Type<'src>>),
     Union(Vec<Type<'src>>),
-    Struct(&'src str),
+    Struct(StructType<'src>),
     Class(&'src str),
     StructInstance {
-        name: &'src str,
+        declaration: StructType<'src>,
         args: Vec<Type<'src>>,
     },
     ClassInstance {
@@ -158,6 +174,85 @@ impl Type<'_> {
 
     pub fn is_void(&self) -> bool {
         matches!(self, Self::Void)
+    }
+
+    /// Borrow existing type nodes only. Nominal schema fields remain the
+    /// caller's table traversal; no cloned type/default compatibility view.
+    pub fn contains_mutable_reference_parameters(&self) -> bool {
+        fn nested(ty: &Type<'_>) -> bool {
+            matches!(
+                ty,
+                Type::Array(_)
+                    | Type::Record(_)
+                    | Type::Set(_)
+                    | Type::Task(_)
+                    | Type::Generator(_)
+                    | Type::Nullable(_)
+                    | Type::Map(_, _)
+                    | Type::Union(_)
+                    | Type::StructInstance { .. }
+                    | Type::ClassInstance { .. }
+                    | Type::Function(_)
+                    | Type::GenericFunction(_)
+            )
+        }
+        let mut pending = Vec::new();
+        let mut current = self;
+        loop {
+            match current {
+                Self::Array(value)
+                | Self::Record(value)
+                | Self::Set(value)
+                | Self::Task(value)
+                | Self::Generator(value)
+                | Self::Nullable(value) => {
+                    current = value;
+                    continue;
+                }
+                Self::Map(key, value) => {
+                    if nested(value) {
+                        pending.push(value.as_ref());
+                    }
+                    current = key;
+                    continue;
+                }
+                Self::Union(values)
+                | Self::StructInstance { args: values, .. }
+                | Self::ClassInstance { args: values, .. } => {
+                    pending.extend(values.iter().filter(|ty| nested(ty)))
+                }
+                Self::Function(signature) => {
+                    for parameter in &signature.params {
+                        if parameter.passing == ParameterPassing::MutableReference {
+                            return true;
+                        }
+                        if nested(&parameter.ty) {
+                            pending.push(&parameter.ty);
+                        }
+                    }
+                    current = &signature.return_type;
+                    continue;
+                }
+                Self::GenericFunction(function) => {
+                    let signature = &function.signature;
+                    for parameter in &signature.params {
+                        if parameter.passing == ParameterPassing::MutableReference {
+                            return true;
+                        }
+                        if nested(&parameter.ty) {
+                            pending.push(&parameter.ty);
+                        }
+                    }
+                    current = &signature.return_type;
+                    continue;
+                }
+                _ => {}
+            }
+            let Some(next) = pending.pop() else {
+                return false;
+            };
+            current = next;
+        }
     }
 }
 
@@ -208,8 +303,13 @@ impl fmt::Display for Type<'_> {
                 }
                 Ok(())
             }
-            Self::Struct(name) | Self::Class(name) => f.write_str(name),
-            Self::StructInstance { name, args } | Self::ClassInstance { name, args } => {
+            Self::Struct(declaration) => f.write_str(declaration.name),
+            Self::Class(name) => f.write_str(name),
+            Self::StructInstance {
+                declaration: StructType { name, .. },
+                args,
+            }
+            | Self::ClassInstance { name, args } => {
                 write!(f, "{name}<")?;
                 for (index, argument) in args.iter().enumerate() {
                     if index != 0 {
@@ -227,7 +327,10 @@ impl fmt::Display for Type<'_> {
                     if index != 0 {
                         f.write_str(", ")?;
                     }
-                    write!(f, "{parameter}")?;
+                    if parameter.passing == ParameterPassing::MutableReference {
+                        f.write_str("mutable-reference ")?;
+                    }
+                    write!(f, "{}", parameter.ty)?;
                 }
                 write!(f, ") -> {}", signature.return_type)
             }
@@ -245,18 +348,87 @@ impl fmt::Display for Type<'_> {
     }
 }
 
+/// Shared callable metadata keeps primitive type slots compact. Cloning a
+/// type retains its signature; contextual finalization explicitly detaches a
+/// shared payload before changing it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FunctionType<'src> {
-    pub params: Vec<Type<'src>>,
-    pub defaults: Vec<Option<DefaultValue<'src>>>,
+pub struct FunctionType<'src>(std::sync::Arc<FunctionSignature<'src>>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionSignature<'src> {
+    pub params: Vec<FunctionParameter<'src>>,
     pub return_type: Box<Type<'src>>,
+}
+
+/// One parameter owns its transfer convention and optional default together
+/// with its type. Defaults never belong to mutable-reference parameters.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionParameter<'src> {
+    pub ty: Type<'src>,
+    pub passing: ParameterPassing,
+    pub default: Option<DefaultValue<'src>>,
+}
+impl<'src> FunctionParameter<'src> {
+    pub fn value(ty: Type<'src>) -> Self {
+        Self {
+            ty,
+            passing: ParameterPassing::Value,
+            default: None,
+        }
+    }
+    pub fn defaulted(ty: Type<'src>, default: DefaultValue<'src>) -> Self {
+        Self {
+            ty,
+            passing: ParameterPassing::Value,
+            default: Some(default),
+        }
+    }
+}
+
+impl FunctionSignature<'_> {
+    /// Structural parameter validity. Default expression types and binding
+    /// identities remain the source checker's separate semantic obligation.
+    pub fn validate_parameters(&self) -> Result<(), &'static str> {
+        let mut optional = false;
+        for parameter in &self.params {
+            if parameter.passing == ParameterPassing::MutableReference
+                && parameter.default.is_some()
+            {
+                return Err("mutable-reference parameters cannot have defaults");
+            }
+            if parameter.default.is_some() {
+                optional = true;
+            } else if optional {
+                return Err("required parameters cannot follow defaulted parameters");
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'src> FunctionType<'src> {
+    pub fn new(signature: FunctionSignature<'src>) -> Self {
+        Self(std::sync::Arc::new(signature))
+    }
+
+    fn make_mut(&mut self) -> &mut FunctionSignature<'src> {
+        std::sync::Arc::make_mut(&mut self.0)
+    }
+}
+
+impl<'src> std::ops::Deref for FunctionType<'src> {
+    type Target = FunctionSignature<'src>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl FunctionType<'_> {
     pub fn required_params(&self) -> usize {
-        self.defaults
+        self.params
             .iter()
-            .position(Option::is_some)
+            .position(|parameter| parameter.default.is_some())
             .unwrap_or(self.params.len())
     }
 
@@ -283,14 +455,20 @@ pub enum DefaultValue<'src> {
     /// actual argument rather than resolving the spelling in the caller.
     Parameter(usize),
     /// Declaration signatures are collected before their default expressions
-    /// are analyzed. This span-only placeholder is replaced with `Symbol`
+    /// are analyzed. This source occurrence is replaced with `Symbol`
     /// before the completed semantic model is returned.
-    PendingIdentifier(Span),
+    PendingIdentifier {
+        expression: SourceNodeId,
+        span: Span,
+    },
     /// A syntactic `JS.undefined()` candidate awaiting semantic builtin
     /// resolution. Its spelling alone is never accepted as value proof.
-    PendingUndefined(Span),
+    PendingUndefined {
+        expression: SourceNodeId,
+        span: Span,
+    },
     Array(Vec<DefaultValue<'src>>),
-    Arrow(Span),
+    Arrow(SourceNodeId),
     Struct {
         name: &'src str,
         values: Vec<DefaultValue<'src>>,
@@ -307,8 +485,107 @@ pub struct GenericFunctionType<'src> {
     pub signature: FunctionType<'src>,
 }
 
+/// A program-local declaration handle. The two existing nominal registries
+/// own their definitions; the low tag distinguishes their indexed namespaces.
+/// No source spelling or diagnostic span is needed to dereference this handle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NominalId(std::num::NonZeroU32);
+
+impl NominalId {
+    fn new(index: usize, class: bool) -> Self {
+        let encoded = u32::try_from(index)
+            .ok()
+            .and_then(|index| index.checked_mul(2))
+            .and_then(|index| index.checked_add(1 + u32::from(class)))
+            .and_then(std::num::NonZeroU32::new)
+            .expect("nominal declaration capacity exceeded");
+        Self(encoded)
+    }
+
+    pub(crate) fn index(self) -> usize {
+        ((self.0.get() - 1) / 2) as usize
+    }
+    pub fn is_class(self) -> bool {
+        (self.0.get() - 1) & 1 != 0
+    }
+}
+
+/// A canonical declaration reference within one checked declaration owner.
+/// The spelling is diagnostic metadata; aliases never change identity.
+#[derive(Debug, Clone, Copy)]
+pub struct StructType<'src> {
+    pub identity: NominalId,
+    pub name: &'src str,
+}
+
+impl PartialEq for StructType<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity == other.identity
+    }
+}
+impl Eq for StructType<'_> {}
+impl std::hash::Hash for StructType<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&self.identity, state);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NominalMemberId(std::num::NonZeroU32);
+
+impl NominalMemberId {
+    fn new(index: usize) -> Self {
+        Self(
+            u32::try_from(index)
+                .ok()
+                .and_then(|index| index.checked_add(1))
+                .and_then(std::num::NonZeroU32::new)
+                .expect("nominal member capacity exceeded"),
+        )
+    }
+    pub fn index(self) -> usize {
+        self.0.get() as usize - 1
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum MemberSlot {
+    Field(u32),
+    Method(u32),
+}
+
+impl MemberSlot {
+    fn field(index: usize) -> Self {
+        Self::Field(u32::try_from(index).expect("nominal field capacity exceeded"))
+    }
+    fn method(index: usize) -> Self {
+        Self::Method(u32::try_from(index).expect("nominal method capacity exceeded"))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MemberDefinition {
+    owner: NominalId,
+    slot: MemberSlot,
+}
+
+/// A borrow of the declaration's existing facts, not a copied member table.
+#[derive(Debug, Clone, Copy)]
+pub enum NominalMember<'sem, 'src> {
+    Field {
+        owner: NominalId,
+        field: &'sem FieldInfo<'src>,
+    },
+    Method {
+        owner: NominalId,
+        name: &'src str,
+        method: &'sem MethodInfo<'src>,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldInfo<'src> {
+    pub member: NominalMemberId,
     pub name: &'src str,
     pub ty: Type<'src>,
     pub index: usize,
@@ -317,7 +594,8 @@ pub struct FieldInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructInfo<'src> {
-    pub name: &'src str,
+    pub declaration: StructType<'src>,
+    pub module: Option<crate::module::ModuleId>,
     pub type_params: Vec<&'src str>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub span: Span,
@@ -330,8 +608,6 @@ pub struct ClassInfo<'src> {
     pub base: Option<Type<'src>>,
     pub fields: IndexMap<&'src str, FieldInfo<'src>>,
     pub methods: IndexMap<&'src str, MethodInfo<'src>>,
-    declared_fields: IndexMap<&'src str, FieldInfo<'src>>,
-    declared_methods: IndexMap<&'src str, MethodInfo<'src>>,
     pub constructor: Option<FunctionType<'src>>,
     pub external: bool,
     pub object: bool,
@@ -340,6 +616,7 @@ pub struct ClassInfo<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo<'src> {
+    pub member: NominalMemberId,
     pub owner: &'src str,
     pub type_params: Vec<&'src str>,
     pub signature: FunctionType<'src>,
@@ -360,6 +637,25 @@ pub struct Symbol<'src> {
     pub ty: Type<'src>,
     pub span: Span,
     pub escape_state: EscapeState,
+    /// Classification belongs to the canonical declaration, including extern
+    /// aliases shared by several checked modules.
+    origin: DeclarationOrigin,
+    /// Distinct source spans currently registered to this identity, including
+    /// its declaration. Maintained by ModuleFacts::record_identifier across source owners; this
+    /// is source-binding knowledge, not a use count for a rewritten program.
+    identifier_occurrences: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DeclarationOrigin {
+    Source,
+    Foreign,
+}
+
+impl Symbol<'_> {
+    pub(crate) fn is_foreign(&self) -> bool {
+        self.origin == DeclarationOrigin::Foreign
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -393,93 +689,679 @@ impl fmt::Display for SemanticError {
 
 impl std::error::Error for SemanticError {}
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum AdmittedSemanticError {
+    Semantic(SemanticError),
+    Resources(AllocationError),
+}
+
+impl From<AllocationError> for AdmittedSemanticError {
+    fn from(error: AllocationError) -> Self {
+        Self::Resources(error)
+    }
+}
+
+impl From<SemanticError> for AdmittedSemanticError {
+    fn from(error: SemanticError) -> Self {
+        Self::Semantic(error)
+    }
+}
+
+impl AdmittedSemanticError {
+    fn new(span: Span, message: impl Into<String>) -> Self {
+        Self::Semantic(SemanticError::new(span, message))
+    }
+}
+
+/// Resolution belongs to the checked source occurrence, independently of its
+/// diagnostic location or the target operation that eventually represents it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ExpressionResolution {
+    #[default]
+    None,
+    Binding(SymbolId),
+    Builtin(BuiltinCall),
+    Primitive(crate::primitive::ResolvedIntrinsic),
+    NominalMember(NominalMemberId),
+    NominalConstruction(NominalId),
+}
+
+/// The original generic call's resolved arguments and effective signature.
+/// This belongs to one checked SourceNodeId; callee declaration identity stays
+/// on that callee's existing expression type.
 #[derive(Debug, Clone)]
-pub struct SemanticModel<'src> {
-    expression_types: AHashMap<Span, Type<'src>>,
-    builtin_calls: AHashMap<Span, BuiltinCall>,
-    optional_present_types: AHashMap<Span, Type<'src>>,
-    type_check_types: AHashMap<Span, Type<'src>>,
-    binding_types: AHashMap<Span, Type<'src>>,
-    identifier_symbols: AHashMap<Span, SymbolId>,
+pub struct CheckedCallInstantiation<'src> {
+    pub type_arguments: Vec<Type<'src>>,
+    pub signature: FunctionType<'src>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct SourceInfo<'ast, 'src> {
+    expression: Option<&'ast Expr<'ast, 'src>>,
+    resolution: ExpressionResolution,
+}
+
+impl fmt::Debug for SourceInfo<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // A source borrow is provenance, not another recursively owned tree.
+        f.debug_struct("SourceInfo")
+            .field(
+                "source",
+                &self.expression.map(|expr| (expr.id, expr.span())),
+            )
+            .field("resolution", &self.resolution)
+            .finish()
+    }
+}
+
+/// Canonical declarations are owned once, including all local symbols.
+#[derive(Debug, Clone, Default)]
+struct DeclarationTables<'src> {
     assigned_symbols: AHashSet<SymbolId>,
     symbols: Vec<Symbol<'src>>,
-    structs: AHashMap<&'src str, StructInfo<'src>>,
-    classes: AHashMap<&'src str, ClassInfo<'src>>,
+    structs: Vec<StructInfo<'src>>,
+    classes: IndexMap<&'src str, ClassInfo<'src>>,
+    nominal_members: Vec<MemberDefinition>,
     enums: AHashMap<&'src str, EnumInfo<'src>>,
+    symbol_modules: Vec<Option<crate::module::ModuleId>>,
+    foreign_symbols: AHashMap<&'src str, (SymbolId, bool)>,
+}
+
+/// Source-node and span indexes belong to exactly one original source.
+#[derive(Debug, Clone)]
+struct ModuleFacts<'ast, 'src> {
+    source: crate::ast::SourceIdentity,
+    expression_types: Vec<Option<Type<'src>>>,
+    source_info: Vec<SourceInfo<'ast, 'src>>,
+    call_instantiations: AHashMap<SourceNodeId, CheckedCallInstantiation<'src>>,
+    struct_bindings: AHashMap<&'src str, NominalId>,
+    optional_present_types: AHashMap<Span, Type<'src>>,
+    type_check_types: AHashMap<Span, Type<'src>>,
+    binding_types: AHashMap<Span, BindingType<'src>>,
+    identifier_symbols: AHashMap<Span, SymbolId>,
     enum_variant_values: AHashMap<Span, i64>,
     dynamic_import_modules: AHashMap<Span, u32>,
     module_exports: AHashMap<u32, AHashMap<&'src str, &'src str>>,
     used_dynamic_exports: AHashSet<(u32, &'src str)>,
 }
 
-impl<'src> SemanticModel<'src> {
-    pub fn expression_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.expression_types.get(&span)
+// Value declarations and import aliases share the canonical symbol's payload.
+// Type-only bindings still need a type without introducing a value identity.
+#[derive(Debug, Clone)]
+enum BindingType<'src> {
+    Symbol(SymbolId),
+    Inline(Type<'src>),
+}
+
+#[cfg(test)]
+thread_local! {
+    static LIVE_FACTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+// Only the private, same-thread admitted callback owns this test wrapper.
+// Public semantic models retain their original layout and cross-thread behavior.
+#[cfg(test)]
+struct AdmittedFactsOwner<T> {
+    value: Option<T>,
+    count: usize,
+}
+
+#[cfg(test)]
+impl<T> AdmittedFactsOwner<T> {
+    fn new(value: T, count: usize) -> Self {
+        LIVE_FACTS.with(|live| live.set(live.get() + count));
+        Self {
+            value: Some(value),
+            count,
+        }
+    }
+}
+
+#[cfg(test)]
+impl<T> std::ops::Deref for AdmittedFactsOwner<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.value.as_ref().expect("live admitted checker result")
+    }
+}
+
+#[cfg(test)]
+impl<T> Drop for AdmittedFactsOwner<T> {
+    fn drop(&mut self) {
+        drop(self.value.take());
+        LIVE_FACTS.with(|live| live.set(live.get() - self.count));
+    }
+}
+
+#[cfg(test)]
+fn live_facts_for_test() -> usize {
+    LIVE_FACTS.with(std::cell::Cell::get)
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticModel<'ast, 'src> {
+    declarations: DeclarationTables<'src>,
+    facts: ModuleFacts<'ast, 'src>,
+}
+
+/// A read-only source qualification over the compilation's shared declarations.
+#[derive(Debug, Clone, Copy)]
+pub struct SemanticView<'view, 'ast, 'src> {
+    declarations: &'view DeclarationTables<'src>,
+    facts: &'view ModuleFacts<'ast, 'src>,
+}
+
+impl<'ast, 'src> ModuleFacts<'ast, 'src> {
+    fn new(source: &crate::ast::SourceIdentity) -> Self {
+        Self::from_buffers(
+            source,
+            vec![None; source.len()],
+            vec![SourceInfo::default(); source.len()],
+        )
+    }
+
+    fn new_admitted(
+        source: &crate::ast::SourceIdentity,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        budget.work(
+            crate::compilation_policy::WorkKind::Render,
+            u64::try_from(source.len()).map_err(|_| AllocationError::Capacity)?,
+        )?;
+        let mut expression_types = budget.vector(AllocationClass::Scratch, source.len())?;
+        expression_types.resize_with(source.len(), || None);
+        let source_info = budget.filled(
+            AllocationClass::Scratch,
+            source.len(),
+            SourceInfo::default(),
+        )?;
+        Ok(Self::from_buffers(source, expression_types, source_info))
+    }
+
+    fn from_buffers(
+        source: &crate::ast::SourceIdentity,
+        expression_types: Vec<Option<Type<'src>>>,
+        source_info: Vec<SourceInfo<'ast, 'src>>,
+    ) -> Self {
+        Self {
+            source: source.clone(),
+            expression_types,
+            source_info,
+            call_instantiations: AHashMap::default(),
+            struct_bindings: AHashMap::default(),
+            optional_present_types: AHashMap::default(),
+            type_check_types: AHashMap::default(),
+            binding_types: AHashMap::default(),
+            identifier_symbols: AHashMap::default(),
+            enum_variant_values: AHashMap::default(),
+            dynamic_import_modules: AHashMap::default(),
+            module_exports: AHashMap::default(),
+            used_dynamic_exports: AHashSet::default(),
+        }
+    }
+
+    fn record_identifier(
+        &mut self,
+        declarations: &mut DeclarationTables<'src>,
+        span: Span,
+        symbol: SymbolId,
+    ) {
+        match self.identifier_symbols.insert(span, symbol) {
+            Some(previous) if previous == symbol => return,
+            Some(previous) => declarations.symbols[previous.0 as usize].identifier_occurrences -= 1,
+            None => {}
+        }
+        declarations.symbols[symbol.0 as usize].identifier_occurrences += 1;
+    }
+}
+
+impl<'src> DeclarationTables<'src> {
+    fn add_symbol(
+        &mut self,
+        symbol: Symbol<'src>,
+        module: Option<crate::module::ModuleId>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<SymbolId, AllocationError> {
+        let id = SymbolId(
+            u32::try_from(self.symbols.len()).map_err(|_| AllocationError::Capacity)?,
+        );
+        debug_assert_eq!(symbol.id, id);
+        debug_assert_eq!(self.symbols.len(), self.symbol_modules.len());
+        budget.reserve_vec(AllocationClass::Scratch, &mut self.symbols, 1)?;
+        budget.reserve_vec(AllocationClass::Scratch, &mut self.symbol_modules, 1)?;
+        budget.work(crate::compilation_policy::WorkKind::Render, 2)?;
+        // Both capacities and both publication operations are admitted before
+        // either parallel row becomes visible to the checker.
+        self.symbols.push(symbol);
+        self.symbol_modules.push(module);
+        Ok(id)
+    }
+
+    fn declare_member(
+        &mut self,
+        owner: NominalId,
+        slot: MemberSlot,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<NominalMemberId, AllocationError> {
+        let id = NominalMemberId::new(self.nominal_members.len());
+        budget.push(
+            AllocationClass::Scratch,
+            &mut self.nominal_members,
+            MemberDefinition { owner, slot },
+        )?;
+        Ok(id)
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn identifier_index_is_consistent<'ast>(&self, facts: &[ModuleFacts<'ast, 'src>]) -> bool {
+        let mut observed = vec![0; self.symbols.len()];
+        for module in facts {
+            for symbol in module.identifier_symbols.values() {
+                observed[symbol.0 as usize] += 1;
+            }
+        }
+        self.symbols
+            .iter()
+            .zip(observed)
+            .all(|(symbol, count)| symbol.identifier_occurrences == count)
+    }
+}
+
+impl<'ast, 'src> SemanticModel<'ast, 'src> {
+    pub fn view(&self) -> SemanticView<'_, 'ast, 'src> {
+        SemanticView {
+            declarations: &self.declarations,
+            facts: &self.facts,
+        }
+    }
+
+    #[cfg(test)]
+    fn record_identifier(&mut self, span: Span, symbol: SymbolId) {
+        self.facts
+            .record_identifier(&mut self.declarations, span, symbol);
+    }
+
+    #[cfg(any(test, debug_assertions))]
+    fn identifier_index_is_consistent(&self) -> bool {
+        self.declarations
+            .identifier_index_is_consistent(std::slice::from_ref(&self.facts))
+    }
+
+    pub fn expression_type(&self, id: crate::ast::SourceNodeId) -> Option<&Type<'src>> {
+        self.view().expression_type(id)
+    }
+
+    pub fn call_instantiation(&self, id: SourceNodeId) -> Option<&CheckedCallInstantiation<'src>> {
+        self.view().call_instantiation(id)
+    }
+
+    pub fn source_expression(&self, id: SourceNodeId) -> Option<&'ast Expr<'ast, 'src>> {
+        self.view().source_expression(id)
+    }
+
+    pub fn expression_resolution(&self, id: SourceNodeId) -> ExpressionResolution {
+        self.view().expression_resolution(id)
+    }
+
+    pub fn belongs_to(&self, source: &crate::ast::SourceIdentity) -> bool {
+        self.view().belongs_to(source)
     }
 
     pub fn binding_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.binding_types.get(&span)
+        self.view().binding_type(span)
     }
 
-    pub(crate) fn builtin_call(&self, span: Span) -> Option<BuiltinCall> {
-        self.builtin_calls.get(&span).copied()
+    pub(crate) fn builtin_call(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+        self.view().builtin_call(id)
+    }
+
+    pub(crate) fn resolved_intrinsic(
+        &self,
+        id: SourceNodeId,
+    ) -> Option<crate::primitive::ResolvedIntrinsic> {
+        self.view().resolved_intrinsic(id)
     }
 
     pub fn identifier_symbol(&self, span: Span) -> Option<SymbolId> {
-        self.identifier_symbols.get(&span).copied()
+        self.view().identifier_symbol(span)
     }
 
     pub(crate) fn symbol_is_assigned(&self, symbol: SymbolId) -> bool {
-        self.assigned_symbols.contains(&symbol)
+        self.view().symbol_is_assigned(symbol)
     }
 
     pub(crate) fn type_check_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.type_check_types.get(&span)
+        self.view().type_check_type(span)
     }
 
     pub(crate) fn optional_present_type(&self, span: Span) -> Option<&Type<'src>> {
-        self.optional_present_types.get(&span)
+        self.view().optional_present_type(span)
     }
 
     pub fn symbols(&self) -> &[Symbol<'src>] {
-        &self.symbols
+        self.view().symbols()
+    }
+
+    pub fn struct_type(&self, name: &str) -> Option<StructType<'src>> {
+        self.view().struct_type(name)
+    }
+
+    pub fn export_target(&self, span: Span) -> Option<InterfaceTarget> {
+        self.view().export_target(span)
     }
 
     pub fn struct_info(&self, name: &str) -> Option<&StructInfo<'src>> {
-        self.structs.get(name)
+        self.view().struct_info(name)
+    }
+
+    pub fn enum_info(&self, name: &str) -> Option<&EnumInfo<'src>> {
+        self.view().enum_info(name)
     }
 
     pub fn class_info(&self, name: &str) -> Option<&ClassInfo<'src>> {
-        self.classes.get(name)
+        self.view().class_info(name)
+    }
+
+    pub fn nominal_id(&self, ty: &Type<'src>) -> Option<NominalId> {
+        self.view().nominal_id(ty)
+    }
+
+    pub fn nominal_name(&self, id: NominalId) -> Option<&'src str> {
+        self.view().nominal_name(id)
+    }
+
+    pub fn nominal_struct(&self, id: NominalId) -> Option<&StructInfo<'src>> {
+        self.view().nominal_struct(id)
+    }
+
+    pub fn nominal_class(&self, id: NominalId) -> Option<&ClassInfo<'src>> {
+        self.view().nominal_class(id)
+    }
+
+    pub fn nominal_member(&self, id: NominalMemberId) -> Option<NominalMember<'_, 'src>> {
+        self.view().nominal_member(id)
+    }
+
+    pub fn resolved_member(&self, id: SourceNodeId) -> Option<NominalMember<'_, 'src>> {
+        self.view().resolved_member(id)
     }
 
     pub fn is_extern_class(&self, name: &str) -> bool {
-        self.classes.get(name).is_some_and(|class| class.external)
+        self.view().is_extern_class(name)
     }
 
     pub fn is_object(&self, name: &str) -> bool {
-        self.classes.get(name).is_some_and(|class| class.object)
+        self.view().is_object(name)
     }
 
     pub(crate) fn class_method_owner(&self, class: &str, method: &str) -> Option<&'src str> {
-        self.classes
+        self.view().class_method_owner(class, method)
+    }
+
+    pub(crate) fn base_class_name(&self, class: &str) -> Option<&'src str> {
+        self.view().base_class_name(class)
+    }
+
+    pub(crate) fn base_constructor(&self, class: &str) -> Option<(&'src str, FunctionType<'src>)> {
+        self.view().base_constructor(class)
+    }
+
+    pub(crate) fn enum_variant_value(&self, span: Span) -> Option<i64> {
+        self.view().enum_variant_value(span)
+    }
+
+    pub(crate) fn structs(&self) -> impl Iterator<Item = &StructInfo<'src>> {
+        self.view().structs()
+    }
+
+    pub(crate) fn classes(&self) -> impl Iterator<Item = &ClassInfo<'src>> {
+        self.view().classes()
+    }
+
+    pub(crate) fn dynamic_import_module(&self, span: Span) -> Option<u32> {
+        self.view().dynamic_import_module(span)
+    }
+
+    pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
+        self.view().dynamic_export_used(module, name)
+    }
+}
+
+impl<'view, 'ast, 'src> SemanticView<'view, 'ast, 'src> {
+    pub fn expression_type(&self, id: crate::ast::SourceNodeId) -> Option<&'view Type<'src>> {
+        self.facts
+            .expression_types
+            .get(id.index())
+            .and_then(Option::as_ref)
+    }
+
+    pub fn call_instantiation(
+        &self,
+        id: SourceNodeId,
+    ) -> Option<&'view CheckedCallInstantiation<'src>> {
+        self.facts.call_instantiations.get(&id)
+    }
+
+    pub fn source_expression(&self, id: SourceNodeId) -> Option<&'ast Expr<'ast, 'src>> {
+        self.facts.source_info.get(id.index())?.expression
+    }
+
+    pub fn expression_resolution(&self, id: SourceNodeId) -> ExpressionResolution {
+        self.facts
+            .source_info
+            .get(id.index())
+            .map_or(ExpressionResolution::None, |info| info.resolution)
+    }
+
+    pub fn belongs_to(&self, source: &crate::ast::SourceIdentity) -> bool {
+        self.facts.source.same(source)
+    }
+
+    pub fn binding_type(&self, span: Span) -> Option<&'view Type<'src>> {
+        Some(match self.facts.binding_types.get(&span)? {
+            BindingType::Symbol(symbol) => &self.declarations.symbols[symbol.0 as usize].ty,
+            BindingType::Inline(ty) => ty,
+        })
+    }
+
+    pub(crate) fn builtin_call(&self, id: SourceNodeId) -> Option<BuiltinCall> {
+        match self.expression_resolution(id) {
+            ExpressionResolution::Builtin(builtin) => Some(builtin),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn resolved_intrinsic(
+        &self,
+        id: SourceNodeId,
+    ) -> Option<crate::primitive::ResolvedIntrinsic> {
+        match self.expression_resolution(id) {
+            ExpressionResolution::Primitive(operation) => Some(operation),
+            _ => None,
+        }
+    }
+
+    pub fn identifier_symbol(&self, span: Span) -> Option<SymbolId> {
+        self.facts.identifier_symbols.get(&span).copied()
+    }
+
+    pub(crate) fn symbol_is_assigned(&self, symbol: SymbolId) -> bool {
+        self.declarations.assigned_symbols.contains(&symbol)
+    }
+
+    pub(crate) fn type_check_type(&self, span: Span) -> Option<&'view Type<'src>> {
+        self.facts.type_check_types.get(&span)
+    }
+
+    pub(crate) fn optional_present_type(&self, span: Span) -> Option<&'view Type<'src>> {
+        self.facts.optional_present_types.get(&span)
+    }
+
+    pub fn symbols(&self) -> &'view [Symbol<'src>] {
+        &self.declarations.symbols
+    }
+
+    pub fn struct_type(&self, name: &str) -> Option<StructType<'src>> {
+        self.nominal_struct(*self.facts.struct_bindings.get(name)?)
+            .map(|info| info.declaration)
+    }
+
+    pub fn export_target(&self, span: Span) -> Option<InterfaceTarget> {
+        if let Some(symbol) = self.identifier_symbol(span) {
+            return Some(InterfaceTarget::Value(symbol));
+        }
+        match self.binding_type(span) {
+            Some(Type::Struct(declaration) | Type::StructInstance { declaration, .. }) => {
+                Some(InterfaceTarget::Struct(declaration.identity))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn struct_info(&self, name: &str) -> Option<&'view StructInfo<'src>> {
+        self.nominal_struct(*self.facts.struct_bindings.get(name)?)
+    }
+
+    pub fn enum_info(&self, name: &str) -> Option<&'view EnumInfo<'src>> {
+        self.declarations.enums.get(name)
+    }
+
+    pub fn class_info(&self, name: &str) -> Option<&'view ClassInfo<'src>> {
+        self.declarations.classes.get(name)
+    }
+
+    pub fn nominal_id(&self, ty: &Type<'src>) -> Option<NominalId> {
+        match ty {
+            Type::Struct(declaration) | Type::StructInstance { declaration, .. } => {
+                Some(declaration.identity)
+            }
+            Type::Class(name) | Type::ClassInstance { name, .. } => self
+                .declarations
+                .classes
+                .get_index_of(name)
+                .map(|index| NominalId::new(index, true)),
+            _ => None,
+        }
+    }
+
+    pub fn nominal_name(&self, id: NominalId) -> Option<&'src str> {
+        if id.is_class() {
+            self.declarations
+                .classes
+                .get_index(id.index())
+                .map(|(name, _)| *name)
+        } else {
+            self.declarations
+                .structs
+                .get(id.index())
+                .map(|info| info.declaration.name)
+        }
+    }
+
+    pub fn nominal_struct(&self, id: NominalId) -> Option<&'view StructInfo<'src>> {
+        (!id.is_class())
+            .then(|| self.declarations.structs.get(id.index()))
+            .flatten()
+    }
+
+    pub fn nominal_class(&self, id: NominalId) -> Option<&'view ClassInfo<'src>> {
+        id.is_class()
+            .then(|| {
+                self.declarations
+                    .classes
+                    .get_index(id.index())
+                    .map(|(_, info)| info)
+            })
+            .flatten()
+    }
+
+    pub fn nominal_member(&self, id: NominalMemberId) -> Option<NominalMember<'view, 'src>> {
+        let MemberDefinition { owner, slot } =
+            *self.declarations.nominal_members.get(id.index())?;
+        let value = if owner.is_class() {
+            let (_, class) = self.declarations.classes.get_index(owner.index())?;
+            match slot {
+                MemberSlot::Field(index) => NominalMember::Field {
+                    owner,
+                    field: class.fields.get_index(index as usize)?.1,
+                },
+                MemberSlot::Method(index) => {
+                    let (name, method) = class.methods.get_index(index as usize)?;
+                    NominalMember::Method {
+                        owner,
+                        name,
+                        method,
+                    }
+                }
+            }
+        } else {
+            let MemberSlot::Field(index) = slot else {
+                return None;
+            };
+            NominalMember::Field {
+                owner,
+                field: self
+                    .declarations
+                    .structs
+                    .get(owner.index())?
+                    .fields
+                    .get_index(index as usize)?
+                    .1,
+            }
+        };
+        debug_assert_eq!(
+            id,
+            match value {
+                NominalMember::Field { field, .. } => field.member,
+                NominalMember::Method { method, .. } => method.member,
+            }
+        );
+        Some(value)
+    }
+
+    pub fn resolved_member(&self, id: SourceNodeId) -> Option<NominalMember<'view, 'src>> {
+        let ExpressionResolution::NominalMember(member) = self.expression_resolution(id) else {
+            return None;
+        };
+        self.nominal_member(member)
+    }
+
+    pub fn is_extern_class(&self, name: &str) -> bool {
+        self.declarations
+            .classes
+            .get(name)
+            .is_some_and(|class| class.external)
+    }
+
+    pub fn is_object(&self, name: &str) -> bool {
+        self.declarations
+            .classes
+            .get(name)
+            .is_some_and(|class| class.object)
+    }
+
+    pub(crate) fn class_method_owner(&self, class: &str, method: &str) -> Option<&'src str> {
+        self.declarations
+            .classes
             .get(class)
             .and_then(|class| class.methods.get(method))
             .map(|method| method.owner)
     }
 
     pub(crate) fn base_class_name(&self, class: &str) -> Option<&'src str> {
-        self.classes
+        self.declarations
+            .classes
             .get(class)
             .and_then(|class| class.base.as_ref())
             .and_then(class_type_name)
     }
 
     pub(crate) fn base_constructor(&self, class: &str) -> Option<(&'src str, FunctionType<'src>)> {
-        let class = self.classes.get(class)?;
+        let class = self.declarations.classes.get(class)?;
         let base_ty = class.base.as_ref()?;
         let (base_name, base_args) = class_type_parts(base_ty)?;
-        let base = self.classes.get(base_name)?;
+        let base = self.declarations.classes.get(base_name)?;
         let signature = base.constructor.clone()?;
         let substitutions = substitutions_for(&base.type_params, base_args);
         let Type::Function(signature) = substitute_type(&Type::Function(signature), &substitutions)
@@ -490,42 +1372,119 @@ impl<'src> SemanticModel<'src> {
     }
 
     pub(crate) fn enum_variant_value(&self, span: Span) -> Option<i64> {
-        self.enum_variant_values.get(&span).copied()
+        self.facts.enum_variant_values.get(&span).copied()
     }
 
-    pub(crate) fn structs(&self) -> impl Iterator<Item = &StructInfo<'src>> {
-        self.structs.values()
+    pub(crate) fn structs(&self) -> impl Iterator<Item = &'view StructInfo<'src>> + 'view {
+        self.declarations.structs.iter()
     }
 
-    pub(crate) fn classes(&self) -> impl Iterator<Item = &ClassInfo<'src>> {
-        self.classes.values()
-    }
-
-    pub(crate) fn expression_types(&self) -> &AHashMap<Span, Type<'src>> {
-        &self.expression_types
-    }
-
-    pub(crate) fn binding_types(&self) -> &AHashMap<Span, Type<'src>> {
-        &self.binding_types
+    pub(crate) fn classes(&self) -> impl Iterator<Item = &'view ClassInfo<'src>> + 'view {
+        self.declarations.classes.values()
     }
 
     pub(crate) fn dynamic_import_module(&self, span: Span) -> Option<u32> {
-        self.dynamic_import_modules.get(&span).copied()
+        self.facts.dynamic_import_modules.get(&span).copied()
     }
 
     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
-        self.used_dynamic_exports.contains(&(module, name))
+        self.facts.used_dynamic_exports.contains(&(module, name))
     }
 }
 
 pub fn analyze<'ast, 'src>(
     program: &Program<'ast, 'src>,
-) -> Result<SemanticModel<'src>, SemanticError> {
-    Analyzer::new().analyze_program(program)
+) -> Result<SemanticModel<'ast, 'src>, SemanticError> {
+    analyze_with_facts(
+        program,
+        ModuleFacts::new(program.source_identity()),
+        &mut AllocationBudget::new(None),
+    )
+    .map_err(|failure| match failure {
+        AdmittedSemanticError::Semantic(error) => error,
+        AdmittedSemanticError::Resources(reason) => SemanticError::new(
+            program.span,
+            format!("semantic checking allocation failed: {reason}"),
+        ),
+    })
 }
 
-struct Analyzer<'src> {
-    model: SemanticModel<'src>,
+/// Fixed source-node tables and canonical declaration vectors are admitted.
+/// Nested types, maps, diagnostics and comprehensive traversal remain separate.
+pub(crate) fn with_analyzed_source<'ast, 'src, R>(
+    program: &Program<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+    client: impl FnOnce(&SemanticModel<'ast, 'src>, &mut AllocationBudget<'_>) -> R,
+) -> Result<R, AdmittedSemanticError> {
+    let mut scope = budget.scope();
+    let facts = ModuleFacts::new_admitted(program.source_identity(), &mut scope)?;
+    let model = analyze_with_facts(program, facts, &mut scope)?;
+    #[cfg(test)]
+    let model = AdmittedFactsOwner::new(model, 1);
+    let output = client(&model, &mut scope);
+    drop(model);
+    scope
+        .finish_retained()
+        .expect("checked-source callback transfers within its allocation owner");
+    Ok(output)
+}
+
+#[cfg(test)]
+#[path = "semantic/admission_tests.rs"]
+mod admission_tests;
+
+#[cfg(test)]
+#[path = "semantic/declaration_admission_tests.rs"]
+mod declaration_admission_tests;
+
+#[cfg(test)]
+#[path = "semantic/analyzer_admission_tests.rs"]
+mod analyzer_admission_tests;
+
+#[cfg(test)]
+#[path = "semantic/binary_admission_tests.rs"]
+mod binary_admission_tests;
+
+#[cfg(test)]
+#[path = "semantic/narrowing_admission_tests.rs"]
+mod narrowing_admission_tests;
+
+#[cfg(test)]
+#[path = "semantic/narrowing_input_tests.rs"]
+mod narrowing_input_tests;
+
+fn analyze_with_facts<'ast, 'src>(
+    program: &Program<'ast, 'src>,
+    facts: ModuleFacts<'ast, 'src>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<SemanticModel<'ast, 'src>, AdmittedSemanticError> {
+    let mut model = SemanticModel {
+        declarations: DeclarationTables::default(),
+        facts,
+    };
+    let mut initialization = ModuleInitialization::default();
+    Analyzer::new(
+        &mut model.facts,
+        &mut model.declarations,
+        &mut initialization,
+        None,
+        budget,
+    )?
+    .analyze_program(program)?;
+    #[cfg(debug_assertions)]
+    assert!(
+        model.identifier_index_is_consistent(),
+        "inconsistent source identifier index"
+    );
+    Ok(model)
+}
+
+struct Analyzer<'check, 'budget, 'ast, 'src> {
+    facts: &'check mut ModuleFacts<'ast, 'src>,
+    declarations: &'check mut DeclarationTables<'src>,
+    initialization: &'check mut ModuleInitialization,
+    module: Option<crate::module::ModuleId>,
+    budget: &'check mut AllocationBudget<'budget>,
     scopes: Vec<AHashMap<&'src str, SymbolId>>,
     narrowings: Vec<AHashMap<SymbolId, Type<'src>>>,
     return_contexts: Vec<ReturnContext<'src>>,
@@ -533,21 +1492,134 @@ struct Analyzer<'src> {
     loop_depth: usize,
     async_depth: usize,
     callable_depth: usize,
+    reference_parameters: AHashMap<SymbolId, usize>,
+    pending_references: bool,
+    current_reference_formals: bool,
     initializing: Option<(SymbolId, usize)>,
     module_binding_declarations: AHashMap<Span, SymbolId>,
-    module_bindings: AHashMap<SymbolId, ModuleBindingState>,
-    initialized_module_bindings: AHashSet<SymbolId>,
     constructor_classes: Vec<Option<&'src str>>,
     generator_contexts: Vec<Option<Type<'src>>>,
+}
+
+enum BinaryContinuation<'ast, 'src> {
+    Left {
+        expression: &'ast Expr<'ast, 'src>,
+        expected: Option<Type<'src>>,
+    },
+    Right {
+        expression: &'ast Expr<'ast, 'src>,
+        left: Type<'src>,
+        left_narrowing: NarrowingInput<'ast, 'src>,
+        narrowed_scope: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
 struct ModuleBindingState {
     declaration: Span,
-    module_span: Span,
+    owner: BindingOwner,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BindingOwner {
+    LegacySpan(Span),
+    Module(crate::module::ModuleId),
+}
+
+#[derive(Default)]
+struct ModuleInitialization {
+    bindings: AHashMap<SymbolId, ModuleBindingState>,
+    initialized: AHashSet<SymbolId>,
 }
 
 type Narrowing<'src> = AHashMap<SymbolId, Type<'src>>;
+
+enum NarrowingStep<'ast, 'src> {
+    Visit(&'ast Expr<'ast, 'src>),
+    Not,
+    Join(BinaryOp),
+}
+
+enum NarrowingLeaf<'ast, 'src> {
+    TypeCheck {
+        ident: &'ast Ident<'src>,
+        span: Span,
+    },
+    NullComparison {
+        ident: &'ast Ident<'src>,
+        present_when_true: bool,
+    },
+}
+
+fn narrowing_leaf<'ast, 'src>(
+    condition: &'ast Expr<'ast, 'src>,
+) -> Option<NarrowingLeaf<'ast, 'src>> {
+    match &condition.kind {
+        ExprKind::TypeCheck { value, span, .. } => {
+            let ExprKind::Ident(ident) = &value.kind else {
+                return None;
+            };
+            Some(NarrowingLeaf::TypeCheck { ident, span: *span })
+        }
+        ExprKind::Binary {
+            op: op @ (BinaryOp::Eq | BinaryOp::NotEq), lhs, rhs, ..
+        } => {
+            let ident = match (&lhs.kind, &rhs.kind) {
+                (ExprKind::Ident(ident), ExprKind::Null(_))
+                | (ExprKind::Null(_), ExprKind::Ident(ident)) => ident,
+                _ => return None,
+            };
+            Some(NarrowingLeaf::NullComparison {
+                ident,
+                present_when_true: *op == BinaryOp::NotEq,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Syntax-only input, not a cached narrowing result. A discarded projection
+/// still retains its guard so scope-sensitive lookup and diagnostics run.
+#[derive(Clone, Copy)]
+struct NarrowingInput<'ast, 'src> {
+    expression: Option<&'ast Expr<'ast, 'src>>,
+    when_true: bool,
+    when_false: bool,
+}
+
+impl<'ast, 'src> NarrowingInput<'ast, 'src> {
+    fn leaf(expression: &'ast Expr<'ast, 'src>) -> Self {
+        let relevant = narrowing_leaf(expression).is_some()
+            || matches!(expression.kind, ExprKind::Unary { op: UnaryOp::Not, .. });
+        Self {
+            expression: relevant.then_some(expression),
+            when_true: true,
+            when_false: true,
+        }
+    }
+
+    fn join(self, other: Self, expression: &'ast Expr<'ast, 'src>, op: BinaryOp) -> Self {
+        debug_assert!(matches!(op, BinaryOp::And | BinaryOp::Or));
+        let mut input = match (self.expression, other.expression) {
+            (None, _) => other,
+            (_, None) => self,
+            (Some(_), Some(_)) => Self {
+                expression: Some(expression),
+                when_true: true,
+                when_false: true,
+            },
+        };
+        input.when_true &= op == BinaryOp::And;
+        input.when_false &= op == BinaryOp::Or;
+        input
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PlaceIntent {
+    Write,
+    MutableArgument,
+}
 
 fn empty_narrowing<'src>() -> Narrowing<'src> {
     AHashMap::default()
@@ -572,57 +1644,78 @@ enum ReturnContext<'src> {
     },
 }
 
-impl<'src> Analyzer<'src> {
-    fn new() -> Self {
-        Self {
-            model: SemanticModel {
-                expression_types: AHashMap::default(),
-                builtin_calls: AHashMap::default(),
-                optional_present_types: AHashMap::default(),
-                type_check_types: AHashMap::default(),
-                binding_types: AHashMap::default(),
-                identifier_symbols: AHashMap::default(),
-                assigned_symbols: AHashSet::default(),
-                symbols: Vec::new(),
-                structs: AHashMap::default(),
-                classes: AHashMap::default(),
-                enums: AHashMap::default(),
-                enum_variant_values: AHashMap::default(),
-                dynamic_import_modules: AHashMap::default(),
-                module_exports: AHashMap::default(),
-                used_dynamic_exports: AHashSet::default(),
-            },
-            scopes: vec![AHashMap::default()],
-            narrowings: vec![AHashMap::default()],
+impl Drop for Analyzer<'_, '_, '_, '_> {
+    fn drop(&mut self) {
+        // Module passes share declarations, but these buffers die with this
+        // analyzer. Drop their storage before releasing only their charges.
+        fn release<T>(values: &mut Vec<T>, budget: &mut AllocationBudget<'_>) {
+            let values = std::mem::take(values);
+            let bytes = values
+                .capacity()
+                .checked_mul(std::mem::size_of::<T>())
+                .and_then(|bytes| u64::try_from(bytes).ok())
+                .expect("admitted analyzer vector capacity fits its original layout");
+            drop(values);
+            budget
+                .release(AllocationClass::Scratch, bytes)
+                .expect("analyzer backing belongs to its callback budget");
+        }
+        release(&mut self.scopes, self.budget);
+        release(&mut self.narrowings, self.budget);
+        release(&mut self.return_contexts, self.budget);
+        release(&mut self.type_parameter_scopes, self.budget);
+        release(&mut self.constructor_classes, self.budget);
+        release(&mut self.generator_contexts, self.budget);
+    }
+}
+
+impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
+    fn new(
+        facts: &'check mut ModuleFacts<'ast, 'src>,
+        declarations: &'check mut DeclarationTables<'src>,
+        initialization: &'check mut ModuleInitialization,
+        module: Option<crate::module::ModuleId>,
+        budget: &'check mut AllocationBudget<'budget>,
+    ) -> Result<Self, AllocationError> {
+        let mut analyzer = Self {
+            facts,
+            declarations,
+            initialization,
+            module,
+            budget,
+            scopes: Vec::new(),
+            narrowings: Vec::new(),
             return_contexts: Vec::new(),
             type_parameter_scopes: Vec::new(),
             loop_depth: 0,
             async_depth: 0,
             callable_depth: 0,
+            reference_parameters: AHashMap::default(),
+            pending_references: false,
+            current_reference_formals: false,
             initializing: None,
             module_binding_declarations: AHashMap::default(),
-            module_bindings: AHashMap::default(),
-            initialized_module_bindings: AHashSet::default(),
             constructor_classes: Vec::new(),
             generator_contexts: Vec::new(),
-        }
+        };
+        analyzer.scopes = analyzer.budget.vector(AllocationClass::Scratch, 1)?;
+        analyzer.narrowings = analyzer.budget.vector(AllocationClass::Scratch, 1)?;
+        analyzer.push_scope()?;
+        Ok(analyzer)
     }
 
-    fn analyze_program<'ast>(
-        mut self,
-        program: &Program<'ast, 'src>,
-    ) -> Result<SemanticModel<'src>, SemanticError> {
+    fn analyze_program(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         if let Some(import) = program.imports.first() {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 import.span,
                 "imports require file-based compilation so the module graph can be resolved",
             ));
         }
         for import in program.dynamic_imports {
-            self.model
+            self.facts
                 .dynamic_import_modules
                 .insert(import.span, import.module);
-            let exports = self.model.module_exports.entry(import.module).or_default();
+            let exports = self.facts.module_exports.entry(import.module).or_default();
             for export in import.exports {
                 exports.insert(export.exported, export.binding);
             }
@@ -630,12 +1723,63 @@ impl<'src> Analyzer<'src> {
         self.declare_nominal_types(program)?;
         self.define_enums(program)?;
         self.define_structs(program)?;
+        struct_cycles::validate(&self.declarations.structs).map_err(|(_, error)| error)?;
         self.define_classes(program)?;
         self.define_extern_classes(program)?;
         self.resolve_class_hierarchies()?;
         self.declare_functions(program)?;
         self.instantiate_module_bindings(program)?;
 
+        self.analyze_items(program)?;
+
+        self.finalize_parameter_default_bindings()?;
+        for export in program.exports {
+            let target = if let Some(target) = self.view().export_target(export.local.span) {
+                Some(target)
+            } else {
+                match (
+                    self.scopes[0].get(export.local.name).copied(),
+                    self.facts.struct_bindings.get(export.local.name).copied(),
+                ) {
+                    (Some(_), Some(_)) => {
+                        return Err(AdmittedSemanticError::new(
+                            export.span,
+                            "ambiguous export names both a value and a struct type; export the declaration directly",
+                        ));
+                    }
+                    (Some(symbol), None) => Some(InterfaceTarget::Value(symbol)),
+                    (None, Some(identity)) => Some(InterfaceTarget::Struct(identity)),
+                    (None, None) => None, // Existing enum/type-only and unresolved-export owners remain unchanged.
+                }
+            };
+            match target {
+                Some(InterfaceTarget::Value(symbol)) => {
+                    if self.declarations.symbols[symbol.0 as usize]
+                        .ty
+                        .contains_mutable_reference_parameters()
+                    {
+                        return Err(AdmittedSemanticError::new(
+                            export.span,
+                            "public exports do not yet support mutable-reference callable contracts",
+                        ));
+                    }
+                    self.record_identifier(export.local.span, symbol);
+                }
+                Some(InterfaceTarget::Struct(identity)) => {
+                    self.facts.binding_types.insert(
+                        export.local.span,
+                        BindingType::Inline(Type::Struct(
+                            self.declarations.structs[identity.index()].declaration,
+                        )),
+                    );
+                }
+                None => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn analyze_items(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             match item {
                 Item::Enum(_) => {}
@@ -649,35 +1793,46 @@ impl<'src> Analyzer<'src> {
             }
         }
 
-        self.finalize_parameter_default_bindings()?;
-        Ok(self.model)
+        Ok(())
     }
 
-    fn instantiate_module_bindings<'ast>(
+    fn view(&self) -> SemanticView<'_, 'ast, 'src> {
+        SemanticView {
+            declarations: self.declarations,
+            facts: self.facts,
+        }
+    }
+
+    fn record_identifier(&mut self, span: Span, symbol: SymbolId) {
+        self.facts
+            .record_identifier(self.declarations, span, symbol);
+    }
+
+    fn instantiate_module_bindings(
         &mut self,
         program: &Program<'ast, 'src>,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         for binding in program.module_bindings {
             let mut ty = self.resolve_value_type(binding.ty, "module binding")?;
             strip_parameter_defaults_from_type(&mut ty);
             let id = self.declare(binding.name, ty)?;
             self.module_binding_declarations
                 .insert(binding.name.span, id);
-            self.module_bindings.insert(
+            self.initialization.bindings.insert(
                 id,
                 ModuleBindingState {
                     declaration: binding.name.span,
-                    module_span: binding.module_span,
+                    owner: BindingOwner::LegacySpan(binding.module_span),
                 },
             );
         }
         Ok(())
     }
 
-    fn declare_nominal_types<'ast>(
+    fn declare_nominal_types(
         &mut self,
         program: &Program<'ast, 'src>,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             let (name, type_params, span, is_struct, external, object) = match item {
                 Item::Struct(decl) => (
@@ -708,34 +1863,45 @@ impl<'src> Analyzer<'src> {
             };
             let type_params = validate_type_params(type_params)?;
 
-            if self.model.structs.contains_key(name) {
-                return Err(SemanticError::new(
+            if self.facts.struct_bindings.contains_key(name) {
+                return Err(AdmittedSemanticError::new(
                     span,
                     format!("duplicate type declaration `{name}`"),
                 ));
             }
-            if let Some(existing) = self.model.classes.get(name) {
+            if let Some(existing) = self.declarations.classes.get(name) {
                 if existing.object && object {
                     continue;
                 }
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     span,
                     format!("duplicate type declaration `{name}`"),
                 ));
             }
 
             if is_struct {
-                self.model.structs.insert(
-                    name,
+                let identity = NominalId::new(self.declarations.structs.len(), false);
+                let declaration = StructType { identity, name };
+                self.budget.push(
+                    AllocationClass::Scratch,
+                    &mut self.declarations.structs,
                     StructInfo {
-                        name,
+                        declaration,
+                        module: self.module,
                         type_params,
                         fields: IndexMap::new(),
                         span,
                     },
-                );
+                )?;
+                self.facts.struct_bindings.insert(name, identity);
+                if let Item::Struct(decl) = item {
+                    self.facts.binding_types.insert(
+                        decl.name.span,
+                        BindingType::Inline(Type::Struct(declaration)),
+                    );
+                }
             } else {
-                self.model.classes.insert(
+                self.declarations.classes.insert(
                     name,
                     ClassInfo {
                         name,
@@ -743,8 +1909,6 @@ impl<'src> Analyzer<'src> {
                         base: None,
                         fields: IndexMap::new(),
                         methods: IndexMap::new(),
-                        declared_fields: IndexMap::new(),
-                        declared_methods: IndexMap::new(),
                         constructor: None,
                         external,
                         object,
@@ -756,16 +1920,16 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn define_enums<'ast>(&mut self, program: &Program<'ast, 'src>) -> Result<(), SemanticError> {
+    fn define_enums(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             let Item::Enum(decl) = item else {
                 continue;
             };
-            if self.model.enums.contains_key(decl.name.name)
-                || self.model.structs.contains_key(decl.name.name)
-                || self.model.classes.contains_key(decl.name.name)
+            if self.declarations.enums.contains_key(decl.name.name)
+                || self.facts.struct_bindings.contains_key(decl.name.name)
+                || self.declarations.classes.contains_key(decl.name.name)
             {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     decl.span,
                     format!("duplicate type declaration `{}`", decl.name.name),
                 ));
@@ -773,7 +1937,7 @@ impl<'src> Analyzer<'src> {
             let mut variants = IndexMap::new();
             for (index, variant) in decl.variants.iter().enumerate() {
                 if variants.insert(variant.name, index as i64).is_some() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         variant.span,
                         format!(
                             "duplicate variant `{}` in enum `{}`",
@@ -782,7 +1946,7 @@ impl<'src> Analyzer<'src> {
                     ));
                 }
             }
-            self.model.enums.insert(
+            self.declarations.enums.insert(
                 decl.name.name,
                 EnumInfo {
                     name: decl.name.name,
@@ -794,7 +1958,7 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn define_structs<'ast>(&mut self, program: &Program<'ast, 'src>) -> Result<(), SemanticError> {
+    fn define_structs(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             let Item::Struct(decl) = item else {
                 continue;
@@ -803,20 +1967,22 @@ impl<'src> Analyzer<'src> {
 
             let fields = self.resolve_fields(decl)?;
             self.pop_type_params();
-            self.model
-                .structs
-                .get_mut(decl.name.name)
-                .expect("struct name was declared in the first semantic pass")
-                .fields = fields;
+            let identity = self.facts.struct_bindings[decl.name.name];
+            self.declarations.structs[identity.index()].fields = fields;
         }
         Ok(())
     }
 
-    fn define_classes<'ast>(&mut self, program: &Program<'ast, 'src>) -> Result<(), SemanticError> {
+    fn define_classes(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             let Item::Class(decl) = item else {
                 continue;
             };
+
+            let owner = self
+                .view()
+                .nominal_id(&Type::Class(decl.name.name))
+                .expect("class declared before member definitions");
 
             self.push_type_params(decl.type_params)?;
 
@@ -828,7 +1994,7 @@ impl<'src> Analyzer<'src> {
                 .as_ref()
                 .is_some_and(|base| !matches!(base, Type::Class(_) | Type::ClassInstance { .. }))
             {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     decl.base.expect("checked base").span,
                     "`extends` requires a class type",
                 ));
@@ -843,7 +2009,7 @@ impl<'src> Analyzer<'src> {
                         if fields.contains_key(field.name.name)
                             || methods.contains_key(field.name.name)
                         {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 field.name.span,
                                 format!(
                                     "duplicate member `{}` in class `{}`",
@@ -856,6 +2022,9 @@ impl<'src> Analyzer<'src> {
                         fields.insert(
                             field.name.name,
                             FieldInfo {
+                                member: self
+                                    .declarations
+                                    .declare_member(owner, MemberSlot::field(index), self.budget)?,
                                 name: field.name.name,
                                 ty,
                                 index,
@@ -867,7 +2036,7 @@ impl<'src> Analyzer<'src> {
                         if fields.contains_key(method.name.name)
                             || methods.contains_key(method.name.name)
                         {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 method.name.span,
                                 format!(
                                     "duplicate member `{}` in class `{}`",
@@ -881,6 +2050,9 @@ impl<'src> Analyzer<'src> {
                             fields.insert(
                                 method.name.name,
                                 FieldInfo {
+                                    member: self
+                                        .declarations
+                                        .declare_member(owner, MemberSlot::field(index), self.budget)?,
                                     name: method.name.name,
                                     ty: Type::Function(signature.clone()),
                                     index,
@@ -891,6 +2063,13 @@ impl<'src> Analyzer<'src> {
                         methods.insert(
                             method.name.name,
                             MethodInfo {
+                                member: self
+                                    .declarations
+                                    .declare_member(
+                                        owner,
+                                        MemberSlot::method(methods.len()),
+                                        self.budget,
+                                    )?,
                                 owner: decl.name.name,
                                 type_params: validate_type_params(method.type_params)?,
                                 signature,
@@ -900,33 +2079,39 @@ impl<'src> Analyzer<'src> {
                     }
                     ClassMember::Constructor(constructor_decl) => {
                         if constructor.is_some() {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 constructor_decl.span,
                                 format!("class `{}` has more than one constructor", decl.name.name),
                             ));
                         }
                         let mut params = Vec::with_capacity(constructor_decl.params.len());
                         for param in constructor_decl.params {
-                            params.push(self.resolve_value_type(param.ty, "parameter")?);
+                            params
+                                .push(self.resolve_parameter_type(&param.parameter, "parameter")?);
                         }
-                        let defaults =
-                            resolve_parameter_defaults(constructor_decl.params, &params)?;
-                        constructor = Some(FunctionType {
+                        if constructor_decl.params.iter().any(|param| {
+                            param.parameter.passing == ParameterPassing::MutableReference
+                        }) {
+                            return Err(AdmittedSemanticError::new(
+                                constructor_decl.span,
+                                "constructors do not support mutable-reference parameters",
+                            ));
+                        }
+                        resolve_parameter_defaults(constructor_decl.params, &mut params)?;
+                        constructor = Some(FunctionType::new(FunctionSignature {
                             params,
-                            defaults,
-                            return_type: Box::new(applied_nominal_type(
+                            return_type: Box::new(applied_class_type(
                                 decl.name.name,
                                 &validate_type_params(decl.type_params)?,
-                                true,
                             )),
-                        });
+                        }));
                     }
                 }
             }
 
             let merge_object = {
                 let info = self
-                    .model
+                    .declarations
                     .classes
                     .get_mut(decl.name.name)
                     .expect("class name was declared in the first semantic pass");
@@ -939,7 +2124,7 @@ impl<'src> Analyzer<'src> {
                 {
                     for name in methods.keys() {
                         if info.methods.contains_key(name) || info.fields.contains_key(name) {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 decl.span,
                                 format!("duplicate member `{name}` in object `{}`", decl.name.name),
                             ));
@@ -947,17 +2132,19 @@ impl<'src> Analyzer<'src> {
                     }
                     for (next_index, (name, mut field)) in (info.fields.len()..).zip(fields) {
                         field.index = next_index;
+                        self.declarations.nominal_members[field.member.index()].slot =
+                            MemberSlot::field(next_index);
                         info.fields.insert(name, field);
                     }
+                    for (offset, method) in methods.values().enumerate() {
+                        self.declarations.nominal_members[method.member.index()].slot =
+                            MemberSlot::method(info.methods.len() + offset);
+                    }
                     info.methods.extend(methods);
-                    info.declared_fields = info.fields.clone();
-                    info.declared_methods = info.methods.clone();
                     true
                 } else {
                     info.fields = fields;
                     info.methods = methods;
-                    info.declared_fields = info.fields.clone();
-                    info.declared_methods = info.methods.clone();
                     info.base = base;
                     info.constructor = constructor.clone();
                     info.object = decl.object;
@@ -971,10 +2158,11 @@ impl<'src> Analyzer<'src> {
                     .last()
                     .and_then(|scope| scope.get(decl.name.name))
                 {
-                    self.model.identifier_symbols.insert(decl.name.span, symbol);
-                    self.model
-                        .binding_types
-                        .insert(decl.name.span, Type::Class(decl.name.name));
+                    self.record_identifier(decl.name.span, symbol);
+                    self.facts.binding_types.insert(
+                        decl.name.span,
+                        BindingType::Inline(Type::Class(decl.name.name)),
+                    );
                 }
                 continue;
             }
@@ -984,15 +2172,14 @@ impl<'src> Analyzer<'src> {
                 continue;
             }
 
-            let constructor_signature = constructor.unwrap_or(FunctionType {
-                params: Vec::new(),
-                defaults: Vec::new(),
-                return_type: Box::new(applied_nominal_type(
-                    decl.name.name,
-                    &validate_type_params(decl.type_params)?,
-                    true,
-                )),
-            });
+            let constructor_signature =
+                constructor.unwrap_or(FunctionType::new(FunctionSignature {
+                    params: Vec::new(),
+                    return_type: Box::new(applied_class_type(
+                        decl.name.name,
+                        &validate_type_params(decl.type_params)?,
+                    )),
+                }));
             let constructor = if decl.type_params.is_empty() {
                 Type::Function(constructor_signature)
             } else {
@@ -1006,14 +2193,18 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn define_extern_classes<'ast>(
+    pub(super) fn define_extern_classes(
         &mut self,
         program: &Program<'ast, 'src>,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             let Item::ExternClass(decl) = item else {
                 continue;
             };
+            let owner = self
+                .view()
+                .nominal_id(&Type::Class(decl.name.name))
+                .expect("extern class declared before member definitions");
             self.push_type_params(decl.type_params)?;
             let base = decl
                 .base
@@ -1023,20 +2214,47 @@ impl<'src> Analyzer<'src> {
                 .as_ref()
                 .is_some_and(|base| !matches!(base, Type::Class(_) | Type::ClassInstance { .. }))
             {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     decl.base.expect("checked base").span,
                     "`extends` requires a class type",
                 ));
             }
             let mut fields = IndexMap::new();
             let mut methods = IndexMap::new();
+            let mut host_constructor = None;
             for member in decl.members {
                 match member {
+                    ExternClassMember::Constructor(constructor) => {
+                        // The host constructor's parameters, for `super(...)`
+                        // from an internal subclass. Defaults would need the
+                        // host's own default semantics, so they are refused.
+                        if let Some(param) = constructor.params.iter().find(|param| param.default.is_some()) {
+                            return Err(AdmittedSemanticError::new(
+                                param.span,
+                                "a host constructor signature cannot declare parameter defaults",
+                            ));
+                        }
+                        let mut params = Vec::with_capacity(constructor.params.len());
+                        for param in constructor.params {
+                            params.push(self.resolve_parameter_type(&param.parameter, "host constructor parameter")?);
+                        }
+                        let signature = FunctionType::new(FunctionSignature {
+                            params,
+                            return_type: Box::new(Type::Void),
+                        });
+                        if Type::Function(signature.clone()).contains_mutable_reference_parameters() {
+                            return Err(AdmittedSemanticError::new(
+                                constructor.span,
+                                "foreign callable contracts do not support mutable-reference parameters",
+                            ));
+                        }
+                        host_constructor = Some(signature);
+                    }
                     ExternClassMember::Field(field) => {
                         if fields.contains_key(field.name.name)
                             || methods.contains_key(field.name.name)
                         {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 field.name.span,
                                 format!(
                                     "duplicate member `{}` in extern class `{}`",
@@ -1048,6 +2266,9 @@ impl<'src> Analyzer<'src> {
                         fields.insert(
                             field.name.name,
                             FieldInfo {
+                                member: self
+                                    .declarations
+                                    .declare_member(owner, MemberSlot::field(index), self.budget)?,
                                 name: field.name.name,
                                 ty: self.resolve_value_type(field.ty, "extern class field")?,
                                 index,
@@ -1059,7 +2280,7 @@ impl<'src> Analyzer<'src> {
                         if fields.contains_key(method.name.name)
                             || methods.contains_key(method.name.name)
                         {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 method.name.span,
                                 format!(
                                     "duplicate member `{}` in extern class `{}`",
@@ -1070,6 +2291,13 @@ impl<'src> Analyzer<'src> {
                         methods.insert(
                             method.name.name,
                             MethodInfo {
+                                member: self
+                                    .declarations
+                                    .declare_member(
+                                        owner,
+                                        MemberSlot::method(methods.len()),
+                                        self.budget,
+                                    )?,
                                 owner: decl.name.name,
                                 type_params: validate_type_params(method.type_params)?,
                                 signature: self.extern_type(method)?,
@@ -1081,21 +2309,27 @@ impl<'src> Analyzer<'src> {
             }
             self.pop_type_params();
             let info = self
-                .model
+                .declarations
                 .classes
                 .get_mut(decl.name.name)
                 .expect("extern class name was declared in the first semantic pass");
             info.fields = fields;
             info.methods = methods;
-            info.declared_fields = info.fields.clone();
-            info.declared_methods = info.methods.clone();
             info.base = base;
+            if host_constructor.is_some() {
+                info.constructor = host_constructor;
+            }
         }
         Ok(())
     }
 
-    fn resolve_class_hierarchies(&mut self) -> Result<(), SemanticError> {
-        let names = self.model.classes.keys().copied().collect::<Vec<_>>();
+    fn resolve_class_hierarchies(&mut self) -> Result<(), AdmittedSemanticError> {
+        let names = self
+            .declarations
+            .classes
+            .keys()
+            .copied()
+            .collect::<Vec<_>>();
         let mut visiting = AHashSet::default();
         let mut complete = AHashSet::default();
         for name in names {
@@ -1109,55 +2343,70 @@ impl<'src> Analyzer<'src> {
         name: &'src str,
         visiting: &mut AHashSet<&'src str>,
         complete: &mut AHashSet<&'src str>,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         if complete.contains(name) {
             return Ok(());
         }
         let info = self
-            .model
+            .declarations
             .classes
             .get(name)
-            .cloned()
             .expect("class hierarchy names come from the semantic model");
+        let span = info.span;
+        let external = info.external;
         if !visiting.insert(name) {
-            return Err(SemanticError::new(
-                info.span,
+            return Err(AdmittedSemanticError::new(
+                span,
                 format!("inheritance cycle involving class `{name}`"),
             ));
         }
 
-        let Some(base_ty) = info.base.clone() else {
+        let Some(base_ty) = &info.base else {
             visiting.remove(name);
             complete.insert(name);
             return Ok(());
         };
-        let (base_name, base_args) = match &base_ty {
-            Type::Class(base) => (*base, Vec::new()),
-            Type::ClassInstance { name, args } => (*name, args.clone()),
-            _ => unreachable!("base classes were validated while defining classes"),
-        };
-        let base = self.model.classes.get(base_name).cloned().ok_or_else(|| {
-            SemanticError::new(info.span, format!("unknown base class `{base_name}`"))
-        })?;
-        if base.external != info.external {
-            return Err(SemanticError::new(
-                info.span,
-                "internal and extern classes cannot inherit from each other",
+        let base_name =
+            class_type_name(base_ty).expect("base classes were validated while defining classes");
+        let base =
+            self.declarations.classes.get(base_name).ok_or_else(|| {
+                AdmittedSemanticError::new(span, format!("unknown base class `{base_name}`"))
+            })?;
+        // An internal class may extend a host (`extern`) class: that is how a
+        // typed class becomes a real `Error` subclass, with a native prototype
+        // chain, `instanceof`, `stack` and `message`, instead of hand-written
+        // `JsValue` prototype ceremony. The reverse is still meaningless: a
+        // host interface cannot inherit an implementation the host never sees.
+        if external && !base.external {
+            return Err(AdmittedSemanticError::new(
+                span,
+                "an extern class cannot extend an internal class",
             ));
         }
         self.resolve_class_hierarchy(base_name, visiting, complete)?;
+        let info = self
+            .declarations
+            .classes
+            .get(name)
+            .expect("derived class remains declared");
+        let (_, base_args) = class_type_parts(
+            info.base
+                .as_ref()
+                .expect("derived class keeps its base type"),
+        )
+        .expect("base classes were validated while defining classes");
         let base = self
-            .model
+            .declarations
             .classes
             .get(base_name)
-            .cloned()
             .expect("resolved base class remains declared");
-        let substitutions = substitutions_for(&base.type_params, &base_args);
+        let substitutions = substitutions_for(&base.type_params, base_args);
         let mut fields = IndexMap::new();
         for field in base.fields.values() {
             fields.insert(
                 field.name,
                 FieldInfo {
+                    member: field.member,
                     name: field.name,
                     ty: substitute_type(&field.ty, &substitutions),
                     index: field.index,
@@ -1175,6 +2424,7 @@ impl<'src> Analyzer<'src> {
             methods.insert(
                 *method_name,
                 MethodInfo {
+                    member: method.member,
                     owner: method.owner,
                     type_params: method.type_params.clone(),
                     signature,
@@ -1182,9 +2432,11 @@ impl<'src> Analyzer<'src> {
                 },
             );
         }
-        for field in info.declared_fields.values() {
+        // Before its first resolution, each class owns only its declared members.
+        // Keep those maps intact through diagnostics, then move their payloads.
+        for (offset, field) in info.fields.values().enumerate() {
             if fields.contains_key(field.name) || methods.contains_key(field.name) {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     field.span,
                     format!(
                         "class `{name}` cannot shadow inherited member `{}`",
@@ -1192,24 +2444,32 @@ impl<'src> Analyzer<'src> {
                     ),
                 ));
             }
-            let mut field = field.clone();
-            field.index = fields.len();
-            fields.insert(field.name, field);
+            self.declarations.nominal_members[field.member.index()].slot =
+                MemberSlot::field(fields.len() + offset);
         }
-        for (method_name, method) in &info.declared_methods {
-            if fields.contains_key(method_name) || methods.contains_key(method_name) {
-                return Err(SemanticError::new(
-                    info.span,
+        for (offset, (method_name, method)) in info.methods.iter().enumerate() {
+            if fields.contains_key(method_name)
+                || info.fields.contains_key(method_name)
+                || methods.contains_key(method_name)
+            {
+                return Err(AdmittedSemanticError::new(
+                    span,
                     format!("class `{name}` cannot override inherited member `{method_name}`"),
                 ));
             }
-            methods.insert(method_name, method.clone());
+            self.declarations.nominal_members[method.member.index()].slot =
+                MemberSlot::method(methods.len() + offset);
         }
         let resolved = self
-            .model
+            .declarations
             .classes
             .get_mut(name)
             .expect("derived class remains declared");
+        for (_, mut field) in std::mem::take(&mut resolved.fields) {
+            field.index = fields.len();
+            fields.insert(field.name, field);
+        }
+        methods.extend(std::mem::take(&mut resolved.methods));
         resolved.fields = fields;
         resolved.methods = methods;
         visiting.remove(name);
@@ -1217,14 +2477,19 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn resolve_fields<'ast>(
-        &self,
-        decl: &StructDecl<'ast, 'src>,
-    ) -> Result<IndexMap<&'src str, FieldInfo<'src>>, SemanticError> {
+    fn resolve_fields(
+        &mut self,
+        decl: &'ast StructDecl<'ast, 'src>,
+    ) -> Result<IndexMap<&'src str, FieldInfo<'src>>, AdmittedSemanticError> {
+        let owner = self
+            .view()
+            .struct_type(decl.name.name)
+            .expect("struct declared before member definitions")
+            .identity;
         let mut fields = IndexMap::new();
         for field in decl.fields {
             if fields.contains_key(field.name.name) {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     field.name.span,
                     format!(
                         "duplicate field `{}` in struct `{}`",
@@ -1237,6 +2502,9 @@ impl<'src> Analyzer<'src> {
             fields.insert(
                 field.name.name,
                 FieldInfo {
+                    member: self
+                        .declarations
+                        .declare_member(owner, MemberSlot::field(index), self.budget)?,
                     name: field.name.name,
                     ty,
                     index,
@@ -1247,10 +2515,7 @@ impl<'src> Analyzer<'src> {
         Ok(fields)
     }
 
-    fn declare_functions<'ast>(
-        &mut self,
-        program: &Program<'ast, 'src>,
-    ) -> Result<(), SemanticError> {
+    fn declare_functions(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         for item in program.items {
             match item {
                 Item::Function(function) => {
@@ -1275,21 +2540,27 @@ impl<'src> Analyzer<'src> {
                             signature: signature.clone(),
                         })
                     };
-                    self.declare(extern_decl.name, ty)?;
+                    self.declare_foreign(extern_decl.name, ty, true)?;
                     let mut names = AHashMap::default();
-                    for (param, ty) in extern_decl.params.iter().zip(signature.params) {
+                    for (param, ty) in extern_decl.params.iter().zip(signature.params.iter()) {
                         if names.insert(param.name.name, param.name.span).is_some() {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 param.name.span,
                                 format!("duplicate extern parameter `{}`", param.name.name),
                             ));
                         }
-                        self.record_detached(param.name, ty);
+                        self.record_detached(param.name, ty.ty.clone())?;
                     }
                 }
                 Item::ExternGlobal(global) => {
                     let ty = self.resolve_value_type(global.ty, "extern global")?;
-                    self.declare(global.name, ty)?;
+                    if ty.contains_mutable_reference_parameters() {
+                        return Err(AdmittedSemanticError::new(
+                            global.span,
+                            "foreign bindings do not support mutable-reference callable contracts",
+                        ));
+                    }
+                    self.declare_foreign(global.name, ty, false)?;
                 }
                 _ => {}
             }
@@ -1297,31 +2568,43 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn function_type<'ast>(
+    fn function_type(
         &mut self,
-        function: &FunctionDecl<'ast, 'src>,
-    ) -> Result<FunctionType<'src>, SemanticError> {
+        function: &'ast FunctionDecl<'ast, 'src>,
+    ) -> Result<FunctionType<'src>, AdmittedSemanticError> {
+        self.check_module_defaults(function.params)?;
         self.push_type_params(function.type_params)?;
         let signature = self.function_type_in_current_scope(function);
         self.pop_type_params();
         signature
     }
 
-    fn function_type_in_current_scope<'ast>(
+    fn function_type_in_current_scope(
         &self,
-        function: &FunctionDecl<'ast, 'src>,
-    ) -> Result<FunctionType<'src>, SemanticError> {
+        function: &'ast FunctionDecl<'ast, 'src>,
+    ) -> Result<FunctionType<'src>, AdmittedSemanticError> {
+        if (function.is_async || function.is_generator)
+            && function
+                .params
+                .iter()
+                .any(|parameter| parameter.parameter.passing == ParameterPassing::MutableReference)
+        {
+            return Err(AdmittedSemanticError::new(
+                function.span,
+                "async and generator functions cannot have mutable-reference parameters",
+            ));
+        }
         let mut params = Vec::with_capacity(function.params.len());
         for param in function.params {
-            params.push(self.resolve_value_type(param.ty, "parameter")?);
+            params.push(self.resolve_parameter_type(&param.parameter, "parameter")?);
         }
-        let defaults = resolve_parameter_defaults(function.params, &params)?;
+        resolve_parameter_defaults(function.params, &mut params)?;
         let declared_return = self.resolve_type(function.return_type, true, "return type")?;
         let return_type = if function.is_async {
             Type::Task(Box::new(declared_return))
         } else if function.is_generator {
             if declared_return == Type::Void {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     function.return_type.span,
                     "generator element type cannot be `void`",
                 ));
@@ -1330,42 +2613,47 @@ impl<'src> Analyzer<'src> {
         } else {
             declared_return
         };
-        Ok(FunctionType {
+        Ok(FunctionType::new(FunctionSignature {
             params,
-            defaults,
             return_type: Box::new(return_type),
-        })
+        }))
     }
 
-    fn extern_type<'ast>(
+    fn extern_type(
         &mut self,
-        extern_decl: &ExternDecl<'ast, 'src>,
-    ) -> Result<FunctionType<'src>, SemanticError> {
+        extern_decl: &'ast ExternDecl<'ast, 'src>,
+    ) -> Result<FunctionType<'src>, AdmittedSemanticError> {
+        self.check_module_defaults(extern_decl.params)?;
         self.push_type_params(extern_decl.type_params)?;
         let mut params = Vec::with_capacity(extern_decl.params.len());
         for param in extern_decl.params {
-            params.push(self.resolve_value_type(param.ty, "extern parameter")?);
+            params.push(self.resolve_parameter_type(&param.parameter, "extern parameter")?);
         }
-        let defaults = resolve_parameter_defaults(extern_decl.params, &params)?;
+        resolve_parameter_defaults(extern_decl.params, &mut params)?;
         let return_type = self.resolve_type(extern_decl.return_type, true, "extern return type")?;
-        let signature = FunctionType {
+        let signature = FunctionType::new(FunctionSignature {
             params,
-            defaults,
             return_type: Box::new(return_type),
-        };
+        });
+        if Type::Function(signature.clone()).contains_mutable_reference_parameters() {
+            return Err(AdmittedSemanticError::new(
+                extern_decl.span,
+                "foreign callable contracts do not support mutable-reference parameters",
+            ));
+        }
         self.pop_type_params();
         Ok(signature)
     }
 
-    fn analyze_class<'ast>(&mut self, class: &ClassDecl<'ast, 'src>) -> Result<(), SemanticError> {
+    fn analyze_class(&mut self, class: &'ast ClassDecl<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         self.push_type_params(class.type_params)?;
         let requires_super = self
-            .model
+            .declarations
             .classes
             .get(class.name.name)
             .and_then(|info| info.base.as_ref())
             .and_then(class_type_name)
-            .and_then(|base| self.model.classes.get(base))
+            .and_then(|base| self.declarations.classes.get(base))
             .is_some_and(|base| base.constructor.is_some());
         if requires_super
             && !class
@@ -1374,7 +2662,7 @@ impl<'src> Analyzer<'src> {
                 .any(|member| matches!(member, ClassMember::Constructor(_)))
         {
             self.pop_type_params();
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 class.span,
                 format!(
                     "class `{}` must declare `init` and call its base constructor",
@@ -1397,39 +2685,38 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_constructor<'ast>(
+    fn analyze_constructor(
         &mut self,
-        constructor: &ConstructorDecl<'ast, 'src>,
+        constructor: &'ast ConstructorDecl<'ast, 'src>,
         class_name: &'src str,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         let class_info = self
-            .model
+            .declarations
             .classes
             .get(class_name)
-            .cloned()
             .expect("constructors belong to declared classes");
         let super_calls = count_super_calls(constructor.body);
         match class_info.base.as_ref().and_then(class_type_name) {
             None if super_calls != 0 => {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     constructor.span,
                     "`super` is only valid in a derived class constructor",
                 ));
             }
             Some(base_name) => {
                 if super_calls > 1 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         constructor.span,
                         "a derived constructor may call `super` only once",
                     ));
                 }
                 let base_has_constructor = self
-                    .model
+                    .declarations
                     .classes
                     .get(base_name)
                     .is_some_and(|base| base.constructor.is_some());
                 if base_has_constructor && super_calls == 0 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         constructor.span,
                         format!(
                             "derived constructor must begin with `super(...)` for `{base_name}`"
@@ -1439,7 +2726,7 @@ impl<'src> Analyzer<'src> {
                 if super_calls != 0
                     && !matches!(constructor.body.first(), Some(Stmt::SuperCall { .. }))
                 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         constructor.span,
                         "`super(...)` must be the first statement in a derived constructor",
                     ));
@@ -1447,37 +2734,48 @@ impl<'src> Analyzer<'src> {
             }
             None => {}
         }
-        let parameter_types = constructor
+        let parameters = constructor
             .params
             .iter()
-            .map(|param| self.resolve_value_type(param.ty, "parameter"))
+            .map(|param| self.resolve_parameter_type(&param.parameter, "parameter"))
             .collect::<Result<Vec<_>, _>>()?;
         self.callable_depth += 1;
-        self.analyze_parameter_defaults(constructor.params, &parameter_types)?;
-        self.push_scope();
+        self.analyze_parameter_defaults(constructor.params, &parameters)?;
+        self.push_scope()?;
         let class_type_params = self
-            .model
+            .declarations
             .classes
             .get(class_name)
-            .map(|class| class.type_params.clone())
+            .map(|class| class.type_params.as_slice())
             .unwrap_or_default();
         self.declare(
             Ident {
                 name: "this",
                 span: constructor.span,
             },
-            applied_nominal_type(class_name, &class_type_params, true),
+            applied_class_type(class_name, class_type_params),
         )?;
-        for param in constructor.params {
-            let ty = self.resolve_value_type(param.ty, "parameter")?;
-            self.declare(param.name, ty)?;
+        for (param, parameter) in constructor.params.iter().zip(parameters) {
+            self.declare(param.name, parameter.ty)?;
         }
-        self.return_contexts.push(ReturnContext::Declared {
-            ty: Type::Void,
-            saw_return: false,
-        });
-        self.constructor_classes.push(Some(class_name));
-        self.generator_contexts.push(None);
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.return_contexts,
+            ReturnContext::Declared {
+                ty: Type::Void,
+                saw_return: false,
+            },
+        )?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.constructor_classes,
+            Some(class_name),
+        )?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.generator_contexts,
+            None,
+        )?;
         for statement in constructor.body {
             self.analyze_stmt(statement)?;
         }
@@ -1489,16 +2787,27 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_function<'ast>(
+    fn analyze_function(
         &mut self,
-        function: &FunctionDecl<'ast, 'src>,
+        function: &'ast FunctionDecl<'ast, 'src>,
         class_name: Option<&'src str>,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         self.push_type_params(function.type_params)?;
         let signature = self.function_type_in_current_scope(function)?;
+        if class_name.is_some() {
+            self.require_value_parameters(&signature, function.span)?;
+        }
+        let outer_pending = std::mem::take(&mut self.pending_references);
+        let outer_formals = std::mem::replace(
+            &mut self.current_reference_formals,
+            signature
+                .params
+                .iter()
+                .any(|parameter| parameter.passing == ParameterPassing::MutableReference),
+        );
         self.callable_depth += 1;
         self.analyze_parameter_defaults(function.params, &signature.params)?;
-        self.push_scope();
+        self.push_scope()?;
 
         if let Some(class_name) = class_name {
             self.declare(
@@ -1506,21 +2815,24 @@ impl<'src> Analyzer<'src> {
                     name: "this",
                     span: function.name.span,
                 },
-                applied_nominal_type(
+                applied_class_type(
                     class_name,
                     &self
-                        .model
+                        .declarations
                         .classes
                         .get(class_name)
                         .map(|class| class.type_params.clone())
                         .unwrap_or_default(),
-                    true,
                 ),
             )?;
         }
 
         for (param, ty) in function.params.iter().zip(&signature.params) {
-            self.declare(param.name, ty.clone())?;
+            let symbol = self.declare(param.name, ty.ty.clone())?;
+            if ty.passing == ParameterPassing::MutableReference {
+                self.reference_parameters
+                    .insert(symbol, self.callable_depth);
+            }
         }
 
         let generator_element = if function.is_generator {
@@ -1541,12 +2853,20 @@ impl<'src> Analyzer<'src> {
         } else {
             (*signature.return_type).clone()
         };
-        self.return_contexts.push(ReturnContext::Declared {
-            ty: body_return_type,
-            saw_return: false,
-        });
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.return_contexts,
+            ReturnContext::Declared {
+                ty: body_return_type,
+                saw_return: false,
+            },
+        )?;
         self.async_depth += usize::from(function.is_async);
-        self.generator_contexts.push(generator_element);
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.generator_contexts,
+            generator_element,
+        )?;
         for statement in function.body {
             self.analyze_stmt(statement)?;
         }
@@ -1558,11 +2878,13 @@ impl<'src> Analyzer<'src> {
             .expect("function analysis pushed a return context");
         self.pop_scope();
         self.callable_depth -= 1;
+        self.pending_references = outer_pending;
+        self.current_reference_formals = outer_formals;
         self.pop_type_params();
 
         if let ReturnContext::Declared { ty, .. } = context {
             if !ty.is_void() && !statements_guarantee_return(function.body) {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     function.name.span,
                     format!(
                         "function `{}` must return a value of type `{ty}`",
@@ -1574,15 +2896,15 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_extern_defaults<'ast>(
+    fn analyze_extern_defaults(
         &mut self,
-        extern_decl: &ExternDecl<'ast, 'src>,
-    ) -> Result<(), SemanticError> {
+        extern_decl: &'ast ExternDecl<'ast, 'src>,
+    ) -> Result<(), AdmittedSemanticError> {
         self.push_type_params(extern_decl.type_params)?;
         let types = extern_decl
             .params
             .iter()
-            .map(|param| self.resolve_value_type(param.ty, "extern parameter"))
+            .map(|param| self.resolve_parameter_type(&param.parameter, "extern parameter"))
             .collect::<Result<Vec<_>, _>>()?;
         self.callable_depth += 1;
         let result = self.analyze_parameter_defaults(extern_decl.params, &types);
@@ -1591,10 +2913,10 @@ impl<'src> Analyzer<'src> {
         result
     }
 
-    fn analyze_extern_class_defaults<'ast>(
+    fn analyze_extern_class_defaults(
         &mut self,
-        class: &crate::ast::ExternClassDecl<'ast, 'src>,
-    ) -> Result<(), SemanticError> {
+        class: &'ast crate::ast::ExternClassDecl<'ast, 'src>,
+    ) -> Result<(), AdmittedSemanticError> {
         self.push_type_params(class.type_params)?;
         for member in class.members {
             if let ExternClassMember::Method(method) = member {
@@ -1605,60 +2927,108 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn finalize_parameter_default_bindings(&mut self) -> Result<(), SemanticError> {
-        let bindings = &self.model.identifier_symbols;
-        let builtins = &self.model.builtin_calls;
-        for ty in self.model.expression_types.values_mut() {
-            finalize_default_bindings_in_type(ty, bindings, builtins)?;
+    fn finalize_parameter_default_bindings(&mut self) -> Result<(), AdmittedSemanticError> {
+        let source_info = &self.facts.source_info;
+        for ty in self.facts.expression_types.iter_mut().flatten() {
+            finalize_default_bindings_in_type(ty, source_info, false)?;
         }
-        for ty in self.model.optional_present_types.values_mut() {
-            finalize_default_bindings_in_type(ty, bindings, builtins)?;
+        for ty in self.facts.optional_present_types.values_mut() {
+            finalize_default_bindings_in_type(ty, source_info, false)?;
         }
-        for ty in self.model.type_check_types.values_mut() {
-            finalize_default_bindings_in_type(ty, bindings, builtins)?;
+        for ty in self.facts.type_check_types.values_mut() {
+            finalize_default_bindings_in_type(ty, source_info, false)?;
         }
-        for ty in self.model.binding_types.values_mut() {
-            finalize_default_bindings_in_type(ty, bindings, builtins)?;
+        for binding in self.facts.binding_types.values_mut() {
+            if let BindingType::Inline(ty) = binding {
+                finalize_default_bindings_in_type(ty, source_info, false)?;
+            }
         }
-        for symbol in &mut self.model.symbols {
-            finalize_default_bindings_in_type(&mut symbol.ty, bindings, builtins)?;
+        for symbol in &mut self.declarations.symbols {
+            finalize_default_bindings_in_type(&mut symbol.ty, source_info, false)?;
         }
-        for info in self.model.structs.values_mut() {
+        for info in self.declarations.structs.iter_mut() {
             for field in info.fields.values_mut() {
-                finalize_default_bindings_in_type(&mut field.ty, bindings, builtins)?;
+                finalize_default_bindings_in_type(&mut field.ty, source_info, false)?;
             }
         }
-        for info in self.model.classes.values_mut() {
+        for info in self.declarations.classes.values_mut() {
             if let Some(base) = &mut info.base {
-                finalize_default_bindings_in_type(base, bindings, builtins)?;
+                finalize_default_bindings_in_type(base, source_info, false)?;
             }
-            for field in info
-                .fields
-                .values_mut()
-                .chain(info.declared_fields.values_mut())
-            {
-                finalize_default_bindings_in_type(&mut field.ty, bindings, builtins)?;
+            for field in info.fields.values_mut() {
+                finalize_default_bindings_in_type(&mut field.ty, source_info, false)?;
             }
-            for method in info
-                .methods
-                .values_mut()
-                .chain(info.declared_methods.values_mut())
-            {
-                finalize_default_bindings_in_signature(&mut method.signature, bindings, builtins)?;
+            for method in info.methods.values_mut() {
+                finalize_default_bindings_in_signature(&mut method.signature, source_info, false)?;
             }
             if let Some(constructor) = &mut info.constructor {
-                finalize_default_bindings_in_signature(constructor, bindings, builtins)?;
+                finalize_default_bindings_in_signature(constructor, source_info, false)?;
             }
         }
         Ok(())
     }
 
-    fn analyze_parameter_defaults<'ast>(
+    /// The module checker's pass, run after each module's bodies: this
+    /// module's facts and the declarations it owns.
+    pub(crate) fn finalize_module_parameter_defaults(
         &mut self,
-        params: &[crate::ast::Param<'ast, 'src>],
-        types: &[Type<'src>],
-    ) -> Result<(), SemanticError> {
-        for (param, expected) in params.iter().zip(types) {
+        module: crate::module::ModuleId,
+        program: &Program<'ast, 'src>,
+    ) -> Result<(), AdmittedSemanticError> {
+        let source_info = &self.facts.source_info;
+        for ty in self.facts.expression_types.iter_mut().flatten() {
+            finalize_default_bindings_in_type(ty, source_info, true)?;
+        }
+        for ty in self.facts.optional_present_types.values_mut() {
+            finalize_default_bindings_in_type(ty, source_info, true)?;
+        }
+        for ty in self.facts.type_check_types.values_mut() {
+            finalize_default_bindings_in_type(ty, source_info, true)?;
+        }
+        for binding in self.facts.binding_types.values_mut() {
+            if let BindingType::Inline(ty) = binding {
+                finalize_default_bindings_in_type(ty, source_info, true)?;
+            }
+        }
+        for (index, symbol) in self.declarations.symbols.iter_mut().enumerate() {
+            if self.declarations.symbol_modules.get(index).copied().flatten() == Some(module) {
+                finalize_default_bindings_in_type(&mut symbol.ty, source_info, true)?;
+            }
+        }
+        for info in self.declarations.structs.iter_mut() {
+            if info.module == Some(module) {
+                for field in info.fields.values_mut() {
+                    finalize_default_bindings_in_type(&mut field.ty, source_info, true)?;
+                }
+            }
+        }
+        for item in program.items {
+            let Item::Class(class) = item else {
+                continue;
+            };
+            let Some(info) = self.declarations.classes.get_mut(class.name.name) else {
+                continue;
+            };
+            for field in info.fields.values_mut() {
+                finalize_default_bindings_in_type(&mut field.ty, source_info, true)?;
+            }
+            for method in info.methods.values_mut() {
+                finalize_default_bindings_in_signature(&mut method.signature, source_info, true)?;
+            }
+            if let Some(constructor) = &mut info.constructor {
+                finalize_default_bindings_in_signature(constructor, source_info, true)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn analyze_parameter_defaults(
+        &mut self,
+        params: &'ast [crate::ast::Param<'ast, 'src>],
+        parameters: &[FunctionParameter<'src>],
+    ) -> Result<(), AdmittedSemanticError> {
+        for (param, parameter) in params.iter().zip(parameters) {
+            let expected = &parameter.ty;
             let Some(expression) = &param.default else {
                 continue;
             };
@@ -1666,7 +3036,10 @@ impl<'src> Analyzer<'src> {
                 continue;
             }
             let contextual = match expression {
-                Expr::ArrayLiteral { .. } => expected_array_type(expected).unwrap_or(expected),
+                Expr {
+                    kind: ExprKind::ArrayLiteral { .. },
+                    ..
+                } => expected_array_type(expected).unwrap_or(expected),
                 _ => expected,
             };
             let actual = self.analyze_expr(expression, Some(contextual))?;
@@ -1675,7 +3048,7 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_stmt<'ast>(&mut self, statement: &Stmt<'ast, 'src>) -> Result<(), SemanticError> {
+    fn analyze_stmt(&mut self, statement: &'ast Stmt<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         match statement {
             Stmt::VarDecl(decl) => self.analyze_var_decl(decl),
             Stmt::ArrayDestructure {
@@ -1683,7 +3056,7 @@ impl<'src> Analyzer<'src> {
             } => {
                 let actual = self.analyze_expr(value, None)?;
                 let Type::Array(element) = actual else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         value.span(),
                         format!("array destructuring requires an array, found `{actual}`"),
                     ));
@@ -1709,15 +3082,15 @@ impl<'src> Analyzer<'src> {
             } => {
                 let actual = self.analyze_expr(value, None)?;
                 let Type::Record(element) = actual else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         value.span(),
                         format!("record destructuring requires a record, found `{actual}`"),
                     ));
                 };
                 let mut keys = AHashSet::default();
                 for binding in *bindings {
-                    if !keys.insert(decode_source_string(binding.key.name)) {
-                        return Err(SemanticError::new(
+                    if !keys.insert(decode_source_string(binding.key.name, binding.key.span)?) {
+                        return Err(AdmittedSemanticError::new(
                             binding.key.span,
                             format!("duplicate record binding key `{}`", binding.key.name),
                         ));
@@ -1737,7 +3110,7 @@ impl<'src> Analyzer<'src> {
             Stmt::Throw { value, .. } => {
                 let thrown = self.analyze_expr(value, None)?;
                 if thrown == Type::Void {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         value.span(),
                         "cannot throw a `void` expression",
                     ));
@@ -1756,13 +3129,13 @@ impl<'src> Analyzer<'src> {
                 finally,
                 ..
             } => {
-                self.push_scope();
+                self.push_scope()?;
                 for statement in *body {
                     self.analyze_stmt(statement)?;
                 }
                 self.pop_scope();
                 if let Some(clause) = catch {
-                    self.push_scope();
+                    self.push_scope()?;
                     if let Some(binding) = clause.binding {
                         let ty = if binding.ty.is_auto() {
                             Type::TypeParameter("$js")
@@ -1770,7 +3143,7 @@ impl<'src> Analyzer<'src> {
                             self.resolve_value_type(binding.ty, "catch binding")?
                         };
                         if !is_js_value(&ty) {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 binding.ty.span,
                                 format!(
                                     "catch bindings must use `auto` or `JsValue`, found `{ty}`"
@@ -1785,7 +3158,7 @@ impl<'src> Analyzer<'src> {
                     self.pop_scope();
                 }
                 if let Some(finally) = finally {
-                    self.push_scope();
+                    self.push_scope()?;
                     for statement in *finally {
                         self.analyze_stmt(statement)?;
                     }
@@ -1794,7 +3167,7 @@ impl<'src> Analyzer<'src> {
                 Ok(())
             }
             Stmt::Block { body, .. } => {
-                self.push_scope();
+                self.push_scope()?;
                 for statement in *body {
                     self.analyze_stmt(statement)?;
                 }
@@ -1813,14 +3186,14 @@ impl<'src> Analyzer<'src> {
                 let then_returns = statement_guarantees_return(then_branch);
                 let else_returns =
                     else_branch.is_some_and(|branch| statement_guarantees_return(branch));
-                self.push_scope();
+                self.push_scope()?;
                 self.apply_narrowing(then_narrowing.clone());
                 self.analyze_stmt(then_branch)?;
                 let then_survives = self.current_scope_preserves(&then_narrowing);
                 self.pop_scope();
                 let mut else_survives = else_branch.is_none() && !else_narrowing.is_empty();
                 if let Some(else_branch) = else_branch {
-                    self.push_scope();
+                    self.push_scope()?;
                     self.apply_narrowing(else_narrowing.clone());
                     self.analyze_stmt(else_branch)?;
                     else_survives = self.current_scope_preserves(&else_narrowing);
@@ -1840,7 +3213,7 @@ impl<'src> Analyzer<'src> {
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
                 let (body_narrowing, _) = self.condition_narrowing(condition)?;
                 self.loop_depth += 1;
-                self.push_scope();
+                self.push_scope()?;
                 self.apply_narrowing(body_narrowing);
                 self.analyze_stmt(body)?;
                 self.pop_scope();
@@ -1854,7 +3227,7 @@ impl<'src> Analyzer<'src> {
                 body,
                 ..
             } => {
-                self.push_scope();
+                self.push_scope()?;
                 if let Some(initializer) = initializer {
                     match initializer {
                         ForInitializer::VarDecl(decl) => self.analyze_var_decl(decl)?,
@@ -1883,19 +3256,21 @@ impl<'src> Analyzer<'src> {
                 body,
                 ..
             } => {
-                self.push_scope();
+                self.push_scope()?;
                 let key_ty = self.resolve_value_type(*key_type, "for-in key")?;
                 if key_ty != Type::String {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         key_type.span,
                         format!("for-in keys must have type `string`, found `{key_ty}`"),
                     ));
                 }
                 let object_ty = self.analyze_expr(object, None)?;
                 if !is_js_value(&object_ty) && !matches!(object_ty, Type::Record(_)) {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         object.span(),
-                        format!("for-in requires a `JsValue` or `Record<T>` object, found `{object_ty}`"),
+                        format!(
+                            "for-in requires a `JsValue` or `Record<T>` object, found `{object_ty}`"
+                        ),
                     ));
                 }
                 self.declare(*key, Type::String)?;
@@ -1913,18 +3288,18 @@ impl<'src> Analyzer<'src> {
                 inline,
                 ..
             } => {
-                self.push_scope();
+                self.push_scope()?;
                 let declared = self.resolve_value_type(*element_type, "for-of element")?;
                 let iterable_type = self.analyze_expr(iterable, None)?;
                 if *inline {
                     if iterable.const_list_literals().is_none() {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             iterable.span(),
                             "`inline for` requires a constant array literal of int, float, string, or bool values",
                         ));
                     }
                     if statement_contains_loop_control(body, false) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             body.span(),
                             "`inline for` cannot contain `break` or `continue`",
                         ));
@@ -1943,7 +3318,7 @@ impl<'src> Analyzer<'src> {
                         }
                     }
                     other => {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             iterable.span(),
                             format!(
                                 "for-of requires an array or typed array, or Generator<T>, found `{other}`"
@@ -1965,7 +3340,7 @@ impl<'src> Analyzer<'src> {
             }
             Stmt::Break(span) | Stmt::Continue(span) => {
                 if self.loop_depth == 0 {
-                    Err(SemanticError::new(
+                    Err(AdmittedSemanticError::new(
                         *span,
                         "loop control statement outside a loop",
                     ))
@@ -1976,49 +3351,51 @@ impl<'src> Analyzer<'src> {
         }
     }
 
-    fn analyze_super_call<'ast>(
+    fn analyze_super_call(
         &mut self,
-        args: &[Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
+        self.require_value_arguments(
+            args,
+            "super calls do not support mutable-reference arguments",
+        )?;
         let class_name = self
             .constructor_classes
             .last()
             .copied()
             .flatten()
             .ok_or_else(|| {
-                SemanticError::new(span, "`super` is only valid in a derived class constructor")
+                AdmittedSemanticError::new(span, "`super` is only valid in a derived class constructor")
             })?;
         let class = self
-            .model
+            .declarations
             .classes
             .get(class_name)
-            .cloned()
             .expect("constructor class metadata exists");
-        let base_ty = class.base.ok_or_else(|| {
-            SemanticError::new(span, "`super` is only valid in a derived class constructor")
+        let base_ty = class.base.as_ref().ok_or_else(|| {
+            AdmittedSemanticError::new(span, "`super` is only valid in a derived class constructor")
         })?;
         let (base_name, base_args) =
-            class_type_parts(&base_ty).expect("derived class bases are class types");
+            class_type_parts(base_ty).expect("derived class bases are class types");
         let base = self
-            .model
+            .declarations
             .classes
             .get(base_name)
-            .cloned()
             .expect("base class was resolved");
         let substitutions = substitutions_for(&base.type_params, base_args);
-        let signature = base.constructor.map(|signature| {
-            match substitute_type(&Type::Function(signature), &substitutions) {
+        let signature = base.constructor.as_ref().map(|signature| {
+            match substitute_type(&Type::Function(signature.clone()), &substitutions) {
                 Type::Function(signature) => signature,
                 _ => unreachable!("constructor substitution preserves function type"),
             }
         });
         match signature {
             Some(signature) => {
-                self.analyze_call(&Type::Function(signature), args, span, None)?;
+                self.analyze_call(&Type::Function(signature), args, span, None, None)?;
             }
             None if !args.is_empty() => {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     span,
                     format!("implicit base constructor `{base_name}` expects no arguments"),
                 ));
@@ -2028,17 +3405,18 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_yield<'ast>(
+    fn analyze_yield(
         &mut self,
-        value: &Expr<'ast, 'src>,
+        value: &'ast Expr<'ast, 'src>,
         delegate: bool,
         span: Span,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
+        self.require_no_pending_reference(span)?;
         let expected = self
             .generator_contexts
             .last()
             .and_then(Clone::clone)
-            .ok_or_else(|| SemanticError::new(span, "`yield` is only valid inside a generator"))?;
+            .ok_or_else(|| AdmittedSemanticError::new(span, "`yield` is only valid inside a generator"))?;
         if delegate {
             let iterable = self.analyze_expr(value, None)?;
             let actual = match iterable {
@@ -2052,7 +3430,7 @@ impl<'src> Analyzer<'src> {
                     }
                 }
                 other => {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         value.span(),
                         format!("`yield*` requires an iterable, found `{other}`"),
                     ));
@@ -2065,26 +3443,26 @@ impl<'src> Analyzer<'src> {
         }
     }
 
-    fn analyze_var_decl<'ast>(&mut self, decl: &VarDecl<'ast, 'src>) -> Result<(), SemanticError> {
+    fn analyze_var_decl(&mut self, decl: &'ast VarDecl<'ast, 'src>) -> Result<(), AdmittedSemanticError> {
         if decl.initializer.is_none() {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 decl.span,
                 "variable declarations require an initializer",
             ));
         }
         if decl.ty.is_auto() {
             let initializer = decl.initializer.as_ref().ok_or_else(|| {
-                SemanticError::new(decl.span, "`auto` declarations require an initializer")
+                AdmittedSemanticError::new(decl.span, "`auto` declarations require an initializer")
             })?;
             let inferred = self.analyze_expr(initializer, None)?;
             if inferred.is_void() {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     initializer.span(),
                     "cannot infer a variable type from a void expression",
                 ));
             }
             if inferred == Type::Null {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     initializer.span(),
                     "cannot infer a variable type from `null`; add an explicit nullable type",
                 ));
@@ -2095,7 +3473,13 @@ impl<'src> Analyzer<'src> {
             // originating in a computed first-class value are erased when that
             // value enters mutable storage; otherwise a later call could cache
             // an initializer's defaults independently of the stored callable.
-            if !matches!(initializer, Expr::Ident(_)) {
+            if !matches!(
+                initializer,
+                Expr {
+                    kind: ExprKind::Ident(_),
+                    ..
+                }
+            ) {
                 strip_parameter_defaults_from_type(&mut ty);
             }
             self.declare(decl.name, ty)?;
@@ -2126,29 +3510,23 @@ impl<'src> Analyzer<'src> {
             Ok(())
         };
         analyzed?;
-        let referenced = self
-            .model
-            .identifier_symbols
-            .values()
-            .filter(|symbol| **symbol == id)
-            .count()
-            > 1;
+        let referenced = self.declarations.symbols[id.0 as usize].identifier_occurrences > 1;
         if referenced {
-            self.model.assigned_symbols.insert(id);
+            self.declarations.assigned_symbols.insert(id);
         }
-        self.initialized_module_bindings.insert(id);
+        self.initialization.initialized.insert(id);
         Ok(())
     }
 
-    fn analyze_return<'ast>(
+    fn analyze_return(
         &mut self,
-        value: Option<&Expr<'ast, 'src>>,
+        value: Option<&'ast Expr<'ast, 'src>>,
         span: Span,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         let expected = match self.return_contexts.last() {
             Some(ReturnContext::Declared { ty, .. }) => Some(ty.clone()),
             Some(ReturnContext::Inferred { ty, .. }) => ty.clone(),
-            None => return Err(SemanticError::new(span, "`return` outside a function")),
+            None => return Err(AdmittedSemanticError::new(span, "`return` outside a function")),
         };
 
         let actual = match value {
@@ -2163,7 +3541,7 @@ impl<'src> Analyzer<'src> {
                 .as_ref()
                 .expect("declared returns have an expected type");
             if !self.is_assignable(expected, &actual) {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     span,
                     format!("expected return type `{expected}`, found `{actual}`"),
                 ));
@@ -2181,7 +3559,7 @@ impl<'src> Analyzer<'src> {
             ReturnContext::Inferred { ty, saw_return } => {
                 if let Some(previous) = ty {
                     let Some(common) = common_type(previous, &actual) else {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             span,
                             format!(
                                 "incompatible inferred return types `{previous}` and `{actual}`"
@@ -2198,47 +3576,70 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_expr<'ast>(
+    fn analyze_expr(
         &mut self,
-        expr: &Expr<'ast, 'src>,
+        expr: &'ast Expr<'ast, 'src>,
         expected: Option<&Type<'src>>,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        self.facts.source_info[expr.id.index()] = SourceInfo {
+            expression: Some(expr),
+            resolution: ExpressionResolution::None,
+        };
         let ty = match expr {
-            Expr::Int(value, span) => {
+            Expr {
+                kind: ExprKind::Int(value, span),
+                ..
+            } => {
                 if i32::try_from(*value).is_err() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         *span,
                         "integer literal is outside the signed 32-bit range",
                     ));
                 }
                 Type::Int
             }
-            Expr::Float(_, _) => Type::Float,
-            Expr::String(_, _) => Type::String,
-            Expr::Bool(_, _) => Type::Bool,
-            Expr::Null(_) => Type::Null,
-            Expr::DynamicImport { span, .. } => {
-                let module = self
-                    .model
-                    .dynamic_import_modules
+            Expr {
+                kind: ExprKind::Float(_, _),
+                ..
+            } => Type::Float,
+            Expr {
+                kind: ExprKind::String(_, _),
+                ..
+            } => Type::String,
+            Expr {
+                kind: ExprKind::Bool(_, _),
+                ..
+            } => Type::Bool,
+            Expr {
+                kind: ExprKind::Null(_),
+                ..
+            } => Type::Null,
+            Expr {
+                kind: ExprKind::DynamicImport { span, .. },
+                ..
+            } => {
+                let module = self.facts.dynamic_import_modules
                     .get(span)
                     .copied()
                     .ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             *span,
                             "dynamic imports require file-based compilation so their module interface can be resolved",
                         )
                     })?;
                 Type::Task(Box::new(Type::ModuleNamespace(module)))
             }
-            Expr::Ident(ident) => {
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
+            } => {
                 let (id, declared) = {
                     let symbol = self.resolve(ident)?;
                     (symbol.id, symbol.ty.clone())
                 };
                 if let Some((initializing, depth)) = self.initializing {
                     if id == initializing && self.callable_depth == depth {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             ident.span,
                             format!(
                                 "cannot read `{}` in its own initializer; nest the reference in a function",
@@ -2247,17 +3648,21 @@ impl<'src> Analyzer<'src> {
                         ));
                     }
                 }
-                if let Some(binding) = self.module_bindings.get(&id) {
-                    let from_owner = ident.span.start >= binding.module_span.start
-                        && ident.span.end <= binding.module_span.end;
+                if let Some(binding) = self.initialization.bindings.get(&id) {
+                    let from_owner = match binding.owner {
+                        BindingOwner::LegacySpan(span) => {
+                            ident.span.start >= span.start && ident.span.end <= span.end
+                        }
+                        BindingOwner::Module(module) => self.module == Some(module),
+                    };
                     if from_owner && ident.span.start < binding.declaration.start {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             ident.span,
                             format!("cannot read `{}` before its declaration", ident.name),
                         ));
                     }
-                    if !self.initialized_module_bindings.contains(&id) && self.callable_depth == 0 {
-                        return Err(SemanticError::new(
+                    if !self.initialization.initialized.contains(&id) && self.callable_depth == 0 {
+                        return Err(AdmittedSemanticError::new(
                             ident.span,
                             format!(
                                 "cannot eagerly read module binding `{}` before it is initialized",
@@ -2266,10 +3671,15 @@ impl<'src> Analyzer<'src> {
                         ));
                     }
                 }
-                self.model.identifier_symbols.insert(ident.span, id);
+                self.record_identifier(ident.span, id);
+                self.facts.source_info[expr.id.index()].resolution =
+                    ExpressionResolution::Binding(id);
                 self.narrowed_type(id).cloned().unwrap_or(declared)
             }
-            Expr::ArrayLiteral { elements, span } => {
+            Expr {
+                kind: ExprKind::ArrayLiteral { elements, span },
+                ..
+            } => {
                 let expected_element = match expected {
                     Some(Type::Array(element)) => Some(element.as_ref()),
                     _ => None,
@@ -2283,7 +3693,7 @@ impl<'src> Analyzer<'src> {
                                 .map(|element| Type::Array(Box::new(element.clone())));
                             let spread = self.analyze_expr(value, expected_array.as_ref())?;
                             let Type::Array(actual) = spread else {
-                                return Err(SemanticError::new(
+                                return Err(AdmittedSemanticError::new(
                                     value.span(),
                                     format!("array spread requires an array, found `{spread}`"),
                                 ));
@@ -2302,7 +3712,7 @@ impl<'src> Analyzer<'src> {
                     element_type = match element_type {
                         Some(ref previous) => {
                             Some(common_type(previous, &actual).ok_or_else(|| {
-                                SemanticError::new(
+                                AdmittedSemanticError::new(
                                     element.span(),
                                     format!(
                                         "array element has type `{actual}`, expected `{previous}`"
@@ -2314,20 +3724,23 @@ impl<'src> Analyzer<'src> {
                     };
                 }
                 let element_type = element_type.ok_or_else(|| {
-                    SemanticError::new(
+                    AdmittedSemanticError::new(
                         *span,
                         "cannot infer the element type of an empty array; add an explicit array type",
                     )
                 })?;
                 Type::Array(Box::new(element_type))
             }
-            Expr::ObjectLiteral { entries, .. } => {
+            Expr {
+                kind: ExprKind::ObjectLiteral { entries, .. },
+                ..
+            } => {
                 let mut seen = AHashSet::default();
                 for entry in *entries {
                     match entry {
                         RecordElement::Entry(entry) => {
-                            if !seen.insert(decode_source_string(entry.key.name)) {
-                                return Err(SemanticError::new(
+                            if !seen.insert(decode_source_string(entry.key.name, entry.key.span)?) {
+                                return Err(AdmittedSemanticError::new(
                                     entry.key.span,
                                     format!("duplicate object key `{}`", entry.key.name),
                                 ));
@@ -2335,7 +3748,7 @@ impl<'src> Analyzer<'src> {
                             self.analyze_expr(&entry.value, Some(&Type::TypeParameter("$js")))?;
                         }
                         RecordElement::Spread { span, .. } => {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 *span,
                                 "ordinary object spread is not supported yet",
                             ));
@@ -2344,14 +3757,19 @@ impl<'src> Analyzer<'src> {
                 }
                 Type::TypeParameter("$js")
             }
-            Expr::RecordLiteral { entries, span } => {
+            Expr {
+                kind: ExprKind::RecordLiteral { entries, span },
+                ..
+            } => {
                 if expected.is_some_and(is_js_value_or_nullable_js_value) {
                     let mut seen = AHashSet::default();
                     for entry in *entries {
                         match entry {
                             RecordElement::Entry(entry) => {
-                                if !seen.insert(decode_source_string(entry.key.name)) {
-                                    return Err(SemanticError::new(
+                                if !seen
+                                    .insert(decode_source_string(entry.key.name, entry.key.span)?)
+                                {
+                                    return Err(AdmittedSemanticError::new(
                                         entry.key.span,
                                         format!("duplicate record key `{}`", entry.key.name),
                                     ));
@@ -2374,8 +3792,10 @@ impl<'src> Analyzer<'src> {
                     for entry in *entries {
                         let actual = match entry {
                             RecordElement::Entry(entry) => {
-                                if !seen.insert(decode_source_string(entry.key.name)) {
-                                    return Err(SemanticError::new(
+                                if !seen
+                                    .insert(decode_source_string(entry.key.name, entry.key.span)?)
+                                {
+                                    return Err(AdmittedSemanticError::new(
                                         entry.key.span,
                                         format!("duplicate record key `{}`", entry.key.name),
                                     ));
@@ -2387,7 +3807,7 @@ impl<'src> Analyzer<'src> {
                                     .map(|value| Type::Record(Box::new(value.clone())));
                                 let spread = self.analyze_expr(value, expected_record.as_ref())?;
                                 let Type::Record(actual) = spread else {
-                                    return Err(SemanticError::new(
+                                    return Err(AdmittedSemanticError::new(
                                         value.span(),
                                         format!(
                                             "record spread requires a record, found `{spread}`"
@@ -2402,7 +3822,7 @@ impl<'src> Analyzer<'src> {
                             // storage. Each copied value may be widened into the declared
                             // slot type without making mutable Record references covariant.
                             if !self.is_assignable(expected, &actual) {
-                                return Err(SemanticError::new(
+                                return Err(AdmittedSemanticError::new(
                                     entry.span(),
                                     format!(
                                         "expected `Record<{expected}>`, found `Record<{actual}>`"
@@ -2414,7 +3834,7 @@ impl<'src> Analyzer<'src> {
                         value_type = match value_type {
                             Some(ref previous) => {
                                 Some(common_type(previous, &actual).ok_or_else(|| {
-                                    SemanticError::new(
+                                    AdmittedSemanticError::new(
                                         entry.span(),
                                         format!(
                                         "record value has type `{actual}`, expected `{previous}`"
@@ -2426,7 +3846,7 @@ impl<'src> Analyzer<'src> {
                         };
                     }
                     let value_type = value_type.ok_or_else(|| {
-                    SemanticError::new(
+                    AdmittedSemanticError::new(
                         *span,
                         "cannot infer the value type of an empty record; add an explicit `Record<T>` type",
                     )
@@ -2434,12 +3854,25 @@ impl<'src> Analyzer<'src> {
                     Type::Record(Box::new(value_type))
                 }
             }
-            Expr::StructLiteral { name, values, span } => {
-                let info = self.model.structs.get(name.name).cloned().ok_or_else(|| {
-                    SemanticError::new(name.span, format!("unknown struct `{}`", name.name))
-                })?;
+            Expr {
+                kind: ExprKind::StructLiteral { name, values, span },
+                ..
+            } => {
+                let info = self
+                    .declarations
+                    .structs
+                    .get(
+                        self.facts
+                            .struct_bindings
+                            .get(name.name)
+                            .map(|id| id.index())
+                            .unwrap_or(usize::MAX),
+                    )
+                    .ok_or_else(|| {
+                        AdmittedSemanticError::new(name.span, format!("unknown struct `{}`", name.name))
+                    })?;
                 if values.len() != info.fields.len() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         *span,
                         format!(
                             "struct `{}` expects {} values, found {}",
@@ -2455,15 +3888,15 @@ impl<'src> Analyzer<'src> {
                             .values()
                             .map(|field| field.ty.clone())
                             .collect::<Vec<_>>(),
-                        Type::Struct(name.name),
+                        Type::Struct(info.declaration),
                     )
                 } else {
                     let Some(Type::StructInstance {
-                        name: expected_name,
+                        declaration: expected_declaration,
                         args,
                     }) = expected
                     else {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!(
                                 "generic struct literal `{}` requires a contextual `{}<...>` type",
@@ -2471,8 +3904,10 @@ impl<'src> Analyzer<'src> {
                             ),
                         ));
                     };
-                    if *expected_name != name.name || args.len() != info.type_params.len() {
-                        return Err(SemanticError::new(
+                    if *expected_declaration != info.declaration
+                        || args.len() != info.type_params.len()
+                    {
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!(
                                 "generic struct literal `{}` requires a contextual `{}<...>` type",
@@ -2487,47 +3922,70 @@ impl<'src> Analyzer<'src> {
                             .map(|field| substitute_type(&field.ty, &substitutions))
                             .collect::<Vec<_>>(),
                         Type::StructInstance {
-                            name: name.name,
+                            declaration: info.declaration,
                             args: args.clone(),
                         },
                     )
                 };
+                let identity = info.declaration.identity;
+                self.facts.source_info[expr.id.index()].resolution =
+                    ExpressionResolution::NominalConstruction(identity);
                 for (value, field_type) in values.iter().zip(&field_types) {
                     let actual = self.analyze_expr(value, Some(field_type))?;
                     self.require_assignable(field_type, &actual, value.span())?;
                 }
                 result_type
             }
-            Expr::New {
-                class,
-                type_args,
-                args,
-                span,
+            Expr {
+                kind:
+                    ExprKind::New {
+                        class,
+                        type_args,
+                        args,
+                        span,
+                    },
+                ..
             } => {
-                if let Some(ty) =
-                    self.analyze_builtin_constructor(*class, type_args, args, *span, expected)?
-                {
+                self.require_value_arguments(
+                    args,
+                    "constructors do not support mutable-reference arguments",
+                )?;
+                if let Some(ty) = self.analyze_builtin_constructor(
+                    *class, type_args, args, expr.id, *span, expected,
+                )? {
                     ty
                 } else {
-                    let info = self.model.classes.get(class.name).cloned().ok_or_else(|| {
-                        SemanticError::new(class.span, format!("unknown class `{}`", class.name))
-                    })?;
+                    let info = self
+                        .declarations
+                        .classes
+                        .get(class.name)
+                        .ok_or_else(|| {
+                            AdmittedSemanticError::new(
+                                class.span,
+                                format!("unknown class `{}`", class.name),
+                            )
+                        })?;
+                    self.facts.source_info[expr.id.index()].resolution =
+                        ExpressionResolution::NominalConstruction(
+                            self.view()
+                                .nominal_id(&Type::Class(class.name))
+                                .expect("checked class declaration"),
+                        );
                     if info.external {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!("extern class `{}` cannot be constructed", class.name),
                         ));
                     }
                     if info.object {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!("object `{}` cannot be constructed with `new`", class.name),
                         ));
                     }
-                    let params = info
-                        .constructor
-                        .as_ref()
-                        .map_or(&[][..], |signature| signature.params.as_slice());
+                    if let Some(signature) = &info.constructor {
+                        self.require_value_parameters(signature, *span)?;
+                    }
                     let accepts_arity = info
                         .constructor
                         .as_ref()
@@ -2535,7 +3993,7 @@ impl<'src> Analyzer<'src> {
                             signature.accepts_arity(args.len())
                         });
                     if !accepts_arity {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!(
                                 "class `{}` constructor expects {} arguments, found {}",
@@ -2547,62 +4005,66 @@ impl<'src> Analyzer<'src> {
                             ),
                         ));
                     }
-                    let parameter_names = info.type_params.iter().copied().collect::<AHashSet<_>>();
+                    let type_params = info.type_params.clone();
+                    let constructor = info.constructor.clone();
+                    let params = constructor
+                        .as_ref()
+                        .map_or(&[][..], |signature| signature.params.as_slice());
+                    let parameter_names = type_params.iter().copied().collect::<AHashSet<_>>();
                     let mut substitutions = AHashMap::default();
                     if !type_args.is_empty() {
                         let resolved = self.resolve_type_arguments(
                             class.name,
                             type_args,
-                            &info.type_params,
+                            &type_params,
                             *span,
                         )?;
-                        substitutions.extend(info.type_params.iter().copied().zip(resolved));
+                        substitutions.extend(type_params.iter().copied().zip(resolved));
                     } else if let Some(Type::ClassInstance {
                         name,
                         args: expected_args,
                     }) = expected
                     {
-                        if *name == class.name && expected_args.len() == info.type_params.len() {
+                        if *name == class.name && expected_args.len() == type_params.len() {
                             substitutions.extend(
-                                info.type_params
+                                type_params
                                     .iter()
                                     .copied()
                                     .zip(expected_args.iter().cloned()),
                             );
                         }
-                    } else if info.type_params.is_empty() {
+                    } else if type_params.is_empty() {
                         self.resolve_type_arguments(
                             class.name,
                             type_args,
-                            &info.type_params,
+                            &type_params,
                             *span,
                         )?;
                     }
                     let mut actual_args = Vec::with_capacity(args.len());
                     for (arg, pattern) in args.iter().zip(params) {
-                        let resolved = substitute_type(pattern, &substitutions);
+                        let resolved = substitute_type(&pattern.ty, &substitutions);
                         let expected = (!contains_type_parameter(&resolved, &parameter_names))
                             .then_some(&resolved);
-                        let actual = self.analyze_expr(arg, expected)?;
+                        let actual = self.analyze_value_argument(arg, expected)?;
                         infer_type_arguments(
-                            pattern,
+                            &pattern.ty,
                             &actual,
                             &parameter_names,
                             &mut substitutions,
-                            arg.span(),
+                            arg.span,
                         )?;
-                        let resolved = substitute_type(pattern, &substitutions);
+                        let resolved = substitute_type(&pattern.ty, &substitutions);
                         if !contains_type_parameter(&resolved, &parameter_names) {
-                            self.require_assignable(&resolved, &actual, arg.span())?;
+                            self.require_assignable(&resolved, &actual, arg.span)?;
                         }
                         actual_args.push(actual);
                     }
-                    let resolved_args = info
-                        .type_params
+                    let resolved_args = type_params
                         .iter()
                         .map(|parameter| {
                             substitutions.get(parameter).cloned().ok_or_else(|| {
-                                SemanticError::new(
+                                AdmittedSemanticError::new(
                                     *span,
                                     format!("cannot infer type argument `{parameter}`"),
                                 )
@@ -2610,10 +4072,10 @@ impl<'src> Analyzer<'src> {
                         })
                         .collect::<Result<Vec<_>, _>>()?;
                     for ((arg, pattern), actual) in args.iter().zip(params).zip(&actual_args) {
-                        let resolved = substitute_type(pattern, &substitutions);
-                        self.require_assignable(&resolved, actual, arg.span())?;
+                        let resolved = substitute_type(&pattern.ty, &substitutions);
+                        self.require_assignable(&resolved, actual, arg.span)?;
                     }
-                    if info.type_params.is_empty() {
+                    if type_params.is_empty() {
                         Type::Class(class.name)
                     } else {
                         Type::ClassInstance {
@@ -2623,19 +4085,27 @@ impl<'src> Analyzer<'src> {
                     }
                 }
             }
-            Expr::Member {
-                object: Expr::Ident(enum_name),
-                property,
-                span,
-            } if self.model.enums.contains_key(enum_name.name) => {
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object:
+                            Expr {
+                                kind: ExprKind::Ident(enum_name),
+                                ..
+                            },
+                        property,
+                        span,
+                    },
+                ..
+            } if self.declarations.enums.contains_key(enum_name.name) => {
                 let value = self
-                    .model
+                    .declarations
                     .enums
                     .get(enum_name.name)
                     .and_then(|info| info.variants.get(property.name))
                     .copied()
                     .ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             property.span,
                             format!(
                                 "enum `{}` has no variant `{}`",
@@ -2643,144 +4113,151 @@ impl<'src> Analyzer<'src> {
                             ),
                         )
                     })?;
-                self.model.enum_variant_values.insert(*span, value);
+                self.facts.enum_variant_values.insert(*span, value);
                 Type::Enum(enum_name.name)
             }
-            Expr::Member {
-                object,
-                property,
-                span,
-            } => self.analyze_member(object, *property, *span)?,
-            Expr::OptionalMember {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
+            } => self.analyze_member(object, *property, expr.id, *span)?,
+            Expr {
+                kind:
+                    ExprKind::OptionalMember {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
                 let object_type = self.analyze_expr(object, None)?;
                 let Type::Nullable(inner) = object_type else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         object.span(),
                         format!(
                             "optional access requires a nullable receiver, found `{object_type}`"
                         ),
                     ));
                 };
-                let member = self.analyze_member_type(*inner, *property, *span)?;
-                self.model
+                let member = self.analyze_member_type(*inner, *property, expr.id, *span)?;
+                self.facts
                     .optional_present_types
                     .insert(*span, member.clone());
                 optional_result_type(member, *span)?
             }
-            Expr::Call { callee, args, span } => {
+            Expr {
+                kind: ExprKind::Call { callee, args, span },
+                ..
+            } => {
                 if let Some((builtin, result)) =
                     self.analyze_static_namespace_call(callee, args, *span, expected)?
                 {
-                    self.model.builtin_calls.insert(*span, builtin);
+                    self.facts.source_info[expr.id.index()].resolution =
+                        ExpressionResolution::Builtin(builtin);
                     result
                 } else if self.builtin_namespace_is_unshadowed("Math")
                     && matches!(
                         callee,
-                        Expr::Member {
+                        Expr { kind: ExprKind::Member {
                             object,
                             property: Ident { name: "imul", .. },
                             ..
-                        } if matches!(object, Expr::Ident(Ident { name: "Math", .. }))
+                        }, .. } if matches!(object, Expr { kind: ExprKind::Ident(Ident { name: "Math", .. }), .. })
                     )
                 {
-                    if args.len() != 2 {
-                        return Err(SemanticError::new(
+                    let contract = crate::primitive::builtin_call_contract(BuiltinCall::MathImul)
+                        .expect("checked Math.imul contract");
+                    if args.len() != contract.arity {
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!("`Math.imul` expects two arguments, found {}", args.len()),
                         ));
                     }
+                    let argument_type = contract
+                        .argument
+                        .as_ref()
+                        .expect("checked Math.imul parameter type");
                     for arg in *args {
-                        let actual = self.analyze_expr(arg, Some(&Type::Int))?;
-                        self.require_assignable(&Type::Int, &actual, arg.span())?;
+                        let actual = self.analyze_value_argument(arg, Some(argument_type))?;
+                        self.require_assignable(argument_type, &actual, arg.span)?;
                     }
-                    self.model
-                        .builtin_calls
-                        .insert(*span, BuiltinCall::MathImul);
-                    Type::Int
+                    self.facts.source_info[expr.id.index()].resolution =
+                        ExpressionResolution::Builtin(BuiltinCall::MathImul);
+                    contract.result
                 } else if self.builtin_namespace_is_unshadowed("print")
-                    && matches!(callee, Expr::Ident(Ident { name: "print", .. }))
+                    && matches!(
+                        callee,
+                        Expr {
+                            kind: ExprKind::Ident(Ident { name: "print", .. }),
+                            ..
+                        }
+                    )
                 {
-                    if args.len() != 1 {
-                        return Err(SemanticError::new(
+                    let contract = crate::primitive::builtin_call_contract(BuiltinCall::Print)
+                        .expect("checked print contract");
+                    if args.len() != contract.arity {
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!("`print` expects one argument, found {}", args.len()),
                         ));
                     }
-                    self.analyze_expr(&args[0], None)?;
-                    self.model.builtin_calls.insert(*span, BuiltinCall::Print);
-                    Type::Void
-                } else if let Expr::Member {
-                    object, property, ..
+                    self.analyze_value_argument(&args[0], None)?;
+                    self.facts.source_info[expr.id.index()].resolution =
+                        ExpressionResolution::Builtin(BuiltinCall::Print);
+                    contract.result
+                } else if let Expr {
+                    kind:
+                        ExprKind::Member {
+                            object, property, ..
+                        },
+                    ..
                 } = callee
                 {
-                    if matches!(property.name, "then" | "catch" | "finally") {
-                        let receiver = self.analyze_expr(object, None)?;
-                        if let Type::Task(value) = receiver {
-                            self.analyze_task_call(property.name, *value, args, *span)?
-                        } else {
-                            let callee_type = self.analyze_expr(callee, None)?;
-                            self.analyze_call(&callee_type, args, *span, expected)?
-                        }
-                    } else {
-                        match property.name {
-                            "map" => self.analyze_array_map(object, args, *span)?,
-                            "filter" => self.analyze_array_filter(object, args, *span)?,
-                            "forEach" => self.analyze_array_for_each(object, args, *span)?,
-                            "reduce" => self.analyze_array_reduce(object, args, *span)?,
-                            "some" | "every" => self.analyze_array_predicate(
-                                object,
-                                args,
-                                property.name,
-                                *span,
-                                Type::Bool,
-                            )?,
-                            "findIndex" => self.analyze_array_predicate(
-                                object,
-                                args,
-                                property.name,
-                                *span,
-                                Type::Int,
-                            )?,
-                            _ => {
-                                let callee_type = self.analyze_expr(callee, None)?;
-                                self.analyze_call(&callee_type, args, *span, expected)?
-                            }
-                        }
-                    }
+                    self.analyze_receiver_call(
+                        expr.id, callee, object, *property, args, *span, expected,
+                    )?
                 } else {
                     let callee_type = self.analyze_expr(callee, None)?;
-                    self.analyze_call(&callee_type, args, *span, expected)?
+                    self.analyze_call(&callee_type, args, *span, expected, Some(expr.id))?
                 }
             }
-            Expr::ArrowFunction { params, body, .. } => {
-                self.analyze_arrow(params, body, expected)?
-            }
-            Expr::Unary { op, expr, span } => {
+            Expr {
+                kind: ExprKind::ArrowFunction { params, body, .. },
+                ..
+            } => self.analyze_arrow(params, body, expected)?,
+            Expr {
+                kind: ExprKind::Unary { op, expr, span },
+                ..
+            } => {
                 let operand = self.analyze_expr(expr, None)?;
                 match op {
                     UnaryOp::Neg if operand.is_numeric() => operand,
                     UnaryOp::Not if operand == Type::Bool => Type::Bool,
                     UnaryOp::Neg => {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!("unary `-` requires a numeric operand, found `{operand}`"),
                         ));
                     }
                     UnaryOp::Not => {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             *span,
                             format!("unary `!` requires a bool operand, found `{operand}`"),
                         ));
                     }
                 }
             }
-            Expr::Await { task, span } => {
+            Expr {
+                kind: ExprKind::Await { task, span },
+                ..
+            } => {
+                self.require_no_pending_reference(*span)?;
                 if self.async_depth == 0 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         *span,
                         "`await` is only valid inside an async function or method",
                     ));
@@ -2788,58 +4265,48 @@ impl<'src> Analyzer<'src> {
                 let expected_task = expected.map(|value| Type::Task(Box::new(value.clone())));
                 let task_type = self.analyze_expr(task, expected_task.as_ref())?;
                 let Type::Task(value) = task_type else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         task.span(),
                         format!("`await` requires a `Task<T>`, found `{task_type}`"),
                     ));
                 };
                 *value
             }
-            Expr::Binary { op, lhs, rhs, span } => {
-                let lhs_type = self.analyze_expr(lhs, None)?;
-                let rhs_type = if matches!(op, BinaryOp::And | BinaryOp::Or) {
-                    let (then_narrowing, else_narrowing) = self.condition_narrowing(lhs)?;
-                    let rhs_narrowing = if *op == BinaryOp::And {
-                        then_narrowing
-                    } else {
-                        else_narrowing
-                    };
-                    self.push_scope();
-                    self.apply_narrowing(rhs_narrowing);
-                    let analyzed = self.analyze_expr(rhs, Some(&Type::Bool))?;
-                    self.pop_scope();
-                    analyzed
-                } else {
-                    let rhs_expected = if *op == BinaryOp::Nullish {
-                        nullish_present_type(&lhs_type).or(expected)
-                    } else {
-                        None
-                    };
-                    self.analyze_expr(rhs, rhs_expected)?
-                };
-                self.analyze_binary(*op, &lhs_type, &rhs_type, *span)?
+            Expr {
+                kind: ExprKind::Binary { .. },
+                ..
+            } => {
+                return self.analyze_binary_expression(expr, expected);
             }
-            Expr::TypeCheck {
-                value,
-                target,
-                span,
+            Expr {
+                kind:
+                    ExprKind::TypeCheck {
+                        value,
+                        target,
+                        span,
+                    },
+                ..
             } => {
                 let value_type = self.analyze_expr(value, None)?;
                 let target_type = self.resolve_value_type(*target, "type guard")?;
                 validate_type_guard(&value_type, &target_type, *span)?;
-                self.model.type_check_types.insert(*span, target_type);
+                self.facts.type_check_types.insert(*span, target_type);
                 Type::Bool
             }
-            Expr::Index {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Index {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => {
                 let object_type = self.analyze_expr(object, None)?;
                 if is_js_value(&object_type) {
                     let index_type = self.analyze_expr(index, None)?;
                     if !is_js_index_type(&index_type) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             index.span(),
                             format!(
                                 "a `JsValue` index must be numeric, `string`, or `JsValue`, found `{index_type}`"
@@ -2848,7 +4315,7 @@ impl<'src> Analyzer<'src> {
                     }
                 } else {
                     let expected_index = index_key_type(&object_type).ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             *span,
                             format!("cannot index a value of type `{object_type}`"),
                         )
@@ -2857,20 +4324,24 @@ impl<'src> Analyzer<'src> {
                     self.require_assignable(&expected_index, &index_type, index.span())?;
                 }
                 index_value_type(&object_type, false).ok_or_else(|| {
-                    SemanticError::new(
+                    AdmittedSemanticError::new(
                         *span,
                         format!("cannot index a value of type `{object_type}`"),
                     )
                 })?
             }
-            Expr::OptionalIndex {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::OptionalIndex {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => {
                 let object_type = self.analyze_expr(object, None)?;
                 let Type::Nullable(inner) = object_type else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         object.span(),
                         format!(
                             "optional indexing requires a nullable receiver, found `{object_type}`"
@@ -2880,7 +4351,7 @@ impl<'src> Analyzer<'src> {
                 if is_js_value(&inner) {
                     let index_type = self.analyze_expr(index, None)?;
                     if !is_js_index_type(&index_type) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             index.span(),
                             format!(
                                 "a `JsValue` index must be numeric, `string`, or `JsValue`, found `{index_type}`"
@@ -2889,38 +4360,42 @@ impl<'src> Analyzer<'src> {
                     }
                 } else {
                     let expected_index = index_key_type(&inner).ok_or_else(|| {
-                        SemanticError::new(*span, format!("cannot index a value of type `{inner}`"))
+                        AdmittedSemanticError::new(*span, format!("cannot index a value of type `{inner}`"))
                     })?;
                     let index_type = self.analyze_expr(index, Some(&expected_index))?;
                     self.require_assignable(&expected_index, &index_type, index.span())?;
                 }
                 let element = index_value_type(&inner, false).ok_or_else(|| {
-                    SemanticError::new(*span, format!("cannot index a value of type `{inner}`"))
+                    AdmittedSemanticError::new(*span, format!("cannot index a value of type `{inner}`"))
                 })?;
-                self.model
+                self.facts
                     .optional_present_types
                     .insert(*span, element.clone());
                 optional_result_type(element, *span)?
             }
-            Expr::If {
-                condition,
-                then_value,
-                else_value,
-                span,
+            Expr {
+                kind:
+                    ExprKind::If {
+                        condition,
+                        then_value,
+                        else_value,
+                        span,
+                    },
+                ..
             } => {
                 let condition_type = self.analyze_expr(condition, Some(&Type::Bool))?;
                 self.require_assignable(&Type::Bool, &condition_type, condition.span())?;
                 let (then_narrowing, else_narrowing) = self.condition_narrowing(condition)?;
-                self.push_scope();
+                self.push_scope()?;
                 self.apply_narrowing(then_narrowing);
                 let then_type = self.analyze_expr(then_value, expected)?;
                 self.pop_scope();
-                self.push_scope();
+                self.push_scope()?;
                 self.apply_narrowing(else_narrowing);
                 let else_type = self.analyze_expr(else_value, expected)?;
                 self.pop_scope();
                 common_type(&then_type, &else_type).ok_or_else(|| {
-                    SemanticError::new(
+                    AdmittedSemanticError::new(
                         *span,
                         format!(
                             "expression-if arms have incompatible types `{then_type}` and `{else_type}`"
@@ -2928,17 +4403,22 @@ impl<'src> Analyzer<'src> {
                     )
                 })?
             }
-            Expr::Match { value, arms, span } => {
-                self.analyze_match(value, arms, expected, *span)?
-            }
-            Expr::Assignment {
-                op,
-                target,
-                value,
-                span,
+            Expr {
+                kind: ExprKind::Match { value, arms, span },
+                ..
+            } => self.analyze_match(value, arms, expected, *span)?,
+            Expr {
+                kind:
+                    ExprKind::Assignment {
+                        op,
+                        target,
+                        value,
+                        span,
+                    },
+                ..
             } => {
                 if *op != AssignmentOp::Assign && self.is_record_place(target)? {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         target.span(),
                         "record entries currently support only direct `=` assignment; read with `??` before computing an update",
                     ));
@@ -2946,7 +4426,7 @@ impl<'src> Analyzer<'src> {
                 let target_type = self.analyze_lvalue(target)?;
                 let value_expected = if *op == AssignmentOp::Nullish {
                     Some(nullish_present_type(&target_type).ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             target.span(),
                             format!(
                                 "operator `??=` requires a nullable target, found `{target_type}`"
@@ -2973,18 +4453,21 @@ impl<'src> Analyzer<'src> {
                 self.invalidate_assigned_narrowing(target);
                 result_type
             }
-            Expr::Update {
-                target, op, span, ..
+            Expr {
+                kind: ExprKind::Update {
+                    target, op, span, ..
+                },
+                ..
             } => {
                 if self.is_record_place(target)? {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         target.span(),
                         "record entries cannot be incremented directly because the key may be absent",
                     ));
                 }
                 let target_type = self.analyze_lvalue(target)?;
                 if !target_type.is_numeric() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         *span,
                         format!(
                             "operator `{}` requires a numeric target, found `{target_type}`",
@@ -2998,12 +4481,15 @@ impl<'src> Analyzer<'src> {
                 self.invalidate_assigned_narrowing(target);
                 target_type
             }
-            Expr::Template { parts, .. } => {
+            Expr {
+                kind: ExprKind::Template { parts, .. },
+                ..
+            } => {
                 for part in *parts {
                     if let TemplatePart::Expr(expression) = part {
                         let ty = self.analyze_expr(expression, None)?;
                         if !is_stringable(&ty) {
-                            return Err(SemanticError::new(
+                            return Err(AdmittedSemanticError::new(
                                 expression.span(),
                                 format!("type `{ty}` cannot be interpolated into a string"),
                             ));
@@ -3014,32 +4500,201 @@ impl<'src> Analyzer<'src> {
             }
         };
 
-        self.model.expression_types.insert(expr.span(), ty.clone());
+        self.facts.expression_types[expr.id.index()] = Some(ty.clone());
         Ok(ty)
     }
 
-    fn analyze_lvalue<'ast>(
+    /// Binary trees are common even in flat source such as `a + b + c`.
+    /// Keep their continuations on the heap rather than retaining the large
+    /// expression-checker frame for every operator. Leaves still use the same
+    /// contextual checker; no expression is prechecked in a different scope.
+    fn analyze_binary_expression(
         &mut self,
-        expression: &Expr<'ast, 'src>,
-    ) -> Result<Type<'src>, SemanticError> {
+        expression: &'ast Expr<'ast, 'src>,
+        expected: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        let original_scope_depth = self.scopes.len();
+        let mut pending = Vec::new();
+        let result = (|| {
+            let mut next = expression;
+            let mut next_expected = expected.cloned();
+            'visit: loop {
+                self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                if let ExprKind::Binary { lhs, .. } = &next.kind {
+                    self.budget.push(
+                        AllocationClass::Scratch,
+                        &mut pending,
+                        BinaryContinuation::Left {
+                            expression: next,
+                            expected: next_expected.take(),
+                        },
+                    )?;
+                    self.facts.source_info[next.id.index()] = SourceInfo {
+                        expression: Some(next),
+                        resolution: ExpressionResolution::None,
+                    };
+                    next = lhs;
+                    continue;
+                }
+
+                let mut ty = self.analyze_expr(next, next_expected.as_ref())?;
+                let mut narrowing = NarrowingInput::leaf(next);
+                loop {
+                    self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                    match pending.pop() {
+                        None => return Ok(ty),
+                        Some(BinaryContinuation::Left {
+                            expression,
+                            expected,
+                        }) => {
+                            let ExprKind::Binary { op, rhs, .. } = &expression.kind else {
+                                unreachable!("binary continuation owns a binary expression")
+                            };
+                            let narrowed_scope = matches!(op, BinaryOp::And | BinaryOp::Or);
+                            next_expected = if narrowed_scope {
+                                let (when_true, when_false) = self.narrowing_from_input(narrowing)?;
+                                self.push_scope()?;
+                                self.apply_narrowing(if *op == BinaryOp::And {
+                                    when_true
+                                } else {
+                                    when_false
+                                });
+                                Some(Type::Bool)
+                            } else if *op == BinaryOp::Nullish {
+                                nullish_present_type(&ty).cloned().or(expected)
+                            } else {
+                                None
+                            };
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut pending,
+                                BinaryContinuation::Right {
+                                    expression,
+                                    left: ty,
+                                    left_narrowing: narrowing,
+                                    narrowed_scope,
+                                },
+                            )?;
+                            next = rhs;
+                            continue 'visit;
+                        }
+                        Some(BinaryContinuation::Right {
+                            expression,
+                            left,
+                            left_narrowing,
+                            narrowed_scope,
+                        }) => {
+                            if narrowed_scope {
+                                self.pop_scope();
+                            }
+                            let ExprKind::Binary { op, span, .. } = &expression.kind else {
+                                unreachable!("binary continuation owns a binary expression")
+                            };
+                            ty = self.analyze_binary(*op, &left, &ty, *span)?;
+                            narrowing = if matches!(op, BinaryOp::And | BinaryOp::Or) {
+                                left_narrowing.join(narrowing, expression, *op)
+                            } else {
+                                NarrowingInput::leaf(expression)
+                            };
+                            self.facts.expression_types[expression.id.index()] = Some(ty.clone());
+                        }
+                    }
+                }
+            }
+        })();
+        // An error can bypass pending logical RHS continuations. Unwind their
+        // lexical/narrowing scopes just as successful continuations do.
+        debug_assert!(result.is_err() || self.scopes.len() == original_scope_depth);
+        while self.scopes.len() > original_scope_depth {
+            self.pop_scope();
+        }
+        let bytes = pending
+            .capacity()
+            .checked_mul(std::mem::size_of::<BinaryContinuation<'_, '_>>())
+            .and_then(|bytes| u64::try_from(bytes).ok())
+            .expect("admitted binary continuation capacity fits its original layout");
+        drop(pending);
+        self.budget
+            .release(AllocationClass::Scratch, bytes)
+            .expect("binary continuation backing belongs to its callback budget");
+        result
+    }
+
+    fn analyze_lvalue(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        self.analyze_place(expression, PlaceIntent::Write)
+    }
+
+    fn analyze_place(
+        &mut self,
+        expression: &'ast Expr<'ast, 'src>,
+        intent: PlaceIntent,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        self.facts.source_info[expression.id.index()] = SourceInfo {
+            expression: Some(expression),
+            resolution: ExpressionResolution::None,
+        };
         let ty = match expression {
-            Expr::Ident(ident) => {
+            Expr {
+                kind: ExprKind::Ident(ident),
+                ..
+            } => {
+                if intent == PlaceIntent::MutableArgument {
+                    // Preparation observes initialization, but its storage type
+                    // remains the declaration's type even inside a narrowing.
+                    self.analyze_expr(expression, None)?;
+                }
                 let (id, ty) = {
                     let (_, symbol) = self.resolve_with_scope(ident)?;
                     (symbol.id, symbol.ty.clone())
                 };
-                self.model.assigned_symbols.insert(id);
-                self.model.identifier_symbols.insert(ident.span, id);
+                if intent == PlaceIntent::MutableArgument
+                    && self.declarations.symbols[id.0 as usize].is_foreign()
+                {
+                    return Err(AdmittedSemanticError::new(
+                        ident.span,
+                        "mutable-reference arguments require lexical storage, not a foreign binding",
+                    ));
+                }
+                self.declarations.assigned_symbols.insert(id);
+                if intent == PlaceIntent::MutableArgument {
+                    for narrowing in &mut self.narrowings {
+                        narrowing.remove(&id);
+                        narrowing
+                            .retain(|symbol, _| !self.reference_parameters.contains_key(symbol));
+                    }
+                }
+                self.record_identifier(ident.span, id);
+                self.facts.source_info[expression.id.index()].resolution =
+                    ExpressionResolution::Binding(id);
                 ty
             }
-            Expr::Member {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
-                let object_type = self.analyze_expr(object, None)?;
+                let object_type = if intent == PlaceIntent::MutableArgument {
+                    let ty = self.analyze_place(object, intent)?;
+                    if !matches!(&ty, Type::Struct(declaration) if self.view().nominal_struct(declaration.identity).is_some_and(|info| info.type_params.is_empty()))
+                    {
+                        return Err(AdmittedSemanticError::new(
+                            *span,
+                            "mutable-reference field arguments require a nonnullable, nongeneric value-struct path rooted in a lexical cell",
+                        ));
+                    }
+                    ty
+                } else {
+                    self.analyze_expr(object, None)?
+                };
                 if matches!(&object_type, Type::Union(_)) {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         *span,
                         format!(
                             "cannot assign through member `{}` on union `{object_type}`",
@@ -3049,19 +4704,29 @@ impl<'src> Analyzer<'src> {
                 }
                 match object_type {
                     Type::Record(value) => *value,
-                    other => self.analyze_member_type(other, *property, *span)?,
+                    other => self.analyze_member_type(other, *property, expression.id, *span)?,
                 }
             }
-            Expr::Index {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Index {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => {
+                if intent == PlaceIntent::MutableArgument {
+                    return Err(AdmittedSemanticError::new(
+                        *span,
+                        "mutable-reference arguments do not yet support indexed or host-backed locations",
+                    ));
+                }
                 let object_type = self.analyze_expr(object, None)?;
                 if is_js_value(&object_type) {
                     let index_type = self.analyze_expr(index, None)?;
                     if !is_js_index_type(&index_type) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             index.span(),
                             format!(
                                 "a `JsValue` index must be numeric, `string`, or `JsValue`, found `{index_type}`"
@@ -3071,7 +4736,7 @@ impl<'src> Analyzer<'src> {
                     Type::TypeParameter("$js")
                 } else {
                     let expected_index = index_key_type(&object_type).ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             *span,
                             format!("cannot assign through an index on `{object_type}`"),
                         )
@@ -3079,7 +4744,7 @@ impl<'src> Analyzer<'src> {
                     let index_type = self.analyze_expr(index, Some(&expected_index))?;
                     self.require_assignable(&expected_index, &index_type, index.span())?;
                     index_value_type(&object_type, true).ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             *span,
                             format!("cannot assign through an index on `{object_type}`"),
                         )
@@ -3087,52 +4752,62 @@ impl<'src> Analyzer<'src> {
                 }
             }
             _ => {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     expression.span(),
-                    "expression is not an assignable location",
+                    if intent == PlaceIntent::MutableArgument {
+                        "mutable-reference argument must name a writable lexical place"
+                    } else {
+                        "expression is not an assignable location"
+                    },
                 ));
             }
         };
-        self.model
-            .expression_types
-            .insert(expression.span(), ty.clone());
+        self.facts.expression_types[expression.id.index()] = Some(ty.clone());
         Ok(ty)
     }
 
-    fn is_record_place<'ast>(
+    fn is_record_place(
         &mut self,
-        expression: &Expr<'ast, 'src>,
-    ) -> Result<bool, SemanticError> {
+        expression: &'ast Expr<'ast, 'src>,
+    ) -> Result<bool, AdmittedSemanticError> {
         let object = match expression {
-            Expr::Member { object, .. } | Expr::Index { object, .. } => object,
+            Expr {
+                kind: ExprKind::Member { object, .. },
+                ..
+            }
+            | Expr {
+                kind: ExprKind::Index { object, .. },
+                ..
+            } => object,
             _ => return Ok(false),
         };
         Ok(matches!(self.analyze_expr(object, None)?, Type::Record(_)))
     }
 
-    fn analyze_member<'ast>(
+    fn analyze_member(
         &mut self,
-        object: &Expr<'ast, 'src>,
+        object: &'ast Expr<'ast, 'src>,
         property: Ident<'src>,
+        id: SourceNodeId,
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         let object_type = self.analyze_expr(object, None)?;
-        self.analyze_member_type(object_type, property, span)
+        self.analyze_member_type(object_type, property, id, span)
     }
 
-    fn analyze_match<'ast>(
+    fn analyze_match(
         &mut self,
-        value: &Expr<'ast, 'src>,
-        arms: &[crate::ast::MatchArm<'ast, 'src>],
+        value: &'ast Expr<'ast, 'src>,
+        arms: &'ast [crate::ast::MatchArm<'ast, 'src>],
         expected: Option<&Type<'src>>,
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         let value_type = self.analyze_expr(value, None)?;
         if !matches!(
             value_type,
             Type::Enum(_) | Type::Int | Type::String | Type::Bool
         ) {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 value.span(),
                 format!("match requires an enum, int, string, or bool value, found `{value_type}`"),
             ));
@@ -3140,7 +4815,7 @@ impl<'src> Analyzer<'src> {
         let variants = match value_type {
             Type::Enum(enum_name) => Some((
                 enum_name,
-                self.model
+                self.declarations
                     .enums
                     .get(enum_name)
                     .expect("checked enum type has metadata")
@@ -3154,7 +4829,7 @@ impl<'src> Analyzer<'src> {
         let mut result = None;
         for (index, arm) in arms.iter().enumerate() {
             if wildcard {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     arm.pattern.span(),
                     "match arms after `_` are unreachable",
                 ));
@@ -3166,13 +4841,13 @@ impl<'src> Analyzer<'src> {
                     span: pattern_span,
                 } => {
                     let Some((enum_name, variants)) = &variants else {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("enum pattern cannot match `{value_type}`"),
                         ));
                     };
                     if pattern_enum.name != *enum_name {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_enum.span,
                             format!(
                                 "match pattern uses enum `{}`, expected `{enum_name}`",
@@ -3181,31 +4856,31 @@ impl<'src> Analyzer<'src> {
                         ));
                     }
                     let discriminant = variants.get(variant.name).copied().ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             variant.span,
                             format!("enum `{enum_name}` has no variant `{}`", variant.name),
                         )
                     })?;
                     let key = format!("enum:{enum_name}:{}", variant.name);
                     if !covered.insert(key) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("duplicate match arm for `{enum_name}.{}`", variant.name),
                         ));
                     }
-                    self.model
+                    self.facts
                         .enum_variant_values
                         .insert(pattern_span, discriminant);
                 }
                 MatchPattern::Int(value, pattern_span) => {
                     if value_type != Type::Int {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("integer pattern cannot match `{value_type}`"),
                         ));
                     }
                     if !covered.insert(format!("int:{value}")) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("duplicate match arm for `{value}`"),
                         ));
@@ -3213,13 +4888,13 @@ impl<'src> Analyzer<'src> {
                 }
                 MatchPattern::String(value, pattern_span) => {
                     if value_type != Type::String {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("string pattern cannot match `{value_type}`"),
                         ));
                     }
                     if !covered.insert(format!("string:{value}")) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("duplicate match arm for `{value}`"),
                         ));
@@ -3227,13 +4902,13 @@ impl<'src> Analyzer<'src> {
                 }
                 MatchPattern::Bool(value, pattern_span) => {
                     if value_type != Type::Bool {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("boolean pattern cannot match `{value_type}`"),
                         ));
                     }
                     if !covered.insert(format!("bool:{value}")) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             format!("duplicate match arm for `{value}`"),
                         ));
@@ -3241,7 +4916,7 @@ impl<'src> Analyzer<'src> {
                 }
                 MatchPattern::Wildcard(pattern_span) => {
                     if wildcard || index + 1 != arms.len() {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             pattern_span,
                             "the `_` match arm must appear once and last",
                         ));
@@ -3252,7 +4927,7 @@ impl<'src> Analyzer<'src> {
             let arm_type = self.analyze_expr(&arm.value, expected)?;
             result = Some(match result {
                 Some(previous) => common_type(&previous, &arm_type).ok_or_else(|| {
-                    SemanticError::new(
+                    AdmittedSemanticError::new(
                         arm.span,
                         format!("match arm has type `{arm_type}`, incompatible with `{previous}`"),
                     )
@@ -3269,7 +4944,7 @@ impl<'src> Analyzer<'src> {
                         .copied()
                         .collect::<Vec<_>>()
                         .join(", ");
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!("non-exhaustive match on `{enum_name}`; missing {missing}"),
                     ));
@@ -3281,7 +4956,7 @@ impl<'src> Analyzer<'src> {
                         .map(|value| value.to_string())
                         .collect::<Vec<_>>();
                     if !missing.is_empty() {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             span,
                             format!(
                                 "non-exhaustive match on `bool`; missing {}",
@@ -3291,7 +4966,7 @@ impl<'src> Analyzer<'src> {
                     }
                 }
                 (Type::Int | Type::String, _) => {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!("match on `{value_type}` requires a final `_` arm"),
                     ));
@@ -3299,15 +4974,24 @@ impl<'src> Analyzer<'src> {
                 _ => {}
             }
         }
-        result.ok_or_else(|| SemanticError::new(span, "match expression has no arms"))
+        result.ok_or_else(|| AdmittedSemanticError::new(span, "match expression has no arms"))
     }
 
     fn analyze_member_type(
         &mut self,
         object_type: Type<'src>,
         property: Ident<'src>,
+        id: SourceNodeId,
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        // The checked receiver owns resolution. Re-analysis replaces the fact;
+        // later consumers do not recover it from a property spelling.
+        let intrinsic = crate::primitive::resolve_member(&object_type, property.name);
+        self.facts.source_info[id.index()].resolution =
+            intrinsic.map_or(ExpressionResolution::None, ExpressionResolution::Primitive);
+        if let Some(contract) = intrinsic.and_then(crate::primitive::intrinsic_call_contract) {
+            return Ok(Type::Function(contract.signature()));
+        }
         if property.name == "length" {
             if let Type::Union(members) = &object_type {
                 if members.iter().all(indexed_collection_has_length) {
@@ -3316,66 +5000,80 @@ impl<'src> Analyzer<'src> {
             }
         }
         match object_type {
-            Type::Struct(name) => self
-                .model
-                .structs
-                .get(name)
-                .and_then(|info| info.fields.get(property.name))
-                .map(|field| field.ty.clone())
-                .ok_or_else(|| {
-                    SemanticError::new(
-                        property.span,
-                        format!("struct `{name}` has no field `{}`", property.name),
-                    )
-                }),
-            Type::StructInstance { name, args } => {
-                let info = self
-                    .model
+            Type::Struct(declaration) => {
+                let name = declaration.name;
+                let field = self
+                    .declarations
                     .structs
-                    .get(name)
-                    .expect("struct instances always have struct metadata");
-                let substitutions = substitutions_for(&info.type_params, &args);
-                info.fields
-                    .get(property.name)
-                    .map(|field| substitute_type(&field.ty, &substitutions))
+                    .get(declaration.identity.index())
+                    .and_then(|info| info.fields.get(property.name))
                     .ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             property.span,
                             format!("struct `{name}` has no field `{}`", property.name),
                         )
-                    })
+                    })?;
+                self.facts.source_info[id.index()].resolution =
+                    ExpressionResolution::NominalMember(field.member);
+                Ok(field.ty.clone())
+            }
+            Type::StructInstance { declaration, args } => {
+                let name = declaration.name;
+                let info = self
+                    .declarations
+                    .structs
+                    .get(declaration.identity.index())
+                    .expect("struct instances always have struct metadata");
+                let substitutions = substitutions_for(&info.type_params, &args);
+                let field = info.fields.get(property.name).ok_or_else(|| {
+                    AdmittedSemanticError::new(
+                        property.span,
+                        format!("struct `{name}` has no field `{}`", property.name),
+                    )
+                })?;
+                self.facts.source_info[id.index()].resolution =
+                    ExpressionResolution::NominalMember(field.member);
+                Ok(substitute_type(&field.ty, &substitutions))
             }
             Type::Class(name) => {
                 let class = self
-                    .model
+                    .declarations
                     .classes
                     .get(name)
                     .expect("class types always have class metadata");
                 if let Some(field) = class.fields.get(property.name) {
+                    self.facts.source_info[id.index()].resolution =
+                        ExpressionResolution::NominalMember(field.member);
                     return Ok(field.ty.clone());
                 }
                 if let Some(method) = class.methods.get(property.name) {
+                    self.facts.source_info[id.index()].resolution =
+                        ExpressionResolution::NominalMember(method.member);
                     return Ok(method_callable_type(method, &AHashMap::default()));
                 }
-                Err(SemanticError::new(
+                Err(AdmittedSemanticError::new(
                     property.span,
                     format!("class `{name}` has no member `{}`", property.name),
                 ))
             }
             Type::ClassInstance { name, args } => {
                 let class = self
-                    .model
+                    .declarations
                     .classes
                     .get(name)
                     .expect("class instances always have class metadata");
                 let substitutions = substitutions_for(&class.type_params, &args);
                 if let Some(field) = class.fields.get(property.name) {
+                    self.facts.source_info[id.index()].resolution =
+                        ExpressionResolution::NominalMember(field.member);
                     return Ok(substitute_type(&field.ty, &substitutions));
                 }
                 if let Some(method) = class.methods.get(property.name) {
+                    self.facts.source_info[id.index()].resolution =
+                        ExpressionResolution::NominalMember(method.member);
                     return Ok(method_callable_type(method, &substitutions));
                 }
-                Err(SemanticError::new(
+                Err(AdmittedSemanticError::new(
                     property.span,
                     format!("class `{name}` has no member `{}`", property.name),
                 ))
@@ -3384,12 +5082,13 @@ impl<'src> Analyzer<'src> {
             Type::TypeParameter("$js") => match property.name {
                 "length" => Ok(Type::Float),
                 "message" | "specifier" => Ok(Type::Nullable(Box::new(Type::String))),
-                "truthy" | "isArray" | "isObject" => Ok(Type::Function(FunctionType {
-                    params: Vec::new(),
-                    defaults: Vec::new(),
-                    return_type: Box::new(Type::Bool),
-                })),
-                _ => Err(SemanticError::new(
+                "truthy" | "isArray" | "isObject" => {
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: Vec::new(),
+                        return_type: Box::new(Type::Bool),
+                    })))
+                }
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("JsValue has no member `{}`", property.name),
                 )),
@@ -3411,13 +5110,13 @@ impl<'src> Analyzer<'src> {
             }
             Type::ModuleNamespace(module) => {
                 let binding = self
-                    .model
+                    .facts
                     .module_exports
                     .get(&module)
                     .and_then(|exports| exports.get(property.name))
                     .copied()
                     .ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             property.span,
                             format!("dynamic module has no runtime export `{}`", property.name),
                         )
@@ -3426,332 +5125,366 @@ impl<'src> Analyzer<'src> {
                     .scopes
                     .first()
                     .and_then(|scope| scope.get(binding))
-                    .and_then(|symbol| self.model.symbols.get(symbol.0 as usize))
+                    .and_then(|symbol| self.declarations.symbols.get(symbol.0 as usize))
                     .ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             property.span,
                             format!("dynamic export `{}` is type-only", property.name),
                         )
                     })?;
                 let ty = symbol.ty.clone();
-                self.model
+                self.facts
                     .used_dynamic_exports
                     .insert((module, property.name));
                 Ok(ty)
             }
             Type::Task(_) if matches!(property.name, "then" | "catch" | "finally") => Err(
-                SemanticError::new(span, format!("Task `{}` must be called", property.name)),
+                AdmittedSemanticError::new(span, format!("Task `{}` must be called", property.name)),
             ),
             Type::ModuleLoadError if matches!(property.name, "message" | "specifier") => {
                 Ok(Type::String)
             }
             Type::Float => match property.name {
                 "abs" | "floor" | "ceil" | "round" | "sqrt" | "sin" | "cos" | "acos" | "exp"
-                | "log" | "tan" => Ok(Type::Function(FunctionType {
+                | "log" | "tan" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
-                    defaults: Vec::new(),
                     return_type: Box::new(Type::Float),
-                })),
-                "min" | "max" | "atan2" | "hypot" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Float],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::Float),
-                })),
-                "toInt" => Ok(Type::Function(FunctionType {
+                }))),
+                "min" | "max" | "atan2" | "hypot" => {
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::value(Type::Float)],
+                        return_type: Box::new(Type::Float),
+                    })))
+                }
+                "toInt" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
-                    defaults: Vec::new(),
                     return_type: Box::new(Type::Int),
-                })),
-                _ => Err(SemanticError::new(
+                }))),
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("float has no member `{}`", property.name),
                 )),
             },
             Type::Int => match property.name {
-                "toString" | "toUnsignedString" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int],
-                    defaults: vec![Some(DefaultValue::Int(10))],
-                    return_type: Box::new(Type::String),
-                })),
-                _ => Err(SemanticError::new(
+                "toString" | "toUnsignedString" => {
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::defaulted(
+                            Type::Int,
+                            DefaultValue::Int(10),
+                        )],
+                        return_type: Box::new(Type::String),
+                    })))
+                }
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("int has no member `{}`", property.name),
                 )),
             },
             Type::Array(element) => match property.name {
                 "map" | "filter" | "forEach" | "reduce" | "some" | "every" | "findIndex" => Err(
-                    SemanticError::new(span, format!("array `{}` must be called", property.name)),
+                    AdmittedSemanticError::new(span, format!("array `{}` must be called", property.name)),
                 ),
-                "push" => Ok(Type::Function(FunctionType {
-                    params: vec![*element],
-                    defaults: vec![None],
+                "push" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(*element)],
                     return_type: Box::new(Type::Int),
-                })),
-                "pop" => Ok(Type::Function(FunctionType {
+                }))),
+                "pop" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
-                    defaults: Vec::new(),
                     return_type: element,
-                })),
-                "indexOf" => Ok(Type::Function(FunctionType {
-                    params: vec![*element],
-                    defaults: vec![None],
+                }))),
+                "indexOf" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(*element)],
                     return_type: Box::new(Type::Int),
-                })),
-                "includes" => Ok(Type::Function(FunctionType {
-                    params: vec![element.as_ref().clone(), Type::Int],
-                    defaults: vec![None, Some(DefaultValue::Int(0))],
+                }))),
+                "includes" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(element.as_ref().clone()),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
+                    ],
                     return_type: Box::new(Type::Bool),
-                })),
+                }))),
                 "join" if is_stringifiable_array_element(&element) => {
-                    Ok(Type::Function(FunctionType {
-                        params: vec![Type::String],
-                        defaults: vec![Some(DefaultValue::String(","))],
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::defaulted(
+                            Type::String,
+                            DefaultValue::String(","),
+                        )],
                         return_type: Box::new(Type::String),
-                    }))
+                    })))
                 }
-                "join" => Err(SemanticError::new(
+                "join" => Err(AdmittedSemanticError::new(
                     span,
                     format!("array element type `{element}` cannot be joined portably"),
                 )),
-                "concat" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Array(element.clone())],
-                    defaults: vec![None],
+                "concat" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(Type::Array(element.clone()))],
                     return_type: Box::new(Type::Array(element)),
-                })),
-                "copyWithin" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int, Type::Int, Type::Int],
-                    defaults: vec![None, None, Some(DefaultValue::Int(i32::MAX as i64))],
-                    return_type: Box::new(Type::Array(element)),
-                })),
-                "reverse" => Ok(Type::Function(FunctionType {
-                    params: Vec::new(),
-                    defaults: Vec::new(),
-                    return_type: Box::new(Type::Array(element)),
-                })),
-                "slice" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int, Type::Int],
-                    defaults: vec![
-                        Some(DefaultValue::Int(0)),
-                        Some(DefaultValue::Int(i32::MAX as i64)),
+                }))),
+                "copyWithin" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(Type::Int),
+                        FunctionParameter::value(Type::Int),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
                     ],
                     return_type: Box::new(Type::Array(element)),
-                })),
-                "splice" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int, Type::Int],
-                    defaults: vec![None, None],
+                }))),
+                "reverse" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: Vec::new(),
                     return_type: Box::new(Type::Array(element)),
-                })),
-                "fill" => Ok(Type::Function(FunctionType {
-                    params: vec![*element.clone()],
-                    defaults: vec![None],
+                }))),
+                "slice" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                    ],
                     return_type: Box::new(Type::Array(element)),
-                })),
-                _ => Err(SemanticError::new(
+                }))),
+                "splice" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(Type::Int),
+                        FunctionParameter::value(Type::Int),
+                    ],
+                    return_type: Box::new(Type::Array(element)),
+                }))),
+                "fill" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(*element.clone())],
+                    return_type: Box::new(Type::Array(element)),
+                }))),
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("array has no member `{}`", property.name),
                 )),
             },
             Type::Record(value) => Ok(nullable_type(*value)),
             Type::Map(key, value) => match property.name {
-                "get" => Ok(Type::Function(FunctionType {
-                    params: vec![key.as_ref().clone()],
-                    defaults: vec![None],
+                "get" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(key.as_ref().clone())],
                     return_type: Box::new(nullable_type(value.as_ref().clone())),
-                })),
-                "set" => Ok(Type::Function(FunctionType {
-                    params: vec![key.as_ref().clone(), value.as_ref().clone()],
-                    defaults: vec![None, None],
+                }))),
+                "set" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(key.as_ref().clone()),
+                        FunctionParameter::value(value.as_ref().clone()),
+                    ],
                     return_type: Box::new(Type::Map(key, value)),
-                })),
-                "has" | "delete" => Ok(Type::Function(FunctionType {
-                    params: vec![*key],
-                    defaults: vec![None],
+                }))),
+                "has" | "delete" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(*key)],
                     return_type: Box::new(Type::Bool),
-                })),
-                "clear" => Ok(Type::Function(FunctionType {
+                }))),
+                "clear" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
-                    defaults: Vec::new(),
                     return_type: Box::new(Type::Void),
-                })),
-                _ => Err(SemanticError::new(
+                }))),
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("map has no member `{}`", property.name),
                 )),
             },
             Type::Set(element) => match property.name {
-                "add" => Ok(Type::Function(FunctionType {
-                    params: vec![element.as_ref().clone()],
-                    defaults: vec![None],
+                "add" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(element.as_ref().clone())],
                     return_type: Box::new(Type::Set(element)),
-                })),
-                "has" | "delete" => Ok(Type::Function(FunctionType {
-                    params: vec![*element],
-                    defaults: vec![None],
+                }))),
+                "has" | "delete" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(*element)],
                     return_type: Box::new(Type::Bool),
-                })),
-                "clear" => Ok(Type::Function(FunctionType {
+                }))),
+                "clear" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
-                    defaults: Vec::new(),
                     return_type: Box::new(Type::Void),
-                })),
-                _ => Err(SemanticError::new(
+                }))),
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("set has no member `{}`", property.name),
                 )),
             },
-            Type::ArrayBuffer => buffer_member(property, span, Type::ArrayBuffer),
-            Type::SharedArrayBuffer => buffer_member(property, span, Type::SharedArrayBuffer),
+            Type::ArrayBuffer => {
+                buffer_member(property, span, Type::ArrayBuffer).map_err(Into::into)
+            }
+            Type::SharedArrayBuffer => {
+                buffer_member(property, span, Type::SharedArrayBuffer).map_err(Into::into)
+            }
             ty if crate::typed_array::is_typed_array_type(&ty) => match property.name {
-                "slice" | "subarray" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int, Type::Int],
-                    defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
+                "slice" | "subarray" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(Type::Int),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                    ],
                     return_type: Box::new(ty),
-                })),
-                "set" => Ok(Type::Function(FunctionType {
-                    params: vec![ty.clone(), Type::Int],
-                    defaults: vec![None, Some(DefaultValue::Int(0))],
+                }))),
+                "set" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(ty.clone()),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
+                    ],
                     return_type: Box::new(Type::Void),
-                })),
+                }))),
                 "fill" => {
                     let element = crate::typed_array::TypedArrayKind::from_type(&ty)
                         .expect("typed-array branch has a kind")
                         .index_value_type();
-                    Ok(Type::Function(FunctionType {
-                        params: vec![element, Type::Int, Type::Int],
-                        defaults: vec![
-                            None,
-                            Some(DefaultValue::Int(0)),
-                            Some(DefaultValue::Int(i32::MAX as i64)),
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![
+                            FunctionParameter::value(element),
+                            FunctionParameter::defaulted(Type::Int, DefaultValue::Int(0)),
+                            FunctionParameter::defaulted(
+                                Type::Int,
+                                DefaultValue::Int(i32::MAX as i64),
+                            ),
                         ],
                         return_type: Box::new(ty),
-                    }))
+                    })))
                 }
-                "copyWithin" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int, Type::Int, Type::Int],
-                    defaults: vec![None, None, Some(DefaultValue::Int(i32::MAX as i64))],
+                "copyWithin" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(Type::Int),
+                        FunctionParameter::value(Type::Int),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                    ],
                     return_type: Box::new(ty),
-                })),
-                _ => Err(SemanticError::new(
+                }))),
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("{ty} has no member `{}`", property.name),
                 )),
             },
             Type::String => match property.name {
-                "charCodeAt" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::Int),
-                })),
-                "charAt" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::String),
-                })),
-                "includes" | "startsWith" | "endsWith" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::String],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::Bool),
-                })),
-                "indexOf" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::String, Type::Int],
-                    defaults: vec![None, Some(DefaultValue::Int(0))],
-                    return_type: Box::new(Type::Int),
-                })),
-                "lastIndexOf" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::String, Type::Int],
-                    defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
-                    return_type: Box::new(Type::Int),
-                })),
-                "repeat" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::String),
-                })),
-                "toUpperCase" | "toLowerCase" | "trim" | "trimStart" | "trimEnd" => {
-                    Ok(Type::Function(FunctionType {
-                        params: Vec::new(),
-                        defaults: Vec::new(),
-                        return_type: Box::new(Type::String),
-                    }))
+                "includes" | "startsWith" | "endsWith" => {
+                    Ok(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::value(Type::String)],
+                        return_type: Box::new(Type::Bool),
+                    })))
                 }
-                "search" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Regex],
-                    defaults: vec![None],
+                "lastIndexOf" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![
+                        FunctionParameter::value(Type::String),
+                        FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+                    ],
                     return_type: Box::new(Type::Int),
-                })),
-                "slice" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Int, Type::Int],
-                    defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
-                    return_type: Box::new(Type::String),
-                })),
-                "replace" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::Regex, Type::String],
-                    defaults: vec![None, None],
-                    return_type: Box::new(Type::String),
-                })),
-                "split" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::String],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::Array(Box::new(Type::String))),
-                })),
-                "codePointLength" => Ok(Type::Function(FunctionType {
-                    params: Vec::new(),
-                    defaults: Vec::new(),
+                }))),
+                "search" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: vec![FunctionParameter::value(Type::Regex)],
                     return_type: Box::new(Type::Int),
-                })),
-                "truthy" => Ok(Type::Function(FunctionType {
+                }))),
+                "codePointLength" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: Vec::new(),
-                    defaults: Vec::new(),
+                    return_type: Box::new(Type::Int),
+                }))),
+                "truthy" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+                    params: Vec::new(),
                     return_type: Box::new(Type::Bool),
-                })),
-                _ => Err(SemanticError::new(
+                }))),
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("string has no member `{}`", property.name),
                 )),
             },
             Type::Regex => match property.name {
-                "test" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::String],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::Bool),
-                })),
-                "exec" => Ok(Type::Function(FunctionType {
-                    params: vec![Type::String],
-                    defaults: vec![None],
-                    return_type: Box::new(Type::TypeParameter("$js")),
-                })),
                 "source" | "flags" => Ok(Type::String),
                 "lastIndex" => Ok(Type::Float),
                 "global" | "ignoreCase" | "multiline" | "dotAll" | "sticky" | "unicode" => {
                     Ok(Type::Bool)
                 }
-                _ => Err(SemanticError::new(
+                _ => Err(AdmittedSemanticError::new(
                     span,
                     format!("Regex has no member `{}`", property.name),
                 )),
             },
-            other => Err(SemanticError::new(
+            other => Err(AdmittedSemanticError::new(
                 span,
                 format!("type `{other}` has no member `{}`", property.name),
             )),
         }
     }
 
-    fn analyze_array_map<'ast>(
+    /// Receiver checking owns operation resolution, including contextual
+    /// callback signatures that have no standalone method-value type.
+    fn analyze_receiver_call(
         &mut self,
-        object: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        call_node: SourceNodeId,
+        member: &'ast Expr<'ast, 'src>,
+        object: &'ast Expr<'ast, 'src>,
+        property: Ident<'src>,
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
-        let object_type = self.analyze_expr(object, None)?;
-        let Type::Array(element_type) = object_type else {
-            return Err(SemanticError::new(
-                span,
-                format!("`map` requires an array receiver, found `{object_type}`"),
-            ));
+        expected: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        use crate::primitive::{Intrinsic, ResolvedIntrinsic};
+        self.facts.source_info[member.id.index()] = SourceInfo {
+            expression: Some(member),
+            resolution: ExpressionResolution::None,
         };
+        let receiver = self.analyze_expr(object, None)?;
+        let (operation, result) = match (receiver, property.name) {
+            (Type::Array(element), "map") => (
+                Intrinsic::ArrayMap,
+                self.analyze_array_map(*element, args, span)?,
+            ),
+            (Type::Array(element), "filter") => (
+                Intrinsic::ArrayFilter,
+                self.analyze_array_filter(*element, args, span)?,
+            ),
+            (Type::Array(element), "forEach") => (
+                Intrinsic::ArrayForEach,
+                self.analyze_array_for_each(*element, args, span)?,
+            ),
+            (Type::Array(element), "reduce") => (
+                Intrinsic::ArrayReduce,
+                self.analyze_array_reduce(*element, args, span)?,
+            ),
+            (Type::Array(element), "some") => (
+                Intrinsic::ArraySome,
+                self.analyze_array_predicate(*element, args, property.name, span, Type::Bool)?,
+            ),
+            (Type::Array(element), "every") => (
+                Intrinsic::ArrayEvery,
+                self.analyze_array_predicate(*element, args, property.name, span, Type::Bool)?,
+            ),
+            (Type::Array(element), "findIndex") => (
+                Intrinsic::ArrayFindIndex,
+                self.analyze_array_predicate(*element, args, property.name, span, Type::Int)?,
+            ),
+            (Type::Task(value), "then" | "catch" | "finally") => {
+                return self.analyze_task_call(property.name, *value, args, span);
+            }
+            (receiver, _) => {
+                let callee =
+                    self.analyze_member_type(receiver, property, member.id, member.span())?;
+                self.facts.expression_types[member.id.index()] = Some(callee.clone());
+                return self.analyze_call(&callee, args, span, expected, Some(call_node));
+            }
+        };
+        // These methods have no standalone value type, but each call was
+        // checked against one contextual signature. Record it on the callee so
+        // later owners read the checked contract instead of re-deriving it.
+        let mut params = Vec::with_capacity(args.len());
+        for argument in args {
+            let ty = self.facts.expression_types[argument.expression.id.index()]
+                .clone()
+                .ok_or_else(|| {
+                    AdmittedSemanticError::new(argument.span, "array callback argument lost its checked type")
+                })?;
+            params.push(FunctionParameter::value(ty));
+        }
+        self.facts.expression_types[member.id.index()] =
+            Some(Type::Function(FunctionType::new(FunctionSignature {
+                params,
+                return_type: Box::new(result.clone()),
+            })));
+        self.facts.source_info[member.id.index()].resolution =
+            ExpressionResolution::Primitive(ResolvedIntrinsic::Method(operation));
+        Ok(result)
+    }
+
+    fn analyze_array_map(
+        &mut self,
+        element_type: Type<'src>,
+        args: &'ast [Argument<'ast, 'src>],
+        span: Span,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         if args.len() != 1 {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!(
                     "array `map` expects one callback, found {} arguments",
@@ -3760,49 +5493,48 @@ impl<'src> Analyzer<'src> {
             ));
         }
 
-        let callback_expected = Type::Function(FunctionType {
-            params: vec![(*element_type).clone()],
-            defaults: vec![None],
+        let callback_expected = Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![FunctionParameter::value(element_type.clone())],
             return_type: Box::new(Type::Void),
-        });
-        let callback = self.analyze_expr(&args[0], Some(&callback_expected))?;
+        }));
+        let callback = self.analyze_value_argument(&args[0], Some(&callback_expected))?;
         let Type::Function(signature) = callback else {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!("array `map` expects a function, found `{callback}`"),
             ));
         };
+        self.require_value_parameters(&signature, args[0].span)?;
         if signature.params.len() != 1
-            || !is_type_assignable(&signature.params[0], &element_type)
-            || !is_type_assignable(&element_type, &signature.params[0])
+            || !is_type_assignable(&signature.params[0].ty, &element_type)
+            || !is_type_assignable(&element_type, &signature.params[0].ty)
         {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!(
                     "array `map` callback must accept `{}`, found `{}`",
                     element_type,
                     signature
                         .params
                         .first()
-                        .map(ToString::to_string)
+                        .map(|parameter| parameter.ty.to_string())
                         .unwrap_or_else(|| "no parameter".to_string())
                 ),
             ));
         }
-        Ok(Type::Array(signature.return_type))
+        Ok(Type::Array(signature.return_type.clone()))
     }
 
-    fn analyze_array_filter<'ast>(
+    fn analyze_array_filter(
         &mut self,
-        object: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        element_type: Type<'src>,
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
-        let element_type = self.array_element_type(object, "filter", span)?;
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         let signature = self.analyze_array_callback(args, &element_type, "filter", span)?;
         if signature.return_type.as_ref() != &Type::Bool {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!(
                     "array `filter` callback must return `bool`, found `{}`",
                     signature.return_type
@@ -3812,30 +5544,28 @@ impl<'src> Analyzer<'src> {
         Ok(Type::Array(Box::new(element_type)))
     }
 
-    fn analyze_array_for_each<'ast>(
+    fn analyze_array_for_each(
         &mut self,
-        object: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        element_type: Type<'src>,
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
-        let element_type = self.array_element_type(object, "forEach", span)?;
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         self.analyze_array_callback(args, &element_type, "forEach", span)?;
         Ok(Type::Void)
     }
 
-    fn analyze_array_predicate<'ast>(
+    fn analyze_array_predicate(
         &mut self,
-        object: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        element_type: Type<'src>,
+        args: &'ast [Argument<'ast, 'src>],
         method: &str,
         span: Span,
         return_type: Type<'src>,
-    ) -> Result<Type<'src>, SemanticError> {
-        let element_type = self.array_element_type(object, method, span)?;
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         let signature = self.analyze_array_callback(args, &element_type, method, span)?;
         if signature.return_type.as_ref() != &Type::Bool {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!(
                     "array `{method}` callback must return `bool`, found `{}`",
                     signature.return_type
@@ -3845,15 +5575,14 @@ impl<'src> Analyzer<'src> {
         Ok(return_type)
     }
 
-    fn analyze_array_reduce<'ast>(
+    fn analyze_array_reduce(
         &mut self,
-        object: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        element_type: Type<'src>,
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
-        let element_type = self.array_element_type(object, "reduce", span)?;
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         if args.len() != 2 {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!(
                     "array `reduce` expects a callback and initial value, found {} arguments",
@@ -3861,19 +5590,22 @@ impl<'src> Analyzer<'src> {
                 ),
             ));
         }
-        let accumulator = self.analyze_expr(&args[1], None)?;
-        let expected = Type::Function(FunctionType {
-            params: vec![accumulator.clone(), element_type],
-            defaults: vec![None, None],
+        let accumulator = self.analyze_value_argument(&args[1], None)?;
+        let expected = Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![
+                FunctionParameter::value(accumulator.clone()),
+                FunctionParameter::value(element_type),
+            ],
             return_type: Box::new(accumulator.clone()),
-        });
-        let callback = self.analyze_expr(&args[0], Some(&expected))?;
+        }));
+        let callback = self.analyze_value_argument(&args[0], Some(&expected))?;
         let Type::Function(signature) = callback else {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 "array `reduce` expects a function callback",
             ));
         };
+        self.require_value_parameters(&signature, args[0].span)?;
         if signature.params.len() != 2
             || !signature
                 .params
@@ -3882,42 +5614,28 @@ impl<'src> Analyzer<'src> {
                     Type::Function(expected) => &expected.params,
                     _ => unreachable!(),
                 })
-                .all(|(actual, expected)| actual == expected)
+                .all(|(actual, expected)| {
+                    actual.passing == expected.passing && actual.ty == expected.ty
+                })
             || !is_type_assignable(&accumulator, &signature.return_type)
         {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 "array `reduce` callback signature does not match its accumulator and element types",
             ));
         }
         Ok(accumulator)
     }
 
-    fn array_element_type<'ast>(
+    fn analyze_array_callback(
         &mut self,
-        object: &Expr<'ast, 'src>,
-        method: &str,
-        span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
-        let object_type = self.analyze_expr(object, None)?;
-        match object_type {
-            Type::Array(element) => Ok(*element),
-            other => Err(SemanticError::new(
-                span,
-                format!("`{method}` requires an array receiver, found `{other}`"),
-            )),
-        }
-    }
-
-    fn analyze_array_callback<'ast>(
-        &mut self,
-        args: &[Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         element_type: &Type<'src>,
         method: &str,
         span: Span,
-    ) -> Result<FunctionType<'src>, SemanticError> {
+    ) -> Result<FunctionType<'src>, AdmittedSemanticError> {
         if args.len() != 1 {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!(
                     "array `{method}` expects one callback, found {} arguments",
@@ -3925,61 +5643,128 @@ impl<'src> Analyzer<'src> {
                 ),
             ));
         }
-        let expected = Type::Function(FunctionType {
-            params: vec![element_type.clone()],
-            defaults: vec![None],
+        let expected = Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![FunctionParameter::value(element_type.clone())],
             return_type: Box::new(Type::Void),
-        });
-        let callback = self.analyze_expr(&args[0], Some(&expected))?;
+        }));
+        let callback = self.analyze_value_argument(&args[0], Some(&expected))?;
         let Type::Function(signature) = callback else {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!("array `{method}` expects a function callback"),
             ));
         };
-        if signature.params.as_slice() != [element_type.clone()] {
-            return Err(SemanticError::new(
-                args[0].span(),
+        self.require_value_parameters(&signature, args[0].span)?;
+        if signature.params.len() != 1 || signature.params[0].ty != *element_type {
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!("array `{method}` callback parameter must be `{element_type}`"),
             ));
         }
         Ok(signature)
     }
 
-    fn analyze_call<'ast>(
+    fn require_value_parameters(
+        &self,
+        signature: &FunctionType<'src>,
+        span: Span,
+    ) -> Result<(), AdmittedSemanticError> {
+        signature
+            .validate_parameters()
+            .map_err(|message| AdmittedSemanticError::new(span, message))?;
+        if signature
+            .params
+            .iter()
+            .any(|parameter| parameter.passing != ParameterPassing::Value)
+        {
+            return Err(AdmittedSemanticError::new(
+                span,
+                "this callable boundary does not support mutable-reference parameters",
+            ));
+        }
+        Ok(())
+    }
+
+    fn require_value_arguments(
+        &self,
+        args: &[Argument<'ast, 'src>],
+        message: &'static str,
+    ) -> Result<(), AdmittedSemanticError> {
+        if let Some(argument) = args
+            .iter()
+            .find(|argument| argument.passing != ParameterPassing::Value)
+        {
+            return Err(AdmittedSemanticError::new(argument.span, message));
+        }
+        Ok(())
+    }
+
+    fn analyze_value_argument(
+        &mut self,
+        argument: &'ast Argument<'ast, 'src>,
+        expected: Option<&Type<'src>>,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        if argument.passing != ParameterPassing::Value {
+            return Err(AdmittedSemanticError::new(
+                argument.span,
+                "a value parameter cannot receive a mutable-reference argument",
+            ));
+        }
+        self.analyze_expr(&argument.expression, expected)
+    }
+
+    fn require_no_pending_reference(&self, span: Span) -> Result<(), AdmittedSemanticError> {
+        if self.pending_references {
+            return Err(AdmittedSemanticError::new(
+                span,
+                "cannot suspend after preparing a mutable-reference argument",
+            ));
+        }
+        if self.current_reference_formals {
+            return Err(AdmittedSemanticError::new(
+                span,
+                "cannot suspend in a callable with mutable-reference parameters",
+            ));
+        }
+        Ok(())
+    }
+
+    fn analyze_call(
         &mut self,
         callee: &Type<'src>,
-        args: &[Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
         expected_return: Option<&Type<'src>>,
-    ) -> Result<Type<'src>, SemanticError> {
+        call_node: Option<SourceNodeId>,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         if is_js_value(callee) {
             let js = Type::TypeParameter("$js");
             for arg in args {
-                let actual = self.analyze_expr(arg, Some(&js))?;
-                self.require_assignable(&js, &actual, arg.span())?;
+                let actual = self.analyze_value_argument(arg, Some(&js))?;
+                self.require_assignable(&js, &actual, arg.span)?;
             }
             return Ok(js);
         }
         if let Type::GenericFunction(function) = callee {
-            return self.analyze_generic_call(function, args, span, expected_return);
+            return self.analyze_generic_call(function, args, span, expected_return, call_node);
         }
         if let Type::Union(members) = callee {
             let mut signatures = Vec::new();
             for member in members {
                 let Type::Function(signature) = member else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!("cannot call a value of type `{callee}`"),
                     ));
                 };
+                self.require_value_parameters(signature, span)?;
                 signatures.push(signature);
             }
             if !signatures
                 .iter()
                 .all(|signature| args.len() == signature.params.len())
             {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     span,
                     format!(
                         "cannot call a value of type `{callee}` with {} arguments; union calls require every argument explicitly",
@@ -3988,15 +5773,15 @@ impl<'src> Analyzer<'src> {
                 ));
             }
             for (index, arg) in args.iter().enumerate() {
-                let expected = &signatures[0].params[index];
+                let expected = &signatures[0].params[index].ty;
                 let contextual = signatures
                     .iter()
-                    .all(|signature| &signature.params[index] == expected)
+                    .all(|signature| &signature.params[index].ty == expected)
                     .then_some(expected);
-                let actual = self.analyze_expr(arg, contextual)?;
+                let actual = self.analyze_value_argument(arg, contextual)?;
                 for signature in &signatures {
-                    let expected = &signature.params[index];
-                    self.require_assignable(expected, &actual, arg.span())?;
+                    let expected = &signature.params[index].ty;
+                    self.require_assignable(expected, &actual, arg.span)?;
                 }
             }
             let returns = signatures
@@ -4006,13 +5791,16 @@ impl<'src> Analyzer<'src> {
             return Ok(normalize_union(returns));
         }
         let Type::Function(signature) = callee else {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!("cannot call a value of type `{callee}`"),
             ));
         };
+        signature
+            .validate_parameters()
+            .map_err(|message| AdmittedSemanticError::new(span, message))?;
         if !signature.accepts_arity(args.len()) {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!(
                     "function expects {} to {} arguments, found {}",
@@ -4023,10 +5811,41 @@ impl<'src> Analyzer<'src> {
             ));
         }
         self.require_omitted_defaults_in_scope(signature, args.len(), span)?;
-        for (arg, expected) in args.iter().zip(&signature.params) {
-            let actual = self.analyze_expr(arg, Some(expected))?;
-            self.require_assignable(expected, &actual, arg.span())?;
-        }
+        let outer_pending = self.pending_references;
+        let result = (|| {
+            for (arg, parameter) in args.iter().zip(&signature.params) {
+                if arg.passing != parameter.passing {
+                    return Err(AdmittedSemanticError::new(
+                        arg.span,
+                        if parameter.passing == ParameterPassing::MutableReference {
+                            "mutable-reference parameter requires an explicit `ref` place argument"
+                        } else {
+                            "a value parameter cannot receive a mutable-reference argument"
+                        },
+                    ));
+                }
+                if parameter.passing == ParameterPassing::MutableReference {
+                    let actual =
+                        self.analyze_place(&arg.expression, PlaceIntent::MutableArgument)?;
+                    if actual != parameter.ty {
+                        return Err(AdmittedSemanticError::new(
+                            arg.span,
+                            format!(
+                                "mutable-reference storage type must be exactly `{}`, found `{actual}`",
+                                parameter.ty
+                            ),
+                        ));
+                    }
+                    self.pending_references = true;
+                } else {
+                    let actual = self.analyze_value_argument(arg, Some(&parameter.ty))?;
+                    self.require_assignable(&parameter.ty, &actual, arg.span)?;
+                }
+            }
+            Ok(())
+        })();
+        self.pending_references = outer_pending;
+        result?;
         Ok((*signature.return_type).clone())
     }
 
@@ -4035,8 +5854,13 @@ impl<'src> Analyzer<'src> {
         signature: &FunctionType<'src>,
         provided: usize,
         span: Span,
-    ) -> Result<(), SemanticError> {
-        for default in signature.defaults.iter().skip(provided).flatten() {
+    ) -> Result<(), AdmittedSemanticError> {
+        for default in signature
+            .params
+            .iter()
+            .skip(provided)
+            .filter_map(|parameter| parameter.default.as_ref())
+        {
             self.require_default_in_scope(default, span)?;
         }
         Ok(())
@@ -4046,11 +5870,14 @@ impl<'src> Analyzer<'src> {
         &self,
         default: &DefaultValue<'src>,
         span: Span,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         let symbol = match default {
             DefaultValue::Symbol(symbol) => Some(*symbol),
-            DefaultValue::PendingIdentifier(default_span) => {
-                self.model.identifier_symbol(*default_span)
+            DefaultValue::PendingIdentifier { expression, .. } => {
+                match self.view().expression_resolution(*expression) {
+                    ExpressionResolution::Binding(symbol) => Some(symbol),
+                    _ => None,
+                }
             }
             DefaultValue::Array(values) => {
                 for value in values {
@@ -4077,7 +5904,7 @@ impl<'src> Analyzer<'src> {
             | DefaultValue::Null
             | DefaultValue::Undefined
             | DefaultValue::Parameter(_)
-            | DefaultValue::PendingUndefined(_)
+            | DefaultValue::PendingUndefined { .. }
             | DefaultValue::Arrow(_) => None,
         };
         if symbol.is_some_and(|symbol| {
@@ -4086,7 +5913,7 @@ impl<'src> Analyzer<'src> {
                 .iter()
                 .any(|scope| scope.values().any(|candidate| *candidate == symbol))
         }) {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 "parameter default depends on a local binding that is unavailable at this call site",
             ));
@@ -4094,16 +5921,24 @@ impl<'src> Analyzer<'src> {
         Ok(())
     }
 
-    fn analyze_static_namespace_call<'ast>(
+    fn analyze_static_namespace_call(
         &mut self,
-        callee: &Expr<'ast, 'src>,
-        args: &[Expr<'ast, 'src>],
+        callee: &'ast Expr<'ast, 'src>,
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
         expected: Option<&Type<'src>>,
-    ) -> Result<Option<(BuiltinCall, Type<'src>)>, SemanticError> {
-        let Expr::Member {
-            object: Expr::Ident(namespace),
-            property,
+    ) -> Result<Option<(BuiltinCall, Type<'src>)>, AdmittedSemanticError> {
+        let Expr {
+            kind:
+                ExprKind::Member {
+                    object:
+                        Expr {
+                            kind: ExprKind::Ident(namespace),
+                            ..
+                        },
+                    property,
+                    ..
+                },
             ..
         } = callee
         else {
@@ -4115,15 +5950,15 @@ impl<'src> Analyzer<'src> {
         match (namespace.name, property.name) {
             ("Object", "keys" | "values") => {
                 let [record] = args else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!("`Object.{}` expects one record", property.name),
                     ));
                 };
-                let actual = self.analyze_expr(record, None)?;
+                let actual = self.analyze_value_argument(record, None)?;
                 let Type::Record(value) = actual else {
-                    return Err(SemanticError::new(
-                        record.span(),
+                    return Err(AdmittedSemanticError::new(
+                        record.span,
                         format!(
                             "`Object.{}` requires a `Record<T>`, found `{actual}`",
                             property.name
@@ -4145,58 +5980,60 @@ impl<'src> Analyzer<'src> {
             }
             ("Object", "hasOwn") => {
                 let [record, key] = args else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         "`Object.hasOwn` expects a record and string key",
                     ));
                 };
-                let actual = self.analyze_expr(record, None)?;
+                let actual = self.analyze_value_argument(record, None)?;
                 if !matches!(actual, Type::Record(_)) {
-                    return Err(SemanticError::new(
-                        record.span(),
+                    return Err(AdmittedSemanticError::new(
+                        record.span,
                         format!("`Object.hasOwn` requires a `Record<T>`, found `{actual}`"),
                     ));
                 }
-                let key_type = self.analyze_expr(key, Some(&Type::String))?;
-                self.require_assignable(&Type::String, &key_type, key.span())?;
+                let key_type = self.analyze_value_argument(key, Some(&Type::String))?;
+                self.require_assignable(&Type::String, &key_type, key.span)?;
                 Ok(Some((BuiltinCall::ObjectHasOwn, Type::Bool)))
             }
             ("Object", "assign") => {
                 let [target, source] = args else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         "`Object.assign` expects two records",
                     ));
                 };
-                let target_type = self.analyze_expr(target, None)?;
+                let target_type = self.analyze_value_argument(target, None)?;
                 let Type::Record(_) = target_type else {
-                    return Err(SemanticError::new(
-                        target.span(),
+                    return Err(AdmittedSemanticError::new(
+                        target.span,
                         format!(
                             "`Object.assign` target must be a `Record<T>`, found `{target_type}`"
                         ),
                     ));
                 };
-                let source_type = self.analyze_expr(source, Some(&target_type))?;
+                let source_type = self.analyze_value_argument(source, Some(&target_type))?;
                 if source_type != target_type {
-                    return Err(SemanticError::new(
-                        source.span(),
-                        format!("`Object.assign` source has type `{source_type}`, expected `{target_type}`"),
+                    return Err(AdmittedSemanticError::new(
+                        source.span,
+                        format!(
+                            "`Object.assign` source has type `{source_type}`, expected `{target_type}`"
+                        ),
                     ));
                 }
                 Ok(Some((BuiltinCall::ObjectAssign, target_type)))
             }
             ("JSON", "stringify") => {
                 let [value] = args else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         "`JSON.stringify` expects one value",
                     ));
                 };
-                let actual = self.analyze_expr(value, None)?;
+                let actual = self.analyze_value_argument(value, None)?;
                 if !json_stringify_type_supported(&actual) {
-                    return Err(SemanticError::new(
-                        value.span(),
+                    return Err(AdmittedSemanticError::new(
+                        value.span,
                         format!("`JSON.stringify` does not support `{actual}` portably"),
                     ));
                 }
@@ -4204,21 +6041,21 @@ impl<'src> Analyzer<'src> {
             }
             ("JSON", "parse") => {
                 let [value] = args else {
-                    return Err(SemanticError::new(span, "`JSON.parse` expects one string"));
+                    return Err(AdmittedSemanticError::new(span, "`JSON.parse` expects one string"));
                 };
-                let actual = self.analyze_expr(value, Some(&Type::String))?;
-                self.require_assignable(&Type::String, &actual, value.span())?;
+                let actual = self.analyze_value_argument(value, Some(&Type::String))?;
+                self.require_assignable(&Type::String, &actual, value.span)?;
                 Ok(Some((BuiltinCall::JsonParse, Type::TypeParameter("$js"))))
             }
             ("Task", "resolve") => {
                 let [value] = args else {
-                    return Err(SemanticError::new(span, "`Task.resolve` expects one value"));
+                    return Err(AdmittedSemanticError::new(span, "`Task.resolve` expects one value"));
                 };
                 let expected_value = match expected {
                     Some(Type::Task(value)) => Some(value.as_ref()),
                     _ => None,
                 };
-                let value = self.analyze_expr(value, expected_value)?;
+                let value = self.analyze_value_argument(value, expected_value)?;
                 Ok(Some((
                     BuiltinCall::TaskResolve,
                     Type::Task(Box::new(value)),
@@ -4226,17 +6063,17 @@ impl<'src> Analyzer<'src> {
             }
             ("Task", "reject") => {
                 let [reason] = args else {
-                    return Err(SemanticError::new(span, "`Task.reject` expects one reason"));
+                    return Err(AdmittedSemanticError::new(span, "`Task.reject` expects one reason"));
                 };
-                let reason_type = self.analyze_expr(reason, None)?;
+                let reason_type = self.analyze_value_argument(reason, None)?;
                 if reason_type == Type::Void {
-                    return Err(SemanticError::new(
-                        reason.span(),
+                    return Err(AdmittedSemanticError::new(
+                        reason.span,
                         "`Task.reject` reason cannot be `void`",
                     ));
                 }
                 let Some(Type::Task(value)) = expected else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         "cannot infer rejected task value type; provide an expected `Task<T>` type",
                     ));
@@ -4245,21 +6082,21 @@ impl<'src> Analyzer<'src> {
             }
             ("Task", "all") => {
                 let [tasks] = args else {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         "`Task.all` expects one task array",
                     ));
                 };
-                let tasks = self.analyze_expr(tasks, None)?;
+                let tasks = self.analyze_value_argument(tasks, None)?;
                 let Type::Array(ref task) = tasks else {
-                    return Err(SemanticError::new(
-                        args[0].span(),
+                    return Err(AdmittedSemanticError::new(
+                        args[0].span,
                         format!("`Task.all` requires a `Task<T>[]`, found `{tasks}`"),
                     ));
                 };
                 let Type::Task(value) = task.as_ref() else {
-                    return Err(SemanticError::new(
-                        args[0].span(),
+                    return Err(AdmittedSemanticError::new(
+                        args[0].span,
                         format!("`Task.all` requires a `Task<T>[]`, found `{tasks}`"),
                     ));
                 };
@@ -4281,13 +6118,13 @@ impl<'src> Analyzer<'src> {
             .any(|scope| scope.contains_key(name))
     }
 
-    fn analyze_javascript_builtin<'ast>(
+    fn analyze_javascript_builtin(
         &mut self,
         method: &str,
-        args: &[Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
         expected: Option<&Type<'src>>,
-    ) -> Result<Option<(BuiltinCall, Type<'src>)>, SemanticError> {
+    ) -> Result<Option<(BuiltinCall, Type<'src>)>, AdmittedSemanticError> {
         let js = Type::TypeParameter("$js");
         let require_arity = |expected: std::ops::RangeInclusive<usize>| {
             if expected.contains(&args.len()) {
@@ -4304,7 +6141,7 @@ impl<'src> Analyzer<'src> {
                 } else {
                     format!("{start} to {end}")
                 };
-                Err(SemanticError::new(
+                Err(AdmittedSemanticError::new(
                     span,
                     format!(
                         "`JS.{method}` expects {count} arguments, found {}",
@@ -4318,7 +6155,7 @@ impl<'src> Analyzer<'src> {
             match method {
                 "object" => {
                     if !args.len().is_multiple_of(2) {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             span,
                             format!(
                                 "`JS.object` expects an even number of key/value arguments, found {}",
@@ -4414,13 +6251,13 @@ impl<'src> Analyzer<'src> {
                 "assume" => {
                     require_arity(1..=1)?;
                     let result = expected.cloned().ok_or_else(|| {
-                        SemanticError::new(
+                        AdmittedSemanticError::new(
                             span,
                             "cannot infer `JS.assume` result type; provide an expected type",
                         )
                     })?;
                     if result.is_void() {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             span,
                             "`JS.assume` result cannot be `void`",
                         ));
@@ -4497,11 +6334,10 @@ impl<'src> Analyzer<'src> {
                         "method10" => 11,
                         _ => unreachable!(),
                     };
-                    let callback = Type::Function(FunctionType {
-                        params: vec![js.clone(); parameter_count],
-                        defaults: vec![None; parameter_count],
+                    let callback = Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::value(js.clone()); parameter_count],
                         return_type: Box::new(js.clone()),
-                    });
+                    }));
                     (
                         match method {
                             "method0" => BuiltinCall::JsMethod0,
@@ -4712,55 +6548,66 @@ impl<'src> Analyzer<'src> {
             };
 
         for (argument, expected) in args.iter().zip(&expected_args) {
-            let actual = self.analyze_expr(argument, Some(expected))?;
-            self.require_assignable(expected, &actual, argument.span())?;
+            let actual = self.analyze_value_argument(argument, Some(expected))?;
+            self.require_assignable(expected, &actual, argument.span)?;
         }
         Ok(Some((builtin, result)))
     }
 
-    fn analyze_task_call<'ast>(
+    fn analyze_task_call(
         &mut self,
         method: &str,
         value: Type<'src>,
-        args: &[Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         if args.len() != 1 {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!("Task `{method}` expects one callback, found {}", args.len()),
             ));
         }
         let parameters = match method {
-            "then" => vec![value.clone()],
-            "catch" => vec![Type::TypeParameter("$js")],
+            "then" => vec![FunctionParameter::value(value.clone())],
+            "catch" => vec![FunctionParameter::value(Type::TypeParameter("$js"))],
             "finally" => Vec::new(),
             _ => unreachable!("task call dispatch validates the method name"),
         };
-        let expected = Type::Function(FunctionType {
-            params: parameters.clone(),
-            defaults: vec![None; parameters.len()],
+        let expected = Type::Function(FunctionType::new(FunctionSignature {
+            params: parameters,
             return_type: Box::new(Type::Void),
-        });
-        let callback = self.analyze_expr(&args[0], Some(&expected))?;
+        }));
+        let callback = self.analyze_value_argument(&args[0], Some(&expected))?;
         let Type::Function(signature) = callback else {
-            return Err(SemanticError::new(
-                args[0].span(),
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!("Task `{method}` expects a function callback"),
             ));
         };
-        if signature.params != parameters {
-            return Err(SemanticError::new(
-                args[0].span(),
+        self.require_value_parameters(&signature, args[0].span)?;
+        let Type::Function(expected_signature) = &expected else {
+            unreachable!()
+        };
+        if signature.params.len() != expected_signature.params.len()
+            || !signature
+                .params
+                .iter()
+                .zip(&expected_signature.params)
+                .all(|(actual, expected)| {
+                    actual.ty == expected.ty && actual.passing == expected.passing
+                })
+        {
+            return Err(AdmittedSemanticError::new(
+                args[0].span,
                 format!("Task `{method}` callback has an incompatible parameter list"),
             ));
         }
         if method == "finally" {
             return Ok(Type::Task(Box::new(value)));
         }
-        let returned = match *signature.return_type {
-            Type::Task(inner) => *inner,
-            returned => returned,
+        let returned = match signature.return_type.as_ref() {
+            Type::Task(inner) => inner.as_ref().clone(),
+            returned => returned.clone(),
         };
         Ok(Type::Task(Box::new(if method == "catch" {
             normalize_union(vec![value, returned])
@@ -4769,15 +6616,17 @@ impl<'src> Analyzer<'src> {
         })))
     }
 
-    fn analyze_generic_call<'ast>(
+    fn analyze_generic_call(
         &mut self,
         function: &GenericFunctionType<'src>,
-        args: &[Expr<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
         span: Span,
         expected_return: Option<&Type<'src>>,
-    ) -> Result<Type<'src>, SemanticError> {
+        call_node: Option<SourceNodeId>,
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        self.require_value_parameters(&function.signature, span)?;
         if !function.signature.accepts_arity(args.len()) {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!(
                     "function expects {} to {} arguments, found {}",
@@ -4805,26 +6654,26 @@ impl<'src> Analyzer<'src> {
         }
         let mut actual_args = Vec::with_capacity(args.len());
         for (arg, pattern) in args.iter().zip(&function.signature.params) {
-            let partially_resolved = substitute_type(pattern, &substitutions);
+            let partially_resolved = substitute_type(&pattern.ty, &substitutions);
             let expected = (!contains_type_parameter(&partially_resolved, &parameters))
                 .then_some(&partially_resolved);
-            let actual = self.analyze_expr(arg, expected)?;
+            let actual = self.analyze_value_argument(arg, expected)?;
             infer_type_arguments(
-                pattern,
+                &pattern.ty,
                 &actual,
                 &parameters,
                 &mut substitutions,
-                arg.span(),
+                arg.span,
             )?;
-            let resolved = substitute_type(pattern, &substitutions);
+            let resolved = substitute_type(&pattern.ty, &substitutions);
             if !contains_type_parameter(&resolved, &parameters) {
-                self.require_assignable(&resolved, &actual, arg.span())?;
+                self.require_assignable(&resolved, &actual, arg.span)?;
             }
             actual_args.push(actual);
         }
         for parameter in &function.type_params {
             if !substitutions.contains_key(parameter) {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     span,
                     format!("cannot infer type argument `{parameter}`"),
                 ));
@@ -4835,28 +6684,50 @@ impl<'src> Analyzer<'src> {
             .zip(&function.signature.params)
             .zip(&actual_args)
         {
-            let resolved = substitute_type(pattern, &substitutions);
-            self.require_assignable(&resolved, actual, arg.span())?;
+            let resolved = substitute_type(&pattern.ty, &substitutions);
+            self.require_assignable(&resolved, actual, arg.span)?;
         }
-        Ok(substitute_type(
-            &function.signature.return_type,
-            &substitutions,
-        ))
+        let Type::Function(signature) =
+            substitute_type(&Type::Function(function.signature.clone()), &substitutions)
+        else {
+            unreachable!("substitution preserves callable signature kind")
+        };
+        if let Some(call_node) = call_node {
+            self.facts.call_instantiations.insert(
+                call_node,
+                CheckedCallInstantiation {
+                    type_arguments: function
+                        .type_params
+                        .iter()
+                        .map(|name| substitutions[name].clone())
+                        .collect(),
+                    signature: signature.clone(),
+                },
+            );
+        }
+        Ok((*signature.return_type).clone())
     }
 
-    fn analyze_arrow<'ast>(
+    fn analyze_arrow(
         &mut self,
-        params: &[crate::ast::Param<'ast, 'src>],
-        body: &ArrowBody<'ast, 'src>,
+        params: &'ast [crate::ast::Param<'ast, 'src>],
+        body: &'ast ArrowBody<'ast, 'src>,
         expected: Option<&Type<'src>>,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        self.check_module_defaults(params)?;
         let expected_signature = match expected {
             Some(Type::Function(signature)) => Some(signature),
             _ => None,
         };
         if let Some(signature) = expected_signature {
+            signature.validate_parameters().map_err(|message| {
+                AdmittedSemanticError::new(
+                    params.first().map_or(Span::empty(0), |param| param.span),
+                    message,
+                )
+            })?;
             if params.len() != signature.params.len() {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     params.first().map_or(Span::empty(0), |param| param.span),
                     format!(
                         "callback expects {} parameters, found {}",
@@ -4867,44 +6738,83 @@ impl<'src> Analyzer<'src> {
             }
         }
 
-        self.push_scope();
-        self.generator_contexts.push(None);
-        self.constructor_classes.push(None);
-        let mut parameter_types = Vec::with_capacity(params.len());
+        let outer_pending = std::mem::take(&mut self.pending_references);
+        let outer_formals = std::mem::replace(
+            &mut self.current_reference_formals,
+            params
+                .iter()
+                .any(|parameter| parameter.parameter.passing == ParameterPassing::MutableReference),
+        );
+        self.callable_depth += 1;
+        self.push_scope()?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.generator_contexts,
+            None,
+        )?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.constructor_classes,
+            None,
+        )?;
+        let mut parameters = Vec::with_capacity(params.len());
         for (index, param) in params.iter().enumerate() {
-            let ty = if param.ty.is_auto() {
+            let ty = if param.parameter.ty.is_auto() {
                 expected_signature
                     .and_then(|signature| signature.params.get(index))
-                    .cloned()
+                    .map(|parameter| parameter.ty.clone())
                     .ok_or_else(|| {
-                        SemanticError::new(
-                            param.ty.span,
+                        AdmittedSemanticError::new(
+                            param.parameter.ty.span,
                             "`auto` arrow parameters require a contextual callback type",
                         )
                     })?
             } else {
-                self.resolve_value_type(param.ty, "arrow parameter")?
+                self.resolve_value_type(param.parameter.ty, "arrow parameter")?
             };
-            if let Some(expected) = expected_signature.and_then(|sig| sig.params.get(index)) {
-                if !is_type_assignable(expected, &ty) || !is_type_assignable(&ty, expected) {
-                    return Err(SemanticError::new(
+            if let Some(parameter) = expected_signature.and_then(|sig| sig.params.get(index)) {
+                let expected = &parameter.ty;
+                if parameter.passing != param.parameter.passing
+                    || !is_type_assignable(expected, &ty)
+                    || !is_type_assignable(&ty, expected)
+                {
+                    return Err(AdmittedSemanticError::new(
                         param.span,
                         format!("callback parameter must be `{expected}`, found `{ty}`"),
                     ));
                 }
             }
-            self.declare(param.name, ty.clone())?;
-            parameter_types.push(ty);
+            if param.parameter.passing == ParameterPassing::MutableReference
+                && param.default.is_some()
+            {
+                return Err(AdmittedSemanticError::new(
+                    param.span,
+                    "mutable-reference parameters cannot have defaults",
+                ));
+            }
+            let symbol = self.declare(param.name, ty.clone())?;
+            if param.parameter.passing == ParameterPassing::MutableReference {
+                self.reference_parameters
+                    .insert(symbol, self.callable_depth);
+            }
+            parameters.push(FunctionParameter {
+                ty,
+                passing: param.parameter.passing,
+                default: None,
+            });
         }
 
-        self.callable_depth += 1;
         let return_type = match body {
             ArrowBody::Expr(body) => self.analyze_expr(body, None)?,
             ArrowBody::Block(statements) => {
-                self.return_contexts.push(ReturnContext::Inferred {
-                    ty: None,
-                    saw_return: false,
-                });
+                self.budget.push(
+                    AllocationClass::Scratch,
+                    &mut self.return_contexts,
+                    ReturnContext::Inferred {
+                        ty: None,
+                        saw_return: false,
+                    },
+                )?;
                 for statement in *statements {
                     self.analyze_stmt(statement)?;
                 }
@@ -4918,13 +6828,22 @@ impl<'src> Analyzer<'src> {
                     {
                         ty.unwrap_or(Type::Void)
                     }
+                    // Falling off the end yields `undefined`, itself a
+                    // `JsValue`, so a callback returning `JsValue` on some
+                    // paths returns `JsValue`: host callers read the value.
+                    ReturnContext::Inferred {
+                        ty: Some(ty),
+                        saw_return: true,
+                    } if is_js_value(&ty) => ty,
                     ReturnContext::Inferred { .. } => Type::Void,
                     ReturnContext::Declared { .. } => unreachable!(),
                 }
             }
         };
         self.callable_depth -= 1;
-        self.analyze_parameter_defaults(params, &parameter_types)?;
+        self.analyze_parameter_defaults(params, &parameters)?;
+        self.pending_references = outer_pending;
+        self.current_reference_formals = outer_formals;
         let global_symbols = self
             .scopes
             .first()
@@ -4935,18 +6854,17 @@ impl<'src> Analyzer<'src> {
         self.generator_contexts.pop();
         self.pop_scope();
 
-        let defaults = resolve_analyzed_parameter_defaults(
+        resolve_analyzed_parameter_defaults(
             params,
-            &parameter_types,
-            &self.model,
+            &mut parameters,
+            &self.view(),
             true,
             &global_symbols,
         )?;
-        Ok(Type::Function(FunctionType {
-            params: parameter_types,
-            defaults,
+        Ok(Type::Function(FunctionType::new(FunctionSignature {
+            params: parameters,
             return_type: Box::new(return_type),
-        }))
+        })))
     }
 
     fn analyze_binary(
@@ -4955,77 +6873,43 @@ impl<'src> Analyzer<'src> {
         lhs: &Type<'src>,
         rhs: &Type<'src>,
         span: Span,
-    ) -> Result<Type<'src>, SemanticError> {
-        match op {
-            BinaryOp::Add if lhs == &Type::String || rhs == &Type::String => {
-                if is_stringable(lhs) && is_stringable(rhs) {
-                    Ok(Type::String)
-                } else {
-                    Err(invalid_binary(op, lhs, rhs, span))
-                }
-            }
-            BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div
-                if lhs.is_numeric() && rhs.is_numeric() =>
-            {
-                Ok(common_numeric_type(lhs, rhs))
-            }
-            BinaryOp::Mod
-            | BinaryOp::BitAnd
-            | BinaryOp::BitOr
-            | BinaryOp::Xor
-            | BinaryOp::ShiftLeft
-            | BinaryOp::ShiftRight
-            | BinaryOp::UnsignedShiftRight
-                if lhs == &Type::Int && rhs == &Type::Int =>
-            {
-                Ok(Type::Int)
-            }
-            BinaryOp::Eq | BinaryOp::NotEq if equality_comparable(lhs, rhs) => Ok(Type::Bool),
-            BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq
-                if (lhs.is_numeric() && rhs.is_numeric())
-                    || (lhs == &Type::String && rhs == &Type::String) =>
-            {
-                Ok(Type::Bool)
-            }
-            BinaryOp::And | BinaryOp::Or if lhs == &Type::Bool && rhs == &Type::Bool => {
-                Ok(Type::Bool)
-            }
-            BinaryOp::Nullish => {
-                if lhs == &Type::Null {
-                    return Ok(rhs.clone());
-                }
-                let present = nullish_present_type(lhs).ok_or_else(|| {
-                    SemanticError::new(
-                        span,
-                        format!("operator `??` requires a nullable left operand, found `{lhs}`"),
-                    )
-                })?;
-                common_type(present, rhs).ok_or_else(|| invalid_binary(op, lhs, rhs, span))
-            }
-            _ => Err(invalid_binary(op, lhs, rhs, span)),
-        }
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
+        checked_binary_type(op, lhs, rhs, span).map_err(Into::into)
     }
 
-    fn resolve_value_type<'ast>(
+    fn resolve_value_type(
         &self,
         ty: TypeRef<'ast, 'src>,
         context: &str,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         self.resolve_type(ty, false, context)
     }
 
-    fn analyze_builtin_constructor<'ast>(
+    fn resolve_parameter_type(
+        &self,
+        parameter: &crate::ast::ParameterType<'ast, 'src>,
+        context: &'static str,
+    ) -> Result<FunctionParameter<'src>, AdmittedSemanticError> {
+        Ok(FunctionParameter {
+            ty: self.resolve_value_type(parameter.ty, context)?,
+            passing: parameter.passing,
+            default: None,
+        })
+    }
+
+    fn analyze_builtin_constructor(
         &mut self,
         class: Ident<'src>,
-        type_args: &[TypeRef<'ast, 'src>],
-        args: &[Expr<'ast, 'src>],
+        type_args: &'ast [TypeRef<'ast, 'src>],
+        args: &'ast [Argument<'ast, 'src>],
+        id: SourceNodeId,
         span: Span,
         expected: Option<&Type<'src>>,
-    ) -> Result<Option<Type<'src>>, SemanticError> {
+    ) -> Result<Option<Type<'src>>, AdmittedSemanticError> {
         let ty = match class.name {
             "Map" => {
                 if !args.is_empty() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!(
                             "`Map` constructor expects 0 arguments, found {}",
@@ -5035,22 +6919,24 @@ impl<'src> Analyzer<'src> {
                 }
                 if type_args.is_empty() {
                     let Some(Type::Map(key, value)) = expected else {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             span,
                             "cannot infer `Map` type arguments; write `new Map<K, V>()`",
                         ));
                     };
                     Type::Map(key.clone(), value.clone())
                 } else {
-                    let resolved =
-                        self.resolve_type_arguments("Map", type_args, &["K", "V"], span)?;
-                    validate_collection_key(&resolved[0], span, "Map key")?;
-                    Type::Map(Box::new(resolved[0].clone()), Box::new(resolved[1].clone()))
+                    let [key, value]: [Type<'src>; 2] = self
+                        .resolve_type_arguments("Map", type_args, &["K", "V"], span)?
+                        .try_into()
+                        .expect("Map arity was checked");
+                    validate_collection_key(&key, span, "Map key")?;
+                    Type::Map(Box::new(key), Box::new(value))
                 }
             }
             "Set" => {
                 if !args.is_empty() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!(
                             "`Set` constructor expects 0 arguments, found {}",
@@ -5060,22 +6946,25 @@ impl<'src> Analyzer<'src> {
                 }
                 if type_args.is_empty() {
                     let Some(Type::Set(element)) = expected else {
-                        return Err(SemanticError::new(
+                        return Err(AdmittedSemanticError::new(
                             span,
                             "cannot infer `Set` type argument; write `new Set<T>()`",
                         ));
                     };
                     Type::Set(element.clone())
                 } else {
-                    let resolved = self.resolve_type_arguments("Set", type_args, &["T"], span)?;
-                    validate_collection_key(&resolved[0], span, "Set element")?;
-                    Type::Set(Box::new(resolved[0].clone()))
+                    let [element]: [Type<'src>; 1] = self
+                        .resolve_type_arguments("Set", type_args, &["T"], span)?
+                        .try_into()
+                        .expect("Set arity was checked");
+                    validate_collection_key(&element, span, "Set element")?;
+                    Type::Set(Box::new(element))
                 }
             }
             "ArrayBuffer" | "SharedArrayBuffer" => {
                 self.resolve_type_arguments(class.name, type_args, &[], span)?;
                 if args.len() != 1 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!(
                             "`{}` constructor expects 1 argument, found {}",
@@ -5084,8 +6973,8 @@ impl<'src> Analyzer<'src> {
                         ),
                     ));
                 }
-                let actual = self.analyze_expr(&args[0], Some(&Type::Int))?;
-                self.require_assignable(&Type::Int, &actual, args[0].span())?;
+                let actual = self.analyze_value_argument(&args[0], Some(&Type::Int))?;
+                self.require_assignable(&Type::Int, &actual, args[0].span)?;
                 if class.name == "ArrayBuffer" {
                     Type::ArrayBuffer
                 } else {
@@ -5097,7 +6986,7 @@ impl<'src> Analyzer<'src> {
                     .expect("typed array constructor name");
                 self.resolve_type_arguments(class.name, type_args, &[], span)?;
                 if args.len() != 1 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!(
                             "`{}` constructor expects 1 argument, found {}",
@@ -5106,13 +6995,13 @@ impl<'src> Analyzer<'src> {
                         ),
                     ));
                 }
-                let actual = self.analyze_expr(&args[0], None)?;
+                let actual = self.analyze_value_argument(&args[0], None)?;
                 if !matches!(
                     actual,
                     Type::Int | Type::ArrayBuffer | Type::SharedArrayBuffer
                 ) {
-                    return Err(SemanticError::new(
-                        args[0].span(),
+                    return Err(AdmittedSemanticError::new(
+                        args[0].span,
                         format!(
                             "`{}` expects an `int`, `ArrayBuffer`, or `SharedArrayBuffer`, found `{actual}`",
                             class.name
@@ -5124,7 +7013,7 @@ impl<'src> Analyzer<'src> {
             "Symbol" => {
                 self.resolve_type_arguments(class.name, type_args, &[], span)?;
                 if args.len() > 1 {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!(
                             "`Symbol` constructor expects 0 or 1 arguments, found {}",
@@ -5133,50 +7022,63 @@ impl<'src> Analyzer<'src> {
                     ));
                 }
                 if let Some(argument) = args.first() {
-                    let actual = self.analyze_expr(argument, Some(&Type::String))?;
-                    self.require_assignable(&Type::String, &actual, argument.span())?;
+                    let actual = self.analyze_value_argument(argument, Some(&Type::String))?;
+                    self.require_assignable(&Type::String, &actual, argument.span)?;
                 }
                 Type::Symbol
             }
             "Regex" => {
                 self.resolve_type_arguments(class.name, type_args, &[], span)?;
-                if !(1..=2).contains(&args.len()) {
-                    return Err(SemanticError::new(
+                let contract = crate::primitive::intrinsic_call_contract(
+                    crate::primitive::ResolvedIntrinsic::Constructor(
+                        crate::primitive::Intrinsic::RegexNew,
+                    ),
+                )
+                .expect("checked Regex constructor signature");
+                if !contract.accepts_arity(args.len()) {
+                    return Err(AdmittedSemanticError::new(
                         span,
                         format!(
-                            "`Regex` constructor expects 1 or 2 arguments, found {}",
+                            "`Regex` constructor expects {} or {} arguments, found {}",
+                            contract.required_params(),
+                            contract.parameters.len(),
                             args.len()
                         ),
                     ));
                 }
-                for argument in args {
-                    let actual = self.analyze_expr(argument, Some(&Type::String))?;
-                    self.require_assignable(&Type::String, &actual, argument.span())?;
+                for (argument, expected) in args.iter().zip(contract.parameters) {
+                    let actual = self.analyze_value_argument(argument, Some(expected))?;
+                    self.require_assignable(expected, &actual, argument.span)?;
                 }
-                Type::Regex
+                contract.result.clone()
             }
             _ => return Ok(None),
         };
+        let operation = crate::primitive::constructor_intrinsic(&ty)
+            .expect("checked builtin constructor owns an intrinsic");
+        self.facts.source_info[id.index()].resolution = ExpressionResolution::Primitive(
+            crate::primitive::ResolvedIntrinsic::Constructor(operation),
+        );
         Ok(Some(ty))
     }
 
-    fn resolve_type<'ast>(
+    fn resolve_type(
         &self,
         ty: TypeRef<'ast, 'src>,
         allow_void: bool,
         context: &str,
-    ) -> Result<Type<'src>, SemanticError> {
+    ) -> Result<Type<'src>, AdmittedSemanticError> {
         match ty.kind {
             TypeKind::Int => Ok(Type::Int),
             TypeKind::Float => Ok(Type::Float),
             TypeKind::String => Ok(Type::String),
             TypeKind::Bool => Ok(Type::Bool),
             TypeKind::Void if allow_void => Ok(Type::Void),
-            TypeKind::Void => Err(SemanticError::new(
+            TypeKind::Void => Err(AdmittedSemanticError::new(
                 ty.span,
                 format!("{context} cannot have type `void`"),
             )),
-            TypeKind::Auto => Err(SemanticError::new(
+            TypeKind::Auto => Err(AdmittedSemanticError::new(
                 ty.span,
                 format!("`auto` is not allowed as a {context} type"),
             )),
@@ -5188,7 +7090,7 @@ impl<'src> Analyzer<'src> {
                     .any(|scope| scope.contains(name)) =>
             {
                 if !args.is_empty() {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         ty.span,
                         format!("type parameter `{name}` does not accept type arguments"),
                     ));
@@ -5196,33 +7098,42 @@ impl<'src> Analyzer<'src> {
                 Ok(Type::TypeParameter(name))
             }
             TypeKind::Named { name: "Map", args } => {
-                let resolved = self.resolve_type_arguments("Map", args, &["K", "V"], ty.span)?;
-                validate_collection_key(&resolved[0], ty.span, "Map key")?;
-                Ok(Type::Map(
-                    Box::new(resolved[0].clone()),
-                    Box::new(resolved[1].clone()),
-                ))
+                let [key, value]: [Type<'src>; 2] = self
+                    .resolve_type_arguments("Map", args, &["K", "V"], ty.span)?
+                    .try_into()
+                    .expect("Map arity was checked");
+                validate_collection_key(&key, ty.span, "Map key")?;
+                Ok(Type::Map(Box::new(key), Box::new(value)))
             }
             TypeKind::Named { name: "Set", args } => {
-                let resolved = self.resolve_type_arguments("Set", args, &["T"], ty.span)?;
-                validate_collection_key(&resolved[0], ty.span, "Set element")?;
-                Ok(Type::Set(Box::new(resolved[0].clone())))
+                let [element]: [Type<'src>; 1] = self
+                    .resolve_type_arguments("Set", args, &["T"], ty.span)?
+                    .try_into()
+                    .expect("Set arity was checked");
+                validate_collection_key(&element, ty.span, "Set element")?;
+                Ok(Type::Set(Box::new(element)))
             }
             TypeKind::Named { name: "Task", args }
-                if !self.model.structs.contains_key("Task")
-                    && !self.model.classes.contains_key("Task") =>
+                if !self.facts.struct_bindings.contains_key("Task")
+                    && !self.declarations.classes.contains_key("Task") =>
             {
-                let resolved = self.resolve_type_arguments("Task", args, &["T"], ty.span)?;
-                Ok(Type::Task(Box::new(resolved[0].clone())))
+                let [value]: [Type<'src>; 1] = self
+                    .resolve_type_arguments("Task", args, &["T"], ty.span)?
+                    .try_into()
+                    .expect("Task arity was checked");
+                Ok(Type::Task(Box::new(value)))
             }
             TypeKind::Named {
                 name: "Generator",
                 args,
-            } if !self.model.structs.contains_key("Generator")
-                && !self.model.classes.contains_key("Generator") =>
+            } if !self.facts.struct_bindings.contains_key("Generator")
+                && !self.declarations.classes.contains_key("Generator") =>
             {
-                let resolved = self.resolve_type_arguments("Generator", args, &["T"], ty.span)?;
-                Ok(Type::Generator(Box::new(resolved[0].clone())))
+                let [value]: [Type<'src>; 1] = self
+                    .resolve_type_arguments("Generator", args, &["T"], ty.span)?
+                    .try_into()
+                    .expect("Generator arity was checked");
+                Ok(Type::Generator(Box::new(value)))
             }
             TypeKind::Named {
                 name: "ArrayBuffer",
@@ -5269,32 +7180,36 @@ impl<'src> Analyzer<'src> {
                 name: "Record",
                 args,
             } => {
-                let arguments =
-                    self.resolve_type_arguments("Record", args, &["$value"], ty.span)?;
-                let [value] = arguments.as_slice() else {
-                    unreachable!("Record arity was checked")
-                };
-                Ok(Type::Record(Box::new(value.clone())))
+                let [value]: [Type<'src>; 1] = self
+                    .resolve_type_arguments("Record", args, &["$value"], ty.span)?
+                    .try_into()
+                    .expect("Record arity was checked");
+                Ok(Type::Record(Box::new(value)))
             }
-            TypeKind::Named { name, args } if self.model.enums.contains_key(name) => {
+            TypeKind::Named { name, args } if self.declarations.enums.contains_key(name) => {
                 self.resolve_type_arguments(name, args, &[], ty.span)?;
                 Ok(Type::Enum(name))
             }
-            TypeKind::Named { name, args } if self.model.structs.contains_key(name) => {
-                let parameters = self.model.structs[name].type_params.clone();
-                let arguments = self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+            TypeKind::Named { name, args } if self.facts.struct_bindings.contains_key(name) => {
+                let info = self
+                    .view()
+                    .struct_info(name)
+                    .expect("source struct binding");
+                let declaration = info.declaration;
+                let parameters = &info.type_params;
+                let arguments = self.resolve_type_arguments(name, args, parameters, ty.span)?;
                 if parameters.is_empty() {
-                    Ok(Type::Struct(name))
+                    Ok(Type::Struct(declaration))
                 } else {
                     Ok(Type::StructInstance {
-                        name,
+                        declaration,
                         args: arguments,
                     })
                 }
             }
-            TypeKind::Named { name, args } if self.model.classes.contains_key(name) => {
-                let parameters = self.model.classes[name].type_params.clone();
-                let arguments = self.resolve_type_arguments(name, args, &parameters, ty.span)?;
+            TypeKind::Named { name, args } if self.declarations.classes.contains_key(name) => {
+                let parameters = &self.declarations.classes[name].type_params;
+                let arguments = self.resolve_type_arguments(name, args, parameters, ty.span)?;
                 if parameters.is_empty() {
                     Ok(Type::Class(name))
                 } else {
@@ -5304,9 +7219,15 @@ impl<'src> Analyzer<'src> {
                     })
                 }
             }
-            TypeKind::Named { name, .. } => Err(SemanticError::new(
+            TypeKind::Named { name, .. } => Err(AdmittedSemanticError::new(
                 ty.span,
-                format!("unknown type `{name}`"),
+                if self.module.is_some() {
+                    format!(
+                        "direct module checking does not yet support nominal or unknown type `{name}`"
+                    )
+                } else {
+                    format!("unknown type `{name}`")
+                },
             )),
             TypeKind::Array(element) => {
                 let element = self.resolve_value_type(*element, "array element")?;
@@ -5315,7 +7236,7 @@ impl<'src> Analyzer<'src> {
             TypeKind::Nullable(inner) => {
                 let inner = self.resolve_value_type(*inner, "nullable value")?;
                 if matches!(inner, Type::Nullable(_) | Type::Null) {
-                    return Err(SemanticError::new(
+                    return Err(AdmittedSemanticError::new(
                         ty.span,
                         "nullable types cannot be nested",
                     ));
@@ -5335,27 +7256,30 @@ impl<'src> Analyzer<'src> {
             } => {
                 let mut resolved_params = Vec::with_capacity(params.len());
                 for param in params {
-                    resolved_params.push(self.resolve_value_type(*param, "function parameter")?);
+                    resolved_params.push(FunctionParameter {
+                        ty: self.resolve_value_type(param.ty, "function parameter")?,
+                        passing: param.passing,
+                        default: None,
+                    });
                 }
                 let return_type = self.resolve_type(*return_type, true, "function return")?;
-                Ok(Type::Function(FunctionType {
+                Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: resolved_params,
-                    defaults: vec![None; params.len()],
                     return_type: Box::new(return_type),
-                }))
+                })))
             }
         }
     }
 
-    fn resolve_type_arguments<'ast>(
+    fn resolve_type_arguments(
         &self,
         name: &str,
-        args: &[TypeRef<'ast, 'src>],
+        args: &'ast [TypeRef<'ast, 'src>],
         parameters: &[&'src str],
         span: Span,
-    ) -> Result<Vec<Type<'src>>, SemanticError> {
+    ) -> Result<Vec<Type<'src>>, AdmittedSemanticError> {
         if args.len() != parameters.len() {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 span,
                 format!(
                     "type `{name}` expects {} type arguments, found {}",
@@ -5369,7 +7293,7 @@ impl<'src> Analyzer<'src> {
             .collect()
     }
 
-    fn push_type_params(&mut self, params: &[Ident<'src>]) -> Result<(), SemanticError> {
+    fn push_type_params(&mut self, params: &[Ident<'src>]) -> Result<(), AdmittedSemanticError> {
         let names = validate_type_params(params)?;
         for parameter in params {
             if self
@@ -5377,7 +7301,7 @@ impl<'src> Analyzer<'src> {
                 .iter()
                 .any(|scope| scope.contains(parameter.name))
             {
-                return Err(SemanticError::new(
+                return Err(AdmittedSemanticError::new(
                     parameter.span,
                     format!(
                         "type parameter `{}` shadows an enclosing type parameter",
@@ -5386,7 +7310,11 @@ impl<'src> Analyzer<'src> {
                 ));
             }
         }
-        self.type_parameter_scopes.push(names.into_iter().collect());
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.type_parameter_scopes,
+            names.into_iter().collect(),
+        )?;
         Ok(())
     }
 
@@ -5401,14 +7329,28 @@ impl<'src> Analyzer<'src> {
         expected: &Type<'src>,
         actual: &Type<'src>,
         span: Span,
-    ) -> Result<(), SemanticError> {
+    ) -> Result<(), AdmittedSemanticError> {
         if self.is_assignable(expected, actual) {
             Ok(())
         } else {
-            Err(SemanticError::new(
-                span,
-                format!("expected `{expected}`, found `{actual}`"),
-            ))
+            let mut message = format!("expected `{expected}`, found `{actual}`");
+            let declaration = |ty: &Type<'src>| match ty {
+                Type::Struct(declaration) | Type::StructInstance { declaration, .. } => {
+                    Some(*declaration)
+                }
+                _ => None,
+            };
+            if let (Some(expected), Some(actual)) = (declaration(expected), declaration(actual)) {
+                if expected.name == actual.name && expected.identity != actual.identity {
+                    let expected = &self.declarations.structs[expected.identity.index()];
+                    let actual = &self.declarations.structs[actual.identity.index()];
+                    use std::fmt::Write;
+                    write!(message, " (distinct struct declarations: expected module {:?} at {}..{}, found module {:?} at {}..{})",
+                        expected.module, expected.span.start, expected.span.end,
+                        actual.module, actual.span.start, actual.span.end).expect("String formatting");
+                }
+            }
+            Err(AdmittedSemanticError::new(span, message))
         }
     }
 
@@ -5443,7 +7385,7 @@ impl<'src> Analyzer<'src> {
             ) => {
                 let mut current = actual.clone();
                 while let Some((name, args)) = class_type_parts(&current) {
-                    let info = match self.model.classes.get(name) {
+                    let info = match self.declarations.classes.get(name) {
                         Some(info) => info,
                         None => return false,
                     };
@@ -5462,33 +7404,149 @@ impl<'src> Analyzer<'src> {
         }
     }
 
-    fn condition_narrowing<'ast>(
-        &self,
-        condition: &Expr<'ast, 'src>,
-    ) -> Result<(Narrowing<'src>, Narrowing<'src>), SemanticError> {
-        if let Expr::Unary {
-            op: UnaryOp::Not,
-            expr,
-            ..
-        } = condition
-        {
-            let (then_narrowing, else_narrowing) = self.condition_narrowing(expr)?;
-            return Ok((else_narrowing, then_narrowing));
+    fn narrowing_from_input(
+        &mut self,
+        input: NarrowingInput<'ast, 'src>,
+    ) -> Result<(Narrowing<'src>, Narrowing<'src>), AdmittedSemanticError> {
+        let Some(expression) = input.expression else {
+            return Ok((empty_narrowing(), empty_narrowing()));
+        };
+        let (when_true, when_false) = self.condition_narrowing(expression)?;
+        Ok((
+            if input.when_true { when_true } else { empty_narrowing() },
+            if input.when_false { when_false } else { empty_narrowing() },
+        ))
+    }
+
+    fn condition_narrowing(
+        &mut self,
+        condition: &'ast Expr<'ast, 'src>,
+    ) -> Result<(Narrowing<'src>, Narrowing<'src>), AdmittedSemanticError> {
+        // Most guards are leaves; only Boolean compositions need a worklist.
+        if !matches!(
+            &condition.kind,
+            ExprKind::Unary {
+                op: UnaryOp::Not,
+                ..
+            } | ExprKind::Binary {
+                op: BinaryOp::And | BinaryOp::Or,
+                ..
+            }
+        ) {
+            self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            return self.condition_narrowing_leaf(condition);
         }
-        if let Expr::TypeCheck {
-            value: Expr::Ident(ident),
-            span,
-            ..
-        } = condition
-        {
+        let mut pending = Vec::new();
+        let mut answers = Vec::new();
+        let result = (|| {
+            self.budget.push(
+                AllocationClass::Scratch,
+                &mut pending,
+                NarrowingStep::Visit(condition),
+            )?;
+            loop {
+                self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                let Some(step) = pending.pop() else {
+                    break;
+                };
+                match step {
+                    NarrowingStep::Visit(expression) => match &expression.kind {
+                        ExprKind::Unary {
+                            op: UnaryOp::Not,
+                            expr,
+                            ..
+                        } => {
+                            self.budget.push(AllocationClass::Scratch, &mut pending, NarrowingStep::Not)?;
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut pending,
+                                NarrowingStep::Visit(expr),
+                            )?;
+                        }
+                        ExprKind::Binary {
+                            op: op @ (BinaryOp::And | BinaryOp::Or),
+                            lhs,
+                            rhs,
+                            ..
+                        } => {
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut pending,
+                                NarrowingStep::Join(*op),
+                            )?;
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut pending,
+                                NarrowingStep::Visit(rhs),
+                            )?;
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut pending,
+                                NarrowingStep::Visit(lhs),
+                            )?;
+                        }
+                        _ => {
+                            let answer = self.condition_narrowing_leaf(expression)?;
+                            self.budget.push(AllocationClass::Scratch, &mut answers, answer)?;
+                        }
+                    },
+                    NarrowingStep::Not => {
+                        let (when_true, when_false) = answers.pop().expect("analyzed negated guard");
+                        self.budget.push(
+                            AllocationClass::Scratch,
+                            &mut answers,
+                            (when_false, when_true),
+                        )?;
+                    }
+                    NarrowingStep::Join(op) => {
+                        let (rhs_then, rhs_else) = answers.pop().expect("analyzed right guard");
+                        let (lhs_then, lhs_else) = answers.pop().expect("analyzed left guard");
+                        let answer = if op == BinaryOp::And {
+                            (merge_narrowing(lhs_then, rhs_then), empty_narrowing())
+                        } else {
+                            (empty_narrowing(), merge_narrowing(lhs_else, rhs_else))
+                        };
+                        self.budget.push(AllocationClass::Scratch, &mut answers, answer)?;
+                    }
+                }
+            }
+            Ok(answers.pop().expect("analyzed condition"))
+        })();
+        let bytes = pending
+            .capacity()
+            .checked_mul(std::mem::size_of::<NarrowingStep<'_, '_>>())
+            .and_then(|bytes| {
+                answers
+                    .capacity()
+                    .checked_mul(std::mem::size_of::<(Narrowing<'_>, Narrowing<'_>)>())
+                    .and_then(|answers| bytes.checked_add(answers))
+            })
+            .and_then(|bytes| u64::try_from(bytes).ok())
+            .expect("admitted narrowing worklists fit their original layouts");
+        drop(pending);
+        drop(answers);
+        self.budget
+            .release(AllocationClass::Scratch, bytes)
+            .expect("narrowing worklists belong to their callback budget");
+        result
+    }
+
+    fn condition_narrowing_leaf(
+        &self,
+        condition: &'ast Expr<'ast, 'src>,
+    ) -> Result<(Narrowing<'src>, Narrowing<'src>), AdmittedSemanticError> {
+        let Some(leaf) = narrowing_leaf(condition) else {
+            return Ok((empty_narrowing(), empty_narrowing()));
+        };
+        if let NarrowingLeaf::TypeCheck { ident, span } = leaf {
             let symbol = self.resolve(ident)?;
             let target = self
-                .model
+                .facts
                 .type_check_types
-                .get(span)
+                .get(&span)
                 .cloned()
                 .ok_or_else(|| {
-                    SemanticError::new(*span, "type guard was not analyzed before narrowing")
+                    AdmittedSemanticError::new(span, "type guard was not analyzed before narrowing")
                 })?;
             let current = self.narrowed_type(symbol.id).unwrap_or(&symbol.ty);
             let remaining = subtract_guarded_type(current, &target);
@@ -5500,24 +7558,8 @@ impl<'src> Analyzer<'src> {
             }
             return Ok((then_narrowing, else_narrowing));
         }
-        let Expr::Binary { op, lhs, rhs, .. } = condition else {
-            return Ok((empty_narrowing(), empty_narrowing()));
-        };
-        if matches!(op, BinaryOp::And | BinaryOp::Or) {
-            let (lhs_then, lhs_else) = self.condition_narrowing(lhs)?;
-            let (rhs_then, rhs_else) = self.condition_narrowing(rhs)?;
-            return Ok(if *op == BinaryOp::And {
-                (merge_narrowing(lhs_then, rhs_then), empty_narrowing())
-            } else {
-                (empty_narrowing(), merge_narrowing(lhs_else, rhs_else))
-            });
-        }
-        if !matches!(op, BinaryOp::Eq | BinaryOp::NotEq) {
-            return Ok((empty_narrowing(), empty_narrowing()));
-        }
-        let ident = match (*lhs, *rhs) {
-            (Expr::Ident(ident), Expr::Null(_)) | (Expr::Null(_), Expr::Ident(ident)) => ident,
-            _ => return Ok((empty_narrowing(), empty_narrowing())),
+        let NarrowingLeaf::NullComparison { ident, present_when_true } = leaf else {
+            unreachable!("type guard returned above")
         };
         let symbol = self.resolve(ident)?;
         let current = self.narrowed_type(symbol.id).unwrap_or(&symbol.ty);
@@ -5526,7 +7568,7 @@ impl<'src> Analyzer<'src> {
         };
         let mut present_narrowing = empty_narrowing();
         present_narrowing.insert(symbol.id, inner.as_ref().clone());
-        Ok(if *op == BinaryOp::NotEq {
+        Ok(if present_when_true {
             (present_narrowing, empty_narrowing())
         } else {
             (empty_narrowing(), present_narrowing)
@@ -5565,11 +7607,15 @@ impl<'src> Analyzer<'src> {
             .find_map(|scope| scope.get(&symbol))
     }
 
-    fn invalidate_assigned_narrowing<'ast>(&mut self, target: &Expr<'ast, 'src>) {
-        let Expr::Ident(ident) = target else {
+    fn invalidate_assigned_narrowing(&mut self, target: &'ast Expr<'ast, 'src>) {
+        let Expr {
+            kind: ExprKind::Ident(ident),
+            ..
+        } = target
+        else {
             return;
         };
-        let Some(symbol) = self.model.identifier_symbols.get(&ident.span).copied() else {
+        let Some(symbol) = self.facts.identifier_symbols.get(&ident.span).copied() else {
             return;
         };
         for scope in &mut self.narrowings {
@@ -5577,55 +7623,127 @@ impl<'src> Analyzer<'src> {
         }
     }
 
-    fn declare(&mut self, ident: Ident<'src>, ty: Type<'src>) -> Result<SymbolId, SemanticError> {
+    fn check_module_defaults(
+        &self,
+        params: &[crate::ast::Param<'ast, 'src>],
+    ) -> Result<(), AdmittedSemanticError> {
+        // Module checking now admits defaults: the semantic route evaluates
+        // an omitted parameter's checked default at each call site.
+        let _ = params;
+        Ok(())
+    }
+
+    fn declare_foreign(
+        &mut self,
+        ident: Ident<'src>,
+        ty: Type<'src>,
+        callable: bool,
+    ) -> Result<SymbolId, AdmittedSemanticError> {
+        if self.module.is_none() {
+            let symbol = self.declare(ident, ty)?;
+            self.declarations.symbols[symbol.0 as usize].origin = DeclarationOrigin::Foreign;
+            return Ok(symbol);
+        }
+        if self.scopes[0].contains_key(ident.name) {
+            return Err(AdmittedSemanticError::new(
+                ident.span,
+                format!("duplicate binding `{}`", ident.name),
+            ));
+        }
+        if let Some(&(symbol, prior_callable)) = self.declarations.foreign_symbols.get(ident.name) {
+            if prior_callable != callable || self.declarations.symbols[symbol.0 as usize].ty != ty {
+                return Err(AdmittedSemanticError::new(
+                    ident.span,
+                    format!("conflicting extern contracts for `{}`", ident.name),
+                ));
+            }
+            self.scopes[0].insert(ident.name, symbol);
+            self.facts
+                .binding_types
+                .insert(ident.span, BindingType::Symbol(symbol));
+            self.record_identifier(ident.span, symbol);
+            return Ok(symbol);
+        }
+        let symbol = self.declare(ident, ty)?;
+        self.declarations.symbols[symbol.0 as usize].origin = DeclarationOrigin::Foreign;
+        self.declarations
+            .foreign_symbols
+            .insert(ident.name, (symbol, callable));
+        Ok(symbol)
+    }
+
+    fn declare(
+        &mut self,
+        ident: Ident<'src>,
+        ty: Type<'src>,
+    ) -> Result<SymbolId, AdmittedSemanticError> {
         let scope = self
             .scopes
             .last_mut()
             .expect("semantic analyzer always has a scope");
         if scope.contains_key(ident.name) {
-            return Err(SemanticError::new(
+            return Err(AdmittedSemanticError::new(
                 ident.span,
                 format!("duplicate binding `{}`", ident.name),
             ));
         }
 
-        let id = SymbolId(self.model.symbols.len() as u32);
+        let id = SymbolId(
+            u32::try_from(self.declarations.symbols.len()).map_err(|_| AllocationError::Capacity)?,
+        );
         let symbol = Symbol {
             id,
             name: ident.name,
-            ty: ty.clone(),
+            ty,
             span: ident.span,
             escape_state: EscapeState::LocalOnly,
+            origin: DeclarationOrigin::Source,
+            identifier_occurrences: 0,
         };
-        self.model.symbols.push(symbol);
-        self.model.binding_types.insert(ident.span, ty);
-        self.model.identifier_symbols.insert(ident.span, id);
+        self.declarations
+            .add_symbol(symbol, self.module, self.budget)?;
         scope.insert(ident.name, id);
+        self.facts
+            .binding_types
+            .insert(ident.span, BindingType::Symbol(id));
+        self.record_identifier(ident.span, id);
         Ok(id)
     }
 
-    fn record_detached(&mut self, ident: Ident<'src>, ty: Type<'src>) -> SymbolId {
-        let id = SymbolId(self.model.symbols.len() as u32);
-        self.model.symbols.push(Symbol {
+    fn record_detached(
+        &mut self,
+        ident: Ident<'src>,
+        ty: Type<'src>,
+    ) -> Result<SymbolId, AdmittedSemanticError> {
+        let id = SymbolId(
+            u32::try_from(self.declarations.symbols.len()).map_err(|_| AllocationError::Capacity)?,
+        );
+        let symbol = Symbol {
             id,
             name: ident.name,
-            ty: ty.clone(),
+            ty,
             span: ident.span,
             escape_state: EscapeState::LocalOnly,
-        });
-        self.model.binding_types.insert(ident.span, ty);
-        self.model.identifier_symbols.insert(ident.span, id);
-        id
+            origin: DeclarationOrigin::Source,
+            identifier_occurrences: 0,
+        };
+        self.declarations
+            .add_symbol(symbol, self.module, self.budget)?;
+        self.facts
+            .binding_types
+            .insert(ident.span, BindingType::Symbol(id));
+        self.record_identifier(ident.span, id);
+        Ok(id)
     }
 
-    fn resolve(&self, ident: &Ident<'src>) -> Result<&Symbol<'src>, SemanticError> {
+    fn resolve(&self, ident: &Ident<'src>) -> Result<&Symbol<'src>, AdmittedSemanticError> {
         self.resolve_with_scope(ident).map(|(_, symbol)| symbol)
     }
 
     fn resolve_with_scope(
         &self,
         ident: &Ident<'src>,
-    ) -> Result<(usize, &Symbol<'src>), SemanticError> {
+    ) -> Result<(usize, &Symbol<'src>), AdmittedSemanticError> {
         let (scope, id) = self
             .scopes
             .iter()
@@ -5633,14 +7751,28 @@ impl<'src> Analyzer<'src> {
             .rev()
             .find_map(|(index, scope)| scope.get(ident.name).map(|id| (index, id)))
             .ok_or_else(|| {
-                SemanticError::new(ident.span, format!("unknown identifier `{}`", ident.name))
+                AdmittedSemanticError::new(ident.span, format!("unknown identifier `{}`", ident.name))
             })?;
-        Ok((scope, &self.model.symbols[id.0 as usize]))
+        if self
+            .reference_parameters
+            .get(id)
+            .is_some_and(|owner| *owner != self.callable_depth)
+        {
+            return Err(AdmittedSemanticError::new(
+                ident.span,
+                "mutable-reference parameters cannot be captured; copy the value into a local first",
+            ));
+        }
+        Ok((scope, &self.declarations.symbols[id.0 as usize]))
     }
 
-    fn push_scope(&mut self) {
+    fn push_scope(&mut self) -> Result<(), AllocationError> {
+        self.budget.reserve_vec(AllocationClass::Scratch, &mut self.scopes, 1)?;
+        self.budget.reserve_vec(AllocationClass::Scratch, &mut self.narrowings, 1)?;
+        self.budget.work(crate::compilation_policy::WorkKind::Render, 2)?;
         self.scopes.push(AHashMap::default());
         self.narrowings.push(AHashMap::default());
+        Ok(())
     }
 
     fn pop_scope(&mut self) {
@@ -5667,20 +7799,35 @@ fn validate_type_params<'src>(params: &[Ident<'src>]) -> Result<Vec<&'src str>, 
 
 fn resolve_parameter_defaults<'ast, 'src>(
     params: &[crate::ast::Param<'ast, 'src>],
-    types: &[Type<'src>],
-) -> Result<Vec<Option<DefaultValue<'src>>>, SemanticError> {
-    params
-        .iter()
-        .zip(types)
-        .map(|(param, ty)| {
+    parameters: &mut [FunctionParameter<'src>],
+) -> Result<(), SemanticError> {
+    for (param, parameter) in params.iter().zip(parameters) {
+        let ty = &parameter.ty;
+        parameter.default = (|| {
             let Some(expression) = &param.default else {
                 return Ok(None);
             };
-            if let Expr::Ident(identifier) = expression {
-                return Ok(Some(DefaultValue::PendingIdentifier(identifier.span)));
+            if parameter.passing == ParameterPassing::MutableReference {
+                return Err(SemanticError::new(
+                    param.span,
+                    "mutable-reference parameters cannot have defaults",
+                ));
+            }
+            if let Expr {
+                kind: ExprKind::Ident(identifier),
+                ..
+            } = expression
+            {
+                return Ok(Some(DefaultValue::PendingIdentifier {
+                    expression: expression.id,
+                    span: identifier.span,
+                }));
             }
             if syntactic_js_undefined_default(expression) {
-                return Ok(Some(DefaultValue::PendingUndefined(expression.span())));
+                return Ok(Some(DefaultValue::PendingUndefined {
+                    expression: expression.id,
+                    span: expression.span(),
+                }));
             }
             if let Some((_, actual)) = scalar_default_value(expression) {
                 if !is_type_assignable(ty, &actual) {
@@ -5700,18 +7847,19 @@ fn resolve_parameter_defaults<'ast, 'src>(
                         ),
                     )
                 })
-        })
-        .collect()
+        })()?;
+    }
+    Ok(())
 }
 
 fn resolve_analyzed_parameter_defaults<'ast, 'src>(
     params: &[crate::ast::Param<'ast, 'src>],
-    types: &[Type<'src>],
-    model: &SemanticModel<'src>,
+    parameters: &mut [FunctionParameter<'src>],
+    model: &SemanticView<'_, '_, 'src>,
     parameter_defaults_in_scope: bool,
     global_symbols: &AHashSet<SymbolId>,
-) -> Result<Vec<Option<DefaultValue<'src>>>, SemanticError> {
-    let mut defaults = resolve_parameter_defaults(params, types)?;
+) -> Result<(), SemanticError> {
+    resolve_parameter_defaults(params, parameters)?;
     let parameter_symbols = if parameter_defaults_in_scope {
         params
             .iter()
@@ -5740,9 +7888,12 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
                 "a parameter default arrow cannot capture a local binding outside its callable",
             ));
         }
-        if matches!(defaults[index], Some(DefaultValue::PendingUndefined(_))) {
-            if model.builtin_call(expression.span()) == Some(BuiltinCall::JsUndefined) {
-                defaults[index] = Some(DefaultValue::Undefined);
+        if matches!(
+            parameters[index].default,
+            Some(DefaultValue::PendingUndefined { .. })
+        ) {
+            if model.builtin_call(expression.id) == Some(BuiltinCall::JsUndefined) {
+                parameters[index].default = Some(DefaultValue::Undefined);
                 continue;
             }
             return Err(SemanticError::new(
@@ -5750,10 +7901,15 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
                 "parameter default is not the unshadowed `JS.undefined()` primitive",
             ));
         }
-        let Expr::Ident(identifier) = expression else {
+        let Expr {
+            kind: ExprKind::Ident(identifier),
+            ..
+        } = expression
+        else {
             continue;
         };
-        let Some(bound) = model.identifier_symbol(identifier.span) else {
+        let ExpressionResolution::Binding(bound) = model.expression_resolution(expression.id)
+        else {
             continue;
         };
         if parameter_defaults_in_scope {
@@ -5767,30 +7923,30 @@ fn resolve_analyzed_parameter_defaults<'ast, 'src>(
                         "parameter defaults can only reference earlier parameters",
                     ));
                 }
-                defaults[index] = Some(DefaultValue::Parameter(bound_parameter));
+                parameters[index].default = Some(DefaultValue::Parameter(bound_parameter));
                 continue;
             }
         }
-        defaults[index] = Some(DefaultValue::Symbol(bound));
+        parameters[index].default = Some(DefaultValue::Symbol(bound));
     }
-    Ok(defaults)
+    Ok(())
 }
 
 fn syntactic_js_undefined_default(expression: &Expr<'_, '_>) -> bool {
     matches!(
         expression,
-        Expr::Call {
+        Expr { kind: ExprKind::Call {
             callee,
             args,
             ..
-        } if args.is_empty()
+        }, .. } if args.is_empty()
             && matches!(
                 callee,
-                Expr::Member {
+                Expr { kind: ExprKind::Member {
                     object,
                     property: Ident { name: "undefined", .. },
                     ..
-                } if matches!(object, Expr::Ident(Ident { name: "JS", .. }))
+                }, .. } if matches!(object, Expr { kind: ExprKind::Ident(Ident { name: "JS", .. }), .. })
             )
     )
 }
@@ -5798,84 +7954,194 @@ fn syntactic_js_undefined_default(expression: &Expr<'_, '_>) -> bool {
 fn default_contains_arrow_capture(
     expression: &Expr<'_, '_>,
     parameter_symbols: &AHashSet<SymbolId>,
-    model: &SemanticModel<'_>,
+    model: &SemanticView<'_, '_, '_>,
 ) -> bool {
     let mut arrow_spans = Vec::new();
     collect_default_arrow_spans(expression, &mut arrow_spans);
-    model.identifier_symbols.iter().any(|(identifier, symbol)| {
-        parameter_symbols.contains(symbol)
-            && arrow_spans
-                .iter()
-                .any(|arrow| arrow.start <= identifier.start && identifier.end <= arrow.end)
-    })
+    model
+        .facts
+        .identifier_symbols
+        .iter()
+        .any(|(identifier, symbol)| {
+            parameter_symbols.contains(symbol)
+                && arrow_spans
+                    .iter()
+                    .any(|arrow| arrow.start <= identifier.start && identifier.end <= arrow.end)
+        })
 }
 
 fn default_contains_non_global_arrow_capture(
     expression: &Expr<'_, '_>,
     global_symbols: &AHashSet<SymbolId>,
-    model: &SemanticModel<'_>,
+    model: &SemanticView<'_, '_, '_>,
 ) -> bool {
     let mut arrow_spans = Vec::new();
     collect_default_arrow_spans(expression, &mut arrow_spans);
-    model.identifier_symbols.iter().any(|(identifier, symbol)| {
-        !global_symbols.contains(symbol)
-            && arrow_spans.iter().any(|arrow| {
-                arrow.start <= identifier.start
-                    && identifier.end <= arrow.end
-                    && model.symbols.get(symbol.0 as usize).is_some_and(|symbol| {
-                        symbol.span.start < arrow.start || symbol.span.end > arrow.end
-                    })
-            })
-    })
+    model
+        .facts
+        .identifier_symbols
+        .iter()
+        .any(|(identifier, symbol)| {
+            !global_symbols.contains(symbol)
+                && arrow_spans.iter().any(|arrow| {
+                    arrow.start <= identifier.start
+                        && identifier.end <= arrow.end
+                        && model
+                            .declarations
+                            .symbols
+                            .get(symbol.0 as usize)
+                            .is_some_and(|symbol| {
+                                symbol.span.start < arrow.start || symbol.span.end > arrow.end
+                            })
+                })
+        })
 }
 
 fn collect_default_arrow_spans(expression: &Expr<'_, '_>, spans: &mut Vec<Span>) {
     match expression {
-        Expr::ArrowFunction { span, .. } => spans.push(*span),
-        Expr::ArrayLiteral { elements, .. } => {
+        Expr {
+            kind: ExprKind::ArrowFunction { span, .. },
+            ..
+        } => spans.push(*span),
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => {
             for element in *elements {
                 if let ArrayElement::Value(value) = element {
                     collect_default_arrow_spans(value, spans);
                 }
             }
         }
-        Expr::StructLiteral { values, .. } | Expr::New { args: values, .. } => {
+        Expr {
+            kind: ExprKind::StructLiteral { values, .. },
+            ..
+        } => {
             for value in *values {
                 collect_default_arrow_spans(value, spans);
+            }
+        }
+        Expr {
+            kind: ExprKind::New { args, .. },
+            ..
+        } => {
+            for argument in *args {
+                collect_default_arrow_spans(&argument.expression, spans);
             }
         }
         _ => {}
     }
 }
 
-fn finalize_default_bindings_in_signature<'src>(
-    signature: &mut FunctionType<'src>,
-    bindings: &AHashMap<Span, SymbolId>,
-    builtins: &AHashMap<Span, BuiltinCall>,
-) -> Result<(), SemanticError> {
-    for parameter in &mut signature.params {
-        finalize_default_bindings_in_type(parameter, bindings, builtins)?;
+// A read-only check avoids detaching an already resolved shared signature.
+// Pending metadata is a semantic obligation, not a mutable cache flag.
+fn default_has_pending_bindings(value: &DefaultValue<'_>) -> bool {
+    match value {
+        DefaultValue::PendingIdentifier { .. } | DefaultValue::PendingUndefined { .. } => true,
+        DefaultValue::Array(values) | DefaultValue::Struct { values, .. } => {
+            values.iter().any(default_has_pending_bindings)
+        }
+        DefaultValue::NewClass { args, .. } => args.iter().any(default_has_pending_bindings),
+        _ => false,
     }
-    for default in signature.defaults.iter_mut().flatten() {
-        finalize_default_binding(default, bindings, builtins)?;
-    }
-    finalize_default_bindings_in_type(&mut signature.return_type, bindings, builtins)
 }
 
+fn type_has_default_matching(ty: &Type<'_>, matches: fn(&DefaultValue<'_>) -> bool) -> bool {
+    match ty {
+        Type::Array(value)
+        | Type::Record(value)
+        | Type::Set(value)
+        | Type::Task(value)
+        | Type::Generator(value)
+        | Type::Nullable(value) => type_has_default_matching(value, matches),
+        Type::Map(key, value) => {
+            type_has_default_matching(key, matches) || type_has_default_matching(value, matches)
+        }
+        Type::Union(members)
+        | Type::StructInstance { args: members, .. }
+        | Type::ClassInstance { args: members, .. } => members
+            .iter()
+            .any(|ty| type_has_default_matching(ty, matches)),
+        Type::Function(signature) => signature_has_default_matching(signature, matches),
+        Type::GenericFunction(function) => {
+            signature_has_default_matching(&function.signature, matches)
+        }
+        _ => false,
+    }
+}
+
+fn signature_has_pending_bindings(signature: &FunctionType<'_>) -> bool {
+    signature_has_default_matching(signature, default_has_pending_bindings)
+}
+
+fn signature_has_default_matching(
+    signature: &FunctionType<'_>,
+    matches: fn(&DefaultValue<'_>) -> bool,
+) -> bool {
+    signature.params.iter().any(|parameter| {
+        type_has_default_matching(&parameter.ty, matches)
+            || parameter.default.as_ref().is_some_and(matches)
+    }) || type_has_default_matching(&signature.return_type, matches)
+}
+
+fn finalize_default_bindings_in_signature<'src>(
+    signature: &mut FunctionType<'src>,
+    source_info: &[SourceInfo<'_, 'src>],
+    owned: bool,
+) -> Result<(), SemanticError> {
+    if !signature_has_pending_bindings(signature) {
+        return Ok(());
+    }
+    let signature = signature.make_mut();
+    for parameter in &mut signature.params {
+        finalize_default_bindings_in_type(&mut parameter.ty, source_info, owned)?;
+        if let Some(default) = &mut parameter.default {
+            finalize_default_binding(default, source_info, owned)?;
+        }
+    }
+    finalize_default_bindings_in_type(&mut signature.return_type, source_info, owned)
+}
+
+/// `owned`: only finalize a pending default whose source entry is that exact
+/// occurrence (same span). A module finalizes the defaults it declared; a
+/// default another module owns is left for that module.
 fn finalize_default_binding<'src>(
     default: &mut DefaultValue<'src>,
-    bindings: &AHashMap<Span, SymbolId>,
-    builtins: &AHashMap<Span, BuiltinCall>,
+    source_info: &[SourceInfo<'_, 'src>],
+    owned: bool,
 ) -> Result<(), SemanticError> {
+    if owned {
+        if let DefaultValue::PendingIdentifier { expression, span }
+        | DefaultValue::PendingUndefined { expression, span } = default
+        {
+            let same = source_info
+                .get(expression.index())
+                .and_then(|info| info.expression)
+                .is_some_and(|occurrence| occurrence.span() == *span);
+            if !same {
+                return Ok(());
+            }
+        }
+    }
     match default {
-        DefaultValue::PendingIdentifier(span) => {
-            let symbol = bindings.get(span).copied().ok_or_else(|| {
-                SemanticError::new(*span, "missing analyzed parameter-default binding")
-            })?;
+        DefaultValue::PendingIdentifier { expression, span } => {
+            let Some(ExpressionResolution::Binding(symbol)) = source_info
+                .get(expression.index())
+                .map(|info| info.resolution)
+            else {
+                return Err(SemanticError::new(
+                    *span,
+                    "missing analyzed parameter-default binding",
+                ));
+            };
             *default = DefaultValue::Symbol(symbol);
         }
-        DefaultValue::PendingUndefined(span) => {
-            if builtins.get(span) != Some(&BuiltinCall::JsUndefined) {
+        DefaultValue::PendingUndefined { expression, span } => {
+            if source_info
+                .get(expression.index())
+                .map(|info| info.resolution)
+                != Some(ExpressionResolution::Builtin(BuiltinCall::JsUndefined))
+            {
                 return Err(SemanticError::new(
                     *span,
                     "parameter default is not the unshadowed `JS.undefined()` primitive",
@@ -5885,17 +8151,17 @@ fn finalize_default_binding<'src>(
         }
         DefaultValue::Array(values) => {
             for value in values {
-                finalize_default_binding(value, bindings, builtins)?;
+                finalize_default_binding(value, source_info, owned)?;
             }
         }
         DefaultValue::Struct { values, .. } => {
             for value in values {
-                finalize_default_binding(value, bindings, builtins)?;
+                finalize_default_binding(value, source_info, owned)?;
             }
         }
         DefaultValue::NewClass { args, .. } => {
             for argument in args {
-                finalize_default_binding(argument, bindings, builtins)?;
+                finalize_default_binding(argument, source_info, owned)?;
             }
         }
         DefaultValue::Int(_)
@@ -5913,8 +8179,8 @@ fn finalize_default_binding<'src>(
 
 fn finalize_default_bindings_in_type<'src>(
     ty: &mut Type<'src>,
-    bindings: &AHashMap<Span, SymbolId>,
-    builtins: &AHashMap<Span, BuiltinCall>,
+    source_info: &[SourceInfo<'_, 'src>],
+    owned: bool,
 ) -> Result<(), SemanticError> {
     match ty {
         Type::Array(value)
@@ -5922,23 +8188,23 @@ fn finalize_default_bindings_in_type<'src>(
         | Type::Set(value)
         | Type::Task(value)
         | Type::Generator(value)
-        | Type::Nullable(value) => finalize_default_bindings_in_type(value, bindings, builtins)?,
+        | Type::Nullable(value) => finalize_default_bindings_in_type(value, source_info, owned)?,
         Type::Map(key, value) => {
-            finalize_default_bindings_in_type(key, bindings, builtins)?;
-            finalize_default_bindings_in_type(value, bindings, builtins)?;
+            finalize_default_bindings_in_type(key, source_info, owned)?;
+            finalize_default_bindings_in_type(value, source_info, owned)?;
         }
         Type::Union(members)
         | Type::StructInstance { args: members, .. }
         | Type::ClassInstance { args: members, .. } => {
             for member in members {
-                finalize_default_bindings_in_type(member, bindings, builtins)?;
+                finalize_default_bindings_in_type(member, source_info, owned)?;
             }
         }
         Type::Function(signature) => {
-            finalize_default_bindings_in_signature(signature, bindings, builtins)?;
+            finalize_default_bindings_in_signature(signature, source_info, owned)?;
         }
         Type::GenericFunction(function) => {
-            finalize_default_bindings_in_signature(&mut function.signature, bindings, builtins)?;
+            finalize_default_bindings_in_signature(&mut function.signature, source_info, owned)?;
         }
         Type::Int
         | Type::Float
@@ -5989,18 +8255,10 @@ fn strip_parameter_defaults_from_type(ty: &mut Type<'_>) {
             }
         }
         Type::Function(signature) => {
-            signature.defaults.fill(None);
-            for parameter in &mut signature.params {
-                strip_parameter_defaults_from_type(parameter);
-            }
-            strip_parameter_defaults_from_type(&mut signature.return_type);
+            strip_parameter_defaults_from_signature(signature);
         }
         Type::GenericFunction(function) => {
-            function.signature.defaults.fill(None);
-            for parameter in &mut function.signature.params {
-                strip_parameter_defaults_from_type(parameter);
-            }
-            strip_parameter_defaults_from_type(&mut function.signature.return_type);
+            strip_parameter_defaults_from_signature(&mut function.signature);
         }
         Type::Int
         | Type::Float
@@ -6030,14 +8288,50 @@ fn strip_parameter_defaults_from_type(ty: &mut Type<'_>) {
     }
 }
 
+fn strip_parameter_defaults_from_signature(signature: &mut FunctionType<'_>) {
+    if !signature_has_default_matching(signature, |_| true) {
+        return;
+    }
+    let signature = signature.make_mut();
+    for parameter in &mut signature.params {
+        parameter.default = None;
+        strip_parameter_defaults_from_type(&mut parameter.ty);
+    }
+    strip_parameter_defaults_from_type(&mut signature.return_type);
+}
+
+#[cfg(test)]
+#[path = "semantic/default_ownership_tests.rs"]
+mod default_ownership_tests;
+
+#[cfg(test)]
+#[path = "semantic/binding_ownership_tests.rs"]
+mod binding_ownership_tests;
+
+#[cfg(test)]
+#[path = "semantic/class_ownership_tests.rs"]
+mod class_ownership_tests;
+
+#[cfg(test)]
+#[path = "semantic/constructor_ownership_tests.rs"]
+mod constructor_ownership_tests;
+
+#[cfg(test)]
+#[path = "semantic/type_resolution_tests.rs"]
+mod type_resolution_tests;
+
 fn literal_default_value<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
     expected: &Type<'src>,
 ) -> Option<DefaultValue<'src>> {
-    if let Expr::ArrowFunction { span, .. } = expression {
-        return matches!(expected, Type::Function(_)).then_some(DefaultValue::Arrow(*span));
+    if matches!(expression.kind, ExprKind::ArrowFunction { .. }) {
+        return matches!(expected, Type::Function(_)).then_some(DefaultValue::Arrow(expression.id));
     }
-    if let Expr::StructLiteral { name, values, .. } = expression {
+    if let Expr {
+        kind: ExprKind::StructLiteral { name, values, .. },
+        ..
+    } = expression
+    {
         let expected_name = nominal_default_name(expected, false)?;
         if name.name != expected_name {
             return None;
@@ -6051,21 +8345,33 @@ fn literal_default_value<'ast, 'src>(
                 values,
             });
     }
-    if let Expr::New { class, args, .. } = expression {
+    if let Expr {
+        kind: ExprKind::New { class, args, .. },
+        ..
+    } = expression
+    {
         let expected_name = nominal_default_name(expected, true)?;
         if class.name != expected_name {
             return None;
         }
         return args
             .iter()
-            .map(uncontextualized_default_value)
+            .map(|argument| {
+                (argument.passing == ParameterPassing::Value)
+                    .then(|| uncontextualized_default_value(&argument.expression))
+                    .flatten()
+            })
             .collect::<Option<Vec<_>>>()
             .map(|args| DefaultValue::NewClass {
                 name: class.name,
                 args,
             });
     }
-    if let Expr::ArrayLiteral { elements, .. } = expression {
+    if let Expr {
+        kind: ExprKind::ArrayLiteral { elements, .. },
+        ..
+    } = expression
+    {
         let element = expected_array_element(expected)?;
         return elements
             .iter()
@@ -6087,7 +8393,10 @@ fn uncontextualized_default_value<'ast, 'src>(
         return Some(value);
     }
     match expression {
-        Expr::ArrayLiteral { elements, .. } => elements
+        Expr {
+            kind: ExprKind::ArrayLiteral { elements, .. },
+            ..
+        } => elements
             .iter()
             .map(|element| match element {
                 ArrayElement::Value(value) => uncontextualized_default_value(value),
@@ -6095,8 +8404,14 @@ fn uncontextualized_default_value<'ast, 'src>(
             })
             .collect::<Option<Vec<_>>>()
             .map(DefaultValue::Array),
-        Expr::ArrowFunction { span, .. } => Some(DefaultValue::Arrow(*span)),
-        Expr::StructLiteral { name, values, .. } => values
+        Expr {
+            kind: ExprKind::ArrowFunction { .. },
+            ..
+        } => Some(DefaultValue::Arrow(expression.id)),
+        Expr {
+            kind: ExprKind::StructLiteral { name, values, .. },
+            ..
+        } => values
             .iter()
             .map(uncontextualized_default_value)
             .collect::<Option<Vec<_>>>()
@@ -6104,9 +8419,16 @@ fn uncontextualized_default_value<'ast, 'src>(
                 name: name.name,
                 values,
             }),
-        Expr::New { class, args, .. } => args
+        Expr {
+            kind: ExprKind::New { class, args, .. },
+            ..
+        } => args
             .iter()
-            .map(uncontextualized_default_value)
+            .map(|argument| {
+                (argument.passing == ParameterPassing::Value)
+                    .then(|| uncontextualized_default_value(&argument.expression))
+                    .flatten()
+            })
             .collect::<Option<Vec<_>>>()
             .map(|args| DefaultValue::NewClass {
                 name: class.name,
@@ -6118,10 +8440,10 @@ fn uncontextualized_default_value<'ast, 'src>(
 
 fn nominal_default_name<'src>(ty: &Type<'src>, class: bool) -> Option<&'src str> {
     match (class, ty) {
-        (false, Type::Struct(name)) | (true, Type::Class(name)) => Some(name),
-        (false, Type::StructInstance { name, .. }) | (true, Type::ClassInstance { name, .. }) => {
-            Some(name)
+        (false, Type::Struct(declaration)) | (false, Type::StructInstance { declaration, .. }) => {
+            Some(declaration.name)
         }
+        (true, Type::Class(name)) | (true, Type::ClassInstance { name, .. }) => Some(name),
         (_, Type::Nullable(inner)) => nominal_default_name(inner, class),
         (_, Type::Union(members)) => members
             .iter()
@@ -6152,44 +8474,60 @@ fn scalar_default_value<'ast, 'src>(
     expression: &Expr<'ast, 'src>,
 ) -> Option<(DefaultValue<'src>, Type<'src>)> {
     match expression {
-        Expr::Int(value, _) => Some((DefaultValue::Int(*value), Type::Int)),
-        Expr::Float(value, _) => Some((DefaultValue::Float(value.to_bits()), Type::Float)),
-        Expr::String(value, _) => Some((DefaultValue::String(value), Type::String)),
-        Expr::Bool(value, _) => Some((DefaultValue::Bool(*value), Type::Bool)),
-        Expr::Null(_) => Some((DefaultValue::Null, Type::Null)),
-        Expr::Unary {
-            op: UnaryOp::Neg,
-            expr,
+        Expr {
+            kind: ExprKind::Int(value, _),
+            ..
+        } => Some((DefaultValue::Int(*value), Type::Int)),
+        Expr {
+            kind: ExprKind::Float(value, _),
+            ..
+        } => Some((DefaultValue::Float(value.to_bits()), Type::Float)),
+        Expr {
+            kind: ExprKind::String(value, _),
+            ..
+        } => Some((DefaultValue::String(value), Type::String)),
+        Expr {
+            kind: ExprKind::Bool(value, _),
+            ..
+        } => Some((DefaultValue::Bool(*value), Type::Bool)),
+        Expr {
+            kind: ExprKind::Null(_),
+            ..
+        } => Some((DefaultValue::Null, Type::Null)),
+        Expr {
+            kind:
+                ExprKind::Unary {
+                    op: UnaryOp::Neg,
+                    expr,
+                    ..
+                },
             ..
         } => match *expr {
-            Expr::Int(value, _) => Some((DefaultValue::Int(value.wrapping_neg()), Type::Int)),
-            Expr::Float(value, _) => Some((DefaultValue::Float((-value).to_bits()), Type::Float)),
+            Expr {
+                kind: ExprKind::Int(value, _),
+                ..
+            } => Some((DefaultValue::Int(value.wrapping_neg()), Type::Int)),
+            Expr {
+                kind: ExprKind::Float(value, _),
+                ..
+            } => Some((DefaultValue::Float((-value).to_bits()), Type::Float)),
             _ => None,
         },
         _ => None,
     }
 }
 
-fn applied_nominal_type<'src>(
-    name: &'src str,
-    parameters: &[&'src str],
-    class: bool,
-) -> Type<'src> {
+fn applied_class_type<'src>(name: &'src str, parameters: &[&'src str]) -> Type<'src> {
     if parameters.is_empty() {
-        return if class {
-            Type::Class(name)
-        } else {
-            Type::Struct(name)
-        };
-    }
-    let args = parameters
-        .iter()
-        .map(|parameter| Type::TypeParameter(parameter))
-        .collect();
-    if class {
-        Type::ClassInstance { name, args }
+        Type::Class(name)
     } else {
-        Type::StructInstance { name, args }
+        Type::ClassInstance {
+            name,
+            args: parameters
+                .iter()
+                .map(|parameter| Type::TypeParameter(parameter))
+                .collect(),
+        }
     }
 }
 
@@ -6197,67 +8535,13 @@ fn substitute_type<'src>(
     ty: &Type<'src>,
     substitutions: &AHashMap<&'src str, Type<'src>>,
 ) -> Type<'src> {
-    match ty {
-        Type::TypeParameter(name) => substitutions
-            .get(name)
-            .cloned()
-            .unwrap_or_else(|| ty.clone()),
-        Type::Array(element) => Type::Array(Box::new(substitute_type(element, substitutions))),
-        Type::Record(value) => Type::Record(Box::new(substitute_type(value, substitutions))),
-        Type::Map(key, value) => Type::Map(
-            Box::new(substitute_type(key, substitutions)),
-            Box::new(substitute_type(value, substitutions)),
-        ),
-        Type::Set(element) => Type::Set(Box::new(substitute_type(element, substitutions))),
-        Type::Task(value) => Type::Task(Box::new(substitute_type(value, substitutions))),
-        Type::Generator(value) => Type::Generator(Box::new(substitute_type(value, substitutions))),
-        Type::Nullable(inner) => Type::Nullable(Box::new(substitute_type(inner, substitutions))),
-        Type::Union(members) => normalize_union(
-            members
-                .iter()
-                .map(|member| substitute_type(member, substitutions))
-                .collect(),
-        ),
-        Type::StructInstance { name, args } => Type::StructInstance {
-            name,
-            args: args
-                .iter()
-                .map(|argument| substitute_type(argument, substitutions))
-                .collect(),
-        },
-        Type::ClassInstance { name, args } => Type::ClassInstance {
-            name,
-            args: args
-                .iter()
-                .map(|argument| substitute_type(argument, substitutions))
-                .collect(),
-        },
-        Type::Function(signature) => Type::Function(FunctionType {
-            params: signature
-                .params
-                .iter()
-                .map(|parameter| substitute_type(parameter, substitutions))
-                .collect(),
-            defaults: signature.defaults.clone(),
-            return_type: Box::new(substitute_type(&signature.return_type, substitutions)),
-        }),
-        Type::GenericFunction(function) => Type::GenericFunction(GenericFunctionType {
-            type_params: function.type_params.clone(),
-            signature: FunctionType {
-                params: function
-                    .signature
-                    .params
-                    .iter()
-                    .map(|parameter| substitute_type(parameter, substitutions))
-                    .collect(),
-                defaults: function.signature.defaults.clone(),
-                return_type: Box::new(substitute_type(
-                    &function.signature.return_type,
-                    substitutions,
-                )),
-            },
-        }),
-        _ => ty.clone(),
+    match type_substitution::substitute_type_with(
+        ty,
+        &mut |name, _: &mut type_relation::Unmetered| Ok(substitutions.get(name)),
+        &mut type_relation::Unmetered,
+    ) {
+        Ok(value) => value,
+        Err(never) => match never {},
     }
 }
 
@@ -6313,7 +8597,7 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
             signature
                 .params
                 .iter()
-                .any(|parameter| contains_type_parameter(parameter, parameters))
+                .any(|parameter| contains_type_parameter(&parameter.ty, parameters))
                 || contains_type_parameter(&signature.return_type, parameters)
         }
         Type::GenericFunction(function) => {
@@ -6321,7 +8605,7 @@ fn contains_type_parameter(ty: &Type<'_>, parameters: &AHashSet<&str>) -> bool {
                 .signature
                 .params
                 .iter()
-                .any(|parameter| contains_type_parameter(parameter, parameters))
+                .any(|parameter| contains_type_parameter(&parameter.ty, parameters))
                 || contains_type_parameter(&function.signature.return_type, parameters)
         }
         _ => false,
@@ -6398,7 +8682,13 @@ fn infer_type_arguments<'src>(
             if pattern.params.len() == actual.params.len() =>
         {
             for (pattern, actual) in pattern.params.iter().zip(&actual.params) {
-                infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+                if pattern.passing != actual.passing {
+                    return Err(SemanticError::new(
+                        span,
+                        "callback parameter passing modes differ",
+                    ));
+                }
+                infer_type_arguments(&pattern.ty, &actual.ty, parameters, substitutions, span)?;
             }
             infer_type_arguments(
                 &pattern.return_type,
@@ -6410,24 +8700,28 @@ fn infer_type_arguments<'src>(
         }
         (
             Type::StructInstance {
-                name: pattern_name,
+                declaration: pattern,
                 args: pattern_args,
             },
             Type::StructInstance {
-                name: actual_name,
+                declaration: actual,
                 args: actual_args,
             },
-        )
-        | (
+        ) if pattern == actual && pattern_args.len() == actual_args.len() => {
+            for (pattern, actual) in pattern_args.iter().zip(actual_args) {
+                infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
+            }
+        }
+        (
             Type::ClassInstance {
-                name: pattern_name,
+                name: pattern,
                 args: pattern_args,
             },
             Type::ClassInstance {
-                name: actual_name,
+                name: actual,
                 args: actual_args,
             },
-        ) if pattern_name == actual_name && pattern_args.len() == actual_args.len() => {
+        ) if pattern == actual && pattern_args.len() == actual_args.len() => {
             for (pattern, actual) in pattern_args.iter().zip(actual_args) {
                 infer_type_arguments(pattern, actual, parameters, substitutions, span)?;
             }
@@ -6437,62 +8731,19 @@ fn infer_type_arguments<'src>(
     Ok(())
 }
 
+/// Shared language typing for a checked binary operation, independent of the
+/// source checker or a target representation.
+pub(crate) fn checked_binary_type<'src>(
+    op: BinaryOp,
+    lhs: &Type<'src>,
+    rhs: &Type<'src>,
+    span: Span,
+) -> Result<Type<'src>, SemanticError> {
+    binary_types::checked_binary_type_plain(op, lhs, rhs, span)
+}
+
 pub(crate) fn is_type_assignable(expected: &Type<'_>, actual: &Type<'_>) -> bool {
-    if expected == actual {
-        return true;
-    }
-    match (expected, actual) {
-        (Type::TypeParameter("$js"), _) => !actual.is_void(),
-        (Type::Float, Type::Int) => true,
-        (Type::Array(expected), Type::Array(actual)) => {
-            is_type_assignable(expected, actual) && is_type_assignable(actual, expected)
-        }
-        (Type::Record(expected), Type::Record(actual)) => expected == actual,
-        (Type::Map(expected_key, expected_value), Type::Map(actual_key, actual_value)) => {
-            expected_key == actual_key && expected_value == actual_value
-        }
-        (Type::Set(expected), Type::Set(actual)) => expected == actual,
-        (Type::Task(expected), Type::Task(actual)) => is_type_assignable(expected, actual),
-        (Type::Generator(expected), Type::Generator(actual)) => {
-            is_type_assignable(expected, actual)
-        }
-        (Type::Nullable(_), Type::Null) => true,
-        (Type::Nullable(expected), Type::Nullable(actual)) => is_type_assignable(expected, actual),
-        (Type::Nullable(expected), actual) => is_type_assignable(expected, actual),
-        (Type::Union(expected), Type::Union(actual)) => actual.iter().all(|actual| {
-            expected
-                .iter()
-                .any(|expected| is_type_assignable(expected, actual))
-        }),
-        (Type::Union(expected), actual) => expected
-            .iter()
-            .any(|expected| is_type_assignable(expected, actual)),
-        (expected, Type::Union(actual)) => actual
-            .iter()
-            .all(|actual| is_type_assignable(expected, actual)),
-        (Type::Function(expected), Type::Function(actual))
-            if expected.params.len() == actual.params.len() =>
-        {
-            expected
-                .params
-                .iter()
-                .zip(&actual.params)
-                .all(|(expected, actual)| {
-                    is_type_assignable(expected, actual) && is_type_assignable(actual, expected)
-                })
-                && expected
-                    .defaults
-                    .iter()
-                    .enumerate()
-                    .all(|(index, default)| {
-                        default.as_ref().is_none_or(|expected| {
-                            actual.defaults.get(index).and_then(Option::as_ref) == Some(expected)
-                        })
-                    })
-                && is_type_assignable(&expected.return_type, &actual.return_type)
-        }
-        _ => false,
-    }
+    type_relation::is_type_assignable_plain(expected, actual)
 }
 
 fn assignment_binary_op(op: AssignmentOp) -> BinaryOp {
@@ -6528,7 +8779,11 @@ fn statement_guarantees_return(statement: &Stmt<'_, '_>) -> bool {
             ..
         } => statement_guarantees_return(then_branch) && statement_guarantees_return(else_branch),
         Stmt::While {
-            condition: Expr::Bool(true, _),
+            condition:
+                Expr {
+                    kind: ExprKind::Bool(true, _),
+                    ..
+                },
             body,
             ..
         } => statement_guarantees_return(body) && !statement_contains_break(body),
@@ -6715,11 +8970,13 @@ fn buffer_member<'src>(
     return_type: Type<'src>,
 ) -> Result<Type<'src>, SemanticError> {
     match property.name {
-        "slice" => Ok(Type::Function(FunctionType {
-            params: vec![Type::Int, Type::Int],
-            defaults: vec![None, Some(DefaultValue::Int(i32::MAX as i64))],
+        "slice" => Ok(Type::Function(FunctionType::new(FunctionSignature {
+            params: vec![
+                FunctionParameter::value(Type::Int),
+                FunctionParameter::defaulted(Type::Int, DefaultValue::Int(i32::MAX as i64)),
+            ],
             return_type: Box::new(return_type),
-        })),
+        }))),
         _ => Err(SemanticError::new(
             span,
             format!("buffer has no member `{}`", property.name),
@@ -6751,48 +9008,16 @@ fn json_stringify_type_supported(ty: &Type<'_>) -> bool {
         || matches!(ty, Type::Array(inner) | Type::Record(inner) if scalar(inner))
 }
 
-fn decode_source_string(value: &str) -> String {
-    let encoded = format!("\"{value}\"");
-    serde_json::from_str(&encoded).unwrap_or_else(|_| value.to_string())
+fn decode_source_string(
+    value: &str,
+    span: Span,
+) -> Result<crate::literal::StringValue, SemanticError> {
+    crate::literal::StringValue::decode_source(value)
+        .map_err(|error| SemanticError::new(span, format!("invalid string escape: {error:?}")))
 }
 
 fn common_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Option<Type<'src>> {
-    if lhs == rhs {
-        return Some(lhs.clone());
-    }
-    if lhs.is_numeric() && rhs.is_numeric() {
-        return Some(common_numeric_type(lhs, rhs));
-    }
-    match (lhs, rhs) {
-        (Type::Nullable(inner), Type::Null) | (Type::Null, Type::Nullable(inner)) => {
-            Some(Type::Nullable(inner.clone()))
-        }
-        (Type::Null, other) | (other, Type::Null) if !matches!(other, Type::Null | Type::Void) => {
-            Some(Type::Nullable(Box::new(other.clone())))
-        }
-        (Type::Nullable(lhs), Type::Nullable(rhs)) => {
-            common_type(lhs, rhs).map(|inner| Type::Nullable(Box::new(inner)))
-        }
-        (Type::Nullable(nullable), other) | (other, Type::Nullable(nullable)) => {
-            common_type(nullable, other).map(|inner| Type::Nullable(Box::new(inner)))
-        }
-        (Type::Array(lhs), Type::Array(rhs)) => {
-            common_type(lhs, rhs).map(|element| Type::Array(Box::new(element)))
-        }
-        (Type::Record(lhs), Type::Record(rhs)) if lhs == rhs => Some(Type::Record(lhs.clone())),
-        (Type::Task(lhs), Type::Task(rhs)) => {
-            common_type(lhs, rhs).map(|value| Type::Task(Box::new(value)))
-        }
-        (Type::Generator(lhs), Type::Generator(rhs)) => {
-            common_type(lhs, rhs).map(|value| Type::Generator(Box::new(value)))
-        }
-        _ if !matches!(lhs, Type::Void | Type::GenericFunction(_))
-            && !matches!(rhs, Type::Void | Type::GenericFunction(_)) =>
-        {
-            Some(normalize_union(vec![lhs.clone(), rhs.clone()]))
-        }
-        _ => None,
-    }
+    binary_types::common_type_plain(lhs, rhs)
 }
 
 fn nullish_present_type<'a, 'src>(ty: &'a Type<'src>) -> Option<&'a Type<'src>> {
@@ -6819,38 +9044,7 @@ fn optional_result_type<'src>(ty: Type<'src>, span: Span) -> Result<Type<'src>, 
 }
 
 fn normalize_union<'src>(members: Vec<Type<'src>>) -> Type<'src> {
-    let mut flattened = Vec::new();
-    for member in members {
-        append_union_member(&mut flattened, member);
-    }
-    if flattened
-        .iter()
-        .any(|member| matches!(member, Type::Nullable(_)))
-    {
-        flattened.retain(|member| member != &Type::Null);
-    }
-    if flattened.len() == 2 {
-        let null = flattened.iter().position(|member| member == &Type::Null);
-        if let Some(null) = null {
-            let inner = flattened.remove(1 - null);
-            return Type::Nullable(Box::new(inner));
-        }
-    }
-    if flattened.len() == 1 {
-        flattened.pop().expect("one union member remains")
-    } else {
-        Type::Union(flattened)
-    }
-}
-
-fn append_union_member<'src>(flattened: &mut Vec<Type<'src>>, member: Type<'src>) {
-    if let Type::Union(nested) = member {
-        for member in nested {
-            append_union_member(flattened, member);
-        }
-    } else if !flattened.contains(&member) {
-        flattened.push(member);
-    }
+    binary_types::normalize_union_plain(members)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -6978,49 +9172,7 @@ fn common_numeric_type<'src>(lhs: &Type<'src>, rhs: &Type<'src>) -> Type<'src> {
 }
 
 fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
-    match (lhs, rhs) {
-        (Type::Null, Type::Null)
-        | (Type::Null, Type::Nullable(_))
-        | (Type::Nullable(_), Type::Null) => true,
-        (Type::Nullable(lhs), Type::Nullable(rhs)) => equality_comparable(lhs, rhs),
-        (Type::Nullable(lhs), rhs) => equality_comparable(lhs, rhs),
-        (lhs, Type::Nullable(rhs)) => equality_comparable(lhs, rhs),
-        (Type::Union(lhs), Type::Union(rhs)) => lhs
-            .iter()
-            .any(|lhs| rhs.iter().any(|rhs| equality_comparable(lhs, rhs))),
-        (Type::Union(lhs), rhs) => lhs.iter().any(|lhs| equality_comparable(lhs, rhs)),
-        (lhs, Type::Union(rhs)) => rhs.iter().any(|rhs| equality_comparable(lhs, rhs)),
-        (lhs, rhs) if is_js_value(lhs) || is_js_value(rhs) => {
-            let other = if is_js_value(lhs) { rhs } else { lhs };
-            matches!(
-                other,
-                Type::TypeParameter("$js")
-                    | Type::Null
-                    | Type::Bool
-                    | Type::String
-                    | Type::Int
-                    | Type::Float
-            ) || is_js_value(other)
-        }
-        _ => {
-            (lhs == rhs || (lhs.is_numeric() && rhs.is_numeric()))
-                && equality_type_supported(lhs)
-                && equality_type_supported(rhs)
-        }
-    }
-}
-
-fn equality_type_supported(ty: &Type<'_>) -> bool {
-    match ty {
-        Type::Union(members) => members.iter().all(equality_type_supported),
-        Type::Null
-        | Type::Struct(_)
-        | Type::StructInstance { .. }
-        | Type::GenericFunction(_)
-        | Type::Void => false,
-        Type::Function(_) => true,
-        _ => true,
-    }
+    binary_types::equality_comparable_plain(lhs, rhs)
 }
 
 fn index_key_type<'src>(ty: &Type<'src>) -> Option<Type<'src>> {
@@ -7076,23 +9228,7 @@ fn indexed_collection_has_length(ty: &Type<'_>) -> bool {
 }
 
 fn is_stringable(ty: &Type<'_>) -> bool {
-    match ty {
-        Type::Union(members) => members.iter().all(is_stringable),
-        _ => matches!(
-            ty,
-            Type::String | Type::Int | Type::Float | Type::Bool | Type::TypeParameter("$js")
-        ),
-    }
-}
-
-fn invalid_binary(op: BinaryOp, lhs: &Type<'_>, rhs: &Type<'_>, span: Span) -> SemanticError {
-    SemanticError::new(
-        span,
-        format!(
-            "operator `{}` cannot be applied to `{lhs}` and `{rhs}`",
-            binary_op_name(op)
-        ),
-    )
+    binary_types::is_stringable_plain(ty)
 }
 
 fn binary_op_name(op: BinaryOp) -> &'static str {
@@ -7122,6 +9258,505 @@ fn binary_op_name(op: BinaryOp) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn public_type_only_exports_keep_their_namespace_and_check_value_reference_abis() {
+        let arena = Bump::new();
+        let source = parse_source(&arena,
+            "export struct Box{int value;}export extern class Document{string title;}export extern Document document;export int first(Box box){return box.value;}").unwrap();
+        let model = analyze(&source).unwrap();
+        assert!(model.struct_info("Box").is_some());
+        assert!(model.class_info("Document").is_some());
+        assert!(!model
+            .symbols()
+            .iter()
+            .any(|symbol| matches!(symbol.name, "Box" | "Document")));
+        assert!(model
+            .symbols()
+            .iter()
+            .find(|symbol| symbol.name == "document")
+            .unwrap()
+            .is_foreign());
+        let error = check("export extern class Document{string title;}export void update(ref int value){value=1;}").unwrap_err();
+        assert!(error
+            .message
+            .contains("public exports do not yet support mutable-reference"));
+    }
+
+    #[test]
+    fn mutable_reference_source_contract_preserves_storage_and_value_transfers() {
+        let arena = Bump::new();
+        let source = parse_source(&arena, "struct Point{int x;int y;}void leaf(ref int value){value+=1;}void forward(ref Point point){leaf(ref point.x);}func()->int snapshot(ref Point point){Point copy=point;return ()=>copy.x;}Point p=Point{1,2};forward(ref p);auto read=snapshot(ref p);print(read());").unwrap();
+        let model = analyze(&source).unwrap();
+        let signature = model
+            .symbols()
+            .iter()
+            .find(|symbol| symbol.name == "forward")
+            .unwrap();
+        let Type::Function(signature) = &signature.ty else {
+            panic!("signature")
+        };
+        assert_eq!(
+            signature.params[0],
+            FunctionParameter {
+                ty: Type::Struct(model.struct_type("Point").unwrap()),
+                passing: ParameterPassing::MutableReference,
+                default: None
+            }
+        );
+        let Item::Function(forward) = &source.items[2] else {
+            panic!("forward")
+        };
+        let Stmt::Expr(Expr {
+            kind: ExprKind::Call { args, .. },
+            ..
+        }) = &forward.body[0]
+        else {
+            panic!("call")
+        };
+        assert_eq!(
+            model.expression_type(args[0].expression.id),
+            Some(&Type::Int)
+        );
+        assert!(matches!(
+            model.expression_resolution(args[0].expression.id),
+            ExpressionResolution::NominalMember(_)
+        ));
+        let ExprKind::Member { object, .. } = &args[0].expression.kind else {
+            panic!("field")
+        };
+        assert_eq!(
+            model.expression_type(object.id),
+            Some(&Type::Struct(model.struct_type("Point").unwrap()))
+        );
+        assert!(matches!(
+            model.expression_resolution(object.id),
+            ExpressionResolution::Binding(_)
+        ));
+        assert!(model.symbol_is_assigned(
+            model
+                .identifier_symbol(forward.params[0].name.span)
+                .unwrap()
+        ));
+    }
+
+    #[test]
+    fn mutable_reference_arguments_are_explicit_invariant_writable_places() {
+        for (source, diagnostic) in [
+            (
+                "void f(ref int x){}int x=1;f(x);",
+                "requires an explicit `ref`",
+            ),
+            ("void f(int x){}int x=1;f(ref x);", "value parameter cannot"),
+            (
+                "void f(ref int x){}int x=1;f(ref x+1);",
+                "must name a writable lexical place",
+            ),
+            (
+                "void f(ref float x){}int x=1;f(ref x);",
+                "storage type must be exactly",
+            ),
+            (
+                "struct P{int x;}void f(ref P p){}P? p=P{1};if(p!=null){f(ref p);}",
+                "storage type must be exactly",
+            ),
+            (
+                "struct P{int x;}void f(ref int x){}P? p=P{1};if(p!=null){f(ref p.x);}",
+                "nonnullable, nongeneric",
+            ),
+            (
+                "struct P<T>{T x;}void f(ref int x){}P<int> p=P{1};f(ref p.x);",
+                "nonnullable, nongeneric",
+            ),
+            (
+                "void f(ref int x){}int[] values=[1];f(ref values[0]);",
+                "indexed or host-backed",
+            ),
+            (
+                "void f(ref int x){}extern int value;f(ref value);",
+                "not a foreign binding",
+            ),
+            ("void f(ref int x){}int x=f(ref x);", "own initializer"),
+        ] {
+            let error = check(source).unwrap_err();
+            assert!(
+                error.message.contains(diagnostic),
+                "{source}: {}",
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn mutable_reference_lifetimes_reject_capture_suspension_and_opaque_abis() {
+        for (source, diagnostic) in [
+            (
+                "async void outer(){auto f=(ref int value)=>await Task.resolve(value);}",
+                "cannot suspend in a callable",
+            ),
+            (
+                "void f(ref int value){auto escaped=()=>value;}",
+                "cannot be captured",
+            ),
+            (
+                "void f(ref int value){auto escaped=()=>{value=2;};}",
+                "cannot be captured",
+            ),
+            ("void f(ref int value=1){}", "cannot have defaults"),
+            ("auto f=(ref int value=1)=>value;", "cannot have defaults"),
+            ("async void f(ref int value){}", "async and generator"),
+            (
+                "generator int f(ref int value){yield value;}",
+                "async and generator",
+            ),
+            ("extern void f(ref int value);", "foreign callable"),
+            ("extern func(ref int)->void f;", "foreign bindings"),
+            ("export void f(ref int value){}", "public exports"),
+            (
+                "class Box{init(ref int value){}}",
+                "constructors do not support",
+            ),
+            (
+                "class Box{init(int value){}}int value=1;Box b=new Box(ref value);",
+                "constructors do not support",
+            ),
+            (
+                "class A{init(int x){}}class B extends A{init(int x){super(ref x);}}",
+                "super calls do not support",
+            ),
+            (
+                "void use(ref int x,int y){}async void f(){int x=1;use(ref x,await Task.resolve(2));}",
+                "cannot suspend after preparing",
+            ),
+            (
+                "void use(ref int x,int y){}int id(int x){return x;}async void f(){int x=1;use(ref x,id(await Task.resolve(2)));}",
+                "cannot suspend after preparing",
+            ),
+        ] {
+            let error = check(source).unwrap_err();
+            assert!(
+                error.message.contains(diagnostic),
+                "{source}: {}",
+                error.message
+            );
+        }
+        check(
+            "void use(int y,ref int x){}async void f(){int x=1;use(await Task.resolve(2),ref x);}",
+        )
+        .unwrap();
+        check("void use(ref int x,func()->int callback){x=callback();}void f(){int x=1;use(ref x,()=>2);}").unwrap();
+        check("func()->int make(ref int value){int copy=value;return ()=>copy;}").unwrap();
+    }
+
+    #[test]
+    fn mutable_reference_aliasing_forwarding_and_contextual_modes_remain_explicit() {
+        check("struct P{int x;int y;}void bump(ref int x){x+=1;}void pair(ref P root,ref int field){root=P{7,8};field+=1;}void recurse(ref int x,int n){if(n>0){bump(ref x);recurse(ref x,n-1);}}P p=P{1,2};pair(ref p,ref p.x);recurse(ref p.x,2);").unwrap();
+        check(
+            "func(ref int)->int identity=(ref auto value)=>value;int x=1;print(identity(ref x));",
+        )
+        .unwrap();
+        let error = check("func(ref int)->int identity=(int value)=>value;").unwrap_err();
+        assert!(error.message.contains("callback parameter"));
+        let error = check("func(int)->int identity=(ref int value)=>value;").unwrap_err();
+        assert!(error.message.contains("callback parameter"));
+        // The old identifier remains an ordinary type/function/local/parameter.
+        check("struct ref{int x;}ref copy(ref ref){return ref;}int ref(int x){return x;}int result=ref (1);ref value=ref{2};ref another=copy(value);").unwrap();
+    }
+
+    #[test]
+    fn parameter_records_keep_value_defaults_arity_and_diagnostics() {
+        let arena = Bump::new();
+        let source = parse_source(
+            &arena,
+            "int add(int value,int extra=3){return value+extra;}print(add(4));",
+        )
+        .unwrap();
+        let model = analyze(&source).unwrap();
+        let Type::Function(signature) = &model
+            .symbols()
+            .iter()
+            .find(|symbol| symbol.name == "add")
+            .unwrap()
+            .ty
+        else {
+            panic!("function")
+        };
+        assert_eq!(
+            signature.params,
+            vec![
+                FunctionParameter::value(Type::Int),
+                FunctionParameter::defaulted(Type::Int, DefaultValue::Int(3))
+            ]
+        );
+        assert_eq!(signature.validate_parameters(), Ok(()));
+        assert_eq!(signature.required_params(), 1);
+        assert!(!signature.accepts_arity(0));
+        assert!(signature.accepts_arity(1) && signature.accepts_arity(2));
+        assert!(!signature.accepts_arity(3));
+        assert_eq!(
+            Type::Function(signature.clone()).to_string(),
+            "function(int, int) -> int"
+        );
+    }
+
+    #[test]
+    fn parameter_passing_is_invariant_and_survives_substitution_and_common_types() {
+        let reference = FunctionType::new(FunctionSignature {
+            params: vec![
+                FunctionParameter {
+                    ty: Type::TypeParameter("T"),
+                    passing: ParameterPassing::MutableReference,
+                    default: None,
+                },
+                FunctionParameter::defaulted(Type::Int, DefaultValue::Int(3)),
+            ],
+            return_type: Box::new(Type::TypeParameter("T")),
+        });
+        let mut substitutions = AHashMap::default();
+        substitutions.insert("T", Type::Int);
+        let Type::Function(reference) = substitute_type(&Type::Function(reference), &substitutions)
+        else {
+            panic!("function")
+        };
+        assert_eq!(reference.params[0].ty, Type::Int);
+        assert_eq!(
+            reference.params[0].passing,
+            ParameterPassing::MutableReference
+        );
+        assert_eq!(reference.params[1].default, Some(DefaultValue::Int(3)));
+        assert_eq!(*reference.return_type, Type::Int);
+        let mut value = reference.clone();
+        value.make_mut().params[0].passing = ParameterPassing::Value;
+        let reference = Type::Function(reference);
+        let value = Type::Function(value);
+        assert!(!is_type_assignable(&reference, &value));
+        assert!(!is_type_assignable(&value, &reference));
+        let Some(Type::Union(members)) = common_type(&reference, &value) else {
+            panic!("distinct modes remain distinct union alternatives")
+        };
+        assert_eq!(members.len(), 2);
+        assert!(members.contains(&reference) && members.contains(&value));
+        let wrapped = Type::Nullable(Box::new(Type::Array(Box::new(Type::GenericFunction(
+            GenericFunctionType {
+                type_params: vec!["T"],
+                signature: FunctionType::new(FunctionSignature {
+                    params: Vec::new(),
+                    return_type: Box::new(reference),
+                }),
+            },
+        )))));
+        assert!(wrapped.contains_mutable_reference_parameters());
+        assert!(!value.contains_mutable_reference_parameters());
+    }
+
+    #[test]
+    fn parameter_record_validation_rejects_reference_defaults_and_required_suffixes() {
+        let mut signature = FunctionSignature {
+            params: vec![FunctionParameter::defaulted(
+                Type::Int,
+                DefaultValue::Int(1),
+            )],
+            return_type: Box::new(Type::Void),
+        };
+        signature.params[0].passing = ParameterPassing::MutableReference;
+        assert_eq!(
+            signature.validate_parameters(),
+            Err("mutable-reference parameters cannot have defaults")
+        );
+        signature.params[0].passing = ParameterPassing::Value;
+        signature.params.push(FunctionParameter::value(Type::Int));
+        assert_eq!(
+            signature.validate_parameters(),
+            Err("required parameters cannot follow defaulted parameters")
+        );
+        signature.params[0].default = None;
+        signature.params[0].passing = ParameterPassing::MutableReference;
+        assert_eq!(signature.validate_parameters(), Ok(()));
+    }
+
+    #[test]
+    fn nominal_members_keep_declaring_identity_and_instantiated_receiver_types() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            r#"
+            struct First { int value; }
+            struct Second { int value; }
+            class Base<T> {
+                T value;
+                init(T value) { this.value=value; }
+                T read() { return this.value; }
+            }
+            class Derived extends Base<int> {
+                int extra;
+                init(int value,int extra) { super(value);this.extra=extra; }
+                int total() { return this.value+this.extra; }
+            }
+            int inspect(First first,Second second,Derived derived) {
+                first.value+=1;second.value+=2;
+                return first.value+second.value+derived.value+derived.read()+derived.total();
+            }
+            Derived value=new Derived(3,4);
+            print(inspect(First{1},Second{2},value));
+        "#,
+        )
+        .unwrap();
+        let model = analyze(&program).unwrap();
+        assert_eq!(std::mem::size_of::<ExpressionResolution>(), 8);
+        assert_eq!(std::mem::size_of::<Option<NominalId>>(), 4);
+        assert_eq!(std::mem::size_of::<Option<NominalMemberId>>(), 4);
+        let first = model.struct_info("First").unwrap().fields["value"].member;
+        let second = model.struct_info("Second").unwrap().fields["value"].member;
+        assert_ne!(first, second);
+        let base = model.class_info("Base").unwrap();
+        let derived = model.class_info("Derived").unwrap();
+        assert_eq!(base.fields["value"].member, derived.fields["value"].member);
+        assert_eq!(base.methods["read"].member, derived.methods["read"].member);
+        assert_eq!(derived.fields["value"].ty, Type::Int);
+        assert_eq!(
+            derived.methods["read"].signature.return_type.as_ref(),
+            &Type::Int
+        );
+        assert_eq!(derived.fields["extra"].index, 1);
+        for index in 0..model.declarations.nominal_members.len() {
+            assert!(model.nominal_member(NominalMemberId::new(index)).is_some());
+        }
+        let mut reads = 0;
+        for source in &model.facts.source_info {
+            let Some(expression) = source.expression else {
+                continue;
+            };
+            if let ExpressionResolution::NominalMember(member) = source.resolution {
+                let resolved = model.nominal_member(member).unwrap();
+                match resolved {
+                    NominalMember::Field { owner, field } => {
+                        assert_eq!(field.member, member);
+                        assert!(model.nominal_name(owner).is_some());
+                    }
+                    NominalMember::Method {
+                        owner,
+                        name: "read",
+                        ..
+                    } => {
+                        assert_eq!(model.nominal_name(owner), Some("Base"));
+                        assert!(
+                            matches!(model.expression_type(expression.id), Some(Type::Function(signature))
+                            if signature.return_type.as_ref()==&Type::Int)
+                        );
+                        reads += 1;
+                    }
+                    NominalMember::Method { .. } => {}
+                }
+            }
+        }
+        assert_eq!(reads, 1);
+        crate::lower_to_control_flow(&program, &model).unwrap();
+    }
+
+    #[test]
+    fn expression_identity_preserves_distinct_types_at_the_same_diagnostic_span() {
+        let arena = Bump::new();
+        let empty = parse_source(&arena, "").unwrap();
+        let nodes = crate::ast::SourceNodes::default();
+        let span = Span::empty(0);
+        let integer = nodes.expression(ExprKind::Int(7, span));
+        let string = nodes.expression(ExprKind::String("seven", span));
+        let integer_id = integer.id;
+        let string_id = string.id;
+        let items = arena.alloc_slice_fill_iter([
+            Item::Stmt(Stmt::Expr(integer)),
+            Item::Stmt(Stmt::Expr(string)),
+        ]);
+        let program = empty.with_items(&nodes, items);
+        let model = analyze(&program).unwrap();
+        assert_eq!(model.expression_type(integer_id), Some(&Type::Int));
+        assert_eq!(model.expression_type(string_id), Some(&Type::String));
+        assert!(model.belongs_to(program.clone().source_identity()));
+
+        // Equal numeric indices in an independently parsed program do not
+        // grant that program access to another source state's checked facts.
+        let other = parse_source(&arena, "\"seven\"; 7;").unwrap();
+        assert!(!model.belongs_to(other.source_identity()));
+        assert!(crate::lower::lower_to_control_flow(&other, &model).is_err());
+        assert!(crate::structured_js::lower::lower_slice(&other, &model).is_err());
+        assert!(crate::interpreter::interpret_program(&other, &model).is_err());
+        assert!(crate::codegen_js::JsEmitter::new(Default::default())
+            .emit_checked_program(&other, &model)
+            .is_err());
+    }
+
+    #[test]
+    fn shared_callable_metadata_finalizes_in_each_checking_context() {
+        use super::*;
+        assert!(std::mem::size_of::<Type>() <= 48);
+        assert_eq!(
+            std::mem::size_of::<FunctionType>(),
+            std::mem::size_of::<usize>()
+        );
+        let span = Span { start: 10, end: 11 };
+        let nodes = crate::ast::SourceNodes::default();
+        let expression = nodes.expression(ExprKind::Ident(Ident {
+            name: "defaultValue",
+            span,
+        }));
+        let pending = DefaultValue::PendingIdentifier {
+            expression: expression.id,
+            span,
+        };
+        let nested = FunctionType::new(FunctionSignature {
+            params: vec![FunctionParameter::defaulted(Type::Int, pending.clone())],
+            return_type: Box::new(Type::Int),
+        });
+        let original = FunctionType::new(FunctionSignature {
+            params: vec![FunctionParameter::value(Type::Array(Box::new(
+                Type::Function(nested),
+            )))],
+            return_type: Box::new(Type::Void),
+        });
+        let mut first = original.clone();
+        let mut second = original.clone();
+        let first_source = [SourceInfo {
+            expression: Some(&expression),
+            resolution: ExpressionResolution::Binding(SymbolId(41)),
+        }];
+        let second_source = [SourceInfo {
+            expression: Some(&expression),
+            resolution: ExpressionResolution::Binding(SymbolId(82)),
+        }];
+        finalize_default_bindings_in_signature(&mut first, &first_source, false).unwrap();
+        finalize_default_bindings_in_signature(&mut second, &second_source, false).unwrap();
+        fn default<'src>(signature: &FunctionType<'src>) -> DefaultValue<'src> {
+            let Type::Array(element) = &signature.params[0].ty else {
+                panic!("array parameter")
+            };
+            let Type::Function(nested) = element.as_ref() else {
+                panic!("callable element")
+            };
+            nested.params[0].default.clone().unwrap()
+        }
+        assert_eq!(default(&first), DefaultValue::Symbol(SymbolId(41)));
+        assert_eq!(default(&second), DefaultValue::Symbol(SymbolId(82)));
+        assert_eq!(default(&original), pending);
+        assert!(!signature_has_pending_bindings(&first));
+        assert!(!signature_has_pending_bindings(&second));
+        assert!(signature_has_pending_bindings(&original));
+        let mut stripped = Type::Function(first.clone());
+        strip_parameter_defaults_from_type(&mut stripped);
+        let Type::Function(stripped) = stripped else {
+            unreachable!()
+        };
+        let Type::Array(element) = &stripped.params[0].ty else {
+            panic!("array parameter")
+        };
+        let Type::Function(nested) = element.as_ref() else {
+            panic!("callable element")
+        };
+        assert!(nested
+            .params
+            .iter()
+            .all(|parameter| parameter.default.is_none()));
+        assert_eq!(default(&first), DefaultValue::Symbol(SymbolId(41)));
+    }
+
     use bumpalo::Bump;
 
     use super::*;
@@ -7131,6 +9766,196 @@ mod tests {
         let arena = Bump::new();
         let program = parse_source(&arena, source).unwrap();
         analyze(&program).map(|_| ())
+    }
+
+    #[test]
+    fn binary_worklist_checks_both_deep_tree_directions_and_records_source_facts() {
+        // Construct the right-nested case directly: this exercises the checker
+        // independently of the parser's separate parenthesis-depth behavior.
+        for nested_on_left in [true, false] {
+            let arena = Bump::new();
+            let prefix = parse_source(&arena, "int seed=7;").unwrap();
+            let nodes = crate::ast::SourceNodes::continuing(prefix.source_identity());
+            let span = Span::empty(12);
+            let mut expression = nodes.expression(ExprKind::Ident(Ident { name: "seed", span }));
+            let binding_expression = expression.id;
+            let mut checked_ids = vec![expression.id];
+            for _ in 0..4096 {
+                let literal = nodes.expression(ExprKind::Int(1, span));
+                checked_ids.push(literal.id);
+                let nested = arena.alloc(expression);
+                let literal = arena.alloc(literal);
+                let (lhs, rhs) = if nested_on_left {
+                    (&*nested, &*literal)
+                } else {
+                    (&*literal, &*nested)
+                };
+                expression = nodes.expression(ExprKind::Binary {
+                    op: BinaryOp::Add,
+                    lhs,
+                    rhs,
+                    span,
+                });
+                checked_ids.push(expression.id);
+            }
+            let mut items = prefix.items.to_vec();
+            items.push(Item::Stmt(Stmt::Expr(expression)));
+            let items = arena.alloc_slice_fill_iter(items);
+            let program = prefix.with_items(&nodes, items);
+            let model = analyze(&program).unwrap();
+            assert!(model.belongs_to(program.source_identity()));
+            for id in checked_ids {
+                assert_eq!(model.expression_type(id), Some(&Type::Int));
+                assert_eq!(
+                    model.facts.source_info[id.index()].expression.unwrap().id,
+                    id
+                );
+            }
+            let seed = model
+                .declarations
+                .symbols
+                .iter()
+                .find(|symbol| symbol.name == "seed")
+                .unwrap();
+            assert_eq!(
+                model.expression_resolution(binding_expression),
+                ExpressionResolution::Binding(seed.id)
+            );
+            assert_eq!(model.identifier_symbol(span), Some(seed.id));
+            assert!(model.identifier_index_is_consistent());
+        }
+    }
+
+    #[test]
+    fn binary_worklist_preserves_contextual_nullish_rhs_and_diagnostic_order() {
+        check("int[]? first=null;int[]? second=null;int[] values=first??(second??[]);Map<string,int>? source=null;Map<string,int> valuesByName=source??new Map();").unwrap();
+        check("struct Box<T>{T value;}Box<int>? source=null;Box<int> box=source??Box{7};").unwrap();
+        // Preserve the existing rule: a literal-null LHS supplies Null as the
+        // RHS context, so the declaration does not infer this empty array.
+        let error = check("int[] values=null??(null??[]);").unwrap_err();
+        assert!(
+            error.message.contains("cannot infer the element type"),
+            "{error}"
+        );
+        let source = format!(
+            "int value=(missingLeft{})+(missingRight+1);",
+            "+1".repeat(1024)
+        );
+        let error = check(&source).unwrap_err();
+        assert_eq!(&source[error.span.start..error.span.end], "missingLeft");
+        assert!(
+            error.message.contains("unknown identifier `missingLeft`"),
+            "{error}"
+        );
+        // A completed left subtree must fail before the right subtree is visited.
+        let source = "int value=(1+true)+(missingRight+1);";
+        let error = check(source).unwrap_err();
+        assert!(error.message.contains("cannot be applied"), "{error}");
+        assert_eq!(&source[error.span.start..error.span.end], "1+true");
+    }
+
+    #[test]
+    fn binary_worklist_preserves_deep_short_circuit_narrowing_and_scope_boundaries() {
+        for (guard, repeated, access) in [
+            ("value!=null", "&&true", "&&value.length>0"),
+            ("value==null", "||false", "||value.length>0"),
+        ] {
+            let condition = format!("{guard}{}{access}", repeated.repeat(512));
+            check(&format!("bool ready(string? value){{return {condition};}}")).unwrap();
+            // The RHS guard is not a fact about the following statement.
+            let source =
+                format!("int size(string? value){{bool ready={condition};return value.length;}}");
+            let error = check(&source).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("type `string?` has no member `length`"),
+                "{error}"
+            );
+            assert!(error.span.start > source.find("return").unwrap());
+        }
+    }
+
+    #[test]
+    fn registered_identity_counts_preserve_recursive_initializers_and_shadowing() {
+        let arena = Bump::new();
+        let program = parse_source(
+            &arena,
+            r#"
+            int outer=1;
+            int f(int outer){int value=outer;return value;}
+            func(int)->int recurse=(int n)=>{if(n==0){return 0;}return recurse(n-1);};
+            print(f(outer));print(recurse(3));
+        "#,
+        )
+        .unwrap();
+        let model = analyze(&program).unwrap();
+        let recursion = model
+            .declarations
+            .symbols
+            .iter()
+            .find(|symbol| symbol.name == "recurse")
+            .unwrap();
+        assert!(
+            model.symbol_is_assigned(recursion.id),
+            "the recursive initializer needs a stable cell"
+        );
+        let outers: Vec<_> = model
+            .declarations
+            .symbols
+            .iter()
+            .filter(|symbol| symbol.name == "outer")
+            .collect();
+        assert_eq!(outers.len(), 2);
+        assert_ne!(outers[0].id, outers[1].id);
+        for symbol in outers {
+            assert!(symbol.identifier_occurrences >= 2);
+            assert!(
+                !model.symbol_is_assigned(symbol.id),
+                "later reads are not assignments"
+            );
+        }
+        assert!(model.identifier_index_is_consistent());
+    }
+
+    #[test]
+    fn identifier_registration_is_idempotent_and_tracks_rebinding_a_span() {
+        let arena = Bump::new();
+        let program = parse_source(&arena, "int a=1;int b=2;print(a);print(b);").unwrap();
+        let mut model = analyze(&program).unwrap();
+        let a = model
+            .declarations
+            .symbols
+            .iter()
+            .find(|symbol| symbol.name == "a")
+            .unwrap()
+            .id;
+        let b = model
+            .declarations
+            .symbols
+            .iter()
+            .find(|symbol| symbol.name == "b")
+            .unwrap()
+            .id;
+        let span = model.declarations.symbols[a.0 as usize].span;
+        let count_a = model.declarations.symbols[a.0 as usize].identifier_occurrences;
+        let count_b = model.declarations.symbols[b.0 as usize].identifier_occurrences;
+        model.record_identifier(span, a);
+        assert_eq!(
+            model.declarations.symbols[a.0 as usize].identifier_occurrences,
+            count_a
+        );
+        model.record_identifier(span, b);
+        assert_eq!(model.identifier_symbol(span), Some(b));
+        assert_eq!(
+            model.declarations.symbols[a.0 as usize].identifier_occurrences,
+            count_a - 1
+        );
+        assert_eq!(
+            model.declarations.symbols[b.0 as usize].identifier_occurrences,
+            count_b + 1
+        );
+        assert!(model.identifier_index_is_consistent());
     }
 
     #[test]
@@ -8248,12 +11073,10 @@ mod tests {
         )
         .unwrap();
         let semantics = analyze(&program).unwrap();
-        assert!(semantics.assigned_symbols.iter().any(|symbol| {
-            semantics
-                .symbols()
-                .get(symbol.0 as usize)
-                .is_some_and(|symbol| symbol.name == "seed")
-        }));
+        assert!(semantics
+            .symbols()
+            .iter()
+            .any(|symbol| { symbol.name == "seed" && semantics.symbol_is_assigned(symbol.id) }));
     }
 
     #[test]

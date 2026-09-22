@@ -1,0 +1,521 @@
+{
+  "schema": 1,
+  "scope": "opt-in semantic phase telemetry; repeated diagnostic microcases and exact search replay, not library speed or fleet qualification",
+  "passed": true,
+  "parent": {
+    "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-00-06.766Z/receipt.json",
+    "sha256": "b1c5d415581dd99bdcb95b89ddde5b75b26a53cee7446dccb8b6175708dd3f0f",
+    "bytes": 13068
+  },
+  "inputSha256": "742f203a45dfd5483ff2774291e29563abf9b5adb5b9e39c955bb8eb380d8dc8",
+  "binary": {
+    "path": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+    "sha256": "9c65b05499cc73e51212afc343b01dfa1493ade88a018f8ea6b42a5a49d5078a",
+    "bytes": 39990288
+  },
+  "timeTool": {
+    "path": "/usr/bin/time",
+    "sha256": "3b11dec50514a8473e9f6efa7a34d584d0657538c09988f61b72d38ad4991a10",
+    "bytes": 27160
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "host": {
+    "platform": "linux",
+    "arch": "x64",
+    "release": "6.17.0-1022-azure",
+    "cpus": 8,
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "memoryBytes": 16716836864
+  },
+  "protocol": {
+    "pairs": 5,
+    "order": "off/on, on/off alternating; fresh child process per observation",
+    "cases": "fixed direct/naming/structural order within each child; existing answer and structural-valley fixtures",
+    "cache": "existing Cargo/dependency caches; warm OS cache, not cache-cold trials",
+    "threads": "RAYON_NUM_THREADS=1",
+    "wallScope": "case wall_ns includes TOML resolution and public source compilation, excluding parent/test/observation overhead",
+    "phaseScope": "accumulated elapsed duration, not process CPU; instrumentation overhead included",
+    "systemScope": "GNU time covers the complete child test process, including refusal/native/raw/unwind checks and diagnostic serialization; not per-case compiler RSS or CPU",
+    "limits": {
+      "timeoutMs": 120000,
+      "maxBuffer": 16777216
+    },
+    "limitations": "shared host; no controlled CPU isolation, no held-out library inference or performance improvement claim",
+    "binary": "release-profile Rust library test executable; cfg(test) lifetime instrumentation and harness present, not the shipped CLI"
+  },
+  "inputsBefore": 981,
+  "commands": [
+    {
+      "label": "pair-0-off",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": null,
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-0-on",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": "1",
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-1-on",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": "1",
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-1-off",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": null,
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-2-off",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": null,
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-2-on",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": "1",
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-3-on",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": "1",
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-3-off",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": null,
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-4-off",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": null,
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "pair-4-on",
+      "command": "/usr/bin/time",
+      "args": [
+        "-f",
+        "phase-run-resource {\"wall_seconds\":%e,\"user_seconds\":%U,\"system_seconds\":%S,\"max_rss_kib\":%M}",
+        "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+        "--exact",
+        "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": "1",
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": "1"
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    },
+    {
+      "label": "search-ablation",
+      "command": "/tmp/lilscript-semantic-phase-timing-baseline-20260920/release-tests",
+      "args": [
+        "semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults",
+        "--exact",
+        "--nocapture"
+      ],
+      "environment": {
+        "RAYON_NUM_THREADS": "1",
+        "LILSCRIPT_TIMING": null,
+        "LILSCRIPT_PHASE_TIMING_TEST_CHILD": null
+      },
+      "status": 0,
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 120000,
+        "killAfterMs": 1000,
+        "maxBuffer": 16777216,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      }
+    }
+  ],
+  "searchReplay": {
+    "previous": {
+      "path": "benchmarks/migration-results/2026-09-20-search-reclamation/receipt.json",
+      "sha256": "6ba8376c74031f670b8eb4b98f34abed7178abde531f72765e19ab79bbc208c7",
+      "bytes": 3976
+    },
+    "rows": 32,
+    "oracleArtifacts": 24,
+    "winnerExecutions": 64,
+    "allFieldsIdentical": true,
+    "scope": "includes winner bytes/scores/observations, exploration, work kinds, domain work, retained peak, renders/probes and stop reasons"
+  },
+  "timingPairs": {
+    "pairs": 5,
+    "observations": 10,
+    "cases": 30,
+    "deterministicFieldsIdentical": true
+  },
+  "inputsAfter": 981,
+  "inputsStable": true,
+  "outputs": [
+    {
+      "path": "pair-0-off.stdout",
+      "sha256": "3b6eb0c81c8ed72fdfaf0df968df09e93ec932c478074c3fecfac0c1adf80050",
+      "bytes": 16252
+    },
+    {
+      "path": "pair-0-off.stderr",
+      "sha256": "a915be3b378ac3e026fd367bddd20b695234761bfc97493b4326bdb9c82892cb",
+      "bytes": 346
+    },
+    {
+      "path": "pair-0-on.stdout",
+      "sha256": "6a605f542cd1cc85b2355bdfb1aad32a3f6deae4a93ef35566bddd8f33081c0c",
+      "bytes": 19161
+    },
+    {
+      "path": "pair-0-on.stderr",
+      "sha256": "455489afb9af9743ce3bae87e454704948c37407ce1140b2761b9e810b89c0a8",
+      "bytes": 346
+    },
+    {
+      "path": "pair-1-on.stdout",
+      "sha256": "1360cbabeff7d2679bb767224acf36da5494cc7083b69fe5c53b6f7f4ce62c8a",
+      "bytes": 19161
+    },
+    {
+      "path": "pair-1-on.stderr",
+      "sha256": "10c6ceec3bb8f012f9eac2317c683759702ea2d400f49c685b5f7874fcc7b86c",
+      "bytes": 346
+    },
+    {
+      "path": "pair-1-off.stdout",
+      "sha256": "0adae98bef5b872eb1c52d2acfc437b6e37b8c253d15d56cc8b75f5bfed9638c",
+      "bytes": 16252
+    },
+    {
+      "path": "pair-1-off.stderr",
+      "sha256": "228c50a29214a0c2e3395a959e0d5d7f315f77ad2210a768d65457e41ebca4e2",
+      "bytes": 346
+    },
+    {
+      "path": "pair-2-off.stdout",
+      "sha256": "0a2f7df9bb91e860326d84c1fbf737a794353e8a37faa37eb0cfdc7f78aef887",
+      "bytes": 16252
+    },
+    {
+      "path": "pair-2-off.stderr",
+      "sha256": "dddc19e401235bc8e77363b5692c9cbe2150f04356a9caf0b153eb623d020045",
+      "bytes": 346
+    },
+    {
+      "path": "pair-2-on.stdout",
+      "sha256": "052897999f591db00b95f8f41b13cc99e72f9b97187957f1843bd615dd9d39fd",
+      "bytes": 19161
+    },
+    {
+      "path": "pair-2-on.stderr",
+      "sha256": "8ee2689343b5d4a9036aebd6f66324190e6af857b682a258b9b27bb2463ab525",
+      "bytes": 346
+    },
+    {
+      "path": "pair-3-on.stdout",
+      "sha256": "db2ab6edb15b2efb3d7cd09763214a80544c4826b4b4e6827a9e42c22c25b152",
+      "bytes": 19161
+    },
+    {
+      "path": "pair-3-on.stderr",
+      "sha256": "1370a6ec1d98634fd45b8a37a965668a95b3d07932782d79941edce9a0ad3cf6",
+      "bytes": 346
+    },
+    {
+      "path": "pair-3-off.stdout",
+      "sha256": "7eb96b556383742bd841f9fd3e5bfd4f11d82ca5081562c900e1550a537e7094",
+      "bytes": 16252
+    },
+    {
+      "path": "pair-3-off.stderr",
+      "sha256": "cad348575f1d1973e6e3bde198e2759f0b12176d8b4acdb18775ed2a01c170f0",
+      "bytes": 346
+    },
+    {
+      "path": "pair-4-off.stdout",
+      "sha256": "147f81ff59f6bcf0b92643bf7ca7de4fb6b3f562f275735e5f68ed6142de2a1e",
+      "bytes": 16252
+    },
+    {
+      "path": "pair-4-off.stderr",
+      "sha256": "ad0ad9deff80fef4272da60e460402a58ae0f325d400d9937a3098122402e311",
+      "bytes": 346
+    },
+    {
+      "path": "pair-4-on.stdout",
+      "sha256": "e410a001ea79a0f4ee511b1e7423fec000c2d6065ae42162afac78a773642c38",
+      "bytes": 19159
+    },
+    {
+      "path": "pair-4-on.stderr",
+      "sha256": "22ec081879a2da7e472c4761abe0093256858b66e9c48bb0cbbe099a256374dd",
+      "bytes": 346
+    },
+    {
+      "path": "search-ablation.stdout",
+      "sha256": "4552afcd895f7a4eb5d0117d916952cbc1fa748251a6ad227679a9186439f089",
+      "bytes": 265
+    },
+    {
+      "path": "search-ablation.stderr",
+      "sha256": "da9cbd4832d53443b465d11fb778a5d0744187bbce33d8be88d2a925d3423940",
+      "bytes": 87730
+    },
+    {
+      "path": "samples.json",
+      "sha256": "f8dde8b1796a3aee2b2eb862a4b1644edeea15fa661fc7cfb6925113fcda5af8",
+      "bytes": 245586
+    },
+    {
+      "path": "summary.json",
+      "sha256": "f429d7a85229ff2a1f9d0292da56e80cf913125336918695aec95c9eb6362c55",
+      "bytes": 7541
+    },
+    {
+      "path": "search-rows.json",
+      "sha256": "6b25340e4c676fe554e7bd74f6883dc937f5c70e9cc3277d58377bb507e1ffa5",
+      "bytes": 166113
+    },
+    {
+      "path": "search-oracle.json",
+      "sha256": "9fc594b44b0c3d89992baef4818865655f163cc82f365c7cc66c5a7c783c2632",
+      "bytes": 40455
+    }
+  ]
+}

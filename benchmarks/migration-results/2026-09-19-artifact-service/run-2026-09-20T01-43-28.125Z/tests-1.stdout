@@ -1,0 +1,10 @@
+
+running 5 tests
+test semantic_program::search_staged_tests::queue_pressure_scores_an_old_trial_without_losing_the_incoming_trial ... ok
+test semantic_program::search_staged_tests::raw_only_search_bypasses_the_codec_queue_under_both_schedules ... ok
+test semantic_program::search_staged_tests::requested_codecs_keep_separate_winners_and_diversity_reaches_a_real_raw_loser ... ok
+test semantic_program::search_staged_tests::finite_factory_union_and_exact_winners_match_immediate_and_staged_schedules ... ok
+test semantic_program::search_staged_tests::fixed_schedule_probe_prefixes_are_deterministic_and_additional_probes_do_not_regress ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2934 filtered out; finished in 1.32s
+

@@ -1,0 +1,115 @@
+{
+  "files": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/qualify-marked-retained-open.mjs",
+      "sha256": "bd7e8e5e1e7e2f436f58b240820c0d6c2b1a3506525bd3c8a9f9988e0afdad81",
+      "bytes": 17112
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+      "sha256": "d55c6f33119cb11153f21145f45058ef3ed188c04554cc198af242f4b12e1ef9",
+      "bytes": 2601824
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/markedlil.profiles.tests.json",
+      "sha256": "513e0c12316d445476e05af8ed65d83dd760f635eac720c1b4c070f5adc17ecb",
+      "bytes": 12346
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/port-adapters/marked-profiles.test.mjs",
+      "sha256": "01615e2df144de28cfa6ab3b0720ca39097835cef404799e2a65c6632d5f8641",
+      "bytes": 3359
+    },
+    {
+      "path": "/home/azureuser/lilscript/.nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "9cc8b18ac0ea6447020ac8197fd35de0fd56c855940091b415f4a5caad3a33a5",
+      "bytes": 6735
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/receipt.json",
+      "sha256": "b3d659bf1a9eedd6f1520ab25b222b69698c0d4620b80d6108b665fdcda4d52f",
+      "bytes": 43519
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/markedlil.json",
+      "sha256": "93fe85d33f2c56ec2f20a2fc59976b9ea43ca8c26b2c77a6d6e18e7222efd4e9",
+      "bytes": 55476
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/manifest.json",
+      "sha256": "fff79ab80c5710e1b267ffe57f8827cff217f6fb61ebc5e29d13d888ec3f74ed",
+      "bytes": 1504
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/markedlil.profiles.tests.json",
+      "sha256": "513e0c12316d445476e05af8ed65d83dd760f635eac720c1b4c070f5adc17ecb",
+      "bytes": 12346
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/source-before.json",
+      "sha256": "ab1b6687401ba2e439b71dd9a4e670d3b7584f4704886ff3d2efc157c8eeddcc",
+      "bytes": 21893
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/source-after.json",
+      "sha256": "ab1b6687401ba2e439b71dd9a4e670d3b7584f4704886ff3d2efc157c8eeddcc",
+      "bytes": 21893
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/dependencies-before.json",
+      "sha256": "908ea7103190b5ea1db0fe296a3954922f8cc0ae0db2ced02cc3b1fdd3c5266d",
+      "bytes": 226174
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/dependencies-after.json",
+      "sha256": "908ea7103190b5ea1db0fe296a3954922f8cc0ae0db2ced02cc3b1fdd3c5266d",
+      "bytes": 226174
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/parent-receipt.json",
+      "sha256": "020c288f5b0e6bafc016e12cbb6d5a7a7ab53b9b28a32444c584c9781abbf533",
+      "bytes": 42567
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/parent-inputs-before.json",
+      "sha256": "b14a583dbd5a2dcfc4132d187f3610d6e7ff7bfa57a0bf6e11a5558e1e09bacb",
+      "bytes": 175303
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/parent-inputs-after.json",
+      "sha256": "b14a583dbd5a2dcfc4132d187f3610d6e7ff7bfa57a0bf6e11a5558e1e09bacb",
+      "bytes": 175303
+    }
+  ],
+  "sha256": "0cc7c6f821e22e5cf9097ce19a90057c16a27fa28d221eabe19167cf8f6b80f4"
+}

@@ -1,0 +1,2 @@
+export int arithmetic(int input){return ((input+3)*7)-9;}
+export int identity(int input){return input;}

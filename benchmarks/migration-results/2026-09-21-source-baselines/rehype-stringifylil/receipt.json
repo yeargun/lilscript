@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "rehype-stringifylil",
+  "started": "2026-09-20T23:37:08.711Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/rehype-stringifylil",
+  "workspace": "/tmp/lilscript-baseline-rehype-stringifylil-ugT3mJ/rehype-stringifylil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/rehype-stringifylil",
+    "candidates": [
+      "/home/azureuser/rehype-stringifylil",
+      "/home/azureuser/rehype-stringifylil",
+      "/tmp/lilscript-page-refresh-20260910/current/rehype-stringifylil"
+    ],
+    "recorded": "/home/azureuser/rehype-stringifylil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+    "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+    "bytes": 17886160,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/rehype-stringifylil",
+    "files": 30,
+    "sha256": "195a59058dd364e87362d22d444114f47ad837ac761e22f3cc96814c993e862c"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+        "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+        "bytes": 17886160
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/rehype-stringifylil/lilscript.closed.toml",
+        "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+        "bytes": 407
+      },
+      {
+        "path": "/home/azureuser/rehype-stringifylil/lilscript.toml",
+        "sha256": "6f1eb7380c8d0d65d2ba5aea567f8abe1ad7939f3f6ec87305d696c5f9e88a1d",
+        "bytes": 966
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/rehype-stringify.cjs",
+    "dist/rehype-stringify.closed.js",
+    "dist/rehype-stringify.esm.js",
+    "dist/rehype-stringify.raw.js",
+    "dist/rehype-stringify.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.067,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=1 signal=null"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 0.448,
+  "completed": "2026-09-20T23:37:09.126Z",
+  "fingerprint": "8891516ca40d76699e16451bbfb938e71e3a7531cab0c36cddf012b0fe2cdd7e"
+}

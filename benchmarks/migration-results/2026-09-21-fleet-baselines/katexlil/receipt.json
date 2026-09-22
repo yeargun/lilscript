@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "katexlil",
+  "started": "2026-09-21T01:14:03.403Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/katexlil",
+  "workspace": "/tmp/lilscript-baseline-katexlil-cPD1DX/katexlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/katexlil",
+    "candidates": [
+      "/home/azureuser/katexlil",
+      "/home/azureuser/katexlil",
+      "/tmp/lilscript-page-refresh-20260910/current/katexlil"
+    ],
+    "recorded": "/home/azureuser/katexlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/katexlil",
+    "files": 235,
+    "sha256": "0f744b0de8cab10d668a493c51644459260b52d749ad26a01aa7437fe71e567b"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.check.toml",
+        "sha256": "326f1903cf93a2dd508ebeeb6eabf0e0979c45ef96ff161be0184be34c4936a8",
+        "bytes": 164
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.closed.toml",
+        "sha256": "e31c74ab53653a3b47c81d87a7c3754147d2ae14ce4aa603f17625f78e08d7bd",
+        "bytes": 872
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.mhchem.toml",
+        "sha256": "345910eb3afc9c595a42cdabe1b3d78cb37559e2f639da54219a81bc10fccfe5",
+        "bytes": 587
+      },
+      {
+        "path": "/home/azureuser/katexlil/lilscript.toml",
+        "sha256": "d266a146c123fb317a5dc895062167ee21b5a7c7e7f442c206d4cdda69ad0e72",
+        "bytes": 1309
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/data-host.js",
+    "dist/fontMetricsData.js",
+    "dist/katex.check.js",
+    "dist/katex.cjs",
+    "dist/katex.closed.bundled.js",
+    "dist/katex.closed.js",
+    "dist/katex.closed.raw.js",
+    "dist/katex.contrib-test.js",
+    "dist/katex.dev.raw.js",
+    "dist/katex.esm.js",
+    "dist/katex.min.js",
+    "dist/katex.mjs",
+    "dist/katex.raw.js",
+    "dist/katex.test.js",
+    "dist/katex.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 573.294,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "the build left these artifacts empty, so they were not rebuilt: dist/data-host.js, dist/katex.check.js, dist/katex.closed.bundled.js, dist/katex.dev.raw.js",
+    "stack": "AssertionError [ERR_ASSERTION]: the build left these artifacts empty, so they were not rebuilt: dist/data-host.js, dist/katex.check.js, dist/katex.closed.bundled.js, dist/katex.dev.raw.js\n    at buildSourceBaseline (file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:225:5)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:329:21"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 576.834,
+  "completed": "2026-09-21T01:23:40.199Z",
+  "fingerprint": "8bf79bdc7b864a75ed411b7ebd2bcd3ea011bbed21e88585f6edce62203f3af1"
+}

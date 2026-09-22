@@ -1,0 +1,8 @@
+--- a/src/Settings.lil
++++ b/src/Settings.lil
+@@ -1,3 +1,5 @@
++extern JsValue parseInt;
++extern JsValue parseFloat;
+ import { undef, isUndef, isNullish, isFn, isStr, isNum, isArr, toStr, toNum, toInt, len, hasOwn, inOp, deleteKey, instanceOf, push, newArray, emptyObject, warn, getDocument, getConsole, globalDefined, globalGet, mathMin, mathMax, constructN, apply, objectAssign, objectKeys, makeError, makeTypeError, throwErr, hostParseInt, hostParseFloat, fromCharCode, Error, TypeError, Object, Array, Function, String, Number, Math, RegExp, JSON, Infinity, NaN } from "./host.lil";
+ 
+ import { utils } from "./utils.lil";

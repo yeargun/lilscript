@@ -1,0 +1,1 @@
+{"kind":"existing-dist-inventory-only","sourceBuilt":false,"sourceStable":true,"dependenciesStable":true,"report":"unverified","prerequisites":[{"id":"original-check-types","status":0}],"cases":23,"failed":[],"errors":["required test inventory missing or ambiguous"]}

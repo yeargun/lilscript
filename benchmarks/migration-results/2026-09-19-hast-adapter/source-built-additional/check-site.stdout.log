@@ -1,0 +1,9 @@
+
+> @itslil/hast-util-to-html@9.0.7 check:site
+> npm run build:site && node --test test/site.test.mjs
+
+
+> @itslil/hast-util-to-html@9.0.7 build:site
+> node scripts/build-site.mjs
+
+Built GitHub Pages site at /tmp/lilscript-source-built-hast-20260919/workspaces/hast-util-to-htmllil/_site

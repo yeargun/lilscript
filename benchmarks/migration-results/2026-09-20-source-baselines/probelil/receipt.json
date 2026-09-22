@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "probelil",
+  "started": "2026-09-20T18:42:06.054Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/probelil",
+  "workspace": "/tmp/lilscript-baseline-probelil-umRkdL/probelil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "failure": {
+    "message": "the workload manifest records no build command for this library",
+    "stack": "AssertionError [ERR_ASSERTION]: the workload manifest records no build command for this library\n    at buildSourceBaseline (file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:74:5)\n    at file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:209:27\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"
+  },
+  "elapsedSeconds": 0.234,
+  "completed": "2026-09-20T18:42:06.288Z",
+  "fingerprint": "b4af4fcab1a1d3ab847c345a6e2da923e7aebe2f4f177664da7d8e035353d451"
+}

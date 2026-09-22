@@ -1,0 +1,1 @@
+globalThis.mutate=s=>s.x=9;

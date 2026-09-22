@@ -1,0 +1,11 @@
+
+running 6 tests
+test semantic_program::observation_output_tests::literal_output_refusals_preserve_prior_artifacts_and_never_return_false_availability ... ok
+test semantic_program::observation_output_tests::mixed_exact_public_and_shared_reference_literals_canonicalize_to_original ... ok
+test semantic_program::observation_output_tests::one_naming_seed_uses_optional_literal_work_only_when_allowed ... ok
+test semantic_program::observation_output_tests::inline_forwarding_weakens_literal_output_while_shared_call_keeps_exact_bytes ... ok
+test semantic_program::observation_output_tests::weak_literals_share_one_prepared_target_across_modes_names_and_preserve ... ok
+test semantic_program::observation_output_tests::public_search_skips_inactive_modes_and_keeps_actual_mode_qualified_winners ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2713 filtered out; finished in 0.72s
+

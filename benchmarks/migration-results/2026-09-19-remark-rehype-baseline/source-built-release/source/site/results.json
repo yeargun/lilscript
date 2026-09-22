@@ -1,0 +1,86 @@
+{
+  "pin": "remark-rehype@11.1.2",
+  "package": "@itslil/remark-rehype",
+  "file": "remark-rehype",
+  "lilExport": "default",
+  "officialExport": "default",
+  "node": "v22.21.1",
+  "codec": "lilscript-codec gzip-9 / brotli-11",
+  "runtime": "Node v22.21.1",
+  "warmupDiscard": 3,
+  "comparison": "Official rows are an esbuild bundle of remark-rehype@11.1.2 plus its runtime graph, then Terser or esbuild. LilScript is the compiled npm file. Closed is extern_fields=false.",
+  "spec": {
+    "total": 17,
+    "pass": 17,
+    "label": "upstream and package suites"
+  },
+  "play": {
+    "kind": "json-json",
+    "sample": "{\n  \"type\": \"root\",\n  \"children\": [\n    {\n      \"type\": \"heading\",\n      \"depth\": 1,\n      \"children\": [\n        {\n          \"type\": \"text\",\n          \"value\": \"remark-rehype\"\n        }\n      ]\n    }\n  ]\n}"
+  },
+  "size": [
+    {
+      "id": "official",
+      "name": "Official remark-rehype@11.1.2 graph",
+      "raw": 39783,
+      "gzip9": 8849,
+      "brotli11": 7919,
+      "note": "esbuild bundle of the published package plus runtime deps",
+      "diagnostic": false
+    },
+    {
+      "id": "official-terser-mangle",
+      "name": "Official · Terser mangle on",
+      "raw": 16861,
+      "gzip9": 5445,
+      "brotli11": 4910,
+      "note": "Terser compress of that graph, mangle: true",
+      "baseline": true
+    },
+    {
+      "id": "official-terser-nomangle",
+      "name": "Official · Terser mangle off",
+      "raw": 24924,
+      "gzip9": 6587,
+      "brotli11": 5979,
+      "note": "Terser compress of that graph, mangle: false"
+    },
+    {
+      "id": "official-esbuild",
+      "name": "Official · esbuild minify",
+      "raw": 17438,
+      "gzip9": 5824,
+      "brotli11": 5287,
+      "note": "esbuild minify of that graph"
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/remark-rehype · library",
+      "raw": 13669,
+      "gzip9": 4888,
+      "brotli11": 4374,
+      "note": "LilScript js-module, extern_fields true. The npm ESM.",
+      "primary": true
+    },
+    {
+      "id": "itslil-closed",
+      "name": "@itslil/remark-rehype · closed",
+      "raw": 15307,
+      "gzip9": 5475,
+      "brotli11": 4939,
+      "note": "Same source, extern_fields false; diagnostic only"
+    }
+  ],
+  "throughput": [
+    {
+      "id": "official",
+      "name": "remark-rehype@11.1.2",
+      "documentMs": 0.24295800000072632
+    },
+    {
+      "id": "itslil",
+      "name": "@itslil/remark-rehype",
+      "documentMs": 0.03254099999958271
+    }
+  ]
+}

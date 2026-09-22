@@ -1,0 +1,9 @@
+
+running 4 tests
+test semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners ... ok
+test semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union ... ok
+test semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper ... ok
+test semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2936 filtered out; finished in 2.62s
+

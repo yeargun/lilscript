@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T10:52:54.271Z",
+  "completed": "2026-09-21T10:55:20.261Z",
+  "wallSeconds": 145.989,
+  "command": "cargo",
+  "args": [
+    "test",
+    "--release",
+    "--lib",
+    "--",
+    "compilation_policy",
+    "config::tests",
+    "output_budget"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "compiler": null,
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript/src/compilation_policy.rs",
+        "sha256": "edb505d7f3427288ea1ff539960683b34ffd9ccc01a39ef0ac07a3cd509be6ae",
+        "bytes": 84451
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/config.rs",
+        "sha256": "4db5e88a5bae58c755f5d7189c650098bd2bfacb380294c711ebb47e1251cbf9",
+        "bytes": 174312
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/output_budget.rs",
+        "sha256": "fa515b9a156284f981d63231951be960011d5eb0865b4afb5c78c209bdf69127",
+        "bytes": 36492
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "a2ee7ea5cf647d57eb89309cca286a9eb9760b02579b8a9938d366699ec7d0be",
+    "bytes": 7348
+  },
+  "stderr": {
+    "sha256": "005ace3231e3533d6efef69d4d17f115d3d5bec78dcb08cc216ce90e385a9e4a",
+    "bytes": 8023
+  },
+  "passed": true,
+  "fingerprint": "b2926fa302273030f03dd5c6ea079916e7b562686ef5dccd76a466cfe67609f8"
+}

@@ -1,0 +1,7 @@
+[portgate] arm preserved-release-original-to-hast: compiler 3d8e45059024, 1 ports
+[portgate] mdast-util-to-hastlil: building (--compile)
+[portgate] mdast-util-to-hastlil: testing
+[portgate] mdast-util-to-hastlil: build=ok 50s tests=92 failing evidence=unverified
+[portgate] recorded 1 ports to /tmp/lilscript-to-hast-20260919-XgwB8N/portgate
+[portgate] UNVERIFIED REQUIRED TESTS (1): mdast-util-to-hastlil
+[portgate] evidence is retained; an inventory run or failing suite cannot return a verified gate result

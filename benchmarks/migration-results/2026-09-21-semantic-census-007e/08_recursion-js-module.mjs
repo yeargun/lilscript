@@ -1,0 +1,1 @@
+let a;let b;a=(0,{factorial:function(value){if(value<=1){return 1;}return value*factorial(value- 1|0)|0;}}.factorial);let factorial=a;b=void console.log(factorial(6));

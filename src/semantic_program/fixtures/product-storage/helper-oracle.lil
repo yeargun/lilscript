@@ -1,0 +1,11 @@
+struct State { int value; int count; }
+export func(int)->int make(int initial) {
+    State state=State{initial,0};
+    State saved=state;
+    auto step=(int delta)=>{
+        state.value+=delta;
+        state.count+=1;
+        return state.value+saved.value+state.count;
+    };
+    return (int delta)=>step(delta);
+}

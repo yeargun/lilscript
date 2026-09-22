@@ -1,0 +1,1 @@
+let a;let b;let c;let d;a=(0,{next:function(){counter=counter+ 1|0;return counter;}}.next);let next=a;let counter=0;b=void console.log(next());c=void console.log(next());d=void console.log(counter);

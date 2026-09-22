@@ -1,0 +1,1322 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/closed.test.mjs",
+    "test/official/test.js",
+    "test/site.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+      "bytes": 3572
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+      "bytes": 578
+    },
+    {
+      "path": "test/official/test.js",
+      "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+      "bytes": 3758
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+      "bytes": 984
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/test.js"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/closed.test.mjs",
+      "test/official/test.js",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/node/observe.mjs",
+    "sha256": "87d307c5066f5c1b0f28b47f19f6d5892334051e1566ea7bf3c0ef8d78e27cb3",
+    "bytes": 555,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "actual": {
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+          "bytes": 722
+        },
+        "actual": {
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+          "bytes": 722
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+          "bytes": 51867
+        },
+        "actual": {
+          "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+          "bytes": 51867
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+          "bytes": 2170
+        },
+        "actual": {
+          "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+          "bytes": 2170
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+          "bytes": 951
+        },
+        "actual": {
+          "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+          "bytes": 951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+          "bytes": 3208
+        },
+        "actual": {
+          "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+          "bytes": 3208
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+          "bytes": 1133
+        },
+        "actual": {
+          "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+          "bytes": 1133
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+          "bytes": 9335
+        },
+        "actual": {
+          "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+          "bytes": 9335
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+          "bytes": 39783
+        },
+        "actual": {
+          "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+          "bytes": 39783
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+          "bytes": 2527
+        },
+        "actual": {
+          "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+          "bytes": 2527
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+          "bytes": 3572
+        },
+        "actual": {
+          "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+          "bytes": 3572
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+          "bytes": 578
+        },
+        "actual": {
+          "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+          "bytes": 578
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+          "bytes": 3758
+        },
+        "actual": {
+          "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+          "bytes": 3758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+          "bytes": 984
+        },
+        "actual": {
+          "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+          "bytes": 984
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+          "bytes": 960
+        },
+        "actual": {
+          "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+          "bytes": 960
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+          "bytes": 269
+        },
+        "actual": {
+          "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+          "bytes": 269
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/types/remark-rehype.d.ts",
+        "expected": {
+          "path": "types/remark-rehype.d.ts",
+          "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+          "bytes": 5341
+        },
+        "actual": {
+          "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+          "bytes": 5341
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "actual": {
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+          "bytes": 722
+        },
+        "actual": {
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+          "bytes": 722
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+          "bytes": 51867
+        },
+        "actual": {
+          "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+          "bytes": 51867
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+          "bytes": 2170
+        },
+        "actual": {
+          "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+          "bytes": 2170
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+          "bytes": 951
+        },
+        "actual": {
+          "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+          "bytes": 951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+          "bytes": 3208
+        },
+        "actual": {
+          "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+          "bytes": 3208
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+          "bytes": 1133
+        },
+        "actual": {
+          "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+          "bytes": 1133
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+          "bytes": 9335
+        },
+        "actual": {
+          "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+          "bytes": 9335
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+          "bytes": 39783
+        },
+        "actual": {
+          "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+          "bytes": 39783
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+          "bytes": 2527
+        },
+        "actual": {
+          "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+          "bytes": 2527
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+          "bytes": 3572
+        },
+        "actual": {
+          "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+          "bytes": 3572
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+          "bytes": 578
+        },
+        "actual": {
+          "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+          "bytes": 578
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+          "bytes": 3758
+        },
+        "actual": {
+          "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+          "bytes": 3758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+          "bytes": 984
+        },
+        "actual": {
+          "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+          "bytes": 984
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+          "bytes": 960
+        },
+        "actual": {
+          "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+          "bytes": 960
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+          "bytes": 269
+        },
+        "actual": {
+          "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+          "bytes": 269
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/types/remark-rehype.d.ts",
+        "expected": {
+          "path": "types/remark-rehype.d.ts",
+          "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+          "bytes": 5341
+        },
+        "actual": {
+          "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+          "bytes": 5341
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "actual": {
+          "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+          "bytes": 407
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+          "bytes": 722
+        },
+        "actual": {
+          "sha256": "b1835ee300e61be624cd207eb017a15435fcdc5a41293f623b855adbf82281f5",
+          "bytes": 722
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+          "bytes": 51867
+        },
+        "actual": {
+          "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+          "bytes": 51867
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+          "bytes": 2170
+        },
+        "actual": {
+          "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+          "bytes": 2170
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+          "bytes": 951
+        },
+        "actual": {
+          "sha256": "20450b9e00ab82ee84a25e82e792792f37befc4039edffc0c15a3d43a5156e90",
+          "bytes": 951
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+          "bytes": 3208
+        },
+        "actual": {
+          "sha256": "12966cb2db1fb35c61445752bfdbc22986b4f9ed213ac9779a3f82077874d617",
+          "bytes": 3208
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+          "bytes": 1133
+        },
+        "actual": {
+          "sha256": "d15771e137651824df913be34a2af7a8925d313b2b1ea2e58152066d95958e54",
+          "bytes": 1133
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+          "bytes": 9335
+        },
+        "actual": {
+          "sha256": "5cd22d1cf4ed127f6e66108bba8a65559ecad26ccece79b162f5a66b4a856367",
+          "bytes": 9335
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+          "bytes": 39783
+        },
+        "actual": {
+          "sha256": "3813e736e9febb3c24f541f7921b8339504272abf8d4432f16d96c022e477feb",
+          "bytes": 39783
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+          "bytes": 2527
+        },
+        "actual": {
+          "sha256": "5c69d325759c1b14ea41065897a7f61388994c72a6991610fbada9a01b14a8bf",
+          "bytes": 2527
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+          "bytes": 3572
+        },
+        "actual": {
+          "sha256": "df059e5a98fca8bedf907a8cb593f22a262e13aaaca4220a74a75e2fb4115e96",
+          "bytes": 3572
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+          "bytes": 578
+        },
+        "actual": {
+          "sha256": "ff845d1b583fb93bbd126775c8f9bcdf0d39667f40a086a724cb44f30f4b0e17",
+          "bytes": 578
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/official/test.js",
+        "expected": {
+          "path": "test/official/test.js",
+          "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+          "bytes": 3758
+        },
+        "actual": {
+          "sha256": "9f59afcc26ab111923c7e80dd396d1d47cad1d737e13dd65842072d408c036ba",
+          "bytes": 3758
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+          "bytes": 984
+        },
+        "actual": {
+          "sha256": "881149f1b4db63931096fe62d8e9af34b229010165fb104a91b26bac844097db",
+          "bytes": 984
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+          "bytes": 960
+        },
+        "actual": {
+          "sha256": "a0f866552231fd58d76d172672b31ba2244a6bc58d75b8c6e2d67e16653bea8d",
+          "bytes": 960
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+          "bytes": 269
+        },
+        "actual": {
+          "sha256": "dfe5f1ebad41a7b35fc2909086d3f24d758efd9483316cc07f427e6b396475ed",
+          "bytes": 269
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/types/remark-rehype.d.ts",
+        "expected": {
+          "path": "types/remark-rehype.d.ts",
+          "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+          "bytes": 5341
+        },
+        "actual": {
+          "sha256": "448efd6d40f9b20a2c2bedd98fc180e5b5076bec45afe6418b10bb6f6bfa902b",
+          "bytes": 5341
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-test:types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "test:types"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "test:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "actual": {
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "actual": {
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/node/prerequisite-0.stdout",
+        "sha256": "7bdad9343c0c053e914e1959698dda15620df64e9786efeb1c45f859eb5fc301",
+        "bytes": 59
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-rehypelil/node/prerequisite-0.stderr",
+        "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+        "bytes": 211
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "actual": {
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "actual": {
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "actual": {
+            "sha256": "215b01810e63ac7a1cf2ac0aa3c354de13fb29d436458ea062aff11149fd3017",
+            "bytes": 2170
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "actual": {
+            "sha256": "a13dbaede3cda31eed6270800dac530694ea6452fe455f9a33fa5e25a874888b",
+            "bytes": 51867
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin"
+  },
+  "supervision": {
+    "timeoutMs": 598117,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exports the plugin as default",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exports the mdast-util-to-hast public helpers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+        "file": "test/api.test.mjs",
+        "name": "preserves numeric footnote helper arguments like upstream",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]",
+        "file": "test/api.test.mjs",
+        "name": "transforms a paragraph fixture into a p element",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]",
+        "file": "test/api.test.mjs",
+        "name": "maps unknown value nodes and task lists like upstream",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+        "file": "test/api.test.mjs",
+        "name": "keeps pinned keys in the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]",
+        "file": "test/api.test.mjs",
+        "name": "remark-rehype",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "ships a closed artifact with the default export",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "remark-rehype closed",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/test.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]",
+        "file": "test/official/test.js",
+        "name": "should mutate",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]",
+        "file": "test/official/test.js",
+        "name": "should mutate w/ options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]",
+        "file": "test/official/test.js",
+        "name": "should mutate w/ options and explicit unknown 2nd parameter",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]",
+        "file": "test/official/test.js",
+        "name": "should mutate with `processor: undefined` and options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]",
+        "file": "test/official/test.js",
+        "name": "should bridge",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]",
+        "file": "test/official/test.js",
+        "name": "should bridge with options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]",
+        "file": "test/official/test.js",
+        "name": "should understand bridge types",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]",
+        "file": "test/official/test.js",
+        "name": "should understand mutate types",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]",
+        "file": "test/official/test.js",
+        "name": "remarkRehype",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.cjs",
+        "sha256": "9ceee0e4c90e4083727f5d3743071dad447e058ac0b0c08e42cf0eda02c0fc68",
+        "bytes": 15726
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.closed.js",
+        "sha256": "8519ba7d9910b3904d09be43b3fd502148ee1a588e1be44b2883ae13b451f503",
+        "bytes": 15090
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+        "bytes": 14163
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "format": "module",
+        "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+        "bytes": 14163,
+        "pid": 485078
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.closed.js",
+        "url": "file:///tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.closed.js",
+        "format": "module",
+        "sha256": "8519ba7d9910b3904d09be43b3fd502148ee1a588e1be44b2883ae13b451f503",
+        "bytes": 15090,
+        "pid": 485079
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "format": "module",
+        "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+        "bytes": 14163,
+        "pid": 485080
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.esm.js",
+        "format": "module",
+        "sha256": "32efb099f561ef40d5fb63cff9e5cdc0bc609bb2a2642e909406eda47ced7f96",
+        "bytes": 14163,
+        "pid": 485086
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-remark-rehypelil-3tbxJE/remark-rehypelil/dist/remark-rehype.cjs"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]",
+    "[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]",
+    "[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]",
+    "[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]",
+    "[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]",
+    "[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]",
+    "[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]",
+    "[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]",
+    "[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]",
+    "[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]",
+    "[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]",
+    "[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]",
+    "[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]",
+    "[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]",
+    "[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]",
+    "[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

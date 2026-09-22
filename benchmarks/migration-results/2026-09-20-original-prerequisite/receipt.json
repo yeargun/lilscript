@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "scope": "Original prerequisite admission only; no compiler or library suite execution",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--test",
+    "finer/tools/qualify-node-library.test.mjs"
+  ],
+  "before": "e7ce111ee3c3f1cebf96db88de8ecde222ac44fce33c5a3317cdf31b1e0dd405",
+  "after": "e7ce111ee3c3f1cebf96db88de8ecde222ac44fce33c5a3317cdf31b1e0dd405",
+  "inputsStable": true,
+  "elapsedMs": 2090.677802,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 120000,
+    "killAfterMs": 1000,
+    "maxBuffer": 8388608,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "passed": true
+}

@@ -1,7 +1,7 @@
 # Compression research
 
 Parent: [knowledge tree](../README.md). Active work:
-[migration](../migration/README.md). Test contract:
+[single migration plan](../../migration/index.md). Test contract:
 [verification](../verification/README.md).
 
 This folder is non-authoritative history and experimental evidence. It is not a
@@ -11,9 +11,9 @@ proof, registered candidate, and reproducible ablation before it enters the
 canonical architecture.
 
 How those ideas must enter the compiler (registered recipe, not a package-shaped
-special case): [planned architecture](../compilation/planned-architecture.md),
+special case): [compiler design](../../compiler-design.md),
 [objectives](../compilation/objectives.md),
-[planned migration](../migration/planned-migration.md).
+[migration plan](../../migration/index.md#009-reusable-compression-families).
 What the language must state so Closure/Terser cannot uniquely guess it:
 [compressor surface](../language/compressor-surface.md).
 

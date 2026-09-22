@@ -1,0 +1,136 @@
+{
+  "patterns": [
+    "test/*.test.mjs",
+    "test/official/index.js"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/remark-breaks.cjs",
+    "dist/remark-breaks.closed.js",
+    "dist/remark-breaks.esm.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "8c5f180935403a5833c08cdecf7692995f617702d1ebebc76cf7be3cec945915",
+      "bytes": 407
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "73d262cf9ed46379f368613b61ec83295a9204328b0005f30417e33fbfb40dc9",
+      "bytes": 849
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "c00bb74fdb1373dd4b0b25cb4c8f01a860e1151fe23bd8ccbb4295c5e80e77af",
+      "bytes": 50280
+    },
+    {
+      "path": "package.json",
+      "sha256": "47f4fa50caf1854ed9543055365b1f37feb6ad0de0546c676515c53f85e22a3f",
+      "bytes": 2269
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "2fe9691df2f8b24d6cf951403a6876444c01402355012d739a31584f8b420919",
+      "bytes": 951
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "bd75d98c1968361c7211e0b837eb884418441f5894840eabf0b3fbefcaaa579a",
+      "bytes": 3207
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "f800c0889954f5cb1828be19ccaeb1a7f157a685a7fb3d07f037e3c20d060f43",
+      "bytes": 1012
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "f29621cb22273c6cd2236ac9aeed81aed0b66cddc61ef7f5642fa00f42476c20",
+      "bytes": 9257
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "cc56b30e62d9fb7bf5f730e02ddb114e734f003a0e3766e3abed8849a91b4689",
+      "bytes": 8981
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "9abf37907453d0bfd398d5f20b1968aeacfa6293ea233604003c5ac8042ef8f2",
+      "bytes": 2387
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "site/vendor/remark-parse.js",
+      "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+      "bytes": 35260
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "4f08c64c61c139d19c162fe98f277be3e42ff883ba6f4285e5ee5b0a9dd2e899",
+      "bytes": 2114
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "e5447e0f6aa89c907b078266def1c72af1daef4aa0672251b6eaece68b168549",
+      "bytes": 998
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "d27542d11969c852fd921f62843d613dfac804d5ff0837f3546dddf0f4f3fba4",
+      "bytes": 3445
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/types.test.ts",
+      "sha256": "317a3e334c5d3a10bcafdd0e635f3972ff7be37e0b20983952f602542e018d33",
+      "bytes": 522
+    },
+    {
+      "path": "types/remark-breaks.d.ts",
+      "sha256": "5e06dbd6c82ffff9a1daf907ff4bd8ee34ba5bce5d22683a1a2d87d68f131cfd",
+      "bytes": 135
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "47f4fa50caf1854ed9543055365b1f37feb6ad0de0546c676515c53f85e22a3f",
+          "bytes": 2269
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "c00bb74fdb1373dd4b0b25cb4c8f01a860e1151fe23bd8ccbb4295c5e80e77af",
+          "bytes": 50280
+        }
+      ]
+    }
+  ]
+}

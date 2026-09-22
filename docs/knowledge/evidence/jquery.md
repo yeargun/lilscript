@@ -2,8 +2,8 @@
 
 Parent: [evidence](README.md). Required row:
 [library proof matrix](library-proof-matrix.md). Live snapshot:
-[`docs/current-status.md`](../../current-status.md). Active investigation:
-[jquery-01](../migration/board/notes/jquery-01.md).
+[`docs/current-status.md`](../../current-status.md). Historical investigation:
+jquery-01 (archived: `repository/docs/knowledge/migration/board/notes/jquery-01.md`).
 
 ## Boundary
 

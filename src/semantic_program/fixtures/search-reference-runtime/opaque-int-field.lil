@@ -1,0 +1,8 @@
+
+struct Holder{int value;}extern int opaque();extern int later();
+int read(ref int value){return value;}
+int ignore(ref int value,int next){return next;}
+void overwrite(ref int value){value=7;}
+int plain=opaque();Holder state=Holder{plain};
+print(read(ref plain));try{print(read(ref state.value));}catch{print(99);}
+print(ignore(ref state.value,later()));overwrite(ref state.value);print(state.value);

@@ -1,0 +1,1 @@
+export int byte(int value){return(value&255)+1;}

@@ -1,0 +1,11 @@
+
+running 6 tests
+test semantic_program::parameter_contract_tests::well_formed_unused_reference_types_do_not_claim_executable_place_arguments ... ok
+test semantic_program::parameter_contract_tests::intrinsic_passing_mode_mismatch_is_rejected_even_when_types_and_arity_match ... ok
+test semantic_program::parameter_contract_tests::checked_value_parameters_retain_each_primitive_default_and_supplied_arity ... ok
+test semantic_program::parameter_contract_tests::a_shared_reference_signature_cannot_turn_value_arguments_into_prepared_places ... ok
+test semantic_program::parameter_contract_tests::reference_defaults_and_required_after_default_records_are_invalid ... ok
+test semantic_program::parameter_contract_tests::unused_deep_parameter_records_are_validated_and_failed_adoption_releases_storage ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 2861 filtered out; finished in 0.00s
+

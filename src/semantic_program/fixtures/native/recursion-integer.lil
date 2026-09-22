@@ -1,0 +1,8 @@
+
+        int odd(int n){if(n==0){return 0;}return even(n-1);}
+        int even(int n){if(n==0){return 1;}return odd(n-1);}
+        int add(int a,int b){return a+b;}
+        print(add(2147483647,1));print(even(8));
+        int minimum=-2147483647-1;print(2147483647*2147483647);print(minimum/-1);
+        print(7/0);print(7%0);print(-1>>>0);
+    

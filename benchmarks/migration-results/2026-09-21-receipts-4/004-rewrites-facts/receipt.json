@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "kind": "command-receipt",
+  "started": "2026-09-21T15:28:39.140Z",
+  "completed": "2026-09-21T15:28:40.731Z",
+  "wallSeconds": 1.589,
+  "command": "cargo",
+  "args": [
+    "test",
+    "--release",
+    "--lib",
+    "--",
+    "rewrite",
+    "facts"
+  ],
+  "cwd": "/home/azureuser/lilscript",
+  "environment": {
+    "LILSCRIPT_NATIVE_CLANG": "/home/azureuser/toolchains/clang-18/clang"
+  },
+  "compiler": null,
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/toolchains/clang-18/usr/lib/llvm-18/bin/clang-18",
+        "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+        "bytes": 140592
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/publication_rewrites.rs",
+        "sha256": "dcea00b3396d9b7527f615f0cdfedb636215da19997b389e12e8163a5a98cb5f",
+        "bytes": 16133
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/publication_edits.rs",
+        "sha256": "5ae537fa1f5b0065da5fe42101a7b1aa42e920108e20ed89fc28b7640ccdb72d",
+        "bytes": 35399
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/rewrite_lineage.rs",
+        "sha256": "20ccea7f1acee872505d22604a111e3e6fdb064cf92a76382c97f90175ab4b1d",
+        "bytes": 11014
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/facts.rs",
+        "sha256": "ab1f2b46682bd0fdc507d3e6a9baf6ac8b05df01f6ae6bcdd3277c0db1d830d0",
+        "bytes": 58461
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/rewrite_tests.rs",
+        "sha256": "5897ffd63f33ea98da0ab55613aa03cc3555823ca4f5e7f23a086c86fcc3da7e",
+        "bytes": 52877
+      },
+      {
+        "path": "/home/azureuser/lilscript/src/semantic_program/facts_tests.rs",
+        "sha256": "a8c548d9daf20c7bc9acab6486adc19c697f68147259cda8c14d954b3c423ffe",
+        "bytes": 72742
+      },
+      {
+        "path": "/home/azureuser/toolchains/clang-18/clang",
+        "sha256": "80de4e6a8cd83f301bc1e9a4cd8b71c927d75d4aa7009908a7ceea29482a75ac",
+        "bytes": 283
+      }
+    ]
+  },
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "stdout": {
+    "sha256": "f53882c86aa92d7fed45cbbe7935b787c211e8fde97f7958e132b33283940df1",
+    "bytes": 15565
+  },
+  "stderr": {
+    "sha256": "aeb40211996d72d367caf71a2b2a832a3189fe610dd925eac6fc76ad5afeae29",
+    "bytes": 7964
+  },
+  "passed": true,
+  "fingerprint": "96d2d9505a086a4992ba91330e2927d4083184fc33c1201a89b86fc6a99bea05"
+}

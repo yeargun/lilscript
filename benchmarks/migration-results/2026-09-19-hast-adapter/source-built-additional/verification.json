@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "kind": "additional-checks-integrity-verification",
+  "receipt": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-hast-adapter/source-built-additional/receipt.json",
+    "sha256": "753f8619613608a88532a7e230dbeb8fbaf8e8219f813d512162f3b480ecc8e0",
+    "bytes": 17083
+  },
+  "absoluteReferencesVerified": 24,
+  "snapshotFingerprintsVerified": 10,
+  "copiedSiteAssetsVerified": 7,
+  "sourceBuildDistFiles": 6,
+  "sourceBuildInputFiles": 76,
+  "oldSiteEsm": {
+    "path": "_site/to-html.js",
+    "kind": "file",
+    "executable": false,
+    "sha256": "51f1af5fe5cdfe07c0b8a735a34da5d011943a4e400d83cd0a82206ca76e37ea",
+    "bytes": 30291
+  },
+  "newSiteEsm": {
+    "path": "_site/to-html.js",
+    "kind": "file",
+    "executable": false,
+    "sha256": "4ed56250657c2046322b2ed3b357bb1118a7e1a30abb9e0ad167b6ec3e302d81",
+    "bytes": 30101
+  },
+  "packageCommandsLeftWorkspaceUnchanged": true,
+  "passed": true
+}

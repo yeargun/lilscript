@@ -1,0 +1,26 @@
+
+running 21 tests
+test semantic_program::native_tests::closure_tests::callback_output_header_handoff_refusal_and_unwind_release_the_same_owner ... ok
+test semantic_program::native_tests::binary64_rounding_nan_and_negative_zero ... ok
+test semantic_program::native_tests::escaped_scalar_closure_executes_after_its_factory_returns ... ok
+test semantic_program::native_tests::native_output_releases_on_return_error_unwind_and_zero_copy_handoff ... ok
+test semantic_program::native_tests::optional_native_output_cannot_consume_reserved_baseline_memory ... ok
+test semantic_program::native_tests::optional_native_work_exhaustion_does_not_consume_baseline_output_allowance ... ok
+test semantic_program::native_tests::integer_arithmetic_shift_division_and_rounded_multiply ... ok
+test semantic_program::native_tests::partial_native_buffer_growth_refusal_releases_output_and_plan ... ok
+test semantic_program::native_tests::ordered_calls_lazy_regions_and_continue_updates ... ok
+test semantic_program::native_tests::closure_tests::module_tests::original_product_module_composes_with_retained_factory_callbacks_in_one_program ... ok
+test semantic_program::native_tests::closure_tests::plain_struct_captures_keep_independent_values_and_shared_sibling_cells ... ok
+test semantic_program::native_tests::unsupported_boundaries_reject_complete_source_without_backend_fallback ... ok
+test semantic_program::native_tests::closure_tests::callable_identity_and_prepared_callee_survive_later_argument_replacement ... ok
+test semantic_program::native_tests::wrong_target_stale_and_foreign_source_never_enter_native_callback ... ok
+test semantic_program::native_tests::unchanged_finite_loop_control_source ... ok
+test semantic_program::native_tests::closure_tests::overlapping_reference_paths_and_reentrant_host_clear_keep_live_owners ... ok
+test semantic_program::native_tests::unchanged_native_primitives_example ... ok
+test semantic_program::native_tests::closure_tests::iteration_boxes_continue_break_and_temporary_owners_do_not_accumulate ... ok
+test semantic_program::native_tests::closure_tests::managed_select_and_nested_returns_transfer_before_cleanup ... ok
+test semantic_program::native_tests::unchanged_recursion_and_integer_source ... ok
+test semantic_program::native_tests::utf16_embedded_nul_surrogates_and_borrowed_slices ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 2698 filtered out; finished in 3.83s
+

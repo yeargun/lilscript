@@ -1,0 +1,215 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+warning: unused import: `fold_fresh_empty_object_assign`
+ --> src/js_peephole/tests.rs:3:75
+  |
+3 |     absorb_property_writes_into_literals, fold_assigned_truthy_ternaries, fold_fresh_empty_object_assign, fold_identifier_copies, fol...
+  |                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `fold_null_normalized_nullable_tests`
+  --> src/js_peephole/tests.rs:20:5
+   |
+20 |     fold_null_normalized_nullable_tests, wrap_module_internals_in_function_scope,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::semantic_program::publication::*`
+ --> src/semantic_program/rewrite_tests.rs:8:5
+  |
+8 | use crate::semantic_program::publication::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::semantic_program::*`
+ --> src/semantic_program/rewrite_tests.rs:9:5
+  |
+9 | use crate::semantic_program::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::semantic_program::*`
+ --> src/semantic_program/search_fairness_tests.rs:9:5
+  |
+9 | use crate::semantic_program::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::semantic_program::publication::*`
+  --> src/semantic_program/function_support_tests.rs:10:5
+   |
+10 | use crate::semantic_program::publication::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+    --> src/compiler.rs:8039:5
+     |
+8039 |     mut selected: ScoredJavaScriptCandidate,
+     |     ----^^^^^^^^
+     |     |
+     |     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: type `StableBuildHasher` is more private than the item `codegen_ir_js::IrJsOptions::preserved_js_properties`
+  --> src/codegen_ir_js.rs:66:5
+   |
+66 |     pub preserved_js_properties: &'static AHashSet<String>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `codegen_ir_js::IrJsOptions::preserved_js_properties` is reachable at visibility `pub`
+   |
+note: but type `StableBuildHasher` is only usable at visibility `pub(crate)`
+  --> src/stable_hash.rs:10:1
+   |
+10 | pub(crate) struct StableBuildHasher(ahash::RandomState);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: `#[warn(private_interfaces)]` on by default
+
+warning: type `StableBuildHasher` is more private than the item `empty_preserved_js_properties`
+    --> src/codegen_ir_js.rs:1580:1
+     |
+1580 | pub fn empty_preserved_js_properties() -> &'static AHashSet<String> {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ function `empty_preserved_js_properties` is reachable at visibility `pub`
+     |
+note: but type `StableBuildHasher` is only usable at visibility `pub(crate)`
+    --> src/stable_hash.rs:10:1
+     |
+  10 | pub(crate) struct StableBuildHasher(ahash::RandomState);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `empty_object_binding` is never used
+    --> src/js_peephole/folds/classes.rs:3478:4
+     |
+3478 | fn empty_object_binding<'a>(tokens: &'a [Token<'a>], at: usize) -> Option<(usize, &'a str, usize)> {
+     |    ^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `scope_at` and `scope_declares` are never used
+   --> src/js_peephole/binding.rs:130:19
+    |
+ 87 | impl<'src> BindingResolution<'src> {
+    | ---------------------------------- methods in this implementation
+...
+130 |     pub(crate) fn scope_at(&self, at: usize) -> Option<(usize, usize, ScopeKind)> {
+    |                   ^^^^^^^^
+...
+180 |     pub(crate) fn scope_declares(&self, scope: usize, name: &str) -> bool {
+    |                   ^^^^^^^^^^^^^^
+
+warning: function `binding_of` is never used
+   --> src/js_peephole/binding.rs:701:8
+    |
+701 |     fn binding_of(source: &str, occurrence: usize) -> Resolution {
+    |        ^^^^^^^^^^
+
+warning: method `push_char` is never used
+   --> src/output_budget.rs:380:19
+    |
+ 76 | impl<'a> AllocationBudget<'a> {
+    | ----------------------------- method in this implementation
+...
+380 |     pub(crate) fn push_char(
+    |                   ^^^^^^^^^
+
+warning: function `equality_comparable` is never used
+    --> src/semantic.rs:9082:4
+     |
+9082 | fn equality_comparable(lhs: &Type<'_>, rhs: &Type<'_>) -> bool {
+     |    ^^^^^^^^^^^^^^^^^^^
+
+warning: fields `mode`, `expected`, and `actual` are never read
+  --> src/semantic/type_relation.rs:27:9
+   |
+26 |     Visit {
+   |     ----- fields in this variant
+27 |         mode: RelationMode,
+   |         ^^^^
+28 |         expected: &'a Type<'src>,
+   |         ^^^^^^^^
+29 |         actual: &'a Type<'src>,
+   |         ^^^^^^
+   |
+   = note: `RelationEvent` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: associated function `new` is never used
+   --> src/semantic_program/artifacts.rs:714:19
+    |
+713 | impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
+    | --------------------------------------------------------------- associated function in this implementation
+714 |     pub(super) fn new(
+    |                   ^^^
+
+warning: method `producer` is never used
+  --> src/semantic_program/fixed_resource.rs:28:19
+   |
+21 | impl ResourceChoice {
+   | ------------------- method in this implementation
+...
+28 |     pub(super) fn producer(&self) -> Option<&FrozenArtifact> {
+   |                   ^^^^^^^^
+
+warning: method `is_whole` is never used
+  --> src/semantic_program/javascript_resource.rs:15:19
+   |
+14 | impl<'a> ResourceView<'a> {
+   | ------------------------- method in this implementation
+15 |     pub(super) fn is_whole(self) -> bool {
+   |                   ^^^^^^^^
+
+warning: methods `source_identity`, `signature`, and `result` are never used
+  --> src/semantic_program/physical_export.rs:78:19
+   |
+63 | impl PhysicalExport {
+   | ------------------- methods in this implementation
+...
+78 |     pub(super) fn source_identity(&self) -> RevisionId {
+   |                   ^^^^^^^^^^^^^^^
+...
+90 |     pub(super) fn signature(&self) -> TypeId {
+   |                   ^^^^^^^^^
+...
+93 |     pub(super) fn result(&self) -> TypeId {
+   |                   ^^^^^^
+
+warning: function `share_program` is never used
+    --> src/semantic_program/publication.rs:2667:4
+     |
+2667 | fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
+     |    ^^^^^^^^^^^^^
+
+warning: methods `reserve` and `release` are never used
+    --> src/semantic_program/publication.rs:2756:8
+     |
+2748 | impl<'a> Workspace<'a> {
+     | ---------------------- methods in this implementation
+...
+2756 |     fn reserve(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+...
+2765 |     fn release(&mut self, bytes: u64) -> Result<(), PublicationError> {
+     |        ^^^^^^^
+
+warning: field `bytes` is never read
+    --> src/semantic_program/publication.rs:2783:5
+     |
+2782 | struct PatchPlan {
+     |        --------- field in this struct
+2783 |     bytes: u64,
+     |     ^^^^^
+
+warning: field `span` is never read
+  --> src/semantic_program/verify.rs:24:9
+   |
+21 |     TypeMismatch {
+   |     ------------ field in this variant
+...
+24 |         span: crate::span::Span,
+   |         ^^^^
+   |
+   = note: `VerificationError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `verify_edition` is never used
+  --> src/structured_js/verify.rs:23:15
+   |
+23 | pub(super) fn verify_edition(
+   |               ^^^^^^^^^^^^^^
+
+warning: `lilscript` (lib test) generated 24 warnings (run `cargo fix --lib -p lilscript --tests` to apply 7 suggestions)
+    Finished `release` profile [optimized] target(s) in 2m 25s
+     Running unittests src/lib.rs (target/release/deps/lilscript-118f13b3560da7bd)

@@ -1,0 +1,10 @@
+
+running 5 tests
+test semantic_program::search_entries::tests::rejected_disposal_returns_all_owned_entries_then_empty_release_succeeds ... ok
+test semantic_program::search_entries::tests::denied_growth_and_aggregate_overflow_preserve_existing_artifacts ... ok
+test semantic_program::search_entries::tests::backing_growth_charges_coexisting_buffers_and_releases_original_domain ... ok
+test semantic_program::search_entries::tests::real_artifact_slots_reuse_without_copying_text_or_codec_scores ... ok
+test semantic_program::search_entries::tests::pin_lookup_admits_each_visited_slot_and_stops_at_the_first_match ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 2934 filtered out; finished in 0.04s
+

@@ -1,0 +1,1472 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/closed.test.mjs",
+    "test/official/index.js",
+    "test/package.test.mjs",
+    "test/site.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+      "bytes": 2961
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+      "bytes": 1002
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+      "bytes": 2578
+    },
+    {
+      "path": "test/package.test.mjs",
+      "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+      "bytes": 1369
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+      "bytes": 1012
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/closed.test.mjs",
+      "test/official/index.js",
+      "test/package.test.mjs",
+      "test/site.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/node/observe.mjs",
+    "sha256": "8b451eea443585af55de7247e2bdb6c4814ddbbf4e0e91679b8da1c310f8e018",
+    "bytes": 540,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+          "bytes": 386
+        },
+        "actual": {
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+          "bytes": 386
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+          "bytes": 803
+        },
+        "actual": {
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+          "bytes": 803
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+          "bytes": 55089
+        },
+        "actual": {
+          "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+          "bytes": 55089
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+          "bytes": 2360
+        },
+        "actual": {
+          "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+          "bytes": 2360
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "108a6cae521d2397bef6e088bbb757db6be2f13bcf2d8fc0a6a8b9a00b606f9e",
+          "bytes": 950
+        },
+        "actual": {
+          "sha256": "108a6cae521d2397bef6e088bbb757db6be2f13bcf2d8fc0a6a8b9a00b606f9e",
+          "bytes": 950
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "eeeb37b3772db5333dd71b212c5dc32bd4e9f45c2c92f03385fa518f211699ab",
+          "bytes": 3174
+        },
+        "actual": {
+          "sha256": "eeeb37b3772db5333dd71b212c5dc32bd4e9f45c2c92f03385fa518f211699ab",
+          "bytes": 3174
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "724214d7916ab7fb96ad2074290287a5d617245117676bab91164b42167d56dd",
+          "bytes": 1177
+        },
+        "actual": {
+          "sha256": "724214d7916ab7fb96ad2074290287a5d617245117676bab91164b42167d56dd",
+          "bytes": 1177
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "ce08d0f87ac8cdb851967430f4f67a74dd7270868a9e6615f44be26c01a47f26",
+          "bytes": 9335
+        },
+        "actual": {
+          "sha256": "ce08d0f87ac8cdb851967430f4f67a74dd7270868a9e6615f44be26c01a47f26",
+          "bytes": 9335
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "32a0017bbc88185a254352d27270d69b964e4658c2007a805552ae6af7c188de",
+          "bytes": 182690
+        },
+        "actual": {
+          "sha256": "32a0017bbc88185a254352d27270d69b964e4658c2007a805552ae6af7c188de",
+          "bytes": 182690
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "305b1817fb14ef7211bbc99954a1c675fd18b4907f9e4a10389652ad01c5d7d1",
+          "bytes": 2487
+        },
+        "actual": {
+          "sha256": "305b1817fb14ef7211bbc99954a1c675fd18b4907f9e4a10389652ad01c5d7d1",
+          "bytes": 2487
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+          "bytes": 2961
+        },
+        "actual": {
+          "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+          "bytes": 2961
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+          "bytes": 1002
+        },
+        "actual": {
+          "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+          "bytes": 1002
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+          "bytes": 2578
+        },
+        "actual": {
+          "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+          "bytes": 2578
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/package.test.mjs",
+        "expected": {
+          "path": "test/package.test.mjs",
+          "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+          "bytes": 1369
+        },
+        "actual": {
+          "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+          "bytes": 1369
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+          "bytes": 1012
+        },
+        "actual": {
+          "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+          "bytes": 1012
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/specs/commonmark.0.31.2.json",
+        "expected": {
+          "path": "test/specs/commonmark.0.31.2.json",
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        "actual": {
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/specs/gfm.0.29.json",
+        "expected": {
+          "path": "test/specs/gfm.0.29.json",
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        "actual": {
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "a359a05119774fb830c9046628cc227c410911b336334e75de731f2d282286d0",
+          "bytes": 628
+        },
+        "actual": {
+          "sha256": "a359a05119774fb830c9046628cc227c410911b336334e75de731f2d282286d0",
+          "bytes": 628
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "b25aa4b366fb72ee5d381fa6aa73846eb27f7c9dfc1abe164288cf31f9628002",
+          "bytes": 197
+        },
+        "actual": {
+          "sha256": "b25aa4b366fb72ee5d381fa6aa73846eb27f7c9dfc1abe164288cf31f9628002",
+          "bytes": 197
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/types/remark-parse.d.ts",
+        "expected": {
+          "path": "types/remark-parse.d.ts",
+          "sha256": "72631a1b108439098abb16b2b7b15108cc37ca2cb4dda61ac87fed30fc003af1",
+          "bytes": 733
+        },
+        "actual": {
+          "sha256": "72631a1b108439098abb16b2b7b15108cc37ca2cb4dda61ac87fed30fc003af1",
+          "bytes": 733
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+          "bytes": 386
+        },
+        "actual": {
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+          "bytes": 386
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+          "bytes": 803
+        },
+        "actual": {
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+          "bytes": 803
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+          "bytes": 55089
+        },
+        "actual": {
+          "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+          "bytes": 55089
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+          "bytes": 2360
+        },
+        "actual": {
+          "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+          "bytes": 2360
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "108a6cae521d2397bef6e088bbb757db6be2f13bcf2d8fc0a6a8b9a00b606f9e",
+          "bytes": 950
+        },
+        "actual": {
+          "sha256": "108a6cae521d2397bef6e088bbb757db6be2f13bcf2d8fc0a6a8b9a00b606f9e",
+          "bytes": 950
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "eeeb37b3772db5333dd71b212c5dc32bd4e9f45c2c92f03385fa518f211699ab",
+          "bytes": 3174
+        },
+        "actual": {
+          "sha256": "eeeb37b3772db5333dd71b212c5dc32bd4e9f45c2c92f03385fa518f211699ab",
+          "bytes": 3174
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "724214d7916ab7fb96ad2074290287a5d617245117676bab91164b42167d56dd",
+          "bytes": 1177
+        },
+        "actual": {
+          "sha256": "724214d7916ab7fb96ad2074290287a5d617245117676bab91164b42167d56dd",
+          "bytes": 1177
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "ce08d0f87ac8cdb851967430f4f67a74dd7270868a9e6615f44be26c01a47f26",
+          "bytes": 9335
+        },
+        "actual": {
+          "sha256": "ce08d0f87ac8cdb851967430f4f67a74dd7270868a9e6615f44be26c01a47f26",
+          "bytes": 9335
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "32a0017bbc88185a254352d27270d69b964e4658c2007a805552ae6af7c188de",
+          "bytes": 182690
+        },
+        "actual": {
+          "sha256": "32a0017bbc88185a254352d27270d69b964e4658c2007a805552ae6af7c188de",
+          "bytes": 182690
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "305b1817fb14ef7211bbc99954a1c675fd18b4907f9e4a10389652ad01c5d7d1",
+          "bytes": 2487
+        },
+        "actual": {
+          "sha256": "305b1817fb14ef7211bbc99954a1c675fd18b4907f9e4a10389652ad01c5d7d1",
+          "bytes": 2487
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+          "bytes": 2961
+        },
+        "actual": {
+          "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+          "bytes": 2961
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+          "bytes": 1002
+        },
+        "actual": {
+          "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+          "bytes": 1002
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+          "bytes": 2578
+        },
+        "actual": {
+          "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+          "bytes": 2578
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/package.test.mjs",
+        "expected": {
+          "path": "test/package.test.mjs",
+          "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+          "bytes": 1369
+        },
+        "actual": {
+          "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+          "bytes": 1369
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+          "bytes": 1012
+        },
+        "actual": {
+          "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+          "bytes": 1012
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/specs/commonmark.0.31.2.json",
+        "expected": {
+          "path": "test/specs/commonmark.0.31.2.json",
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        "actual": {
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/specs/gfm.0.29.json",
+        "expected": {
+          "path": "test/specs/gfm.0.29.json",
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        "actual": {
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "a359a05119774fb830c9046628cc227c410911b336334e75de731f2d282286d0",
+          "bytes": 628
+        },
+        "actual": {
+          "sha256": "a359a05119774fb830c9046628cc227c410911b336334e75de731f2d282286d0",
+          "bytes": 628
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "b25aa4b366fb72ee5d381fa6aa73846eb27f7c9dfc1abe164288cf31f9628002",
+          "bytes": 197
+        },
+        "actual": {
+          "sha256": "b25aa4b366fb72ee5d381fa6aa73846eb27f7c9dfc1abe164288cf31f9628002",
+          "bytes": 197
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/types/remark-parse.d.ts",
+        "expected": {
+          "path": "types/remark-parse.d.ts",
+          "sha256": "72631a1b108439098abb16b2b7b15108cc37ca2cb4dda61ac87fed30fc003af1",
+          "bytes": 733
+        },
+        "actual": {
+          "sha256": "72631a1b108439098abb16b2b7b15108cc37ca2cb4dda61ac87fed30fc003af1",
+          "bytes": 733
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+          "bytes": 386
+        },
+        "actual": {
+          "sha256": "20b7e893980bfeb9e960719aa952800bd17cfa5ad37fb0b059a3153ae4aba9f1",
+          "bytes": 386
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+          "bytes": 803
+        },
+        "actual": {
+          "sha256": "ecab1a2f4a7d09388d2b3551d4d52824f42ab34ab974a4157b44e53364c56203",
+          "bytes": 803
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+          "bytes": 55089
+        },
+        "actual": {
+          "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+          "bytes": 55089
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+          "bytes": 2360
+        },
+        "actual": {
+          "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+          "bytes": 2360
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "108a6cae521d2397bef6e088bbb757db6be2f13bcf2d8fc0a6a8b9a00b606f9e",
+          "bytes": 950
+        },
+        "actual": {
+          "sha256": "108a6cae521d2397bef6e088bbb757db6be2f13bcf2d8fc0a6a8b9a00b606f9e",
+          "bytes": 950
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "eeeb37b3772db5333dd71b212c5dc32bd4e9f45c2c92f03385fa518f211699ab",
+          "bytes": 3174
+        },
+        "actual": {
+          "sha256": "eeeb37b3772db5333dd71b212c5dc32bd4e9f45c2c92f03385fa518f211699ab",
+          "bytes": 3174
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "724214d7916ab7fb96ad2074290287a5d617245117676bab91164b42167d56dd",
+          "bytes": 1177
+        },
+        "actual": {
+          "sha256": "724214d7916ab7fb96ad2074290287a5d617245117676bab91164b42167d56dd",
+          "bytes": 1177
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "ce08d0f87ac8cdb851967430f4f67a74dd7270868a9e6615f44be26c01a47f26",
+          "bytes": 9335
+        },
+        "actual": {
+          "sha256": "ce08d0f87ac8cdb851967430f4f67a74dd7270868a9e6615f44be26c01a47f26",
+          "bytes": 9335
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "32a0017bbc88185a254352d27270d69b964e4658c2007a805552ae6af7c188de",
+          "bytes": 182690
+        },
+        "actual": {
+          "sha256": "32a0017bbc88185a254352d27270d69b964e4658c2007a805552ae6af7c188de",
+          "bytes": 182690
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "305b1817fb14ef7211bbc99954a1c675fd18b4907f9e4a10389652ad01c5d7d1",
+          "bytes": 2487
+        },
+        "actual": {
+          "sha256": "305b1817fb14ef7211bbc99954a1c675fd18b4907f9e4a10389652ad01c5d7d1",
+          "bytes": 2487
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+          "bytes": 2961
+        },
+        "actual": {
+          "sha256": "b88c3250fcaae1d2b679073e70b821090353e36165a34759e30dd4ac636bbed0",
+          "bytes": 2961
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+          "bytes": 1002
+        },
+        "actual": {
+          "sha256": "053314059c388d2625a8e8def20523e3b1d636811e188861cc3fab875f96833d",
+          "bytes": 1002
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+          "bytes": 2578
+        },
+        "actual": {
+          "sha256": "4ef83864c2f60a967983509bc91eff834337fa47e2b9bfa0e2a47fdd25bf0a45",
+          "bytes": 2578
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/package.test.mjs",
+        "expected": {
+          "path": "test/package.test.mjs",
+          "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+          "bytes": 1369
+        },
+        "actual": {
+          "sha256": "09d699cb14c7797c6adc2dbb4b3d9e4c6f96ce47f64e566530b03aa29963ca16",
+          "bytes": 1369
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+          "bytes": 1012
+        },
+        "actual": {
+          "sha256": "7d50577740a1ca35293d6f5c9d13b24d61c7a29e7cb7add7736c4cde73de5ed6",
+          "bytes": 1012
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/specs/commonmark.0.31.2.json",
+        "expected": {
+          "path": "test/specs/commonmark.0.31.2.json",
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        "actual": {
+          "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+          "bytes": 140872
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/specs/gfm.0.29.json",
+        "expected": {
+          "path": "test/specs/gfm.0.29.json",
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        "actual": {
+          "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+          "bytes": 8884
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "a359a05119774fb830c9046628cc227c410911b336334e75de731f2d282286d0",
+          "bytes": 628
+        },
+        "actual": {
+          "sha256": "a359a05119774fb830c9046628cc227c410911b336334e75de731f2d282286d0",
+          "bytes": 628
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/tsconfig.json",
+        "expected": {
+          "path": "tsconfig.json",
+          "sha256": "b25aa4b366fb72ee5d381fa6aa73846eb27f7c9dfc1abe164288cf31f9628002",
+          "bytes": 197
+        },
+        "actual": {
+          "sha256": "b25aa4b366fb72ee5d381fa6aa73846eb27f7c9dfc1abe164288cf31f9628002",
+          "bytes": 197
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/types/remark-parse.d.ts",
+        "expected": {
+          "path": "types/remark-parse.d.ts",
+          "sha256": "72631a1b108439098abb16b2b7b15108cc37ca2cb4dda61ac87fed30fc003af1",
+          "bytes": 733
+        },
+        "actual": {
+          "sha256": "72631a1b108439098abb16b2b7b15108cc37ca2cb4dda61ac87fed30fc003af1",
+          "bytes": 733
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-check:types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:types"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          "actual": {
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          },
+          "actual": {
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/node/prerequisite-0.stdout",
+        "sha256": "812962fed03c9ff94bfade863c8219c5fcbfd7b72a8c720c8cd323811a2530d0",
+        "bytes": 74
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory/remark-parselil/node/prerequisite-0.stderr",
+        "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+        "bytes": 211
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          "actual": {
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          },
+          "actual": {
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          "actual": {
+            "sha256": "21ccb8310c7480fe325f755ff634ce0de477afb4f93d62ab4096a781426dcac1",
+            "bytes": 2360
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          },
+          "actual": {
+            "sha256": "9bd80771f81edbee6fe7aebb24bd7b532c3c99abfd5b2961606832283a250625",
+            "bytes": 55089
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin"
+  },
+  "supervision": {
+    "timeoutMs": 238166,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 1,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",13,3,1,\"test\",\"exports only the upstream default\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exports only the upstream default",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+        "file": "test/api.test.mjs",
+        "name": "installs a parser that turns a heading into mdast",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+        "file": "test/api.test.mjs",
+        "name": "parses paragraphs, emphasis, strong, code, and lists",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+        "file": "test/api.test.mjs",
+        "name": "reads data keys at parse time",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+        "file": "test/api.test.mjs",
+        "name": "matches upstream property insertion order",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",74,3,1,\"test\",\"keeps host-visible plugin keys in the library artifact\",1]",
+        "file": "test/api.test.mjs",
+        "name": "keeps host-visible plugin keys in the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+        "file": "test/api.test.mjs",
+        "name": "remark-parse",
+        "type": "suite",
+        "status": "fail",
+        "error": "4 subtests failed"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",12,3,1,\"test\",\"ships a closed artifact with the upstream export\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "ships a closed artifact with the upstream export",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "parses through unified with unmangled parser and data keys",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "remark-parse closed",
+        "type": "suite",
+        "status": "fail",
+        "error": "1 subtest failed"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/index.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+        "file": "test/official/index.js",
+        "name": "should parse",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+        "file": "test/official/index.js",
+        "name": "should support extensions",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+        "file": "test/official/index.js",
+        "name": "remark-parse",
+        "type": "test",
+        "status": "fail",
+        "error": "2 subtests failed"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+        "file": "test/package.test.mjs",
+        "name": "loads the ESM and CommonJS exports",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+        "file": "test/package.test.mjs",
+        "name": "loads the closed export",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+        "file": "test/package.test.mjs",
+        "name": "exposes a callable UMD global",
+        "type": "test",
+        "status": "fail",
+        "error": "Cannot read properties of undefined (reading 'null')"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+        "file": "test/package.test.mjs",
+        "name": "package artifacts",
+        "type": "suite",
+        "status": "fail",
+        "error": "3 subtests failed"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "fail",
+        "error": "Expected values to be strictly equal:\n\n89641 !== 87764\n"
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "fail",
+        "error": "1 subtest failed"
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.cjs",
+        "sha256": "c9db4446953b5bef9d2f8065d348189fec848e1eaa05650adbca5e742fdcba6c",
+        "bytes": 102365
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+        "sha256": "8cd35c45fb5e2af87f88dca2920fc6bf4327af92c136760afb6d256e233ef9b5",
+        "bytes": 90476
+      },
+      {
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+        "bytes": 87764
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "format": "module",
+        "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+        "bytes": 87764,
+        "pid": 3403004
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+        "url": "file:///tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+        "format": "module",
+        "sha256": "8cd35c45fb5e2af87f88dca2920fc6bf4327af92c136760afb6d256e233ef9b5",
+        "bytes": 90476,
+        "pid": 3403005
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "format": "module",
+        "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+        "bytes": 87764,
+        "pid": 3403006
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+        "url": "file:///tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.closed.js",
+        "format": "module",
+        "sha256": "8cd35c45fb5e2af87f88dca2920fc6bf4327af92c136760afb6d256e233ef9b5",
+        "bytes": 90476,
+        "pid": 3403007
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.cjs",
+        "url": "file:///tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.cjs",
+        "format": "commonjs",
+        "sha256": "c9db4446953b5bef9d2f8065d348189fec848e1eaa05650adbca5e742fdcba6c",
+        "bytes": 102365,
+        "pid": 3403007
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "url": "file:///tmp/lilscript-adapter-remark-parselil-xoQufY/remark-parselil/dist/remark-parse.esm.js",
+        "format": "module",
+        "sha256": "2ac5be5050386ebea2ac4cb7448aeb5bd8ed8b08e43fb414f118ac32a069ea94",
+        "bytes": 87764,
+        "pid": 3403007
+      }
+    ]
+  },
+  "errors": [
+    "test command failed",
+    "required test inventory missing or ambiguous",
+    "test did not pass: [\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+    "test did not pass: [\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+    "test did not pass: [\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+    "test did not pass: [\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+    "test did not pass: [\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+    "test did not pass: [\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+    "test did not pass: [\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+    "test did not pass: [\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+    "test did not pass: [\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+    "test did not pass: [\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+    "test did not pass: [\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+    "test did not pass: [\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+    "test did not pass: [\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+    "test did not pass: [\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+    "test did not pass: [\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "test did not pass: [\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",13,3,1,\"test\",\"exports only the upstream default\",1]",
+    "[\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]",
+    "[\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]",
+    "[\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]",
+    "[\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]",
+    "[\"test/api.test.mjs\",74,3,1,\"test\",\"keeps host-visible plugin keys in the library artifact\",1]",
+    "[\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]",
+    "[\"test/closed.test.mjs\",12,3,1,\"test\",\"ships a closed artifact with the upstream export\",1]",
+    "[\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]",
+    "[\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]",
+    "[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]",
+    "[\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]",
+    "[\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]",
+    "[\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]",
+    "[\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]",
+    "[\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]",
+    "[\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ]
+}

@@ -1,0 +1,5 @@
+error: unsupported semantic source: expression conversion
+ --> /home/azureuser/lilscript/tests/cases/16_templates.lil:4:7
+  |
+ 4 | print(`${language}:${version}:${stable}`);
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

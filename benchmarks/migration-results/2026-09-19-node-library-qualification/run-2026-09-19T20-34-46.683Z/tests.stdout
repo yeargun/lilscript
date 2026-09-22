@@ -1,0 +1,45 @@
+✔ a real fast invocation produces a complete receipt without a duration floor (37.275316ms)
+✔ timing text cannot substitute for a compiler invocation (0.238004ms)
+✔ the production wrapper forwards explicit arguments and records its actual cwd (31.684028ms)
+✔ an exit-zero compiler that writes nothing cannot inherit old dist bytes (31.666154ms)
+✔ a failed compiler cannot be accepted even if it writes output (33.76764ms)
+✔ the exact intended compiler is required before touching an old output (1.773862ms)
+✔ changes to inputs during compilation reject the receipt (32.340653ms)
+✔ post-build output substitution and changed contracts are detected (30.896357ms)
+✔ source identity includes configuration and generated files without git (3.885454ms)
+✔ an explicit configuration outside the port is captured as an input (30.040832ms)
+✔ output declarations cannot move source inputs or escape via a symlink (1.75155ms)
+✔ all required tests must execute and pass against the production bytes (11.380803ms)
+✔ unknown or ambiguous test evidence fails closed (1.454365ms)
+✔ canonical measurements reject missing, duplicated, or incomplete rows (1.421303ms)
+✔ production tests capture exact ESM and CommonJS bytes without changing loaders (1113.270486ms)
+✔ a failed runtime version probe cannot certify otherwise passing original tests (717.218913ms)
+✔ runtime replacement during passing tests invalidates the pinned evidence (661.69191ms)
+✔ removing a required case cannot turn a passing subset into certification (838.469612ms)
+✔ tests loading a development artifact cannot certify the production artifact (833.63965ms)
+✔ an empty test file cannot establish a case inventory (375.149103ms)
+✔ inventory discovery retains failed and skipped declarations (393.662747ms)
+✔ artifacts executed by a nested Node process are observed as well (453.731906ms)
+✔ unchanged case names cannot conceal changed required test source (857.77264ms)
+✔ new files selected by the original glob cannot disappear from a frozen adapter (909.916293ms)
+✔ imported test source identities cannot change behind stable entry files and case names (861.348104ms)
+✔ pinned prerequisites run before the unchanged Node case inventory (1488.762275ms)
+✔ prerequisite failure retains logs and skips later commands and the original Node suite (1721.761356ms)
+✔ prerequisite timeout cannot turn unexecuted tests into a pass (1156.168972ms)
+✔ changed pinned prerequisite scripts are refused before command execution (872.444556ms)
+✔ a prerequisite mutating a pinned input blocks the Node suite even with exit zero (1024.795437ms)
+✔ passing Node tests cannot conceal a changed prerequisite input (1549.954562ms)
+✔ prerequisite schema rejects empty, unpinned, ambiguous and unbounded commands (178.002615ms)
+✔ importing the shared qualification owner has no CLI or filesystem effects (43.859171ms)
+✔ invalid data-only recipes are rejected before creating an output directory (7.512534ms)
+✔ malformed CLI options are rejected before creating an output directory (4.265091ms)
+✔ both real thin clients validate their recipe and CLI before refusing an existing output (88.127004ms)
+✔ parent rejection retains both caller and owner evidence without invoking producers (1968.723691ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16092.460855

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "case": "opaque-int-field",
+  "provenance": {
+    "file": "src/semantic_program/product_reference_javascript_tests.rs",
+    "snapshot": "original-test.rs",
+    "sha256": "616802714e278b21f7136514a86bcb9f2fcb665fdada5aa48e3f998a974c708b",
+    "source_selector": "NORMALIZATION",
+    "case_selector": "product_reference_normalization_is_specific_to_the_actual_location / opaque-int-field",
+    "unchanged": true
+  },
+  "helpers": [
+    "read",
+    "ignore",
+    "overwrite"
+  ],
+  "root": "state",
+  "files": [
+    {
+      "file": "opaque-int-field.lil",
+      "role": "original source",
+      "bytes": 402,
+      "sha256": "851803182efdfb58d23481be68fa93554eb337f779272040373e52a1df870144"
+    },
+    {
+      "file": "opaque-int-field.setup.mjs",
+      "role": "original host setup",
+      "bytes": 241,
+      "sha256": "faaf61b24e72893b0563c9bb9b40ac6c4e25ee5ff38d76d5925e94db45007c5e"
+    },
+    {
+      "file": "opaque-int-field.expected.json",
+      "role": "fixed original six-event oracle",
+      "bytes": 44,
+      "sha256": "3541fc6d424f52e4dca6369fd96926c3f5ebebe1adec05d8d91227f79282d033"
+    },
+    {
+      "file": "opaque-int-field.observations.mjs",
+      "role": "original post-import observation code",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

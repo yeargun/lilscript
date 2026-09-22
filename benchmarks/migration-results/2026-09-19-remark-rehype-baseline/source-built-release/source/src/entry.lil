@@ -1,0 +1,68 @@
+import {
+  convertToHast,
+  makeDefaultHandlers,
+  makeFootnoteBackContent,
+  makeFootnoteBackLabel
+} from "./hast/convert.lil";
+import { hasOwn } from "./hast/types.lil";
+
+extern JsValue Promise;
+
+void assignOwn(JsValue target, JsValue source) {
+  if (JS.isUndefined(source) || JS.isNullish(source) || JS.typeOf(source) != "object") {
+    return;
+  }
+  for (string key in source) {
+    if (hasOwn(source, key)) {
+      target[key] = JS.get(source, key);
+    }
+  }
+}
+
+JsValue mergeToHastOptions(JsValue file, JsValue extra) {
+  JsValue opt = JS.object();
+  if (!(JS.isUndefined(file) || JS.isNullish(file))) {
+    opt["file"] = file;
+  }
+  assignOwn(opt, extra);
+  return opt;
+}
+
+JsValue ignoreRunResult(JsValue _s, JsValue _value) {
+  return JS.undefined();
+}
+
+bool isProcessor(JsValue value) {
+  if (JS.isUndefined(value) || JS.isNullish(value)) {
+    return false;
+  }
+  return JS.typeOf(JS.get(value, "run")) == "function";
+}
+
+JsValue mutateTransform(JsValue extra, JsValue tree, JsValue file) {
+  return convertToHast(tree, mergeToHastOptions(file, extra));
+}
+
+JsValue attach(JsValue _self, JsValue destination, JsValue options) {
+  if (isProcessor(destination)) {
+    return JS.method2((JsValue _s, JsValue tree, JsValue file) => {
+      JsValue hast = convertToHast(tree, mergeToHastOptions(file, options));
+      JsValue ran = JS.call(JS.get(destination, "run"), destination, hast, file);
+      JsValue resolved = JS.call(JS.get(Promise, "resolve"), Promise, ran);
+      return JS.call(JS.get(resolved, "then"), resolved, JS.method1(ignoreRunResult));
+    });
+  }
+  JsValue extra = destination;
+  if (JS.isUndefined(destination) || JS.isNullish(destination)) {
+    extra = options;
+  }
+  return JS.method2((JsValue _s, JsValue tree, JsValue file) => {
+    return mutateTransform(extra, tree, file);
+  });
+}
+
+JsValue remarkRehype = JS.method2(attach);
+export JsValue default = remarkRehype;
+export JsValue defaultHandlers = makeDefaultHandlers();
+export JsValue defaultFootnoteBackContent = makeFootnoteBackContent();
+export JsValue defaultFootnoteBackLabel = makeFootnoteBackLabel();

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "kind": "pinned-existing-runtime-closure-audit",
+  "cwd": "/home/azureuser/hast-util-to-htmllil",
+  "artifacts": [
+    {
+      "path": "dist/to-html.esm.js",
+      "sha256": "4878b006fd9f2f96a85bbd6024feb004a9741599791cff9d958f53f0f0ed103b",
+      "bytes": 29049,
+      "staticDependencies": [],
+      "loaderTokenScan": []
+    },
+    {
+      "path": "dist/to-html.closed.js",
+      "sha256": "0e9a2b588d016067fa1657eaead484dd4f71b6b3311c3758bb8cb05847d782c4",
+      "bytes": 28754,
+      "staticDependencies": [],
+      "loaderTokenScan": []
+    }
+  ],
+  "staticParser": {
+    "api": "node:vm SourceTextModule.dependencySpecifiers",
+    "runtime": "v24.11.1",
+    "flag": "--experimental-vm-modules",
+    "evaluation": "none; parse only"
+  },
+  "scope": "Both pinned candidate ESM modules have no static dependencies, and lexical audit finds no module-loading or dynamic-evaluation tokens. This is an audit of these exact existing bytes, not a general proof for future generated outputs.",
+  "referenceOracle": {
+    "path": "test/character-references.test.mjs",
+    "sha256": "2ab420facfb11298e9e2346c5e574e6e62b1ab30261372bccbf45960d36bc690",
+    "bytes": 3293,
+    "description": "The test imports toHtml from dist and official from hast-util-to-html, calls each independently, and compares output/evaluation order. Upstream execution is a test oracle, not a candidate runtime dependency."
+  },
+  "fixtureBuilder": {
+    "package": "hastscript",
+    "description": "Imported by official tests to construct HAST inputs, not by either candidate artifact."
+  },
+  "installedTestAndBuildDependencies": [
+    {
+      "name": "hast-util-to-html",
+      "present": true,
+      "path": "/home/azureuser/hast-util-to-htmllil/node_modules/hast-util-to-html/package.json",
+      "realPath": "/home/azureuser/hast-util-to-htmllil/node_modules/hast-util-to-html/package.json",
+      "version": "9.0.5",
+      "sha256": "e79f8c1a0d5dd456a581956f5d85fa6e65edddb20f2950bfa9d7b3920f5b3f39",
+      "bytes": 2586,
+      "content": {
+        "root": "/home/azureuser/hast-util-to-htmllil/node_modules/hast-util-to-html",
+        "sha256": "a0dc7edae3a985e1cf57923b49cc76daa6677e0a1f08a1e2fc186bd8aa11e71e",
+        "files": 42,
+        "bytes": 71798,
+        "excludes": [
+          ".git",
+          "node_modules",
+          ".cache"
+        ]
+      }
+    },
+    {
+      "name": "hastscript",
+      "present": true,
+      "path": "/home/azureuser/hast-util-to-htmllil/node_modules/hastscript/package.json",
+      "realPath": "/home/azureuser/hast-util-to-htmllil/node_modules/hastscript/package.json",
+      "version": "9.0.1",
+      "sha256": "067789acd022900bdaa254db04244c5e86bb2e7a060396525025ef365e15baa6",
+      "bytes": 3337,
+      "content": {
+        "root": "/home/azureuser/hast-util-to-htmllil/node_modules/hastscript",
+        "sha256": "8883c6ba7e216a393e7003962f28042dc4bf0cecb715227b7420e12fb9373d85",
+        "files": 27,
+        "bytes": 49362,
+        "excludes": [
+          ".git",
+          "node_modules",
+          ".cache"
+        ]
+      }
+    },
+    {
+      "name": "property-information",
+      "present": true,
+      "path": "/home/azureuser/hast-util-to-htmllil/node_modules/property-information/package.json",
+      "realPath": "/home/azureuser/hast-util-to-htmllil/node_modules/property-information/package.json",
+      "version": "7.2.0",
+      "sha256": "6cacc66c65e31d11d9d4e5677c1375667faf334e585b69a9d319a0ca25676530",
+      "bytes": 2364,
+      "content": {
+        "root": "/home/azureuser/hast-util-to-htmllil/node_modules/property-information",
+        "sha256": "9214493a34119a463b8f5e37b97735eae1217683c6084def29bb4321a0d85f4f",
+        "files": 56,
+        "bytes": 122232,
+        "excludes": [
+          ".git",
+          "node_modules",
+          ".cache"
+        ]
+      }
+    },
+    {
+      "name": "esbuild",
+      "present": true,
+      "path": "/home/azureuser/hast-util-to-htmllil/node_modules/esbuild/package.json",
+      "realPath": "/home/azureuser/hast-util-to-htmllil/node_modules/esbuild/package.json",
+      "version": "0.28.1",
+      "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+      "bytes": 3980,
+      "content": {
+        "root": "/home/azureuser/hast-util-to-htmllil/node_modules/esbuild",
+        "sha256": "577f27f7f18e715a9e387a2c751190b03e9b9c02ef8e22b12dcde4d7963f5da0",
+        "files": 7,
+        "bytes": 11545075,
+        "excludes": [
+          ".git",
+          "node_modules",
+          ".cache"
+        ]
+      }
+    }
+  ],
+  "unverifiedDelivery": [
+    "dist/to-html.cjs",
+    "dist/to-html.umd.js",
+    "dist/to-html.d.ts",
+    "package resolution/pack",
+    "freshly built site and browser execution"
+  ],
+  "certification": "unverified",
+  "sourceBuilt": false
+}

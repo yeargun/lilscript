@@ -1,0 +1,1106 @@
+{
+  "schemaVersion": 1,
+  "kind": "required-node-case-inventory",
+  "workload": "remark-gfmlil",
+  "capturedFrom": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/node/report.json",
+    "sha256": "6f0036caf8204489f95ccf672c9d107b8c7534242e0c941e9129174f85b1591b",
+    "bytes": 102024
+  },
+  "review": "All four original entry files and 22 identities, including three suites and two official parent tests. Original check:types is a pinned prerequisite. Eight parsed and pinned tree expectations remain unchanged with UPDATE unset; no compiler qualification follows.",
+  "originalCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+  "entryPatterns": [
+    "test/*.test.mjs",
+    "test/official/index.js"
+  ],
+  "requiredCases": [
+    "[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]",
+    "[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]",
+    "[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]",
+    "[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]",
+    "[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]",
+    "[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+    "[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]",
+    "[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]",
+    "[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]",
+    "[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+      "bytes": 2584
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+      "bytes": 1000
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+      "bytes": 2422
+    }
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+      "bytes": 406
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+      "bytes": 2650
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+      "bytes": 47236
+    },
+    {
+      "path": "package.json",
+      "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+      "bytes": 2259
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+      "bytes": 948
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+      "bytes": 3180
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+      "bytes": 1006
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+      "bytes": 9321
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+      "bytes": 104355
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+      "bytes": 2547
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "site/vendor/remark-parse.js",
+      "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+      "bytes": 35260
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+      "bytes": 2584
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+      "bytes": 1000
+    },
+    {
+      "path": "test/official/fixtures/autolink-literal/input.md",
+      "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+      "bytes": 1298
+    },
+    {
+      "path": "test/official/fixtures/autolink-literal/output.md",
+      "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+      "bytes": 2059
+    },
+    {
+      "path": "test/official/fixtures/autolink-literal/tree.json",
+      "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+      "bytes": 52219
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/input.md",
+      "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+      "bytes": 29
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/output.md",
+      "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+      "bytes": 37
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-default/tree.json",
+      "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+      "bytes": 2698
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/config.json",
+      "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+      "bytes": 27
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/input.md",
+      "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+      "bytes": 29
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/output.md",
+      "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+      "bytes": 37
+    },
+    {
+      "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+      "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+      "bytes": 1951
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/config.json",
+      "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+      "bytes": 30
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/input.md",
+      "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+      "bytes": 40
+    },
+    {
+      "path": "test/official/fixtures/table-no-align/tree.json",
+      "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+      "bytes": 4453
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/config.json",
+      "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+      "bytes": 32
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/input.md",
+      "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+      "bytes": 40
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/output.md",
+      "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+      "bytes": 28
+    },
+    {
+      "path": "test/official/fixtures/table-no-padding/tree.json",
+      "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+      "bytes": 4453
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/config.json",
+      "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+      "bytes": 63
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/input.md",
+      "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+      "bytes": 33
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/output.md",
+      "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+      "bytes": 35
+    },
+    {
+      "path": "test/official/fixtures/table-string-length/tree.json",
+      "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+      "bytes": 3550
+    },
+    {
+      "path": "test/official/fixtures/table/input.md",
+      "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+      "bytes": 72
+    },
+    {
+      "path": "test/official/fixtures/table/output.md",
+      "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+      "bytes": 104
+    },
+    {
+      "path": "test/official/fixtures/table/tree.json",
+      "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+      "bytes": 11398
+    },
+    {
+      "path": "test/official/fixtures/tasklist/input.md",
+      "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+      "bytes": 30
+    },
+    {
+      "path": "test/official/fixtures/tasklist/output.md",
+      "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+      "bytes": 31
+    },
+    {
+      "path": "test/official/fixtures/tasklist/tree.json",
+      "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+      "bytes": 4467
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+      "bytes": 2422
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+      "bytes": 758
+    },
+    {
+      "path": "test/types.test.ts",
+      "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+      "bytes": 492
+    },
+    {
+      "path": "types/remark-gfm.d.ts",
+      "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+      "bytes": 360
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check-types",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "timeoutMs": 60000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236
+        },
+        {
+          "path": "types/remark-gfm.d.ts",
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        {
+          "path": "dist/remark-gfm.d.ts",
+          "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+          "bytes": 360
+        },
+        {
+          "path": "test/types.test.ts",
+          "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+          "bytes": 492
+        },
+        {
+          "path": "node_modules/typescript/package.json",
+          "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+          "bytes": 3620
+        },
+        {
+          "path": "node_modules/typescript/bin/tsc",
+          "sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+          "bytes": 45
+        },
+        {
+          "path": "node_modules/typescript/lib/tsc.js",
+          "sha256": "2cffde0b8c6760dfb0b5b0382bbb7e00ba6a8b2d981b9205b256a700a481d983",
+          "bytes": 267
+        }
+      ]
+    }
+  ],
+  "buildScript": {
+    "path": "scripts/build.mjs",
+    "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+    "bytes": 3180
+  },
+  "sourceSnapshot": {
+    "root": "/home/azureuser/remark-gfmlil",
+    "files": [
+      {
+        "path": ".github/workflows/pages.yml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2eac91b22cabecc627ef42df3af33e5daaa24971756608ea7b3f209ce5c9228d",
+        "bytes": 887
+      },
+      {
+        "path": ".gitignore",
+        "kind": "file",
+        "executable": false,
+        "sha256": "befbb01e1cafe574986501e54d11bdb193dcd174a9780c9f64434a63ea91f450",
+        "bytes": 63
+      },
+      {
+        "path": "LICENSE",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f7b9103ef15920f61e36eb019a8ca8423bad216b1395265a41d7eddcd8c14492",
+        "bytes": 1115
+      },
+      {
+        "path": "NOTICE.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4bb20f61a911683aeabc6872c4c85cfcf0e7fae0cda99a166643392ab8db55a4",
+        "bytes": 469
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "47502c913a4aa28df30eb3bc32f700a5cf8a5c4686717d268213960eba49084e",
+        "bytes": 883
+      },
+      {
+        "path": "_site/.nojekyll",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      {
+        "path": "_site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+        "bytes": 14889
+      },
+      {
+        "path": "_site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+        "bytes": 9321
+      },
+      {
+        "path": "_site/official.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+        "bytes": 104355
+      },
+      {
+        "path": "_site/remark-gfm.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "16c6b16b3745408de9737e3d46f7c8942dfd27655e4ba68e6dc68ed395209dfe",
+        "bytes": 32996
+      },
+      {
+        "path": "_site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+        "bytes": 2547
+      },
+      {
+        "path": "_site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+        "bytes": 11136
+      },
+      {
+        "path": "_site/vendor/remark-parse.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+        "bytes": 35260
+      },
+      {
+        "path": "lilscript.closed.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+        "bytes": 406
+      },
+      {
+        "path": "lilscript.toml",
+        "kind": "file",
+        "executable": false,
+        "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+        "bytes": 2650
+      },
+      {
+        "path": "package-lock.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+        "bytes": 47236
+      },
+      {
+        "path": "package.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+        "bytes": 2259
+      },
+      {
+        "path": "scripts/build-site.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+        "bytes": 948
+      },
+      {
+        "path": "scripts/build.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+        "bytes": 3180
+      },
+      {
+        "path": "scripts/check-pack.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+        "bytes": 1006
+      },
+      {
+        "path": "site/app.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+        "bytes": 14889
+      },
+      {
+        "path": "site/index.html",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9ed5ac3e129464d4e23c761fd65ae9387f42f8c167dae5cfabad47ed636c1428",
+        "bytes": 9321
+      },
+      {
+        "path": "site/official.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4d6d19e6cea8223fc611dde254670b92167c96d2201a104d3dcd7b32d8cde267",
+        "bytes": 104355
+      },
+      {
+        "path": "site/results.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "79591201a80c2926d362816ab6041389a29d5756398c4c73861f529400844785",
+        "bytes": 2547
+      },
+      {
+        "path": "site/styles.css",
+        "kind": "file",
+        "executable": false,
+        "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+        "bytes": 11136
+      },
+      {
+        "path": "site/vendor/remark-parse.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+        "bytes": 35260
+      },
+      {
+        "path": "src/core/blank-line.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "859685e5206681039331d5dd8a114b81e79347e83737dec3b73c3a64f9a8640c",
+        "bytes": 908
+      },
+      {
+        "path": "src/entry.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f5d79eb4eb8456bca47f5dbf69801347974c9924f8b2a3dbe0c5a061d25dd2f4",
+        "bytes": 1284
+      },
+      {
+        "path": "src/factory-space.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "3fa3f8670f1af832e7ea4501b9c91a86117a1d54e4387849923d181d1d6e04d0",
+        "bytes": 907
+      },
+      {
+        "path": "src/host.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "f36a922f18aa2f69bcc655dd45d7c314482fb9875111bc0a5243bdf8ed58a0fc",
+        "bytes": 11101
+      },
+      {
+        "path": "src/mdast/ccount.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a33a87df17a73cbf794875a623c1914ca924c96ff2b44fc529635987a63419a0",
+        "bytes": 376
+      },
+      {
+        "path": "src/mdast/find-and-replace.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a7a78735c36a1ca4c81ce3231cb4cf146e5ff5b3c488c8dab8de2f004d72ec5a",
+        "bytes": 5226
+      },
+      {
+        "path": "src/mdast/gfm-autolink-literal.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "584ce88ecb4579c0e8d494e4cb35c7046f276691678414fb627ce431fc3f079d",
+        "bytes": 7452
+      },
+      {
+        "path": "src/mdast/gfm-footnote.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d35f018de1ac7ce856efb15cb1b6d4af0ae5f369d47809c69b362c3e93d7685e",
+        "bytes": 6314
+      },
+      {
+        "path": "src/mdast/gfm-strikethrough.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fa3d2218d34dd52ffb247b0ac3e7d7479744f15a3e53988dbacb0d27b4f0f6a0",
+        "bytes": 2150
+      },
+      {
+        "path": "src/mdast/gfm-table.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ce0a17a132fbd412d8dedbc7600fb5da9ff5bdfaacd85a515adcfea03c496e1b",
+        "bytes": 7850
+      },
+      {
+        "path": "src/mdast/gfm-task-list-item.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6fd33bdd3ca13e367545ee40948bcee8ce4422518771eb5d31128366bab52ae6",
+        "bytes": 4015
+      },
+      {
+        "path": "src/mdast/gfm.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "533604d99dd5cab3ef2251e7e6d61c3cf7c43e47c0b1a2110e61c56c42c79ddd",
+        "bytes": 1059
+      },
+      {
+        "path": "src/mdast/is.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "165265b67c51f01260bb89af2b320d5c36d6f43315b746c62a5ab0e337b9178e",
+        "bytes": 400
+      },
+      {
+        "path": "src/mdast/markdown-table.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6b1c2b73fe78ebc18a88d90d098256588a13f583c43cc757e024509adb521b86",
+        "bytes": 6580
+      },
+      {
+        "path": "src/mdast/visit-parents.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0968ec59636ae84fb60bcee89f9330c0a21e31d3f8eebfd4b7b36df745680a98",
+        "bytes": 2181
+      },
+      {
+        "path": "src/micromark/gfm-autolink-literal.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7a66da5d1c337292e1e85be60c9146067450e30575d3a78ec670cf381d23bab8",
+        "bytes": 14524
+      },
+      {
+        "path": "src/micromark/gfm-footnote.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5e8b6abf8589808f4ccef8e10f2635a14be9cb3dbe0ca71a325a093c172b3d5f",
+        "bytes": 11977
+      },
+      {
+        "path": "src/micromark/gfm-strikethrough.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5f4a07e0738fba51f857972f994705607052c81fc12ce26155f5588493184c4f",
+        "bytes": 6395
+      },
+      {
+        "path": "src/micromark/gfm-table-edit-map.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ce500766696fcd654cf9ac356557a8d3b2b3bebe586fbc22e3eba7488bceb5c2",
+        "bytes": 2241
+      },
+      {
+        "path": "src/micromark/gfm-table-infer.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "99182245d1ce1c83fc1142a5e7c38779c863a0761beed284127fcd1624508f52",
+        "bytes": 1279
+      },
+      {
+        "path": "src/micromark/gfm-table.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ad8982816941180789caff0aaa2542e7577f2b02e03bbcebafc01f5064b66c1b",
+        "bytes": 17799
+      },
+      {
+        "path": "src/micromark/gfm-tagfilter.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c2d88463c7a261d2f89d008b6bc612835e0281c0c0da63a37e0b781cf3dee293",
+        "bytes": 1216
+      },
+      {
+        "path": "src/micromark/gfm-task-list-item.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2da61f8118de48b8990048e5d67f0ca5798c3dda67ea6b38f7fb437cc78104ca",
+        "bytes": 3350
+      },
+      {
+        "path": "src/micromark/gfm.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c4479feb9a18b63402d714e1f2a02c3ffd76c4d18dfa7c26fa1d861299ea32aa",
+        "bytes": 972
+      },
+      {
+        "path": "src/symbol/codes.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "51ab7cab37e5c592ad9164bae1ffef43e6efaddd38c54fe04dfdf9fe94afe215",
+        "bytes": 6315
+      },
+      {
+        "path": "src/symbol/constants.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "c89476d798ffe1eb1f9843219c41cd1d19849707ceb9fc18d5583b5ae2470188",
+        "bytes": 2986
+      },
+      {
+        "path": "src/symbol/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6ae172165319ad71396ca532ec544326d82d9625f8ee46090d02a587e40c1aa8",
+        "bytes": 10985
+      },
+      {
+        "path": "src/symbol/values.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "1aabedd9c760c573fd1ea24d07ae9d35d207bbe61a0ecc62985f0953fc73c3e9",
+        "bytes": 3599
+      },
+      {
+        "path": "src/to-markdown/check-bullet.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "72784bc8717b2af7f25d825413cec73fdddf39989df8c523aa9648ae53c267c3",
+        "bytes": 423
+      },
+      {
+        "path": "src/to-markdown/check-list-item-indent.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2d8eb9c3b8a22f0a6bfeb0fd6025404c0e72b4e45edde92c0c372751bc5e3432",
+        "bytes": 462
+      },
+      {
+        "path": "src/to-markdown/handle.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "23b76f66cefe19d8508f98dd9b664508fffdd7f1e26971cac3f7adda40bc480c",
+        "bytes": 185
+      },
+      {
+        "path": "src/to-markdown/inline-code.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "65689f9e28e48296b7838fc25bca08b68ad2af6acd94c00f020ee5f8d5b7e11f",
+        "bytes": 1814
+      },
+      {
+        "path": "src/to-markdown/list-item.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4950edf127b2b47b8283d227c50f6dd256ee9247f4cf4addeb4d0a232e284589",
+        "bytes": 2492
+      },
+      {
+        "path": "src/types.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9d01b9848b5a8898d20480369a7352d321d754e118a26590e46a490daeeba305",
+        "bytes": 182
+      },
+      {
+        "path": "src/util-character.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "18407041e8b94facf94f11d6db035e0e2bfdf4ca57ce0494d35eee471cc9a4df",
+        "bytes": 2170
+      },
+      {
+        "path": "src/util-chunked.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "dc63c7d2096496959c0c5317e7375ce7c61d23dd69b129b61b0d9bf79e4045cd",
+        "bytes": 1512
+      },
+      {
+        "path": "src/util-classify-character.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8f193927ef6c0a6ec30125dcfe5f24e70e0d1acb178a0f701a6be61050a9b841",
+        "bytes": 516
+      },
+      {
+        "path": "src/util-combine-extensions.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fa4f8d208738a1537559c5326196e54baef2a6eeed93241e6e3957e92f137957",
+        "bytes": 2606
+      },
+      {
+        "path": "src/util-normalize-identifier.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "9c605bcd8454ea59378864ba8abfb67315008fbdea73f96e9fb09e76594fe20e",
+        "bytes": 348
+      },
+      {
+        "path": "src/util-resolve-all.lil",
+        "kind": "file",
+        "executable": false,
+        "sha256": "4857aeec8d7eb15053668e81899371cd3bb6d9a23a68740204e9ff818120dfd2",
+        "bytes": 576
+      },
+      {
+        "path": "test/api.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+        "bytes": 2584
+      },
+      {
+        "path": "test/closed.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+        "bytes": 1000
+      },
+      {
+        "path": "test/official/fixtures/autolink-literal/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "409a01eef44fdec497a629c9c346710aaa3180d55bcb498de73b67277aea7315",
+        "bytes": 1298
+      },
+      {
+        "path": "test/official/fixtures/autolink-literal/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "d50b817386855ca2dd6b50f8065f4dc2e4e107c2e9eaa62e1fabccdf29c0d56f",
+        "bytes": 2059
+      },
+      {
+        "path": "test/official/fixtures/autolink-literal/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+        "bytes": 52219
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-default/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+        "bytes": 29
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-default/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "6e6843e9e7cabcde9d81b1eaaaa7476fd254d51ba092e4a41689633f4de6fce0",
+        "bytes": 37
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-default/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+        "bytes": 2698
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-not-one/config.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+        "bytes": 27
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-not-one/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "49056907e073321149dd565e6304f32e4a1966f17c663bd0c92da01b2129694c",
+        "bytes": 29
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-not-one/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fcf5ce912ca0782f2fea1005b613abf60c8ce4f696947cea47e45331b20a1caf",
+        "bytes": 37
+      },
+      {
+        "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+        "bytes": 1951
+      },
+      {
+        "path": "test/official/fixtures/table-no-align/config.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+        "bytes": 30
+      },
+      {
+        "path": "test/official/fixtures/table-no-align/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+        "bytes": 40
+      },
+      {
+        "path": "test/official/fixtures/table-no-align/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+        "bytes": 4453
+      },
+      {
+        "path": "test/official/fixtures/table-no-padding/config.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+        "bytes": 32
+      },
+      {
+        "path": "test/official/fixtures/table-no-padding/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542",
+        "bytes": 40
+      },
+      {
+        "path": "test/official/fixtures/table-no-padding/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2706cd18e6df9ea72f2a0c693255072d77276209bf804c23729f3326dff5bef6",
+        "bytes": 28
+      },
+      {
+        "path": "test/official/fixtures/table-no-padding/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+        "bytes": 4453
+      },
+      {
+        "path": "test/official/fixtures/table-string-length/config.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+        "bytes": 63
+      },
+      {
+        "path": "test/official/fixtures/table-string-length/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2cf56cee2fcea7e6fced408bf7298e040f0cf6965f788b3ecaba06408efa2085",
+        "bytes": 33
+      },
+      {
+        "path": "test/official/fixtures/table-string-length/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "16227a2bf76ad628ca956f85638622a76e151d0da3f7fe0dd55ffcb31c8c9368",
+        "bytes": 35
+      },
+      {
+        "path": "test/official/fixtures/table-string-length/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+        "bytes": 3550
+      },
+      {
+        "path": "test/official/fixtures/table/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182",
+        "bytes": 72
+      },
+      {
+        "path": "test/official/fixtures/table/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "2dfa0a5ec4f3fd7388cbf7e738fb22e0b104b98d8e5252135ae119acd102b325",
+        "bytes": 104
+      },
+      {
+        "path": "test/official/fixtures/table/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+        "bytes": 11398
+      },
+      {
+        "path": "test/official/fixtures/tasklist/input.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "5b26df7a78e0a0b17b5df72987f2de2fd8dc6a285593aacd4c5ed3b3fb72576a",
+        "bytes": 30
+      },
+      {
+        "path": "test/official/fixtures/tasklist/output.md",
+        "kind": "file",
+        "executable": false,
+        "sha256": "0ad9dc80c8fa76bb776896e78c9429addb63b12f8992a3fb31d3158dc9aa6d58",
+        "bytes": 31
+      },
+      {
+        "path": "test/official/fixtures/tasklist/tree.json",
+        "kind": "file",
+        "executable": false,
+        "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+        "bytes": 4467
+      },
+      {
+        "path": "test/official/index.js",
+        "kind": "file",
+        "executable": false,
+        "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+        "bytes": 2422
+      },
+      {
+        "path": "test/site.test.mjs",
+        "kind": "file",
+        "executable": false,
+        "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+        "bytes": 758
+      },
+      {
+        "path": "test/types.test.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+        "bytes": 492
+      },
+      {
+        "path": "types/remark-gfm.d.ts",
+        "kind": "file",
+        "executable": false,
+        "sha256": "646c737ce88591090f3285cdc8f665a2f826353e06663f2a9548d740be26aee7",
+        "bytes": 360
+      }
+    ],
+    "sha256": "ff11a1d27f731b5c1d568a63f85386e9d251431d4ce5afa284447a7f092728f0"
+  },
+  "dependencySnapshot": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/before.json",
+    "sha256": "fad6384a9e26d02fa1fddef540b2574738d0b4abf18d0834c0f0464f536d23c6",
+    "bytes": 863961,
+    "root": "/home/azureuser/remark-gfmlil/node_modules",
+    "manifestSha256": "826041e36a09bdaa4a0300c17e1275dc5d8a950814232c261025897e472a8745",
+    "files": 943,
+    "entries": 1071,
+    "scope": "Complete installed project tree including nested dependencies and symlink destinations, pinned before/after discovery; no installation."
+  },
+  "npmRuntimeSnapshot": {
+    "path": "benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/before.json",
+    "sha256": "fad6384a9e26d02fa1fddef540b2574738d0b4abf18d0834c0f0464f536d23c6",
+    "bytes": 863961,
+    "root": "/home/azureuser/.nvm/versions/node/v24.11.1/lib/node_modules/npm",
+    "manifestSha256": "291d4d025534431af9501fd99ae494678422fa89f07bb8cdee26d096ad3f2ba9",
+    "files": 2106,
+    "entries": 2643,
+    "scope": "Complete global npm runtime including nested dependencies; not a hermetic OS environment."
+  },
+  "observedInventory": {
+    "testCases": 19,
+    "suiteNodes": 3,
+    "totalIdentities": 22,
+    "skipped": 0,
+    "failed": 0
+  },
+  "deliveryScope": {
+    "requiredArtifacts": [
+      "dist/remark-gfm.esm.js",
+      "dist/remark-gfm.cjs",
+      "dist/remark-gfm.closed.js"
+    ],
+    "sourceBuilt": false,
+    "package": "Original self-package import and require execute retained ESM/CJS. CJS assertions only cover export keys and callable shape, not plugin behavior.",
+    "declarations": "Original check:types runs unchanged with explicit TypeScript flags against retained declarations; package scripts, types, original type test and installed TypeScript/npm closure are pinned.",
+    "consumer": "Original ESM plugin registration through live processor.data() storage, callback this and option forwarding; eight parser/serializer fixtures use upstream remark and the candidate GFM plugin.",
+    "closed": "Original closed test invokes registration and checks one micromark extension; full closed parsing/serialization is unverified.",
+    "site": "Original test reads retained files and markup; no site build, UMD or browser execution.",
+    "expectations": "All eight original tree.json files are parseable, pinned and unchanged in an isolated copy. UPDATE is absent; the missing table-no-align/output.md preserves the original input.md serialization fallback."
+  },
+  "sourceBuildGaps": [
+    "Original terminal_cleanup_chain and wide_single_use_collapse fields are unsupported by the current deny-unknown-fields JavaScript configuration; no drop or translation for a pass.",
+    "The existing source qualifier requires test:types; this original package requires check:types. Use pinned original prerequisites without renaming scripts or copying qualification ownership."
+  ],
+  "additionalRequiredCoverage": [
+    "Fresh source build with explicit configuration compatibility resolution remains unverified.",
+    "Original check:pack and installed-package import/require consumers remain unverified; a package dry-run alone is insufficient.",
+    "Original check:site/build:site, actual UMD/browser execution and fresh-site integration remain unverified.",
+    "CJS plugin behavior and broader closed parsing/serialization remain unverified beyond original export/registration assertions."
+  ]
+}

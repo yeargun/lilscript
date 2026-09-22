@@ -1,0 +1,54 @@
+extern JsValue Error;
+
+export int childCount(JsValue nodes) {
+  if (!JS.isArray(nodes)) {
+    return 0;
+  }
+  return JS.number(JS.get(nodes, "length")).toInt();
+}
+
+export string stringField(JsValue node, string key) {
+  JsValue value = JS.get(node, key);
+  if (value is string) {
+    return value;
+  }
+  return "";
+}
+
+export int indexOfNode(JsValue siblings, JsValue node) {
+  int n = childCount(siblings);
+  int i = 0;
+  while (i < n) {
+    if (siblings[i] == node) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+export JsValue copyParents(JsValue parents, JsValue extra) {
+  JsValue out = JS.array();
+  int n = childCount(parents);
+  int i = 0;
+  while (i < n) {
+    JS.push(out, parents[i]);
+    i = i + 1;
+  }
+  JS.push(out, extra);
+  return out;
+}
+
+export void spliceReplace(JsValue siblings, int index, JsValue nodes) {
+  JS.invoke(siblings, "splice", index, 1);
+  int n = childCount(nodes);
+  int i = 0;
+  while (i < n) {
+    JS.invoke(siblings, "splice", index + i, 0, nodes[i]);
+    i = i + 1;
+  }
+}
+
+export void fail(string message) {
+  throw JS.construct(Error, message);
+}

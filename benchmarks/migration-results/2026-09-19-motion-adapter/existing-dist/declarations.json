@@ -1,0 +1,41 @@
+{
+  "files": [
+    "test/node.test.mjs",
+    "test/terser.test.mjs",
+    "test/vite.test.mjs",
+    "test/shake.test.mjs"
+  ],
+  "fixtures": [
+    {
+      "path": "package.json",
+      "sha256": "a89168b357b00aa85dea2f27fd41f7fcf270d85ad83fc8f50b571e5e19e75804",
+      "bytes": 2826
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "51c3be59621a1173b930f799b8ab6aac5c94d86eef4584a51e81463b22e586d4",
+      "bytes": 41872
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "314562151e420b06cacdf25fa43e7896d0add507c4f50346f0e98a635a5632a5",
+      "bytes": 8698
+    },
+    {
+      "path": "src/lilscript.toml",
+      "sha256": "f52ee0d997baadd39170780db522f4b810a1869abb4970f32e80d6c925c30864",
+      "bytes": 252
+    },
+    {
+      "path": "test/fixtures/vite/index.html",
+      "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+      "bytes": 195
+    },
+    {
+      "path": "test/fixtures/vite/main.js",
+      "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+      "bytes": 231
+    }
+  ],
+  "prerequisites": []
+}

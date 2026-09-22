@@ -1,0 +1,8 @@
+struct Pair { int x; int y; }
+extern void keep(func()->void replace);
+extern int late();
+int step(Pair local, int delta) { local.y += delta; return local.x + local.y; }
+Pair state = Pair{1,2};
+keep(()=>{state.x=20;});
+try { print(step(state,late())); } catch { print(99); }
+print(state.x);print(state.y);

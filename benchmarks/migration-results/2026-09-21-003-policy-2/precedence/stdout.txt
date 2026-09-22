@@ -1,0 +1,21 @@
+✔ TOML resources are what the run uses when no flag overrides them (7.201203ms)
+✔ command-line resource flags take precedence over TOML (3.531232ms)
+✔ thread counts never enter the policy fingerprint (6.164337ms)
+✔ the same inputs resolve to the same fingerprint (5.605544ms)
+✔ development mode overrides the configured search and changes the fingerprint (5.789267ms)
+✔ effort follows optimization_level and appears in the receipt (9.230552ms)
+✔ an optimization level above 16 is refused (3.354722ms)
+✔ an explicit tactic permission reaches the resolved policy (3.849476ms)
+✔ an unknown key is an error, not a silently ignored setting (2.938074ms)
+✔ an invalid resource limit is refused (5.26028ms)
+✔ a sibling-line optimizer knob is accepted, reported and still validated (5.532057ms)
+✔ a lilscript.toml beside the input is discovered without --config (2.98397ms)
+✔ an explicit --config wins over the discovered file (3.07992ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134.842094

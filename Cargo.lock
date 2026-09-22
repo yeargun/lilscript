@@ -200,8 +200,6 @@ dependencies = [
 [[package]]
 name = "compu-brotli-sys"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a4b3eb1fc44f1a0bbc2d140cdf4edf998cea50aafab1f2e4d1ad8940785cab9"
 dependencies = [
  "cc",
  "libc",
@@ -423,6 +421,7 @@ dependencies = [
  "logos",
  "lsp-server",
  "oxc_allocator",
+ "oxc_ast",
  "oxc_parser",
  "oxc_span",
  "rayon",

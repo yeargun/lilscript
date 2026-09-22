@@ -1,0 +1,10 @@
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 1"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 1"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 1"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 59.504428"}

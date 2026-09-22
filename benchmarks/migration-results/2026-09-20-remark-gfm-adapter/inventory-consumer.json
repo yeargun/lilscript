@@ -1,0 +1,923 @@
+{
+  "schemaVersion": 1,
+  "kind": "migration-workload-inventory",
+  "generatedAt": "2026-09-20T00:50:50.157Z",
+  "status": "recovered-input-inventory-not-baseline-certification",
+  "manifest": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/inventory-consumer-manifest.json",
+    "present": true,
+    "sha256": "8bf68e2570b34aa1adf7c94a8dccfe903f71f44b45940cc06cdd1cc82e5c2677",
+    "bytes": 3881
+  },
+  "rows": [
+    {
+      "id": "remark-gfmlil",
+      "kind": "maintained-library",
+      "required": true,
+      "separateCompetitiveRow": true,
+      "relatedTo": null,
+      "recordedWorkspace": "/home/azureuser/remark-gfmlil",
+      "workspace": "/home/azureuser/remark-gfmlil",
+      "candidates": [
+        {
+          "path": "/home/azureuser/remark-gfmlil",
+          "exists": true,
+          "head": "cb2550734ffc39296c9fb87d77665ec4ea06eba0"
+        },
+        {
+          "path": "/tmp/lilscript-page-refresh-20260910/current/remark-gfmlil",
+          "exists": true,
+          "head": "cb2550734ffc39296c9fb87d77665ec4ea06eba0"
+        }
+      ],
+      "selection": "recorded-workspace",
+      "historicalStatus": "unverified",
+      "historicalPending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "comparisons": [],
+      "upstream": {
+        "repository": "https://github.com/remarkjs/remark-gfm.git",
+        "commit": "109972e8a773bf5dac1d6d2da0776557f36971aa",
+        "package": "remark-gfm",
+        "version": "4.0.1",
+        "directory": "."
+      },
+      "recordedScope": "remark-gfm@4.0.1 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "certification": "unverified",
+      "gaps": [
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "Fresh source build with explicit configuration compatibility resolution remains unverified."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "Original check:pack and installed-package import/require consumers remain unverified; a package dry-run alone is insufficient."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "Original check:site/build:site, actual UMD/browser execution and fresh-site integration remain unverified."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "CJS plugin behavior and broader closed parsing/serialization remain unverified beyond original export/registration assertions."
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ],
+      "head": "cb2550734ffc39296c9fb87d77665ec4ea06eba0",
+      "gitStatus": {
+        "sha256": "d08a1a1fc5954b7988aa73ce5b8010f0169e7a147fde4c96c7aa1854fdc4ef89",
+        "rows": 4
+      },
+      "package": {
+        "name": "@itslil/remark-gfm",
+        "version": "4.0.3",
+        "identity": {
+          "path": "/home/azureuser/remark-gfmlil/package.json",
+          "present": true,
+          "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+          "bytes": 2259
+        },
+        "scripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs",
+          "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --noEmit --strict --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
+          "check:site": "npm run build:site && node --test test/site.test.mjs",
+          "check:pack": "node scripts/check-pack.mjs",
+          "prepublishOnly": "npm test && npm run check:pack && npm run check:site"
+        },
+        "engines": {
+          "node": ">=18"
+        }
+      },
+      "sourceFiles": [
+        "src/core/blank-line.lil",
+        "src/entry.lil",
+        "src/factory-space.lil",
+        "src/host.lil",
+        "src/mdast/ccount.lil",
+        "src/mdast/find-and-replace.lil",
+        "src/mdast/gfm-autolink-literal.lil",
+        "src/mdast/gfm-footnote.lil",
+        "src/mdast/gfm-strikethrough.lil",
+        "src/mdast/gfm-table.lil",
+        "src/mdast/gfm-task-list-item.lil",
+        "src/mdast/gfm.lil",
+        "src/mdast/is.lil",
+        "src/mdast/markdown-table.lil",
+        "src/mdast/visit-parents.lil",
+        "src/micromark/gfm-autolink-literal.lil",
+        "src/micromark/gfm-footnote.lil",
+        "src/micromark/gfm-strikethrough.lil",
+        "src/micromark/gfm-table-edit-map.lil",
+        "src/micromark/gfm-table-infer.lil",
+        "src/micromark/gfm-table.lil",
+        "src/micromark/gfm-tagfilter.lil",
+        "src/micromark/gfm-task-list-item.lil",
+        "src/micromark/gfm.lil",
+        "src/symbol/codes.lil",
+        "src/symbol/constants.lil",
+        "src/symbol/types.lil",
+        "src/symbol/values.lil",
+        "src/to-markdown/check-bullet.lil",
+        "src/to-markdown/check-list-item-indent.lil",
+        "src/to-markdown/handle.lil",
+        "src/to-markdown/inline-code.lil",
+        "src/to-markdown/list-item.lil",
+        "src/types.lil",
+        "src/util-character.lil",
+        "src/util-chunked.lil",
+        "src/util-classify-character.lil",
+        "src/util-combine-extensions.lil",
+        "src/util-normalize-identifier.lil",
+        "src/util-resolve-all.lil"
+      ],
+      "configurations": [
+        {
+          "path": "/home/azureuser/remark-gfmlil/lilscript.closed.toml",
+          "present": true,
+          "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+          "bytes": 406,
+          "relativePath": "lilscript.closed.toml",
+          "recordedSha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227"
+        },
+        {
+          "path": "/home/azureuser/remark-gfmlil/lilscript.toml",
+          "present": true,
+          "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+          "bytes": 2650,
+          "relativePath": "lilscript.toml",
+          "recordedSha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c"
+        }
+      ],
+      "locks": [
+        {
+          "path": "/home/azureuser/remark-gfmlil/package-lock.json",
+          "present": true,
+          "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+          "bytes": 47236,
+          "relativePath": "package-lock.json"
+        }
+      ],
+      "testFiles": [
+        "test/api.test.mjs",
+        "test/closed.test.mjs",
+        "test/official/index.js",
+        "test/site.test.mjs",
+        "test/types.test.ts"
+      ],
+      "inputLinks": [],
+      "scanErrors": [],
+      "inputs": {
+        "root": "/home/azureuser/remark-gfmlil",
+        "files": [
+          {
+            "path": "lilscript.closed.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "14c12fc67812670a59aa9e36a5c5bde1299c5c022d3dd88333a8fd9bf8444227",
+            "bytes": 406
+          },
+          {
+            "path": "lilscript.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "10b34dccc35609ac68a4914cc42aa5e390a6a3df3faa20fbb1969ab797593d5c",
+            "bytes": 2650
+          },
+          {
+            "path": "package-lock.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "05bdb8cd8bdaaa1b540d29771238108620109c5428f3cea9c869f7d96a9028fc",
+            "bytes": 47236
+          },
+          {
+            "path": "package.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4553d3af805c436e3f730dd5b4f2480b11e62610ee46df0f9248d07ae455cd0a",
+            "bytes": 2259
+          },
+          {
+            "path": "scripts/build-site.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5b855d4c86426e49c07e8ed8f87188a889e2c78a0f4a7ee4321886c49dc40e55",
+            "bytes": 948
+          },
+          {
+            "path": "scripts/build.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+            "bytes": 3180
+          },
+          {
+            "path": "scripts/check-pack.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "455afa74b8210de7321482a86873dc64a7744267f88d5e7a9062598cfdaa7e64",
+            "bytes": 1006
+          },
+          {
+            "path": "src/core/blank-line.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "859685e5206681039331d5dd8a114b81e79347e83737dec3b73c3a64f9a8640c",
+            "bytes": 908
+          },
+          {
+            "path": "src/entry.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "f5d79eb4eb8456bca47f5dbf69801347974c9924f8b2a3dbe0c5a061d25dd2f4",
+            "bytes": 1284
+          },
+          {
+            "path": "src/factory-space.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "3fa3f8670f1af832e7ea4501b9c91a86117a1d54e4387849923d181d1d6e04d0",
+            "bytes": 907
+          },
+          {
+            "path": "src/host.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "f36a922f18aa2f69bcc655dd45d7c314482fb9875111bc0a5243bdf8ed58a0fc",
+            "bytes": 11101
+          },
+          {
+            "path": "src/mdast/ccount.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a33a87df17a73cbf794875a623c1914ca924c96ff2b44fc529635987a63419a0",
+            "bytes": 376
+          },
+          {
+            "path": "src/mdast/find-and-replace.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a7a78735c36a1ca4c81ce3231cb4cf146e5ff5b3c488c8dab8de2f004d72ec5a",
+            "bytes": 5226
+          },
+          {
+            "path": "src/mdast/gfm-autolink-literal.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "584ce88ecb4579c0e8d494e4cb35c7046f276691678414fb627ce431fc3f079d",
+            "bytes": 7452
+          },
+          {
+            "path": "src/mdast/gfm-footnote.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d35f018de1ac7ce856efb15cb1b6d4af0ae5f369d47809c69b362c3e93d7685e",
+            "bytes": 6314
+          },
+          {
+            "path": "src/mdast/gfm-strikethrough.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "fa3d2218d34dd52ffb247b0ac3e7d7479744f15a3e53988dbacb0d27b4f0f6a0",
+            "bytes": 2150
+          },
+          {
+            "path": "src/mdast/gfm-table.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ce0a17a132fbd412d8dedbc7600fb5da9ff5bdfaacd85a515adcfea03c496e1b",
+            "bytes": 7850
+          },
+          {
+            "path": "src/mdast/gfm-task-list-item.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6fd33bdd3ca13e367545ee40948bcee8ce4422518771eb5d31128366bab52ae6",
+            "bytes": 4015
+          },
+          {
+            "path": "src/mdast/gfm.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "533604d99dd5cab3ef2251e7e6d61c3cf7c43e47c0b1a2110e61c56c42c79ddd",
+            "bytes": 1059
+          },
+          {
+            "path": "src/mdast/is.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "165265b67c51f01260bb89af2b320d5c36d6f43315b746c62a5ab0e337b9178e",
+            "bytes": 400
+          },
+          {
+            "path": "src/mdast/markdown-table.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6b1c2b73fe78ebc18a88d90d098256588a13f583c43cc757e024509adb521b86",
+            "bytes": 6580
+          },
+          {
+            "path": "src/mdast/visit-parents.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0968ec59636ae84fb60bcee89f9330c0a21e31d3f8eebfd4b7b36df745680a98",
+            "bytes": 2181
+          },
+          {
+            "path": "src/micromark/gfm-autolink-literal.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7a66da5d1c337292e1e85be60c9146067450e30575d3a78ec670cf381d23bab8",
+            "bytes": 14524
+          },
+          {
+            "path": "src/micromark/gfm-footnote.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5e8b6abf8589808f4ccef8e10f2635a14be9cb3dbe0ca71a325a093c172b3d5f",
+            "bytes": 11977
+          },
+          {
+            "path": "src/micromark/gfm-strikethrough.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5f4a07e0738fba51f857972f994705607052c81fc12ce26155f5588493184c4f",
+            "bytes": 6395
+          },
+          {
+            "path": "src/micromark/gfm-table-edit-map.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ce500766696fcd654cf9ac356557a8d3b2b3bebe586fbc22e3eba7488bceb5c2",
+            "bytes": 2241
+          },
+          {
+            "path": "src/micromark/gfm-table-infer.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "99182245d1ce1c83fc1142a5e7c38779c863a0761beed284127fcd1624508f52",
+            "bytes": 1279
+          },
+          {
+            "path": "src/micromark/gfm-table.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ad8982816941180789caff0aaa2542e7577f2b02e03bbcebafc01f5064b66c1b",
+            "bytes": 17799
+          },
+          {
+            "path": "src/micromark/gfm-tagfilter.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c2d88463c7a261d2f89d008b6bc612835e0281c0c0da63a37e0b781cf3dee293",
+            "bytes": 1216
+          },
+          {
+            "path": "src/micromark/gfm-task-list-item.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2da61f8118de48b8990048e5d67f0ca5798c3dda67ea6b38f7fb437cc78104ca",
+            "bytes": 3350
+          },
+          {
+            "path": "src/micromark/gfm.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c4479feb9a18b63402d714e1f2a02c3ffd76c4d18dfa7c26fa1d861299ea32aa",
+            "bytes": 972
+          },
+          {
+            "path": "src/symbol/codes.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "51ab7cab37e5c592ad9164bae1ffef43e6efaddd38c54fe04dfdf9fe94afe215",
+            "bytes": 6315
+          },
+          {
+            "path": "src/symbol/constants.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c89476d798ffe1eb1f9843219c41cd1d19849707ceb9fc18d5583b5ae2470188",
+            "bytes": 2986
+          },
+          {
+            "path": "src/symbol/types.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6ae172165319ad71396ca532ec544326d82d9625f8ee46090d02a587e40c1aa8",
+            "bytes": 10985
+          },
+          {
+            "path": "src/symbol/values.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1aabedd9c760c573fd1ea24d07ae9d35d207bbe61a0ecc62985f0953fc73c3e9",
+            "bytes": 3599
+          },
+          {
+            "path": "src/to-markdown/check-bullet.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "72784bc8717b2af7f25d825413cec73fdddf39989df8c523aa9648ae53c267c3",
+            "bytes": 423
+          },
+          {
+            "path": "src/to-markdown/check-list-item-indent.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2d8eb9c3b8a22f0a6bfeb0fd6025404c0e72b4e45edde92c0c372751bc5e3432",
+            "bytes": 462
+          },
+          {
+            "path": "src/to-markdown/handle.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "23b76f66cefe19d8508f98dd9b664508fffdd7f1e26971cac3f7adda40bc480c",
+            "bytes": 185
+          },
+          {
+            "path": "src/to-markdown/inline-code.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "65689f9e28e48296b7838fc25bca08b68ad2af6acd94c00f020ee5f8d5b7e11f",
+            "bytes": 1814
+          },
+          {
+            "path": "src/to-markdown/list-item.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4950edf127b2b47b8283d227c50f6dd256ee9247f4cf4addeb4d0a232e284589",
+            "bytes": 2492
+          },
+          {
+            "path": "src/types.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9d01b9848b5a8898d20480369a7352d321d754e118a26590e46a490daeeba305",
+            "bytes": 182
+          },
+          {
+            "path": "src/util-character.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "18407041e8b94facf94f11d6db035e0e2bfdf4ca57ce0494d35eee471cc9a4df",
+            "bytes": 2170
+          },
+          {
+            "path": "src/util-chunked.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "dc63c7d2096496959c0c5317e7375ce7c61d23dd69b129b61b0d9bf79e4045cd",
+            "bytes": 1512
+          },
+          {
+            "path": "src/util-classify-character.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8f193927ef6c0a6ec30125dcfe5f24e70e0d1acb178a0f701a6be61050a9b841",
+            "bytes": 516
+          },
+          {
+            "path": "src/util-combine-extensions.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "fa4f8d208738a1537559c5326196e54baef2a6eeed93241e6e3957e92f137957",
+            "bytes": 2606
+          },
+          {
+            "path": "src/util-normalize-identifier.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9c605bcd8454ea59378864ba8abfb67315008fbdea73f96e9fb09e76594fe20e",
+            "bytes": 348
+          },
+          {
+            "path": "src/util-resolve-all.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4857aeec8d7eb15053668e81899371cd3bb6d9a23a68740204e9ff818120dfd2",
+            "bytes": 576
+          },
+          {
+            "path": "test/api.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+            "bytes": 2584
+          },
+          {
+            "path": "test/closed.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+            "bytes": 1000
+          },
+          {
+            "path": "test/official/fixtures/autolink-literal/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "daa5b4c4cb2df840da19955adfe521bb44a1e470727e3d76356b88744fdf9378",
+            "bytes": 52219
+          },
+          {
+            "path": "test/official/fixtures/strikethrough-default/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "32396b73a9895536d5687c42fb10e650db7d259cffcf9f63c758e296b47640b6",
+            "bytes": 2698
+          },
+          {
+            "path": "test/official/fixtures/strikethrough-not-one/config.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ed38381a57265b3624b1b23436f0bca401ca2f7e32e7d74a55825db46877fe70",
+            "bytes": 27
+          },
+          {
+            "path": "test/official/fixtures/strikethrough-not-one/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "fcab62d0bea86a40aebfbf80b9a843ebcd9a736c9457da7a9ccc6f79b1579e28",
+            "bytes": 1951
+          },
+          {
+            "path": "test/official/fixtures/table-no-align/config.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "941a5cd4f38cc9775f9a3a814ba7e71b5ff9e087fe14db8679f58a6ea9f8936e",
+            "bytes": 30
+          },
+          {
+            "path": "test/official/fixtures/table-no-align/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+            "bytes": 4453
+          },
+          {
+            "path": "test/official/fixtures/table-no-padding/config.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "38913223d200355855e33f25a1559720db0983aa0707eb0189eab5a94a3d31d4",
+            "bytes": 32
+          },
+          {
+            "path": "test/official/fixtures/table-no-padding/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bf67a3008b22b56b2cc7d7a1bf695501da909ce1dda63a1e50c1c770c2645189",
+            "bytes": 4453
+          },
+          {
+            "path": "test/official/fixtures/table-string-length/config.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "fe2e0c84d41419689feb34fd56c4f0d954f1242b4c2ac2c54ba26ca98d606c0a",
+            "bytes": 63
+          },
+          {
+            "path": "test/official/fixtures/table-string-length/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ef1811a4526317ae124d93824ec5a0bb9e43f7035a9711c75392221c320efdb3",
+            "bytes": 3550
+          },
+          {
+            "path": "test/official/fixtures/table/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "32e9b6594a43d72c35e81124232c3ef87b18e7c2281ca969dcc02e6fdeb8a986",
+            "bytes": 11398
+          },
+          {
+            "path": "test/official/fixtures/tasklist/tree.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e3758807234ac74500f79cc36db57ffc1d6e11fed276579a12a5949b26814b88",
+            "bytes": 4467
+          },
+          {
+            "path": "test/official/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+            "bytes": 2422
+          },
+          {
+            "path": "test/site.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+            "bytes": 758
+          },
+          {
+            "path": "test/types.test.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ce0c3853191c91a848441970df2a3520ddba010277e527e81acf6ef7f5941668",
+            "bytes": 492
+          }
+        ],
+        "sha256": "c05f50cc664e00c180fc97ef5eea55f67ed8bf7c32ab6ace89bca9b55428bcb8"
+      },
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "script": {
+          "path": "/home/azureuser/remark-gfmlil/scripts/build.mjs",
+          "present": true,
+          "sha256": "f77f1540bb08c6a76b528e6d33674bf8c5a530154249b796d5b305903dd1e3ea",
+          "bytes": 3180
+        },
+        "packageCommand": "node scripts/build.mjs --compile",
+        "scripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "observedCompilerEnvironmentNames": [
+          "LILSCRIPT_COMPILER",
+          "LILSCRIPT_ROOT"
+        ],
+        "argumentLiterals": [
+          "--compile"
+        ],
+        "compilerOutputOutsideDistMentioned": false,
+        "compilerCommandAudited": false
+      },
+      "tests": {
+        "recordedCommand": "npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "packageCommand": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+        "scripts": {
+          "test": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+          "check:types": "tsc --noEmit --strict --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
+          "check:site": "npm run build:site && node --test test/site.test.mjs",
+          "check:pack": "node scripts/check-pack.mjs"
+        },
+        "adapter": {
+          "files": [
+            "test/api.test.mjs",
+            "test/closed.test.mjs",
+            "test/site.test.mjs",
+            "test/official/index.js"
+          ],
+          "artifacts": [
+            "dist/remark-gfm.esm.js",
+            "dist/remark-gfm.cjs",
+            "dist/remark-gfm.closed.js"
+          ],
+          "caseInventory": "/home/azureuser/lilscript/benchmarks/libraries/remark-gfmlil.required-tests.json"
+        },
+        "frozenInventory": {
+          "path": "/home/azureuser/lilscript/benchmarks/libraries/remark-gfmlil.required-tests.json",
+          "present": true,
+          "sha256": "42d537f47dfb744d02d67a2b3957d8ca8a02ec3caa0da3fecdac9f216a016c4d",
+          "bytes": 39163,
+          "valid": true,
+          "errors": [],
+          "requiredCaseCount": 22,
+          "requiredCasesSha256": "2604bf4702709914d102c85b4b40b4f6cabbb0d2785b964a2c1e1446044b3880",
+          "testFileCount": 4,
+          "additionalRequiredCoverage": [
+            "Fresh source build with explicit configuration compatibility resolution remains unverified.",
+            "Original check:pack and installed-package import/require consumers remain unverified; a package dry-run alone is insufficient.",
+            "Original check:site/build:site, actual UMD/browser execution and fresh-site integration remain unverified.",
+            "CJS plugin behavior and broader closed parsing/serialization remain unverified beyond original export/registration assertions."
+          ]
+        },
+        "sharedFixture": null,
+        "declaredFiles": [
+          {
+            "path": "/home/azureuser/remark-gfmlil/test/api.test.mjs",
+            "present": true,
+            "sha256": "cdeb9da1c1935febdf0fb0ef5d635aa1d40b4d3fe496f1187f580c971d694f42",
+            "bytes": 2584
+          },
+          {
+            "path": "/home/azureuser/remark-gfmlil/test/closed.test.mjs",
+            "present": true,
+            "sha256": "8f3b18286a4caf8542dce8aa5cd31d6276bd223bc993b278e89c6d5c8fc90f26",
+            "bytes": 1000
+          },
+          {
+            "path": "/home/azureuser/remark-gfmlil/test/site.test.mjs",
+            "present": true,
+            "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+            "bytes": 758
+          },
+          {
+            "path": "/home/azureuser/remark-gfmlil/test/official/index.js",
+            "present": true,
+            "sha256": "7ded1e1b698140381ca6eae58107c8db9184c7c6913f661cf0ec3c9bddf98aa5",
+            "bytes": 2422
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "/home/azureuser/remark-gfmlil/dist/remark-gfm.cjs",
+          "present": true,
+          "sha256": "0a2ccca3c4a5b34ae1ab42c84bdb4122c4ee09df14d5316ad822c8f31450f5dd",
+          "bytes": 37077,
+          "relativePath": "dist/remark-gfm.cjs"
+        },
+        {
+          "path": "/home/azureuser/remark-gfmlil/dist/remark-gfm.closed.js",
+          "present": true,
+          "sha256": "78334b0c993372d30b7b129e50baae3fbe34e0d55f1a66432f21fd67969aaa5c",
+          "bytes": 34282,
+          "relativePath": "dist/remark-gfm.closed.js"
+        },
+        {
+          "path": "/home/azureuser/remark-gfmlil/dist/remark-gfm.esm.js",
+          "present": true,
+          "sha256": "a8d896ef1f50bcbb93d9410b633d11f2bf445b3035dfe8f33816db333891f724",
+          "bytes": 33051,
+          "relativePath": "dist/remark-gfm.esm.js"
+        }
+      ],
+      "dependencies": [
+        {
+          "role": "devDependencies",
+          "name": "esbuild",
+          "requested": "0.28.1",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/remark-gfmlil/node_modules/esbuild/package.json",
+            "realPath": "/home/azureuser/remark-gfmlil/node_modules/esbuild/package.json",
+            "version": "0.28.1",
+            "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+            "bytes": 3980,
+            "content": {
+              "root": "/home/azureuser/remark-gfmlil/node_modules/esbuild",
+              "sha256": "577f27f7f18e715a9e387a2c751190b03e9b9c02ef8e22b12dcde4d7963f5da0",
+              "files": 7,
+              "bytes": 11545075,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "is-hidden",
+          "requested": "^2.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/remark-gfmlil/node_modules/is-hidden/package.json",
+            "realPath": "/home/azureuser/remark-gfmlil/node_modules/is-hidden/package.json",
+            "version": "2.0.1",
+            "sha256": "3efce04a9380c2dca6cd3871f9e6b18ef5aaffed2dec6766362a8be37095207a",
+            "bytes": 1683,
+            "content": {
+              "root": "/home/azureuser/remark-gfmlil/node_modules/is-hidden",
+              "sha256": "97f0863f389ee9ed5970d4cb2b3a0c2ee991030901e8a0a90f708bc58c2fe42e",
+              "files": 5,
+              "bytes": 6168,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "remark",
+          "requested": "^15.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/remark-gfmlil/node_modules/remark/package.json",
+            "realPath": "/home/azureuser/remark-gfmlil/node_modules/remark/package.json",
+            "version": "15.0.1",
+            "sha256": "415a7c1a25744b2b7ac42cf16ed45333b1cdd536d49fd88632a2a1497efd2531",
+            "bytes": 1409,
+            "content": {
+              "root": "/home/azureuser/remark-gfmlil/node_modules/remark",
+              "sha256": "bbf44835744caeae0d64a429e9089ab7dd7bd8d729e6322251961bb0b7cdee11",
+              "files": 5,
+              "bytes": 15671,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "string-width",
+          "requested": "^6.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/remark-gfmlil/node_modules/string-width/package.json",
+            "realPath": "/home/azureuser/remark-gfmlil/node_modules/string-width/package.json",
+            "version": "6.1.0",
+            "sha256": "d1ebf3493d75bd210cf0866d511099f2bf0c5143dec659c9007c7abde5b04f7a",
+            "bytes": 1044,
+            "content": {
+              "root": "/home/azureuser/remark-gfmlil/node_modules/string-width",
+              "sha256": "93639c7d0e745d396498fd035261cf75d7d4166b8a050bf02f95cd64035e5f01",
+              "files": 5,
+              "bytes": 5820,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "typescript",
+          "requested": "^5.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/remark-gfmlil/node_modules/typescript/package.json",
+            "realPath": "/home/azureuser/remark-gfmlil/node_modules/typescript/package.json",
+            "version": "5.9.3",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620,
+            "content": {
+              "root": "/home/azureuser/remark-gfmlil/node_modules/typescript",
+              "sha256": "6d15fbd4429ec195b414b383b4a4c0c8cfcc7cf8534e6ebb858476ecc60b3e51",
+              "files": 132,
+              "bytes": 23625066,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        }
+      ],
+      "dependencyEvidence": "declared direct installed package contents and lock identities; nested node_modules and transitive runtime/source graph remain unverified",
+      "sourceGraphReferences": []
+    }
+  ],
+  "unmanifestedSiblingCandidates": [
+    "cnlil",
+    "hast-util-to-htmllil",
+    "jquerylil",
+    "katexlil",
+    "lil-solidjs",
+    "markedlil",
+    "mdast-util-from-markdownlil",
+    "mdast-util-to-hastlil",
+    "micromarklil",
+    "mobxlil",
+    "monacolil",
+    "motionlil",
+    "playcanvaslil",
+    "posthoglil",
+    "probelil",
+    "react-markdownlil",
+    "rehype-katexlil",
+    "rehype-stringifylil",
+    "rehypelil",
+    "remark-breakslil",
+    "remark-mathlil",
+    "remark-parselil",
+    "remark-rehypelil",
+    "remarklil",
+    "solidlil",
+    "unifiedlil",
+    "zodlil"
+  ],
+  "contentSha256": "8e4173131f9b719ac92e610e7bb774fe01f2cebabb67bdd87fef9eb5d2322aa4",
+  "limits": [
+    "No package build/test command executed.",
+    "Observed script strings do not prove compiler interception or complete dependency discovery.",
+    "Direct installed package hashes exclude nested node_modules; transitive dependency resolution remains unverified.",
+    "Failed/missing inputs and historical pending issues remain rows."
+  ],
+  "summary": {
+    "rows": 1,
+    "libraryRows": 1,
+    "additionalRows": 0,
+    "missingWorkspaces": [],
+    "rowsWithMissingDependencies": [],
+    "rowsWithFrozenTestInventory": [
+      "remark-gfmlil"
+    ],
+    "rowsWithInvalidTestInventory": [],
+    "installedPackageContents": 5,
+    "sourceFiles": 40
+  }
+}

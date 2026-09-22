@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "kind": "bounded-mdast-changed-source-replay-supervisor",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-after-retirement",
+    "--parent-receipt",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T19-48-31.223Z/receipt.json",
+    "--parent-sha256",
+    "8918faac11122e916d8c7decbdfe03d71f3b873c6dc990691a2709fe498e1a39",
+    "--compiler",
+    "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript",
+    "--codec",
+    "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript-codec"
+  ],
+  "started": "2026-09-19T20:02:06.583Z",
+  "completed": "2026-09-19T20:03:08.228Z",
+  "elapsedMs": 61645.240029,
+  "before": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "7944deecdccbc96525eedc5458eabe6c65871b3b1ded756a4883da70f26905f7",
+      "bytes": 23340
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T19-48-31.223Z/receipt.json",
+      "sha256": "8918faac11122e916d8c7decbdfe03d71f3b873c6dc990691a2709fe498e1a39",
+      "bytes": 43335
+    },
+    {
+      "path": "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript",
+      "sha256": "e0c4cb31f2bf306512767d296e8411f58652e52f12ad158a4d7733acc60712bd",
+      "bytes": 18000040
+    },
+    {
+      "path": "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript-codec",
+      "sha256": "2c9683d9b80746472f687dad7758075cdb9519032ecd3e5c48ec93e81bb50094",
+      "bytes": 2618064
+    }
+  ],
+  "after": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "7944deecdccbc96525eedc5458eabe6c65871b3b1ded756a4883da70f26905f7",
+      "bytes": 23340
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T19-48-31.223Z/receipt.json",
+      "sha256": "8918faac11122e916d8c7decbdfe03d71f3b873c6dc990691a2709fe498e1a39",
+      "bytes": 43335
+    },
+    {
+      "path": "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript",
+      "sha256": "e0c4cb31f2bf306512767d296e8411f58652e52f12ad158a4d7733acc60712bd",
+      "bytes": 18000040
+    },
+    {
+      "path": "/tmp/lilscript-assignment-sink-retirement-release-20260919/lilscript-codec",
+      "sha256": "2c9683d9b80746472f687dad7758075cdb9519032ecd3e5c48ec93e81bb50094",
+      "bytes": 2618064
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 630000,
+    "killAfterMs": 1000,
+    "maxBuffer": 67108864,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "32c4b225c75c2a894d541ae6ed2e59bdb133942970d818c4e129f8b2c72cbe34",
+    "bytes": 256
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

@@ -4,7 +4,7 @@ Parent: [tree](../README.md). Mission: [how to judge a change](../mission.md).
 Current snapshot: [`docs/current-status.md`](../../current-status.md).
 
 Test meaning is defined by [verification](../verification/README.md); work order lives
-in the [active migration](../migration/README.md); external ideas live under
+in the [single migration plan](../../migration/index.md); external ideas live under
 [research](../research/README.md).
 
 Claims about compression need a semantic boundary, source revision, compiler,
@@ -75,5 +75,5 @@ Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESU
 `comparison/cases/summary.json` and other working summaries may be ignored or
 regenerated. Publication requires a tracked immutable report. The current
 large-library seed does not yet represent every latest Motion, Marked, MobX, and
-jQuery artifact; the gap is phase 0 of the
-[planned migration](../migration/planned-migration.md).
+jQuery artifact; the [baseline/support inventory](../../migration/index.md#001-baselines-and-support-inventory)
+must requalify the complete maintained set.

@@ -1,0 +1,1 @@
+let a;let b;let c;a=void console.log(1+ 2*3);b=void console.log(2147483647+ 1|0);c=void console.log((10- 4)/3);

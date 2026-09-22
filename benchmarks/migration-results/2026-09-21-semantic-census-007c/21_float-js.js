@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;let f;let g;let width=3.5;let height=2;let area=width*height;a=void console.log(area);b=void console.log(area>=7);let negative=-3.5;c=void console.log(Math.abs(negative));d=void console.log(Math.floor(negative));e=void console.log(Math.ceil(negative));f=void console.log(Math.min(negative,-7));g=void console.log(Math.max(negative,-2));

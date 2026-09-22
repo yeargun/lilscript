@@ -1,0 +1,77 @@
+{
+  "adaptation": "Selected complete exported helpers and rule declarations are copied byte for byte in original source occurrence order, joined by one newline. Rules and helpers are concatenated only by a separate test harness; imports and unrelated declarations are omitted. No module-linking or full-library claim.",
+  "archives": [
+    {
+      "source": "/home/azureuser/markedlil/src/str.lil",
+      "sourceSha256": "df057ded716b97b48abc5971fb9d2722515f624cf6acdc7d407fe8ef3b230b54",
+      "fixture": "marked-helpers.lil",
+      "fixtureSha256": "76a4e882d8483517972d282ac854e78c440c24d6d6e19ea3aaddedf57e2c109a",
+      "declarations": [
+        {
+          "name": "replaceRe",
+          "start": 647,
+          "end": 752,
+          "lineStart": 37,
+          "lineEnd": 39,
+          "sha256": "1a18946ac9998700daacb501fdb7dc62a03453106dae5994179afe0aec48a2c8"
+        },
+        {
+          "name": "execRe",
+          "start": 753,
+          "end": 824,
+          "lineStart": 41,
+          "lineEnd": 43,
+          "sha256": "d2bf1885ae0ac3fa0e12b5f1c37f0cb3b83b6447b74640afb7f68b37875ed29b"
+        },
+        {
+          "name": "expandTabs",
+          "start": 3141,
+          "end": 3549,
+          "lineStart": 162,
+          "lineEnd": 179,
+          "sha256": "0548609db5b1763c970c2ba8c2771ba9d0b993b3cf6888e2086f64113430eef2"
+        },
+        {
+          "name": "removeCodeIndent",
+          "start": 8309,
+          "end": 8447,
+          "lineStart": 370,
+          "lineEnd": 373,
+          "sha256": "56e6a18c45d3b1c3a408cc051ffa8a91782c2ca23b28581892de127b0fb0832e"
+        }
+      ]
+    },
+    {
+      "source": "/home/azureuser/markedlil/src/rules.lil",
+      "sourceSha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+      "fixture": "marked-rules.lil",
+      "fixtureSha256": "e579d1483abf678250d32f80922ffc5bf57de1f7ed899b3c5333a0e5be728582",
+      "declarations": [
+        {
+          "name": "otherCodeRemoveIndent",
+          "start": 13881,
+          "end": 13960,
+          "lineStart": 53,
+          "lineEnd": 53,
+          "sha256": "cd3ecd6e34095dd2bf2a397f7cf620d6bf14b7da252db81d32bff132129c0cb7"
+        },
+        {
+          "name": "otherTabCharGlobal",
+          "start": 14428,
+          "end": 14485,
+          "lineStart": 62,
+          "lineEnd": 62,
+          "sha256": "0e4cc50f21a400b8f292c920a8ac18672892d3230ba9c5a2f4f80f6db4b7eefc"
+        },
+        {
+          "name": "otherBlankLine",
+          "start": 14549,
+          "end": 14603,
+          "lineStart": 64,
+          "lineEnd": 64,
+          "sha256": "d38b1860ad28b1405e4882c2a54c6189c35703f2ae817803e7296fbe531a4db4"
+        }
+      ]
+    }
+  ]
+}

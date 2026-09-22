@@ -1,3 +1,5 @@
+use crate::literal::StringValue;
+use crate::semantic::StructType;
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::path::Path;
@@ -458,7 +460,7 @@ struct DenseStringReturnTable {
     selector_header: BlockId,
     selector_key: ValueId,
     selector_condition: ValueId,
-    slots: Vec<String>,
+    slots: Vec<StringValue>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1688,6 +1690,12 @@ pub fn emit_optimized_ir_js_with_options(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
 ) -> Result<String, CodegenError> {
+    if let Some(span) = module.reference_parameter_span() {
+        return Err(CodegenError::new(
+            span,
+            "legacy JavaScript reference parameters are not supported",
+        ));
+    }
     IrJsEmitter::new(module, false, *options).emit()
 }
 
@@ -1696,6 +1704,12 @@ pub(crate) fn emit_optimized_ir_js_with_options_and_analysis(
     options: &IrJsOptions,
     integer_analysis: Arc<IntegerValueAnalysis>,
 ) -> Result<String, CodegenError> {
+    if let Some(span) = module.reference_parameter_span() {
+        return Err(CodegenError::new(
+            span,
+            "legacy JavaScript reference parameters are not supported",
+        ));
+    }
     IrJsEmitter::with_integer_analysis(module, false, *options, integer_analysis).emit()
 }
 
@@ -1703,6 +1717,12 @@ pub fn emit_optimized_ir_js_module_with_options(
     module: &ControlFlowModule<'_>,
     options: &IrJsOptions,
 ) -> Result<String, CodegenError> {
+    if let Some(span) = module.reference_parameter_span() {
+        return Err(CodegenError::new(
+            span,
+            "legacy JavaScript reference parameters are not supported",
+        ));
+    }
     IrJsEmitter::new(module, true, *options).emit()
 }
 
@@ -1711,6 +1731,12 @@ pub(crate) fn emit_optimized_ir_js_module_with_options_and_analysis(
     options: &IrJsOptions,
     integer_analysis: Arc<IntegerValueAnalysis>,
 ) -> Result<String, CodegenError> {
+    if let Some(span) = module.reference_parameter_span() {
+        return Err(CodegenError::new(
+            span,
+            "legacy JavaScript reference parameters are not supported",
+        ));
+    }
     IrJsEmitter::with_integer_analysis(module, true, *options, integer_analysis).emit()
 }
 
@@ -1740,6 +1766,12 @@ pub fn emit_optimized_ir_js_chunks_with_options(
     options: &IrJsOptions,
     plan: &IrJsChunkPlan,
 ) -> Result<Vec<IrJsChunk>, CodegenError> {
+    if let Some(span) = module.reference_parameter_span() {
+        return Err(CodegenError::new(
+            span,
+            "legacy JavaScript reference parameters are not supported",
+        ));
+    }
     // Chunk ownership/import planning currently classifies functions before
     // emitter-local declaration substitution. Keep this proposal off for
     // explicit chunk plans until that planner carries the same proof, avoiding
@@ -1849,10 +1881,10 @@ struct IrJsEmitter<'module, 'src> {
     local_name_reservations: Vec<String>,
     preferred_local_names: AHashMap<String, String>,
     declared_globals: AHashSet<SymbolId>,
-    constant_global_strings: AHashMap<SymbolId, String>,
+    constant_global_strings: AHashMap<SymbolId, StringValue>,
     deferred_global_declarations: AHashSet<SymbolId>,
-    string_aliases: AHashMap<String, String>,
-    pooled_strings: Vec<(String, String)>,
+    string_aliases: AHashMap<StringValue, String>,
+    pooled_strings: Vec<(StringValue, String)>,
     numeric_aliases: AHashMap<String, String>,
     pooled_numbers: Vec<(String, String)>,
     property_names: AHashMap<String, String>,
@@ -2129,7 +2161,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             })
             .collect::<AHashSet<_>>();
         for function in &self.module.functions {
-            if !javascript_exports.contains(&function.id) {
+            if !javascript_exports.contains(&function.id)
+                && !self.module.function_belongs_to_identity_class(function)
+            {
                 continue;
             }
             if let Some(parameter) = function.params.iter().find(|parameter| {
@@ -4064,6 +4098,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         };
         if !function.live
             || self.is_imported_extern(function)
+            // Identity-observed members are emitted inside a native class,
+            // not through the function wrapper that owns a private cluster.
+            // Their helpers must keep bindings outside that class body.
+            || self.module.function_belongs_to_identity_class(function)
             || self.inline_pure_helpers.contains(&root)
             || self.inline_fresh_empty_array_factories.contains(&root)
             || self.js_host_alias_spelling(root).is_some()
@@ -4789,13 +4827,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .flat_map(|block| &block.instructions)
             .filter_map(|instruction| instruction.out.map(|out| (out, &instruction.op)))
             .collect::<AHashMap<_, _>>();
-        let mut assigned = AHashMap::<SymbolId, Option<String>>::default();
+        let mut assigned = AHashMap::<SymbolId, Option<StringValue>>::default();
         for instruction in entry.blocks.iter().flat_map(|block| &block.instructions) {
             let ControlFlowOp::StoreGlobal { global, value } = instruction.op else {
                 continue;
             };
             let constant = match definitions.get(&value) {
-                Some(ControlFlowOp::Const(ConstValue::String(text))) => Some((*text).to_string()),
+                Some(ControlFlowOp::Const(ConstValue::String(text))) => Some((*text).clone()),
                 _ => None,
             };
             match assigned.get_mut(&global) {
@@ -4846,7 +4884,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let length = self
             .constant_global_strings
             .get(&symbol)?
-            .encode_utf16()
+            .code_units()
             .count();
         Some(range.max < length as i64)
     }
@@ -5206,7 +5244,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             out.push_str(self.global_name(*symbol)?);
             if let Some(value) = self.constant_global_strings.get(symbol) {
                 out.push('=');
-                out.push_str(&render_string_literal(value, self.options.string_quote));
+                out.push_str(&render_string_value(value, self.options.string_quote));
             }
         }
         finish_let_list(out, started);
@@ -5218,7 +5256,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             emit_let_item(out, started);
             out.push_str(name);
             out.push('=');
-            out.push_str(&render_string_literal(value, self.options.string_quote));
+            out.push_str(&render_string_value(value, self.options.string_quote));
         }
         for (value, name) in &self.pooled_numbers {
             emit_let_item(out, started);
@@ -5647,6 +5685,49 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         Ok(())
     }
 
+    /// D2: an exported function is a declared boundary, so its binding is
+    /// spelled with its public name. `Function.prototype.name` then reports the
+    /// API name exactly as the original library does, the export needs no
+    /// `as` rename (which usually pays for the longer name), and the name can
+    /// never be handed to anything else. Mangled exports, reserved words and
+    /// names a host binding already owns keep the mangled spelling.
+    fn reserve_exported_function_names(&mut self) {
+        if self.options.mangle_exports {
+            return;
+        }
+        let exported = self
+            .module
+            .exports
+            .iter()
+            .filter_map(|export| match export.binding {
+                ExportBinding::Function(function) => Some((function, export.name)),
+                _ => None,
+            })
+            .filter(|(function, _)| {
+                self.function(*function).is_ok_and(|candidate| {
+                    candidate.live
+                        && candidate.kind != FunctionKind::Entry
+                        && !self.is_imported_extern(candidate)
+                        && !self.function_is_inlined(candidate)
+                        && !self.inline_single_use_functions.contains(&candidate.id)
+                        && !self.clustered_helpers.contains(&candidate.id)
+                        && !self.inline_fresh_empty_array_factories.contains(&candidate.id)
+                        && !self.inline_pure_helpers.contains(&candidate.id)
+                        && !self.js_host_alias_skips_binding(candidate.id)
+                        && !self.module.function_belongs_to_identity_class(candidate)
+                })
+            })
+            .collect::<Vec<_>>();
+        for (function, public) in exported {
+            if self.function_names.contains_key(&function) || !is_js_property_identifier(public) {
+                continue;
+            }
+            if self.top_level_mangler.claim_name(public) {
+                self.function_names.insert(function, public.to_string());
+            }
+        }
+    }
+
     fn assign_top_level_names(&mut self) {
         // Every LocalNames allocator clones this mangler. Reserving the full
         // target-generated runtime surface here protects ordinary functions,
@@ -5716,6 +5797,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
         }
 
+        self.reserve_exported_function_names();
+
         if self.options.mangle_identifiers && self.options.cross_scope_name_reuse {
             // Preferred local spellings are a separate namespace policy, not
             // top-level allocations. A function may shadow a module binding
@@ -5768,6 +5851,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     || self.inline_pure_helpers.contains(&function.id)
                     || self.js_host_alias_skips_binding(function.id)
                     || self.module.function_belongs_to_identity_class(function)
+                    || self.function_names.contains_key(&function.id)
                 {
                     continue;
                 }
@@ -5862,6 +5946,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 || self.inline_pure_helpers.contains(&function.id)
                 || self.js_host_alias_skips_binding(function.id)
                 || self.module.function_belongs_to_identity_class(function)
+                || self.function_names.contains_key(&function.id)
             {
                 continue;
             }
@@ -6116,7 +6201,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !self.options.pool_strings {
             return;
         }
-        let mut counts = AHashMap::<String, usize>::default();
+        let mut counts = AHashMap::<StringValue, usize>::default();
+        let pinned = &self.module.pinned_pool_strings;
+        let mut pinned_uses = AHashMap::<StringValue, usize>::default();
         for function in self
             .module
             .functions
@@ -6130,10 +6217,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if let (Some(out), ControlFlowOp::Const(ConstValue::String(value))) =
                     (instruction.out, &instruction.op)
                 {
-                    if uses.get(&out).copied().unwrap_or(0) != 0
-                        && !literalized_regex_arguments.contains(&out)
-                    {
+                    let use_count = uses.get(&out).copied().unwrap_or(0);
+                    if use_count != 0 && !literalized_regex_arguments.contains(&out) {
                         *counts.entry(value.clone()).or_insert(0) += 1;
+                        // SSA gives one `Const` per literal per function however
+                        // many times it is read, and the emitter then re-spells
+                        // it at every use. `counts` therefore measures
+                        // definitions, not occurrences, and under-prices a
+                        // literal read many times in one place. Correcting that
+                        // for every literal would move the whole search (010,
+                        // 011 both turn on how candidates are priced), so the
+                        // true occurrence count is tracked only for the
+                        // literals an author pinned, where it is the number the
+                        // attribute is about.
+                        if pinned.contains(value) {
+                            *pinned_uses.entry(value.clone()).or_insert(0) += use_count;
+                        }
                     }
                 }
             }
@@ -6142,13 +6241,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut candidates = counts
             .into_iter()
             .filter_map(|(value, count)| {
-                let literal_length = value.len() + 2;
+                let literal_length = render_string_value(&value, self.options.string_quote).len();
+                let is_pinned = pinned.contains(&value);
+                let count = if is_pinned {
+                    pinned_uses.get(&value).copied().unwrap_or(count).max(count)
+                } else {
+                    count
+                };
                 let unaliased = count * literal_length;
                 let aliased = literal_length + 7 + count;
                 let savings = unaliased.saturating_sub(aliased);
-                (savings >= self.options.string_pool_minimum_savings.max(1)
+                // A pinned literal still has to pay for itself — pooling one
+                // that costs bytes helps nobody — but it is measured against
+                // breaking even rather than against the objective's threshold,
+                // which under a compressing objective refuses nearly everything
+                // (finer/hypotheses/011).
+                let admits = if is_pinned {
+                    unaliased > aliased
+                } else {
+                    savings >= self.options.string_pool_minimum_savings.max(1)
+                };
+                (admits
                     && (self.options.pool_identifier_strings
-                        || !is_js_property_identifier(&decoded_source_string(&value))))
+                        || is_pinned
+                        || !value.as_unicode().is_some_and(is_js_property_identifier)))
                 .then_some((savings, count, value))
             })
             .collect::<Vec<_>>();
@@ -6459,6 +6575,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             stable_property_names.extend(
                 escaping_string_constants(function)
                     .into_iter()
+                    .filter_map(StringValue::into_unicode)
                     .filter(|text| is_js_property_identifier(text)),
             );
             for block in &function.blocks {
@@ -7286,11 +7403,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         }
     }
 
+    fn property_value<'name>(
+        &'name self,
+        field: &'name StringValue,
+    ) -> std::borrow::Cow<'name, StringValue> {
+        match field
+            .as_unicode()
+            .and_then(|field| self.property_names.get(field))
+        {
+            Some(name) => std::borrow::Cow::Owned(name.as_str().into()),
+            None => std::borrow::Cow::Borrowed(field),
+        }
+    }
+
     fn property_name<'name>(&'name self, field: &'name str) -> &'name str {
         self.property_names.get(field).map_or(field, String::as_str)
     }
 
     fn function_has_public_abi(&self, function: FunctionId) -> bool {
+        if self
+            .function(function)
+            .is_ok_and(|candidate| self.module.function_belongs_to_identity_class(candidate))
+        {
+            return true;
+        }
         self.module
             .exports
             .iter()
@@ -7983,7 +8119,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         // already-materialized caller value and retain expression precedence.
         for (parameter, actual) in callee.params.iter().zip(rendered_actuals) {
             if let Some(property) = js_string_literal_property(&actual.code) {
-                context.string_constants.insert(parameter.value, property);
+                context
+                    .string_constants
+                    .insert(parameter.value, property.into());
             }
             context.inlined_values.insert(parameter.value, actual);
         }
@@ -8180,7 +8318,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 params.push_str(context.value_name(param.value)?);
                 if public_abi || self.callee_default_functions.contains(&function.id) {
-                    if let Some(default) = javascript_parameter_default(param) {
+                    // Preserve defaults and Function.length for direct JavaScript
+                    // calls to public constructors and their methods.
+                    let default = if class_member {
+                        param.default.as_ref().filter(|default| {
+                            !matches!(default, crate::ir::IrParamDefault::CallerMaterialized)
+                        })
+                    } else {
+                        javascript_parameter_default(param)
+                    };
+                    if let Some(default) = default {
                         params.push('=');
                         params.push_str(&render_param_default(
                             default,
@@ -8360,7 +8507,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .module
             .classes
             .iter()
-            .filter(|layout| layout.identity_observed)
+            .filter(|layout| layout.identity_observed && !layout.external)
             .map(|layout| layout.name)
             .collect::<Vec<_>>();
         classes.sort_by(|left, right| {
@@ -8407,7 +8554,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .and_then(|layout| layout.base)
         {
             out.push_str(" extends ");
-            out.push_str(self.identity_class_binding(base)?);
+            let host_base = self
+                .module
+                .classes
+                .iter()
+                .any(|layout| layout.name == base && layout.external);
+            if host_base {
+                // A host class is extended by its exact global name: that is
+                // what gives instances the native prototype chain.
+                out.push_str(base);
+            } else {
+                out.push_str(self.identity_class_binding(base)?);
+            }
         }
         out.push('{');
         let layout = self
@@ -8658,7 +8816,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.string_aliases
                     .get(value)
                     .cloned()
-                    .unwrap_or_else(|| render_string_literal(value, self.options.string_quote))
+                    .unwrap_or_else(|| render_string_value(value, self.options.string_quote))
             })
             .collect::<Vec<_>>()
             .join(",");
@@ -8683,7 +8841,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         let mut selector_header = None;
         let mut selector_key = None;
         let mut selector_condition = None;
-        let mut arms = AHashMap::<i64, String>::default();
+        let mut arms = AHashMap::<i64, StringValue>::default();
 
         let default = loop {
             current = trace_dense_empty_jumps(function, current, &mut visited)?;
@@ -8736,13 +8894,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 selector_condition = Some(condition);
             }
             let returned = trace_dense_constant_string_return(function, then_block, &mut visited)?;
-            if !json_safe_string_fragment(&returned) || arms.insert(key, returned).is_some() {
+            if arms.insert(key, returned).is_some() {
                 return None;
             }
             current = else_block;
         };
 
-        if arms.len() < 2 || !json_safe_string_fragment(&default) {
+        if arms.len() < 2 {
             return None;
         }
         let selector = selector?;
@@ -9151,7 +9309,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 previous_expressions = None;
             }
             let mut statement = String::new();
-            if let Some((consumed, batched)) = self.batched_property_assign_statement(
+            if let Some((consumed, batched, _)) = self.batched_property_assign_statement(
                 function,
                 block,
                 index,
@@ -9310,7 +9468,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         fuse_with_next: &[bool],
-    ) -> Result<Option<(usize, String)>, CodegenError> {
+    ) -> Result<Option<(usize, String, EmittedStatements)>, CodegenError> {
         if !self.options.assume_pristine_builtins {
             return Ok(None);
         }
@@ -9375,9 +9533,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(None);
         }
         let mut rendered = String::new();
+        let mut statements = EmittedStatements::Empty;
         for index in prefix.into_iter().chain(deferred) {
-            self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)?;
-            self.emit_linear_instruction(
+            if self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)? {
+                statements.push(EmittedStatementKind::Declaration);
+            }
+            statements.append(self.emit_linear_instruction(
                 &block.instructions[index],
                 block.id,
                 index,
@@ -9387,7 +9548,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context,
                 cache,
                 &mut rendered,
-            )?;
+            )?);
         }
         let mut literal = String::from("{");
         for (index, (key, value)) in pairs.iter().enumerate() {
@@ -9396,22 +9557,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             push_object_literal_key(
                 &mut literal,
-                self.property_name(key),
+                &self.property_value(key),
                 self.options.string_quote,
             );
             literal.push(':');
             literal.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
         }
         literal.push('}');
-        emit_bound_value(
+        statements.append(emit_bound_value(
             context,
             object,
             JsExpression::atom(literal),
             predeclared,
             cache,
             &mut rendered,
-        )?;
-        Ok(Some((last_assign + 1 - start, rendered)))
+        )?);
+        Ok(Some((last_assign + 1 - start, rendered, statements)))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9425,7 +9586,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         fuse_with_next: &[bool],
-    ) -> Result<Option<(usize, String)>, CodegenError> {
+    ) -> Result<Option<(usize, String, EmittedStatements)>, CodegenError> {
         if let Some(fused) = self.fresh_object_literal_statement(
             block,
             start,
@@ -9483,6 +9644,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             return Ok(None);
         }
         let mut rendered = String::new();
+        let mut statements = EmittedStatements::Empty;
         for index in deferred {
             // The normal linear walk emits a declaration immediately before a
             // closure selected by `sink_entry_function_declarations`. A
@@ -9490,8 +9652,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             // walk, so preserve the same side effect here before caching the
             // closure reference. Otherwise the function group omits the
             // declaration while the Object.assign literal still names it.
-            self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)?;
-            self.emit_linear_instruction(
+            if self.emit_sunk_entry_function(&block.instructions[index], &mut rendered)? {
+                statements.push(EmittedStatementKind::Declaration);
+            }
+            statements.append(self.emit_linear_instruction(
                 &block.instructions[index],
                 block.id,
                 index,
@@ -9501,16 +9665,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context,
                 cache,
                 &mut rendered,
-            )?;
+            )?);
         }
-        materialize_cache_before_object_member_write(
+        statements.append(materialize_cache_before_object_member_write(
             context,
             object,
             None,
             predeclared,
             cache,
             &mut rendered,
-        )?;
+        )?);
         rendered.push_str("Object.assign(");
         rendered.push_str(&take_value(object, context, cache)?);
         rendered.push_str(",{");
@@ -9520,14 +9684,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             push_object_literal_key(
                 &mut rendered,
-                self.property_name(key),
+                &self.property_value(key),
                 self.options.string_quote,
             );
             rendered.push(':');
             rendered.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
         }
         rendered.push_str("});");
-        Ok(Some((last_assign + 1 - start, rendered)))
+        statements.push(EmittedStatementKind::Expression);
+        Ok(Some((last_assign + 1 - start, rendered, statements)))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9542,13 +9707,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         out: &mut String,
-    ) -> Result<(), CodegenError> {
+    ) -> Result<EmittedStatements, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         match &instruction.op {
-            ControlFlowOp::CaughtException => return Ok(()),
+            ControlFlowOp::CaughtException => return Ok(statements),
             ControlFlowOp::Closure { function, .. }
                 if self.inline_exclusive_recursive_iifes.contains(function) =>
             {
-                return Ok(());
+                return Ok(statements);
             }
             ControlFlowOp::LoadLocal(local) | ControlFlowOp::CaptureLocal(local)
                 if self
@@ -9559,14 +9725,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         .get(&context.function_id)
                         == Some(local) =>
             {
-                return Ok(());
+                return Ok(statements);
             }
             ControlFlowOp::StoreLocal { value, .. }
                 if self
                     .exclusive_recursive_iife_dests
                     .contains_key(&(context.function_id, *value)) =>
             {
-                return Ok(());
+                return Ok(statements);
             }
             ControlFlowOp::StoreLocal { local, value } => {
                 let name = context.local_name(*local)?.to_string();
@@ -9576,35 +9742,37 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str("var ");
                     out.push_str(&name);
                     out.push(';');
-                    return Ok(());
+                    statements.push(EmittedStatementKind::Declaration);
+                    return Ok(statements);
                 }
                 if !declare {
                     if let Some(update) =
                         self.render_store_local_update(*local, *value, &name, context, cache)?
                     {
-                        materialize_cache_before_binding_write(
+                        statements.append(materialize_cache_before_binding_write(
                             context,
                             &name,
                             predeclared,
                             cache,
                             out,
-                        )?;
+                        )?);
                         out.push_str(&update);
-                        return Ok(());
+                        statements.push(EmittedStatementKind::Expression);
+                        return Ok(statements);
                     }
                 }
                 let value = strip_outer_parens(take_value(*value, context, cache)?);
                 if !declare && value == name {
-                    return Ok(());
+                    return Ok(statements);
                 }
                 if value != name {
-                    materialize_cache_before_binding_write(
+                    statements.append(materialize_cache_before_binding_write(
                         context,
                         &name,
                         predeclared,
                         cache,
                         out,
-                    )?;
+                    )?);
                 }
                 if declare {
                     out.push_str("var ");
@@ -9613,25 +9781,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push('=');
                 out.push_str(&value);
                 out.push(';');
-                return Ok(());
+                statements.push(if declare {
+                    EmittedStatementKind::Declaration
+                } else {
+                    EmittedStatementKind::Expression
+                });
+                return Ok(statements);
             }
             ControlFlowOp::StoreGlobal { global, value } => {
                 if self.constant_global_strings.contains_key(global) {
                     let _ = take_value(*value, context, cache)?;
-                    return Ok(());
+                    return Ok(statements);
                 }
                 let value = strip_outer_parens(take_value(*value, context, cache)?);
                 let name = self.global_name(*global)?.to_string();
                 if value != name {
-                    materialize_cache_before_binding_write(
+                    statements.append(materialize_cache_before_binding_write(
                         context,
                         &name,
                         predeclared,
                         cache,
                         out,
-                    )?;
+                    )?);
                 }
-                if self.declared_globals.insert(*global) && context.claim_name(&name) {
+                let declare = self.declared_globals.insert(*global) && context.claim_name(&name);
+                if declare {
                     out.push_str(if self.deferred_global_declarations.contains(global) {
                         "var "
                     } else {
@@ -9642,7 +9816,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push('=');
                 out.push_str(&value);
                 out.push(';');
-                return Ok(());
+                statements.push(if declare {
+                    EmittedStatementKind::Declaration
+                } else {
+                    EmittedStatementKind::Expression
+                });
+                return Ok(statements);
             }
             ControlFlowOp::FieldSet {
                 object,
@@ -9657,7 +9836,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     block,
                     instruction_index,
                 )) {
-                    return Ok(());
+                    return Ok(statements);
                 }
                 let written = if (self.options.public_aggregate_fields
                     && context.is_untyped(*object))
@@ -9667,14 +9846,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 } else {
                     Some(index.to_string())
                 };
-                materialize_cache_before_object_member_write(
+                statements.append(materialize_cache_before_object_member_write(
                     context,
                     *object,
                     written.as_deref(),
                     predeclared,
                     cache,
                     out,
-                )?;
+                )?);
                 out.push_str(&take_value(*object, context, cache)?);
                 if (self.options.public_aggregate_fields && context.is_untyped(*object))
                     || self.class_uses_named_fields(owner)
@@ -9686,21 +9865,22 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                 out.push(';');
-                return Ok(());
+                statements.push(EmittedStatementKind::Expression);
+                return Ok(statements);
             }
             ControlFlowOp::RecordFieldSet {
                 object,
                 property,
                 value,
             } => {
-                materialize_cache_before_object_member_write(
+                statements.append(materialize_cache_before_object_member_write(
                     context,
                     *object,
                     Some(self.property_name(property)),
                     predeclared,
                     cache,
                     out,
-                )?;
+                )?);
                 let object = take_value(*object, context, cache)?;
                 let property = self.property_name(property);
                 let access = if is_js_property_identifier(property) {
@@ -9723,28 +9903,34 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push('=');
                 out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                 out.push(';');
-                return Ok(());
+                statements.push(EmittedStatementKind::Expression);
+                return Ok(statements);
             }
             ControlFlowOp::IndexSet {
                 object,
                 index,
                 value,
             } => {
-                let written = context.string_constants.get(index).cloned();
-                materialize_cache_before_object_member_write(
+                let written = context
+                    .string_constants
+                    .get(index)
+                    .and_then(StringValue::as_unicode)
+                    .map(str::to_owned);
+                statements.append(materialize_cache_before_object_member_write(
                     context,
                     *object,
                     written.as_deref(),
                     predeclared,
                     cache,
                     out,
-                )?;
+                )?);
                 let access = self.render_index_access(*object, *index, context, cache)?;
                 out.push_str(&access);
                 out.push('=');
                 out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                 out.push(';');
-                return Ok(());
+                statements.push(EmittedStatementKind::Expression);
+                return Ok(statements);
             }
             ControlFlowOp::NewClass {
                 class,
@@ -9755,8 +9941,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     CodegenError::new(instruction.span, "class construction has no result")
                 })?;
                 let name = context.value_name(result)?;
-                materialize_cache_before_binding_write(context, name, predeclared, cache, out)?;
-                emit_binding_prefix(context, result, predeclared, out)?;
+                statements.append(materialize_cache_before_binding_write(
+                    context,
+                    name,
+                    predeclared,
+                    cache,
+                    out,
+                )?);
+                let declaration = emit_binding_prefix(context, result, predeclared, out)?;
                 out.push_str(name);
                 out.push('=');
                 if self.module.class_identity_observed(class) {
@@ -9770,10 +9962,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
                     }
                     out.push_str(");");
-                    return Ok(());
+                    statements.push(declaration);
+                    return Ok(statements);
                 }
                 out.push_str(&self.default_class_value(class, context.is_untyped(result))?);
                 out.push(';');
+                statements.push(declaration);
                 out.push_str(self.function_name(*constructor)?);
                 out.push('(');
                 out.push_str(name);
@@ -9782,7 +9976,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str(&strip_outer_parens(take_value(*arg, context, cache)?));
                 }
                 out.push_str(");");
-                return Ok(());
+                statements.push(EmittedStatementKind::Expression);
+                return Ok(statements);
             }
             _ => {}
         }
@@ -9791,7 +9986,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .out
             .is_some_and(|value| context.inlined_values.contains_key(&value))
         {
-            return Ok(());
+            return Ok(statements);
         }
 
         if let (Some(output), ControlFlowOp::LoadGlobal(global)) =
@@ -9802,7 +9997,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             {
                 let expression = self.render_instruction_op(instruction, context, cache)?;
                 cache.insert(output, expression);
-                return Ok(());
+                return Ok(statements);
             }
         }
 
@@ -9812,7 +10007,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             self.require_syntax(JsSyntaxFeature::ObjectRestSpread)?;
             if uses.get(&output).copied().unwrap_or(0) != 0 {
                 let name = context.value_name(output)?;
-                emit_binding_prefix(context, output, predeclared, out)?;
+                let declaration = emit_binding_prefix(context, output, predeclared, out)?;
                 out.push_str(name);
                 out.push_str(if self.options.ordinary_record_literals {
                     "={..."
@@ -9821,6 +10016,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 });
                 out.push_str(&strip_outer_parens(take_value(*object, context, cache)?));
                 out.push_str("};");
+                statements.push(declaration);
                 for key in excluded {
                     out.push_str("delete ");
                     out.push_str(name);
@@ -9830,26 +10026,30 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         self.options.string_quote,
                     ));
                     out.push_str("];");
+                    statements.push(EmittedStatementKind::Expression);
                 }
             }
-            return Ok(());
+            return Ok(statements);
         }
 
-        if self.emit_in_place_update(instruction, predeclared, context, cache, out)? {
-            return Ok(());
+        if let Some(emitted) =
+            self.emit_in_place_update(instruction, predeclared, context, cache, out)?
+        {
+            statements.append(emitted);
+            return Ok(statements);
         }
 
         if let Some((object, property)) =
             member_write_object_and_property(&instruction.op, &context.string_constants)
         {
-            materialize_cache_before_object_member_write(
+            statements.append(materialize_cache_before_object_member_write(
                 context,
                 object,
                 property.as_deref(),
                 predeclared,
                 cache,
                 out,
-            )?;
+            )?);
         }
         let selected_pure_helper = matches!(
             instruction.op,
@@ -9857,13 +10057,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 if self.inline_pure_helpers.contains(&function)
         );
         if !selected_pure_helper {
-            materialize_cache_before_callee_code(
+            statements.append(materialize_cache_before_callee_code(
                 context,
                 &instruction.op,
                 predeclared,
                 cache,
                 out,
-            )?;
+            )?);
         }
 
         // Nested cache operands were themselves fused into this expression.
@@ -9883,8 +10083,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if !expression.is_empty() {
                 out.push_str(&expression_statement(expression));
                 out.push(';');
+                statements.push(EmittedStatementKind::Expression);
             }
-            return Ok(());
+            return Ok(statements);
         };
         let use_count = uses.get(&out_value).copied().unwrap_or(0);
         let observable_evaluation = context.evaluation_is_observable(instruction);
@@ -9893,6 +10094,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             if op_has_side_effects(&instruction.op) || observable_evaluation {
                 out.push_str(&expression_statement(expression));
                 out.push(';');
+                statements.push(EmittedStatementKind::Expression);
             }
         } else if !context.is_stored(out_value)
             && ((!nested_observable && use_count == 1 && op_can_defer(&instruction.op))
@@ -9903,9 +10105,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context.cached_observable.borrow_mut().insert(out_value);
             }
         } else {
-            emit_bound_value(context, out_value, expression, predeclared, cache, out)?;
+            statements.append(emit_bound_value(
+                context,
+                out_value,
+                expression,
+                predeclared,
+                cache,
+                out,
+            )?);
         }
-        Ok(())
+        Ok(statements)
     }
 
     fn render_store_local_update(
@@ -9974,19 +10183,19 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         out: &mut String,
-    ) -> Result<bool, CodegenError> {
+    ) -> Result<Option<EmittedStatements>, CodegenError> {
         if self.options.mutation_spelling == MutationSpelling::Assignment {
-            return Ok(false);
+            return Ok(None);
         }
         let Some(output) = instruction.out else {
-            return Ok(false);
+            return Ok(None);
         };
         let ControlFlowOp::Binary { op, lhs, rhs } = instruction.op else {
-            return Ok(false);
+            return Ok(None);
         };
         let output_name = context.value_name(output)?;
         if !context.is_name_declared(output) {
-            return Ok(false);
+            return Ok(None);
         }
         let lhs_is_output = context.value_name(lhs).ok() == Some(output_name)
             && context.is_safe_in_place_update(output, lhs);
@@ -10005,7 +10214,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         } else if rhs_is_output && commutative {
             lhs
         } else {
-            return Ok(false);
+            return Ok(None);
         };
         let integer_safe = context.can_elide_i32_coercion(output)
             || matches!(
@@ -10019,8 +10228,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if !matches!(instruction.ty, Some(Type::Float) | Some(Type::String))
             && !(instruction.ty == Some(Type::Int) && integer_safe)
         {
-            return Ok(false);
+            return Ok(None);
         }
+        let mut statements = EmittedStatements::Empty;
         let mut trial_cache = cache.clone();
         let operand = strip_outer_parens(take_value(operand, context, &mut trial_cache)?);
         if operand == "1"
@@ -10031,13 +10241,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             )
         {
             let operator = if op == IrBinaryOp::Add { "++" } else { "--" };
-            materialize_cache_before_binding_write(
+            statements.append(materialize_cache_before_binding_write(
                 context,
                 output_name,
                 predeclared,
                 &mut trial_cache,
                 out,
-            )?;
+            )?);
             if self.options.mutation_spelling == MutationSpelling::Prefix {
                 out.push_str(operator);
             }
@@ -10047,10 +10257,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
             out.push(';');
             *cache = trial_cache;
-            return Ok(true);
+            statements.push(EmittedStatementKind::Expression);
+            return Ok(Some(statements));
         }
         if self.options.mutation_spelling != MutationSpelling::Compound {
-            return Ok(false);
+            return Ok(None);
         }
         let operator = match op {
             IrBinaryOp::Add => "+",
@@ -10063,22 +10274,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             IrBinaryOp::Xor => "^",
             IrBinaryOp::ShiftLeft => "<<",
             IrBinaryOp::ShiftRight => ">>",
-            _ => return Ok(false),
+            _ => return Ok(None),
         };
-        materialize_cache_before_binding_write(
+        statements.append(materialize_cache_before_binding_write(
             context,
             output_name,
             predeclared,
             &mut trial_cache,
             out,
-        )?;
+        )?);
         out.push_str(output_name);
         out.push_str(operator);
         out.push('=');
         out.push_str(&operand);
         out.push(';');
         *cache = trial_cache;
-        Ok(true)
+        statements.push(EmittedStatementKind::Expression);
+        Ok(Some(statements))
     }
 
     fn emit_state_machine(
@@ -10194,7 +10406,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 .collect::<Vec<_>>();
             let mut index = 0;
             while index < block.instructions.len() {
-                if let Some((consumed, batched)) = self.batched_property_assign_statement(
+                if let Some((consumed, batched, _)) = self.batched_property_assign_statement(
                     function,
                     block,
                     index,
@@ -10384,15 +10596,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut ExpressionCache,
         visited: &mut AHashSet<BlockId>,
         out: &mut String,
-    ) -> Result<PathEnd, CodegenError> {
+    ) -> Result<EmittedPath, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         loop {
             if Some(current) == stop {
-                return Ok(PathEnd::ReachedStop);
+                return Ok(statements.finish(PathEnd::ReachedStop));
             }
             if self.options.expression_phi_regions || self.options.local_phi_expression_regions {
-                if let Some(merge) = self.try_emit_expression_shape(
+                if let Some((merge, emitted)) = self.try_emit_expression_shape(
                     function, current, context, uses, cache, visited, out,
                 )? {
+                    statements.append(emitted);
                     current = merge;
                     continue;
                 }
@@ -10429,7 +10643,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     }
                     ControlShape::Loop { .. } | ControlShape::Try { .. } => None,
                 };
-                self.flush_cache_except(cache, context, out, retained_condition)?;
+                statements.append(self.flush_cache_except(
+                    cache,
+                    context,
+                    out,
+                    retained_condition,
+                )?);
                 match shape {
                     ControlShape::If {
                         header,
@@ -10438,7 +10657,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         merge_block,
                     } => {
                         let block = &function.blocks[header.0 as usize];
-                        self.emit_cached_block(function, block, uses, context, cache, out)?;
+                        statements.append(
+                            self.emit_cached_block(function, block, uses, context, cache, out)?,
+                        );
                         let Some(Terminator::Branch { condition, .. }) = block.terminator else {
                             return Err(CodegenError::new(
                                 block.span,
@@ -10469,8 +10690,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 &mut selected_visited,
                                 out,
                             )?;
-                            if selected_end == PathEnd::Terminated {
-                                return Ok(PathEnd::Terminated);
+                            statements.append(selected_end.statements);
+                            if selected_end.end == PathEnd::Terminated {
+                                return Ok(statements.finish(PathEnd::Terminated));
                             }
                             cache.clear();
                             current = merge_block;
@@ -10479,7 +10701,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut then_visited = visited.clone();
                         let mut then_cache = cache.clone();
                         let mut then_output = String::new();
-                        self.emit_structured_path(
+                        let then_path = self.emit_structured_path(
                             function,
                             then_block,
                             Some(merge_block),
@@ -10493,7 +10715,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         let mut else_visited = visited.clone();
                         let mut else_cache = cache.clone();
                         let mut else_output = String::new();
-                        self.emit_structured_path(
+                        let else_path = self.emit_structured_path(
                             function,
                             else_block,
                             Some(merge_block),
@@ -10586,6 +10808,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     out.push_str(target);
                                     out.push_str(trailing);
                                     out.push(';');
+                                    statements.push(EmittedStatementKind::Declaration);
                                 }
                                 deferred_merge = Some((value_id, value));
                             } else {
@@ -10597,6 +10820,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_str(&value);
                                 out.push_str(trailing);
                                 out.push(';');
+                                statements.push(if declare {
+                                    EmittedStatementKind::Declaration
+                                } else {
+                                    EmittedStatementKind::Expression
+                                });
                             }
                         } else if let Some((then_target, then_value, else_target, else_value)) =
                             self.options
@@ -10616,6 +10844,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push('=');
                             out.push_str(else_value);
                             out.push(';');
+                            statements.push(EmittedStatementKind::Expression);
                         } else if let Some((then_expression, else_expression)) =
                             (self.options.conditional_expressions && self.options.effect_ternary)
                                 .then(|| {
@@ -10632,22 +10861,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push(':');
                             push_conditional_arm(out, &else_expression);
                             out.push(';');
+                            statements.push(EmittedStatementKind::Expression);
                         } else if let (true, Some(then_ret), Some(else_ret)) = (
                             self.options.conditional_expressions,
                             compact_return_expression(&then_output),
                             compact_return_expression(&else_output),
                         ) {
                             push_return_conditional(out, &condition, then_ret, else_ret);
+                            statements.push(EmittedStatementKind::Closed);
                             cache.clear();
-                            return Ok(PathEnd::Terminated);
+                            return Ok(statements.finish(PathEnd::Terminated));
                         } else if let (true, Some(then_ret), Some(merge_ret)) = (
                             self.options.conditional_expressions && else_output.is_empty(),
                             compact_return_expression(&then_output),
                             peek_merge_return_expression(function, merge_block, context, cache),
                         ) {
                             push_return_conditional(out, &condition, then_ret, &merge_ret);
+                            statements.push(EmittedStatementKind::Closed);
                             cache.clear();
-                            return Ok(PathEnd::Terminated);
+                            return Ok(statements.finish(PathEnd::Terminated));
                         } else if let (true, Some(guard)) = (
                             self.options.conditional_expressions && else_output.is_empty(),
                             parse_assignment_guard_return(&then_output),
@@ -10656,6 +10888,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_str("var ");
                                 out.push_str(name);
                                 out.push(';');
+                                statements.push(EmittedStatementKind::Declaration);
                             }
                             let mut combined = String::new();
                             push_logical_operand(&mut combined, &condition, IrBinaryOp::And);
@@ -10674,8 +10907,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         guard.returned,
                                         &merge_ret,
                                     );
+                                    statements.push(EmittedStatementKind::Closed);
                                     cache.clear();
-                                    return Ok(PathEnd::Terminated);
+                                    return Ok(statements.finish(PathEnd::Terminated));
                                 }
                             }
                             out.push_str("if(");
@@ -10686,6 +10920,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_str(guard.returned);
                             }
                             out.push(';');
+                            statements.push(EmittedStatementKind::UnmatchedIf);
                         } else if then_output.is_empty()
                             && self.options.conditional_expressions
                             && self.options.allows(JsSyntaxFeature::NullishCoalescing)
@@ -10712,6 +10947,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     if matches!(constant, ConstValue::Null) {
                                         out.push_str(&expression);
                                         out.push(';');
+                                        statements.push(EmittedStatementKind::Expression);
                                     }
                                 } else {
                                     let source_name = context.value_name(source)?;
@@ -10774,12 +11010,14 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         out.push_str("??(");
                                         out.push_str(&expression);
                                         out.push_str(");");
+                                        statements.push(EmittedStatementKind::Expression);
                                     }
                                 }
                             } else {
+                                statements.push(EmittedStatementKind::UnmatchedIf);
                                 out.push_str("if(");
                                 out.push_str(&negated_condition);
-                                if is_braceless_statement(&else_output) {
+                                if else_path.statements.allows_braceless() {
                                     out.push(')');
                                     out.push_str(&else_output);
                                 } else {
@@ -10801,6 +11039,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 out.push_str("||");
                                 out.push_str(&value);
                                 out.push(';');
+                                statements.push(EmittedStatementKind::Expression);
                             } else {
                                 let method_condition = if condition_was_negated {
                                     &negated_condition
@@ -10818,6 +11057,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     out.push(':');
                                     out.push_str(target);
                                     out.push(';');
+                                    statements.push(EmittedStatementKind::Expression);
                                 } else if let Some(then_expression) = self
                                     .options
                                     .conditional_expressions
@@ -10852,10 +11092,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     }
                                     out.push_str(&rewrite_optional_method_or_assign(&combined));
                                     out.push(';');
+                                    statements.push(EmittedStatementKind::Expression);
                                 } else {
+                                    statements.push(EmittedStatementKind::UnmatchedIf);
                                     out.push_str("if(");
                                     out.push_str(&condition);
-                                    if is_braceless_statement(&then_output) {
+                                    if then_path.statements.allows_braceless() {
                                         out.push(')');
                                         out.push_str(&then_output);
                                     } else {
@@ -10885,10 +11127,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     push_logical_operand(out, &else_expression, IrBinaryOp::Or);
                                 }
                                 out.push(';');
+                                statements.push(EmittedStatementKind::Expression);
                             } else {
+                                statements.push(EmittedStatementKind::UnmatchedIf);
                                 out.push_str("if(");
                                 out.push_str(&negated_condition);
-                                if is_braceless_statement(&else_output) {
+                                if else_path.statements.allows_braceless() {
                                     out.push(')');
                                     out.push_str(&else_output);
                                 } else {
@@ -10901,6 +11145,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 }
                             }
                         } else {
+                            statements.push(EmittedStatementKind::Closed);
                             out.push_str("if(");
                             out.push_str(&condition);
                             out.push_str("){");
@@ -10963,7 +11208,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 &mut condition_visited,
                                 &mut header_output,
                             )?;
-                            if condition_end != PathEnd::ReachedStop {
+                            if condition_end.end != PathEnd::ReachedStop {
                                 return Err(CodegenError::new(
                                     function.blocks[header.0 as usize].span,
                                     "loop short-circuit condition did not reach its final branch",
@@ -11044,7 +11289,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         &mut update_visited,
                                         &mut update_output,
                                     )?;
-                                    (update_end == PathEnd::ReachedStop)
+                                    (update_end.end == PathEnd::ReachedStop)
                                         .then(|| for_update_clause(&update_output))
                                         .flatten()
                                 } else {
@@ -11068,6 +11313,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             && self.options.comma_expressions)
                             .then(|| take_trailing_expression_statements(out))
                             .flatten();
+                        if for_initializer.is_some() {
+                            statements = EmittedStatements::Uncertified;
+                        }
                         let do_condition = if do_loop {
                             let condition = if body_on_true {
                                 condition.clone()
@@ -11144,11 +11392,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut body_visited,
                             out,
                         )?;
-                        if body_end == PathEnd::ReachedStop && update_clause.is_none() {
+                        let mut body_statements = body_end.statements;
+                        if body_end.end == PathEnd::ReachedStop && update_clause.is_none() {
                             if let Some(update_block) = update {
                                 let mut update_visited = AHashSet::default();
                                 let mut update_cache = body_cache;
-                                self.emit_structured_path(
+                                let update_path = self.emit_structured_path(
                                     function,
                                     update_block,
                                     Some(header),
@@ -11159,16 +11408,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                     &mut update_visited,
                                     out,
                                 )?;
+                                body_statements.append(update_path.statements);
                             }
                         }
-                        let mut compacted_loop_body = false;
+
                         if self.options.comma_expressions {
                             if let Some(body_start) = loop_body_content_start {
                                 if let Some(compact) =
                                     compact_top_level_expression_statements(&out[body_start..])
                                 {
                                     out.replace_range(body_start.., &compact);
-                                    compacted_loop_body = true;
+                                    body_statements =
+                                        EmittedStatements::one(EmittedStatementKind::Expression);
                                 }
                             }
                         }
@@ -11180,9 +11431,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             out.push_str("while(");
                             out.push_str(&condition);
                             out.push_str(");");
-                        } else if loop_body_open.is_some_and(|open| {
-                            compacted_loop_body || is_braceless_statement(&out[open + 1..])
-                        }) {
+                        } else if loop_body_open.is_some() && body_statements.allows_braceless() {
                             out.remove(loop_body_open.expect("checked loop body opening"));
                         } else {
                             close_statement_block(
@@ -11190,6 +11439,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 self.options.elide_block_terminal_semicolons,
                             );
                         }
+                        statements.push(if do_loop {
+                            EmittedStatementKind::UnmatchedIf
+                        } else {
+                            EmittedStatementKind::Closed
+                        });
                         if let Some(counter) = rotation_counter {
                             rewrite_guarded_decrement_loop(
                                 out,
@@ -11201,7 +11455,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         if loop_condition_is_constant_true
                             && !loop_body_reaches_exit(function, body, header, exit)
                         {
-                            return Ok(PathEnd::Terminated);
+                            return Ok(statements.finish(PathEnd::Terminated));
                         }
                         current = exit;
                         continue;
@@ -11247,7 +11501,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         };
                         let mut body_visited = visited.clone();
                         let mut body_cache = cache.clone();
-                        self.emit_structured_path(
+                        let body_path = self.emit_structured_path(
                             function,
                             body,
                             Some(header),
@@ -11258,16 +11512,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut body_visited,
                             out,
                         )?;
-                        let mut compacted_body = false;
+                        let mut body_statements = body_path.statements;
                         if self.options.comma_expressions {
                             if let Some(compact) =
                                 compact_top_level_expression_statements(&out[body_start..])
                             {
                                 out.replace_range(body_start.., &compact);
-                                compacted_body = true;
+                                body_statements =
+                                    EmittedStatements::one(EmittedStatementKind::Expression);
                             }
                         }
-                        if compacted_body || is_braceless_statement(&out[body_start..]) {
+                        if body_statements.allows_braceless() {
                             out.remove(body_open);
                         } else {
                             close_statement_block(
@@ -11275,6 +11530,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 self.options.elide_block_terminal_semicolons,
                             );
                         }
+                        statements.push(EmittedStatementKind::Closed);
                         cache.clear();
                         current = exit;
                         continue;
@@ -11320,7 +11576,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         };
                         let mut body_visited = visited.clone();
                         let mut body_cache = cache.clone();
-                        self.emit_structured_path(
+                        let body_path = self.emit_structured_path(
                             function,
                             body,
                             Some(header),
@@ -11331,16 +11587,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             &mut body_visited,
                             out,
                         )?;
-                        let mut compacted_body = false;
+                        let mut body_statements = body_path.statements;
                         if self.options.comma_expressions {
                             if let Some(compact) =
                                 compact_top_level_expression_statements(&out[body_start..])
                             {
                                 out.replace_range(body_start.., &compact);
-                                compacted_body = true;
+                                body_statements =
+                                    EmittedStatements::one(EmittedStatementKind::Expression);
                             }
                         }
-                        if compacted_body || is_braceless_statement(&out[body_start..]) {
+                        if body_statements.allows_braceless() {
                             out.remove(body_open);
                         } else {
                             close_statement_block(
@@ -11348,6 +11605,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 self.options.elide_block_terminal_semicolons,
                             );
                         }
+                        statements.push(EmittedStatementKind::Closed);
                         cache.clear();
                         current = exit;
                         continue;
@@ -11373,7 +11631,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                 "try shape header does not enter its exception region",
                             ));
                         }
-                        self.emit_cached_block(function, block, uses, context, cache, out)?;
+                        statements.append(
+                            self.emit_cached_block(function, block, uses, context, cache, out)?,
+                        );
                         let continuation = finally_block.unwrap_or(merge_block);
                         out.push_str("try{");
                         let mut body_visited = visited.clone();
@@ -11445,11 +11705,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             );
                         }
                         cache.clear();
-                        let finally_terminates = finally_end == Some(PathEnd::Terminated);
-                        let protected_reaches_merge = body_end == PathEnd::ReachedStop
-                            || catch_end == Some(PathEnd::ReachedStop);
+                        statements.push(EmittedStatementKind::Closed);
+                        let finally_terminates =
+                            finally_end.is_some_and(|path| path.end == PathEnd::Terminated);
+                        let protected_reaches_merge = body_end.end == PathEnd::ReachedStop
+                            || catch_end.is_some_and(|path| path.end == PathEnd::ReachedStop);
                         if finally_terminates || !protected_reaches_merge {
-                            return Ok(PathEnd::Terminated);
+                            return Ok(statements.finish(PathEnd::Terminated));
                         }
                         current = merge_block;
                         continue;
@@ -11458,28 +11720,31 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             }
 
             let block = &function.blocks[current.0 as usize];
-            self.emit_cached_block(function, block, uses, context, cache, out)?;
+            statements.append(self.emit_cached_block(function, block, uses, context, cache, out)?);
             match block
                 .terminator
                 .as_ref()
                 .ok_or_else(|| CodegenError::new(block.span, "IR block has no terminator"))?
             {
                 Terminator::Jump(target) => {
-                    self.emit_phi_edge_cached(function, current.0, target.0, context, cache, out)?;
+                    statements.append(self.emit_phi_edge_cached(
+                        function, current.0, target.0, context, cache, out,
+                    )?);
                     if Some(*target) == stop {
-                        return Ok(PathEnd::ReachedStop);
+                        return Ok(statements.finish(PathEnd::ReachedStop));
                     }
                     if let Some(loop_context) = loop_context {
                         if *target == loop_context.exit {
                             out.push_str("break;");
-                            return Ok(PathEnd::Terminated);
+                            statements.push(EmittedStatementKind::Closed);
+                            return Ok(statements.finish(PathEnd::Terminated));
                         }
                         if *target == loop_context.continue_target {
                             if let Some(update) = loop_context.update {
                                 if current != update {
                                     let mut update_visited = AHashSet::default();
                                     let mut update_cache = AHashMap::default();
-                                    self.emit_structured_path(
+                                    let update_path = self.emit_structured_path(
                                         function,
                                         update,
                                         Some(loop_context.header),
@@ -11490,15 +11755,18 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                                         &mut update_visited,
                                         out,
                                     )?;
+                                    statements.append(update_path.statements);
                                 }
                             }
                             out.push_str("continue;");
-                            return Ok(PathEnd::Terminated);
+                            statements.push(EmittedStatementKind::Closed);
+                            return Ok(statements.finish(PathEnd::Terminated));
                         }
                     }
                     current = *target;
                 }
                 Terminator::Return(Some(value)) => {
+                    statements.push(EmittedStatementKind::Closed);
                     if context.is_js_undefined(*value) {
                         out.push_str("return;");
                     } else {
@@ -11506,19 +11774,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                         out.push(';');
                     }
-                    return Ok(PathEnd::Terminated);
+                    return Ok(statements.finish(PathEnd::Terminated));
                 }
                 Terminator::Return(None) => {
                     if function.kind != FunctionKind::Entry {
+                        statements.push(EmittedStatementKind::Closed);
                         out.push_str("return;");
                     }
-                    return Ok(PathEnd::Terminated);
+                    return Ok(statements.finish(PathEnd::Terminated));
                 }
                 Terminator::Throw(value) => {
+                    statements.push(EmittedStatementKind::Closed);
                     out.push_str("throw ");
                     out.push_str(&strip_outer_parens(take_value(*value, context, cache)?));
                     out.push(';');
-                    return Ok(PathEnd::Terminated);
+                    return Ok(statements.finish(PathEnd::Terminated));
                 }
                 Terminator::Try { .. } => {
                     return Err(CodegenError::new(
@@ -11527,8 +11797,15 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     ));
                 }
                 Terminator::Unreachable => {
+                    if !block
+                        .instructions
+                        .last()
+                        .is_some_and(|instruction| self.instruction_is_js_throw(instruction))
+                    {
+                        statements.push(EmittedStatementKind::Closed);
+                    }
                     self.emit_unreachable_terminator(block.instructions.last(), out);
-                    return Ok(PathEnd::Terminated);
+                    return Ok(statements.finish(PathEnd::Terminated));
                 }
                 Terminator::Branch { .. } => {
                     return Err(CodegenError::new(
@@ -11555,7 +11832,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         cache: &mut ExpressionCache,
         visited: &mut AHashSet<BlockId>,
         out: &mut String,
-    ) -> Result<Option<BlockId>, CodegenError> {
+    ) -> Result<Option<(BlockId, EmittedStatements)>, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         let mut trial_cache = cache.clone();
         let mut state = ExpressionRegionState::new(visited.clone());
         let short_circuit_cone = header_short_circuit_cone(function, header);
@@ -11585,9 +11863,23 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if short_circuit_cone.is_some() {
             trial_cache.remove(&rendered.value);
             state.retain_only_result(&mut trial_cache, rendered.value);
-            self.emit_header_prefix(function, header, context, uses, &mut trial_cache, out)?;
+            statements.append(self.emit_header_prefix(
+                function,
+                header,
+                context,
+                uses,
+                &mut trial_cache,
+                out,
+            )?);
         } else {
-            self.emit_header_prefix(function, header, context, uses, &mut trial_cache, out)?;
+            statements.append(self.emit_header_prefix(
+                function,
+                header,
+                context,
+                uses,
+                &mut trial_cache,
+                out,
+            )?);
             state.retain_only_result(&mut trial_cache, rendered.value);
         }
 
@@ -11597,24 +11889,25 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &rendered.expression.into_minimal(),
             ));
             out.push(';');
+            statements.push(EmittedStatementKind::Expression);
             trial_cache.remove(&rendered.value);
         } else if use_count == 1 {
             trial_cache.insert(rendered.value, rendered.expression);
         } else {
-            emit_bound_value(
+            statements.append(emit_bound_value(
                 context,
                 rendered.value,
                 rendered.expression,
                 true,
                 &mut trial_cache,
                 out,
-            )?;
+            )?);
             trial_cache.remove(&rendered.value);
         }
 
         *cache = trial_cache;
         *visited = state.visited;
-        Ok(Some(rendered.merge))
+        Ok(Some((rendered.merge, statements)))
     }
 
     fn emit_header_prefix(
@@ -11625,16 +11918,17 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         uses: &AHashMap<ValueId, usize>,
         cache: &mut ExpressionCache,
         out: &mut String,
-    ) -> Result<(), CodegenError> {
+    ) -> Result<EmittedStatements, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         let Some(cone) = header_expression_region_cone(function, header) else {
-            return Ok(());
+            return Ok(statements);
         };
         let block = &function.blocks[header.0 as usize];
         for (index, instruction) in block.instructions.iter().enumerate() {
             if instruction_in_header_cone(instruction, &cone) {
                 continue;
             }
-            self.emit_linear_instruction(
+            statements.append(self.emit_linear_instruction(
                 instruction,
                 block.id,
                 index,
@@ -11644,9 +11938,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context,
                 cache,
                 out,
-            )?;
+            )?);
         }
-        Ok(())
+        Ok(statements)
     }
 
     fn render_short_circuit_region(
@@ -12393,6 +12687,24 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
                 return Ok(false);
             };
+            if context.inlined_values.contains_key(&output) {
+                if matches!(instruction.op, ControlFlowOp::Const(_)) {
+                    // This definition has no evaluation at this site: uses
+                    // clone its literal or initialized compiler-owned pool
+                    // binding. It cannot own a pending store in the consumable
+                    // cache. Keep that store pending for the next evaluated
+                    // recipe; the usual region proof must keep that recipe
+                    // reachable and single-use. A constant-only arm retains
+                    // its statements when no such owner is found.
+                    state.define(output, false, []);
+                    continue;
+                }
+                if pending_effect.is_some() {
+                    // Inline spelling alone does not establish inertness
+                    // (for example `this` loads and substituted actuals).
+                    return Ok(false);
+                }
+            }
             if pending_effect.is_some()
                 && !arm_local_evaluation
                 && Some(output) != required_eager_root
@@ -12503,7 +12815,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         out: &mut String,
-    ) -> Result<(), CodegenError> {
+    ) -> Result<EmittedStatements, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         let edge_value = self
             .options
             .phi_edge_value_forwarding
@@ -12545,8 +12858,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
             .collect::<Vec<_>>();
         let mut index = 0;
         while index < block.instructions.len() {
-            self.emit_sunk_entry_function(&block.instructions[index], out)?;
-            if let Some((consumed, batched)) = self.batched_property_assign_statement(
+            if self.emit_sunk_entry_function(&block.instructions[index], out)? {
+                statements.push(EmittedStatementKind::Declaration);
+            }
+            if let Some((consumed, batched, emitted)) = self.batched_property_assign_statement(
                 function,
                 block,
                 index,
@@ -12557,10 +12872,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 &fuse_with_next,
             )? {
                 out.push_str(&batched);
+                statements.append(emitted);
                 index += consumed;
                 continue;
             }
-            self.emit_linear_instruction(
+            statements.append(self.emit_linear_instruction(
                 &block.instructions[index],
                 block.id,
                 index,
@@ -12570,10 +12886,10 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 context,
                 cache,
                 out,
-            )?;
+            )?);
             index += 1;
         }
-        Ok(())
+        Ok(statements)
     }
 
     fn flush_cache_except(
@@ -12582,18 +12898,21 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         out: &mut String,
         retained: Option<ValueId>,
-    ) -> Result<(), CodegenError> {
+    ) -> Result<EmittedStatements, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         let retained =
             retained.and_then(|value| cache.remove(&value).map(|expression| (value, expression)));
         let mut values = cache.drain().collect::<Vec<_>>();
         values.sort_by_key(|(value, _)| value.0);
         for (value, expression) in values {
-            emit_bound_value(context, value, expression, true, cache, out)?;
+            statements.append(emit_bound_value(
+                context, value, expression, true, cache, out,
+            )?);
         }
         if let Some((value, expression)) = retained {
             cache.insert(value, expression);
         }
-        Ok(())
+        Ok(statements)
     }
 
     fn emit_phi_edge_cached(
@@ -12604,7 +12923,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         context: &LocalNames,
         cache: &mut ExpressionCache,
         out: &mut String,
-    ) -> Result<(), CodegenError> {
+    ) -> Result<EmittedStatements, CodegenError> {
+        let mut statements = EmittedStatements::Empty;
         let copies = function.blocks[to as usize]
             .phis
             .iter()
@@ -12630,7 +12950,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 single_assignment_copy = assignments
                     .is_empty()
                     .then_some((target_value, *source_value));
-                materialize_cache_before_binding_write(context, &target, true, cache, out)?;
+                statements.append(materialize_cache_before_binding_write(
+                    context, &target, true, cache, out,
+                )?);
                 assignments.push((target, source));
             }
         }
@@ -12656,7 +12978,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push('=');
                 out.push_str(&operand);
                 out.push(';');
-                return Ok(());
+                statements.push(if declaration_needed {
+                    EmittedStatementKind::Declaration
+                } else {
+                    EmittedStatementKind::Expression
+                });
+                return Ok(statements);
             }
             let compact_update = (!declaration_needed
                 && matches!(
@@ -12687,7 +13014,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str(operator);
                 }
                 out.push(';');
-                return Ok(());
+                statements.push(if declaration_needed {
+                    EmittedStatementKind::Declaration
+                } else {
+                    EmittedStatementKind::Expression
+                });
+                return Ok(statements);
             }
             if declaration_needed {
                 out.push_str("var ");
@@ -12702,6 +13034,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 }
             }
             out.push(';');
+            statements.push(if declaration_needed {
+                EmittedStatementKind::Declaration
+            } else {
+                EmittedStatementKind::Expression
+            });
         } else if !assignments.is_empty() {
             let targets = assignments
                 .iter()
@@ -12726,7 +13063,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     out.push_str(&name);
                 }
                 out.push(';');
-                return Ok(());
+                statements.push(if declaration_needed {
+                    EmittedStatementKind::Declaration
+                } else {
+                    EmittedStatementKind::Expression
+                });
+                return Ok(statements);
             }
             if declaration_needed {
                 if let Some(ordered) = order_scalar_assignments(&assignments) {
@@ -12744,7 +13086,12 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         out.push_str(&name);
                     }
                     out.push(';');
-                    return Ok(());
+                    statements.push(if declaration_needed {
+                        EmittedStatementKind::Declaration
+                    } else {
+                        EmittedStatementKind::Expression
+                    });
+                    return Ok(statements);
                 }
             } else {
                 let reusable_temporary = self.options.scalar_phi_copies.then(|| {
@@ -12760,7 +13107,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                             .as_deref()
                             .map(|name| (name, true))
                     });
-                if let Some(scalar) = scalar_parallel_assignments(&assignments, temporary) {
+                if let Some((scalar, emitted)) =
+                    scalar_parallel_assignments(&assignments, temporary)
+                {
                     let tuple_size = assignments
                         .iter()
                         .map(|(target, source)| target.len() + source.len())
@@ -12769,7 +13118,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                         + 6;
                     if self.options.scalar_phi_copies || scalar.len() < tuple_size {
                         out.push_str(&scalar);
-                        return Ok(());
+                        statements.append(emitted);
+                        return Ok(statements);
                     }
                 }
             }
@@ -12791,8 +13141,13 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 out.push_str(source);
             }
             out.push_str("];");
+            statements.push(if declaration_needed {
+                EmittedStatementKind::Declaration
+            } else {
+                EmittedStatementKind::Expression
+            });
         }
-        Ok(())
+        Ok(statements)
     }
 
     fn render_instruction_op(
@@ -13066,7 +13421,7 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 self.string_aliases
                     .get(value)
                     .cloned()
-                    .unwrap_or_else(|| render_string_literal(value, self.options.string_quote)),
+                    .unwrap_or_else(|| render_string_value(value, self.options.string_quote)),
             ),
             ControlFlowOp::Const(value) => {
                 let rendered = render_const(
@@ -13643,6 +13998,9 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 args,
                 ..
             } => {
+                if *method == crate::ir::HOST_SUPER_METHOD {
+                    return self.render_call(JsExpression::atom("super"), args, context, cache);
+                }
                 if *method == "call"
                     && cache.contains_key(receiver)
                     && args.first().is_some_and(|this_arg| {
@@ -13686,7 +14044,11 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 let mut rendered = String::from("`");
                 for part in parts {
                     match part {
-                        TemplateOperand::String(string) => rendered.push_str(string),
+                        TemplateOperand::String(string) => {
+                            let after_dollar = rendered.ends_with('$');
+                            crate::js_string::contents(&mut rendered, string, '`', after_dollar)
+                                .unwrap();
+                        }
                         TemplateOperand::Value(item) => {
                             rendered.push_str("${");
                             rendered.push_str(&strip_outer_parens(value(*item, cache)?));
@@ -13971,8 +14333,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
         if let Some(property) = context.string_constants.get(&index) {
             return Ok(JsExpression::index(
                 object,
-                JsExpression::atom(render_property_key_literal(
-                    self.property_name(property),
+                JsExpression::atom(render_property_value_literal(
+                    &self.property_value(property),
                     self.options.string_quote,
                 )),
                 self.options.elide_call_chain_parentheses,
@@ -14053,8 +14415,8 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                 // Plain-object keys are syntax metadata, not runtime inputs.
                 // Rendering them directly avoids extending an SSA value's live
                 // range merely to print property syntax.
-                rendered.push_str(&object_literal_key(
-                    self.property_name(source_key),
+                rendered.push_str(&object_value_key(
+                    &self.property_value(source_key),
                     self.options.string_quote,
                 ));
                 rendered.push(':');
@@ -15643,10 +16005,16 @@ impl<'module, 'src> IrJsEmitter<'module, 'src> {
                     "effectful closure requires named function emission",
                 ));
             }
-            let expression = self.render_instruction_op(instruction, &context, &mut cache)?;
             let out = instruction.out.ok_or_else(|| {
                 CodegenError::new(instruction.span, "closure value has no output")
             })?;
+            // Canonical inline values already have their selected expression
+            // in LocalNames. All consumers obtain it through take_value;
+            // sharing that SSA value does not require a second local binding.
+            if context.inlined_values.contains_key(&out) {
+                continue;
+            }
+            let expression = self.render_instruction_op(instruction, &context, &mut cache)?;
             if uses.get(&out).copied().unwrap_or(0) == 1 {
                 cache.insert(out, expression);
             } else {
@@ -15976,10 +16344,11 @@ fn type_references_class(ty: &Type<'_>, owner: &str) -> bool {
         Type::ClassInstance { name, args } => {
             *name == owner || args.iter().any(|ty| type_references_class(ty, owner))
         }
-        Type::Struct(name) => *name == owner,
-        Type::StructInstance { name, args } => {
-            *name == owner || args.iter().any(|ty| type_references_class(ty, owner))
-        }
+        Type::Struct(StructType { name, .. }) => *name == owner,
+        Type::StructInstance {
+            declaration: StructType { name, .. },
+            args,
+        } => *name == owner || args.iter().any(|ty| type_references_class(ty, owner)),
         Type::Array(ty)
         | Type::Record(ty)
         | Type::Set(ty)
@@ -15996,7 +16365,7 @@ fn type_references_class(ty: &Type<'_>, owner: &str) -> bool {
             function
                 .params
                 .iter()
-                .any(|ty| type_references_class(ty, owner))
+                .any(|parameter| type_references_class(&parameter.ty, owner))
                 || type_references_class(&function.return_type, owner)
         }
         Type::GenericFunction(function) => {
@@ -16004,7 +16373,7 @@ fn type_references_class(ty: &Type<'_>, owner: &str) -> bool {
                 .signature
                 .params
                 .iter()
-                .any(|ty| type_references_class(ty, owner))
+                .any(|parameter| type_references_class(&parameter.ty, owner))
                 || type_references_class(&function.signature.return_type, owner)
         }
         Type::Int
@@ -16056,7 +16425,7 @@ fn is_emitted_function(
 fn collect_chunk_references(
     module: &ControlFlowModule<'_>,
     roots: &[FunctionId],
-    string_aliases: &AHashMap<String, String>,
+    string_aliases: &AHashMap<StringValue, String>,
     numeric_aliases: &AHashMap<String, String>,
     inline_structured: bool,
 ) -> ChunkReferences {
@@ -16201,21 +16570,24 @@ fn order_scalar_assignments(assignments: &[(String, String)]) -> Option<Vec<(&st
 fn scalar_parallel_assignments(
     assignments: &[(String, String)],
     temporary: Option<(&str, bool)>,
-) -> Option<String> {
+) -> Option<(String, EmittedStatements)> {
     if let Some(ordered) = order_scalar_assignments(assignments) {
         let mut output = String::new();
+        let mut statements = EmittedStatements::Empty;
         for (target, source) in ordered {
             output.push_str(target);
             output.push('=');
             output.push_str(source);
             output.push(';');
+            statements.push(EmittedStatementKind::Expression);
         }
-        return Some(output);
+        return Some((output, statements));
     }
 
     let (temporary, declare_temporary) = temporary?;
     let mut remaining = assignments.to_vec();
     let mut output = String::new();
+    let mut statements = EmittedStatements::Empty;
     let mut temporary_declared = false;
     while !remaining.is_empty() {
         if let Some(index) = remaining.iter().position(|(target, _)| {
@@ -16228,6 +16600,7 @@ fn scalar_parallel_assignments(
             output.push('=');
             output.push_str(&source);
             output.push(';');
+            statements.push(EmittedStatementKind::Expression);
             continue;
         }
 
@@ -16248,11 +16621,12 @@ fn scalar_parallel_assignments(
         output.push('=');
         output.push_str(&saved);
         output.push(';');
+        statements.push(EmittedStatementKind::Expression);
         for (_, source) in &mut remaining {
             *source = replace_identifier(source, &saved, temporary);
         }
     }
-    Some(output)
+    Some((output, statements))
 }
 
 fn reusable_parallel_copy_temporary(
@@ -17109,68 +17483,6 @@ fn close_statement_block(out: &mut String, elide_terminal_semicolon: bool) {
     out.push('}');
 }
 
-fn is_braceless_statement(output: &str) -> bool {
-    let statement = output.strip_suffix(';').unwrap_or(output);
-    if statement.is_empty()
-        || expression_has_top_level_statement_break(statement)
-        || statement.starts_with('{')
-        || statement.starts_with("var ")
-        || statement.starts_with("let ")
-        || statement.starts_with("const ")
-        || statement.starts_with("function ")
-        || statement.starts_with("class ")
-        || statement.starts_with("if(")
-    {
-        return false;
-    }
-    if let Some(body) = for_or_while_header_body(statement) {
-        let body = body
-            .strip_prefix('{')
-            .and_then(|value| value.strip_suffix('}'))
-            .map(str::trim)
-            .filter(|inner| !inner.is_empty())
-            .unwrap_or(body);
-        return is_braceless_statement(body);
-    }
-    !statement.starts_with("for(") && !statement.starts_with("while(")
-}
-
-fn for_or_while_header_body(statement: &str) -> Option<&str> {
-    let rest = statement
-        .strip_prefix("for(")
-        .or_else(|| statement.strip_prefix("while("))?;
-    let mut depth = 1i32;
-    let mut quote = None;
-    let mut escaped = false;
-    for (index, character) in rest.char_indices() {
-        if let Some(active) = quote {
-            if escaped {
-                escaped = false;
-            } else if character == '\\' {
-                escaped = true;
-            } else if character == active {
-                quote = None;
-            }
-            continue;
-        }
-        if matches!(character, '\'' | '"' | '`') {
-            quote = Some(character);
-            continue;
-        }
-        match character {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(rest[index + character.len_utf8()..].trim_start());
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
 fn starts_with_js_keyword(output: &str, keyword: &str) -> bool {
     let Some(rest) = output.strip_prefix(keyword) else {
         return false;
@@ -17204,7 +17516,13 @@ fn is_statement_keyword_prefix(output: &str) -> bool {
 }
 
 fn is_comma_eligible_statement(output: &str) -> bool {
-    is_braceless_statement(output) && !is_statement_keyword_prefix(output)
+    // A spelling screen for legacy expression compaction only. Statement/body
+    // boundaries are carried by EmittedStatements at their emission owners.
+    let expression = output.strip_suffix(';').unwrap_or(output);
+    !expression.is_empty()
+        && !expression.starts_with('{')
+        && !is_statement_keyword_prefix(output)
+        && !expression_has_top_level_statement_break(expression)
 }
 
 fn compact_branch_expression(output: &str) -> Option<&str> {
@@ -17937,28 +18255,28 @@ fn host_alias_base_rhs(alias: &JsHostAlias, parent_names: &AHashMap<&str, String
     alias.spelling.to_string()
 }
 
-fn conservative_regex_literal(pattern: &str, flags: &str) -> Option<String> {
-    crate::js_regex::es2022_regex_literal(pattern, flags)
-}
-
 fn regex_literal_for_arguments(
     args: &[ValueId],
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
     quote: StringQuote,
 ) -> Option<String> {
     if !(1..=2).contains(&args.len()) {
         return None;
     }
-    let pattern = string_constants.get(args.first()?)?;
+    let pattern = string_constants.get(args.first()?)?.as_unicode()?;
     let flags = args
         .get(1)
-        .map(|value| string_constants.get(value).map(String::as_str))
+        .map(|value| {
+            string_constants
+                .get(value)
+                .and_then(StringValue::as_unicode)
+        })
         .unwrap_or(Some(""))?;
-    let literal = conservative_regex_literal(pattern, flags)?;
+    let literal = crate::js_regex::literal_from_decoded(pattern, flags)?;
     let constructor_len = "new RegExp()".len()
         + args
             .iter()
-            .map(|arg| render_string_literal(&string_constants[arg], quote).len())
+            .map(|arg| render_string_value(&string_constants[arg], quote).len())
             .sum::<usize>()
         + args.len().saturating_sub(1);
     (literal.len() < constructor_len).then_some(literal)
@@ -17981,7 +18299,7 @@ fn literalized_regex_argument_values(
         .flat_map(|block| &block.instructions)
         .filter_map(|instruction| match (instruction.out, &instruction.op) {
             (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
-                Some((out, value.to_string()))
+                Some((out, value.clone()))
             }
             _ => None,
         })
@@ -18023,7 +18341,7 @@ struct LocalNames {
     observable_values: AHashSet<ValueId>,
     cached_observable: RefCell<AHashSet<ValueId>>,
     inlined_values: AHashMap<ValueId, JsExpression>,
-    string_constants: AHashMap<ValueId, String>,
+    string_constants: AHashMap<ValueId, StringValue>,
     global_loads: AHashMap<ValueId, SymbolId>,
     integer_ranges: AHashMap<ValueId, crate::value_analysis::I32Range>,
     elidable_i32_coercions: AHashSet<ValueId>,
@@ -18199,6 +18517,64 @@ impl ExpressionRegionState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EmittedStatementKind {
+    Expression,
+    Closed,
+    Declaration,
+    UnmatchedIf,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum EmittedStatements {
+    #[default]
+    Empty,
+    Single(EmittedStatementKind),
+    Multiple,
+    // A byte edit removed earlier statements without retaining their shape.
+    // This is not evidence for a single statement and never permits elision.
+    Uncertified,
+}
+
+impl EmittedStatements {
+    fn one(kind: EmittedStatementKind) -> Self {
+        Self::Single(kind)
+    }
+
+    fn append(&mut self, next: Self) {
+        *self = match (*self, next) {
+            (Self::Empty, next) => next,
+            (previous, Self::Empty) => previous,
+            (Self::Uncertified, _) | (_, Self::Uncertified) => Self::Uncertified,
+            _ => Self::Multiple,
+        };
+    }
+
+    fn push(&mut self, kind: EmittedStatementKind) {
+        self.append(Self::one(kind));
+    }
+
+    fn allows_braceless(self) -> bool {
+        matches!(
+            self,
+            Self::Single(EmittedStatementKind::Expression | EmittedStatementKind::Closed)
+        )
+    }
+
+    fn finish(self, end: PathEnd) -> EmittedPath {
+        EmittedPath {
+            end,
+            statements: self,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct EmittedPath {
+    end: PathEnd,
+    statements: EmittedStatements,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PathEnd {
     ReachedStop,
     Terminated,
@@ -18337,8 +18713,8 @@ const FRESH_OBJECT_PREFIX_LIMIT: usize = 8;
 
 fn plain_object_seed(
     instruction: &ControlFlowInstruction<'_>,
-    string_constants: &AHashMap<ValueId, String>,
-) -> Option<(ValueId, Vec<(String, ValueId)>)> {
+    string_constants: &AHashMap<ValueId, StringValue>,
+) -> Option<(ValueId, Vec<(StringValue, ValueId)>)> {
     match &instruction.op {
         ControlFlowOp::Intrinsic {
             intrinsic: Intrinsic::JsPlainObject,
@@ -18349,7 +18725,7 @@ fn plain_object_seed(
             let mut pairs = Vec::with_capacity(args.len() / 2);
             for chunk in args.chunks_exact(2) {
                 let key = string_constants.get(&chunk[0])?.clone();
-                if decoded_source_string(&key) == "__proto__" {
+                if key.as_unicode() == Some("__proto__") {
                     return None;
                 }
                 pairs.push((key, chunk[1]));
@@ -18363,9 +18739,9 @@ fn plain_object_seed(
 fn property_write_to_object(
     instruction: &ControlFlowInstruction<'_>,
     object: ValueId,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
     uses: &AHashMap<ValueId, usize>,
-) -> Option<(String, ValueId)> {
+) -> Option<(StringValue, ValueId)> {
     let (target, key, value) = property_assign_parts(instruction, string_constants, uses)?;
     (target == object && value != object).then_some((key, value))
 }
@@ -18379,9 +18755,9 @@ fn instruction_mentions_value(instruction: &ControlFlowInstruction<'_>, value: V
 
 fn property_assign_parts(
     instruction: &ControlFlowInstruction<'_>,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
     uses: &AHashMap<ValueId, usize>,
-) -> Option<(ValueId, String, ValueId)> {
+) -> Option<(ValueId, StringValue, ValueId)> {
     if instruction
         .out
         .is_some_and(|value| uses.get(&value).copied().unwrap_or(0) != 0)
@@ -18395,49 +18771,56 @@ fn property_assign_parts(
             value,
         } => {
             let key = string_constants.get(index)?;
-            let decoded = decoded_source_string(key);
-            (decoded != "__proto__").then(|| (*object, key.clone(), *value))
+            let decoded = key.as_unicode();
+            (decoded != Some("__proto__")).then(|| (*object, key.clone(), *value))
         }
         ControlFlowOp::RecordFieldSet {
             object,
             property,
             value,
-        } => (*property != "__proto__").then(|| (*object, (*property).to_string(), *value)),
+        } => (*property != "__proto__").then(|| (*object, (*property).into(), *value)),
         ControlFlowOp::HostFieldSet {
             object,
             property,
             value,
-        } => (*property != "__proto__").then(|| (*object, (*property).to_string(), *value)),
+        } => (*property != "__proto__").then(|| (*object, (*property).into(), *value)),
         _ => None,
     }
 }
 
 fn object_literal_key(source_key: &str, quote: StringQuote) -> String {
-    let decoded = decoded_source_string(source_key);
-    if decoded != "__proto__" && is_js_property_identifier(&decoded) {
-        return decoded;
-    }
-    if decoded == "__proto__" {
-        let mut rendered = String::from("[");
-        rendered.push_str(&render_property_key_literal(source_key, quote));
-        rendered.push(']');
-        return rendered;
-    }
-    // Template literals are not PropertyName tokens, so `{`* text`:v}` is a
-    // syntax error. Fall back to a string literal for punctuated keys.
-    render_property_key_literal(source_key, quote)
+    object_value_key(
+        &StringValue::decode_source(source_key)
+            .expect("source property key validated during lowering"),
+        quote,
+    )
 }
 
-fn push_object_literal_key(out: &mut String, source_key: &str, quote: StringQuote) {
-    out.push_str(&object_literal_key(source_key, quote));
+fn object_value_key(value: &StringValue, quote: StringQuote) -> String {
+    if let Some(text) = value.as_unicode() {
+        if text != "__proto__" && is_js_property_identifier(text) {
+            return text.to_owned();
+        }
+        if text == "__proto__" {
+            return format!("[{}]", render_property_value_literal(value, quote));
+        }
+    }
+    render_property_value_literal(value, quote)
 }
 
-fn render_property_key_literal(value: &str, quote: StringQuote) -> String {
-    // Template literals are expressions, not StringLiteral property tokens.
-    // They are legal inside brackets but only add a distinct spelling family
-    // for a static key; keep property syntax on the quote-specific algorithms
-    // and reserve template candidates for semantic string values.
-    render_string_literal(
+fn push_object_literal_key(out: &mut String, value: &StringValue, quote: StringQuote) {
+    out.push_str(&object_value_key(value, quote));
+}
+
+fn render_property_key_literal(source: &str, quote: StringQuote) -> String {
+    render_property_value_literal(
+        &StringValue::decode_source(source).expect("source property key validated during lowering"),
+        quote,
+    )
+}
+
+fn render_property_value_literal(value: &StringValue, quote: StringQuote) -> String {
+    render_string_value(
         value,
         if quote == StringQuote::Template {
             StringQuote::Double
@@ -19290,7 +19673,7 @@ impl LocalNames {
         all_values: bool,
         parent: &Mangler,
         preferred_local_names: &AHashMap<String, String>,
-        string_aliases: &AHashMap<String, String>,
+        string_aliases: &AHashMap<StringValue, String>,
         numeric_aliases: &AHashMap<String, String>,
         options: &IrJsOptions,
         order_sensitive_inline_pure_helpers: &AHashSet<FunctionId>,
@@ -19377,7 +19760,7 @@ impl LocalNames {
             .flat_map(|block| &block.instructions)
             .filter_map(|instruction| match (instruction.out, &instruction.op) {
                 (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
-                    Some((out, value.to_string()))
+                    Some((out, value.clone()))
                 }
                 _ => None,
             })
@@ -19430,7 +19813,7 @@ impl LocalNames {
                     (inline_cost <= binding_cost).then_some((out, JsExpression::atom(rendered)))
                 }
                 (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
-                    let rendered = render_string_literal(value, options.string_quote);
+                    let rendered = render_string_value(value, options.string_quote);
                     let use_count = uses.get(&out).copied().unwrap_or(0);
                     let inline_cost = rendered.len().saturating_mul(use_count);
                     let binding_cost = rendered.len().saturating_add(7).saturating_add(use_count);
@@ -19442,7 +19825,7 @@ impl LocalNames {
                             || !options.pool_strings
                             || savings < options.string_pool_minimum_savings.max(1)
                             || (!options.pool_identifier_strings
-                                && is_js_property_identifier(value)))
+                                && value.as_unicode().is_some_and(is_js_property_identifier)))
                         .then_some((out, JsExpression::atom(rendered)))
                     }
                 }
@@ -20047,7 +20430,7 @@ impl LocalNames {
         if range.min < 0 {
             return Some(false);
         }
-        let length = self.string_constants.get(&object)?.encode_utf16().count();
+        let length = self.string_constants.get(&object)?.code_units().count();
         Some(range.max < length as i64)
     }
 
@@ -20488,11 +20871,12 @@ fn emit_binding_prefix(
     value: ValueId,
     predeclared: bool,
     out: &mut String,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStatementKind, CodegenError> {
     if context.claim_declaration(value)? {
         out.push_str(if predeclared { "var " } else { "let " });
+        return Ok(EmittedStatementKind::Declaration);
     }
-    Ok(())
+    Ok(EmittedStatementKind::Expression)
 }
 
 fn emit_bound_value(
@@ -20502,10 +20886,18 @@ fn emit_bound_value(
     predeclared: bool,
     cache: &mut ExpressionCache,
     out: &mut String,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStatements, CodegenError> {
     let name = context.value_name(dest)?.to_string();
-    materialize_cache_before_binding_write(context, &name, predeclared, cache, out)?;
-    emit_bound_value_without_cache_flush(context, dest, expression, predeclared, out)
+    let mut statements =
+        materialize_cache_before_binding_write(context, &name, predeclared, cache, out)?;
+    statements.append(emit_bound_value_without_cache_flush(
+        context,
+        dest,
+        expression,
+        predeclared,
+        out,
+    )?);
+    Ok(statements)
 }
 
 fn emit_bound_value_without_cache_flush(
@@ -20514,7 +20906,7 @@ fn emit_bound_value_without_cache_flush(
     expression: JsExpression,
     predeclared: bool,
     out: &mut String,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStatements, CodegenError> {
     let name = context.value_name(dest)?;
     let value = strip_outer_parens(expression);
     if value == name {
@@ -20522,15 +20914,23 @@ fn emit_bound_value_without_cache_flush(
             out.push_str(if predeclared { "var " } else { "let " });
             out.push_str(name);
             out.push(';');
+            return Ok(EmittedStatements::one(EmittedStatementKind::Declaration));
         }
-        return Ok(());
+        return Ok(EmittedStatements::Empty);
     }
-    emit_binding_prefix(context, dest, predeclared, out)?;
+    let declared = context.claim_declaration(dest)?;
+    if declared {
+        out.push_str(if predeclared { "var " } else { "let " });
+    }
     out.push_str(name);
     out.push('=');
     out.push_str(&value);
     out.push(';');
-    Ok(())
+    Ok(EmittedStatements::one(if declared {
+        EmittedStatementKind::Declaration
+    } else {
+        EmittedStatementKind::Expression
+    }))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -21369,7 +21769,7 @@ fn value_is_length_member(function: &ControlFlowFunction<'_>, value: ValueId) ->
                                 && matches!(
                                     &index_instruction.op,
                                     ControlFlowOp::Const(ConstValue::String(value))
-                                        if value == "length"
+                                        if value.as_unicode() == Some("length")
                                 )
                         }),
                     ControlFlowOp::Intrinsic {
@@ -21386,7 +21786,7 @@ fn value_is_length_member(function: &ControlFlowFunction<'_>, value: ValueId) ->
                                     && matches!(
                                         &key_instruction.op,
                                         ControlFlowOp::Const(ConstValue::String(value))
-                                            if value == "length"
+                                            if value.as_unicode() == Some("length")
                                     )
                             })
                     }),
@@ -22797,7 +23197,7 @@ fn member_access_matches_property(rest: &[u8], property: Option<&str>) -> bool {
 
 fn member_write_object_and_property(
     op: &ControlFlowOp<'_>,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> Option<(ValueId, Option<String>)> {
     match op {
         ControlFlowOp::HostFieldSet {
@@ -22809,9 +23209,13 @@ fn member_write_object_and_property(
         ControlFlowOp::FieldSet { object, field, .. } => {
             Some((*object, Some((*field).to_string())))
         }
-        ControlFlowOp::IndexSet { object, index, .. } => {
-            Some((*object, string_constants.get(index).cloned()))
-        }
+        ControlFlowOp::IndexSet { object, index, .. } => Some((
+            *object,
+            string_constants
+                .get(index)
+                .and_then(StringValue::as_unicode)
+                .map(str::to_owned),
+        )),
         _ => None,
     }
 }
@@ -22845,15 +23249,16 @@ fn materialize_cache_before_callee_code(
     predeclared: bool,
     cache: &mut ExpressionCache,
     out: &mut String,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStatements, CodegenError> {
+    let mut statements = EmittedStatements::Empty;
     if !op_can_execute_callee_code(op) {
-        return Ok(());
+        return Ok(statements);
     }
     let consumed = op_values(op);
     if !cache.iter().any(|(value, expression)| {
         !consumed.contains(value) && !js_expression_is_reusable(expression)
     }) {
-        return Ok(());
+        return Ok(statements);
     }
     let mut values = cache.drain().collect::<Vec<_>>();
     values.sort_by_key(|(value, _)| value.0);
@@ -22876,10 +23281,16 @@ fn materialize_cache_before_callee_code(
                 ),
             ));
         }
-        emit_bound_value_without_cache_flush(context, value, expression, predeclared, out)?;
+        statements.append(emit_bound_value_without_cache_flush(
+            context,
+            value,
+            expression,
+            predeclared,
+            out,
+        )?);
     }
     cache.extend(retained);
-    Ok(())
+    Ok(statements)
 }
 
 fn materialize_cache_before_object_member_write(
@@ -22889,16 +23300,17 @@ fn materialize_cache_before_object_member_write(
     predeclared: bool,
     cache: &mut ExpressionCache,
     out: &mut String,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStatements, CodegenError> {
+    let mut statements = EmittedStatements::Empty;
     let Some(name) = context.value_names.get(&object) else {
-        return Ok(());
+        return Ok(statements);
     };
     let name = name.clone();
     if !cache
         .values()
         .any(|expression| js_expression_reads_member(&expression.code, &name, property))
     {
-        return Ok(());
+        return Ok(statements);
     }
     let mut values = cache.drain().collect::<Vec<_>>();
     values.sort_by_key(|(value, _)| value.0);
@@ -22917,10 +23329,16 @@ fn materialize_cache_before_object_member_write(
                 ),
             ));
         }
-        emit_bound_value_without_cache_flush(context, value, expression, predeclared, out)?;
+        statements.append(emit_bound_value_without_cache_flush(
+            context,
+            value,
+            expression,
+            predeclared,
+            out,
+        )?);
     }
     cache.extend(retained);
-    Ok(())
+    Ok(statements)
 }
 
 fn materialize_cache_before_binding_write(
@@ -22929,12 +23347,13 @@ fn materialize_cache_before_binding_write(
     predeclared: bool,
     cache: &mut ExpressionCache,
     out: &mut String,
-) -> Result<(), CodegenError> {
+) -> Result<EmittedStatements, CodegenError> {
+    let mut statements = EmittedStatements::Empty;
     if !cache
         .values()
         .any(|expression| js_expression_reads_binding(&expression.code, name))
     {
-        return Ok(());
+        return Ok(statements);
     }
 
     // A deferred expression is an SSA value, not a disposable rendering hint.
@@ -22959,10 +23378,16 @@ fn materialize_cache_before_binding_write(
             retained.push((value, expression));
             continue;
         }
-        emit_bound_value_without_cache_flush(context, value, expression, predeclared, out)?;
+        statements.append(emit_bound_value_without_cache_flush(
+            context,
+            value,
+            expression,
+            predeclared,
+            out,
+        )?);
     }
     cache.extend(retained);
-    Ok(())
+    Ok(statements)
 }
 
 fn host_wrapper_inline_is_profitable(code: &str) -> bool {
@@ -23581,7 +24006,7 @@ fn value_is_used_outside_expression_region(
     value: ValueId,
     region: &AHashSet<BlockId>,
     result: ValueId,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> bool {
     function.blocks.iter().any(|block| {
         if region.contains(&block.id) {
@@ -23689,10 +24114,12 @@ fn guard_free_string_index_reads(function: &ControlFlowFunction<'_>) -> AHashSet
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
-        .filter_map(|instruction| match (&instruction.op, instruction.out, &instruction.ty) {
-            (ControlFlowOp::IndexGet { .. }, Some(out), Some(Type::String)) => Some(out),
-            _ => None,
-        })
+        .filter_map(
+            |instruction| match (&instruction.op, instruction.out, &instruction.ty) {
+                (ControlFlowOp::IndexGet { .. }, Some(out), Some(Type::String)) => Some(out),
+                _ => None,
+            },
+        )
         .collect::<AHashSet<_>>();
     if candidates.is_empty() {
         return candidates;
@@ -23762,9 +24189,9 @@ fn guard_free_string_index_reads(function: &ControlFlowFunction<'_>) -> AHashSet
             // never read: the guard is dead either way, and dropping it is smaller
             return true;
         };
-        sites.iter().all(|(at, other)| {
-            other.is_some_and(|other| proves_truthy(other, *at, function))
-        })
+        sites
+            .iter()
+            .all(|(at, other)| other.is_some_and(|other| proves_truthy(other, *at, function)))
     });
     candidates
 }
@@ -23784,14 +24211,20 @@ fn undefined_absent_record_reads(
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
-        .filter_map(|instruction| match (&instruction.op, instruction.out, &instruction.ty) {
-            (ControlFlowOp::IndexGet { object, .. }, Some(out), Some(Type::Nullable(inner)))
-                if record_values.contains(object) && !matches!(inner.as_ref(), Type::Nullable(_)) =>
-            {
-                Some(out)
-            }
-            _ => None,
-        })
+        .filter_map(
+            |instruction| match (&instruction.op, instruction.out, &instruction.ty) {
+                (
+                    ControlFlowOp::IndexGet { object, .. },
+                    Some(out),
+                    Some(Type::Nullable(inner)),
+                ) if record_values.contains(object)
+                    && !matches!(inner.as_ref(), Type::Nullable(_)) =>
+                {
+                    Some(out)
+                }
+                _ => None,
+            },
+        )
         .collect::<AHashSet<_>>();
     if candidates.is_empty() {
         return candidates;
@@ -23890,20 +24323,22 @@ fn normalization_free_host_field_reads(
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
-        .filter_map(|instruction| match (&instruction.op, instruction.out, &instruction.ty) {
-            // The `JsValue` receiver is excluded: that path guards the receiver
-            // too (`o?.p??null`), and the guard is not a normalization.
-            (
-                ControlFlowOp::HostFieldGet { object, .. },
-                Some(out),
-                Some(Type::Nullable(inner)),
-            ) if !js_value_values.contains(object)
-                && !matches!(inner.as_ref(), Type::Nullable(_)) =>
-            {
-                Some(out)
-            }
-            _ => None,
-        })
+        .filter_map(
+            |instruction| match (&instruction.op, instruction.out, &instruction.ty) {
+                // The `JsValue` receiver is excluded: that path guards the receiver
+                // too (`o?.p??null`), and the guard is not a normalization.
+                (
+                    ControlFlowOp::HostFieldGet { object, .. },
+                    Some(out),
+                    Some(Type::Nullable(inner)),
+                ) if !js_value_values.contains(object)
+                    && !matches!(inner.as_ref(), Type::Nullable(_)) =>
+                {
+                    Some(out)
+                }
+                _ => None,
+            },
+        )
         .collect::<AHashSet<_>>();
     if candidates.is_empty() {
         return candidates;
@@ -24026,7 +24461,9 @@ fn normalization_free_host_field_reads(
                             None
                         }
                     });
-                    uses.entry(value).or_default().push((block.id, harmless, other));
+                    uses.entry(value)
+                        .or_default()
+                        .push((block.id, harmless, other));
                 }
             }
         }
@@ -24085,14 +24522,14 @@ fn use_counts(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, usize> {
     counts
 }
 
-fn function_string_constants(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, String> {
+fn function_string_constants(function: &ControlFlowFunction<'_>) -> AHashMap<ValueId, StringValue> {
     function
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
         .filter_map(|instruction| match (instruction.out, &instruction.op) {
             (Some(out), ControlFlowOp::Const(ConstValue::String(value))) => {
-                Some((out, value.to_string()))
+                Some((out, value.clone()))
             }
             _ => None,
         })
@@ -24158,7 +24595,7 @@ fn mangleable_internal_js_key(name: &str) -> bool {
 
 fn js_member_keys_in_op(
     op: &ControlFlowOp<'_>,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> Vec<String> {
     match op {
         ControlFlowOp::RecordFieldGet { property, .. }
@@ -24206,7 +24643,8 @@ fn js_member_keys_in_op(
             .filter_map(|pair| {
                 string_constants
                     .get(&pair[0])
-                    .and_then(|key| is_js_property_identifier(key).then(|| key.clone()))
+                    .and_then(StringValue::as_unicode)
+                    .and_then(|key| is_js_property_identifier(key).then(|| key.to_owned()))
             })
             .collect(),
         _ => Vec::new(),
@@ -24289,7 +24727,7 @@ fn names_reachable_from_program_strings(module: &ControlFlowModule<'_>) -> AHash
         .filter(|name| {
             strings
                 .iter()
-                .any(|text| text.len() >= name.len() && text.contains(name.as_str()))
+                .any(|text| text.contains_unicode(name.as_str()))
         })
         .collect()
 }
@@ -24301,14 +24739,14 @@ fn names_reachable_from_program_strings(module: &ControlFlowModule<'_>) -> AHash
 /// what makes the rule usable at all: in `JS.object("overrightarrow", ...)` the
 /// key arrives as a string constant too, so a pool that kept those would contain
 /// every key and preserve all of them.
-fn escaping_string_constants(function: &ControlFlowFunction<'_>) -> AHashSet<String> {
+fn escaping_string_constants(function: &ControlFlowFunction<'_>) -> AHashSet<StringValue> {
     let constants = function
         .blocks
         .iter()
         .flat_map(|block| &block.instructions)
         .filter_map(|instruction| match (instruction.out, &instruction.op) {
             (Some(out), ControlFlowOp::Const(ConstValue::String(text))) => {
-                Some((out, (*text).to_string()))
+                Some((out, text.clone()))
             }
             _ => None,
         })
@@ -24335,19 +24773,15 @@ fn escaping_string_constants(function: &ControlFlowFunction<'_>) -> AHashSet<Str
 
 fn static_identifier_property(
     index: ValueId,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> Option<&str> {
-    let property = string_constants.get(&index)?;
-    // Only emit source spellings that are already valid IdentifierNames.
-    // A string escape such as `\x61` can decode to an identifier character
-    // while still being illegal in JavaScript member syntax; those keys must
-    // retain computed-property semantics.
-    (property != "__proto__" && is_js_property_identifier(property)).then_some(property.as_str())
+    let property = string_constants.get(&index)?.as_unicode()?;
+    (property != "__proto__" && is_js_property_identifier(property)).then_some(property)
 }
 
 fn codegen_op_values(
     op: &ControlFlowOp<'_>,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> Vec<ValueId> {
     match op {
         ControlFlowOp::IndexGet { object, index }
@@ -24408,7 +24842,7 @@ fn codegen_op_values(
 
 fn codegen_use_counts(
     function: &ControlFlowFunction<'_>,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> AHashMap<ValueId, usize> {
     let mut counts = AHashMap::default();
     let mut add = |value| *counts.entry(value).or_insert(0) += 1;
@@ -25332,7 +25766,7 @@ fn can_fuse_global_host_receiver(
 
 fn codegen_cross_block_values(
     function: &ControlFlowFunction<'_>,
-    string_constants: &AHashMap<ValueId, String>,
+    string_constants: &AHashMap<ValueId, StringValue>,
 ) -> AHashSet<ValueId> {
     let mut definitions = AHashMap::default();
     for block in &function.blocks {
@@ -26322,7 +26756,7 @@ fn trace_dense_constant_string_return(
     function: &ControlFlowFunction<'_>,
     current: BlockId,
     visited: &mut AHashSet<BlockId>,
-) -> Option<String> {
+) -> Option<StringValue> {
     let current = trace_dense_empty_jumps(function, current, visited)?;
     if !visited.insert(current) {
         return None;
@@ -26338,10 +26772,6 @@ fn trace_dense_constant_string_return(
     };
     matches!(block.terminator, Some(Terminator::Return(Some(returned))) if returned == out)
         .then(|| value.clone())
-}
-
-fn json_safe_string_fragment(value: &str) -> bool {
-    serde_json::from_str::<String>(&format!("\"{value}\"")).is_ok()
 }
 
 fn op_has_side_effects(op: &ControlFlowOp<'_>) -> bool {
@@ -26452,7 +26882,7 @@ fn render_const(value: &ConstValue, compact_boolean_literals: bool, quote: Strin
         ConstValue::Bool(true) if compact_boolean_literals => "!0".to_string(),
         ConstValue::Bool(false) if compact_boolean_literals => "!1".to_string(),
         ConstValue::Bool(value) => value.to_string(),
-        ConstValue::String(value) => render_string_literal(value, quote),
+        ConstValue::String(value) => render_string_value(value, quote),
         ConstValue::Null => "null".to_string(),
     }
 }
@@ -26613,104 +27043,48 @@ fn render_js_type_check(
     })
 }
 
-fn render_string_literal(value: &str, quote: StringQuote) -> String {
+fn render_string_value(value: &StringValue, quote: StringQuote) -> String {
+    crate::js_string::literal(
+        value,
+        match quote {
+            StringQuote::Double => '"',
+            StringQuote::Single => '\'',
+            StringQuote::Template => '`',
+        },
+    )
+}
+
+fn render_string_literal(source: &str, quote: StringQuote) -> String {
+    render_string_value(
+        &StringValue::decode_source(source).expect("source string validated during lowering"),
+        quote,
+    )
+}
+
+/// Static import/export grammar accepts quoted strings, never templates.
+fn render_module_specifier(source: &str, quote: StringQuote) -> String {
+    render_module_value(
+        &StringValue::decode_source(source).expect("module source validated during lowering"),
+        quote,
+    )
+}
+
+fn render_module_value(value: &StringValue, quote: StringQuote) -> String {
+    if quote == StringQuote::Single {
+        return render_string_value(value, quote);
+    }
+    let double = render_string_value(value, StringQuote::Double);
     if quote == StringQuote::Template {
-        // LilScript keeps the source spelling of string contents. JSON is a
-        // useful decoder for the common subset, but valid JavaScript strings
-        // may contain raw horizontal tabs (and escapes such as `\v`) that JSON
-        // rejects. Treating the undecoded spelling as semantic text would
-        // escape every existing backslash a second time. Keep the original
-        // double-quoted spelling when conversion cannot be proven sound.
-        let Ok(decoded) = serde_json::from_str::<String>(&format!("\"{value}\"")) else {
-            return format!("\"{value}\"");
-        };
-        let mut rendered = String::with_capacity(decoded.len() + 2);
-        rendered.push('`');
-        let mut pending_dollar = false;
-        for character in decoded.chars() {
-            match character {
-                '`' | '\\' => {
-                    rendered.push('\\');
-                    rendered.push(character);
-                }
-                '{' if pending_dollar => rendered.push_str("\\{"),
-                '\u{2028}' => rendered.push_str("\\u2028"),
-                '\u{2029}' => rendered.push_str("\\u2029"),
-                _ => rendered.push(character),
-            }
-            pending_dollar = character == '$';
-        }
-        rendered.push('`');
-        return rendered;
-    }
-    if quote == StringQuote::Double {
-        return format!("\"{value}\"");
-    }
-    let encoded = format!("\"{value}\"");
-    let Ok(decoded) = serde_json::from_str::<String>(&encoded) else {
-        return encoded;
-    };
-    let mut rendered = String::with_capacity(decoded.len() + 2);
-    rendered.push('\'');
-    for character in decoded.chars() {
-        match character {
-            '\'' => rendered.push_str("\\'"),
-            '\\' => rendered.push_str("\\\\"),
-            '\u{0008}' => rendered.push_str("\\b"),
-            '\u{000c}' => rendered.push_str("\\f"),
-            '\n' => rendered.push_str("\\n"),
-            '\r' => rendered.push_str("\\r"),
-            '\t' => rendered.push_str("\\t"),
-            '\u{2028}' => rendered.push_str("\\u2028"),
-            '\u{2029}' => rendered.push_str("\\u2029"),
-            control if control <= '\u{001f}' => {
-                write!(rendered, "\\u{:04x}", control as u32)
-                    .expect("writing to a string cannot fail");
-            }
-            _ => rendered.push(character),
+        let single = render_string_value(value, StringQuote::Single);
+        if single.len() < double.len() {
+            return single;
         }
     }
-    rendered.push('\'');
-    rendered
+    double
 }
 
-/// Render a static ESM module source. Unlike expression strings, the grammar
-/// does not admit a template literal after `import` or `from`. A template-mode
-/// emission candidate therefore chooses the shorter legal quote spelling. If
-/// the source payload is not JSON-decodable, retain its original double-quoted
-/// escape spelling rather than risk changing the requested module specifier.
-fn render_module_specifier(value: &str, quote: StringQuote) -> String {
-    let double = render_string_literal(value, StringQuote::Double);
-    let single = (quote != StringQuote::Double)
-        .then(|| {
-            serde_json::from_str::<String>(&format!("\"{value}\""))
-                .ok()
-                .map(|_| render_string_literal(value, StringQuote::Single))
-        })
-        .flatten();
-
-    match (quote, single) {
-        (StringQuote::Single, Some(single)) => single,
-        (StringQuote::Template, Some(single)) if single.len() < double.len() => single,
-        _ => double,
-    }
-}
-
-/// Generated chunk names are semantic string values rather than raw source
-/// payloads. Encode them first so quotes, backslashes, controls, and separators
-/// cannot escape the static module StringLiteral.
 fn render_generated_module_specifier(value: &str, quote: StringQuote) -> String {
-    let encoded = serde_json::to_string(value).expect("a Rust string is JSON-encodable");
-    let payload = encoded
-        .strip_prefix('"')
-        .and_then(|value| value.strip_suffix('"'))
-        .expect("a JSON string has quote delimiters");
-    render_module_specifier(payload, quote)
-}
-
-fn decoded_source_string(value: &str) -> String {
-    let encoded = format!("\"{value}\"");
-    serde_json::from_str(&encoded).unwrap_or_else(|_| value.to_string())
+    render_module_value(&value.into(), quote)
 }
 
 fn packed_string_array(
@@ -26723,7 +27097,12 @@ fn packed_string_array(
     }
     let strings = values
         .iter()
-        .map(|value| context.string_constants.get(value).map(String::as_str))
+        .map(|value| {
+            context
+                .string_constants
+                .get(value)
+                .and_then(StringValue::as_unicode)
+        })
         .collect::<Option<Vec<_>>>()?;
     [",", " ", "|", ";", "~", ":"]
         .into_iter()
@@ -26731,7 +27110,7 @@ fn packed_string_array(
         .map(|delimiter| {
             format!(
                 "{}.split({})",
-                render_string_literal(&strings.join(delimiter), quote),
+                render_string_value(&strings.join(delimiter).into(), quote),
                 render_string_literal(delimiter, quote)
             )
         })
@@ -28398,6 +28777,29 @@ mod tests {
         }
     }
 
+    /// Whether an export clause publishes `public`, by the binding's own name
+    /// (an exported function under D2) or through a rename.
+    fn exports_public(code: &str, public: &str) -> bool {
+        code.split("export{").skip(1).any(|clause| {
+            clause
+                .split('}')
+                .next()
+                .unwrap_or("")
+                .split(',')
+                .any(|item| item.trim() == public || item.trim().ends_with(&format!(" as {public}")))
+        })
+    }
+
+    /// The emitted binding behind a public export. An exported function now
+    /// carries its public name itself (`export{scan}`); older output renamed a
+    /// mangled binding (`export{b as scan}`).
+    fn exported_binding<'a>(output: &'a str, public: &'a str) -> &'a str {
+        match output.find(&format!(" as {public}")) {
+            Some(at) => output[..at].rsplit(['{', ',', ' ']).next().unwrap_or(public),
+            None => public,
+        }
+    }
+
     fn run_javascript(script: &str) -> String {
         let mut command = std::process::Command::new("node");
         if script.contains("export{") || script.contains("export {") {
@@ -28668,11 +29070,7 @@ mod tests {
             1,
             "inner && leftover rematerialized chunkFlow:\n{output}"
         );
-        let exported = output
-            .split(" as scan")
-            .next()
-            .and_then(|prefix| prefix.rsplit(['{', ',', ' ']).next())
-            .unwrap_or("scan");
+        let exported = exported_binding(&output, "scan");
         let body = output.split("export{").next().unwrap_or(&output);
         let script = format!(
             "{body};const events=[['enter',{{type:'x'}}],['enter',{{type:'chunkFlow'}}]];process.stdout.write(String({exported}(events)))"
@@ -28710,11 +29108,7 @@ mod tests {
                 }
             "#,
         );
-        let exported = output
-            .split(" as scan")
-            .next()
-            .and_then(|prefix| prefix.rsplit(['{', ',', ' ']).next())
-            .unwrap_or("scan");
+        let exported = exported_binding(&output, "scan");
         let body = output.split("export{").next().unwrap_or(&output);
         let script = format!(
             "{body};const events=[['enter',{{type:'listItemPrefix'}}],['enter',{{type:'chunkFlow',_container:true}}]];process.stdout.write(String({exported}(events)))"
@@ -31018,8 +31412,8 @@ install();
         assert_eq!(chunks[1].file_name, "shared.js");
         assert!(chunks[0].code.contains("from\"./shared.js\""));
         assert!(chunks[1].code.contains("from'./entry\".js'"));
-        assert!(chunks[0].code.contains(" as apply"));
-        assert!(chunks[0].code.contains(" as read"));
+        assert!(exports_public(&chunks[0].code, "apply"), "{}", chunks[0].code);
+        assert!(exports_public(&chunks[0].code, "read"), "{}", chunks[0].code);
         for chunk in &chunks {
             assert!(!chunk.code.contains("from`"), "{}", chunk.code);
             assert_javascript_module_parses(&chunk.code);
@@ -31727,6 +32121,54 @@ print(scale.factor);
     }
 
     #[test]
+    fn public_class_defaults_preserve_omitted_calls_and_method_arity() {
+        let output = compile_module_with_options(
+            r#"
+class Counter {
+  int value;
+  init(int value = 7) { this.value = value; }
+  int add(int amount, bool enabled = true) {
+    if (enabled) { this.value += amount; }
+    return this.value;
+  }
+  int read(int? fallback = null) {
+    if (fallback != null) { return fallback; }
+    return this.value;
+  }
+  int ignored(int required, int other) { return this.value; }
+  JsValue missing(JsValue value = JS.undefined()) { return value; }
+}
+export constructor Counter;
+"#,
+            IrJsOptions {
+                mangle_identifiers: false,
+                mangle_properties: false,
+                ..IrJsOptions::default()
+            },
+        );
+        let result = run_javascript(&format!(
+            "{output};const c=new Counter();console.log(JSON.stringify([Counter.length,c.add.length,c.read.length,c.ignored.length,c.read(),c.add(2),c.add(5,false),c.read(3),c.read(undefined),c.missing.length,c.missing()===undefined]));"
+        ));
+        assert_eq!(result.trim(), "[0,1,0,2,7,9,9,3,9,0,true]", "{output}");
+    }
+
+    #[test]
+    fn public_class_rejects_caller_materialized_defaults() {
+        for source in [
+            "class Queue { init(int[] values=[]) {} } export constructor Queue;",
+            "class Queue { init() {} int size(int[] values=[]) { return values.length; } } export constructor Queue;",
+        ] {
+            let arena = Bump::new();
+            let program = parse_source(&arena, source).unwrap();
+            let semantics = analyze(&program).unwrap();
+            let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+            optimize_control_flow_for_module(&mut ir).unwrap();
+            let error = emit_optimized_ir_js_module(&ir).unwrap_err();
+            assert!(error.message.contains("typed LilScript caller"), "{error}");
+        }
+    }
+
+    #[test]
     fn materializes_class_defaults_before_constructor_writes() {
         let readable = IrJsOptions {
             mangle_identifiers: false,
@@ -31966,6 +32408,22 @@ print(scale.factor);
             "let events=[];globalThis.Map=class{{constructor(){{events.push('map')}}}};function read(){{events.push('read');return 7}}function inspect(cache){{events.push('inspect:'+cache[1])}}{output};process.stdout.write('TRACE:'+events.join(','))"
         ));
         assert_eq!(trace, "TRACE:read,map,inspect:7", "{trace}\n{output}");
+    }
+
+    /// A class extending a host class constructs host objects, so it stays a
+    /// real `class ... extends Error` whether or not it is exported, and its
+    /// constructor calls the host constructor with `super(...)` first.
+    /// Dissolving it into flat data used to strand `super` outside any class.
+    #[test]
+    fn an_internal_class_extending_a_host_class_is_a_real_subclass() {
+        let output = compile(
+            "extern class Error{string message;string name;init(string message);}class Problem extends Error{string code;init(string message,string code){super(message);this.code=code;}}Problem p=new Problem(\"disk full\",\"E42\");print(`${p.message}|${p.code}|${p.name}`);",
+        );
+        assert!(output.contains("extends Error"), "{output}");
+        assert!(output.contains("super("), "{output}");
+        assert!(!output.contains("Error$"), "the host class must not be re-declared: {output}");
+        let trace = run_javascript(&output);
+        assert_eq!(trace, "disk full|E42|Error\n", "{trace}\n{output}");
     }
 
     #[test]
@@ -34168,6 +34626,95 @@ run();
     }
 
     #[test]
+    fn public_class_members_do_not_strand_private_helper_bindings() {
+        let source = r#"
+            int h1(int x) { if (x < 0) { return 0; } return x + 1; }
+            int h2(int x) { if (x < 0) { return 0; } return x + 2; }
+            int h3(int x) { if (x < 0) { return 0; } return x + 3; }
+            int h4(int x) { if (x < 0) { return 0; } return x + 4; }
+            class Handle {
+                int value;
+                init(int x) { this.value = h1(x) + h2(x) + h3(x) + h4(x); }
+                int read() { return this.value; }
+            }
+            export constructor Handle;
+        "#;
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                inlining: false,
+                ..OptimizationOptions::default()
+            },
+            true,
+        )
+        .unwrap();
+        let js_options = IrJsOptions {
+            mangle_identifiers: true,
+            iife_private_callee_clusters: true,
+            local_name_reserve: 48,
+            ..IrJsOptions::default()
+        };
+        let mut emitter = IrJsEmitter::new(&ir, true, js_options.clone());
+        emitter.prepare();
+        let constructor = ir
+            .functions
+            .iter()
+            .find(|function| matches!(function.kind, FunctionKind::Constructor { class: "Handle" }))
+            .unwrap()
+            .id;
+        let helpers = ir
+            .functions
+            .iter()
+            .filter(|function| {
+                function.live
+                    && function.name.is_some_and(|name| name.starts_with('h'))
+                    && matches!(function.kind, FunctionKind::Function)
+            })
+            .map(|function| function.id)
+            .collect::<Vec<_>>();
+        assert!(!helpers.is_empty());
+        // Search may select this intermediate ownership before native-class
+        // emission. The release step must restore usable helper bindings.
+        emitter
+            .private_callee_clusters
+            .insert(constructor, helpers.clone());
+        for helper in &helpers {
+            emitter.function_names.remove(helper);
+        }
+        emitter.reconcile_clustered_helpers();
+        emitter.release_stranded_cluster_helpers();
+        assert!(!emitter.private_callee_clusters.contains_key(&constructor));
+        assert!(helpers
+            .iter()
+            .all(|helper| emitter.function_names.contains_key(helper)));
+        let output = emit_optimized_ir_js_module_with_options(&ir, &js_options).unwrap();
+        assert_javascript_module_parses(&output);
+        let trace = run_javascript(&format!(
+            "const ns=await import('data:text/javascript,'+encodeURIComponent({output:?}));console.log(new ns.Handle(7).read())"
+        ));
+        assert_eq!(trace, "38\n", "{output}");
+    }
+
+    #[test]
+    fn type_annotations_do_not_emit_runtime_validation() {
+        let output = compile_module(
+            "export float add(float a,float b){return a+b;}export string label(string value){return value;}export bool flag(bool value){return value;}export bool checked(JsValue value){return value is float;}"
+        );
+        // Only the explicit `is float` expression requests a runtime check.
+        assert_eq!(output.matches("typeof").count(), 1, "{output}");
+        assert!(!output.contains("Array.isArray"), "{output}");
+        assert!(!output.contains("Number("), "{output}");
+        let trace = run_javascript(&format!(
+            "const ns=await import('data:text/javascript,'+encodeURIComponent({output:?}));console.log(ns.add(2,3),ns.label('x'),ns.flag(true),ns.checked(3),ns.checked('3'))"
+        ));
+        assert_eq!(trace, "5 x true true false\n", "{output}");
+    }
+
+    #[test]
     fn loop_index_survives_nullable_map_get_in_the_body() {
         let source = r#"
             int total=0;
@@ -34948,7 +35495,7 @@ consume(field(JS.object("type", 1), "type"));
         assert!(order_scalar_assignments(&swap).is_none());
         assert_eq!(
             scalar_parallel_assignments(&swap, Some(("c", true))),
-            Some("var c=a;a=b;b=c;".to_string())
+            Some(("var c=a;a=b;b=c;".to_string(), EmittedStatements::Multiple))
         );
         assert_eq!(
             replace_identifier("a+(data.a||\"a\")", "a", "b"),
@@ -34963,7 +35510,7 @@ consume(field(JS.object("type", 1), "type"));
                 ],
                 Some(("c", true)),
             ),
-            Some("a=b;b=data.a;".to_string())
+            Some(("a=b;b=data.a;".to_string(), EmittedStatements::Multiple))
         );
         assert_eq!(
             scalar_parallel_assignments(
@@ -34973,7 +35520,10 @@ consume(field(JS.object("type", 1), "type"));
                 ],
                 Some(("c", true)),
             ),
-            Some("var c=a;a=b;b=`${c}`;".to_string())
+            Some((
+                "var c=a;a=b;b=`${c}`;".to_string(),
+                EmittedStatements::Multiple
+            ))
         );
     }
 
@@ -35103,12 +35653,14 @@ consume(field(JS.object("type", 1), "type"));
             },
         );
 
-        assert!(baseline.contains("function a(a,b)"), "{baseline}");
+        // The exported function keeps its public name (D2); the parameters are
+        // what the frequency ordering decides.
+        assert!(baseline.contains("function run(a,b)"), "{baseline}");
         assert!(
             baseline.contains("sink(b);sink(b);sink(b);sink(a)"),
             "{baseline}"
         );
-        assert!(weighted.contains("function a(b,a)"), "{weighted}");
+        assert!(weighted.contains("function run(b,a)"), "{weighted}");
         assert!(
             weighted.contains("sink(a);sink(a);sink(a);sink(b)"),
             "{weighted}"
@@ -35129,10 +35681,12 @@ consume(field(JS.object("type", 1), "type"));
         // string. The preceding `\\n` must remain one regex escape at runtime,
         // rather than becoming a regex that matches a literal backslash.
         let pattern = "^a\\\\nb\t$";
-        let double = render_string_literal(pattern, StringQuote::Double);
-        for quote in [StringQuote::Single, StringQuote::Template] {
+        for quote in [
+            StringQuote::Double,
+            StringQuote::Single,
+            StringQuote::Template,
+        ] {
             let rendered = render_string_literal(pattern, quote);
-            assert_eq!(rendered, double);
             assert_eq!(
                 run_javascript(&format!(
                     "process.stdout.write(String(new RegExp({rendered}).test('a\\nb\\t')))"
@@ -35666,27 +36220,40 @@ consume(field(JS.object("type", 1), "type"));
         assert!(!inclusive.contains("++"), "{inclusive}");
     }
 
+    /// `charCodeAt` keeps its `|0` unless the index is proven in bounds, and
+    /// nothing proves that here.
+    ///
+    /// This test previously asserted the opposite, under the name
+    /// `..._when_proven`, on a source that proves nothing: `read()` returns a
+    /// `string` of unknown length, so `read().charCodeAt(0)` is NaN whenever it
+    /// returns `""`. `NaN|0` is `0`, so eliding the coercion turned a
+    /// source-correct `0` into `NaN` — and `value_analysis` marked the
+    /// intrinsic elidable unconditionally, so it happened under the *default*
+    /// `priority = "size-first"`:
+    ///
+    ///     int codeAt(string t, int i) { return t.charCodeAt(i); }
+    ///     print(codeAt("ab", -1));   // printed NaN, must print 0
+    ///
+    /// The range 0..=65535 remains exact for the value *after* its `|0`, which
+    /// is where the declared `int` comes from; only the elidability was wrong.
+    /// Re-enabling the elision needs an in-bounds proof over the index and the
+    /// receiver's length — a real analysis, not a property of the intrinsic.
     #[test]
-    fn elides_char_code_at_integer_normalization_when_proven() {
+    fn keeps_char_code_at_integer_normalization_without_a_bounds_proof() {
         let source = "extern string read();print(read().charCodeAt(0));";
-        let elided = compile_with_options(source, IrJsOptions::default());
-        assert!(elided.contains("charCodeAt("), "{elided}");
-        assert!(
-            !elided.contains("charCodeAt(0)|0"),
-            "expected elided |0 after charCodeAt: {elided}"
-        );
-
-        let normalized = compile_with_options(
-            source,
+        for options in [
+            IrJsOptions::default(),
             IrJsOptions {
                 elide_safe_integer_coercions: false,
                 ..IrJsOptions::default()
             },
-        );
-        assert!(
-            normalized.contains("charCodeAt(0)|0"),
-            "expected |0 when elision is disabled: {normalized}"
-        );
+        ] {
+            let output = compile_with_options(source, options);
+            assert!(
+                output.contains("charCodeAt(0)|0"),
+                "charCodeAt may be NaN out of bounds, so the |0 is load-bearing: {output}"
+            );
+        }
     }
 
     #[test]
@@ -36365,11 +36932,20 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
-    fn dense_string_table_json_fragment_validation_is_fail_closed() {
-        assert!(json_safe_string_fragment("plain"));
-        assert!(json_safe_string_fragment("escaped\\nline"));
-        assert!(!json_safe_string_fragment("literal\nline"));
-        assert!(!json_safe_string_fragment("unterminated\\"));
+    fn dense_string_tables_serialize_decoded_values() {
+        let source = r#"extern int read();string label(int i){if(i==0){return "a\n";}if(i==1){return "\ud800";}return "\\";}print(label(read()&1).charCodeAt(0));"#;
+        let code = compile_without_inlining_with_options(
+            source,
+            false,
+            IrJsOptions {
+                dense_string_return_tables: true,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(
+            run_javascript(&format!("function read(){{return 1}};{code}")),
+            "55296\n"
+        );
     }
 
     #[test]
@@ -36393,8 +36969,206 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
-    fn braceless_accepts_false_apply_short_circuit() {
-        assert!(is_braceless_statement(
+    fn emitted_statement_shapes_compose_without_text_inference() {
+        use EmittedStatementKind::{Closed, Declaration, Expression, UnmatchedIf};
+        let shapes = [
+            EmittedStatements::Empty,
+            EmittedStatements::one(Expression),
+            EmittedStatements::one(Closed),
+            EmittedStatements::one(Declaration),
+            EmittedStatements::one(UnmatchedIf),
+            EmittedStatements::Multiple,
+            EmittedStatements::Uncertified,
+        ];
+        for left in shapes {
+            for middle in shapes {
+                for right in shapes {
+                    let mut lhs = left;
+                    lhs.append(middle);
+                    lhs.append(right);
+                    let mut tail = middle;
+                    tail.append(right);
+                    let mut rhs = left;
+                    rhs.append(tail);
+                    assert_eq!(lhs, rhs);
+                }
+            }
+        }
+        assert!(EmittedStatements::one(Closed).allows_braceless());
+        assert!(EmittedStatements::one(Expression).allows_braceless());
+        for shape in [Declaration, UnmatchedIf] {
+            assert!(!EmittedStatements::one(shape).allows_braceless());
+        }
+        let mut compound_and_tail = EmittedStatements::one(Closed);
+        compound_and_tail.push(Expression);
+        assert_eq!(compound_and_tail, EmittedStatements::Multiple);
+        assert!(!compound_and_tail.allows_braceless());
+    }
+
+    #[test]
+    fn emitted_statement_shapes_keep_try_and_following_assignment_in_branch() {
+        let source = r#"
+            extern int read();
+            int total=0;
+            void absorb(int raw,bool coerce) {
+                int value=raw;
+                if(coerce) {
+                    try { value=raw*2; } catch(auto caught) { return; }
+                    total=total+value;
+                }
+            }
+            absorb(read(),true);
+            absorb(read(),false);
+            print(total);
+        "#;
+        for conditional_expressions in [false, true] {
+            for comma_expressions in [false, true] {
+                for elide_block_terminal_semicolons in [false, true] {
+                    let output = compile_without_inlining_with_options(
+                        source,
+                        false,
+                        IrJsOptions {
+                            conditional_expressions,
+                            comma_expressions,
+                            elide_block_terminal_semicolons,
+                            ..IrJsOptions::default()
+                        },
+                    );
+                    assert_eq!(
+                        run_javascript(&format!("function read(){{return 7}}{output}")),
+                        "14\n",
+                        "{output}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn emitted_statement_shapes_preserve_catch_finally_and_nested_else() {
+        let source = r#"
+            extern bool flag();
+            extern void event(string text);
+            void guard(bool enabled,bool fail) {
+                if(enabled) {
+                    try {
+                        if(fail) { throw "failed"; }
+                        event("try");
+                    } catch(auto error) { event("catch"); }
+                    finally { event("finally"); }
+                    event("after");
+                }
+                event("exit");
+            }
+            void nested(bool outer,bool inner) {
+                if(outer) { if(inner) { event("inner"); } }
+                else { event("outer-else"); }
+            }
+            guard(flag(),flag());
+            guard(flag(),flag());
+            guard(flag(),flag());
+            nested(flag(),flag());
+            nested(flag(),flag());
+        "#;
+        for conditional_expressions in [false, true] {
+            let output = compile_without_inlining_with_options(
+                source,
+                false,
+                IrJsOptions {
+                    conditional_expressions,
+                    ..IrJsOptions::default()
+                },
+            );
+            let trace = run_javascript(&format!(
+                "let flags=[false,false,true,false,true,true,true,false,false,true],events=[];function flag(){{return flags.shift()}}function event(x){{events.push(x)}}{output};process.stdout.write(events.join(','))"
+            ));
+            assert_eq!(
+                trace, "exit,try,finally,after,exit,catch,finally,after,exit,outer-else",
+                "{output}"
+            );
+        }
+    }
+
+    #[test]
+    fn emitted_statement_shapes_keep_compound_iteration_bodies() {
+        let source = r#"
+            extern int limit();
+            extern JsValue object();
+            extern void event(string text);
+            generator int values(){yield 1;yield 2;}
+            void consume() {
+                for(int i=0;i<limit();i++) {
+                    try { event("for"); } catch(auto error) { event("catch"); }
+                    event("after");
+                }
+                for(string key in object()) {
+                    try { event(key); } catch(auto error) { event("catch"); }
+                    event("after");
+                }
+                for(int value of values()) {
+                    try { event("of"); } catch(auto error) { event("catch"); }
+                    event("after");
+                }
+            }
+            consume();
+        "#;
+        for comma_expressions in [false, true] {
+            for loop_spelling in [LoopSpelling::While, LoopSpelling::For, LoopSpelling::Do] {
+                let output = compile_without_inlining_with_options(
+                    source,
+                    false,
+                    IrJsOptions {
+                        comma_expressions,
+                        loop_spelling,
+                        ..IrJsOptions::default()
+                    },
+                );
+                let trace = run_javascript(&format!(
+                    "let events=[];function limit(){{return 2}}function object(){{return {{a:1,b:2}}}}function event(x){{events.push(x)}}{output};process.stdout.write(events.join(','))"
+                ));
+                assert_eq!(
+                    trace, "for,after,for,after,a,after,b,after,of,after,of,after",
+                    "{output}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn emitted_statement_shapes_preserve_declarations_and_captures() {
+        let source = r#"
+            extern bool flag();
+            extern int read();
+            extern void save(func()->int callback);
+            void install(bool enabled) {
+                if(enabled) {
+                    int local=read();
+                    save(()=>local);
+                }
+            }
+            install(flag());
+            install(flag());
+        "#;
+        for function_spelling in [FunctionSpelling::Arrow, FunctionSpelling::Function] {
+            let output = compile_without_inlining_with_options(
+                source,
+                false,
+                IrJsOptions {
+                    conditional_expressions: false,
+                    function_spelling,
+                    ..IrJsOptions::default()
+                },
+            );
+            let trace = run_javascript(&format!(
+                "let flags=[true,false],saved=[],reads=0;function flag(){{return flags.shift()}}function read(){{reads++;return 7}}function save(f){{saved.push(f)}}{output};process.stdout.write(saved.length+':'+saved[0]()+':'+reads)"
+            ));
+            assert_eq!(trace, "1:7:1", "{output}");
+        }
+    }
+
+    #[test]
+    fn comma_statement_accepts_false_apply_short_circuit() {
+        assert!(is_comma_eligible_statement(
             "!1===t[l].apply(o[0],o[1])&&f.stopOnFalse&&(l=t.length,o=!1);"
         ));
         assert!(!expression_has_top_level_statement_break(
@@ -36976,7 +37750,7 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
-    fn module_specifier_quotes_preserve_escapes_and_safe_fallbacks() {
+    fn module_specifier_quotes_preserve_decoded_values() {
         assert_eq!(
             render_module_specifier(
                 r#"./quote-\"double\"-and-'single'-\\slash.js"#,
@@ -36988,10 +37762,19 @@ consume(field(JS.object("type", 1), "type"));
             render_module_specifier("./it's.js", StringQuote::Single),
             r"'./it\'s.js'"
         );
-        assert_eq!(
-            render_module_specifier(r"./legacy-\x2f.js", StringQuote::Single),
-            r#""./legacy-\x2f.js""#
-        );
+        for quote in [
+            StringQuote::Double,
+            StringQuote::Single,
+            StringQuote::Template,
+        ] {
+            let value = render_module_specifier(r"./legacy-\x2f.js", quote);
+            assert!(!value.starts_with('`'));
+            assert_javascript_module_parses(&format!("import {value};"));
+            assert_eq!(
+                run_javascript(&format!("console.log({value})")),
+                "./legacy-/.js\n"
+            );
+        }
     }
 
     #[test]
@@ -37076,6 +37859,66 @@ consume(field(JS.object("type", 1), "type"));
     }
 
     #[test]
+    fn pool_region_admits_a_literal_the_objective_threshold_refuses() {
+        // The same program and the same refusing threshold as
+        // `string_pooling_respects_the_minimum_raw_saving`; the only difference
+        // is that the author pinned the region.
+        let output = compile_with_options(
+            "extern void sink(string value);@pool void table(){sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");}table();",
+            IrJsOptions {
+                pool_strings: true,
+                string_pool_minimum_savings: usize::MAX,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(
+            output.matches("a-repeated-application-string").count(),
+            1,
+            "pinned literal should be spelled once and aliased: {output}"
+        );
+    }
+
+    #[test]
+    fn pool_region_still_refuses_a_literal_that_cannot_pay_for_itself() {
+        // `@pool` lowers the bar to breaking even. It is not a licence to spend
+        // bytes: one occurrence can never pay for a declaration plus an alias.
+        let output = compile_with_options(
+            "extern void sink(string value);@pool void table(){sink(\"a-repeated-application-string\");}table();",
+            IrJsOptions {
+                pool_strings: true,
+                string_pool_minimum_savings: usize::MAX,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(
+            output.matches("a-repeated-application-string").count(),
+            1,
+            "{output}"
+        );
+        assert!(
+            !output.contains("=\"a-repeated-application-string\""),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn an_unpinned_region_is_unaffected_by_the_attribute_existing() {
+        let output = compile_with_options(
+            "extern void sink(string value);void table(){sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");sink(\"a-repeated-application-string\");}table();",
+            IrJsOptions {
+                pool_strings: true,
+                string_pool_minimum_savings: usize::MAX,
+                ..IrJsOptions::default()
+            },
+        );
+        assert_eq!(
+            output.matches("a-repeated-application-string").count(),
+            3,
+            "{output}"
+        );
+    }
+
+    #[test]
     fn emits_lazy_nullish_control_flow() {
         let output = compile(
             "extern string? read();extern string fallback();string? value=read();print(value??fallback());value=read();value??=fallback();print(value);",
@@ -37119,6 +37962,89 @@ consume(field(JS.object("type", 1), "type"));
         assert_eq!(inline.matches("134217729").count(), 4, "{inline}");
         assert_eq!(pooled.matches("134217729").count(), 1, "{pooled}");
         assert!(pooled.len() < inline.len(), "{pooled}\n{inline}");
+    }
+
+    #[test]
+    fn canonical_inline_values_survive_generic_callback_emission() {
+        let source = "extern int read();\
+            bool sameParity(int previous,int next){return previous%2==next%2;}\
+            bool compareWith<T>(T value,func(T,T)->bool compare){return compare(value,value);}\
+            print(compareWith(read(),sameParity));";
+        for function_spelling in [FunctionSpelling::Arrow, FunctionSpelling::Function] {
+            let output = compile_with_options(
+                source,
+                IrJsOptions {
+                    function_spelling,
+                    ..IrJsOptions::default()
+                },
+            );
+            let trace = run_javascript(&format!(
+                "let calls=0;function read(){{calls++;return 7}}{output};process.stdout.write('calls:'+calls)"
+            ));
+            assert_eq!(trace, "true\ncalls:1", "{output}");
+        }
+    }
+
+    #[test]
+    fn canonical_inline_values_keep_pooled_and_literal_representations() {
+        let source = "extern int read();extern string text();\
+            bool sameNumber(int previous,int next){return previous%134217729==next%134217729;}\
+            bool sameText(string previous,string next){return previous.indexOf(\"compression-dictionary-token\")==next.indexOf(\"compression-dictionary-token\");}\
+            bool compareWith<T>(T value,func(T,T)->bool compare){return compare(value,value);}\
+            print(compareWith(read(),sameNumber));print(compareWith(text(),sameText));\
+            print(134217729);print(\"compression-dictionary-token\");";
+        for function_spelling in [FunctionSpelling::Arrow, FunctionSpelling::Function] {
+            for pooling in [false, true] {
+                let output = compile_with_options(
+                    source,
+                    IrJsOptions {
+                        function_spelling,
+                        pool_strings: pooling,
+                        pool_numeric_literals: pooling,
+                        ..IrJsOptions::default()
+                    },
+                );
+                let trace = run_javascript(&format!(
+                    "function read(){{return 7}}function text(){{return 'compression-dictionary-token'}}{output}"
+                ));
+                assert_eq!(
+                    trace, "true\ntrue\n134217729\ncompression-dictionary-token\n",
+                    "{output}"
+                );
+                for literal in ["134217729", "compression-dictionary-token"] {
+                    if pooling {
+                        assert_eq!(output.matches(literal).count(), 1, "{output}");
+                    } else {
+                        assert!(output.matches(literal).count() > 1, "{output}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn canonical_inline_values_do_not_erase_or_repeat_computed_coercions() {
+        let source = "extern JsValue read();\
+            float twice(JsValue value){float converted=JS.number(value);return converted+converted;}\
+            float apply<T>(T value,func(T)->float callback){return callback(value);}\
+            print(apply(read(),twice));";
+        for function_spelling in [FunctionSpelling::Arrow, FunctionSpelling::Function] {
+            let output = compile_with_options(
+                source,
+                IrJsOptions {
+                    function_spelling,
+                    ..IrJsOptions::default()
+                },
+            );
+            let trace = run_javascript(&format!(
+                "let calls=0;function read(){{return {{[Symbol.toPrimitive](){{calls++;return 3}}}}}}{output};process.stdout.write('coercions:'+calls)"
+            ));
+            assert_eq!(trace, "6\ncoercions:1", "{output}");
+            let throwing = run_javascript(&format!(
+                "let calls=0,marker={{}};function read(){{return {{[Symbol.toPrimitive](){{calls++;throw marker}}}}}}try{{{output}}}catch(error){{process.stdout.write(String(error===marker)+':'+calls)}}"
+            ));
+            assert_eq!(throwing, "true:1", "{output}");
+        }
     }
 
     #[test]
@@ -37679,6 +38605,125 @@ print(start(0.5));
                 "let events=[];let target={{a:{first},b:7}};let proxy=new Proxy(target,{{get(object,key){{events.push(key);return object[key]}}}});function input(){{return proxy}};{lazy};process.stdout.write('TRACE:'+events.join(','))"
             ));
             assert_eq!(trace, expected, "{trace}\n{lazy}");
+        }
+    }
+
+    fn compile_region_effect_fixture(source: &str, cse: bool, pooling: bool) -> String {
+        let arena = Bump::new();
+        let program = parse_source(&arena, source).unwrap();
+        let semantics = analyze(&program).unwrap();
+        let mut ir = lower_to_control_flow(&program, &semantics).unwrap();
+        optimize_control_flow_with_options(
+            &mut ir,
+            &OptimizationOptions {
+                constant_parameter_specialization: false,
+                common_subexpression_elimination: cse,
+                inline_instruction_limit: 48,
+                inline_control_flow_limit: 128,
+                inline_growth_limit: Some(40),
+                ..OptimizationOptions::default()
+            },
+            false,
+        )
+        .unwrap();
+        emit_optimized_ir_js_with_options(
+            &ir,
+            &IrJsOptions {
+                pool_strings: pooling,
+                pool_numeric_literals: pooling,
+                ..IrJsOptions::default()
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn region_effect_owners_preserve_stores_across_reused_constants() {
+        // The escaped getter keeps this as real global memory. Without it,
+        // global propagation can turn the counters into unrelated local values
+        // and hide an effect lost during expression-region reconstruction.
+        let source = "int calls=0;extern void observe(func()->int f);observe(()=>calls);\
+            extern int read();bool effect(int value){calls+=1;return (value&1)==0;}\
+            int run(int seed){calls=0;bool a=effect(seed)||effect(seed+1);\
+            bool b=effect(seed+2)&&effect(seed+3);int count=calls;int flags=0;\
+            if(a){flags+=1;}if(b){flags+=2;}return count*10+flags;}print(run(read()));";
+        for cse in [false, true] {
+            for pooling in [false, true] {
+                let output = compile_region_effect_fixture(source, cse, pooling);
+                for (seed, expected) in [(7, "31\ncalls:3"), (8, "31\ncalls:3")] {
+                    let trace = run_javascript(&format!(
+                        "let getCalls;function observe(f){{getCalls=f}}function read(){{return {seed}}};{output};process.stdout.write('calls:'+getCalls())"
+                    ));
+                    assert_eq!(trace, expected, "cse={cse}, pooling={pooling}: {output}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn region_effect_owners_preserve_throw_reentry_and_short_circuit_order() {
+        let source = "int calls=0;extern void observe(func()->int f);observe(()=>calls);\
+            extern int next(int previous);extern bool enabled();extern int read();\
+            bool effect(int value){calls=next(calls);return (value&1)==0;}\
+            bool choose(int value){return effect(value)||effect(value+1);}\
+            print(enabled()&&choose(read()));print(calls);";
+        for cse in [false, true] {
+            let output = compile_region_effect_fixture(source, cse, true);
+            for (enabled, fail, seed, expected) in [
+                (false, false, 7, "false\n0\nTRACE:enabled;calls:0"),
+                (false, true, 7, "false\n0\nTRACE:enabled;calls:0"),
+                (
+                    true,
+                    false,
+                    7,
+                    "true\n2\nTRACE:enabled,read,next:0,reenter:0,next:1,reenter:1;calls:2",
+                ),
+                (
+                    true,
+                    true,
+                    7,
+                    "TRACE:enabled,read,next:0,reenter:0,next:1,reenter:1,throw:stop;calls:1",
+                ),
+                (
+                    true,
+                    true,
+                    8,
+                    "true\n1\nTRACE:enabled,read,next:0,reenter:0;calls:1",
+                ),
+            ] {
+                let trace = run_javascript(&format!(
+                    "let getCalls,events=[];function observe(f){{getCalls=f}}\
+                    function enabled(){{events.push('enabled');return {enabled}}}\
+                    function read(){{events.push('read');return {seed}}}\
+                    function next(previous){{events.push('next:'+previous,'reenter:'+getCalls());if({fail}&&previous==1)throw Error('stop');return previous+1}}\
+                    try{{{output}}}catch(error){{events.push('throw:'+error.message)}}\
+                    process.stdout.write('TRACE:'+events.join(',')+';calls:'+getCalls())"
+                ));
+                assert_eq!(trace, expected, "cse={cse}: {output}");
+            }
+        }
+    }
+
+    #[test]
+    fn region_effect_owners_keep_constant_only_arms_and_repeated_results() {
+        let source = "int calls=0;extern void observe(func()->int f);observe(()=>calls);\
+            extern int next(int previous);extern bool enabled();\
+            bool effect(){calls=next(calls);return true;}\
+            bool value=enabled()&&effect();print(value);print(value);print(calls);";
+        for cse in [false, true] {
+            let output = compile_region_effect_fixture(source, cse, false);
+            for (enabled, expected) in [
+                (false, "false\nfalse\n0\nTRACE:;calls:0"),
+                (true, "true\ntrue\n1\nTRACE:next:0,reenter:0;calls:1"),
+            ] {
+                let trace = run_javascript(&format!(
+                    "let getCalls,events=[];function observe(f){{getCalls=f}}\
+                    function enabled(){{return {enabled}}}\
+                    function next(previous){{events.push('next:'+previous,'reenter:'+getCalls());return previous+1}}\
+                    {output};process.stdout.write('TRACE:'+events.join(',')+';calls:'+getCalls())"
+                ));
+                assert_eq!(trace, expected, "cse={cse}: {output}");
+            }
         }
     }
 
@@ -38321,5 +39366,67 @@ print(start(0.5));
             },
         );
         assert!(output.contains("??null"), "{output}");
+    }
+    #[test]
+    fn decoded_string_values_survive_folding_templates_and_every_quote_family() {
+        let source = r#"
+            extern int read();
+            string units="\x41\n\u{1f600}\ud800";
+            print(units.length);print(units.charCodeAt(1));
+            print(units.charAt(2).charCodeAt(0));
+            print(("\ud83d"+"\ude00").length);
+            print("x\n".repeat(2).length);
+            print(units.indexOf("\ud800"));
+            print(units.includes("\ude00"));
+            print(units.startsWith("A\n"));print(units.endsWith("\ud800"));
+            print("\x41"=="A");
+            int seed=read();print(`first
+${`nested ${seed}`}`);
+            print(`folded
+${`nested ${7}`}`);
+            float zero=-0.0;print(`zero=${zero}`);
+        "#;
+        let expected="5\n10\n55357\n2\n4\n4\ntrue\ntrue\ntrue\ntrue\nfirst\nnested 7\nfolded\nnested 7\nzero=0\n";
+        for string_quote in [
+            StringQuote::Double,
+            StringQuote::Single,
+            StringQuote::Template,
+        ] {
+            let code = compile_with_options(
+                source,
+                IrJsOptions {
+                    string_quote,
+                    ..IrJsOptions::default()
+                },
+            );
+            assert_eq!(
+                run_javascript(&format!("function read(){{return 7}};{code}")),
+                expected,
+                "{code}"
+            );
+        }
+    }
+
+    #[test]
+    fn decoded_constant_keys_and_regex_patterns_keep_their_values() {
+        let source = r#"
+            JsValue value=JS.object("\x61",7,"q\"x",8,"\ud800",9);
+            print(JS.get(value,"a"));print(JS.get(value,"q\"x"));print(JS.get(value,"\ud800"));
+            Regex pattern=new Regex("^a\\nb\t$");print(pattern.test("a\nb\t"));
+        "#;
+        for string_quote in [
+            StringQuote::Double,
+            StringQuote::Single,
+            StringQuote::Template,
+        ] {
+            let code = compile_with_options(
+                source,
+                IrJsOptions {
+                    string_quote,
+                    ..IrJsOptions::default()
+                },
+            );
+            assert_eq!(run_javascript(&code), "7\n8\n9\ntrue\n", "{code}");
+        }
     }
 }

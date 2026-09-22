@@ -1,0 +1,95 @@
+{
+  "files": [
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/.nvmrc",
+      "sha256": "d3fbdabc6e79cd4db661944014629a9d677d22d5e7656eadeea8ef55ddf9c9e3",
+      "bytes": 8
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/qualify-node-library.mjs",
+      "sha256": "57c934e8f1945c8c3943e0d7a58fd63f61665252c9db39224c58b2b84dc940ad",
+      "bytes": 25844
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/qualify-node-library.test.mjs",
+      "sha256": "d4ad03c0a493f402713338a4c4c194bb54b3ee1861a1d5fd8972cbd86fea5112",
+      "bytes": 17111
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/qualify.mjs",
+      "sha256": "d99adcd3ea27897fd63fd0cba2d0329a766b34d9fe26ce79490b8ee112a309ed",
+      "bytes": 3794
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-baseline/qualify.mjs",
+      "sha256": "4ebf5a13ce99a8a4ee0f6c5e0348b5b1d7c9f029bafc99a69f93177771f47bb9",
+      "bytes": 3897
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/mdast-util-to-hastlil.required-tests.json",
+      "sha256": "42289aeec4a58356ec0e3bb1b34326d9a8d2aa5f226642592d8b1ba98f6d05d8",
+      "bytes": 40861
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-adapter/existing-dist/receipt.json",
+      "sha256": "b49158603b840d7c97dbebc2d8d338310dcf5189494491e67f740ffbc11925c0",
+      "bytes": 73143
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-adapter/existing-dist/node/report.json",
+      "sha256": "7910ac5781dbc4f63574563562b7e84f8afb4f3b2b692cc6a3a5d7f5e75969d9",
+      "bytes": 90050
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+      "bytes": 54
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/remark-rehypelil.required-tests.json",
+      "sha256": "87a17c0cfb2899f4a6e571732aad4207cb60e948e98d2cc716cadfcc45fb23cf",
+      "bytes": 17761
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/receipt.json",
+      "sha256": "c71c89a9b873eab0ce53eb88be75a4d9edf449eb0d541bf9dfee9f566d98eb8a",
+      "bytes": 30711
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-remark-rehype-adapter/existing-dist/node/report.json",
+      "sha256": "08298e4edb05cfaedcf65c1eff6fbf96b3462ffef6a81e07391bcf29dae6ef3a",
+      "bytes": 32223
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/libraries/remark-gfmlil.required-tests.json",
+      "sha256": "42d537f47dfb744d02d67a2b3957d8ca8a02ec3caa0da3fecdac9f216a016c4d",
+      "bytes": 39163
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/receipt.json",
+      "sha256": "b584655ac815c09b7a7c6353d06757cc24cceef4f9a421050664662ef1ad32b0",
+      "bytes": 31773
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-remark-gfm-adapter/existing-dist/node/report.json",
+      "sha256": "6f0036caf8204489f95ccf672c9d107b8c7534242e0c941e9129174f85b1591b",
+      "bytes": 102024
+    }
+  ],
+  "sha256": "e7ce111ee3c3f1cebf96db88de8ecde222ac44fce33c5a3317cdf31b1e0dd405"
+}

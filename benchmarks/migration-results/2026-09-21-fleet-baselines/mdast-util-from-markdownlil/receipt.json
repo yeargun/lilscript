@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "mdast-util-from-markdownlil",
+  "started": "2026-09-21T00:51:02.761Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/mdast-util-from-markdownlil",
+  "workspace": "/tmp/lilscript-baseline-mdast-util-from-markdownlil-ZyK4bn/mdast-util-from-markdownlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/mdast-util-from-markdownlil",
+    "candidates": [
+      "/home/azureuser/mdast-util-from-markdownlil",
+      "/home/azureuser/mdast-util-from-markdownlil",
+      "/tmp/lilscript-page-refresh-20260910/current/mdast-util-from-markdownlil"
+    ],
+    "recorded": "/home/azureuser/mdast-util-from-markdownlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "This library has no frozen required-case inventory, so these bytes are measured but not qualified by any test."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/mdast-util-from-markdownlil",
+    "files": 146,
+    "sha256": "f5432fe684e9f10431b3644d1f6d63b5536ce0b3c9c75692e2a9ab214ed14e48"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/mdast-util-from-markdownlil/lilscript.closed.toml",
+        "sha256": "7dc9d4049fcb02abaa66bed3dca35bc0d5885dcec962e49cb4381cbdd113b24f",
+        "bytes": 387
+      },
+      {
+        "path": "/home/azureuser/mdast-util-from-markdownlil/lilscript.toml",
+        "sha256": "e69942f51301ce8c541713011a661bed74b731a9b37b37cb6b7d40406b76cece",
+        "bytes": 1132
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/from-markdown.cjs",
+    "dist/from-markdown.closed.js",
+    "dist/from-markdown.esm.js",
+    "dist/from-markdown.raw.js",
+    "dist/from-markdown.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 149.321,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/from-markdown.cjs",
+      "sha256": "5c749a8186c1fb587b401ea02df056b0fd580ed70bc12ff974884c26665b6a94",
+      "bytes": 102880,
+      "sizes": {
+        "raw": 102880,
+        "gzip": 32618,
+        "brotli": 27691
+      }
+    },
+    {
+      "path": "dist/from-markdown.closed.js",
+      "sha256": "56ed1fdebba5ac746d1b8ad5332715368e5f5207b1fbdc755e29bd00f6896deb",
+      "bytes": 89161,
+      "sizes": {
+        "raw": 89161,
+        "gzip": 30662,
+        "brotli": 26055
+      }
+    },
+    {
+      "path": "dist/from-markdown.esm.js",
+      "sha256": "775f68139035dec2edc0bbbd858a2dbdf027609c3cf5c5640ee6a46d84019a49",
+      "bytes": 88270,
+      "sizes": {
+        "raw": 88270,
+        "gzip": 30874,
+        "brotli": 26283
+      }
+    },
+    {
+      "path": "dist/from-markdown.raw.js",
+      "sha256": "1a8e741b77346fcaa652cc541b55dc35229267beb8f4e6b72aac3f74a56433ab",
+      "bytes": 88160,
+      "sizes": {
+        "raw": 88160,
+        "gzip": 30792,
+        "brotli": 26205
+      }
+    },
+    {
+      "path": "dist/from-markdown.umd.js",
+      "sha256": "d29634f296454f78159ecde9a5f6aa04d5f78c6211cf7f72117d3caf0c6e1220",
+      "bytes": 102987,
+      "sizes": {
+        "raw": 102987,
+        "gzip": 32679,
+        "brotli": 27772
+      }
+    }
+  ],
+  "measurements": {
+    "dist/from-markdown.cjs": {
+      "raw": 102880,
+      "gzip": 32618,
+      "brotli": 27691
+    },
+    "dist/from-markdown.closed.js": {
+      "raw": 89161,
+      "gzip": 30662,
+      "brotli": 26055
+    },
+    "dist/from-markdown.esm.js": {
+      "raw": 88270,
+      "gzip": 30874,
+      "brotli": 26283
+    },
+    "dist/from-markdown.raw.js": {
+      "raw": 88160,
+      "gzip": 30792,
+      "brotli": 26205
+    },
+    "dist/from-markdown.umd.js": {
+      "raw": 102987,
+      "gzip": 32679,
+      "brotli": 27772
+    }
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 151.075,
+  "completed": "2026-09-21T00:53:33.800Z",
+  "fingerprint": "8727e71236a77ed0e89a72c8c462f04f8d934e6ee3ca0f9e85b8f15abab591fc"
+}

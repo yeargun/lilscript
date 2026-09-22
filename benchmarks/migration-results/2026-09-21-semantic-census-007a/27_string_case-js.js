@@ -1,0 +1,1 @@
+let a;let b;let mixed="LilScript";a=void console.log(mixed.toUpperCase());b=void console.log(mixed.toLowerCase());

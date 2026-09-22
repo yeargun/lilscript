@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "scope": "Affected Node evidence owners only; no Rust build or library qualification",
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--test",
+    "finer/tools/artifact-evidence.test.mjs",
+    "finer/tools/node-test-evidence.test.mjs",
+    "finer/tools/qualify-node-library.test.mjs"
+  ],
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "before": "3ea83d9ddeb394b683366f837114f3663d66da4e05f70a751346ba52ff9a0ff9",
+  "after": "3ea83d9ddeb394b683366f837114f3663d66da4e05f70a751346ba52ff9a0ff9",
+  "inputsStable": true,
+  "elapsedMs": 16923.545280000002,
+  "status": 1,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 120000,
+    "killAfterMs": 1000,
+    "maxBuffer": 8388608,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "passed": false
+}

@@ -1,0 +1,5 @@
+export Regex otherCodeRemoveIndent = new Regex("^(?: {1,4}| {0,3}\\t)", "gm");
+
+export Regex otherTabCharGlobal = new Regex("\\t", "g");
+
+export Regex otherBlankLine = new Regex("^[ \\t]*$");

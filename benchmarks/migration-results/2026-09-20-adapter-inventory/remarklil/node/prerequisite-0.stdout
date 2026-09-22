@@ -1,0 +1,5 @@
+
+> @itslil/remark@15.0.2 check:sources
+> node scripts/shared-sources.mjs
+
+checked 6 pinned shared Lil sources

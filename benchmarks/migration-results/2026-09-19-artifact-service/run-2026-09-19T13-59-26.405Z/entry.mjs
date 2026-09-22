@@ -1,0 +1,1 @@
+let byte;byte=function(b){return (b&255)+ 1;};let a=byte;export{a as byte};

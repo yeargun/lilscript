@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "scope": "focused debug artifact admission, shared recipe ownership, public scoped service and original example consumers; not milestone certification",
+  "started": "2026-09-19T13:21:06.153Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 5.814842999999996
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 16.185007999999982
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 12.294885999999991
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "ms": 2.430025999999998
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--lib",
+        "--bin",
+        "lilscript",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 101,
+      "signal": null,
+      "ms": 35753.002153
+    }
+  ],
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack"
+  ],
+  "inputSha256": "0376b6a79387b4842bf70ebf9a82aeb09e8a0a50a6705078bdd3a5815150591a",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: build-tests:    Compiling lilscript v0.1.0 (/home/azureuser/lilscript)\nerror: could not compile `lilscript` (lib) due to 2 previous errors; 1 warning emitted\nwarning: build failed, waiting for other jobs to finish...\nerror: could not compile `lilscript` (lib test) due to 2 previous errors; 5 warnings emitted\n\nerror: implementation of `FnOnce` is not general enough\n   --> src/compiler_service.rs:723:5\n    |\n723 |     with_checked_source(source, config, options, CheckedSourceSession::compile)?\n    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ implementation of `FnOnce` is not general enough\n    |\n    = note: `fn(CheckedSourceSession<'2>) -> Result<ServiceCompilation, ServiceError> {CheckedSourceSession::<'2>::compile}` must implement `FnOnce<(CheckedSourceSession<'1>,)>`, for any lifetime `'1`...\n    = note: ...but it actually implements `FnOnce<(CheckedSourceSession<'2>,)>`, for some specific lifetime `'2`\n\n\nerror: implementation of `FnOnce` is not general enough\n   --> src/compiler_service.rs:731:5\n    |\n731 |     with_checked_path(path, config, options, CheckedSourceSession::compile)?\n    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ implementation of `FnOnce` is not general enough\n    |\n    = note: `fn(CheckedSourceSession<'2>) -> Result<ServiceCompilation, ServiceError> {CheckedSourceSession::<'2>::compile}` must implement `FnOnce<(CheckedSourceSession<'1>,)>`, for any lifetime `'1`...\n    = note: ...but it actually implements `FnOnce<(CheckedSourceSession<'2>,)>`, for some specific lifetime `'2`\n\n\nerror: implementation of `FnOnce` is not general enough\n   --> src/compiler_service.rs:723:5\n    |\n723 |     with_checked_source(source, config, options, CheckedSourceSession::compile)?\n    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ implementation of `FnOnce` is not general enough\n    |\n    = note: `fn(CheckedSourceSession<'2>) -> Result<compiler_service::ServiceCompilation, ServiceError> {CheckedSourceSession::<'2>::compile}` must implement `FnOnce<(CheckedSourceSession<'1>,)>`, for any lifetime `'1`...\n    = note: ...but it actually implements `FnOnce<(CheckedSourceSession<'2>,)>`, for some specific lifetime `'2`\n\n\nerror: implementation of `FnOnce` is not general enough\n   --> src/compiler_service.rs:731:5\n    |\n731 |     with_checked_path(path, config, options, CheckedSourceSession::compile)?\n    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ implementation of `FnOnce` is not general enough\n    |\n    = note: `fn(CheckedSourceSession<'2>) -> Result<compiler_service::ServiceCompilation, ServiceError> {CheckedSourceSession::<'2>::compile}` must implement `FnOnce<(CheckedSourceSession<'1>,)>`, for any lifetime `'1`...\n    = note: ...but it actually implements `FnOnce<(CheckedSourceSession<'2>,)>`, for some specific lifetime `'2`\n\n\n\n101 !== 0\n\n    at run (file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:51:10)\n    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:69:32\n    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+  "inputsStable": true,
+  "completed": "2026-09-19T13:21:42.194Z"
+}

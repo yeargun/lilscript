@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-adapter-remark-parselil-3gnj0u/remark-parselil/dist/remark-parse.cjs","/tmp/lilscript-adapter-remark-parselil-3gnj0u/remark-parselil/dist/remark-parse.closed.js","/tmp/lilscript-adapter-remark-parselil-3gnj0u/remark-parselil/dist/remark-parse.esm.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/remark-parselil/node/loaded"});

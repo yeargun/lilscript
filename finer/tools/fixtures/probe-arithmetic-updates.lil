@@ -1,0 +1,19 @@
+extern int read();
+int arithmetic(int seed) {
+  int a = seed * 3 + 7;
+  int b = a % 5;
+  int c = a / 2;
+  int d = (a ^ b) & 255;
+  int e = a << 3;
+  int f = a >> 2;
+  int g = a >>> 1;
+  int h = -a;
+  a += 1;
+  a -= 2;
+  a *= 3;
+  a ^= 9;
+  a |= 4;
+  a &= 255;
+  return a + b + c + d + e + f + g + h;
+}
+print(arithmetic(read()));print(arithmetic(0));print(arithmetic(-3));

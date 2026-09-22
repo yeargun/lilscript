@@ -1,0 +1,21 @@
+
+running 16 tests
+test lower::tests::lowers_generators_to_yield_intrinsics_and_native_for_of_shapes ... ok
+test lower::tests::lowers_lexical_closure_captures_explicitly ... ok
+test lower::tests::lowers_branches_and_loops_to_blocks ... ok
+test lower::tests::lowers_expression_if_to_a_source_conditional_phi ... ok
+test lower::tests::legacy_entry_points_refuse_source_reference_calls_before_mode_erasure ... ok
+test lower::tests::keeps_dynamic_record_indexes_generic ... ok
+test lower::tests::lowers_extended_javascript_method_adapters_to_distinct_intrinsics ... ok
+test lower::tests::lowers_short_circuit_to_phi ... ok
+test lower::tests::lowers_methods_as_directly_identified_calls ... ok
+test lower::tests::lowers_inherited_methods_and_base_constructor_calls_directly ... ok
+test lower::tests::lowers_static_proto_record_indexes_without_changing_the_key ... ok
+test lower::tests::lowers_static_record_indexes_to_record_fields ... ok
+test lower::tests::lowers_recursive_local_function_through_its_own_slot ... ok
+test lower::tests::preserves_source_arity_while_materializing_direct_call_defaults ... ok
+test lower::tests::static_record_index_enables_closed_record_projection ... ok
+test structured_js::lower::binary_worklist_tests::deep_eager_trees_preserve_each_occurrence_and_signed_result_obligation ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 2876 filtered out; finished in 0.02s
+

@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-baseline-rehypelil-6TTO2Y/rehypelil/dist/rehype.cjs","/tmp/lilscript-baseline-rehypelil-6TTO2Y/rehypelil/dist/rehype.closed.js","/tmp/lilscript-baseline-rehypelil-6TTO2Y/rehypelil/dist/rehype.esm.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-fleet-baselines/rehypelil/node/loaded"});

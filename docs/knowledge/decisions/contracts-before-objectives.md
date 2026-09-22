@@ -31,4 +31,5 @@ raw config or where API compatibility is inferred after selection.
 - Do not claim the current source-derived ABI manifest validates final bytes.
 
 Implementation: [`src/compilation_contract.rs`](../../../src/compilation_contract.rs).
-Plan: [planned architecture](../compilation/planned-architecture.md#1-contract-boundary).
+Target: [compiler design](../../compiler-design.md). Implementation:
+[policy and resource ownership](../../migration/index.md#003-policy-and-resource-ownership).

@@ -1,0 +1,2 @@
+import { Axis as OtherAxis, Box as OtherBox } from "./motion-geometry";
+export { OtherAxis as SpanAxis, OtherBox as OtherFrame };

@@ -1,0 +1,14 @@
+
+running 9 tests
+test semantic_program::compilation_facts_tests::callback_errors_and_unwinding_release_only_scratch_and_keep_cached_results ... ok
+test semantic_program::compilation_facts_tests::owner_rejects_disabled_queries_failed_enable_and_duplicate_enable_atomically ... ok
+test semantic_program::compilation_facts_tests::persistent_cache_capacity_competes_with_real_publication_until_explicitly_discarded ... ok
+test semantic_program::compilation_facts_tests::source_edits_reuse_unaffected_facts_without_destroying_old_snapshot_answers ... ok
+test semantic_program::compilation_facts_tests::retained_capacity_and_query_scratch_stay_with_their_original_domains ... ok
+test semantic_program::compilation_facts_tests::stale_and_foreign_checkpoint_handles_never_query_another_snapshot ... ok
+test semantic_program::compilation_facts_tests::native_source_queries_do_not_create_target_state_or_target_work ... ok
+test semantic_program::compilation_facts_tests::weak_and_strong_requests_have_the_same_answers_and_charges_when_cold_or_warm ... ok
+test semantic_program::compilation_facts_tests::real_direct_and_scalar_siblings_share_facts_and_later_groups_replay_work ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 2834 filtered out; finished in 0.01s
+

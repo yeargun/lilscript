@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "kind": "vitest-original-suite-evidence-increment",
+  "date": "2026-09-19",
+  "certification": "unverified",
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1"
+  },
+  "tools": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/vitest-test-evidence.mjs",
+      "sha256": "bebb7ba2f1606aa768a8c741cfe08ea2c7ebca7d28ea6ee813f97e7894f1e844",
+      "bytes": 8754
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/vitest-evidence-runner.mjs",
+      "sha256": "dfd78f61b64318faa62e132587c07786ebdeb63cd606eda52226d0efe47e0695",
+      "bytes": 2064
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/vitest-test-reporter.mjs",
+      "sha256": "d13219798eb72bea800dbec1355f6f7fcf1c11263122836436295170ba50af5d",
+      "bytes": 1540
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-vitest-sources.mjs",
+      "sha256": "d14312c20f09cbad1cdc34616bb4dd4d3fae39b6f20cde8e4bc698967c86bd94",
+      "bytes": 1458
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "finer/tools/vitest-test-evidence.test.mjs",
+      "sha256": "6c0304a6270568d4b4d22c814ab7a5ed360d0a21c7be592022d0aa08ecf9c276",
+      "bytes": 7811
+    },
+    {
+      "path": "finer/tools/portgate.mjs",
+      "sha256": "922d14ce0961239045ce8df813db4dcb707b512c103b8a3ac6f5f531c004758d",
+      "bytes": 27366
+    },
+    {
+      "path": "finer/tools/migration-inventory.mjs",
+      "sha256": "18cb55624aa17e40afd07c763bb5cb20cf12aab43fb772b65185123567fc6807",
+      "bytes": 24013
+    },
+    {
+      "path": "finer/tools/migration-inventory.test.mjs",
+      "sha256": "45db577fd815333881813c532d8e337eefacf687e34e569cd6a94946ffe2b495",
+      "bytes": 13853
+    }
+  ],
+  "contracts": [
+    {
+      "path": "benchmarks/libraries/maintained-workloads.json",
+      "sha256": "8fb41c748d8dc553152d882ecf2cc15eec3ad0b50cb8389933cd34fb5cf01363",
+      "bytes": 100201
+    },
+    {
+      "path": "benchmarks/libraries/zodlil.required-tests.json",
+      "sha256": "62b4a957ae770d84a074c6edf15df03553e7a01e36413ffb3f50ba320d037cf7",
+      "bytes": 180317
+    }
+  ],
+  "results": [
+    {
+      "path": "zod-diagnostic/report.json",
+      "sha256": "ed78a2b6d78bfa4703dee9190eddc2c2fecea7ab5f211c4c96932f3e9686662c",
+      "bytes": 1079778
+    },
+    {
+      "path": "zod-diagnostic/results.json",
+      "sha256": "f54e7b9bb182a20f36ae6fb8804060ab6dff8449efd45208bd272d944f329567",
+      "bytes": 477031
+    },
+    {
+      "path": "zod-diagnostic/routes.json",
+      "sha256": "1b1596049084e603c0836eceb53f1911e39545f229c0428ecb6f3db7a3a801f1",
+      "bytes": 26080
+    },
+    {
+      "path": "zod-diagnostic/load-records.json",
+      "sha256": "36845e86e106079822c211653899efe6ff4294c138c020798a457873c9d285f3",
+      "bytes": 196600
+    },
+    {
+      "path": "zod-collection/report.json",
+      "sha256": "143302f09cdf1a7795e527df9745d1618e789bb19813cccf435e01476de41f33",
+      "bytes": 880105
+    },
+    {
+      "path": "zod-collection/results.json",
+      "sha256": "9bd4473406ea140dbfbb27ac8096a07c024f0c26fd493f934cd466627c98780f",
+      "bytes": 481175
+    },
+    {
+      "path": "discovery-scope-correction.json",
+      "sha256": "23c469ad2021fee9d43947940558a508bc24ac170043fd0d6ce7bdbf8e60780d",
+      "bytes": 1189
+    },
+    {
+      "path": "focused-tests.log",
+      "sha256": "7493c46a17076417906eff4a23029f263e2baf4d5b5c3994d0ad0950940e0d95",
+      "bytes": 3598
+    },
+    {
+      "path": "inventory.json",
+      "sha256": "389eac7a54ef84dc7160bcae541a8c03b318ef36faae20f28f79be3065219d1b",
+      "bytes": 2075782
+    },
+    {
+      "path": "public-entrypoints.json",
+      "sha256": "c55d5c8a22b1259afc0cb2ea4c68e169c6dc931ff91177be8c8ebb066e126952",
+      "bytes": 22100
+    }
+  ],
+  "focusedTests": {
+    "command": [
+      "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "--test",
+      "finer/tools/vitest-test-evidence.test.mjs",
+      "finer/tools/migration-inventory.test.mjs",
+      "finer/tools/node-test-evidence.test.mjs",
+      "finer/tools/artifact-evidence.test.mjs"
+    ],
+    "cwd": "/home/azureuser/lilscript",
+    "environment": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:$PATH"
+    },
+    "result": {
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 7841.908024
+    }
+  },
+  "originalSuite": {
+    "cwd": "/home/azureuser/zodlil",
+    "command": [
+      "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "/home/azureuser/lilscript/finer/tools/vitest-evidence-runner.mjs",
+      "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-vitest-evidence/zod-diagnostic/settings.json"
+    ],
+    "settings": "zod-diagnostic/settings.json",
+    "configuration": {
+      "path": "/home/azureuser/zodlil/vitest.config.ts",
+      "sha256": "e5c1a2bf81369fdbb757dbf58392f39bcaef637907ee02357266b30e0c7b56f6",
+      "bytes": 1445
+    },
+    "processExit": 0,
+    "elapsedMs": 24975,
+    "declaredCases": 1353,
+    "files": 82,
+    "passed": 1353,
+    "skipped": 0,
+    "requiredProductionFiles": 9,
+    "exactObservedProductionFiles": 9,
+    "nativeLoadObservations": 568,
+    "forbiddenUpstreamTransformedModules": 98,
+    "forbiddenNativeModuleLoads": 0,
+    "certification": "unverified",
+    "build": "No build: this is a diagnostic replay of existing delivered dist files, not source-qualified compiler evidence.",
+    "initialDiagnostic": {
+      "location": "/tmp/lilscript-vitest-evidence-20260919/zod-diagnostic",
+      "elapsedMs": 28778,
+      "reasonForFinalReplay": "Native-route guard and immutable tool identity capture were completed, then one final same-suite replay pinned the completed observer implementation."
+    }
+  },
+  "inventorySummary": {
+    "rows": 29,
+    "libraryRows": 27,
+    "additionalRows": 2,
+    "missingWorkspaces": [],
+    "rowsWithMissingDependencies": [
+      "motionlil",
+      "rehype-stringifylil",
+      "vuelil",
+      "lil-solidjs"
+    ],
+    "rowsWithFrozenTestInventory": [
+      "markedlil",
+      "zodlil",
+      "probelil"
+    ],
+    "rowsWithInvalidTestInventory": [],
+    "installedPackageContents": 220,
+    "sourceFiles": 2725
+  },
+  "zodRuntimeDependency": {
+    "role": "devDependencies",
+    "name": "zod",
+    "requested": "4.4.3",
+    "installed": {
+      "present": true,
+      "path": "/home/azureuser/zodlil/node_modules/zod/package.json",
+      "realPath": "/home/azureuser/zodlil/node_modules/zod/package.json",
+      "version": "4.4.3",
+      "sha256": "c630bd10b52dcf71c112a2bf78dbf2734b9db58d62de663b8d86c2ec2c8cda2e",
+      "bytes": 3796,
+      "content": {
+        "root": "/home/azureuser/zodlil/node_modules/zod",
+        "sha256": "1ed591f188df948d50e901c0e3fa1afd42b59d08fa17395cc67fb26828bdd039",
+        "files": 718,
+        "bytes": 4558122,
+        "excludes": [
+          ".git",
+          "node_modules",
+          ".cache"
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "No Rust compilation, compiler-source-qualified library baseline, codec measurement or full fleet run.",
+    "The original Zod suite passes but 98 vendor implementation modules bypass its generated production aliases; no alias or test was rewritten and certification remains unverified.",
+    "All 1353 configured declarations were kept. Original six excluded test files and disabled typechecking remain explicit uncovered scope, not passing cases.",
+    "Original CJS/core/mini/locales/package/browser/e2e delivery and additional package suites remain required; dist/core.cjs is currently missing.",
+    "Generated compat.js requires installed upstream zod/v4/locales although zod is currently declared as a devDependency; runtime delivery and charged-size contract require audit.",
+    "The current source inventory has 29 identities and only 3 frozen runner inventories; this does not close migration001.",
+    "Portgate now rejects any additionalRequiredCoverage still pending even when a supported base adapter passes; Probe22-profile work therefore cannot inherit base-only qualification.",
+    "Native production-load observations are complete in report.json and losslessly archived in load-records.json; individual temporary event files are retained outside the repository.",
+    "Early collection predates final tool hashing; final same-case execution pins tool and runtime files and rechecks required source/config/fixture identities.",
+    "Public entrypoint record is source inspection only, not a substitute for root-owned semantic service build/runtime receipts."
+  ]
+}

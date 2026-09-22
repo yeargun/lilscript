@@ -1,0 +1,1 @@
+let a;let first=[0,0.25,1];let total=0;{let a;let index=0;for(;index<(first.length|0);a=index,index=a+ 1|0,a){if(first[index]>=0.25){total=total+ 1|0;}}}let second=[0.25,0.25,0.25,0.25,0.5];{let a;let index=0;for(;index<(second.length|0);a=index,index=a+ 1|0,a){if(second[index]===0.25){total=total+ 1|0;}}}a=void console.log(total);

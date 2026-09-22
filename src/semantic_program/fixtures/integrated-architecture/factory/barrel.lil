@@ -1,0 +1,7 @@
+import {make,readLate} from "./factory.lil";
+import {total} from "./state.lil";
+import {boots} from "./boot.lil";
+import {exposed} from "./public.lil";
+extern void emit(string label,int value);
+emit("barrel",boots);
+export {make,readLate,exposed,total,total as liveTotal,boots as bootCount};

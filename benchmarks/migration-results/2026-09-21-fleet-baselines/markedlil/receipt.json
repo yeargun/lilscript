@@ -1,0 +1,257 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "markedlil",
+  "started": "2026-09-21T01:23:40.237Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/markedlil",
+  "workspace": "/tmp/lilscript-baseline-markedlil-wGwuPz/markedlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/markedlil",
+    "candidates": [
+      "/home/azureuser/markedlil",
+      "/home/azureuser/markedlil",
+      "/tmp/lilscript-page-refresh-20260910/current/markedlil"
+    ],
+    "recorded": "/home/azureuser/markedlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The frozen inventory is `required-node-case-inventory` without entry patterns, which this driver does not execute; these bytes are measured but not qualified here."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/markedlil",
+    "files": 104,
+    "sha256": "41a47a645f2708a9c9093264182cd466fa44793b71b2a8a5110075bdf293cb50"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.bytes.toml",
+        "sha256": "2a3b9c59ab21829bb6aeac4974f171629e75336292abcaa2e7e09e37d67bb412",
+        "bytes": 321
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.closed.toml",
+        "sha256": "991e1f117c085f0028c8607f1f86812a79464d80c25002d2130bf3c676858a0e",
+        "bytes": 325
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.gzip.toml",
+        "sha256": "7edbbb56eb269296e0e907857141b4f59afe86f49634fc041383e4a23613bb74",
+        "bytes": 322
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.sourcemap-analysis.toml",
+        "sha256": "b31d7f35c2f812eba6da5b82a92b75788523341300b3250a91f2cdde7700da3c",
+        "bytes": 422
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.sourcemap-hidden.toml",
+        "sha256": "70801e39b0cf90a81f8ce35541263d782985e9eb5630907b26bbe88b44472f21",
+        "bytes": 380
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.sourcemap-inline.toml",
+        "sha256": "9bdbdedd9aefa5aea71d93a48aa332959f5a95e959eddee0e86560f78d5bc81b",
+        "bytes": 380
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.sourcemap-linked.toml",
+        "sha256": "2bc7f73bff76b116afcaa72ba60f261188481919a82e37a0e53a6323550757c1",
+        "bytes": 380
+      },
+      {
+        "path": "/home/azureuser/markedlil/lilscript.toml",
+        "sha256": "5295859e6b49be4dd54553e16c29adc988f14bb656db79ccb75c7f09779973bb",
+        "bytes": 1164
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/marked.bytes.js",
+    "dist/marked.cjs",
+    "dist/marked.closed.js",
+    "dist/marked.esm.js",
+    "dist/marked.gzip.js",
+    "dist/marked.raw.js",
+    "dist/marked.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 362.62,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/marked.bytes.js",
+      "sha256": "2cd002bb6a001ca682e8fc9921a8688894d387fd8a79e713a62029bca19f1864",
+      "bytes": 33556,
+      "sizes": {
+        "raw": 33556,
+        "gzip": 11066,
+        "brotli": 9905
+      }
+    },
+    {
+      "path": "dist/marked.cjs",
+      "sha256": "c4a578d083c37841faa49b193cf6c2c2787e933dc5191c652ed7f02ffbfcdc30",
+      "bytes": 37343,
+      "sizes": {
+        "raw": 37343,
+        "gzip": 11298,
+        "brotli": 10153
+      }
+    },
+    {
+      "path": "dist/marked.closed.js",
+      "sha256": "047b1a281ed75d29b4ffe5f9d157e9ef5e197aac40ba28aeff38034caa1af49c",
+      "bytes": 33981,
+      "sizes": {
+        "raw": 33981,
+        "gzip": 10399,
+        "brotli": 9287
+      }
+    },
+    {
+      "path": "dist/marked.esm.js",
+      "sha256": "e87e26314cc8ea7721dd3d430fa85b0755ac72140adf049284ad7eed68174109",
+      "bytes": 34179,
+      "sizes": {
+        "raw": 34179,
+        "gzip": 10447,
+        "brotli": 9395
+      }
+    },
+    {
+      "path": "dist/marked.gzip.js",
+      "sha256": "40fa0d74284e0122a32a429032e45f65323458c4db3ffd59d5e0b420b87f2c6b",
+      "bytes": 34418,
+      "sizes": {
+        "raw": 34418,
+        "gzip": 10502,
+        "brotli": 9412
+      }
+    },
+    {
+      "path": "dist/marked.raw.js",
+      "sha256": "24ebdbdbe7ff401ffa0e299258705ba31197b83e3f5929919504847e1ce14e5f",
+      "bytes": 34095,
+      "sizes": {
+        "raw": 34095,
+        "gzip": 10388,
+        "brotli": 9336
+      }
+    },
+    {
+      "path": "dist/marked.umd.js",
+      "sha256": "1916623e908e68108e0f7e0ccbc53599cbcd6aaee904ecac0381d79b84030858",
+      "bytes": 37414,
+      "sizes": {
+        "raw": 37414,
+        "gzip": 11344,
+        "brotli": 10208
+      }
+    }
+  ],
+  "measurements": {
+    "dist/marked.bytes.js": {
+      "raw": 33556,
+      "gzip": 11066,
+      "brotli": 9905
+    },
+    "dist/marked.cjs": {
+      "raw": 37343,
+      "gzip": 11298,
+      "brotli": 10153
+    },
+    "dist/marked.closed.js": {
+      "raw": 33981,
+      "gzip": 10399,
+      "brotli": 9287
+    },
+    "dist/marked.esm.js": {
+      "raw": 34179,
+      "gzip": 10447,
+      "brotli": 9395
+    },
+    "dist/marked.gzip.js": {
+      "raw": 34418,
+      "gzip": 10502,
+      "brotli": 9412
+    },
+    "dist/marked.raw.js": {
+      "raw": 34095,
+      "gzip": 10388,
+      "brotli": 9336
+    },
+    "dist/marked.umd.js": {
+      "raw": 37414,
+      "gzip": 11344,
+      "brotli": 10208
+    }
+  },
+  "inventoryKind": "required-node-case-inventory",
+  "inputsStable": true,
+  "elapsedSeconds": 364.009,
+  "completed": "2026-09-21T01:29:44.210Z",
+  "fingerprint": "5962a7c61ae1f65e88466f531f7b4b16fdea1a0c60e1e66dcffd0e7e5fc1cf89"
+}

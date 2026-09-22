@@ -1,0 +1,4 @@
+import { setLeft } from "./private-left";
+import { makeRight } from "./private-right";
+auto right = makeRight(5);
+setLeft(ref right, 9);

@@ -1,0 +1,29 @@
+{"kind":"test-case","id":"[\"test/api.test.mjs\",29,3,1,\"test\",\"exports the plugin as default\",1]","file":"test/api.test.mjs","name":"exports the plugin as default","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",33,3,1,\"test\",\"exports the mdast-util-to-hast public helpers\",1]","file":"test/api.test.mjs","name":"exports the mdast-util-to-hast public helpers","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",69,3,1,\"test\",\"preserves numeric footnote helper arguments like upstream\",1]","file":"test/api.test.mjs","name":"preserves numeric footnote helper arguments like upstream","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",82,3,1,\"test\",\"transforms a paragraph fixture into a p element\",1]","file":"test/api.test.mjs","name":"transforms a paragraph fixture into a p element","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",91,3,1,\"test\",\"maps unknown value nodes and task lists like upstream\",1]","file":"test/api.test.mjs","name":"maps unknown value nodes and task lists like upstream","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",119,3,1,\"test\",\"keeps pinned keys in the library artifact\",1]","file":"test/api.test.mjs","name":"keeps pinned keys in the library artifact","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",28,1,0,\"suite\",\"remark-rehype\",1]","file":"test/api.test.mjs","name":"remark-rehype","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact with the default export\",1]","file":"test/closed.test.mjs","name":"ships a closed artifact with the default export","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",10,1,0,\"suite\",\"remark-rehype closed\",1]","file":"test/closed.test.mjs","name":"remark-rehype closed","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",16,11,1,\"test\",\"should expose the public api\",1]","file":"test/official/test.js","name":"should expose the public api","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",25,11,1,\"test\",\"should mutate\",1]","file":"test/official/test.js","name":"should mutate","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",38,11,1,\"test\",\"should mutate w/ options\",1]","file":"test/official/test.js","name":"should mutate w/ options","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",51,11,1,\"test\",\"should mutate w/ options and explicit unknown 2nd parameter\",1]","file":"test/official/test.js","name":"should mutate w/ options and explicit unknown 2nd parameter","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",68,11,1,\"test\",\"should mutate with `processor: undefined` and options\",1]","file":"test/official/test.js","name":"should mutate with `processor: undefined` and options","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",85,11,1,\"test\",\"should bridge\",1]","file":"test/official/test.js","name":"should bridge","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",98,11,1,\"test\",\"should bridge with options\",1]","file":"test/official/test.js","name":"should bridge with options","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",111,11,1,\"test\",\"should understand bridge types\",1]","file":"test/official/test.js","name":"should understand bridge types","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",119,11,1,\"test\",\"should understand mutate types\",1]","file":"test/official/test.js","name":"should understand mutate types","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/test.js\",15,1,0,\"test\",\"remarkRehype\",1]","file":"test/official/test.js","name":"remarkRehype","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 18"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 3"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 18"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 256.381692"}

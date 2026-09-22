@@ -1,0 +1,339 @@
+{
+  "schema": 1,
+  "kind": "recovered-dependency-motion-node-inventory-discovery",
+  "started": "2026-09-19T23:20:07.568Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "boundsMs": {
+    "externalSupervisor": 90000,
+    "sharedAttempt": 90000,
+    "nodeSuiteCeiling": 90000
+  },
+  "originalCommand": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+  "original": "/tmp/motionlil-cost-audit-20260911/current",
+  "dependencies": "/home/azureuser/motionlil/node_modules",
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": ""
+    },
+    "otherwise": "inherited; no npm command or package installation executes"
+  },
+  "limitations": [
+    "Recorded maintained source/dist is copied byte-for-byte to an isolated workspace; it is not replaced by the sibling source tree.",
+    "Original recorded workspace has no resolvable installed dependencies. The pinned sibling dependency tree supplies matching locked direct versions for the unchanged npm-test selection; this is an explicit recovered environment, not the original installed closure.",
+    "Playwright is absent from the recovered dependency tree. Original browser tests, declaration check, pack and site commands remain separate unexecuted obligations.",
+    "Original npm test includes Terser, esbuild and Vite consumers. Their transformed outputs are not independently scored production artifacts; imported original distribution files have passive exact-byte evidence.",
+    "No LilScript compiler, package installation, source/assertion/configuration edit, canonical codec scoring or current semantic-backend qualification occurs.",
+    "Node dependency closure is pinned including symlink destinations. OS libraries and the entire host environment are not hermetic.",
+    "Passing export coverage, prototype, arity, accessor and callback tests is not full Motion geometry or browser behavior coverage and does not settle D2."
+  ],
+  "recoveredDirectVersions": [
+    {
+      "name": "esbuild",
+      "version": "0.25.9"
+    },
+    {
+      "name": "motion",
+      "version": "13.1.0"
+    },
+    {
+      "name": "terser",
+      "version": "5.43.1"
+    },
+    {
+      "name": "typescript",
+      "version": "5.9.2"
+    },
+    {
+      "name": "vite",
+      "version": "6.4.3"
+    }
+  ],
+  "workspace": "/tmp/lilscript-motion-node-discovery-20260919-Zr235m/motionlil",
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/node/report.json",
+    "sha256": "ab1f1b56a61d4a6ecd5a2c8b0f845fea1f3c89a48fad8f9acf207c70811763e5",
+    "bytes": 16314
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+      "file": "test/node.test.mjs",
+      "name": "ESM entry points load without a browser global",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+      "file": "test/node.test.mjs",
+      "name": "pure utilities and MotionValue behavior work",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+      "file": "test/node.test.mjs",
+      "name": "CommonJS entry points expose the same public names",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+      "file": "test/node.test.mjs",
+      "name": "every Motion DOM export is present on the full entry",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+      "file": "test/node.test.mjs",
+      "name": "default entry keeps the JS consumer API",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+      "file": "test/node.test.mjs",
+      "name": "public constructor compatibility covers common direct usage",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",83,1,0,\"test\",\"MotionValue uses its public prototype and preserves method defaults\",1]",
+      "file": "test/node.test.mjs",
+      "name": "MotionValue uses its public prototype and preserves method defaults",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/node.test.mjs\",99,1,0,\"test\",\"group compatibility preserves existing native accessors and completion promises\",1]",
+      "file": "test/node.test.mjs",
+      "name": "group compatibility preserves existing native accessors and completion promises",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+      "file": "test/shake.test.mjs",
+      "name": "named imports do not pull the whole consumer graph",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+      "file": "test/terser.test.mjs",
+      "name": "the distributed animate module survives a second Terser pass",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+      "file": "test/vite.test.mjs",
+      "name": "Vite bundles the public package entry",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "inputsStable": true,
+  "elapsedMs": 6052.098678,
+  "completed": "2026-09-19T23:20:13.620Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2bc4e15487fab2b98b26038d86bad6ff31bd7512bf5d22b7c25c7edf41087e5f",
+      "bytes": 735745
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2bc4e15487fab2b98b26038d86bad6ff31bd7512bf5d22b7c25c7edf41087e5f",
+      "bytes": 735745
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5d74a250720f0a08dcb97f11ee79b94d545f7597351a3569c8cc446d344b8a8d",
+      "bytes": 1097
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0c508a801e64cad7203cce76b417d6ae03e34f125a738df196754dac04bab60f",
+      "bytes": 9863
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "238e62314f185dd9c9776ed138a97ceff09087e7d7fbc5531546efadecf66e96",
+      "bytes": 3464
+    },
+    {
+      "path": "node/loaded/1522937-1f6671b4-9b7a-423a-b793-a99fb796fc6a.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0362c5b0c3e352d964df906ab3dc495f53b973285710e8c1b77c46e2b546bba6",
+      "bytes": 350
+    },
+    {
+      "path": "node/loaded/1522937-51b1d102-a7c4-4142-86b0-030ef6acfe44.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "8887b7e049d739b791b704de6afb12005003ed4e243cc62bcffbf0fa742c927a",
+      "bytes": 343
+    },
+    {
+      "path": "node/loaded/1522937-531369c5-4471-4c9d-9e5b-9c4318053a9b.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2e439f8a893ec0dc84ab059340be100cd7090dfc559cce2b901bdf088a4ce560",
+      "bytes": 350
+    },
+    {
+      "path": "node/loaded/1522937-59ccbb2a-b90e-428a-a890-aebbd8f8f762.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e4ef1d5336d412c592c41c413e0fd528978d10f29ec3d09194595c8aeee84d62",
+      "bytes": 343
+    },
+    {
+      "path": "node/loaded/1522937-6f50be5f-8058-4ce7-8691-b9a5c145bd8a.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c2c5af26efd7d3b9a17edf0d56c4bc12da646b505a5490053d7ef7da26265af",
+      "bytes": 347
+    },
+    {
+      "path": "node/loaded/1522937-7c443795-1c4a-444f-bd50-b8f49cd933d5.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "6fe2cc8d6a1cab6b32c41ca0eccffa0263ef5b627f065769a1d31d13c1488461",
+      "bytes": 343
+    },
+    {
+      "path": "node/loaded/1522937-82821370-fd11-4c59-aee6-d3386da0efc1.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "44a7bd2eb28ad180e6546164d2e253874020ee9a12322baceff778743980ea72",
+      "bytes": 346
+    },
+    {
+      "path": "node/loaded/1522937-8ac0f573-f4e8-422b-985d-e8339e5c5c75.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "668950e35918d2b30c8e22535838ad091407839dc43f09bc128d3e9370a364f1",
+      "bytes": 350
+    },
+    {
+      "path": "node/loaded/1522937-bc1b486a-f183-402b-8793-a704a975eda9.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "dc5ebab7ce3696cff2dd16450fccc599fc7a25479195841bf109403631b7c8c4",
+      "bytes": 350
+    },
+    {
+      "path": "node/loaded/1522937-dd956d19-ee4b-4dea-9fa3-8dbedfc329e2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "678b038122c4ec3413cb3e7f6fc60b353ec3b62afa1fe9ca07e0c2092b82a9dc",
+      "bytes": 359
+    },
+    {
+      "path": "node/loaded/1522937-de664885-d69e-41ae-ad38-ca534d56aee7.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "72c818c49b744d664434b2cae91b23d6f34de00c8f26300808911b1f7c04d8c7",
+      "bytes": 344
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "25d316f00833fb7561520b8dc5c626e17edbc458cf4d5aecbcd06b1d9196d3bb",
+      "bytes": 1153
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ab1f1b56a61d4a6ecd5a2c8b0f845fea1f3c89a48fad8f9acf207c70811763e5",
+      "bytes": 16314
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+extern int argument();extern string observe(int value,string label);
+export func()->string make(int seed){Record<int> state=record{count:seed};auto createLabel=(int unused)=>"place/"+"ready";return ()=>{int before=state.count??0;state.count=before+1;return observe(state.count??0,createLabel(argument()));};}

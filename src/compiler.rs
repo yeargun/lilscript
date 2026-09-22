@@ -3,7 +3,6 @@ use bumpalo::Bump;
 use rayon::prelude::*;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use std::io::Write as _;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -351,6 +350,7 @@ fn compile_path_explained_inner(
         .map_err(|error| module_compile_error(&modules, CompileError::Semantic(error)))?;
     let ir = lower_to_control_flow(&linked, &semantics)
         .map_err(|error| module_compile_error(&modules, CompileError::Lower(error)))?;
+    let pure_exports = declared_pure_exports(&ir);
     let contract = config.javascript_compilation_contract(module_output);
     let abi_manifest = contract.abi_manifest(&ir);
     let selected = optimize_and_select_javascript(ir, config, module_output)
@@ -365,7 +365,7 @@ fn compile_path_explained_inner(
         ));
     }
     let javascript = if module_output {
-        finish_javascript_module(selected.javascript, config)
+        finish_javascript_module(selected.javascript, config, &pure_exports)
             .map_err(|error| module_compile_error(&modules, error))?
     } else {
         selected.javascript
@@ -1444,8 +1444,24 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 ) -> Result<String, CompileError> {
     let semantics = analyze(program)?;
     let ir = lower_to_control_flow(program, &semantics)?;
+    let pure_exports = declared_pure_exports(&ir);
     let selected = optimize_and_select_javascript(ir, config, true)?;
-    finish_javascript_module(selected.javascript, config)
+    finish_javascript_module(selected.javascript, config, &pure_exports)
+}
+
+fn declared_pure_exports(ir: &ControlFlowModule<'_>) -> std::collections::BTreeSet<String> {
+    ir.exports
+        .iter()
+        .filter_map(|export| {
+            let crate::ir::ExportBinding::Function(id) = export.binding else {
+                return None;
+            };
+            ir.functions
+                .get(id.0 as usize)
+                .filter(|function| function.declared_pure)
+                .map(|_| export.name.to_owned())
+        })
+        .collect()
 }
 
 /// The last step of a single-bundle module: `javascript.function_scope`
@@ -1457,19 +1473,31 @@ fn compile_program_to_js_module_configured<'ast, 'src>(
 fn finish_javascript_module(
     javascript: String,
     config: &ProjectConfig,
+    pure_exports: &std::collections::BTreeSet<String>,
 ) -> Result<String, CompileError> {
-    if config.javascript.function_scope != Some(true) {
-        return Ok(javascript);
-    }
-    match crate::js_peephole::wrap_module_internals_in_function_scope(&javascript) {
-        Ok(Ok(wrapped)) => Ok(wrapped),
-        Ok(Err(_reason)) => Ok(javascript),
-        Err(error) => Err(CompileError::Codegen(
-            crate::codegen_js::CodegenError::new(
+    let javascript = if config.javascript.function_scope == Some(true) {
+        match crate::js_peephole::wrap_module_internals_in_function_scope(&javascript) {
+            Ok(Ok(wrapped)) => wrapped,
+            Ok(Err(_reason)) => javascript,
+            Err(error) => {
+                return Err(CompileError::Codegen(crate::codegen_js::CodegenError::new(
+                    Span::empty(0),
+                    format!("function_scope wrapper produced an unparseable module: {error}"),
+                )))
+            }
+        }
+    } else {
+        javascript
+    };
+    if config.javascript.emit_pure_annotations {
+        crate::js_peephole::annotate_pure_export_calls(&javascript, pure_exports).map_err(|error| {
+            CompileError::Codegen(crate::codegen_js::CodegenError::new(
                 Span::empty(0),
-                format!("function_scope wrapper produced an unparseable module: {error}"),
-            ),
-        )),
+                format!("pure export annotation failed: {error}"),
+            ))
+        })
+    } else {
+        Ok(javascript)
     }
 }
 
@@ -2826,7 +2854,7 @@ fn ir_type_contains_record(ir: &ControlFlowModule<'_>, ty: &crate::semantic::Typ
                 signature
                     .params
                     .iter()
-                    .any(|parameter| visit(ir, parameter, visiting))
+                    .any(|parameter| visit(ir, &parameter.ty, visiting))
                     || visit(ir, &signature.return_type, visiting)
             }
             Type::GenericFunction(function) => {
@@ -2834,12 +2862,15 @@ fn ir_type_contains_record(ir: &ControlFlowModule<'_>, ty: &crate::semantic::Typ
                     .signature
                     .params
                     .iter()
-                    .any(|parameter| visit(ir, parameter, visiting))
+                    .any(|parameter| visit(ir, &parameter.ty, visiting))
                     || visit(ir, &function.signature.return_type, visiting)
             }
-            Type::Struct(name)
+            Type::Struct(StructType { name, .. })
             | Type::Class(name)
-            | Type::StructInstance { name, .. }
+            | Type::StructInstance {
+                declaration: StructType { name, .. },
+                ..
+            }
             | Type::ClassInstance { name, .. } => {
                 if visiting.iter().any(|current| current == name) {
                     return false;
@@ -4687,9 +4718,7 @@ impl JavaScriptArtifactAdmission {
 /// to terminal leaves, and after a late rewrite proposes replacement bytes.
 /// It therefore catches grammar interactions the lightweight validator cannot
 /// prove while keeping proposal throughput and emitted bytes unchanged.
-fn validate_generated_javascript_with_standard_parser(
-    source: &str,
-) -> Result<(), CompileError> {
+fn validate_generated_javascript_with_standard_parser(source: &str) -> Result<(), CompileError> {
     let allocator = oxc_allocator::Allocator::default();
     let parsed = oxc_parser::Parser::new(&allocator, source, oxc_span::SourceType::mjs())
         .with_options(oxc_parser::ParseOptions {
@@ -4698,10 +4727,10 @@ fn validate_generated_javascript_with_standard_parser(
         })
         .parse();
     if parsed.panicked || !parsed.diagnostics.is_empty() {
-        let detail = parsed
-            .diagnostics
-            .first()
-            .map_or_else(|| "parser could not recover".to_string(), ToString::to_string);
+        let detail = parsed.diagnostics.first().map_or_else(
+            || "parser could not recover".to_string(),
+            ToString::to_string,
+        );
         return Err(crate::codegen_js::CodegenError::new(
             Span::empty(0),
             format!("generated JavaScript failed standards parser admission: {detail}"),
@@ -4740,6 +4769,7 @@ fn test_artifact_admission(source: &str) -> Arc<JavaScriptArtifactAdmission> {
         direct_source: Arc::from(source),
         abi_manifest: Arc::new(crate::compilation_contract::JavaScriptAbiManifest {
             world: "closed-application",
+            execution: "script",
             exports: Vec::new(),
             export_names_may_mangle: false,
             foreign_imports: Vec::new(),
@@ -6126,38 +6156,38 @@ fn finalize_javascript_candidates_with_parallelism(
                     .div_ceil(carried.saturating_sub(offset).max(1));
                 codec_budget.begin_fair_slice(share);
                 let remainder = (|| {
-                let remapped = apply_unused_letter_binding_remaps(
-                    selected.clone(),
-                    config,
-                    true,
-                    codec_budget,
-                )?;
-                let selected = retain_resolved_javascript(selected, remapped);
-                let cleaned =
-                    apply_late_javascript_cleanup(selected.clone(), config, 6, codec_budget)?;
-                let selected = retain_resolved_javascript(selected, cleaned);
-                // Late control/sequence selection changes identifier adjacency and
-                // use frequency. Re-run the exact codec-scored remapper on those
-                // final bytes; the pre-cleanup optimum is not necessarily optimal
-                // for the transformed artifact, and unchanged naming remains the
-                // incumbent candidate.
-                let remapped = apply_unused_letter_binding_remaps(
-                    selected.clone(),
-                    config,
-                    true,
-                    codec_budget,
-                )?;
-                let selected = retain_resolved_javascript(selected, remapped);
-                let mut selected =
-                    apply_terminal_boolean_binding_remap(selected, config, codec_budget)?;
-                selected.rank = javascript_candidate_rank(
-                    config,
-                    selected.transfer_cost,
-                    baseline_transfer,
-                    selected.performance.score,
-                    baseline_performance.score,
-                );
-                Ok::<_, CompileError>(selected)
+                    let remapped = apply_unused_letter_binding_remaps(
+                        selected.clone(),
+                        config,
+                        true,
+                        codec_budget,
+                    )?;
+                    let selected = retain_resolved_javascript(selected, remapped);
+                    let cleaned =
+                        apply_late_javascript_cleanup(selected.clone(), config, 6, codec_budget)?;
+                    let selected = retain_resolved_javascript(selected, cleaned);
+                    // Late control/sequence selection changes identifier adjacency and
+                    // use frequency. Re-run the exact codec-scored remapper on those
+                    // final bytes; the pre-cleanup optimum is not necessarily optimal
+                    // for the transformed artifact, and unchanged naming remains the
+                    // incumbent candidate.
+                    let remapped = apply_unused_letter_binding_remaps(
+                        selected.clone(),
+                        config,
+                        true,
+                        codec_budget,
+                    )?;
+                    let selected = retain_resolved_javascript(selected, remapped);
+                    let mut selected =
+                        apply_terminal_boolean_binding_remap(selected, config, codec_budget)?;
+                    selected.rank = javascript_candidate_rank(
+                        config,
+                        selected.transfer_cost,
+                        baseline_transfer,
+                        selected.performance.score,
+                        baseline_performance.score,
+                    );
+                    Ok::<_, CompileError>(selected)
                 })();
                 codec_budget.end_fair_slice();
                 finished.push(remainder?);
@@ -6169,16 +6199,13 @@ fn finalize_javascript_candidates_with_parallelism(
                     configured_baseline.len(),
                 ),
             );
-            finished
-                .into_iter()
-                .next()
-                .ok_or_else(|| -> CompileError {
-                    crate::codegen_js::CodegenError::new(
-                        Span::empty(0),
-                        "terminal cleanup returned no candidate",
-                    )
-                    .into()
-                })
+            finished.into_iter().next().ok_or_else(|| -> CompileError {
+                crate::codegen_js::CodegenError::new(
+                    Span::empty(0),
+                    "terminal cleanup returned no candidate",
+                )
+                .into()
+            })
         })();
         terminal_finalists.push(result?);
     }
@@ -6264,44 +6291,16 @@ fn javascript_candidate_rank(
     performance: u64,
     baseline_performance: u64,
 ) -> (u64, u64) {
-    let transfer_ratio = normalized_ratio(transfer as u64, baseline_transfer as u64);
-    let performance_ratio = normalized_ratio(performance, baseline_performance);
-    match config.javascript.priority {
-        crate::config::JavaScriptPriority::PerformanceFirst => (performance_ratio, transfer_ratio),
-        crate::config::JavaScriptPriority::RealisticPerformanceFirst => {
-            let limit = 10_000u64.saturating_add(
-                u64::from(config.javascript.performance.max_regression_percent).saturating_mul(100),
-            );
-            let rejected = u64::from(performance_ratio > limit);
-            (
-                rejected
-                    .saturating_mul(1_000_000)
-                    .saturating_add(transfer_ratio),
-                performance_ratio,
-            )
-        }
-        crate::config::JavaScriptPriority::Balanced => (
-            transfer_ratio
-                .saturating_mul(3)
-                .saturating_add(performance_ratio.saturating_mul(2)),
-            transfer_ratio,
-        ),
-        // A size-first build is an exact served-byte objective. Ratios are
-        // useful when combining unlike dimensions, but quantizing transfer to
-        // basis points can tie several bytes on a real bundle and allow a
-        // larger artifact to win through the secondary performance score.
-        crate::config::JavaScriptPriority::SizeFirst => (
-            u64::try_from(transfer).unwrap_or(u64::MAX),
-            performance_ratio,
-        ),
+    crate::compilation_policy::ObjectiveRank {
+        priority: config.javascript.priority,
+        realistic_performance_limit_percent: config.javascript.performance.max_regression_percent,
     }
-}
-
-fn normalized_ratio(value: u64, baseline: u64) -> u64 {
-    if baseline == 0 {
-        return u64::from(value != 0).saturating_mul(10_000);
-    }
-    value.saturating_mul(10_000).saturating_div(baseline)
+    .rank(
+        u64::try_from(transfer).unwrap_or(u64::MAX),
+        u64::try_from(baseline_transfer).unwrap_or(u64::MAX),
+        performance,
+        baseline_performance,
+    )
 }
 
 fn generated_javascript_parse_error(
@@ -7552,7 +7551,8 @@ fn apply_terminal_idiom_convergence(
     }
     let admission = Arc::clone(&selected.admission);
     let mut code = selected.code.clone();
-    let Some(mut cost) = codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
+    let Some(mut cost) =
+        codec_budget.compressed_size(code.as_bytes(), config.javascript.cost_model)?
     else {
         return Ok(selected);
     };
@@ -8014,10 +8014,16 @@ fn apply_late_javascript_cleanup(
 ) -> Result<ScoredJavaScriptCandidate, CompileError> {
     let fallback = selected.clone();
     Ok(
-        late_javascript_cleanup_finalists(selected, config, terminal_local_rounds, codec_budget, 1)?
-            .into_iter()
-            .next()
-            .unwrap_or(fallback),
+        late_javascript_cleanup_finalists(
+            selected,
+            config,
+            terminal_local_rounds,
+            codec_budget,
+            1,
+        )?
+        .into_iter()
+        .next()
+        .unwrap_or(fallback),
     )
 }
 
@@ -9936,11 +9942,15 @@ fn emit_javascript_candidate(
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match crate::js_peephole::fold_once_memoized(&code, fold_redundant_null_undefined_or) {
+    let code = match crate::js_peephole::fold_once_memoized(&code, fold_redundant_null_undefined_or)
+    {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
-    let code = match crate::js_peephole::fold_once_memoized(&code, fold_dead_identifier_copy_declarators) {
+    let code = match crate::js_peephole::fold_once_memoized(
+        &code,
+        fold_dead_identifier_copy_declarators,
+    ) {
         Ok((folded, rewritten)) if rewritten > 0 => folded,
         _ => code,
     };
@@ -10226,11 +10236,7 @@ fn compressed_size(bytes: &[u8], model: CompressionCostModel) -> Result<usize, S
         return Ok(size);
     }
     let _timing = crate::timing::CODEC.scope(bytes.len());
-    let size = match model {
-        CompressionCostModel::Raw => bytes.len(),
-        CompressionCostModel::Gzip => canonical_gzip_size(bytes)?,
-        CompressionCostModel::Brotli => canonical_brotli_size(bytes)?,
-    };
+    let size = crate::compression::measure(bytes, model)?;
     crate::artifact_memo::COMPRESSED_SIZE.insert(key, size);
     dump_scored_candidate(bytes, &key.0, size);
     Ok(size)
@@ -10267,76 +10273,14 @@ const fn compression_cost_model_key(model: CompressionCostModel) -> u8 {
     }
 }
 
-pub const CANONICAL_ZLIB_PACKAGE_VERSION: &str = "1.1.24";
-pub const CANONICAL_ZLIB_LIBRARY_VERSION: &str = "1.3.1";
-pub const CANONICAL_BROTLI_PACKAGE_VERSION: &str = "1.1.0";
-pub const CANONICAL_BROTLI_LIBRARY_VERSION: u32 = 0x0100_1000;
-
-pub fn canonical_zlib_version() -> Result<&'static str, String> {
-    // SAFETY: zlib returns a process-lifetime NUL-terminated version string.
-    let version = unsafe { std::ffi::CStr::from_ptr(libz_sys::zlibVersion()) };
-    version
-        .to_str()
-        .map_err(|error| format!("zlib returned a non-UTF-8 version: {error}"))
-}
-
-fn canonical_gzip_size(bytes: &[u8]) -> Result<usize, String> {
-    let version = canonical_zlib_version()?;
-    if version != CANONICAL_ZLIB_LIBRARY_VERSION {
-        return Err(format!(
-            "canonical gzip scoring requires zlib {}, linked {version}",
-            CANONICAL_ZLIB_LIBRARY_VERSION
-        ));
-    }
-    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
-    encoder
-        .write_all(bytes)
-        .map_err(|error| format!("gzip candidate measurement failed: {error}"))?;
-    encoder
-        .finish()
-        .map(|output| output.len())
-        .map_err(|error| format!("gzip candidate measurement failed: {error}"))
-}
-
-fn canonical_brotli_size(bytes: &[u8]) -> Result<usize, String> {
-    let version = canonical_brotli_version();
-    if version != CANONICAL_BROTLI_LIBRARY_VERSION {
-        return Err(format!(
-            "canonical Brotli scoring requires encoder {:#010x}, linked {version:#010x}",
-            CANONICAL_BROTLI_LIBRARY_VERSION
-        ));
-    }
-    // SAFETY: the pinned C API only reads `bytes[0..len]` and writes at most
-    // `encoded_size` bytes. `BrotliEncoderMaxCompressedSize` supplies that
-    // capacity; `max(1)` keeps the output pointer valid for empty input.
-    let capacity = unsafe { compu_brotli_sys::BrotliEncoderMaxCompressedSize(bytes.len()) };
-    if capacity == 0 && !bytes.is_empty() {
-        return Err("Brotli candidate is too large to measure".to_string());
-    }
-    let mut output = vec![0u8; capacity.max(1)];
-    let mut encoded_size = output.len();
-    let succeeded = unsafe {
-        compu_brotli_sys::BrotliEncoderCompress(
-            11,
-            22,
-            compu_brotli_sys::BrotliEncoderMode_BROTLI_MODE_GENERIC,
-            bytes.len(),
-            bytes.as_ptr(),
-            &mut encoded_size,
-            output.as_mut_ptr(),
-        )
-    };
-    if succeeded == 0 {
-        return Err("Brotli candidate measurement failed".to_string());
-    }
-    Ok(encoded_size)
-}
-
-pub fn canonical_brotli_version() -> u32 {
-    // SAFETY: this function has no arguments, side effects, or memory access;
-    // it returns the statically linked encoder's encoded version number.
-    unsafe { compu_brotli_sys::BrotliEncoderVersion() }
-}
+// Public API compatibility only; the encoder implementation has one owner.
+#[cfg(test)]
+use crate::compression::canonical_brotli_size;
+pub use crate::compression::{
+    canonical_brotli_version, canonical_zlib_version, CANONICAL_BROTLI_LIBRARY_VERSION,
+    CANONICAL_BROTLI_PACKAGE_VERSION, CANONICAL_ZLIB_LIBRARY_VERSION,
+    CANONICAL_ZLIB_PACKAGE_VERSION,
+};
 
 fn compile_program_to_c<'ast, 'src>(
     program: &crate::ast::Program<'ast, 'src>,
@@ -10405,6 +10349,10 @@ fn render_message_diagnostic(path: &Path, source: &str, span: Span, message: &st
         path.display()
     )
 }
+
+#[cfg(test)]
+#[path = "compiler_rest_capture_tests.rs"]
+mod rest_capture_tests;
 
 #[cfg(test)]
 mod tests {
@@ -15662,6 +15610,7 @@ mod tests {
     fn observed_export_names_must_match_the_typed_abi() {
         let manifest = crate::compilation_contract::JavaScriptAbiManifest {
             world: "reusable-library",
+            execution: "module",
             exports: vec![crate::compilation_contract::JavaScriptExportAbi {
                 name: "expected".to_string(),
                 kind: crate::compilation_contract::JavaScriptExportKind::Global,
@@ -15690,6 +15639,7 @@ mod tests {
     fn observed_javascript_must_retain_lowering_obligations() {
         let manifest = crate::compilation_contract::JavaScriptAbiManifest {
             world: "closed-application",
+            execution: "script",
             exports: Vec::new(),
             export_names_may_mangle: false,
             foreign_imports: Vec::new(),
@@ -15709,6 +15659,7 @@ mod tests {
     fn final_javascript_cannot_introduce_an_unclassified_static_property() {
         let manifest = crate::compilation_contract::JavaScriptAbiManifest {
             world: "closed-application",
+            execution: "script",
             exports: Vec::new(),
             export_names_may_mangle: false,
             foreign_imports: Vec::new(),
@@ -17878,6 +17829,20 @@ mod tests {
         std::fs::remove_dir_all(directory).unwrap();
     }
 
+    /// Whether the module's export clause publishes `public`, either as the
+    /// binding's own name (`export{square}`, what an exported function carries
+    /// under D2) or through a rename (`export{a as square}`).
+    fn exports_public_name(module: &str, public: &str) -> bool {
+        module.split("export{").skip(1).any(|clause| {
+            clause
+                .split('}')
+                .next()
+                .unwrap_or("")
+                .split(',')
+                .any(|item| item.trim() == public || item.trim().ends_with(&format!(" as {public}")))
+        })
+    }
+
     #[test]
     fn emits_reusable_esm_with_mangled_live_exports() {
         let directory =
@@ -17900,7 +17865,7 @@ mod tests {
 
         let module = compile_path_to_js_module(&main).unwrap();
         assert!(module.contains("export{"));
-        assert!(module.contains(" as square"));
+        assert!(exports_public_name(&module, "square"), "{module}");
         assert!(module.contains(" as answer"));
         assert!(!module.contains("hidden"));
         assert!(!module.contains("internalSquare"));
@@ -19754,8 +19719,8 @@ mod tests {
         assert!(output.contains(".x"));
         assert!(output.contains(".y"));
         assert!(output.contains("{x:0,y:0}"));
-        assert!(output.contains(" as sum"));
-        assert!(output.contains(" as origin"));
+        assert!(exports_public_name(&output, "sum"), "{output}");
+        assert!(exports_public_name(&output, "origin"), "{output}");
     }
 
     #[test]
@@ -20522,16 +20487,48 @@ mod function_scope_tests {
             b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
         for chunk in bytes.chunks(3) {
-            let word = chunk.iter().enumerate().fold(0u32, |acc, (index, byte)| acc | (u32::from(*byte) << (16 - 8 * index)));
+            let word = chunk.iter().enumerate().fold(0u32, |acc, (index, byte)| {
+                acc | (u32::from(*byte) << (16 - 8 * index))
+            });
             for position in 0..4 {
                 if position <= chunk.len() {
-                    out.push(char::from(ALPHABET[((word >> (18 - 6 * position)) & 63) as usize]));
+                    out.push(char::from(
+                        ALPHABET[((word >> (18 - 6 * position)) & 63) as usize],
+                    ));
                 } else {
                     out.push('=');
                 }
             }
         }
         out
+    }
+
+    #[test]
+    fn checked_pure_exports_carry_call_annotations_after_selection() {
+        let arena = Bump::new();
+        let program = parse_source(&arena,
+            "export pure func()->float factory(float value){return()=>value;}export func()->float callback=factory(7.0);").unwrap();
+        let mut config = ProjectConfig::default();
+        config.javascript.optimization_level = 0;
+        config.javascript.emit_pure_annotations = true;
+        config.optimization.inlining = Some(false);
+        let code = compile_program_to_js_module_configured(&program, &config).unwrap();
+        assert!(code.contains("/*@__PURE__*/"), "{code}");
+        let url = format!(
+            "data:text/javascript;base64,{}",
+            base64_encode(code.as_bytes())
+        );
+        let script = format!("import({url:?}).then(m=>process.stdout.write(String(m.callback())))");
+        let result = std::process::Command::new("node")
+            .args(["--input-type=module", "-e", &script])
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&result.stdout), "7");
     }
 
     #[test]
@@ -20550,16 +20547,26 @@ mod function_scope_tests {
 
         assert!(!plain.starts_with("var _"), "{plain}");
         assert_eq!(
-            crate::js_peephole::wrap_module_internals_in_function_scope(&plain).unwrap().as_ref().map(|_| ()),
+            crate::js_peephole::wrap_module_internals_in_function_scope(&plain)
+                .unwrap()
+                .as_ref()
+                .map(|_| ()),
             Ok(()),
             "{plain}"
         );
         assert!(wrapped.starts_with("var _a,_b;(function(){"), "{wrapped}");
-        assert!(wrapped.ends_with("})();export{_a as look,_b as missed}") || wrapped.ends_with("})();export{_a as missed,_b as look}"), "{wrapped}");
+        assert!(
+            wrapped.ends_with("})();export{_a as look,_b as missed}")
+                || wrapped.ends_with("})();export{_a as missed,_b as look}"),
+            "{wrapped}"
+        );
         // identity-observable facts stay what the unwrapped module had: names, arity, values
         let probe = "process.stdout.write([look('a'),look('b'),look('a'),missed(),look.name===missed.name,look.length,typeof look.prototype].join(':'))";
         assert_eq!(run_module(&plain, probe), run_module(&wrapped, probe));
-        assert!(run_module(&wrapped, probe).starts_with("a!:b!:a!:2:false:1:"), "{wrapped}");
+        assert!(
+            run_module(&wrapped, probe).starts_with("a!:b!:a!:2:false:1:"),
+            "{wrapped}"
+        );
     }
 
     #[test]
@@ -20574,7 +20581,10 @@ mod function_scope_tests {
         config.mangle.exports = Some(false);
         let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
         // the tested read is spelled bare with a strict undefined test …
-        assert!(javascript.contains("!==void 0") || javascript.contains("===void 0"), "{javascript}");
+        assert!(
+            javascript.contains("!==void 0") || javascript.contains("===void 0"),
+            "{javascript}"
+        );
         // … while the read that escapes as a `string?` keeps its null normalization
         assert!(javascript.contains("??null"), "{javascript}");
         let probe = "process.stdout.write([look('a'),look('a'),String(raw('a')),String(raw('zz'))].join(':'))";
@@ -20594,7 +20604,8 @@ mod function_scope_tests {
         let javascript = compile_program_to_js_module_configured(&program, &config).unwrap();
         // no test anywhere, so absence keeps its `null` spelling rather than leaking `undefined`
         assert!(javascript.contains("??null"), "{javascript}");
-        let probe = "seed('a');process.stdout.write([String(peek('a')),String(peek('zz'))].join(':'))";
+        let probe =
+            "seed('a');process.stdout.write([String(peek('a')),String(peek('zz'))].join(':'))";
         assert_eq!(run_module(&javascript, probe), "a!:null");
     }
 
@@ -20612,8 +20623,14 @@ mod function_scope_tests {
         config.javascript.priority = JavaScriptPriority::PerformanceFirst;
         let performance = compile_program_to_js_module_configured(&program, &config).unwrap();
         // neither spelling normalizes the read, and the performance spelling tests `undefined` strictly
-        assert!(!size_first.contains("??null") && !performance.contains("??null"), "{size_first}\n{performance}");
-        assert!(performance.contains("===void 0") || performance.contains("!==void 0"), "{performance}");
+        assert!(
+            !size_first.contains("??null") && !performance.contains("??null"),
+            "{size_first}\n{performance}"
+        );
+        assert!(
+            performance.contains("===void 0") || performance.contains("!==void 0"),
+            "{performance}"
+        );
         assert!(!size_first.contains("void 0"), "{size_first}");
         let probe = "process.stdout.write([count('a'),count('b'),count('a'),count('a')].join(':'))";
         assert_eq!(run_module(&size_first, probe), "1:1:2:3");
@@ -20685,10 +20702,24 @@ mod function_scope_tests {
         let performance = compile_program_to_js_module_configured(&program, &config).unwrap();
         // performance-first spells the nullable object test as a null comparison, never as
         // truthiness; the strict `!==null` needs a provenance proof and is a later step
-        assert!(performance.contains("null!=") || performance.contains("!=null"), "{performance}");
-        assert!(!performance.contains("if(a)") && !performance.contains("if(c)"), "{performance}");
-        assert!(size_first.len() <= performance.len(), "{size_first}\n{performance}");
+        assert!(
+            performance.contains("null!=") || performance.contains("!=null"),
+            "{performance}"
+        );
+        assert!(
+            !performance.contains("if(a)") && !performance.contains("if(c)"),
+            "{performance}"
+        );
+        assert!(
+            size_first.len() <= performance.len(),
+            "{size_first}\n{performance}"
+        );
         let probe = "process.stdout.write([step('a'),step('b'),step('c'),step('d')].join(':'))";
-        assert_eq!(run_module(&size_first, probe), run_module(&performance, probe));
+        assert_eq!(
+            run_module(&size_first, probe),
+            run_module(&performance, probe)
+        );
     }
 }
+#[cfg(test)]
+use crate::semantic::StructType;

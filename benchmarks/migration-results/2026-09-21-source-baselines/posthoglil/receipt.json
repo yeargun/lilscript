@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "posthoglil",
+  "started": "2026-09-20T23:37:59.632Z",
+  "passed": false,
+  "sourceBuilt": true,
+  "qualification": "unverified",
+  "original": "/home/azureuser/posthoglil",
+  "workspace": "/tmp/lilscript-baseline-posthoglil-ldBCGZ/posthoglil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/posthoglil",
+    "candidates": [
+      "/home/azureuser/posthoglil",
+      "/home/azureuser/posthoglil",
+      "/tmp/lilscript-page-refresh-20260910/current/posthoglil"
+    ],
+    "recorded": "/home/azureuser/posthoglil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+    "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+    "bytes": 17886160,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/posthoglil",
+    "files": 3856,
+    "sha256": "07317e3bd29a2ed3fd4d21695cdf12d34fd67f9d816541b15e8fae1f3f9e316a"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d/lilscript",
+        "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+        "bytes": 17886160
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.bytes.toml",
+        "sha256": "44c804e8cd0604cc043ade2b84377ba8637dbf15317ea61e82ce84767cfeb502",
+        "bytes": 293
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.closed.toml",
+        "sha256": "a320308355cb07c3fbe42d7c205ad4edf0235e7140627b9b09e0d9a205b0f16d",
+        "bytes": 297
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.dev.toml",
+        "sha256": "89fffda699a19edd0a1340e521a7fb4b0ecae4e13922241bde25f66dff8060ec",
+        "bytes": 261
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.gzip.toml",
+        "sha256": "c368a8b3b40ade2f1ed50fae2ed6dd05b04239746b83335c733cb9fc9bec408f",
+        "bytes": 294
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.packs-safe.toml",
+        "sha256": "b8cb81dd94c7e21bec7aeedfce82aa147edbfe460fba41affed66e41b38422bd",
+        "bytes": 285
+      },
+      {
+        "path": "/home/azureuser/posthoglil/lilscript.toml",
+        "sha256": "af5327406539f82a7434e296ec7ad99ac7834827af40c3ff65af802c8387637b",
+        "bytes": 1400
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/autocapture.cjs",
+    "dist/autocapture.esm.js",
+    "dist/autocapture.raw.js",
+    "dist/error-tracking.cjs",
+    "dist/error-tracking.esm.js",
+    "dist/error-tracking.raw.js",
+    "dist/otlp.cjs",
+    "dist/otlp.esm.js",
+    "dist/otlp.raw.js",
+    "dist/posthog.bytes.js",
+    "dist/posthog.cjs",
+    "dist/posthog.closed.js",
+    "dist/posthog.esm.js",
+    "dist/posthog.gzip.js",
+    "dist/posthog.raw.js",
+    "dist/posthog.umd.js",
+    "dist/replay-core.cjs",
+    "dist/replay-core.esm.js",
+    "dist/replay-core.raw.js",
+    "dist/surveys.cjs",
+    "dist/surveys.esm.js",
+    "dist/surveys.raw.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 109.639,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "the build left these artifacts empty, so they were not rebuilt: dist/autocapture.cjs, dist/autocapture.esm.js, dist/autocapture.raw.js, dist/error-tracking.cjs, dist/error-tracking.esm.js, dist/error-tracking.raw.js, dist/otlp.cjs, dist/otlp.esm.js, dist/otlp.raw.js, dist/replay-core.cjs, dist/replay-core.esm.js, dist/replay-core.raw.js, dist/surveys.cjs, dist/surveys.esm.js, dist/surveys.raw.js",
+    "stack": "AssertionError [ERR_ASSERTION]: the build left these artifacts empty, so they were not rebuilt: dist/autocapture.cjs, dist/autocapture.esm.js, dist/autocapture.raw.js, dist/error-tracking.cjs, dist/error-tracking.esm.js, dist/error-tracking.raw.js, dist/otlp.cjs, dist/otlp.esm.js, dist/otlp.raw.js, dist/replay-core.cjs, dist/replay-core.esm.js, dist/replay-core.raw.js, dist/surveys.cjs, dist/surveys.esm.js, dist/surveys.raw.js\n    at buildSourceBaseline (file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:186:5)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/finer/tools/source-baseline.mjs:290:21"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 113.755,
+  "completed": "2026-09-20T23:39:53.353Z",
+  "fingerprint": "5474236dfb84c7a30bb04f8c0b704b312ab73900a07334fa8593a75886c8f544"
+}

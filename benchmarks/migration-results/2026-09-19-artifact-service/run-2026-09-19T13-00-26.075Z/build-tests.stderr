@@ -1,0 +1,4 @@
+   Compiling lilscript v0.1.0 (/home/azureuser/lilscript)
+error: could not compile `lilscript` (lib) due to 1 previous error; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `lilscript` (lib test) due to 1 previous error; 5 warnings emitted

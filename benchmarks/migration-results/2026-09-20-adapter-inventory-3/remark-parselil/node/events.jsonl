@@ -1,0 +1,28 @@
+{"kind":"test-case","id":"[\"test/api.test.mjs\",13,3,1,\"test\",\"exports only the upstream default\",1]","file":"test/api.test.mjs","name":"exports only the upstream default","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",18,3,1,\"test\",\"installs a parser that turns a heading into mdast\",1]","file":"test/api.test.mjs","name":"installs a parser that turns a heading into mdast","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",26,3,1,\"test\",\"parses paragraphs, emphasis, strong, code, and lists\",1]","file":"test/api.test.mjs","name":"parses paragraphs, emphasis, strong, code, and lists","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",38,3,1,\"test\",\"reads data keys at parse time\",1]","file":"test/api.test.mjs","name":"reads data keys at parse time","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",46,3,1,\"test\",\"matches upstream property insertion order\",1]","file":"test/api.test.mjs","name":"matches upstream property insertion order","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",74,3,1,\"test\",\"keeps host-visible plugin keys in the library artifact\",1]","file":"test/api.test.mjs","name":"keeps host-visible plugin keys in the library artifact","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",12,1,0,\"suite\",\"remark-parse\",1]","file":"test/api.test.mjs","name":"remark-parse","type":"suite","status":"fail","error":"4 subtests failed"}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",12,3,1,\"test\",\"ships a closed artifact with the upstream export\",1]","file":"test/closed.test.mjs","name":"ships a closed artifact with the upstream export","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",18,3,1,\"test\",\"parses through unified with unmangled parser and data keys\",1]","file":"test/closed.test.mjs","name":"parses through unified with unmangled parser and data keys","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",11,1,0,\"suite\",\"remark-parse closed\",1]","file":"test/closed.test.mjs","name":"remark-parse closed","type":"suite","status":"fail","error":"1 subtest failed"}
+{"kind":"test-case","id":"[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]","file":"test/official/index.js","name":"should expose the public api","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",16,11,1,\"test\",\"should parse\",1]","file":"test/official/index.js","name":"should parse","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",45,11,1,\"test\",\"should support extensions\",1]","file":"test/official/index.js","name":"should support extensions","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",9,1,0,\"test\",\"remark-parse\",1]","file":"test/official/index.js","name":"remark-parse","type":"test","status":"fail","error":"2 subtests failed"}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",12,3,1,\"test\",\"loads the ESM and CommonJS exports\",1]","file":"test/package.test.mjs","name":"loads the ESM and CommonJS exports","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",20,3,1,\"test\",\"loads the closed export\",1]","file":"test/package.test.mjs","name":"loads the closed export","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",27,3,1,\"test\",\"exposes a callable UMD global\",1]","file":"test/package.test.mjs","name":"exposes a callable UMD global","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'null')"}
+{"kind":"test-case","id":"[\"test/package.test.mjs\",11,1,0,\"suite\",\"package artifacts\",1]","file":"test/package.test.mjs","name":"package artifacts","type":"suite","status":"fail","error":"3 subtests failed"}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"fail","error":"Expected values to be strictly equal:\n\n89641 !== 87764\n"}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"fail","error":"1 subtest failed"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 16"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 4"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 4"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 12"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 220.166007"}

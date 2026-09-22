@@ -1,0 +1,4 @@
+import {boots} from "./boot.lil";
+extern void emit(string label,int value);
+emit("public-init",boots);
+export Record<int> exposed(int seed){return record{count:seed};}

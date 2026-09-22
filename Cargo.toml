@@ -37,9 +37,17 @@ oxc_allocator = "=0.143.0"
 oxc_parser = "=0.143.0"
 oxc_span = "=0.143.0"
 
+[dev-dependencies]
+oxc_ast = "=0.143.0"
+
 [lib]
 name = "lilscript"
 path = "src/lib.rs"
+
+[patch.crates-io]
+# Same pinned encoder, built with its official cleanup-on-allocation-failure
+# contract so a compiler budget denial cannot terminate the process.
+compu-brotli-sys = { path = "vendor/compu-brotli-sys" }
 
 [[bin]]
 name = "lilscript"
@@ -52,3 +60,25 @@ path = "src/bin/lilpack.rs"
 [[bin]]
 name = "lilscript-codec"
 path = "src/bin/lilscript-codec.rs"
+
+# The shipped, measured profile. `debug-assertions` is off here on purpose: this
+# is the binary the fleet builds and scores, and an assertion is not free.
+#
+# Stated explicitly because its absence was load-bearing and invisible. With no
+# `[profile.release]` section at all, every `debug_assert!` in the tree compiled
+# out of exactly the builds that measure ports, so an invariant guarded that way
+# was never checked where it mattered. A gate must say which profile it holds in.
+[profile.release]
+debug-assertions = false
+
+# Release code paths with invariants live. Same optimisation level and the same
+# codec linkage as `release`, so timings and bytes stay comparable, but
+# `debug_assert!` fires.
+#
+# Use this for any gate that asserts a compiler invariant rather than an output
+# byte: `cargo test --profile release-assert`, and the twin-witness runs of the
+# target-tree migration (`migration/002-the-instrument.md`). Do not publish sizes
+# or timings from it -- publish from `release`.
+[profile.release-assert]
+inherits = "release"
+debug-assertions = true

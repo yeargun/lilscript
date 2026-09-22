@@ -14,6 +14,21 @@ pub enum JavaScriptWorld {
     ReusableLibrary,
 }
 
+/// How the complete artifact must be loaded, independently of who consumes
+/// its exports. Module output requires ECMAScript module execution even when
+/// it exports nothing. Script output makes no strict-mode entry guarantee.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JavaScriptExecution {
+    Module,
+    Script,
+}
+
+impl JavaScriptExecution {
+    pub fn guarantees_strict_execution(self) -> bool {
+        matches!(self, Self::Module)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JavaScriptAbiContract {
     pub preserve_root_exports: bool,
@@ -39,6 +54,7 @@ pub struct JavaScriptEffectPolicy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JavaScriptCompilationContract {
     pub world: JavaScriptWorld,
+    pub execution: JavaScriptExecution,
     pub ecmascript: EcmaScriptEdition,
     pub abi: JavaScriptAbiContract,
     pub assumptions: JavaScriptUnsafeAssumptions,
@@ -86,6 +102,8 @@ pub struct JavaScriptMethodAbi {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct JavaScriptAbiManifest {
     pub world: &'static str,
+    /// Required artifact loading mode, independent of export visibility.
+    pub execution: &'static str,
     pub exports: Vec<JavaScriptExportAbi>,
     pub export_names_may_mangle: bool,
     pub foreign_imports: Vec<JavaScriptForeignImportAbi>,
@@ -232,6 +250,10 @@ impl JavaScriptCompilationContract {
         stable_extern_fields.dedup();
 
         JavaScriptAbiManifest {
+            execution: match self.execution {
+                JavaScriptExecution::Module => "module",
+                JavaScriptExecution::Script => "script",
+            },
             world: match self.world {
                 JavaScriptWorld::ClosedApplication => "closed-application",
                 JavaScriptWorld::ReusableLibrary => "reusable-library",
@@ -288,6 +310,11 @@ impl ProjectConfig {
     ) -> JavaScriptCompilationContract {
         let options = self.js_options();
         JavaScriptCompilationContract {
+            execution: if module_output {
+                JavaScriptExecution::Module
+            } else {
+                JavaScriptExecution::Script
+            },
             world: if module_output {
                 JavaScriptWorld::ReusableLibrary
             } else {
@@ -299,7 +326,11 @@ impl ProjectConfig {
                 public_aggregate_abi: self.javascript.public_aggregate_abi,
                 preserve_extern_fields: options.mangle_extern_fields,
                 internal_export_bindings_may_mangle: options.mangle_exports,
-                public_function_spelling: self.javascript.function_spelling,
+                // D2: an export keeps the callable kind its *source* declares —
+                        // a function declaration is an ordinary constructible
+                        // `function`, an exported arrow stays an arrow. The
+                        // `function_spelling` knob governs private functions only.
+                        public_function_spelling: None,
             },
             assumptions: JavaScriptUnsafeAssumptions {
                 pristine_builtins: self.javascript.assume_pristine_builtins,
@@ -351,10 +382,9 @@ mod tests {
             contract.abi.public_aggregate_abi,
             PublicAggregateAbi::Positional
         );
-        assert_eq!(
-            contract.abi.public_function_spelling,
-            Some(FunctionSpelling::Function)
-        );
+        // The spelling knob is private-only: public callable kind follows
+        // the source declaration (D2), so the contract carries no override.
+        assert_eq!(contract.abi.public_function_spelling, None);
         assert!(!contract.abi.preserve_extern_fields);
         assert!(contract.abi.internal_export_bindings_may_mangle);
         assert!(contract.assumptions.pure_property_reads);
@@ -395,6 +425,10 @@ mod tests {
             .javascript_compilation_contract(true)
             .abi_manifest(&ir);
         assert_eq!(library.world, "reusable-library");
+        assert_eq!(
+            serde_json::to_value(&library).unwrap()["execution"],
+            "module"
+        );
         assert_eq!(library.exports.len(), 1);
         assert_eq!(library.exports[0].name, "add");
         assert_eq!(library.exports[0].arity, Some(1));
@@ -405,6 +439,10 @@ mod tests {
             .javascript_compilation_contract(false)
             .abi_manifest(&ir);
         assert!(closed.exports.is_empty());
+        assert_eq!(
+            serde_json::to_value(&closed).unwrap()["execution"],
+            "script"
+        );
     }
 
     #[test]

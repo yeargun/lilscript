@@ -1,0 +1,4 @@
+
+> @itslil/remark-gfm@4.0.3 check:types
+> tsc --noEmit --strict --exactOptionalPropertyTypes --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts
+

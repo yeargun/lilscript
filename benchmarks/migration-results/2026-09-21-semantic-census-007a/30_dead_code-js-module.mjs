@@ -1,0 +1,1 @@
+let a;let b;a=(0,{unused:function(value){return value*100|0;}}.unused);let unused=a;if(false){let a;a=void console.log(unused(9));}b=void console.log(42);

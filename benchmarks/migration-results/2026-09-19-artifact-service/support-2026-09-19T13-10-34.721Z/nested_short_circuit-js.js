@@ -1,0 +1,1 @@
+let a;a=(0,{gated:function(user,depth,flushing){return user&&(depth>0||flushing);}}.gated);let gated=a;let users=[false,true,false,true];let flushing=[true,false,false,true];{let a;let index=0;for(;index<(users.length|0);a=index,index=a+ 1|0,a){let a;a=void console.log(gated(users[index],index- 1|0,flushing[index]));}}

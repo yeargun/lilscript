@@ -1,0 +1,3 @@
+struct Private { int marker; int number; }
+export Private makeRight(int value) { return Private{100, value}; }
+export int rightNumber(Private value) { return value.number; }

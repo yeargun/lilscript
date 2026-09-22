@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.esm.js","/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/workspaces/mdast-util-to-hastlil/dist/to-hast.closed.js"],"directory":"/tmp/lilscript-to-hast-20260919-XgwB8N/portgate/tests/mdast-util-to-hastlil/loaded"});

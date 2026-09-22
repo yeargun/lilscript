@@ -1,0 +1,1 @@
+extern int argument(int n);int mix(int first,int unused,int last){return first+last;}try{print(mix(argument(1),argument(2),argument(3)));}catch(auto error){print(90);}finally{print(99);}

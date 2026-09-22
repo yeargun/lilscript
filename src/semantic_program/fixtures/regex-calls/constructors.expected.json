@@ -1,0 +1,18 @@
+[
+ ["one",["lookup","pattern",["construct","first",true,1,"a"]],"alias"],
+ ["two",["lookup","pattern","flags",["construct","first",true,2,"a","g"]],"alias"],
+ ["explicit-undefined",["lookup","pattern","flags",["construct","first",true,2,"a",null]],"alias"],
+ ["replace-during-argument",["lookup","pattern","flags",["construct","first",true,2,"a","g"],"lookup","pattern",["construct","second",true,1,"a"]],"alias"],
+ ["lookup-throws",["lookup"],["throw","Error","lookup"]],
+ ["pattern-throws",["lookup","pattern"],["throw","Error","pattern"]],
+ ["flags-throws",["lookup","pattern","flags"],["throw","Error","flags"]],
+ ["construct-throws",["lookup","pattern","flags",["construct","first",true,2,"a","g"]],["throw","Error","construct"]],
+ ["arrow-is-not-constructor",["lookup","pattern","flags"],["throw","TypeError","native"]],
+ ["object-is-not-constructor",["lookup","pattern"],["throw","TypeError","native"]],
+ ["native-coercions",["lookup","pattern","flags",["coerce-pattern","string"],["coerce-flags","string"]],["x","i"]],
+ ["invalid-unused-pattern",["lookup"],["throw","SyntaxError","native"]],
+ ["invalid-unused-flags",["lookup"],["throw","SyntaxError","native"]],
+ ["unused-one",["lookup","pattern",["construct","first",true,1,"a"]],"undefined"],
+ ["unused-two",["lookup","pattern","flags",["construct","first",true,2,"a","g"]],"undefined"],
+ ["argument-reentry",["lookup","pattern","lookup","pattern",["construct","first",true,1,"inner"],"flags",["construct","first",true,2,"outer","g"]],"alias"]
+]

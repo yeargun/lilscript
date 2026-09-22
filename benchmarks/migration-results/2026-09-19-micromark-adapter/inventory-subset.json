@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scope": "Read-only single-workload consumer check, not a whole-fleet inventory",
+  "parent": {
+    "path": "benchmarks/libraries/maintained-workloads.json",
+    "sha256": "21e8e997ff569d78969aa5c7856c05acb9f1af5fc5e851ad4732704076211c9a",
+    "bytes": 103635
+  },
+  "objective": "For each maintained library and raw/gzip/Brotli objective, tie or beat the strongest eligible competitor while preserving behavior and public APIs within agreed compilation/runtime budgets. Aim for strict wins almost always; the numerical win-rate threshold remains open.",
+  "libraries": [
+    {
+      "id": "micromarklil",
+      "kind": "maintained-library",
+      "required": true,
+      "workspace": "/home/azureuser/micromarklil",
+      "workspaceCandidates": [
+        "/home/azureuser/micromarklil",
+        "/tmp/lilscript-page-refresh-20260910/current/micromarklil"
+      ],
+      "portHeadAtInventory": "2d673ff23be844b9ba9781a85e16cbbbe5f6bafd",
+      "package": {
+        "name": "@itslil/micromark",
+        "version": "4.0.3",
+        "declaredEntryFiles": [
+          "./dist/micromark.cjs",
+          "./dist/micromark.closed.js",
+          "./dist/micromark.esm.js",
+          "./dist/micromark.stream.cjs",
+          "./dist/micromark.stream.js"
+        ]
+      },
+      "upstream": {
+        "repository": "https://github.com/micromark/micromark.git",
+        "commit": "3fae15528f69dfaf2a8865a7f7d92bfb4abd7bc9",
+        "package": "micromark",
+        "version": "4.0.2",
+        "directory": "packages/micromark"
+      },
+      "recordedComparisonScope": "micromark@4.0.2 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "recordedUpstreamEntry": "packages/micromark/index.js",
+      "recordedExternalDependencies": [],
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "packageScripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "adapterStatus": "original-four-invocation-build-inspected-source-replay-pending"
+      },
+      "tests": {
+        "recordedCommand": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+        "packageScripts": {
+          "test": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+          "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts"
+        },
+        "adapterStatus": "original-existing-dist-cases-frozen-source-replay-pending",
+        "requiredCaseInventory": "/home/azureuser/lilscript/benchmarks/libraries/micromarklil.required-tests.json",
+        "nodeAdapter": {
+          "files": [
+            "test/official/index.js",
+            "test/public-api.test.mjs",
+            "test/stream-api.test.mjs"
+          ],
+          "artifacts": [
+            "dist/micromark.esm.js",
+            "dist/micromark.cjs",
+            "dist/micromark.closed.js",
+            "dist/micromark.stream.js",
+            "dist/micromark.stream.cjs",
+            "dist/micromark.umd.js",
+            "dist/micromark.test.js"
+          ],
+          "caseInventory": "/home/azureuser/lilscript/benchmarks/libraries/micromarklil.required-tests.json"
+        }
+      },
+      "configurations": [
+        {
+          "path": "lilscript.closed.toml",
+          "sha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab"
+        },
+        {
+          "path": "lilscript.toml",
+          "sha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43"
+        }
+      ],
+      "objectives": [
+        "raw",
+        "gzip",
+        "brotli"
+      ],
+      "primaryObjective": "brotli",
+      "worlds": [
+        "open",
+        "closed"
+      ],
+      "acceptanceStatus": "unverified",
+      "pending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "currentDisposition": {
+        "status": "production-adapter-and-profile-recovery-pending",
+        "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+        "row": "micromarklil"
+      }
+    }
+  ],
+  "additionalCoverage": []
+}

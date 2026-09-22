@@ -1,0 +1,19 @@
+✔ qualified original prerequisites retain their exact script names and declarations (6.416269ms)
+✔ both the accepted receipt and inventory must pin the actual discovery report (3.65249ms)
+✔ prerequisite renaming omission optional commands and enlarged bounds cannot bypass discovery (8.811422ms)
+✔ failed skipped stale or incompletely supervised original prerequisites cannot qualify (14.025087ms)
+✔ Mdast Remark-Rehype and GFM original receipts pass the same prerequisite owner without execution (3.372326ms)
+✔ importing the shared qualification owner has no CLI or filesystem effects (38.567551ms)
+✔ invalid data-only recipes are rejected before creating an output directory (5.364185ms)
+✔ malformed CLI options are rejected before creating an output directory (3.01558ms)
+✔ both real thin clients validate their recipe and CLI before refusing an existing output (77.757994ms)
+✔ parent rejection retains both caller and owner evidence without invoking producers (1694.851772ms)
+✔ qualification entrypoint checks original prerequisite evidence before any producer runs (2255.983725ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4174.727172

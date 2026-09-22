@@ -1,0 +1,12 @@
+extern int read();
+int memory(int seed) {
+  ArrayBuffer storage = new ArrayBuffer(8);
+  Uint8Array bytes = new Uint8Array(storage);
+  bytes[0] = seed;
+  bytes[1] = seed >>> 8;
+  bytes[2] = 255;
+  Uint8Array view = bytes.subarray(1, 4);
+  int previous = view[0]++;
+  return bytes[0] + bytes[1] + bytes[2] + previous + view.byteOffset + view.length;
+}
+print(memory(read()));print(memory(0));print(memory(-3));print(memory(511));

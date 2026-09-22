@@ -1,0 +1,9 @@
+
+running 4 tests
+test semantic_program::output_tactics_tests::forbidden_output_choice_rejects_before_target_allocation_and_callback ... ok
+test semantic_program::output_tactics_tests::output_permission_checks_do_not_fabricate_runtime_evidence_for_rank_policy ... ok
+test semantic_program::output_tactics_tests::output_choices_preserve_host_lookup_arguments_and_integer_result_coercion ... ok
+test semantic_program::output_tactics_tests::four_output_choices_preserve_closure_exception_and_public_observations ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 2858 filtered out; finished in 0.12s
+

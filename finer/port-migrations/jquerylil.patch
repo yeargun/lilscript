@@ -1,0 +1,176 @@
+--- a/src/ajax/jsonp.lil
++++ b/src/ajax/jsonp.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { jQuery, wrap } from "../core";
+ import { isFunction } from "../var/isFunction";
+ import { nonce } from "./var/nonce";
+--- a/src/ajax/load.lil
++++ b/src/ajax/load.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { jQuery, each, wrap } from "../core";
+ import { ajax } from "../ajax";
+ import { stripAndCollapse } from "../core/stripAndCollapse";
+--- a/src/attributes/classes.lil
++++ b/src/attributes/classes.lil
+@@ -1,3 +1,5 @@
++extern JsValue arguments;
++extern JsValue this;
+ import { jQuery, each, wrap } from "../core";
+ import { stripAndCollapse } from "../core/stripAndCollapse";
+ import { isFunction } from "../var/isFunction";
+--- a/src/attributes/prop.lil
++++ b/src/attributes/prop.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { jQuery, each, isXMLDoc } from "../core";
+ import { access } from "../core/access";
+ import { support } from "./support";
+--- a/src/attributes/val.lil
++++ b/src/attributes/val.lil
+@@ -1,3 +1,5 @@
++extern JsValue arguments;
++extern JsValue this;
+ import { jQuery, each, map, text, makeArray, inArray, wrap } from "../core";
+ import { stripAndCollapse } from "../core/stripAndCollapse";
+ import { nodeName } from "../core/nodeName";
+--- a/src/core/DOMEval.lil
++++ b/src/core/DOMEval.lil
+@@ -7,12 +7,7 @@
+   bool noModule;
+ }
+ 
+-JsValue preservedScriptAttributes = PreservedScriptAttributes{
+-  true,
+-  true,
+-  true,
+-  true
+-};
++JsValue preservedScriptAttributes = JS.object("type", true, "src", true, "nonce", true, "noModule", true);
+ 
+ export void DOMEval(JsValue code, JsValue node, JsValue docArg = null) {
+   JsValue doc = JS.or(docArg, document);
+--- a/src/deferred.lil
++++ b/src/deferred.lil
+@@ -1,3 +1,4 @@
++extern JsValue arguments;
+ import { jQuery, each } from "./core";
+ import { isFunction } from "./var/isFunction";
+ import { newCallbacksMemory } from "./callbacks";
+--- a/src/deprecated/event.lil
++++ b/src/deprecated/event.lil
+@@ -1,3 +1,5 @@
++extern JsValue arguments;
++extern JsValue this;
+ import { jQuery, each } from "../core";
+ import {
+   jsUndefined,
+--- a/src/effects.lil
++++ b/src/effects.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { emptyArray } from "./alloc.lil";
+ import { jQuery, each, map, mergeObject, isEmptyObject } from "./core";
+ import { camelCase } from "./core/camelCase";
+--- a/src/effects/Tween.lil
++++ b/src/effects/Tween.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { jQuery } from "../core";
+ import { css, style } from "../css";
+ import { finalPropName } from "../css/finalPropName";
+@@ -10,7 +11,7 @@
+ // View of the merged animation options bag effects.lil allocates (`jQuery.speed()` output
+ // deep-extended over the {specialEasing, easing} seed by jQuery.extend, which copies data
+ // values only), so reads are typed field reads (finer/hypotheses/042).
+-export struct AnimOptsView {
++export extern class AnimOptsView {
+   JsValue duration;
+   JsValue easing;
+   JsValue queue;
+@@ -29,7 +30,7 @@
+ // View of a jQuery.Tween instance: createTween / Tween.prototype.init allocate it
+ // (Object.create(Tween.prototype) or new) and write every field; propHooks and step
+ // callbacks receive the same object, so reads are typed field reads (finer/hypotheses/042).
+-export struct TweenView {
++export extern class TweenView {
+   JsValue elem;
+   JsValue prop;
+   JsValue options;
+--- a/src/event.lil
++++ b/src/event.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { jQuery, isEmptyObject, each } from "./core";
+ import { documentElement } from "./var/documentElement";
+ import { rnothtmlwhite } from "./var/rnothtmlwhite";
+@@ -234,7 +235,7 @@
+ // View of one jQuery.event.special entry: the port allocates the entries it ships
+ // (Load/Click/Focus/EnterLeave structs) and user entries are plain objects with the same
+ // optional keys, so reads are typed field reads (finer/hypotheses/042).
+-export struct SpecialView {
++export extern class SpecialView {
+   JsValue bindType;
+   JsValue delegateType;
+   JsValue setup;
+--- a/src/offset.lil
++++ b/src/offset.lil
+@@ -1,3 +1,5 @@
++extern JsValue arguments;
++extern JsValue this;
+ import { jQuery, each, wrap } from "./core";
+ import { access } from "./core/access";
+ import { documentElement } from "./var/documentElement";
+--- a/src/queue.lil
++++ b/src/queue.lil
+@@ -13,7 +13,7 @@
+ // View of the hooks bag queueHooks() allocates (QueueHooks above, kept in dataPriv):
+ // effects.lil, delay.lil and user queue callbacks write `unqueued` and `stop` on it.
+ // The port owns the allocation, so reads are typed field reads (finer/hypotheses/042).
+-export struct QueueHooksView {
++export extern class QueueHooksView {
+   JsValue empty;
+   JsValue unqueued;
+   JsValue stop;
+--- a/src/selector.lil
++++ b/src/selector.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { emptyArray } from "./alloc.lil";
+ import { jQuery, isXMLDoc, merge, text, grep } from "./core";
+ import { nodeName } from "./core/nodeName";
+--- a/src/serialize.lil
++++ b/src/serialize.lil
+@@ -1,3 +1,4 @@
++extern JsValue this;
+ import { jQuery, isPlainObject, makeArray, each, map, wrap } from "./core";
+ import { toType } from "./core/toType";
+ import { rcheckableType } from "./var/rcheckableType";
+@@ -111,11 +112,13 @@
+     string elemName = JS.string(elem["name"]);
+     if (JS.isArray(val)) {
+       return map(val, (JsValue item) => {
+-        return NameValue{elemName, JS.stringReplace(JS.string(item), rCRLF, "\r\n")};
++        JsValue pair = NameValue{elemName, JS.stringReplace(JS.string(item), rCRLF, "\r\n")};
++        return pair;
+       });
+     }
+ 
+-    return NameValue{elemName, JS.stringReplace(JS.string(val), rCRLF, "\r\n")};
++    JsValue pair = NameValue{elemName, JS.stringReplace(JS.string(val), rCRLF, "\r\n")};
++    return pair;
+   }));
+ 
+   return JS.invoke(results, "get");
+--- a/src/var/support.lil
++++ b/src/var/support.lil
+@@ -6,7 +6,7 @@
+ // writes every field itself (core/, css/, manipulation/, attributes/, ajax/xhr), so it is
+ // plain data: a struct view over the allocation lets each read lower to a typed field read
+ // instead of an observable dynamic lookup (finer/hypotheses/042).
+-export struct Support {
++export extern class Support {
+   bool clearCloneStyle;
+   func()->bool boxSizingReliable;
+   func()->bool pixelBoxStyles;

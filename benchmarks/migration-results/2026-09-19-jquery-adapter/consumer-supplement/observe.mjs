@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/home/azureuser/jquerylil/dist/jquery.esm.js","/home/azureuser/lilscript/benchmarks/popular/verify-jquery.mjs","/home/azureuser/lilscript/benchmarks/popular/jquery-benchmark-artifact.mjs","/home/azureuser/lilscript/benchmarks/popular/node_modules/jquery/dist/jquery.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-jquery-adapter/consumer-supplement/loaded"});

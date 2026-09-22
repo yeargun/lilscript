@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "jquerylil",
+  "started": "2026-09-20T23:33:56.277Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/jquerylil",
+  "workspace": "/tmp/lilscript-baseline-jquerylil-igQ6Ex/jquerylil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/jquerylil",
+    "candidates": [
+      "/home/azureuser/jquerylil",
+      "/home/azureuser/jquerylil",
+      "/tmp/lilscript-page-refresh-20260910/current/jquerylil"
+    ],
+    "recorded": "/home/azureuser/jquerylil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "3bb5ac75fb933e60424c566c68550ad625a963ad5b8f90926b16eeeeba0bcf7d",
+    "bytes": 17886160
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ]
+}

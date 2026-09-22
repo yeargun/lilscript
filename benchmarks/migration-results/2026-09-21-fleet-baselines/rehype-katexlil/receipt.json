@@ -1,0 +1,513 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "rehype-katexlil",
+  "started": "2026-09-21T00:07:56.398Z",
+  "passed": true,
+  "sourceBuilt": true,
+  "qualification": "source-built-and-case-qualified",
+  "original": "/home/azureuser/rehype-katexlil",
+  "workspace": "/tmp/lilscript-baseline-rehype-katexlil-EinLZ0/rehype-katexlil",
+  "workspaceChoice": {
+    "chosen": "/home/azureuser/rehype-katexlil",
+    "candidates": [
+      "/home/azureuser/rehype-katexlil",
+      "/home/azureuser/rehype-katexlil",
+      "/tmp/lilscript-page-refresh-20260910/current/rehype-katexlil"
+    ],
+    "recorded": "/home/azureuser/rehype-katexlil",
+    "substituted": false
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+    "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+    "bytes": 17886224,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "codec": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+    "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+    "bytes": 2573360,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript-codec"
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 1500,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "siblingSources": [],
+  "unsnapshottedDirectorySymlinks": [],
+  "sourceSnapshot": {
+    "root": "/home/azureuser/rehype-katexlil",
+    "files": 128,
+    "sha256": "28743c08c914548afdb70fc9e928a7a5b366f69b1e78b7d95ba88ca4cfe7a8bb"
+  },
+  "inputs": {
+    "files": [
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b/lilscript",
+        "sha256": "3cabccac3a978138758bd9c9793ae7d8e671f75d4630162fe7184865379bdf6b",
+        "bytes": 17886224
+      },
+      {
+        "path": "/home/azureuser/lilscript-evidence/binaries/56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934/lilscript-codec",
+        "sha256": "56a553b1ef6a4913094c5ae9e0ab0bd2ab8ecea6a9341cb077281bd8f52fd934",
+        "bytes": 2573360
+      },
+      {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+        "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+        "bytes": 121116896
+      },
+      {
+        "path": "/home/azureuser/rehype-katexlil/lilscript.closed.toml",
+        "sha256": "1a35505134fda138ef6cc8ade89d99d6e7e17b92ae63f31ff5b944897b430c89",
+        "bytes": 406
+      },
+      {
+        "path": "/home/azureuser/rehype-katexlil/lilscript.toml",
+        "sha256": "2cf33132973aed32ca84d00de2ca81f6f8ca86b10d62753d85f06e8105a0707d",
+        "bytes": 1105
+      }
+    ]
+  },
+  "committedArtifactsRemoved": [
+    "dist/rehype-katex.cjs",
+    "dist/rehype-katex.closed.js",
+    "dist/rehype-katex.esm.js",
+    "dist/rehype-katex.raw.js",
+    "dist/rehype-katex.umd.js"
+  ],
+  "compilerVariables": [
+    "LILSCRIPT_COMPILER",
+    "LILSCRIPT_ROOT"
+  ],
+  "build": {
+    "status": 0,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.228,
+    "supervision": {
+      "timeoutMs": 1500000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "dist/rehype-katex.cjs",
+      "sha256": "be7b5490cd9168e606f290bf8576aae51fba15f67c55a1f7b29fd6f96958ea6f",
+      "bytes": 284846,
+      "sizes": {
+        "raw": 284846,
+        "gzip": 70032,
+        "brotli": 57736
+      }
+    },
+    {
+      "path": "dist/rehype-katex.closed.js",
+      "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+      "bytes": 2364,
+      "sizes": {
+        "raw": 2364,
+        "gzip": 1065,
+        "brotli": 951
+      }
+    },
+    {
+      "path": "dist/rehype-katex.esm.js",
+      "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+      "bytes": 2235,
+      "sizes": {
+        "raw": 2235,
+        "gzip": 1033,
+        "brotli": 898
+      }
+    },
+    {
+      "path": "dist/rehype-katex.raw.js",
+      "sha256": "fee3a365cfb4ab24b394848f306c5724553c26092497d00c915e21da3f146f8c",
+      "bytes": 1532,
+      "sizes": {
+        "raw": 1532,
+        "gzip": 857,
+        "brotli": 729
+      }
+    },
+    {
+      "path": "dist/rehype-katex.umd.js",
+      "sha256": "14c79913ad5bc9ef376ca9ff28caad11d9012bf28f70d8d306cde01cda286e6b",
+      "bytes": 284687,
+      "sizes": {
+        "raw": 284687,
+        "gzip": 69985,
+        "brotli": 57663
+      }
+    }
+  ],
+  "measurements": {
+    "dist/rehype-katex.cjs": {
+      "raw": 284846,
+      "gzip": 70032,
+      "brotli": 57736
+    },
+    "dist/rehype-katex.closed.js": {
+      "raw": 2364,
+      "gzip": 1065,
+      "brotli": 951
+    },
+    "dist/rehype-katex.esm.js": {
+      "raw": 2235,
+      "gzip": 1033,
+      "brotli": 898
+    },
+    "dist/rehype-katex.raw.js": {
+      "raw": 1532,
+      "gzip": 857,
+      "brotli": 729
+    },
+    "dist/rehype-katex.umd.js": {
+      "raw": 284687,
+      "gzip": 69985,
+      "brotli": 57663
+    }
+  },
+  "observedNotPinned": [],
+  "testWallSeconds": 4.297,
+  "cases": {
+    "required": 67,
+    "executed": 67,
+    "failed": []
+  },
+  "testErrors": [],
+  "loadedArtifacts": [
+    {
+      "path": "dist/rehype-katex.cjs",
+      "sha256": "be7b5490cd9168e606f290bf8576aae51fba15f67c55a1f7b29fd6f96958ea6f",
+      "bytes": 284846
+    },
+    {
+      "path": "dist/rehype-katex.closed.js",
+      "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+      "bytes": 2364
+    },
+    {
+      "path": "dist/rehype-katex.esm.js",
+      "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+      "bytes": 2235
+    },
+    {
+      "path": "dist/rehype-katex.esm.js",
+      "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+      "bytes": 2235
+    },
+    {
+      "path": "dist/rehype-katex.closed.js",
+      "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+      "bytes": 2364
+    },
+    {
+      "path": "dist/rehype-katex.esm.js",
+      "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+      "bytes": 2235
+    },
+    {
+      "path": "dist/rehype-katex.esm.js",
+      "sha256": "4515493ea9895bc62a349dc9dc1e7bd93ac1cb3404d82b5ec5dc4e5a5ce94b42",
+      "bytes": 2235
+    },
+    {
+      "path": "dist/rehype-katex.closed.js",
+      "sha256": "42e7bbe98322f477316d35f062d213cb85c9e20172cd9803fec76228e7e46b88",
+      "bytes": 2364
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "[\"test/audit.test.mjs\",104,3,1,\"test\",\"preserves the upstream rehype-katex module paths\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/audit.test.mjs\",109,3,1,\"test\",\"covers every KaTeX 0.16.22 source module by upstream filename\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/audit.test.mjs\",121,3,1,\"test\",\"vendors the exact KaTeX 0.16.22 metric and Unicode mappings\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/audit.test.mjs\",136,3,1,\"test\",\"pins package, lockfile, declarations, and artifact exports\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/audit.test.mjs\",103,1,0,\"suite\",\"source, data, and artifact audit\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",13,11,1,\"test\",\"should expose the public api\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",19,11,1,\"test\",\"should transform math with katex\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",49,11,1,\"test\",\"should support markdown fenced code\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",68,11,1,\"test\",\"should integrate with `remark-math`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",104,11,1,\"test\",\"should transform `.math-inline.math-display` math with `displayMode: true`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",131,11,1,\"test\",\"should support `macros`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",151,11,1,\"test\",\"should handle errors, support `errorColor`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",204,11,1,\"test\",\"should support `strict: ignore`\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",224,11,1,\"test\",\"should support comments\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",249,11,1,\"test\",\"should not crash on non-parse errors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/official/test.js\",12,1,0,\"test\",\"rehype-katex\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"empty expression\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"plain symbols\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML line-ending preprocessing\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"superscripts and subscripts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fractions\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"roots and generated SVG paths\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy delimiters\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"matrix environments\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"array rules and SVG lines\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"stretchy accents\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"horizontal braces\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"enclosures\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"fonts and colors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"text and consecutive MathML text\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"unicode fallback classes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"mathematical alphanumeric fonts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"spacing nodes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"commutative diagrams\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted anchors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted image nodes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML classes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML identifiers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted HTML styles\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"trusted data attributes\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"HTML-only output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"MathML-only output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"left equation numbers\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"flush-left display\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"minimum rule thickness\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",58,5,1,\"test\",\"custom macros\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",82,3,1,\"test\",\"preserves a non-math tree and ignores scalar className\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",89,3,1,\"test\",\"does not transform a matching root element without a parent\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",96,3,1,\"test\",\"uses display mode when both math classes are present\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",107,3,1,\"test\",\"uses preformatted text and replaces the pre for language-math\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",135,3,1,\"test\",\"matches preformatted text extraction for nested HAST\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",160,3,1,\"test\",\"transforms each math sibling without revisiting replacements\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",170,3,1,\"test\",\"matches official ParseError recovery and diagnostics\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",191,3,1,\"test\",\"matches HTML null preprocessing in ParseError output\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",206,3,1,\"test\",\"rejects invalid trusted HTML attribute names like KaTeX toMarkup\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",227,3,1,\"test\",\"preserves upstream truthy errorColor coercion on non-parse errors\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",245,3,1,\"test\",\"shares the runtime mhchem registry\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",257,3,1,\"test\",\"shares macros registered through __defineMacro\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",269,3,1,\"test\",\"shares functions registered through __defineFunction\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/parity.test.mjs\",56,1,0,\"suite\",\"KaTeX 0.16.22 structural parity\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/rehype-katex.test.mjs\",10,3,1,\"test\",\"transforms span.math-inline x^2 into katex\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/rehype-katex.test.mjs\",30,3,1,\"test\",\"exports default as the plugin\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/rehype-katex.test.mjs\",36,3,1,\"test\",\"pins tree and option keys on the library artifact\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/rehype-katex.test.mjs\",45,3,1,\"test\",\"closed artifact performs the core call\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/rehype-katex.test.mjs\",9,1,0,\"suite\",\"@itslil/rehype-katex\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "status": "pass"
+    },
+    {
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "status": "pass"
+    }
+  ],
+  "inputsStable": true,
+  "elapsedSeconds": 4.555,
+  "completed": "2026-09-21T00:08:00.886Z",
+  "fingerprint": "b9edb3550d9915c1f9d1061d5a732d40c140f45ff36f0fedd8dbdac2df099330"
+}

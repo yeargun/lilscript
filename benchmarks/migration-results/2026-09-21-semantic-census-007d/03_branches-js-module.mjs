@@ -1,0 +1,1 @@
+if(true){let a;a=void console.log("live");}else{let a;a=void console.log("dead");}if(false){let a;a=void console.log(0);}else{if(1+ 1===2){let a;a=void console.log(2);}else{let a;a=void console.log(3);}}

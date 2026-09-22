@@ -1,0 +1,1 @@
+let a;let b;let c;let d;let e;let value="LilScript";a=void console.log(value.includes("Script"));b=void console.log(value.startsWith("Lil"));c=void console.log(value.endsWith("Script"));d=void console.log("alpha"<"beta");e=void console.log("same"==="same");

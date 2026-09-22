@@ -9,8 +9,8 @@ or research when a contract or current-architecture page answers the question.
 2. **Source and tests** define implemented behavior.
 3. **Current architecture** explains that implementation without overriding it.
 4. **Tracked generated reports** define numerical evidence.
-5. **Current status and ledger** define live work.
-6. **Planned architecture and migration** define intended changes.
+5. **Current status** describes the checkout; [compiler design](compiler-design.md) records the proposed target and open language decisions.
+6. **Migration plan and progress** live only in [migration/index.md](migration/index.md), including all numbered steps. Retired plans are archived outside the repository. A proposal or checkbox without verified evidence does not establish implementation.
 7. **Research, journals, and landed notes** are historical evidence only.
 
 If two pages disagree, use the higher authority and fix the lower one.
@@ -25,9 +25,8 @@ If two pages disagree, use the higher authority and fix the lower one.
 | TOML behavior | [Configuration](configuration.md) |
 | Why a design choice exists | [Design decisions](knowledge/decisions/README.md) |
 | How the compiler works now | [Current architecture](knowledge/compilation/current-architecture.md) |
-| Where the architecture is going | [Planned architecture](knowledge/compilation/planned-architecture.md) |
-| Visual explanation of future compression work | [Future direction](future-direction.html) |
-| How to execute the change | [Planned migration](knowledge/migration/planned-migration.md) |
+| Discuss the next language/compiler design | [Compiler design](compiler-design.md) |
+| Implement a bounded migration step or check progress | [Single migration plan](migration/index.md) |
 | Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
 | Full linked map | [Knowledge tree](knowledge/README.md) |
 
@@ -41,5 +40,10 @@ If two pages disagree, use the higher authority and fix the lower one.
 | [web-platform.md](web-platform.md) | Host and `extern` boundary |
 | [differential-testing.md](differential-testing.md) | Independent semantic oracle |
 
-`optimization-coverage.md` and `roadmap.md` are descriptive indexes. They do not
-override source, tests, current status, or the active migration plan.
+`optimization-coverage.md` describes existing coverage. It does not select the
+new architecture. The migration starts by freezing evidence and settling the
+remaining language/public-boundary decisions, then validates an integrated prototype.
+
+Do not create separate migration packets or boards. Add bounded work under its
+numbered section in the single plan. The compiler design owns the target; the
+plan owns how to reach it and how replacement is verified.

@@ -1,0 +1,25 @@
+# reusable ESM — host-visible names stay
+[javascript]
+# 8.79: re-emit a twice-read member instead of naming it. Measured on this
+# port's own artifact against the same binary with the switch off: -19 Brotli.
+# The pair is inseparable -- rematerialisation only reaches host member reads
+# when property reads are assumed getter-free, and alone it finds no sites in a
+# JsValue-typed port. Off for the fleet: it costs seven of the twenty-two.
+rematerialize_member_reads = true
+assume_pure_property_reads = true
+priority = "size-first"
+optimization_level = 15
+cost_model = "brotli"
+assume_pristine_builtins = true
+strip_console = true
+local_name_reserve = 48
+candidate_search = "always"
+function_spelling = "arrow"
+public_aggregate_abi = "named"
+
+[mangle]
+identifiers = true
+properties = true
+exports = false
+extern_fields = true
+pool_strings = true

@@ -1,0 +1,18 @@
+
+running 13 tests
+test literal::admission_tests::deadline_refusal_remains_typed_without_allocating ... ok
+test literal::admission_tests::memory_refusal_covers_initial_storage_and_utf8_conversion_overlap ... ok
+test literal::admission_tests::syntax_refusal_releases_partial_decoder_storage_and_preserves_parent ... ok
+test literal::admission_tests::admitted_source_and_template_decoding_share_values_and_canonical_storage ... ok
+test literal::admission_tests::plain_unicode_copy_uses_only_its_exact_utf8_capacity ... ok
+test literal::admission_tests::unicode_conversion_admits_both_buffers_at_the_exact_transient_peak ... ok
+test literal::admission_tests::valid_surrogate_pair_is_unicode_but_unpaired_units_need_no_second_buffer ... ok
+test literal::admission_tests::work_refusal_before_scanning_and_during_conversion_leaves_no_storage ... ok
+test literal::tests::invalid_escapes_do_not_become_literal_backslash_text ... ok
+test literal::tests::equivalent_spellings_have_one_value_and_surrogates_remain_code_units ... ok
+test literal::tests::template_cooking_preserves_code_units_and_normalizes_physical_lines ... ok
+test literal::tests::value_concatenation_recanonicalizes_surrogate_boundaries ... ok
+test literal::admission_tests::admitted_decoding_matches_independent_node_utf16_observations ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 2824 filtered out; finished in 0.03s
+

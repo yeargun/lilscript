@@ -1,0 +1,12 @@
+struct Leaf { int x; int y; }
+struct State { Leaf leaf; int[] items; int unused; }
+export func(int)->int make(int seed) {
+    State state = State{Leaf{seed, seed + 1}, [1,2], 99};
+    State saved = state;
+    return (int delta) => {
+        state.leaf.x += delta;
+        saved.leaf.y += 10;
+        state.items[0] += 1;
+        return state.leaf.x + saved.leaf.x + saved.leaf.y + saved.items[0];
+    };
+}

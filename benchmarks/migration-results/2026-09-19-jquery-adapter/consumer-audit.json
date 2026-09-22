@@ -1,0 +1,76 @@
+{
+  "kind": "read-only-jquery-consumer-postrun-audit",
+  "passed": true,
+  "scope": "Evidence integrity only; original consumer failed. No consumer or compiler rerun.",
+  "receipt": {
+    "sha256": "c55bddd96a4460c79fc0b81c5bae08168d505a95ec7cf3ad49c43faf46bcb9e3",
+    "bytes": 13272
+  },
+  "supervisor": {
+    "sha256": "93837bca72559c418b4004f7cf6c6664b6b8bdbac91eceb113ec206dff1fcac2",
+    "bytes": 2795
+  },
+  "outputs": 34,
+  "inputPins": 11,
+  "sourceFiles": 264,
+  "originalFiles": 270,
+  "dependencyTrees": {
+    "project": {
+      "entries": 1829,
+      "files": 1585,
+      "bytes": 57237165,
+      "sha256": "6d381a767fbf42f5f8a77c43b94ef82a9e7b8e83c07e2a302552aa29b9272465"
+    },
+    "labDependencies": {
+      "entries": 10602,
+      "files": 8929,
+      "bytes": 357998490,
+      "sha256": "d8d4264f80d7681aeaf3070a931428d5645057f5341c1e71ab0470d1ecb4708b"
+    }
+  },
+  "parentOutputs": 15,
+  "loads": [
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/lilscript/benchmarks/popular/jquery-benchmark-artifact.mjs",
+      "url": "file:///home/azureuser/lilscript/benchmarks/popular/jquery-benchmark-artifact.mjs",
+      "format": "module",
+      "sha256": "878618d88958e12cc6c5a31a164a58fa69f55985fd7b959fcd2935c4f8bbfcee",
+      "bytes": 2229,
+      "pid": 1324541
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/lilscript/benchmarks/popular/node_modules/jquery/dist/jquery.js",
+      "url": "file:///home/azureuser/lilscript/benchmarks/popular/node_modules/jquery/dist/jquery.js",
+      "sha256": "78a85aca2f0b110c29e0d2b137e09f0a1fb7a8e554b499f740d6744dc8962cfe",
+      "bytes": 285314,
+      "pid": 1324541
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/lilscript/benchmarks/popular/verify-jquery.mjs",
+      "url": "file:///home/azureuser/lilscript/benchmarks/popular/verify-jquery.mjs",
+      "format": "module",
+      "sha256": "f23a70fc1839abc2364910b82e08e6af3b74ef4e9579b3e0c283e6726c03a18c",
+      "bytes": 16979,
+      "pid": 1324541
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "node-module-load",
+      "path": "/home/azureuser/jquerylil/dist/jquery.esm.js",
+      "url": "file:///home/azureuser/jquerylil/dist/jquery.esm.js",
+      "format": "module",
+      "sha256": "b43df6f9adc4bf1b69d523b6f7a98ff4b9348b481606a4946e5b9ba0e28de0e0",
+      "bytes": 81828,
+      "pid": 1324541
+    }
+  ],
+  "markers": [],
+  "expectedFailure": "Deferred.pipe TypeError: Cannot read properties of undefined (reading '2')",
+  "completed": "2026-09-19T21:17:22.923Z"
+}

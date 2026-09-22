@@ -1,0 +1,1 @@
+let a;let b;let c;let values=[3,5];let length=values.push(8)|0;let last=values.pop()|0;a=void console.log(length);b=void console.log(last);c=void console.log(values.length|0);

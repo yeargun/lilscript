@@ -1,0 +1,1 @@
+extern int input();int twiceNext(int value){value+=1;return value+value;}int seed=input();print(twiceNext(seed));print(seed);print(twiceNext(seed));

@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "kind": "motion-public-geometry-observation",
+  "passed": false,
+  "started": "2026-09-19T23:24:02.640Z",
+  "sourceBuilt": false,
+  "parent": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/receipt.json",
+    "sha256": "13478e56418f011009b0b74e39fd92065f4516d22294fe4a2550eb34909d3b77",
+    "bytes": 12019
+  },
+  "environment": {
+    "removed": [],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": ""
+    }
+  },
+  "limits": {
+    "sharedAttemptMs": 30000,
+    "externalSupervisorMs": 60000
+  },
+  "scope": "Five new independent observation tests against upstream and retained candidate, not original-suite identities, a compiler repair or a D2 decision",
+  "inputs": [
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-supplement.mjs",
+      "sha256": "91ac5074a36ec4fbb23f9c233d0ef9ef9819a089609bb7f9b7fefa837bcae891",
+      "bytes": 6181
+    },
+    {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry.test.mjs",
+      "sha256": "0802763b6d890a2e41d02fe28f10cd97040b3f2b11446e9ed879999155659f62",
+      "bytes": 3676
+    },
+    {
+      "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+      "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+      "bytes": 121116896
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ],
+  "failure": {
+    "message": "test evidence must be outside the input workspace",
+    "stack": "Error: test evidence must be outside the input workspace\n    at runNodeTestEvidence (file:///home/azureuser/lilscript/finer/tools/node-test-evidence.mjs:47:76)\n    at file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-motion-adapter/geometry-supplement.mjs:72:24\n    at ModuleJob.run (node:internal/modules/esm/module_job:377:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:671:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+  },
+  "inputsStable": true,
+  "elapsedMs": 2221.8983329999996,
+  "completed": "2026-09-19T23:24:04.862Z",
+  "outputs": [
+    {
+      "path": "inputs.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b289292218daf0bc8fa752ef74fc8932f9124bc58c8acf27621dc7398a08b758",
+      "bytes": 1564
+    },
+    {
+      "path": "sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+      "bytes": 14164
+    },
+    {
+      "path": "sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "sources/geometry-supplement.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91ac5074a36ec4fbb23f9c233d0ef9ef9819a089609bb7f9b7fefa837bcae891",
+      "bytes": 6181
+    },
+    {
+      "path": "sources/geometry.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0802763b6d890a2e41d02fe28f10cd97040b3f2b11446e9ed879999155659f62",
+      "bytes": 3676
+    },
+    {
+      "path": "sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

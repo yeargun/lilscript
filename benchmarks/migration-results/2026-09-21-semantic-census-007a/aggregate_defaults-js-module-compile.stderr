@@ -1,0 +1,16 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/aggregate_defaults.lil:10:1
+  |
+10 | class Counter {
+  int value;
+
+  init(int value = 0) {
+    this.value = value;
+  }
+
+  int increment() {
+    this.value += 1;
+    return this.value;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/lilscript-codec",
+    "--json",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T00-18-53.146Z/example-direct/00-direct/baseline.mjs"
+  ],
+  "elapsed_ns": 22933771,
+  "exit_code": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "8fd51463599939832fe5c14532b93eae86223d960313a72c97dbaefcee7c06b6"
+}

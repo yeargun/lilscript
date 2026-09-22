@@ -1,0 +1,27 @@
+extern void keep(int slot,func(int)->int callback);
+extern int invoke(int slot,int delta);
+extern void clear(int slot);
+extern void clearAll();
+extern func(int)->int take(int slot);
+extern void expectLive(int count);
+extern void assertEmpty();
+
+struct Pair {int left;int right;}
+void install(Pair state,int slot) {
+    Pair saved=state;
+    keep(slot,(int delta)=>{state.left+=delta;return state.left+saved.left;});
+    keep(slot+1,(int replacement)=>{state=Pair{replacement,replacement+1};return state.right;});
+}
+void exercise() {
+    Pair source=Pair{2,3};
+    install(source,0);source.left=50;
+    install(Pair{10,11},2);
+    print(invoke(0,3));print(invoke(2,4));
+    print(invoke(1,20));print(invoke(0,1));print(invoke(2,1));
+    print(source.left);
+    auto moved=take(0);clear(0);clear(1);
+    print(moved(2));
+    keep(4,moved);keep(4,moved);print(invoke(4,1));clear(4);
+    clearAll();
+}
+exercise();assertEmpty();

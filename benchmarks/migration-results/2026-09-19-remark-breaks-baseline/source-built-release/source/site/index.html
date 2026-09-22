@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="@itslil/remark-breaks is remark-breaks@4.0.0 rewritten in LilScript. Size is versus the official runtime graph minified by Terser and esbuild." />
+    <meta name="theme-color" content="#c9a227" />
+    <title>itslil/remark-breaks — remark-breaks@4.0.0 through LilScript</title>
+    
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="progress" aria-hidden="true"></div>
+    <header class="nav shell">
+      <a class="wordmark" href="#top" aria-label="itslil/remark-breaks home">
+        <span class="mark">br</span>
+        <span>itslil/remark-breaks</span>
+      </a>
+      <nav aria-label="Main navigation">
+        
+        <a href="#performance">performance</a>
+        <a href="#lab">playground</a>
+        <a href="#evidence">size</a>
+        <a href="https://github.com/yeargun/remark-breakslil">GitHub ↗</a>
+      </nav>
+    </header>
+    <main id="top">
+      <section class="hero shell">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="live-dot"></span> remark-breaks@4.0.0 · LilScript port · @itslil/remark-breaks</p>
+          <h1>Newlines,<br /><em>as breaks</em></h1>
+          <p class="lede">Official <code>remark-breaks@4.0.0</code> algorithms rewritten in LilScript. Official fixtures 21/21. Not affiliated with upstream. Official rows are the published plugin plus its graph, then Terser and esbuild.</p>
+          <div class="install-row">
+            <code>npm install @itslil/remark-breaks</code>
+            <button class="copy" data-copy="npm install @itslil/remark-breaks" type="button">copy</button>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#performance">Numbers</a>
+            <a class="button secondary" href="https://www.npmjs.com/package/@itslil/remark-breaks">npm ↗</a>
+          </div>
+        </div>
+        <div class="scoreboard" aria-label="Compression and performance results">
+          <div class="score-main">
+            <span class="score-label">Bytes over the wire, Brotli-11, against Terser of the official runtime graph</span>
+            <strong id="hero-ratio">—<span>smaller</span></strong>
+            <p id="hero-bytes"></p>
+          </div>
+          <div class="score-grid">
+            <div><strong id="hero-shipped">—</strong><span>Brotli-11 you ship, vs Terser</span></div>
+            <div><strong id="hero-gzip">—</strong><span>gzip-9 vs Terser</span></div>
+            <div><strong id="hero-raw">—</strong><span>raw vs Terser</span></div>
+            <div><strong id="hero-spec">—</strong><span>official fixtures</span></div>
+          </div>
+          <p class="score-note">
+            Official rows are one esbuild bundle of <code>remark-breaks@4.0.0</code> plus the packages it needs at runtime, then Terser or esbuild.
+            LilScript is not post-minified. The npm file is the Brotli-scored compile. Closed LilScript is the same source with <code>extern_fields = false</code>.
+          </p>
+        </div>
+      </section>
+      <section class="ticker" aria-label="Supported features">
+        <div>softbreak <span>✦</span> break nodes <span>✦</span> walk <span>✦</span> tree-shake</div>
+      </section>
+      <section class="performance shell" id="performance">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Measured in Node</p>
+            <h2>Same work,<br />two runtimes.</h2>
+          </div>
+          <p>
+            Not Playwright — Node v22.21.1 on this machine, quiet median after warmup.
+            Race 10× in the playground for a browser number. The official test suite (21/21) is green before any size row is a claim.
+          </p>
+        </div>
+        <div class="perf-cards" id="perf-cards"></div>
+        <div class="table-wrap light">
+          <table>
+            <thead>
+              <tr>
+                <th>Lane</th>
+                <th>median</th>
+                <th>vs official</th>
+              </tr>
+            </thead>
+            <tbody id="perf-body"></tbody>
+          </table>
+        </div>
+        <p class="perf-note" id="perf-note"></p>
+      </section>
+      <section class="lab shell" id="lab">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">The compiled runtime, in the browser</p>
+            <h2>Live<br />lab.</h2>
+          </div>
+          <p>
+            Left is the editor. Right is @itslil/remark-breaks output, or the official remark-breaks@4.0.0 graph when that lane is on.
+          </p>
+        </div>
+        <div class="playground">
+          <div class="play-toolbar">
+            <label>
+              <input type="radio" name="engine" value="lil" checked />
+              @itslil/remark-breaks
+            </label>
+            <label>
+              <input type="radio" name="engine" value="official" />
+              official remark-breaks@4.0.0
+            </label>
+            <button type="button" id="race">race 10×</button>
+            <span id="race-out"></span>
+          </div>
+          <div class="samples" id="samples"></div>
+          <div class="play-grid">
+            <textarea id="source" spellcheck="false" aria-label="Source"></textarea>
+            <div>
+              <iframe id="preview" title="Rendered output" sandbox="allow-same-origin"></iframe>
+              <pre id="output" hidden></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="evidence" id="evidence">
+        <div class="shell">
+          <div class="section-heading inverse">
+            <div>
+              <p class="eyebrow">The receipts</p>
+              <h2>Raw, gzip,<br />and Brotli.</h2>
+            </div>
+            <p>
+              Official remark-breaks@4.0.0 bundled with its runtime graph, then Terser (mangle on/off) and esbuild minify.
+              LilScript is not post-minified. Closed LilScript is Brotli with <code>extern_fields = false</code>.
+            </p>
+          </div>
+          <div class="codec-block">
+            <h3>Brotli-11</h3>
+            <p class="codec-lead">The wire number. LilScript row is the npm file.</p>
+            <div class="total-bar" id="bar-brotli"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Lane</th><th>Brotli-11</th><th>vs Terser</th></tr></thead>
+                <tbody id="body-brotli"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="codec-block">
+            <h3>gzip-9</h3>
+            <p class="codec-lead">Same files, gzip-9.</p>
+            <div class="total-bar" id="bar-gzip"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Lane</th><th>gzip-9</th><th>vs Terser</th></tr></thead>
+                <tbody id="body-gzip"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="codec-block">
+            <h3>Raw</h3>
+            <p class="codec-lead">Uncompressed bytes.</p>
+            <div class="total-bar" id="bar-raw"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Lane</th><th>Raw</th><th>vs Terser</th></tr></thead>
+                <tbody id="body-raw"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="codec-block">
+            <h3>All three</h3>
+            <p class="codec-lead">Every lane, measured three ways.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Lane</th><th>Raw</th><th>gzip-9</th><th>Brotli-11</th><th>Brotli vs Terser</th></tr></thead>
+                <tbody id="body-matched"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="method-note">
+            <p>
+              <strong>Why this surface.</strong> Comparing against a single published file would hide official dependencies.
+              The fair fight is the runtime graph you actually import, then the same minifiers the JS ecosystem ships.
+              Closed LilScript is the other honest comparison: no JavaScript options object, so those property names mangle.
+            </p>
+            <a href="https://github.com/yeargun/remark-breakslil">README ↗</a>
+          </div>
+        </div>
+      </section>
+      <section class="closing shell">
+        <p class="eyebrow">Zero runtime dependencies</p>
+        <h2>Install the<br />current port.</h2>
+        <div class="install-row large">
+          <code>npm install @itslil/remark-breaks</code>
+          <button class="copy" data-copy="npm install @itslil/remark-breaks" type="button">copy</button>
+        </div>
+      </section>
+    </main>
+    <footer class="shell">
+      <span>@itslil/remark-breaks · MIT</span>
+      <span>official remark-breaks@4.0.0 algorithms rewritten in LilScript — official test suite 21/21 — not affiliated with upstream</span>
+      <a href="https://github.com/yeargun/remark-breakslil">source ↗</a>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "kind": "bounded-public-feature-evidence-inventory",
+  "workload": "markedlil",
+  "recordedDateUtc": "2026-09-19",
+  "scope": "Map existing retained-open legacy observations to the original public-object boundary; not a new test run, migration plan, acceptance policy or current semantic-backend qualification.",
+  "pathBases": {
+    "repositoryRelative": "/home/azureuser/lilscript",
+    "originalSource": "/home/azureuser/markedlil"
+  },
+  "pins": [
+    {
+      "path": "/home/azureuser/markedlil/src/entry.lil",
+      "sha256": "b1f71341712881346d2271eeb8e9ad915529b72699a8c9a798edffec6d073ca5",
+      "bytes": 2958
+    },
+    {
+      "path": "/home/azureuser/markedlil/src/types.lil",
+      "sha256": "ef4efd2a8dc01b22b5bb181fe7beb9246cb00c13b2cb1227ae02730652c0d9a1",
+      "bytes": 3366
+    },
+    {
+      "path": "/home/azureuser/markedlil/test/api.test.mjs",
+      "sha256": "3de988d56f65ddaf7510a3b952d5341bbe61caf24727889a0896774cb5b2d78f",
+      "bytes": 6004
+    },
+    {
+      "path": "/home/azureuser/markedlil/test/options.test.mjs",
+      "sha256": "19f6ce8363248b41a4d9b45b7a9fc79abdea0c66cbe830d1ed37848e79efe74f",
+      "bytes": 4907
+    },
+    {
+      "path": "/home/azureuser/markedlil/test/compat.test.mjs",
+      "sha256": "0923daf39ccf25a5eadbc97e91c5c26a80e32a6dcc85f2dcf9bb230ce7bfd4b1",
+      "bytes": 2456
+    },
+    {
+      "path": "src/semantic_program/from_source.rs",
+      "sha256": "8f96c3fb5b4f0f2ae60446152297d780ee3195e52f8deab16bee3b4465532673",
+      "bytes": 84625
+    },
+    {
+      "path": "src/semantic/modules.rs",
+      "sha256": "c6db81e9e080cb041ed0f9e5eb16e1f8988de7f408376b8b17037dd23df147cf",
+      "bytes": 32172
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/receipt.json",
+      "sha256": "dfc3859f181b032449dba37ebd401676000ff8d25b816b7438bf04e190009921",
+      "bytes": 48435
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/tests/report.json",
+      "sha256": "256c927fd51a9560b6cdf3f2c21c17c67c1057c83bbc093bd4131f4b9bbd8d8b",
+      "bytes": 22200
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/codec.stdout",
+      "sha256": "49953d87e6e14e8c84565f72acdb467d331c2addbcf55bad8d42e2a522085418",
+      "bytes": 637
+    }
+  ],
+  "pinsSha256": "48f008ba972a4b22ca22b8ae8093d5246663aae3cca0e308d49f645621fb1415",
+  "pinsDigestEncoding": "artifact-evidence.digest(JSON.stringify(pins))",
+  "currentReadOnlyValidation": {
+    "compilerOrTestsExecuted": false,
+    "identityApi": "finer/tools/artifact-evidence.mjs fileIdentity, digest, fingerprint, snapshotInputs, validateTests and validateMeasurements",
+    "sourceManifest": {
+      "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-release-baseline/source-before.json",
+      "sha256": "ab1b6687401ba2e439b71dd9a4e670d3b7584f4704886ff3d2efc157c8eeddcc",
+      "bytes": 21893,
+      "manifestSha256": "41a47a645f2708a9c9093264182cd466fa44793b71b2a8a5110075bdf293cb50",
+      "entries": 104,
+      "currentOriginalAndSupplementWorkspaceMatch": true
+    },
+    "dependencyManifest": {
+      "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/dependencies-before.json",
+      "sha256": "9d9b12aa081a1eff2b8e59ec1a74edebbbd92638c75cc7e64eb5df0fdcace7e3",
+      "bytes": 226153,
+      "manifestSha256": "25dcabc551be3ffdb2cd37415fdacf1b60bcc0eca8c4391a4b1e96f587fc7e42",
+      "entries": 1109,
+      "beforeAfterCurrentFilesDirectoryListingsAndSymlinksMatch": true
+    },
+    "supplementOutputIdentitiesVerified": 30,
+    "passingDistinctOriginalCaseIdentities": 29,
+    "testNodes": 25,
+    "suiteNodes": 4,
+    "selectedTestFilesMatchReportAndCurrentOriginal": true,
+    "esmAndCjsArchivedCurrentAndObservedLoadBytesMatch": true,
+    "storedCanonicalCodecScoresMatchReceipt": true
+  },
+  "historicalLegacyEvidence": {
+    "qualification": "verified-retained-open-supplement-only",
+    "fullMaintainedBoundaryPassed": false,
+    "compilerInputSha256": "2e140666dd1cb5fd2f0cf82d0256cc0ed15e630a1defaaf4eca549c887e1e2f3",
+    "compilerSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+    "retainedRawSha256": "c08107d23ed741a987e8d9297f8f93594749c57323b1f03e7467b399120621de",
+    "retainedRawBytes": 34092,
+    "remainingRequiredCaseIdentities": 46,
+    "artifacts": [
+      {
+        "format": "esm",
+        "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/artifacts/marked.esm.js",
+        "observedPath": "/tmp/lilscript-marked-retained-open-20260919-pjMCdF/markedlil/dist/marked.esm.js",
+        "sha256": "e9a949d4b4a363c268c5b57bc844feced40bc3f55c24d6bc6755b49710d7a7de",
+        "bytes": 34176,
+        "scores": { "raw": 34176, "gzip9": 10450, "brotli11": 9409 },
+        "observedLoadPids": [952639, 952640, 952646]
+      },
+      {
+        "format": "cjs",
+        "path": "benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/artifacts/marked.cjs",
+        "observedPath": "/tmp/lilscript-marked-retained-open-20260919-pjMCdF/markedlil/dist/marked.cjs",
+        "sha256": "e03e4173de323dedc8eab29b177f8d393893b97a5464955fc7c96618c171eecf",
+        "bytes": 37339,
+        "scores": { "raw": 37339, "gzip9": 11296, "brotli11": 10152 },
+        "observedLoadPids": [952639, 952640, 952646]
+      }
+    ]
+  },
+  "features": [
+    {
+      "id": "shared-live-defaults-and-mutation",
+      "legacyObservation": "observed",
+      "qualifiedFormats": ["esm", "cjs"],
+      "caseIds": [
+        "[\"test/api.test.mjs\",77,3,1,\"test\",\"exposes the same parse-path surface on ESM, CJS, and UMD\",1]",
+        "[\"test/api.test.mjs\",107,3,1,\"test\",\"lets named and marked.setOptions / options mutate live defaults\",1]",
+        "[\"test/options.test.mjs\",111,3,1,\"test\",\"setOptions changes later parses and refreshes marked.defaults\",1]"
+      ],
+      "testObservations": [
+        { "path": "/home/azureuser/markedlil/test/api.test.mjs", "lines": [32, 47, 77, 79], "observation": "assertLibrarySurface runs for ESM and CJS and requires module.defaults === module.marked.defaults." },
+        { "path": "/home/azureuser/markedlil/test/api.test.mjs", "lines": [107, 117], "observation": "ESM setters return marked, update both marked.defaults and the named defaults view, and affect later parsing; CJS marked.setOptions returns marked, updates marked.defaults and affects later parsing." },
+        { "path": "/home/azureuser/markedlil/test/options.test.mjs", "lines": [111, 123], "observation": "ESM option mutation affects both parse and marked calls, preserves the setter alias, and is restored by the original test." }
+      ],
+      "sourceObservations": [
+        { "path": "/home/azureuser/markedlil/src/entry.lil", "lines": [4, 53, 55, 66, 77, 95], "observation": "A shared JS.object is exported as defaults, mutated through MarkedOptions, and attached to the callable API as its defaults member." }
+      ],
+      "limit": "The CJS assertions do not separately re-check its named defaults export after mutation; no caller-written arbitrary defaults mutation or proxy/accessor behavior is inferred."
+    },
+    {
+      "id": "factory-result-independent-of-live-defaults",
+      "legacyObservation": "observed-with-bounded-freshness-claim",
+      "qualifiedFormats": ["esm"],
+      "caseIds": [
+        "[\"test/api.test.mjs\",107,3,1,\"test\",\"lets named and marked.setOptions / options mutate live defaults\",1]",
+        "[\"test/options.test.mjs\",100,3,1,\"test\",\"getDefaults stays the factory after setOptions\",1]"
+      ],
+      "testObservations": [
+        { "path": "/home/azureuser/markedlil/test/api.test.mjs", "lines": [127, 128], "observation": "ESM getDefaults reports the factory value and returns an object unequal to marked.defaults." },
+        { "path": "/home/azureuser/markedlil/test/options.test.mjs", "lines": [100, 108], "observation": "While ESM live defaults.breaks is true, getDefaults().breaks remains false." }
+      ],
+      "sourceObservations": [
+        { "path": "/home/azureuser/markedlil/src/entry.lil", "lines": [32, 39], "observation": "The source constructs a JS.object within each getDefaults call; this is static implementation evidence, not a separate runtime assertion." }
+      ],
+      "limit": "The recorded assertions establish independence from the live object, not inequality between two successive factory results. No CJS freshness claim is made."
+    },
+    {
+      "id": "callable-and-setter-alias-identity",
+      "legacyObservation": "observed",
+      "qualifiedFormats": ["esm", "cjs"],
+      "caseIds": [
+        "[\"test/api.test.mjs\",77,3,1,\"test\",\"exposes the same parse-path surface on ESM, CJS, and UMD\",1]"
+      ],
+      "testObservations": [
+        { "path": "/home/azureuser/markedlil/test/api.test.mjs", "lines": [32, 44, 77, 79], "observation": "The shared ESM/CJS assertion checks default === marked, marked.parse === marked, marked.options === marked.setOptions, and callable member types." }
+      ],
+      "sourceObservations": [
+        { "path": "/home/azureuser/markedlil/src/entry.lil", "lines": [51, 77, 95], "observation": "JS.method2 forms the public callable; attachApi stores that same callable as parse and stores one setter wrapper under both options and setOptions." },
+        { "path": "/home/azureuser/markedlil/src/types.lil", "lines": [111, 119], "observation": "MarkedApi is an extern class shape with JS-valued members, not a value struct." }
+      ]
+    },
+    {
+      "id": "public-option-key-spellings",
+      "legacyObservation": "observed",
+      "qualifiedFormats": ["esm", "cjs"],
+      "caseIds": [
+        "[\"test/api.test.mjs\",77,3,1,\"test\",\"exposes the same parse-path surface on ESM, CJS, and UMD\",1]",
+        "[\"test/options.test.mjs\",84,3,1,\"test\",\"reports defaults under their real names\",1]",
+        "[\"test/options.test.mjs\",94,3,1,\"test\",\"CJS getDefaults uses the same keys\",1]"
+      ],
+      "optionKeys": ["async", "breaks", "gfm", "pedantic", "silent"],
+      "testObservations": [
+        { "path": "/home/azureuser/markedlil/test/api.test.mjs", "lines": [11, 45, 46, 77, 79], "observation": "ESM and CJS enumerate exactly the five public option keys on factory results and marked.defaults." },
+        { "path": "/home/azureuser/markedlil/test/options.test.mjs", "lines": [84, 98], "observation": "Separate ESM and CJS cases assert factory key names; the ESM case checks every factory value and CJS checks gfm." }
+      ],
+      "sourceObservations": [
+        { "path": "/home/azureuser/markedlil/src/types.lil", "lines": [103, 109], "observation": "MarkedOptions is an extern class with these JS-valued field names; it is not a D1 value-struct declaration." },
+        { "path": "/home/azureuser/markedlil/src/entry.lil", "lines": [32, 39, 77, 83], "observation": "Factory and live-default initialization assign those public members explicitly." }
+      ]
+    }
+  ],
+  "currentSemanticBoundary": {
+    "status": "unsupported-whole-original-boundary",
+    "basis": "static-registration-inspection-only",
+    "libraryCompiledOrExecutedWithCurrentRust": false,
+    "observations": [
+      { "path": "src/semantic/modules.rs", "lines": [440, 463], "observation": "The common direct module checker rejects nominal constructor exports and class/extern-class declarations present in the original Marked source graph." },
+      { "path": "src/semantic_program/from_source.rs", "lines": [663], "observation": "The semantic Lower registration match rejects class/extern-class items through the nominal callable declarations fallback; the historical legacy artifact does not traverse this owner." }
+    ],
+    "individualPrimitiveSupport": "unverified-by-this-inventory",
+    "policyDecision": "D2-open; the rows record required observations rather than selecting a representation, adapter or observation policy"
+  },
+  "unverifiedBoundaries": [
+    "Exact scored UMD load: the original API file executes UMD in a VM, but the retained-open observer and codec record bind only ESM/CJS; no UMD artifact-level qualification is credited.",
+    "Getter, setter accessor, proxy, prototype, enumeration-order and arbitrary caller-mutation semantics beyond the listed original assertions.",
+    "Installed-package/browser consumers, the remaining 46 required identities, closed/gzip/raw profiles and the full maintained-library boundary.",
+    "Current Rust semantic-backend Marked compilation or runtime behavior, D2/D5 resolution, complete delivery-cost acceptance, compression improvement or compiler speed."
+  ]
+}

@@ -1,0 +1,31 @@
+
+running 26 tests
+test interpreter::tests::enforces_step_limits ... ok
+test interpreter::tests::checked_builtin_dispatch_preserves_shadowed_callable_bindings ... ok
+test interpreter::tests::evaluates_binary_memory_aliasing_and_byte_coercion ... ok
+test interpreter::tests::evaluates_captured_parameter_rebind ... ok
+test interpreter::tests::evaluates_array_identity_mutation_and_methods ... ok
+test interpreter::tests::copies_array_slices_with_javascript_index_normalization ... ok
+test interpreter::tests::evaluates_destructuring_once_with_safe_missing_values_and_copied_rest ... ok
+test interpreter::tests::evaluates_expression_if_lazily ... ok
+test interpreter::tests::evaluates_compact_array_and_typed_array_bulk_methods ... ok
+test interpreter::tests::evaluates_i32_edge_semantics ... ok
+test interpreter::tests::evaluates_enum_matches_and_scrutinee_once ... ok
+test interpreter::tests::evaluates_number_bindings_without_i32_wrapping ... ok
+test interpreter::tests::evaluates_nullish_operators_lazily_and_places_once ... ok
+test interpreter::tests::evaluates_inline_for_unrolls_literal ... ok
+test interpreter::tests::evaluates_for_of_with_live_array_length_and_typed_arrays ... ok
+test interpreter::tests::evaluates_object_and_json_with_javascript_key_order ... ok
+test interpreter::tests::evaluates_optional_access_and_skips_absent_indices ... ok
+test interpreter::tests::evaluates_scalar_literal_matches_lazily ... ok
+test interpreter::tests::evaluates_utf16_string_search_and_repeat_methods ... ok
+test interpreter::tests::evaluates_structural_record_reads_and_writes ... ok
+test interpreter::tests::evaluates_spreads_left_to_right_as_shallow_copies ... ok
+test interpreter::tests::fills_arrays_in_place_and_returns_the_receiver ... ok
+test interpreter::tests::evaluates_for_of_family_picker ... ok
+test interpreter::tests::preserves_short_circuit_side_effects ... ok
+test interpreter::tests::executes_loops_functions_and_shadowed_bindings ... ok
+test interpreter::tests::snapshots_array_iteration_length ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 2886 filtered out; finished in 0.00s
+

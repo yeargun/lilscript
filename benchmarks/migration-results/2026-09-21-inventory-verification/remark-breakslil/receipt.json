@@ -1,0 +1,525 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "remark-breakslil",
+  "started": "2026-09-21T10:48:00.261Z",
+  "passed": true,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/remark-breakslil",
+  "workspace": "/tmp/lilscript-adapter-remark-breakslil-NMLVE8/remark-breakslil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript",
+    "sha256": "3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878",
+    "bytes": 17904152,
+    "preservedFrom": "/home/azureuser/lilscript/target/release/lilscript"
+  },
+  "boundsMs": {
+    "suite": 600000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-breakslil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-breakslil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-remark-breakslil-NMLVE8/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript-evidence/binaries/3efe6defadf19a5a805d0377491726cb2da4085d718b0484599c38fb4bafe878/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+  "derivation": {
+    "supported": true,
+    "script": "npm run build && npm run check:types && node --test test/*.test.mjs test/official/index.js",
+    "originalSegments": [
+      "npm run build",
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/index.js"
+    ],
+    "segments": [
+      "npm run build",
+      "npm run check:types",
+      "node --test test/*.test.mjs test/official/index.js"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "deviations": [
+      "dropped original build segment `npm run build`: an existing-distribution observation must not recompile dist; the source build is a separate 001 baseline task"
+    ],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/remark-breaks.cjs",
+      "dist/remark-breaks.closed.js",
+      "dist/remark-breaks.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/remark-breaks.cjs",
+      "./dist/remark-breaks.closed.js",
+      "./dist/remark-breaks.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/remark-breakslil/node/report.json",
+    "sha256": "7427110fe2d78174785eddf1d6132d61a69d8b93039adbd009cdf94329142a40",
+    "bytes": 48629
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",17,3,1,\"test\",\"exposes the upstream public API and arity\",1]",
+      "file": "test/api.test.mjs",
+      "name": "exposes the upstream public API and arity",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",26,3,1,\"test\",\"splits text on newlines into text / break / text\",1]",
+      "file": "test/api.test.mjs",
+      "name": "splits text on newlines into text / break / text",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",40,3,1,\"test\",\"does not split inside code or inlineCode\",1]",
+      "file": "test/api.test.mjs",
+      "name": "does not split inside code or inlineCode",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",54,3,1,\"test\",\"works through processor.use(plugin)\",1]",
+      "file": "test/api.test.mjs",
+      "name": "works through processor.use(plugin)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",16,1,0,\"suite\",\"@itslil/remark-breaks\",1]",
+      "file": "test/api.test.mjs",
+      "name": "@itslil/remark-breaks",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "ships a closed artifact whose exports stay callable",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-breaks closed lane\",1]",
+      "file": "test/closed.test.mjs",
+      "name": "@itslil/remark-breaks closed lane",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",10,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/index.js",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",9,1,0,\"test\",\"remarkBreaks\",1]",
+      "file": "test/official/index.js",
+      "name": "remarkBreaks",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"no space\",1]",
+      "file": "test/official/index.js",
+      "name": "no space",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"one space\",1]",
+      "file": "test/official/index.js",
+      "name": "one space",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"two spaces\",1]",
+      "file": "test/official/index.js",
+      "name": "two spaces",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"three spaces\",1]",
+      "file": "test/official/index.js",
+      "name": "three spaces",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"carriage return\",1]",
+      "file": "test/official/index.js",
+      "name": "carriage return",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"carriage return + line feed\",1]",
+      "file": "test/official/index.js",
+      "name": "carriage return + line feed",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"after phrasing\",1]",
+      "file": "test/official/index.js",
+      "name": "after phrasing",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"before phrasing\",1]",
+      "file": "test/official/index.js",
+      "name": "before phrasing",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"multiple\",1]",
+      "file": "test/official/index.js",
+      "name": "multiple",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"none\",1]",
+      "file": "test/official/index.js",
+      "name": "none",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",135,13,1,\"test\",\"document\",1]",
+      "file": "test/official/index.js",
+      "name": "document",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/index.js\",17,1,0,\"test\",\"fixtures\",1]",
+      "file": "test/official/index.js",
+      "name": "fixtures",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+      "file": "test/site.test.mjs",
+      "name": "has a markedlil-style lab with receipts",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+      "file": "test/site.test.mjs",
+      "name": "site",
+      "type": "suite",
+      "status": "pass",
+      "error": null
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-remark-breakslil-NMLVE8/remark-breakslil/dist/remark-breaks.esm.js",
+      "sha256": "5943ab5ef41be8abd3a963ff85fc6324d3dea22535c41186cab655ce3702b4e4",
+      "bytes": 2692
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-breakslil-NMLVE8/remark-breakslil/dist/remark-breaks.cjs",
+      "sha256": "29e69eb239a329300ff78e4dd854bb47f583ac0cb2f77794643403ad1eaf5740",
+      "bytes": 3693
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-breakslil-NMLVE8/remark-breakslil/dist/remark-breaks.closed.js",
+      "sha256": "6964fec1355a4172c4564f3692c873b14ae551e07cd6cebc59a7056017fb33ef",
+      "bytes": 2694
+    },
+    {
+      "path": "/tmp/lilscript-adapter-remark-breakslil-NMLVE8/remark-breakslil/dist/remark-breaks.esm.js",
+      "sha256": "5943ab5ef41be8abd3a963ff85fc6324d3dea22535c41186cab655ce3702b4e4",
+      "bytes": 2692
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [],
+  "unexpectedErrors": [],
+  "exercisedArtifacts": [
+    "dist/remark-breaks.cjs",
+    "dist/remark-breaks.closed.js",
+    "dist/remark-breaks.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 6307.835617000004,
+  "completed": "2026-09-21T10:48:06.507Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cf40acf59377fdc29574884abfe134037943a23fd243c53b24465d52f96719ec",
+      "bytes": 893766
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cf40acf59377fdc29574884abfe134037943a23fd243c53b24465d52f96719ec",
+      "bytes": 893766
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b1870d10252c12bac607a70f86c5059e94d884c182412d536b46c4f7428c97e7",
+      "bytes": 3882
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "000895b7079fac62fb446fe783fadfcd4726893f1de73b00a73b1622b919c3d6",
+      "bytes": 5293
+    },
+    {
+      "path": "node/loaded/484743-712e4dca-d8a3-4c04-a9bf-4184fb9321c2.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f13950bbf115f9031e82e403115c3f94f0f2648b901a112fe8f19187f3f2cb19",
+      "bytes": 369
+    },
+    {
+      "path": "node/loaded/484743-afc88811-1cd5-4105-975f-946caf6a5d01.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "30ca54b3568c411008cb2ce53d58e72332e1315624c6c19af1c5597ad1cf8f67",
+      "bytes": 365
+    },
+    {
+      "path": "node/loaded/484744-bea0e3f9-a62f-43a4-b8c6-7fe9a3554788.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "cc66b04acbf37df3bf8d7d0cf89025b9f2d4bc586338c87fcf1e9479893282f6",
+      "bytes": 375
+    },
+    {
+      "path": "node/loaded/484745-32fb2ba6-6f3e-4d19-81dd-2a905b912aa0.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "1e4c474382b9b4a6637465753b8358ac49309c54605d0ec0c458ed38fdf8835b",
+      "bytes": 369
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "76da201d80ecddbab28af4758552f6e6a81714d217f7369466db9542dcb5192a",
+      "bytes": 555
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9372d0e599f1fcc03625c9f333084e09be8901500446879fdd82057674de2959",
+      "bytes": 149
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7427110fe2d78174785eddf1d6132d61a69d8b93039adbd009cdf94329142a40",
+      "bytes": 48629
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "af94f876b4c3cb009ed233f327dfec36d8164ddb9c3bf4209dc1f661385f9d4f",
+      "bytes": 17847
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

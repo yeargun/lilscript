@@ -1,3 +1,4 @@
+use crate::semantic::StructType;
 use crate::stable_hash::{StableHashMap as AHashMap, StableHashSet as AHashSet};
 
 use crate::ir::{
@@ -5,6 +6,73 @@ use crate::ir::{
     FunctionId, FunctionKind, Intrinsic, IrBinaryOp, IrUnaryOp, Terminator, ValueId,
 };
 use crate::semantic::{EscapeState, Type};
+
+type InheritedFieldAliases<'src> = Vec<Vec<(&'src str, usize)>>;
+
+// A field inherited by a derived class is the same storage slot when read
+// through either nominal type. Join writes/defaults and untyped boundaries
+// before using these summaries to fold branches or remove integer coercions.
+fn inherited_field_aliases<'src>(module: &ControlFlowModule<'src>) -> InheritedFieldAliases<'src> {
+    let mut groups = AHashMap::<u32, Vec<(&str, usize)>>::default();
+    for (field, slot) in crate::optimizer::aggregate_field_slot_ids(module) {
+        groups.entry(slot).or_default().push(field);
+    }
+    groups
+        .into_values()
+        .filter(|fields| fields.len() > 1)
+        .collect()
+}
+
+fn share_inherited_finite_values(
+    fields: &mut AHashMap<String, AHashMap<usize, FiniteSummary>>,
+    aliases: &InheritedFieldAliases<'_>,
+) {
+    for group in aliases {
+        let mut shared = FiniteSummary::Bottom;
+        for (owner, index) in group {
+            if let Some(value) = fields.get(*owner).and_then(|fields| fields.get(index)) {
+                shared = shared.join(value);
+            }
+        }
+        for (owner, index) in group {
+            join_finite_field(fields, owner, *index, shared.clone());
+        }
+    }
+}
+
+fn share_inherited_integer_ranges(
+    fields: &mut AHashMap<String, AHashMap<usize, I32Range>>,
+    aliases: &InheritedFieldAliases<'_>,
+    unsafe_owners: &AHashSet<String>,
+) {
+    for group in aliases {
+        if group
+            .iter()
+            .any(|(owner, _)| unsafe_owners.contains(*owner))
+        {
+            for (owner, index) in group {
+                if let Some(owner_fields) = fields.get_mut(*owner) {
+                    owner_fields.remove(index);
+                }
+            }
+            continue;
+        }
+        let shared = group
+            .iter()
+            .filter_map(|(owner, index)| {
+                fields
+                    .get(*owner)
+                    .and_then(|fields| fields.get(index))
+                    .copied()
+            })
+            .reduce(I32Range::join);
+        if let Some(shared) = shared {
+            for (owner, index) in group {
+                join_field(fields, owner, *index, shared);
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct I32Range {
@@ -281,7 +349,9 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
         })
         .collect::<Vec<_>>();
     let mut return_ranges = vec![None; module.functions.len()];
+    let aliases = inherited_field_aliases(module);
     let mut field_ranges = default_class_field_ranges(module, &unsafe_fields);
+    share_inherited_integer_ranges(&mut field_ranges, &aliases, &unsafe_fields);
     loop {
         let next_facts = module
             .functions
@@ -327,6 +397,7 @@ pub fn analyze_integer_values(module: &ControlFlowModule<'_>) -> IntegerValueAna
             );
         }
 
+        share_inherited_integer_ranges(&mut proposed_fields, &aliases, &unsafe_fields);
         let mut changed = false;
         for (current, proposed) in parameter_ranges.iter_mut().zip(proposed_parameters) {
             for (current, proposed) in current.iter_mut().zip(proposed) {
@@ -408,7 +479,9 @@ pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnaly
             }
         })
         .collect::<Vec<_>>();
+    let aliases = inherited_field_aliases(module);
     let mut field_values = default_class_field_values(module, &unsafe_fields);
+    share_inherited_finite_values(&mut field_values, &aliases);
 
     loop {
         let next_facts = module
@@ -468,6 +541,7 @@ pub fn analyze_finite_values(module: &ControlFlowModule<'_>) -> FiniteValueAnaly
                 );
             }
         }
+        share_inherited_finite_values(&mut proposed_fields, &aliases);
         changed |= join_finite_field_summaries(&mut field_values, proposed_fields);
         if !changed {
             break;
@@ -717,7 +791,7 @@ fn combine_finite_values(
 fn fold_finite_binary(op: IrBinaryOp, lhs: &ConstValue, rhs: &ConstValue) -> Option<ConstValue> {
     match (op, lhs, rhs) {
         (IrBinaryOp::Add, ConstValue::String(lhs), ConstValue::String(rhs)) => {
-            Some(ConstValue::String(format!("{lhs}{rhs}")))
+            Some(ConstValue::String(lhs.concat(rhs)))
         }
         (IrBinaryOp::Eq, lhs, rhs) => Some(ConstValue::Bool(lhs == rhs)),
         (IrBinaryOp::NotEq, lhs, rhs) => Some(ConstValue::Bool(lhs != rhs)),
@@ -855,7 +929,7 @@ fn default_class_field_values(
         for field in &layout.fields {
             let value = match &field.ty {
                 Type::Bool => Some(ConstValue::Bool(false)),
-                Type::String => Some(ConstValue::String(String::new())),
+                Type::String => Some(ConstValue::String(Default::default())),
                 Type::Null | Type::Nullable(_) => Some(ConstValue::Null),
                 _ => None,
             };
@@ -1100,12 +1174,27 @@ fn evaluate_integer_instruction(
                     false,
                 )
             }
+            // The range describes the value *after* its `|0`, which is where
+            // the declared `int` comes from, and 0..=65535 is exact there.
+            //
+            // The coercion itself is NOT elidable. `String.prototype.charCodeAt`
+            // returns NaN for any index outside `[0, length)`, and `I32Range`
+            // has no way to say "or NaN" -- so eliding `|0` on the strength of
+            // this range turns a source-correct 0 into NaN. It did:
+            // `int codeAt(string t, int i) { return t.charCodeAt(i); }` printed
+            // NaN for `codeAt("ab", -1)` under the default `priority =
+            // "size-first"`, and 0 with `integer_coercions = true`.
+            //
+            // Eliding here needs a proof that the index is in bounds, which is
+            // a real analysis (the loop-bound facts below are the start of it),
+            // not a property of the intrinsic. Until that exists, keep the
+            // coercion: a size knob may not decide what the program computes.
             Intrinsic::StringCharCodeAt => (
                 Some(I32Range {
                     min: 0,
                     max: 65_535,
                 }),
-                true,
+                false,
             ),
             Intrinsic::IntImul => (Some(I32Range::FULL), false),
             _ => (Some(I32Range::FULL), false),
@@ -1275,10 +1364,14 @@ fn aggregate_owners_exposed_to_untyped_code(module: &ControlFlowModule<'_>) -> A
 
 fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
     match ty {
-        Type::Struct(name) | Type::Class(name) => {
+        Type::Struct(StructType { name, .. }) | Type::Class(name) => {
             owners.insert((*name).to_string());
         }
-        Type::StructInstance { name, args } | Type::ClassInstance { name, args } => {
+        Type::StructInstance {
+            declaration: StructType { name, .. },
+            args,
+        }
+        | Type::ClassInstance { name, args } => {
             owners.insert((*name).to_string());
             for argument in args {
                 collect_aggregate_owners(argument, owners);
@@ -1303,13 +1396,13 @@ fn collect_aggregate_owners(ty: &Type<'_>, owners: &mut AHashSet<String>) {
         }
         Type::Function(signature) => {
             for parameter in &signature.params {
-                collect_aggregate_owners(parameter, owners);
+                collect_aggregate_owners(&parameter.ty, owners);
             }
             collect_aggregate_owners(&signature.return_type, owners);
         }
         Type::GenericFunction(function) => {
             for parameter in &function.signature.params {
-                collect_aggregate_owners(parameter, owners);
+                collect_aggregate_owners(&parameter.ty, owners);
             }
             collect_aggregate_owners(&function.signature.return_type, owners);
         }
@@ -2354,8 +2447,8 @@ mod tests {
         assert!(parameter_values.contains(&ConstValue::Bool(true)));
         assert!(parameter_values.contains(&ConstValue::Bool(false)));
         assert_eq!(return_values.len(), 2);
-        assert!(return_values.contains(&ConstValue::String("on".to_string())));
-        assert!(return_values.contains(&ConstValue::String("off".to_string())));
+        assert!(return_values.contains(&ConstValue::String("on".into())));
+        assert!(return_values.contains(&ConstValue::String("off".into())));
     }
 
     #[test]
@@ -2373,7 +2466,7 @@ mod tests {
 
         assert_eq!(
             analysis.field_constant("Badge", 0),
-            Some(&ConstValue::String("new".to_string()))
+            Some(&ConstValue::String("new".into()))
         );
         let active = analysis.field_values("Badge", 1).unwrap().values();
         assert_eq!(active.len(), 2);

@@ -1,0 +1,10 @@
+  shipped        ok  4034 B
+  level0         ok  4442 B
+  level5         ok  4090 B
+  level9         ok  4056 B
+  level15        ok  4054 B
+  searchOff      ok  4093 B
+  searchAlways   ok  3920 B
+  gzip           ok  3868 B
+  raw            ok  3866 B
+  perfFirst      ok  4089 B

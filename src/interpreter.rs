@@ -1,3 +1,4 @@
+use crate::ast::ExprKind;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -10,7 +11,7 @@ use crate::ast::{
     FunctionDecl, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart, TypeKind,
     UnaryOp, UpdateOp, VarDecl,
 };
-use crate::semantic::{SemanticModel, SymbolId, Type};
+use crate::semantic::{BuiltinCall, SemanticModel, SymbolId, Type};
 use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
 
@@ -183,22 +184,34 @@ impl Default for InterpreterLimits {
 /// map/set, and class operations fail explicitly instead of approximating them.
 pub fn interpret_program<'ast, 'src>(
     program: &Program<'ast, 'src>,
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
 ) -> Result<String, InterpretError> {
-    ReferenceInterpreter::new(program, semantics, InterpreterLimits::default()).run()
+    interpret_program_with_limits(program, semantics, InterpreterLimits::default())
 }
 
 pub fn interpret_program_with_limits<'ast, 'src>(
     program: &Program<'ast, 'src>,
-    semantics: &SemanticModel<'src>,
+    semantics: &SemanticModel<'_, 'src>,
     limits: InterpreterLimits,
 ) -> Result<String, InterpretError> {
+    if !semantics.belongs_to(program.source_identity()) {
+        return Err(InterpretError::new(
+            program.span,
+            "semantic facts belong to a different source program",
+        ));
+    }
+    if let Some(span) = crate::lower::reference_parameter_span(semantics) {
+        return Err(InterpretError::new(
+            span,
+            "reference parameters are not supported by this interpreter",
+        ));
+    }
     ReferenceInterpreter::new(program, semantics, limits).run()
 }
 
 struct ReferenceInterpreter<'program, 'ast, 'src> {
     program: &'program Program<'ast, 'src>,
-    semantics: &'program SemanticModel<'src>,
+    semantics: &'program SemanticModel<'ast, 'src>,
     functions: AHashMap<SymbolId, &'program FunctionDecl<'ast, 'src>>,
     globals: AHashMap<SymbolId, Value>,
     frames: Vec<AHashMap<SymbolId, BindingCell>>,
@@ -212,7 +225,7 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
 impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn new(
         program: &'program Program<'ast, 'src>,
-        semantics: &'program SemanticModel<'src>,
+        semantics: &'program SemanticModel<'ast, 'src>,
         limits: InterpreterLimits,
     ) -> Self {
         let functions = program
@@ -530,18 +543,39 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn evaluate(&mut self, expression: &Expr<'ast, 'src>) -> Result<Value, InterpretError> {
         self.step(expression.span())?;
         match expression {
-            Expr::Int(value, span) => i32::try_from(*value)
+            Expr {
+                kind: ExprKind::Int(value, span),
+                ..
+            } => i32::try_from(*value)
                 .map(Value::Int)
                 .map_err(|_| InterpretError::new(*span, "integer is outside the i32 range")),
-            Expr::Float(value, _) => Ok(Value::Float(*value)),
-            Expr::String(value, _) => Ok(Value::String(decode_source_string(value))),
-            Expr::Bool(value, _) => Ok(Value::Bool(*value)),
-            Expr::Null(_) => Ok(Value::Null),
-            Expr::DynamicImport { span, .. } => Err(InterpretError::new(
+            Expr {
+                kind: ExprKind::Float(value, _),
+                ..
+            } => Ok(Value::Float(*value)),
+            Expr {
+                kind: ExprKind::String(value, _),
+                ..
+            } => Ok(Value::String(decode_source_string(value))),
+            Expr {
+                kind: ExprKind::Bool(value, _),
+                ..
+            } => Ok(Value::Bool(*value)),
+            Expr {
+                kind: ExprKind::Null(_),
+                ..
+            } => Ok(Value::Null),
+            Expr {
+                kind: ExprKind::DynamicImport { span, .. },
+                ..
+            } => Err(InterpretError::new(
                 *span,
                 "dynamic module tasks execute only in the JavaScript backend",
             )),
-            Expr::Ident(identifier) => {
+            Expr {
+                kind: ExprKind::Ident(identifier),
+                ..
+            } => {
                 let symbol = self.symbol(identifier.span)?;
                 if self.functions.contains_key(&symbol) {
                     Ok(Value::Callable(Callable::Function(symbol)))
@@ -549,7 +583,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     self.read(symbol, identifier.span)
                 }
             }
-            Expr::ArrayLiteral { elements, .. } => {
+            Expr {
+                kind: ExprKind::ArrayLiteral { elements, .. },
+                ..
+            } => {
                 let mut values = Vec::with_capacity(elements.len());
                 for element in *elements {
                     match element {
@@ -567,7 +604,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Value::Array(Rc::new(RefCell::new(values))))
             }
-            Expr::RecordLiteral { entries, .. } => {
+            Expr {
+                kind: ExprKind::RecordLiteral { entries, .. },
+                ..
+            } => {
                 let mut values = IndexMap::new();
                 for entry in *entries {
                     match entry {
@@ -593,7 +633,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Value::Record(Rc::new(RefCell::new(values))))
             }
-            Expr::ObjectLiteral { entries, .. } => {
+            Expr {
+                kind: ExprKind::ObjectLiteral { entries, .. },
+                ..
+            } => {
                 let mut values = IndexMap::new();
                 for element in *entries {
                     let RecordElement::Entry(entry) = element else {
@@ -609,10 +652,16 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }
                 Ok(Value::Record(Rc::new(RefCell::new(values))))
             }
-            Expr::New {
-                class, args, span, ..
+            Expr {
+                kind: ExprKind::New {
+                    class, args, span, ..
+                },
+                ..
             } => self.evaluate_new(class.name, args, *span),
-            Expr::Unary { op, expr, span } => {
+            Expr {
+                kind: ExprKind::Unary { op, expr, span },
+                ..
+            } => {
                 let value = self.evaluate(expr)?;
                 match (op, value) {
                     (UnaryOp::Neg, Value::Int(value)) => Ok(Value::Int(value.wrapping_neg())),
@@ -621,11 +670,17 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     _ => Err(InterpretError::new(*span, "invalid unary operand")),
                 }
             }
-            Expr::Await { span, .. } => Err(InterpretError::new(
+            Expr {
+                kind: ExprKind::Await { span, .. },
+                ..
+            } => Err(InterpretError::new(
                 *span,
                 "async functions and await are only available for JavaScript targets",
             )),
-            Expr::Binary { op, lhs, rhs, span } => {
+            Expr {
+                kind: ExprKind::Binary { op, lhs, rhs, span },
+                ..
+            } => {
                 if *op == BinaryOp::And {
                     return if self.evaluate_bool(lhs)? {
                         Ok(Value::Bool(self.evaluate_bool(rhs)?))
@@ -652,13 +707,20 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let rhs = self.evaluate(rhs)?;
                 self.evaluate_binary(*op, lhs, rhs, expression, *span)
             }
-            Expr::Call { callee, args, span } => self.evaluate_call(callee, args, *span),
-            Expr::ArrowFunction {
-                params, body, span, ..
+            Expr {
+                kind: ExprKind::Call { callee, args, span },
+                ..
+            } => self.evaluate_call(callee, args, expression.id, *span),
+            Expr {
+                kind:
+                    ExprKind::ArrowFunction {
+                        params, body, span, ..
+                    },
+                ..
             } => {
                 let captures = self.frames.last().cloned().unwrap_or_default();
                 let closure = self.closures.len();
-                let return_type = match self.semantics.expression_type(*span) {
+                let return_type = match self.semantics.expression_type(expression.id) {
                     Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
                     _ => {
                         return Err(InterpretError::new(
@@ -675,19 +737,30 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 });
                 Ok(Value::Callable(Callable::Closure(closure)))
             }
-            Expr::Assignment {
-                op,
-                target,
-                value,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Assignment {
+                        op,
+                        target,
+                        value,
+                        span,
+                    },
+                ..
             } => self.evaluate_assignment(*op, target, value, *span),
-            Expr::Update {
-                op,
-                target,
-                prefix,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Update {
+                        op,
+                        target,
+                        prefix,
+                        span,
+                    },
+                ..
             } => self.evaluate_update(*op, target, *prefix, *span),
-            Expr::Template { parts, span } => {
+            Expr {
+                kind: ExprKind::Template { parts, span },
+                ..
+            } => {
                 let mut output = String::new();
                 for part in *parts {
                     match part {
@@ -697,15 +770,19 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                         }
                     }
                 }
-                if self.semantics.expression_type(*span) != Some(&Type::String) {
+                if self.semantics.expression_type(expression.id) != Some(&Type::String) {
                     return Err(InterpretError::new(*span, "template has no string type"));
                 }
                 Ok(Value::String(output))
             }
-            Expr::TypeCheck {
-                value,
-                target,
-                span,
+            Expr {
+                kind:
+                    ExprKind::TypeCheck {
+                        value,
+                        target,
+                        span,
+                    },
+                ..
             } => {
                 let value = self.evaluate(value)?;
                 let matches = value_matches_type(&value, target.kind).ok_or_else(|| {
@@ -716,10 +793,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 })?;
                 Ok(Value::Bool(matches))
             }
-            Expr::Member {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
                 if let Some(value) = self.semantics.enum_variant_value(*span) {
                     return Ok(Value::Int(value as i32));
@@ -727,10 +808,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 let object = self.evaluate(object)?;
                 self.evaluate_member(object, property.name, *span)
             }
-            Expr::OptionalMember {
-                object,
-                property,
-                span,
+            Expr {
+                kind:
+                    ExprKind::OptionalMember {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => {
                 let object = self.evaluate(object)?;
                 if matches!(object, Value::Null) {
@@ -739,14 +824,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     self.evaluate_member(object, property.name, *span)
                 }
             }
-            Expr::Index { span, .. } => {
+            Expr {
+                kind: ExprKind::Index { span, .. },
+                ..
+            } => {
                 let place = self.evaluate_place(expression)?;
                 self.load_place(&place, *span)
             }
-            Expr::OptionalIndex {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::OptionalIndex {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => {
                 let object = self.evaluate(object)?;
                 if matches!(object, Value::Null) {
@@ -777,10 +869,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     )),
                 }
             }
-            Expr::If {
-                condition,
-                then_value,
-                else_value,
+            Expr {
+                kind:
+                    ExprKind::If {
+                        condition,
+                        then_value,
+                        else_value,
+                        ..
+                    },
                 ..
             } => {
                 if self.evaluate_bool(condition)? {
@@ -789,7 +885,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     self.evaluate(else_value)
                 }
             }
-            Expr::Match { value, arms, span } => {
+            Expr {
+                kind: ExprKind::Match { value, arms, span },
+                ..
+            } => {
                 let scrutinee = self.evaluate(value)?;
                 for arm in *arms {
                     let selected = match arm.pattern {
@@ -818,7 +917,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     "exhaustive match selected no arm",
                 ))
             }
-            Expr::StructLiteral { span, .. } => Err(InterpretError::new(
+            Expr {
+                kind: ExprKind::StructLiteral { span, .. },
+                ..
+            } => Err(InterpretError::new(
                 *span,
                 "reference interpreter does not support nominal aggregate or class expressions",
             )),
@@ -838,7 +940,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn evaluate_new(
         &mut self,
         name: &str,
-        args: &'ast [Expr<'ast, 'src>],
+        args: &'ast [crate::ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
         if name == "Symbol" {
@@ -850,7 +952,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
             }
             let description = match args.first() {
                 None => None,
-                Some(argument) => match self.evaluate(argument)? {
+                Some(argument) => match self.evaluate(&argument.expression)? {
                     Value::String(value) => Some(value),
                     _ => {
                         return Err(InterpretError::new(
@@ -868,7 +970,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 "reference interpreter only supports one-argument binary constructors",
             ));
         };
-        let argument = self.evaluate(argument)?;
+        let argument = self.evaluate(&argument.expression)?;
         match (name, argument) {
             ("ArrayBuffer", Value::Int(length)) => {
                 Ok(Value::Buffer(new_buffer(length, false, span)?))
@@ -902,6 +1004,9 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 i32::try_from(values.borrow().len())
                     .map_err(|_| InterpretError::new(span, "array length exceeds the i32 range"))?,
             )),
+            (Value::String(value), "length") => {
+                self.evaluate_string_method(&value, "length", &[], span)
+            }
             (Value::Buffer(buffer), "byteLength") => Ok(Value::Int(
                 i32::try_from(buffer.bytes.borrow().len()).map_err(|_| {
                     InterpretError::new(span, "buffer length exceeds the i32 range")
@@ -1022,7 +1127,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 span,
                 format!(
                     "invalid operands for binary expression of type {:?}",
-                    self.semantics.expression_type(expression.span())
+                    self.semantics.expression_type(expression.id)
                 ),
             )),
         }
@@ -1031,58 +1136,65 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn evaluate_call(
         &mut self,
         callee: &Expr<'ast, 'src>,
-        args: &'ast [Expr<'ast, 'src>],
+        args: &'ast [crate::ast::Argument<'ast, 'src>],
+        id: crate::ast::SourceNodeId,
         span: Span,
     ) -> Result<Value, InterpretError> {
-        if matches!(callee, Expr::Ident(identifier) if identifier.name == "print") {
+        let builtin = self.semantics.builtin_call(id);
+        if builtin == Some(BuiltinCall::Print) {
             let [argument] = args else {
                 return Err(InterpretError::new(span, "print requires one argument"));
             };
-            let rendered = self.evaluate(argument)?.display(argument.span())?;
+            let rendered = self
+                .evaluate(&argument.expression)?
+                .display(argument.span)?;
             self.output.push_str(&rendered);
             self.output.push('\n');
             return Ok(Value::Void);
         }
 
-        if let Expr::Member {
-            object, property, ..
+        if let Some(builtin) = builtin {
+            return self.evaluate_builtin_call(builtin, args, span);
+        }
+        if let Expr {
+            kind: ExprKind::Member {
+                object, property, ..
+            },
+            ..
         } = callee
         {
-            if let Expr::Ident(namespace) = object {
-                if matches!(namespace.name, "Object" | "JSON") {
-                    return self.evaluate_static_call(namespace.name, property.name, args, span);
-                }
-            }
             return self.evaluate_method_call(object, property.name, args, span);
         }
 
         let callable = self.evaluate(callee)?;
         let mut values = Vec::with_capacity(args.len());
         for argument in args {
-            values.push(self.evaluate(argument)?);
+            values.push(self.evaluate(&argument.expression)?);
         }
         self.invoke_callable(callable, values, span)
     }
 
-    fn evaluate_static_call(
+    fn evaluate_builtin_call(
         &mut self,
-        namespace: &str,
-        method: &str,
-        args: &'ast [Expr<'ast, 'src>],
+        builtin: BuiltinCall,
+        args: &'ast [crate::ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
         let mut values = Vec::with_capacity(args.len());
         for argument in args {
-            values.push(self.evaluate(argument)?);
+            values.push(self.evaluate(&argument.expression)?);
         }
-        match (namespace, method, values.as_slice()) {
-            ("Object", "keys", [Value::Record(record)]) => {
+        match (builtin, values.as_slice()) {
+            (BuiltinCall::MathImul, [Value::Int(left), Value::Int(right)]) => {
+                Ok(Value::Int(left.wrapping_mul(*right)))
+            }
+            (BuiltinCall::ObjectKeys, [Value::Record(record)]) => {
                 let keys = ordered_record_keys(&record.borrow());
                 Ok(Value::Array(Rc::new(RefCell::new(
                     keys.into_iter().map(Value::String).collect(),
                 ))))
             }
-            ("Object", "values", [Value::Record(record)]) => {
+            (BuiltinCall::ObjectValues, [Value::Record(record)]) => {
                 let record = record.borrow();
                 let values = ordered_record_keys(&record)
                     .into_iter()
@@ -1090,10 +1202,10 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                     .collect();
                 Ok(Value::Array(Rc::new(RefCell::new(values))))
             }
-            ("Object", "hasOwn", [Value::Record(record), Value::String(key)]) => {
+            (BuiltinCall::ObjectHasOwn, [Value::Record(record), Value::String(key)]) => {
                 Ok(Value::Bool(record.borrow().contains_key(key)))
             }
-            ("Object", "assign", [Value::Record(target), Value::Record(source)]) => {
+            (BuiltinCall::ObjectAssign, [Value::Record(target), Value::Record(source)]) => {
                 let source = source.borrow();
                 let entries = ordered_record_keys(&source)
                     .into_iter()
@@ -1107,21 +1219,21 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 drop(target_values);
                 Ok(Value::Record(target.clone()))
             }
-            ("JSON", "stringify", [value]) => serde_json::to_string(&value_to_json(value, span)?)
-                .map(Value::String)
-                .map_err(|error| {
-                    InterpretError::new(span, format!("JSON stringify failed: {error}"))
-                }),
-            ("JSON", "parse", [Value::String(source)]) => {
-                serde_json::from_str::<serde_json::Value>(source)
-                    .map(json_to_value)
+            (BuiltinCall::JsonStringify, [value]) => {
+                serde_json::to_string(&value_to_json(value, span)?)
+                    .map(Value::String)
                     .map_err(|error| {
-                        InterpretError::new(span, format!("JSON parse failed: {error}"))
+                        InterpretError::new(span, format!("JSON stringify failed: {error}"))
                     })
             }
+            (BuiltinCall::JsonParse, [Value::String(source)]) => serde_json::from_str::<
+                serde_json::Value,
+            >(source)
+            .map(json_to_value)
+            .map_err(|error| InterpretError::new(span, format!("JSON parse failed: {error}"))),
             _ => Err(InterpretError::new(
                 span,
-                format!("unsupported static call `{namespace}.{method}`"),
+                format!("unsupported builtin call `{builtin:?}`"),
             )),
         }
     }
@@ -1188,6 +1300,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         }
         let return_type = match self.semantics.binding_type(function.name.span) {
             Some(Type::Function(signature)) => signature.return_type.as_ref().clone(),
+            Some(Type::GenericFunction(generic)) => generic.signature.return_type.as_ref().clone(),
             _ => {
                 return Err(InterpretError::new(
                     function.span,
@@ -1281,13 +1394,13 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         &mut self,
         object: &Expr<'ast, 'src>,
         method: &str,
-        args: &'ast [Expr<'ast, 'src>],
+        args: &'ast [crate::ast::Argument<'ast, 'src>],
         span: Span,
     ) -> Result<Value, InterpretError> {
         let receiver = self.evaluate(object)?;
         let mut arguments = Vec::with_capacity(args.len());
         for argument in args {
-            arguments.push(self.evaluate(argument)?);
+            arguments.push(self.evaluate(&argument.expression)?);
         }
         if matches!(method, "truthy" | "isArray" | "isObject") {
             if !arguments.is_empty() {
@@ -1840,7 +1953,7 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         };
         let target_type = self
             .semantics
-            .expression_type(target.span())
+            .expression_type(target.id)
             .ok_or_else(|| InterpretError::new(target.span(), "assignment target has no type"))?;
         let value = coerce_value_to_type(value, target_type);
         self.store_place(&place, value.clone(), span)?;
@@ -1872,11 +1985,18 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
         expression: &Expr<'ast, 'src>,
     ) -> Result<RuntimePlace, InterpretError> {
         match expression {
-            Expr::Ident(identifier) => Ok(RuntimePlace::Binding(self.symbol(identifier.span)?)),
-            Expr::Member {
-                object,
-                property,
-                span,
+            Expr {
+                kind: ExprKind::Ident(identifier),
+                ..
+            } => Ok(RuntimePlace::Binding(self.symbol(identifier.span)?)),
+            Expr {
+                kind:
+                    ExprKind::Member {
+                        object,
+                        property,
+                        span,
+                    },
+                ..
             } => match self.evaluate(object)? {
                 Value::Record(record) => Ok(RuntimePlace::RecordEntry {
                     record,
@@ -1884,10 +2004,14 @@ impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
                 }),
                 _ => Err(InterpretError::new(*span, "member is not a record entry")),
             },
-            Expr::Index {
-                object,
-                index,
-                span,
+            Expr {
+                kind:
+                    ExprKind::Index {
+                        object,
+                        index,
+                        span,
+                    },
+                ..
             } => {
                 let object = self.evaluate(object)?;
                 let index = self.evaluate(index)?;
@@ -2735,6 +2859,15 @@ mod tests {
         let program = crate::for_of_family::expand_for_of_families(&arena, program, max_n);
         let semantics = analyze(&program).unwrap();
         interpret_program(&program, &semantics).unwrap()
+    }
+
+    #[test]
+    fn checked_builtin_dispatch_preserves_shadowed_callable_bindings() {
+        assert_eq!(
+            run("int custom(int value){return value+10;} int invoke(func(int)->int print){return print(2);}print(invoke(custom));"),
+            "12\n",
+        );
+        assert_eq!(run("print(Math.imul(2147483647,2));"), "-2\n");
     }
 
     #[test]

@@ -1,0 +1,30 @@
+
+running 25 tests
+test module::admission_tests::source_work_and_deadline_refusals_are_typed_and_release_partial_reads ... ok
+test module::admission_tests::source_growth_admits_old_and_new_capacities_before_allocating ... ok
+test module::admission_tests::root_override_transfers_one_admitted_buffer_into_the_module ... ok
+test module::admission_tests::missing_import_preserves_parent_diagnostic_after_admitted_cleanup ... ok
+test module::admission_tests::malformed_and_non_utf8_sources_release_admitted_storage ... ok
+test module::parse_once_tests::cycle_and_repeated_canonical_edges_keep_one_program_per_module ... ok
+test module::source_arena::tests::source_growth_refusal_keeps_prior_text_and_other_reservations ... ok
+test module::parse_once_tests::retained_root_override_uses_the_same_loader_without_reading_old_text ... ok
+test module::source_arena::tests::incremental_program_list_preserves_identities_without_reentering_parser_ledger ... ok
+test module::parse_once_tests::discovery_failures_keep_original_diagnostics_and_release_both_arenas ... ok
+test module::source_arena::tests::source_work_and_deadline_refusals_precede_copy_and_growth ... ok
+test module::source_arena::tests::source_initializer_panic_keeps_new_chunks_owned_until_discard ... ok
+test module::source_arena::tests::temporary_read_buffer_and_stable_backing_are_charged_while_both_live ... ok
+test module::parse_once_tests::retained_discovery_refusals_keep_typed_errors_and_release_partial_owners ... ok
+test module::parse_once_tests::static_foreign_and_nested_dynamic_imports_share_the_original_collector ... ok
+test module::tests::linked_arrow_default_keeps_earlier_parameter_binding ... ok
+test module::tests::exported_objects_keep_source_names_and_merge_across_modules ... ok
+test module::tests::module_cloning_keeps_reference_modes_and_fresh_argument_occurrences ... ok
+test module::tests::resolves_extensionless_relative_imports ... ok
+test module::tests::static_order_preserves_edges_cycles_and_single_initialization ... ok
+test module::source_arena::tests::stable_source_text_survives_later_growth_and_ledger_moves ... ok
+test module::tests::linked_arrow_defaults_reject_self_and_forward_parameter_references ... ok
+test module::admission_tests::admitted_source_graph_matches_legacy_and_releases_exact_capacities ... ok
+test module::tests::static_order_uses_an_iterative_stack_for_deep_import_chains ... ok
+test module::parse_once_tests::retained_discovery_parses_each_canonical_source_once_and_preserves_checked_identity ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 2856 filtered out; finished in 0.01s
+

@@ -1,0 +1,1 @@
+extern int value(int n);func()->int make(){Record<int> state=record{a:value(1),b:value(2)};return ()=>((state.a??0)+(state.b??0));}try{print(make()());}catch(auto error){print(99);}

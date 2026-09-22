@@ -1,0 +1,1470 @@
+{
+  "schemaVersion": 1,
+  "kind": "migration-workload-inventory",
+  "generatedAt": "2026-09-19T23:15:42.849Z",
+  "status": "recovered-input-inventory-not-baseline-certification",
+  "manifest": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-micromark-adapter/inventory-subset.json",
+    "present": true,
+    "sha256": "61319c7effccc709265a5ccb6940552835af12e34f01bfc4a07ae1af4c6e360e",
+    "bytes": 4557,
+    "objective": "For each maintained library and raw/gzip/Brotli objective, tie or beat the strongest eligible competitor while preserving behavior and public APIs within agreed compilation/runtime budgets. Aim for strict wins almost always; the numerical win-rate threshold remains open."
+  },
+  "rows": [
+    {
+      "id": "micromarklil",
+      "kind": "maintained-library",
+      "required": true,
+      "separateCompetitiveRow": true,
+      "relatedTo": null,
+      "recordedWorkspace": "/home/azureuser/micromarklil",
+      "workspace": "/home/azureuser/micromarklil",
+      "candidates": [
+        {
+          "path": "/home/azureuser/micromarklil",
+          "exists": true,
+          "head": "2d673ff23be844b9ba9781a85e16cbbbe5f6bafd"
+        },
+        {
+          "path": "/tmp/lilscript-page-refresh-20260910/current/micromarklil",
+          "exists": true,
+          "head": "fc11f5c739d76ba7d3d7f59b60293c0b8988a89a"
+        }
+      ],
+      "selection": "recorded-workspace",
+      "historicalStatus": "unverified",
+      "historicalPending": [
+        "Audit exact public boundary and comparison entry.",
+        "Freeze production artifact and test identities.",
+        "Rebuild valid incumbent and eligible baselines.",
+        "Calibrate and pin compilation/runtime budgets."
+      ],
+      "comparisons": [],
+      "upstream": {
+        "repository": "https://github.com/micromark/micromark.git",
+        "commit": "3fae15528f69dfaf2a8865a7f7d92bfb4abd7bc9",
+        "package": "micromark",
+        "version": "4.0.2",
+        "directory": "packages/micromark"
+      },
+      "recordedScope": "micromark@4.0.2 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+      "certification": "unverified",
+      "gaps": [
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "Fresh source-built compiler/delivery hashes and four original invocations remain unqualified."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "Original type, pack and fresh-site commands remain unexecuted."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "Packed/installed consumers, root CJS full behavior, stream CJS broader behavior and real-browser UMD remain separate."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "The numeric initial-point Proxy test does not settle arbitrary truthy/coercion inputs or D2."
+        },
+        {
+          "code": "additional-required-test-coverage-pending",
+          "coverage": "No current semantic-backend, competitive codec, speed or whole-library milestone qualification."
+        },
+        {
+          "code": "baseline-build-and-production-test-replay-pending"
+        },
+        {
+          "code": "complete-dependency-graph-identity-pending"
+        }
+      ],
+      "head": "2d673ff23be844b9ba9781a85e16cbbbe5f6bafd",
+      "gitStatus": {
+        "sha256": "9bcc5c11d6a53521883e4bcc146e097b347b28ec0d3dd49df0c613e3647193c3",
+        "rows": 7
+      },
+      "package": {
+        "name": "@itslil/micromark",
+        "version": "4.0.3",
+        "identity": {
+          "path": "/home/azureuser/micromarklil/package.json",
+          "present": true,
+          "sha256": "a0150ae6ced1bc81001715308c02054a08faf188817714474f88d05c733ccf47",
+          "bytes": 2560
+        },
+        "scripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs",
+          "test": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+          "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
+          "check:site": "npm run build:site && node --test test/site.test.mjs",
+          "check:pack": "node scripts/check-pack.mjs",
+          "prepublishOnly": "npm test && npm run check:types && npm run check:pack && npm run check:site"
+        },
+        "engines": {
+          "node": ">=18"
+        }
+      },
+      "sourceFiles": [
+        "src/character-entities.lil",
+        "src/compile.lil",
+        "src/constructs.lil",
+        "src/core/attention.lil",
+        "src/core/autolink.lil",
+        "src/core/blank-line.lil",
+        "src/core/block-quote.lil",
+        "src/core/character-escape.lil",
+        "src/core/character-reference.lil",
+        "src/core/code-fenced.lil",
+        "src/core/code-indented.lil",
+        "src/core/code-text.lil",
+        "src/core/content.lil",
+        "src/core/definition.lil",
+        "src/core/hard-break-escape.lil",
+        "src/core/heading-atx.lil",
+        "src/core/html-flow.lil",
+        "src/core/html-text.lil",
+        "src/core/label-end.lil",
+        "src/core/label-start-image.lil",
+        "src/core/label-start-link.lil",
+        "src/core/line-ending.lil",
+        "src/core/list.lil",
+        "src/core/setext-underline.lil",
+        "src/core/thematic-break.lil",
+        "src/create-tokenizer.lil",
+        "src/decode-named.lil",
+        "src/factory-destination.lil",
+        "src/factory-label.lil",
+        "src/factory-space.lil",
+        "src/factory-title.lil",
+        "src/factory-whitespace.lil",
+        "src/host.lil",
+        "src/index.lil",
+        "src/initialize/content.lil",
+        "src/initialize/document.lil",
+        "src/initialize/flow.lil",
+        "src/initialize/text.lil",
+        "src/parse.lil",
+        "src/postprocess.lil",
+        "src/preprocess.lil",
+        "src/splice-buffer.lil",
+        "src/stream.lil",
+        "src/symbol/codes.lil",
+        "src/symbol/constants.lil",
+        "src/symbol/types.lil",
+        "src/symbol/values.lil",
+        "src/util-character.lil",
+        "src/util-chunked.lil",
+        "src/util-classify-character.lil",
+        "src/util-combine-extensions.lil",
+        "src/util-decode-numeric-character-reference.lil",
+        "src/util-decode-string.lil",
+        "src/util-encode.lil",
+        "src/util-html-tag-name.lil",
+        "src/util-normalize-identifier.lil",
+        "src/util-resolve-all.lil",
+        "src/util-sanitize-uri.lil",
+        "src/util-subtokenize.lil",
+        "test/support.lil"
+      ],
+      "configurations": [
+        {
+          "path": "/home/azureuser/micromarklil/lilscript.closed.toml",
+          "present": true,
+          "sha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab",
+          "bytes": 386,
+          "relativePath": "lilscript.closed.toml",
+          "recordedSha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/lilscript.toml",
+          "present": true,
+          "sha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43",
+          "bytes": 1607,
+          "relativePath": "lilscript.toml",
+          "recordedSha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43"
+        }
+      ],
+      "locks": [
+        {
+          "path": "/home/azureuser/micromarklil/package-lock.json",
+          "present": true,
+          "sha256": "bc24b0f7167a86189c3b1187f146c7e6355fe53dad41544b672cdca6b4619e33",
+          "bytes": 39541,
+          "relativePath": "package-lock.json"
+        }
+      ],
+      "testFiles": [
+        "test/official/commonmark.js",
+        "test/official/extension.js",
+        "test/official/index.js",
+        "test/official/io/content/definition.js",
+        "test/official/io/content/index.js",
+        "test/official/io/document/block-quote.js",
+        "test/official/io/document/index.js",
+        "test/official/io/document/list-item.js",
+        "test/official/io/flow/code-fenced.js",
+        "test/official/io/flow/code-indented.js",
+        "test/official/io/flow/heading-atx.js",
+        "test/official/io/flow/heading-setext.js",
+        "test/official/io/flow/html.js",
+        "test/official/io/flow/index.js",
+        "test/official/io/flow/thematic-break.js",
+        "test/official/io/index.js",
+        "test/official/io/misc/bom.js",
+        "test/official/io/misc/constants.js",
+        "test/official/io/misc/dangerous-html.js",
+        "test/official/io/misc/dangerous-protocols.js",
+        "test/official/io/misc/default-line-ending.js",
+        "test/official/io/misc/index.js",
+        "test/official/io/misc/line-ending.js",
+        "test/official/io/misc/tab.js",
+        "test/official/io/misc/typed-array.js",
+        "test/official/io/misc/url.js",
+        "test/official/io/misc/zero.js",
+        "test/official/io/text/autolink.js",
+        "test/official/io/text/character-escape.js",
+        "test/official/io/text/character-reference.js",
+        "test/official/io/text/code.js",
+        "test/official/io/text/emphasis.js",
+        "test/official/io/text/hard-break.js",
+        "test/official/io/text/html.js",
+        "test/official/io/text/image.js",
+        "test/official/io/text/index.js",
+        "test/official/io/text/link-reference.js",
+        "test/official/io/text/link-resource.js",
+        "test/official/io/text/soft-break.js",
+        "test/official/io/text/text.js",
+        "test/official/misc/chunked-splice.js",
+        "test/official/misc/decode-string.js",
+        "test/official/misc/index.js",
+        "test/official/misc/slice-chunks.js",
+        "test/official/misc/splice-buffer.js",
+        "test/official/stream.js",
+        "test/official/util/slow-stream.js",
+        "test/public-api.test.mjs",
+        "test/site.test.mjs",
+        "test/stream-api.test.mjs",
+        "test/types.test.ts"
+      ],
+      "inputLinks": [],
+      "scanErrors": [],
+      "inputs": {
+        "root": "/home/azureuser/micromarklil",
+        "files": [
+          {
+            "path": "lilscript.closed.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "793dc7c5958d493c87a9b2c6efed9ef4b50adce067afecd22905ae03dc77c4ab",
+            "bytes": 386
+          },
+          {
+            "path": "lilscript.toml",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c64150a4592731f8acb90fb10e421a2a05f2e7f8fe6dfd570193be70fd39fd43",
+            "bytes": 1607
+          },
+          {
+            "path": "package-lock.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bc24b0f7167a86189c3b1187f146c7e6355fe53dad41544b672cdca6b4619e33",
+            "bytes": 39541
+          },
+          {
+            "path": "package.json",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a0150ae6ced1bc81001715308c02054a08faf188817714474f88d05c733ccf47",
+            "bytes": 2560
+          },
+          {
+            "path": "scripts/build-site.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "b3ff4d2b30091264f403e3f2a066a5de3fa1690a30eb91730eac8b4a9d462698",
+            "bytes": 947
+          },
+          {
+            "path": "scripts/build.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7c4ea4b51e610658f0e1f9348e2fda4ade0b5ac846cc5b56d624eea00db4dc27",
+            "bytes": 6674
+          },
+          {
+            "path": "scripts/check-pack.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e3a9c76cf7e34a3bebb35878194978c13e98c87b47dc5b6ebf06405fab7ea56c",
+            "bytes": 1753
+          },
+          {
+            "path": "src/character-entities.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9cc1b93ab188a1fc88dac103a9a94ae38a796c65b0ee90e4cf2415592f854002",
+            "bytes": 41535
+          },
+          {
+            "path": "src/compile.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "35fac393646a93c9e5c244f265dc3f1588ee37c852f02a2ee4fbf0f496ef5534",
+            "bytes": 27422
+          },
+          {
+            "path": "src/constructs.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "87d6280f596f1fd5e966377361a65a9c1d30e23dcb377a00964d9b9c08169c18",
+            "bytes": 4371
+          },
+          {
+            "path": "src/core/attention.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "68abc4a24dbac2460d47a895eb6ae13c1292b88201e76ec82ed9a6d5e8cc6bf2",
+            "bytes": 7412
+          },
+          {
+            "path": "src/core/autolink.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ad643553d680123a113d17fe746d8e542b0287370b377321327311d511733754",
+            "bytes": 4604
+          },
+          {
+            "path": "src/core/blank-line.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "343b83ddc9fc78780601af8a4f47d5031ef13384f8f803360e33d415feba9dd2",
+            "bytes": 902
+          },
+          {
+            "path": "src/core/block-quote.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2470532d1426c6bcf3bf22b4e990c273c148a86b0e212930fef755db3243f1b9",
+            "bytes": 2956
+          },
+          {
+            "path": "src/core/character-escape.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6062220ebd95f9e35017a399066849d31fcb878dd0063da70b511425c165cbc2",
+            "bytes": 1203
+          },
+          {
+            "path": "src/core/character-reference.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5df6b5ba18999fc55a54b6bdff332b21013a4a26816ac57dc12ef19650dd66d5",
+            "bytes": 3765
+          },
+          {
+            "path": "src/core/code-fenced.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "3ce57df5cee12be95b896bb03c3315471585cebe549ab099fa40eb843db118d5",
+            "bytes": 9437
+          },
+          {
+            "path": "src/core/code-indented.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7449b99550b4ca4e462dcca9239302753e4c877f20a82b06479756d4201c4957",
+            "bytes": 3515
+          },
+          {
+            "path": "src/core/code-text.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "950ea75ab25aff10060869fb37f5272318dd855b0682b86e3f743e7092b92ac9",
+            "bytes": 4879
+          },
+          {
+            "path": "src/core/content.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a1e54b21fea0fcb4291a075f6298aa5500945a4f32f9002f92d3810dc6dd0170",
+            "bytes": 3713
+          },
+          {
+            "path": "src/core/definition.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "19c16287f2a80ba4e7832440121214a1f6daee2f489cc1004445a852bda4c8c7",
+            "bytes": 4967
+          },
+          {
+            "path": "src/core/hard-break-escape.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8b80f9aece609713d3dcd490b73037315d81ab0cc58adb5ff80ca75cb4c1f688",
+            "bytes": 871
+          },
+          {
+            "path": "src/core/heading-atx.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "64264c21f87ed1888524f7c21d32bc240bcb42c95b715bd6f15b3b9f685958ba",
+            "bytes": 4506
+          },
+          {
+            "path": "src/core/html-flow.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bd6708d6086a450a20a5e36549b715a0ed6881bd983927bd4d135790a3e050f7",
+            "bytes": 16525
+          },
+          {
+            "path": "src/core/html-text.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "73935c0d5fb15ca89a6f41be87055d4206f3b31c05bc6a85d89c1bf31ee61e24",
+            "bytes": 12041
+          },
+          {
+            "path": "src/core/label-end.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2edd430ed5d783a41eb8aaf748c792b35bcedb0da92c3526273ed3311366619d",
+            "bytes": 12850
+          },
+          {
+            "path": "src/core/label-start-image.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a476c096e652c8a016f519ef530a6ea14f3e6ac7b1252927baa1f0d66868dc12",
+            "bytes": 1585
+          },
+          {
+            "path": "src/core/label-start-link.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ae64132563044b1ef0879e01f80578b65b099d3e80a524d1ae806dff41fb1c81",
+            "bytes": 1173
+          },
+          {
+            "path": "src/core/line-ending.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ed00711f15d2d16b1bcbcc119e31926b589ab18e440bebf50fdc3d827a3b422e",
+            "bytes": 690
+          },
+          {
+            "path": "src/core/list.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c853e1f7ea7539f359fd31575b28b234c149aed64b14995b6af15de7212d518f",
+            "bytes": 8887
+          },
+          {
+            "path": "src/core/setext-underline.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "5555df873ca4993f71ae6a6ce6b8feea65a8bb88e672cb28f298197d80da1f36",
+            "bytes": 4014
+          },
+          {
+            "path": "src/core/thematic-break.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "755953b5988f0e4dde1459d243ce12e5d964a456dd32a8c8b62e21ed24c151e1",
+            "bytes": 1859
+          },
+          {
+            "path": "src/create-tokenizer.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bcf4ce93df4e32d89585011992b760fa910c6b88a69f206dd2e09e751052d6f9",
+            "bytes": 13595
+          },
+          {
+            "path": "src/decode-named.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "b749446edcdd8a4d051fee685ae72d07714d04d0b14d02e4e7955b3540cd493b",
+            "bytes": 278
+          },
+          {
+            "path": "src/factory-destination.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "af165fc6522b16cdd41126055fe79446e4b6cc76058742f5a80fab72605d60de",
+            "bytes": 4451
+          },
+          {
+            "path": "src/factory-label.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "96f7ba45f26175d12451e5b5e669c7a262d879c52d041428351dedf6704b2ecf",
+            "bytes": 3553
+          },
+          {
+            "path": "src/factory-space.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9012b380fb616777a4819fb51434fe7722a234593d155c25b69d5d0db14b19c6",
+            "bytes": 897
+          },
+          {
+            "path": "src/factory-title.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d874bd7921cc041c46c9414f1b4808b7c79fd3f42813502f06993b0bfb0f1b13",
+            "bytes": 3171
+          },
+          {
+            "path": "src/factory-whitespace.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "62d5c0b47eea9941788dd42bad2d616701ad48049190f681deca09ed6d3479bd",
+            "bytes": 952
+          },
+          {
+            "path": "src/host.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "f2d1dcd4fc9adfe8451052e0397dc80dd6d3bd554f57a262bbb34b21c71302c8",
+            "bytes": 9069
+          },
+          {
+            "path": "src/index.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2e2ed8eb07fe0b52e1b2de9e788bb6c4eb863a416cbb47b1bdbb4c82f785eb6f",
+            "bytes": 2230
+          },
+          {
+            "path": "src/initialize/content.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "478689d51eb6fd278d85162871cfea3cd1fbe22eea41d0470844d3afd4377452",
+            "bytes": 2427
+          },
+          {
+            "path": "src/initialize/document.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4da841b9b4af4bc44617d04e30c6e1166590336ec2b01534a2af80ad414b6df3",
+            "bytes": 9682
+          },
+          {
+            "path": "src/initialize/flow.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "085ee22e91469e9c261eed670445a74383682af8b0a1103ca14d2c1d4c5ccbbf",
+            "bytes": 2029
+          },
+          {
+            "path": "src/initialize/text.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9d0a38e95dc29c2d060362b6fc5ccbde281edbe18b45749f5c2fb116c5145eee",
+            "bytes": 6963
+          },
+          {
+            "path": "src/parse.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "f481b1897ea699b8917be891cfc0ae05a88855716a4fb502db89b107ff0949ea",
+            "bytes": 1572
+          },
+          {
+            "path": "src/postprocess.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0ea578b00bed09960e8f9c2d06f962b9e626fec4a528beaba4be30f2c5c50b31",
+            "bytes": 156
+          },
+          {
+            "path": "src/preprocess.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "986ccaeff2d1f35af7854be840023164da7c964a203542efc3176602aa092adb",
+            "bytes": 2665
+          },
+          {
+            "path": "src/splice-buffer.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "cf538daab2d4ec303964969784fd9b47ff756495e1e55da7b3af06bb16394a7a",
+            "bytes": 5463
+          },
+          {
+            "path": "src/stream.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4f306f3ad2b9a7eec4ba187bca6b65a5c1fbf6e184d94cb0272083da776913d3",
+            "bytes": 4098
+          },
+          {
+            "path": "src/symbol/codes.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "762a3e62e1500ba78d71f8218fcb2e7e357ea3795d21bb5e81b8d4287f513c19",
+            "bytes": 6185
+          },
+          {
+            "path": "src/symbol/constants.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c89476d798ffe1eb1f9843219c41cd1d19849707ceb9fc18d5583b5ae2470188",
+            "bytes": 2986
+          },
+          {
+            "path": "src/symbol/types.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6ae172165319ad71396ca532ec544326d82d9625f8ee46090d02a587e40c1aa8",
+            "bytes": 10985
+          },
+          {
+            "path": "src/symbol/values.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "1aabedd9c760c573fd1ea24d07ae9d35d207bbe61a0ecc62985f0953fc73c3e9",
+            "bytes": 3599
+          },
+          {
+            "path": "src/util-character.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7a1c236776c0d3dfb12d9b6f2ddbe181cb06a0d040d0ce71a43782a9c8a96397",
+            "bytes": 1895
+          },
+          {
+            "path": "src/util-chunked.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "dc63c7d2096496959c0c5317e7375ce7c61d23dd69b129b61b0d9bf79e4045cd",
+            "bytes": 1512
+          },
+          {
+            "path": "src/util-classify-character.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8f193927ef6c0a6ec30125dcfe5f24e70e0d1acb178a0f701a6be61050a9b841",
+            "bytes": 516
+          },
+          {
+            "path": "src/util-combine-extensions.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d15e6db103822db1cfeb54f40512af44ef04b3daf5794fce9b679dc99c8753b4",
+            "bytes": 2629
+          },
+          {
+            "path": "src/util-decode-numeric-character-reference.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "78b1050ac7751b5b09436c728a616bd87d98be53e64ac8200a624b37faa63b71",
+            "bytes": 981
+          },
+          {
+            "path": "src/util-decode-string.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0d594bf97b5e23eed34f3f9283519e9553bb3bae2a9b3d9e497b0ebfa248af66",
+            "bytes": 1464
+          },
+          {
+            "path": "src/util-encode.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "18ccbaa4995957e5ef8582f24b8db780af221a69e389f36f7ac86bfb895837c5",
+            "bytes": 601
+          },
+          {
+            "path": "src/util-html-tag-name.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "db2a6d54b5cbdbc8273a776f7b609fb2ed9b90f87242c1d26801ef11771b0380",
+            "bytes": 475
+          },
+          {
+            "path": "src/util-normalize-identifier.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9c605bcd8454ea59378864ba8abfb67315008fbdea73f96e9fb09e76594fe20e",
+            "bytes": 348
+          },
+          {
+            "path": "src/util-resolve-all.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4857aeec8d7eb15053668e81899371cd3bb6d9a23a68740204e9ff818120dfd2",
+            "bytes": 576
+          },
+          {
+            "path": "src/util-sanitize-uri.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6abb339efe37c7aee92a5af9dd86f6741105a52ca168063e5038afc3813f7666",
+            "bytes": 2327
+          },
+          {
+            "path": "src/util-subtokenize.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "926fd04ec5e2c276cecb468d29b02a7f6645683a959f6af97792c00c23c22fb4",
+            "bytes": 7473
+          },
+          {
+            "path": "test/official/commonmark.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9597c9b07623ec7c85bae479461f74ae492a830a52932828651084705a56d931",
+            "bytes": 1002
+          },
+          {
+            "path": "test/official/extension.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "03b3cf19947444f4f6b4f9f6e9ab0a4db371bc8f2e7fac44a969bcc0ae47e14e",
+            "bytes": 11023
+          },
+          {
+            "path": "test/official/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6c34d279ada62a475d4d2c48611dff653f7646bbe65a8bdf3d080b8128bf9ad9",
+            "bytes": 118
+          },
+          {
+            "path": "test/official/io/content/definition.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ecbd121a4e61ad5a023196a6bd3f9e88477c0e0c25b57acfcb47268c0959913d",
+            "bytes": 15244
+          },
+          {
+            "path": "test/official/io/content/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "45b85f3e8a64661b3fab3d9fcfe51e5c3da74c50ab998c4f244710fbefdc2bbf",
+            "bytes": 25
+          },
+          {
+            "path": "test/official/io/document/block-quote.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "807bdf2a16d17cdac5a8315533d994238fe15bcb22bdd8b2739778c7b7ad67e3",
+            "bytes": 6736
+          },
+          {
+            "path": "test/official/io/document/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7c47b0e1e7a5bb1645fc30bd7cbac65861a5de275bdc5f72fb4b606d2ec4bda2",
+            "bytes": 50
+          },
+          {
+            "path": "test/official/io/document/list-item.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c7b0976b90ff2764e7159be736b06c7e337eafded46f4c5861c6c33c0c2fb9c7",
+            "bytes": 24430
+          },
+          {
+            "path": "test/official/io/flow/code-fenced.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d695b9bec1a78213ed6d35b5f22178a6a22fe855dd627e3e2e80a7c6ffdf9019",
+            "bytes": 9984
+          },
+          {
+            "path": "test/official/io/flow/code-indented.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "386a7c49c01b5ae120bd16dd8474f1b311badd7433c3f5423cf1c6d2d381a46c",
+            "bytes": 6887
+          },
+          {
+            "path": "test/official/io/flow/heading-atx.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "cbd2bbb38e93240ab6307f3f662ce000d7df680d13818a439dcd701f212e298e",
+            "bytes": 5893
+          },
+          {
+            "path": "test/official/io/flow/heading-setext.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "0028109a6cbaf53d1294fa48a3dda98ddbdc7b90ae0c2c2b5a502cb47008e07d",
+            "bytes": 8245
+          },
+          {
+            "path": "test/official/io/flow/html.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a991aa697b52d41aabede51d824bf12c0bfa294c6eacbb969aa4b183f88de628",
+            "bytes": 34428
+          },
+          {
+            "path": "test/official/io/flow/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "3a0ac2dd4dead6ec027a0481041f9a8896174b84fde642156c1a6665b2983aa6",
+            "bytes": 157
+          },
+          {
+            "path": "test/official/io/flow/thematic-break.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2ab7ab3cd0f3fd897ab44e43b2f5ec65b58636dcf544ed103868039efc77ee5f",
+            "bytes": 5155
+          },
+          {
+            "path": "test/official/io/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "6ca0a994ce78b2c595b0dcb6a879949eae7ee3968447b914df3516088446a104",
+            "bytes": 132
+          },
+          {
+            "path": "test/official/io/misc/bom.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4891fb9128bbe13311ade1eb36ba784b24dc5f2b80d01ebd5d0ea8ded1ac30ca",
+            "bytes": 1677
+          },
+          {
+            "path": "test/official/io/misc/constants.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "886bc270e7473aaeac5f6ada1def23b7fbf56c43d19c5cd4e9b12fc01780a01c",
+            "bytes": 1311
+          },
+          {
+            "path": "test/official/io/misc/dangerous-html.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ec5f5ebb4db744b94f9a9b5d69a3707494db84b0f3449926bdc0cc84b00f2e4d",
+            "bytes": 594
+          },
+          {
+            "path": "test/official/io/misc/dangerous-protocols.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9c67b367c93bf0c7ff0192b6c7c0e3e7ae87bcfd9c0d344f7e213d294a9dff70",
+            "bytes": 5379
+          },
+          {
+            "path": "test/official/io/misc/default-line-ending.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "b6b2d8a8edaf466fca40e2ce0c079e71cdfb794cdf5c575c7052847113e679b5",
+            "bytes": 1299
+          },
+          {
+            "path": "test/official/io/misc/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7c688c5bc1939467b88b4a26efb287a8a3f2dc803f2626a236c45003ffbf53c3",
+            "bytes": 246
+          },
+          {
+            "path": "test/official/io/misc/line-ending.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "8ce0575a505908601051d98dc44f620b4d158d1812f65313dc04059ac174796b",
+            "bytes": 5554
+          },
+          {
+            "path": "test/official/io/misc/tab.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "41bc98ddaecadec346b89e39c200f8baa26dadd115232555ec0cda6f73c5d34d",
+            "bytes": 9226
+          },
+          {
+            "path": "test/official/io/misc/typed-array.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9e65fe523f41587b7bf7b46911eaa2b18b541bb0927c8e3c167c0b61dcaac78b",
+            "bytes": 765
+          },
+          {
+            "path": "test/official/io/misc/url.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "32fec47ee4127a58c63782bb1a9c1631acefa840f0c37b5da96152c31214ebd6",
+            "bytes": 4374
+          },
+          {
+            "path": "test/official/io/misc/zero.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2660c5213c92dae14089b977c3a9e2e42ed1a92846e3da036d8d855379abaa20",
+            "bytes": 1115
+          },
+          {
+            "path": "test/official/io/text/autolink.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "44571eede36fbb8b972b70f3941e634bf1120619695d10b8db400b4055424df3",
+            "bytes": 10112
+          },
+          {
+            "path": "test/official/io/text/character-escape.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "7d27de13ef5584901074093d0fcc08e1a1d03a03a24aec83478fb25de9345607",
+            "bytes": 3284
+          },
+          {
+            "path": "test/official/io/text/character-reference.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d5452cbe8ac92584f7ec225afcb5b228aa2672af7b9c6c789109d13803aa8fc3",
+            "bytes": 7116
+          },
+          {
+            "path": "test/official/io/text/code.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e48be777090b7f6f094b328c14e0c8184fc833786ddd7653adb3a062488b7a10",
+            "bytes": 4643
+          },
+          {
+            "path": "test/official/io/text/emphasis.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "c45923e6dc650e03c04e8995b677063b774c961b642f5d314637fca06b0de1f2",
+            "bytes": 27474
+          },
+          {
+            "path": "test/official/io/text/hard-break.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "4c50d078f8181529fb969cd882d565af159dcc8bf5f91c8c3f889e109f3f59c5",
+            "bytes": 4495
+          },
+          {
+            "path": "test/official/io/text/html.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "9f03836277e1fb79f9c6be8ac862696a9b495da18ef76dcf862dc74e339b60df",
+            "bytes": 13371
+          },
+          {
+            "path": "test/official/io/text/image.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d6b96d519e9fffd6d91c901cd573c2b4547397890e26022ed76972f467834989",
+            "bytes": 7635
+          },
+          {
+            "path": "test/official/io/text/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "e5493813e921f2dfa085fe1a66b3aa1ab3bd8f742b704ae6fe1ca1a45c441934",
+            "bytes": 295
+          },
+          {
+            "path": "test/official/io/text/link-reference.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2821ced65441e33ecc418be323e33afcc3f2accde9e6d9120be449a9700b7e01",
+            "bytes": 14994
+          },
+          {
+            "path": "test/official/io/text/link-resource.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "aba40109679de8b151c71876080b6700ff7d0888241a23de5a9862a1454ac4a3",
+            "bytes": 16191
+          },
+          {
+            "path": "test/official/io/text/soft-break.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "dc033cbe4b5bb85f35928f086cb5d5cc74163ffb1e522be40cf0da86625f58e0",
+            "bytes": 447
+          },
+          {
+            "path": "test/official/io/text/text.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "061623ed8cb85282578903e06ad8c043c51a277d3893304c771535526d0768c5",
+            "bytes": 616
+          },
+          {
+            "path": "test/official/misc/chunked-splice.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d0ac0516823d1949f70d88a4bfb54f9f9ff91738a74dd377e094bfdc22bbfcd9",
+            "bytes": 2009
+          },
+          {
+            "path": "test/official/misc/decode-string.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a3a5c915190e8634b25efccc36ffec9313df34024ee190eabe7d1490e8a0d910",
+            "bytes": 1387
+          },
+          {
+            "path": "test/official/misc/index.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "bd2cffcfe337c9997865ea38610ffb3989a1fb7f1ded9ab670711f92f42d41bc",
+            "bytes": 112
+          },
+          {
+            "path": "test/official/misc/slice-chunks.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "284f381d04083b00809d6186c3862eeef577853f343e0af458370df4b58cd8d0",
+            "bytes": 2562
+          },
+          {
+            "path": "test/official/misc/splice-buffer.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d945e512a1c15c80c04e048c6f87623e10d72cf5832380df4c4f026159c4a4c6",
+            "bytes": 3081
+          },
+          {
+            "path": "test/official/stream.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "d48056a398c571763713202420b9c9d5b2215a02d66b5fabfaf38b5c28a19b9c",
+            "bytes": 10561
+          },
+          {
+            "path": "test/official/util/slow-stream.js",
+            "kind": "file",
+            "executable": false,
+            "sha256": "ea3f89352973213441af2a932feda5dfe0b888d6eb87018b39402aed26f0a2e5",
+            "bytes": 539
+          },
+          {
+            "path": "test/public-api.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "2b55f46565c0d378d4ea997f0a7d33ac096cab4176c5a1137d90e4c9007ecb01",
+            "bytes": 3371
+          },
+          {
+            "path": "test/site.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "a01a8c053ef95df678f7dbd331d262f55211ad69247ca1364fec35294f45e727",
+            "bytes": 758
+          },
+          {
+            "path": "test/stream-api.test.mjs",
+            "kind": "file",
+            "executable": false,
+            "sha256": "78527f12d93c9a04e0603bb4b14ff682e786a948ce335412dddd6e415b6f2b14",
+            "bytes": 13492
+          },
+          {
+            "path": "test/support.lil",
+            "kind": "file",
+            "executable": false,
+            "sha256": "86f17d7c0babb477ba3379947649baa0ba1e6f6130f433c5507fa2b98d9a4b9b",
+            "bytes": 604
+          },
+          {
+            "path": "test/types.test.ts",
+            "kind": "file",
+            "executable": false,
+            "sha256": "74b354c3aeabbd58503f1eed3a8a9b224cdcc297284718405fd31548955dd361",
+            "bytes": 1794
+          }
+        ],
+        "sha256": "4ccb7d70aa26a5cb5a6e143a422440889f9a9d58b50fd5e8d29af7f401cd30dd"
+      },
+      "build": {
+        "recordedCommand": "node scripts/build.mjs --compile --force",
+        "script": {
+          "path": "/home/azureuser/micromarklil/scripts/build.mjs",
+          "present": true,
+          "sha256": "7c4ea4b51e610658f0e1f9348e2fda4ade0b5ac846cc5b56d624eea00db4dc27",
+          "bytes": 6674
+        },
+        "packageCommand": "node scripts/build.mjs --compile",
+        "scripts": {
+          "build": "node scripts/build.mjs --compile",
+          "build:site": "node scripts/build-site.mjs"
+        },
+        "observedCompilerEnvironmentNames": [
+          "LILSCRIPT_COMPILER",
+          "LILSCRIPT_ROOT"
+        ],
+        "argumentLiterals": [
+          "--compile"
+        ],
+        "compilerOutputOutsideDistMentioned": false,
+        "compilerCommandAudited": false
+      },
+      "tests": {
+        "recordedCommand": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+        "packageCommand": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+        "scripts": {
+          "test": "node --test test/official/index.js test/public-api.test.mjs test/stream-api.test.mjs",
+          "check:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types.test.ts",
+          "check:site": "npm run build:site && node --test test/site.test.mjs",
+          "check:pack": "node scripts/check-pack.mjs"
+        },
+        "adapter": {
+          "files": [
+            "test/official/index.js",
+            "test/public-api.test.mjs",
+            "test/stream-api.test.mjs"
+          ],
+          "artifacts": [
+            "dist/micromark.esm.js",
+            "dist/micromark.cjs",
+            "dist/micromark.closed.js",
+            "dist/micromark.stream.js",
+            "dist/micromark.stream.cjs",
+            "dist/micromark.umd.js",
+            "dist/micromark.test.js"
+          ],
+          "caseInventory": "/home/azureuser/lilscript/benchmarks/libraries/micromarklil.required-tests.json"
+        },
+        "frozenInventory": {
+          "path": "/home/azureuser/lilscript/benchmarks/libraries/micromarklil.required-tests.json",
+          "present": true,
+          "sha256": "b2470f1bfae826f6997d650b96eeee9b95e339ecaf8f4cd3ec89289843185b83",
+          "bytes": 246622,
+          "valid": true,
+          "errors": [],
+          "requiredCaseCount": 1963,
+          "requiredCasesSha256": "15f70e34a129f36172e2b3cdee89ffc0ab6c5f5ee3801c1d5be8c21c0e1f1b12",
+          "testFileCount": 3,
+          "additionalRequiredCoverage": [
+            "Fresh source-built compiler/delivery hashes and four original invocations remain unqualified.",
+            "Original type, pack and fresh-site commands remain unexecuted.",
+            "Packed/installed consumers, root CJS full behavior, stream CJS broader behavior and real-browser UMD remain separate.",
+            "The numeric initial-point Proxy test does not settle arbitrary truthy/coercion inputs or D2.",
+            "No current semantic-backend, competitive codec, speed or whole-library milestone qualification."
+          ]
+        },
+        "sharedFixture": null,
+        "declaredFiles": [
+          {
+            "path": "/home/azureuser/micromarklil/test/official/index.js",
+            "present": true,
+            "sha256": "6c34d279ada62a475d4d2c48611dff653f7646bbe65a8bdf3d080b8128bf9ad9",
+            "bytes": 118
+          },
+          {
+            "path": "/home/azureuser/micromarklil/test/public-api.test.mjs",
+            "present": true,
+            "sha256": "2b55f46565c0d378d4ea997f0a7d33ac096cab4176c5a1137d90e4c9007ecb01",
+            "bytes": 3371
+          },
+          {
+            "path": "/home/azureuser/micromarklil/test/stream-api.test.mjs",
+            "present": true,
+            "sha256": "78527f12d93c9a04e0603bb4b14ff682e786a948ce335412dddd6e415b6f2b14",
+            "bytes": 13492
+          }
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.cjs",
+          "present": true,
+          "sha256": "d7ac8b526f96308782188c5e1a7705dc73c2f6390216bcbda8c073cf38c17886",
+          "bytes": 85358,
+          "relativePath": "dist/micromark.cjs"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.closed.js",
+          "present": true,
+          "sha256": "2f9ad7c3b17d54a4dd3d4dfdc81999dead926fd5f9281a50e74711884c9ff873",
+          "bytes": 94565,
+          "relativePath": "dist/micromark.closed.js"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.esm.js",
+          "present": true,
+          "sha256": "4c2711da2b168144d7e00a0d926a8d2855edd472275cf22f1a89e80346c592bb",
+          "bytes": 84608,
+          "relativePath": "dist/micromark.esm.js"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.stream.cjs",
+          "present": true,
+          "sha256": "ed88bbcf07d339c0ba236efd9a6c197ad9094cb1305fddf1af2282a78f451965",
+          "bytes": 92421,
+          "relativePath": "dist/micromark.stream.cjs"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.stream.js",
+          "present": true,
+          "sha256": "f0c8d55dc9b861feb8b60f44cf008d3b555f4a98b88591c1954045d131bb4b0f",
+          "bytes": 86317,
+          "relativePath": "dist/micromark.stream.js"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.test.js",
+          "present": true,
+          "sha256": "3b7bf788a7a3a86fcd95b131ebe054c7dbf55e6ca5c662bf0bdb0a8ca9cb248a",
+          "bytes": 32328,
+          "relativePath": "dist/micromark.test.js"
+        },
+        {
+          "path": "/home/azureuser/micromarklil/dist/micromark.umd.js",
+          "present": true,
+          "sha256": "310577a806a3aac0970ebe68fe799dcab71eab9516be9fb3be024e1d142b3db0",
+          "bytes": 85447,
+          "relativePath": "dist/micromark.umd.js"
+        }
+      ],
+      "dependencies": [
+        {
+          "role": "dependencies",
+          "name": "@types/node",
+          "requested": "^22.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/@types/node/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/@types/node/package.json",
+            "version": "22.20.1",
+            "sha256": "1e6d3bbbc5082745123d236b38dce0eacdab987d4ac9e57e299e55f780c170de",
+            "bytes": 4274,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/@types/node",
+              "sha256": "4d59db5146958f8ad6ed3e6ca80742ad3462329b5b471ae0a12c5eef83b8102b",
+              "files": 74,
+              "bytes": 2438452,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "dependencies",
+          "name": "micromark-util-types",
+          "requested": "^2.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/micromark-util-types/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/micromark-util-types/package.json",
+            "version": "2.0.2",
+            "sha256": "4bf761498edc00e674903db57fc6a8cf478677363adc776b8ac115771e791cd3",
+            "bytes": 1609,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/micromark-util-types",
+              "sha256": "b3e8927eac53016b96b09eb1b6bf8797e4ab908254b771fc652ebdd4f67bf23f",
+              "files": 5,
+              "bytes": 38950,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "character-entities",
+          "requested": "^2.0.2",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/character-entities/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/character-entities/package.json",
+            "version": "2.0.2",
+            "sha256": "3eaa974f1a9ede7187797d85eb1c799616144cd5ff75d094d30a44bec7d07d88",
+            "bytes": 2014,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/character-entities",
+              "sha256": "44ed74691ac46e00a9a3a4ae273974adfb7d6250bcf3ed732ee18701c2c3e492",
+              "files": 5,
+              "bytes": 44634,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "commonmark.json",
+          "requested": "^0.31.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/commonmark.json/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/commonmark.json/package.json",
+            "version": "0.31.0",
+            "sha256": "ed3ab31c15207fd82fd3718ea7223076ebc7c33693baed4d365cb99706da5047",
+            "bytes": 1610,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/commonmark.json",
+              "sha256": "825669488f2f0e6f36c25d34f4913aef938c1c0d5b6a2b2ff432d34f8368a4f1",
+              "files": 5,
+              "bytes": 100481,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "concat-stream",
+          "requested": "^2.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/concat-stream/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/concat-stream/package.json",
+            "version": "2.0.0",
+            "sha256": "d2f8ce0714a1bbb494502b703d1a04c014393df23f77be0cf8755b9fbe46d6ab",
+            "bytes": 1187,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/concat-stream",
+              "sha256": "1e28e3c0434bd08e59beb67e6b9bacab91a4c7730da49658225c244a56c37d66",
+              "files": 4,
+              "bytes": 9556,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "esbuild",
+          "requested": "0.28.1",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/esbuild/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/esbuild/package.json",
+            "version": "0.28.1",
+            "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+            "bytes": 3980,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/esbuild",
+              "sha256": "577f27f7f18e715a9e387a2c751190b03e9b9c02ef8e22b12dcde4d7963f5da0",
+              "files": 7,
+              "bytes": 11545075,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "micromark-extension-gfm",
+          "requested": "^3.0.0",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/micromark-extension-gfm/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/micromark-extension-gfm/package.json",
+            "version": "3.0.0",
+            "sha256": "f0c6ffb3bbbf52b1e5d939566b8d68097cbdd061598f09fde72af8a38c948bee",
+            "bytes": 2936,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/micromark-extension-gfm",
+              "sha256": "dc07ba16eaf919bac506b513e6864fec31f5c64497db31be4df7f136b376ad9c",
+              "files": 5,
+              "bytes": 20321,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        },
+        {
+          "role": "devDependencies",
+          "name": "typescript",
+          "requested": "5.9.3",
+          "installed": {
+            "present": true,
+            "path": "/home/azureuser/micromarklil/node_modules/typescript/package.json",
+            "realPath": "/home/azureuser/micromarklil/node_modules/typescript/package.json",
+            "version": "5.9.3",
+            "sha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6",
+            "bytes": 3620,
+            "content": {
+              "root": "/home/azureuser/micromarklil/node_modules/typescript",
+              "sha256": "6d15fbd4429ec195b414b383b4a4c0c8cfcc7cf8534e6ebb858476ecc60b3e51",
+              "files": 132,
+              "bytes": 23625066,
+              "excludes": [
+                ".git",
+                "node_modules",
+                ".cache"
+              ]
+            }
+          }
+        }
+      ],
+      "dependencyEvidence": "declared direct installed package contents and lock identities; nested node_modules and transitive runtime/source graph remain unverified",
+      "sourceGraphReferences": []
+    }
+  ],
+  "unmanifestedSiblingCandidates": [
+    "cnlil",
+    "hast-util-to-htmllil",
+    "jquerylil",
+    "katexlil",
+    "lil-solidjs",
+    "markedlil",
+    "mdast-util-from-markdownlil",
+    "mdast-util-to-hastlil",
+    "mobxlil",
+    "monacolil",
+    "motionlil",
+    "playcanvaslil",
+    "posthoglil",
+    "probelil",
+    "react-markdownlil",
+    "rehype-katexlil",
+    "rehype-stringifylil",
+    "rehypelil",
+    "remark-breakslil",
+    "remark-gfmlil",
+    "remark-mathlil",
+    "remark-parselil",
+    "remark-rehypelil",
+    "remarklil",
+    "solidlil",
+    "unifiedlil",
+    "zodlil"
+  ],
+  "contentSha256": "00c34a3802678273880776716d6810411d0ca0fdddbd57aadfdee578d20b3e2a",
+  "limits": [
+    "No package build/test command executed.",
+    "Observed script strings do not prove compiler interception or complete dependency discovery.",
+    "Direct installed package hashes exclude nested node_modules; transitive dependency resolution remains unverified.",
+    "Failed/missing inputs and historical pending issues remain rows."
+  ],
+  "summary": {
+    "rows": 1,
+    "libraryRows": 1,
+    "additionalRows": 0,
+    "missingWorkspaces": [],
+    "rowsWithMissingDependencies": [],
+    "rowsWithFrozenTestInventory": [
+      "micromarklil"
+    ],
+    "rowsWithInvalidTestInventory": [],
+    "installedPackageContents": 8,
+    "sourceFiles": 60
+  }
+}

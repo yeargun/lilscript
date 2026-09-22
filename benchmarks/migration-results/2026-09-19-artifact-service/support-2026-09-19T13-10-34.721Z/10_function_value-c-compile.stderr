@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "backend": "semantic",
+  "source_sha256": "38df83235fd4162fc37515fe5052ff9ec439c3e61ee08ab576e48c6c83c825cb",
+  "request": {
+    "target": "Native",
+    "preserve_root_exports": false,
+    "logical_work": 200000000,
+    "retained_bytes": 256000000,
+    "effective_logical_work": 200000000,
+    "effective_retained_bytes": 256000000
+  },
+  "inputs": {
+    "root": 0,
+    "modules": [
+      {
+        "path": "/home/azureuser/lilscript/tests/cases/10_function_value.lil",
+        "bytes": 74,
+        "sha256": "f9c3a41be385f0a7b98ad2f6d1cf8ed5ff3c3243349db95864510bc9562f9f20",
+        "dependencies": [],
+        "dynamic_dependencies": []
+      }
+    ]
+  },
+  "shape": {
+    "modules": 1,
+    "units": 2,
+    "operations": 12,
+    "cells": 2
+  },
+  "javascript_policy": null,
+  "native_policy": {
+    "schema": 2,
+    "algorithm": 1,
+    "contract": {
+      "target": "native",
+      "abi_version": 1
+    },
+    "objective": null,
+    "effort": 0,
+    "tactics": [
+      {
+        "id": "dead-code-elimination",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "constant-folding",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "inlining",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "scalar-replacement",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "call-specialization",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "helper-sharing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "target-compaction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "identifier-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "property-mangling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-pooling",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "string-array-packing",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "startup-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "recurring-reconstruction",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      },
+      {
+        "id": "naming-search",
+        "state": {
+          "permission": "auto",
+          "enabled": false
+        }
+      }
+    ],
+    "resources": {
+      "logical_work": null,
+      "retained_bytes": null,
+      "wall_time_ms": null
+    },
+    "constraints": {
+      "max_startup_work": null,
+      "max_recurring_work": null,
+      "max_runtime_memory_bytes": null,
+      "max_performance_regression_percent": null
+    }
+  },
+  "artifacts": [],
+  "winners": [
+    null,
+    null,
+    null
+  ],
+  "native_sha256": "12044b8e20c62a03c600cf4a8854fc7109497a68a70302c9f0584fdc03af4ceb",
+  "native_delivery": {
+    "c_bytes": 7055,
+    "header_bytes": 0,
+    "scope": "C and host-header delivery, not linked executable bytes"
+  },
+  "phases_ns": {
+    "policy_ns": 374971,
+    "discovery_ns": 290342,
+    "parse_ns": 54151,
+    "check_ns": 184635,
+    "convert_ns": 201717,
+    "frontend_release_ns": 10219,
+    "adopt_ns": 115416,
+    "native_ns": 236351
+  },
+  "first_artifact_ns": 1631537,
+  "total_ns": 2172476,
+  "search": null,
+  "resources": {
+    "baseline_work": 13241,
+    "optional_work": 0,
+    "codec_work": 0,
+    "peak_retained_bytes": 23299,
+    "retained_bytes_after_handoff": 0,
+    "frontend_logical_work": 223,
+    "frontend_allocation_accounting": "not-yet-instrumented",
+    "deadline": "cooperative; checked between frontend phases and within admitted backend work",
+    "scope": "admitted semantic/target/codec storage; frontend allocations, caller configuration I/O, returned buffers and process RSS are separate"
+  }
+}

@@ -1,0 +1,21 @@
+error: startup limits rejected every JavaScript candidate
+ --> /tmp/lilscript-baseline-motionlil-MKnhVx/motionlil/src/full.lil:1:1
+  |
+ 1 | import {
+  | ^
+file:///tmp/lilscript-baseline-motionlil-MKnhVx/motionlil/scripts/build.mjs:128
+      if (status !== 0) reject(new Error(output || `${name} failed`))
+                               ^
+
+Error: error: startup limits rejected every JavaScript candidate
+ --> /tmp/lilscript-baseline-motionlil-MKnhVx/motionlil/src/full.lil:1:1
+  |
+ 1 | import {
+  | ^
+
+    at ChildProcess.<anonymous> (file:///tmp/lilscript-baseline-motionlil-MKnhVx/motionlil/scripts/build.mjs:128:32)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1101:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:305:5)
+
+Node.js v24.11.1

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "kind": "source-built-library-baseline",
+  "library": "katexlil",
+  "started": "2026-09-20T18:35:04.038Z",
+  "passed": false,
+  "sourceBuilt": false,
+  "qualification": "unverified",
+  "original": "/home/azureuser/katexlil",
+  "workspace": "/tmp/lilscript-baseline-katexlil-xgK2kq/katexlil",
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "envelope": {
+    "wallSeconds": 300,
+    "residentMegabytes": 6144
+  },
+  "limitations": [
+    "One build of one library with one compiler binary. This is not a fleet result and not a competitor comparison.",
+    "Sizes are the delivered artifacts this build produced, measured by the repository's canonical codec.",
+    "Case coverage is exactly the frozen required inventory; coverage outside it remains unverified.",
+    "The build did not complete, so no artifact is eligible and the committed distribution is not a substitute."
+  ],
+  "buildCommand": "node scripts/build.mjs --compile --force",
+  "sourceSnapshot": {
+    "root": "/home/azureuser/katexlil",
+    "files": 235,
+    "sha256": "0f744b0de8cab10d668a493c51644459260b52d749ad26a01aa7437fe71e567b"
+  },
+  "committedArtifactsRemoved": [
+    "dist/data-host.js",
+    "dist/fontMetricsData.js",
+    "dist/katex.check.js",
+    "dist/katex.cjs",
+    "dist/katex.closed.bundled.js",
+    "dist/katex.closed.js",
+    "dist/katex.closed.raw.js",
+    "dist/katex.contrib-test.js",
+    "dist/katex.dev.raw.js",
+    "dist/katex.esm.js",
+    "dist/katex.min.js",
+    "dist/katex.mjs",
+    "dist/katex.raw.js",
+    "dist/katex.test.js",
+    "dist/katex.umd.js"
+  ],
+  "build": {
+    "status": 1,
+    "signal": null,
+    "error": null,
+    "wallSeconds": 0.088,
+    "supervision": {
+      "timeoutMs": 300000,
+      "killAfterMs": 1000,
+      "maxBuffer": 268435456,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "failure": {
+    "message": "build did not complete: status=1 signal=null"
+  },
+  "inputsStable": true,
+  "elapsedSeconds": 1.029,
+  "completed": "2026-09-20T18:35:05.067Z",
+  "fingerprint": "5bbe4baa7b7be8147ac0cbb2160bc99235548b1ee9f7530a2a81aef788eeaeaf"
+}

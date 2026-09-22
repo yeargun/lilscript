@@ -1,0 +1,1398 @@
+{
+  "schema": 1,
+  "kind": "existing-dist-original-suite-discovery",
+  "library": "react-markdownlil",
+  "started": "2026-09-20T18:27:58.724Z",
+  "passed": false,
+  "qualification": "unverified",
+  "sourceBuilt": false,
+  "original": "/home/azureuser/react-markdownlil",
+  "workspace": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil",
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "compiler": {
+    "path": "/home/azureuser/lilscript/target/release/lilscript",
+    "sha256": "9b420f21f652e204acea4186c007dfb772c0fd496955200e72110dd7378ea885",
+    "bytes": 17895432
+  },
+  "boundsMs": {
+    "suite": 300000
+  },
+  "environment": {
+    "removed": [
+      "npm_config_offline",
+      "npm_config_ignore_scripts",
+      "npm_config_audit",
+      "npm_config_fund",
+      "npm_config_userconfig",
+      "npm_config_globalconfig",
+      "npm_config_cache",
+      "LILSCRIPT_COMPILER"
+    ],
+    "overrides": {
+      "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin",
+      "NODE_OPTIONS": "",
+      "NODE_PATH": "",
+      "npm_config_offline": "true",
+      "npm_config_ignore_scripts": "true",
+      "npm_config_audit": "false",
+      "npm_config_fund": "false",
+      "npm_config_userconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/react-markdownlil/npm-user.npmrc",
+      "npm_config_globalconfig": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/react-markdownlil/npm-global.npmrc",
+      "npm_config_cache": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/npm-cache",
+      "LILSCRIPT_COMPILER": "/home/azureuser/lilscript/target/release/lilscript"
+    },
+    "updateAbsent": true,
+    "otherwise": "inherited; original workspace npm configuration preserved"
+  },
+  "limitations": [
+    "Existing distribution only: no compiler execution, no source-built qualification, no installation and no codec measurement.",
+    "Case identities come from the original suite as it runs today. A case this compiler cannot pass is still required; it is recorded, not removed.",
+    "Artifact observation covers the files the manifest declares as entry points and that exist. Absent entries are reported as delivery gaps, not waived.",
+    "Installed project and global npm contents are pinned. The wider operating-system environment is not."
+  ],
+  "originalTestScript": "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx && npm run check:types",
+  "derivation": {
+    "supported": true,
+    "script": "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx && npm run check:types",
+    "originalSegments": [
+      "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx",
+      "npm run check:types"
+    ],
+    "segments": [
+      "node --conditions development --experimental-loader=./test/load-jsx.js --no-warnings --test test/*.test.mjs test/official/test.jsx",
+      "npm run check:types"
+    ],
+    "prerequisites": [
+      {
+        "id": "original-check:types",
+        "script": "check:types",
+        "segment": "npm run check:types"
+      }
+    ],
+    "nodeArguments": [
+      "--conditions",
+      "development",
+      "--experimental-loader=./test/load-jsx.js",
+      "--no-warnings"
+    ],
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/test.jsx"
+    ],
+    "deviations": [],
+    "uncovered": [],
+    "unsupported": []
+  },
+  "artifacts": {
+    "present": [
+      "dist/react-markdown.cjs",
+      "dist/react-markdown.closed.js",
+      "dist/react-markdown.development.cjs",
+      "dist/react-markdown.development.js",
+      "dist/react-markdown.esm.js"
+    ],
+    "absent": [],
+    "source": "manifest declaredEntryFiles",
+    "declared": [
+      "./dist/react-markdown.cjs",
+      "./dist/react-markdown.closed.js",
+      "./dist/react-markdown.development.cjs",
+      "./dist/react-markdown.development.js",
+      "./dist/react-markdown.esm.js"
+    ]
+  },
+  "report": {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-adapter-inventory-3/react-markdownlil/node/report.json",
+    "sha256": "c5e69728614eca5aad7ff4d1b5902f4a2e2d3052f26203f0e46871ec5240efc6",
+    "bytes": 131369
+  },
+  "observedCases": [
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",11,1,0,\"test\",\"public api\",1]",
+      "file": "test/api.test.mjs",
+      "name": "public api",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",33,1,0,\"test\",\"CommonJS export\",1]",
+      "file": "test/api.test.mjs",
+      "name": "CommonJS export",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/api.test.mjs\",51,1,0,\"test\",\"runtime helpers are compiled from LilScript\",1]",
+      "file": "test/api.test.mjs",
+      "name": "runtime helpers are compiled from LilScript",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/browser.test.mjs\",6,1,0,\"test\",\"browser graph is pure LilScript with React external\",1]",
+      "file": "test/browser.test.mjs",
+      "name": "browser graph is pure LilScript with React external",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",23,1,0,\"test\",\"matches react-markdown@10.1.0 across the core markdown corpus\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches react-markdown@10.1.0 across the core markdown corpus",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",33,1,0,\"test\",\"matches react-markdown@10.1.0 for filtering and transformed properties\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches react-markdown@10.1.0 for filtering and transformed properties",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",50,1,0,\"test\",\"matches dynamic plugin identity, option merging, order, and VFile sharing\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches dynamic plugin identity, option merging, order, and VFile sharing",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",54,1,0,\"test\",\"matches option getter evaluation order\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches option getter evaluation order",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",58,1,0,\"test\",\"matches async plugin boundaries\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches async plugin boundaries",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/differential.test.mjs\",65,1,0,\"test\",\"matches passed-through MDX and development error details\",1]",
+      "file": "test/differential.test.mjs",
+      "name": "matches passed-through MDX and development error details",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",17,11,1,\"test\",\"should expose the public api\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should expose the public api",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",16,1,0,\"test\",\"react-markdown (core)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "react-markdown (core)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",27,11,1,\"test\",\"should work\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should work",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",30,11,1,\"test\",\"should throw w/ `source`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should throw w/ `source`",
+      "type": "test",
+      "status": "fail",
+      "error": "The input did not match the regular expression /Unexpected `source` prop, use `children` instead/. Input:\n\n\"TypeError: Cannot read properties of undefined (reading 'null')\"\n"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",35,11,1,\"test\",\"should throw w/ non-string children (number)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should throw w/ non-string children (number)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",40,11,1,\"test\",\"should throw w/ non-string children (boolean)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should throw w/ non-string children (boolean)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",45,11,1,\"test\",\"should support `null` as children\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `null` as children",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",48,11,1,\"test\",\"should support `undefined` as children\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `undefined` as children",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",51,11,1,\"test\",\"should warn w/ `allowDangerousHtml`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should warn w/ `allowDangerousHtml`",
+      "type": "test",
+      "status": "fail",
+      "error": "The input did not match the regular expression /Unexpected `allowDangerousHtml` prop, remove it/. Input:\n\n\"TypeError: Cannot read properties of undefined (reading 'null')\"\n"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",56,11,1,\"test\",\"should support a block quote\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a block quote",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",62,11,1,\"test\",\"should support a break\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a break",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",68,11,1,\"test\",\"should support a code (block, flow; indented)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a code (block, flow; indented)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",74,11,1,\"test\",\"should support a code (block, flow; fenced)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a code (block, flow; fenced)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",80,11,1,\"test\",\"should support a delete (GFM)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a delete (GFM)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",88,11,1,\"test\",\"should support an emphasis\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an emphasis",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",94,11,1,\"test\",\"should support a footnote (GFM)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a footnote (GFM)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",102,11,1,\"test\",\"should support a heading\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a heading",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",108,11,1,\"test\",\"should support an html (default)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an html (default)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",114,11,1,\"test\",\"should support an html (w/ `rehype-raw`)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an html (w/ `rehype-raw`)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",122,11,1,\"test\",\"should support an image\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an image",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",129,11,1,\"test\",\"should support an image w/ a title\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an image w/ a title",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",136,11,1,\"test\",\"should support an image reference / definition\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an image reference / definition",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",143,11,1,\"test\",\"should support code (text, inline)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support code (text, inline)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",149,11,1,\"test\",\"should support a link\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a link",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",155,11,1,\"test\",\"should support a link w/ a title\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a link w/ a title",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",161,11,1,\"test\",\"should support a link reference / definition\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a link reference / definition",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",167,11,1,\"test\",\"should support prototype poluting identifiers\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support prototype poluting identifiers",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",180,11,1,\"test\",\"should support duplicate definitions\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support duplicate definitions",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",186,11,1,\"test\",\"should support a list (unordered) / list item\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a list (unordered) / list item",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",192,11,1,\"test\",\"should support a list (ordered) / list item\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a list (ordered) / list item",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",198,11,1,\"test\",\"should support a paragraph\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a paragraph",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",201,11,1,\"test\",\"should support a strong\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a strong",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",207,11,1,\"test\",\"should support a table (GFM)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a table (GFM)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",221,11,1,\"test\",\"should support a table (GFM; w/ align)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a table (GFM; w/ align)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",235,11,1,\"test\",\"should support a thematic break\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a thematic break",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",238,11,1,\"test\",\"should support ab absolute path\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support ab absolute path",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",244,11,1,\"test\",\"should support an absolute URL\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support an absolute URL",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",250,11,1,\"test\",\"should support a URL w/ uppercase protocol\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support a URL w/ uppercase protocol",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",256,11,1,\"test\",\"should make a `javascript:` URL safe\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should make a `javascript:` URL safe",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",262,11,1,\"test\",\"should make a `vbscript:` URL safe\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should make a `vbscript:` URL safe",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",268,11,1,\"test\",\"should make a `VBSCRIPT:` URL safe\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should make a `VBSCRIPT:` URL safe",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",274,11,1,\"test\",\"should make a `file:` URL safe\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should make a `file:` URL safe",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",280,11,1,\"test\",\"should allow an empty URL\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should allow an empty URL",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",286,11,1,\"test\",\"should support search (`?`) in a URL\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support search (`?`) in a URL",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",292,11,1,\"test\",\"should support hash (`&`) in a URL\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support hash (`&`) in a URL",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",298,11,1,\"test\",\"should support hash (`#`) in a URL\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support hash (`#`) in a URL",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",304,11,1,\"test\",\"should support `urlTransform` (`href` on `a`)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `urlTransform` (`href` on `a`)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",323,11,1,\"test\",\"should support `urlTransform` w/ empty URLs\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `urlTransform` w/ empty URLs",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",342,11,1,\"test\",\"should support `urlTransform` (`src` on `img`)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `urlTransform` (`src` on `img`)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",361,11,1,\"test\",\"should support `skipHtml`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `skipHtml`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",367,11,1,\"test\",\"should support `allowedElements` (drop unlisted nodes)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `allowedElements` (drop unlisted nodes)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",384,11,1,\"test\",\"should support `allowedElements` as a function\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `allowedElements` as a function",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",400,11,1,\"test\",\"should support `disallowedElements`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `disallowedElements`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",408,11,1,\"test\",\"should fail for both `allowedElements` and `disallowedElements`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should fail for both `allowedElements` and `disallowedElements`",
+      "type": "test",
+      "status": "fail",
+      "error": "The input did not match the regular expression /Unexpected combined `allowedElements` and `disallowedElements`, expected one or the other/. Input:\n\n\"TypeError: Cannot read properties of undefined (reading 'null')\"\n"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",425,11,1,\"test\",\"should support `unwrapDisallowed` w/ `allowedElements`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `unwrapDisallowed` w/ `allowedElements`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",443,11,1,\"test\",\"should support `unwrapDisallowed` w/ `disallowedElements`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `unwrapDisallowed` w/ `disallowedElements`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",461,11,1,\"test\",\"should support `remarkRehypeOptions`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `remarkRehypeOptions`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",476,11,1,\"test\",\"should support `components`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",482,11,1,\"test\",\"should support `components` as functions\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` as functions",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",502,11,1,\"test\",\"should fail on an invalid component\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should fail on an invalid component",
+      "type": "test",
+      "status": "fail",
+      "error": "The input did not match the regular expression /Element type is invalid/. Input:\n\n\"TypeError: Cannot read properties of undefined (reading 'null')\"\n"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",518,11,1,\"test\",\"should support `components` (headings)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (headings)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",541,11,1,\"test\",\"should support `components` (code)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (code)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",565,11,1,\"test\",\"should support `components` (li)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (li)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",590,11,1,\"test\",\"should support `components` (ol)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (ol)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",614,11,1,\"test\",\"should support `components` (ul)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (ul)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",638,11,1,\"test\",\"should support `components` (tr)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (tr)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",663,11,1,\"test\",\"should support `components` (td, th)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `components` (td, th)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",697,11,1,\"test\",\"should pass `node` to components\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should pass `node` to components",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",738,11,1,\"test\",\"should support plugins (`remark-gfm`)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support plugins (`remark-gfm`)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",746,11,1,\"test\",\"should support plugins (`remark-toc`)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support plugins (`remark-toc`)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",772,11,1,\"test\",\"should support aria properties\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support aria properties",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",788,11,1,\"test\",\"should support data properties\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support data properties",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",804,11,1,\"test\",\"should support comma separated properties\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support comma separated properties",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",820,11,1,\"test\",\"should support `style` properties\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `style` properties",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",836,11,1,\"test\",\"should support `style` properties w/ vendor prefixes\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `style` properties w/ vendor prefixes",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",857,11,1,\"test\",\"should support broken `style` properties\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support broken `style` properties",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",873,11,1,\"test\",\"should support SVG elements\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support SVG elements",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",912,11,1,\"test\",\"should support comments (ignore them)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support comments (ignore them)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",925,11,1,\"test\",\"should support table cells w/ style\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support table cells w/ style",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",949,11,1,\"test\",\"should not fail on a plugin replacing `root`\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should not fail on a plugin replacing `root`",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",26,1,0,\"test\",\"Markdown\",1]",
+      "file": "test/official/test.jsx",
+      "name": "Markdown",
+      "type": "test",
+      "status": "fail",
+      "error": "76 subtests failed"
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",962,11,1,\"test\",\"should support `MarkdownAsync` (1)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `MarkdownAsync` (1)",
+      "type": "test",
+      "status": "pass",
+      "error": null
+    },
+    {
+      "kind": "test-case",
+      "id": "[\"test/official/test.jsx\",967,11,1,\"test\",\"should support `MarkdownAsync` (2)\",1]",
+      "file": "test/official/test.jsx",
+      "name": "should support `MarkdownAsync` (2)",
+      "type": "test",
+      "status": "fail",
+      "error": "Cannot read properties of undefined (reading 'null')"
+    }
+  ],
+  "loadedArtifacts": [
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.development.cjs",
+      "sha256": "47f6bad2c929fe6a9c4a163abdce8398e67a9b567f474775866c524c0f4bdd21",
+      "bytes": 204583
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.closed.js",
+      "sha256": "f6a9dafbb5d3a342b30606241bd569523e5f24e424b3e788c99d3f5f38548d93",
+      "bytes": 143689
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.development.js",
+      "sha256": "265eadd79481d73cb11694419204bbd175da3ba24dd8f70b6c853451fdb5a0ca",
+      "bytes": 143688
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.development.js",
+      "sha256": "265eadd79481d73cb11694419204bbd175da3ba24dd8f70b6c853451fdb5a0ca",
+      "bytes": 143688
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.esm.js",
+      "sha256": "f6a9dafbb5d3a342b30606241bd569523e5f24e424b3e788c99d3f5f38548d93",
+      "bytes": 143689
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.development.js",
+      "sha256": "265eadd79481d73cb11694419204bbd175da3ba24dd8f70b6c853451fdb5a0ca",
+      "bytes": 143688
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.development.js",
+      "sha256": "265eadd79481d73cb11694419204bbd175da3ba24dd8f70b6c853451fdb5a0ca",
+      "bytes": 143688
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.esm.js",
+      "sha256": "f6a9dafbb5d3a342b30606241bd569523e5f24e424b3e788c99d3f5f38548d93",
+      "bytes": 143689
+    },
+    {
+      "path": "/tmp/lilscript-adapter-react-markdownlil-LOUSBb/react-markdownlil/dist/react-markdown.cjs",
+      "sha256": "e19749b81969828a6f385d60dcf34463b0560e62023c4f1941f6f6dc6c58e958",
+      "bytes": 204552
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:types",
+      "attempted": true,
+      "status": 0
+    }
+  ],
+  "discoveryErrors": [
+    "test command failed",
+    "required test inventory missing or ambiguous",
+    "test did not pass: [\"test/api.test.mjs\",11,1,0,\"test\",\"public api\",1]",
+    "test did not pass: [\"test/api.test.mjs\",33,1,0,\"test\",\"CommonJS export\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",23,1,0,\"test\",\"matches react-markdown@10.1.0 across the core markdown corpus\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",33,1,0,\"test\",\"matches react-markdown@10.1.0 for filtering and transformed properties\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",50,1,0,\"test\",\"matches dynamic plugin identity, option merging, order, and VFile sharing\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",54,1,0,\"test\",\"matches option getter evaluation order\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",58,1,0,\"test\",\"matches async plugin boundaries\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",65,1,0,\"test\",\"matches passed-through MDX and development error details\",1]",
+    "test did not pass: [\"test/official/test.jsx\",27,11,1,\"test\",\"should work\",1]",
+    "test did not pass: [\"test/official/test.jsx\",30,11,1,\"test\",\"should throw w/ `source`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",45,11,1,\"test\",\"should support `null` as children\",1]",
+    "test did not pass: [\"test/official/test.jsx\",48,11,1,\"test\",\"should support `undefined` as children\",1]",
+    "test did not pass: [\"test/official/test.jsx\",51,11,1,\"test\",\"should warn w/ `allowDangerousHtml`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",56,11,1,\"test\",\"should support a block quote\",1]",
+    "test did not pass: [\"test/official/test.jsx\",62,11,1,\"test\",\"should support a break\",1]",
+    "test did not pass: [\"test/official/test.jsx\",68,11,1,\"test\",\"should support a code (block, flow; indented)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",74,11,1,\"test\",\"should support a code (block, flow; fenced)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",80,11,1,\"test\",\"should support a delete (GFM)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",88,11,1,\"test\",\"should support an emphasis\",1]",
+    "test did not pass: [\"test/official/test.jsx\",94,11,1,\"test\",\"should support a footnote (GFM)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",102,11,1,\"test\",\"should support a heading\",1]",
+    "test did not pass: [\"test/official/test.jsx\",108,11,1,\"test\",\"should support an html (default)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",114,11,1,\"test\",\"should support an html (w/ `rehype-raw`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",122,11,1,\"test\",\"should support an image\",1]",
+    "test did not pass: [\"test/official/test.jsx\",129,11,1,\"test\",\"should support an image w/ a title\",1]",
+    "test did not pass: [\"test/official/test.jsx\",136,11,1,\"test\",\"should support an image reference / definition\",1]",
+    "test did not pass: [\"test/official/test.jsx\",143,11,1,\"test\",\"should support code (text, inline)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",149,11,1,\"test\",\"should support a link\",1]",
+    "test did not pass: [\"test/official/test.jsx\",155,11,1,\"test\",\"should support a link w/ a title\",1]",
+    "test did not pass: [\"test/official/test.jsx\",161,11,1,\"test\",\"should support a link reference / definition\",1]",
+    "test did not pass: [\"test/official/test.jsx\",167,11,1,\"test\",\"should support prototype poluting identifiers\",1]",
+    "test did not pass: [\"test/official/test.jsx\",180,11,1,\"test\",\"should support duplicate definitions\",1]",
+    "test did not pass: [\"test/official/test.jsx\",186,11,1,\"test\",\"should support a list (unordered) / list item\",1]",
+    "test did not pass: [\"test/official/test.jsx\",192,11,1,\"test\",\"should support a list (ordered) / list item\",1]",
+    "test did not pass: [\"test/official/test.jsx\",198,11,1,\"test\",\"should support a paragraph\",1]",
+    "test did not pass: [\"test/official/test.jsx\",201,11,1,\"test\",\"should support a strong\",1]",
+    "test did not pass: [\"test/official/test.jsx\",207,11,1,\"test\",\"should support a table (GFM)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",221,11,1,\"test\",\"should support a table (GFM; w/ align)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",235,11,1,\"test\",\"should support a thematic break\",1]",
+    "test did not pass: [\"test/official/test.jsx\",238,11,1,\"test\",\"should support ab absolute path\",1]",
+    "test did not pass: [\"test/official/test.jsx\",244,11,1,\"test\",\"should support an absolute URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",250,11,1,\"test\",\"should support a URL w/ uppercase protocol\",1]",
+    "test did not pass: [\"test/official/test.jsx\",256,11,1,\"test\",\"should make a `javascript:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",262,11,1,\"test\",\"should make a `vbscript:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",268,11,1,\"test\",\"should make a `VBSCRIPT:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",274,11,1,\"test\",\"should make a `file:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",280,11,1,\"test\",\"should allow an empty URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",286,11,1,\"test\",\"should support search (`?`) in a URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",292,11,1,\"test\",\"should support hash (`&`) in a URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",298,11,1,\"test\",\"should support hash (`#`) in a URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",304,11,1,\"test\",\"should support `urlTransform` (`href` on `a`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",323,11,1,\"test\",\"should support `urlTransform` w/ empty URLs\",1]",
+    "test did not pass: [\"test/official/test.jsx\",342,11,1,\"test\",\"should support `urlTransform` (`src` on `img`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",361,11,1,\"test\",\"should support `skipHtml`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",367,11,1,\"test\",\"should support `allowedElements` (drop unlisted nodes)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",384,11,1,\"test\",\"should support `allowedElements` as a function\",1]",
+    "test did not pass: [\"test/official/test.jsx\",400,11,1,\"test\",\"should support `disallowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",408,11,1,\"test\",\"should fail for both `allowedElements` and `disallowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",425,11,1,\"test\",\"should support `unwrapDisallowed` w/ `allowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",443,11,1,\"test\",\"should support `unwrapDisallowed` w/ `disallowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",461,11,1,\"test\",\"should support `remarkRehypeOptions`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",476,11,1,\"test\",\"should support `components`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",482,11,1,\"test\",\"should support `components` as functions\",1]",
+    "test did not pass: [\"test/official/test.jsx\",502,11,1,\"test\",\"should fail on an invalid component\",1]",
+    "test did not pass: [\"test/official/test.jsx\",518,11,1,\"test\",\"should support `components` (headings)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",541,11,1,\"test\",\"should support `components` (code)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",565,11,1,\"test\",\"should support `components` (li)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",590,11,1,\"test\",\"should support `components` (ol)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",614,11,1,\"test\",\"should support `components` (ul)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",638,11,1,\"test\",\"should support `components` (tr)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",663,11,1,\"test\",\"should support `components` (td, th)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",697,11,1,\"test\",\"should pass `node` to components\",1]",
+    "test did not pass: [\"test/official/test.jsx\",738,11,1,\"test\",\"should support plugins (`remark-gfm`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",746,11,1,\"test\",\"should support plugins (`remark-toc`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",772,11,1,\"test\",\"should support aria properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",788,11,1,\"test\",\"should support data properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",804,11,1,\"test\",\"should support comma separated properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",820,11,1,\"test\",\"should support `style` properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",836,11,1,\"test\",\"should support `style` properties w/ vendor prefixes\",1]",
+    "test did not pass: [\"test/official/test.jsx\",857,11,1,\"test\",\"should support broken `style` properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",873,11,1,\"test\",\"should support SVG elements\",1]",
+    "test did not pass: [\"test/official/test.jsx\",912,11,1,\"test\",\"should support comments (ignore them)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",925,11,1,\"test\",\"should support table cells w/ style\",1]",
+    "test did not pass: [\"test/official/test.jsx\",949,11,1,\"test\",\"should not fail on a plugin replacing `root`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",26,1,0,\"test\",\"Markdown\",1]",
+    "test did not pass: [\"test/official/test.jsx\",967,11,1,\"test\",\"should support `MarkdownAsync` (2)\",1]",
+    "Node process did not complete: command deadline exceeded"
+  ],
+  "mutatedFixtures": [],
+  "untestedEntries": [],
+  "unexpectedErrors": [
+    "test command failed",
+    "test did not pass: [\"test/api.test.mjs\",11,1,0,\"test\",\"public api\",1]",
+    "test did not pass: [\"test/api.test.mjs\",33,1,0,\"test\",\"CommonJS export\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",23,1,0,\"test\",\"matches react-markdown@10.1.0 across the core markdown corpus\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",33,1,0,\"test\",\"matches react-markdown@10.1.0 for filtering and transformed properties\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",50,1,0,\"test\",\"matches dynamic plugin identity, option merging, order, and VFile sharing\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",54,1,0,\"test\",\"matches option getter evaluation order\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",58,1,0,\"test\",\"matches async plugin boundaries\",1]",
+    "test did not pass: [\"test/differential.test.mjs\",65,1,0,\"test\",\"matches passed-through MDX and development error details\",1]",
+    "test did not pass: [\"test/official/test.jsx\",27,11,1,\"test\",\"should work\",1]",
+    "test did not pass: [\"test/official/test.jsx\",30,11,1,\"test\",\"should throw w/ `source`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",45,11,1,\"test\",\"should support `null` as children\",1]",
+    "test did not pass: [\"test/official/test.jsx\",48,11,1,\"test\",\"should support `undefined` as children\",1]",
+    "test did not pass: [\"test/official/test.jsx\",51,11,1,\"test\",\"should warn w/ `allowDangerousHtml`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",56,11,1,\"test\",\"should support a block quote\",1]",
+    "test did not pass: [\"test/official/test.jsx\",62,11,1,\"test\",\"should support a break\",1]",
+    "test did not pass: [\"test/official/test.jsx\",68,11,1,\"test\",\"should support a code (block, flow; indented)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",74,11,1,\"test\",\"should support a code (block, flow; fenced)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",80,11,1,\"test\",\"should support a delete (GFM)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",88,11,1,\"test\",\"should support an emphasis\",1]",
+    "test did not pass: [\"test/official/test.jsx\",94,11,1,\"test\",\"should support a footnote (GFM)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",102,11,1,\"test\",\"should support a heading\",1]",
+    "test did not pass: [\"test/official/test.jsx\",108,11,1,\"test\",\"should support an html (default)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",114,11,1,\"test\",\"should support an html (w/ `rehype-raw`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",122,11,1,\"test\",\"should support an image\",1]",
+    "test did not pass: [\"test/official/test.jsx\",129,11,1,\"test\",\"should support an image w/ a title\",1]",
+    "test did not pass: [\"test/official/test.jsx\",136,11,1,\"test\",\"should support an image reference / definition\",1]",
+    "test did not pass: [\"test/official/test.jsx\",143,11,1,\"test\",\"should support code (text, inline)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",149,11,1,\"test\",\"should support a link\",1]",
+    "test did not pass: [\"test/official/test.jsx\",155,11,1,\"test\",\"should support a link w/ a title\",1]",
+    "test did not pass: [\"test/official/test.jsx\",161,11,1,\"test\",\"should support a link reference / definition\",1]",
+    "test did not pass: [\"test/official/test.jsx\",167,11,1,\"test\",\"should support prototype poluting identifiers\",1]",
+    "test did not pass: [\"test/official/test.jsx\",180,11,1,\"test\",\"should support duplicate definitions\",1]",
+    "test did not pass: [\"test/official/test.jsx\",186,11,1,\"test\",\"should support a list (unordered) / list item\",1]",
+    "test did not pass: [\"test/official/test.jsx\",192,11,1,\"test\",\"should support a list (ordered) / list item\",1]",
+    "test did not pass: [\"test/official/test.jsx\",198,11,1,\"test\",\"should support a paragraph\",1]",
+    "test did not pass: [\"test/official/test.jsx\",201,11,1,\"test\",\"should support a strong\",1]",
+    "test did not pass: [\"test/official/test.jsx\",207,11,1,\"test\",\"should support a table (GFM)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",221,11,1,\"test\",\"should support a table (GFM; w/ align)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",235,11,1,\"test\",\"should support a thematic break\",1]",
+    "test did not pass: [\"test/official/test.jsx\",238,11,1,\"test\",\"should support ab absolute path\",1]",
+    "test did not pass: [\"test/official/test.jsx\",244,11,1,\"test\",\"should support an absolute URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",250,11,1,\"test\",\"should support a URL w/ uppercase protocol\",1]",
+    "test did not pass: [\"test/official/test.jsx\",256,11,1,\"test\",\"should make a `javascript:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",262,11,1,\"test\",\"should make a `vbscript:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",268,11,1,\"test\",\"should make a `VBSCRIPT:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",274,11,1,\"test\",\"should make a `file:` URL safe\",1]",
+    "test did not pass: [\"test/official/test.jsx\",280,11,1,\"test\",\"should allow an empty URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",286,11,1,\"test\",\"should support search (`?`) in a URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",292,11,1,\"test\",\"should support hash (`&`) in a URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",298,11,1,\"test\",\"should support hash (`#`) in a URL\",1]",
+    "test did not pass: [\"test/official/test.jsx\",304,11,1,\"test\",\"should support `urlTransform` (`href` on `a`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",323,11,1,\"test\",\"should support `urlTransform` w/ empty URLs\",1]",
+    "test did not pass: [\"test/official/test.jsx\",342,11,1,\"test\",\"should support `urlTransform` (`src` on `img`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",361,11,1,\"test\",\"should support `skipHtml`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",367,11,1,\"test\",\"should support `allowedElements` (drop unlisted nodes)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",384,11,1,\"test\",\"should support `allowedElements` as a function\",1]",
+    "test did not pass: [\"test/official/test.jsx\",400,11,1,\"test\",\"should support `disallowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",408,11,1,\"test\",\"should fail for both `allowedElements` and `disallowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",425,11,1,\"test\",\"should support `unwrapDisallowed` w/ `allowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",443,11,1,\"test\",\"should support `unwrapDisallowed` w/ `disallowedElements`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",461,11,1,\"test\",\"should support `remarkRehypeOptions`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",476,11,1,\"test\",\"should support `components`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",482,11,1,\"test\",\"should support `components` as functions\",1]",
+    "test did not pass: [\"test/official/test.jsx\",502,11,1,\"test\",\"should fail on an invalid component\",1]",
+    "test did not pass: [\"test/official/test.jsx\",518,11,1,\"test\",\"should support `components` (headings)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",541,11,1,\"test\",\"should support `components` (code)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",565,11,1,\"test\",\"should support `components` (li)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",590,11,1,\"test\",\"should support `components` (ol)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",614,11,1,\"test\",\"should support `components` (ul)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",638,11,1,\"test\",\"should support `components` (tr)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",663,11,1,\"test\",\"should support `components` (td, th)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",697,11,1,\"test\",\"should pass `node` to components\",1]",
+    "test did not pass: [\"test/official/test.jsx\",738,11,1,\"test\",\"should support plugins (`remark-gfm`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",746,11,1,\"test\",\"should support plugins (`remark-toc`)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",772,11,1,\"test\",\"should support aria properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",788,11,1,\"test\",\"should support data properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",804,11,1,\"test\",\"should support comma separated properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",820,11,1,\"test\",\"should support `style` properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",836,11,1,\"test\",\"should support `style` properties w/ vendor prefixes\",1]",
+    "test did not pass: [\"test/official/test.jsx\",857,11,1,\"test\",\"should support broken `style` properties\",1]",
+    "test did not pass: [\"test/official/test.jsx\",873,11,1,\"test\",\"should support SVG elements\",1]",
+    "test did not pass: [\"test/official/test.jsx\",912,11,1,\"test\",\"should support comments (ignore them)\",1]",
+    "test did not pass: [\"test/official/test.jsx\",925,11,1,\"test\",\"should support table cells w/ style\",1]",
+    "test did not pass: [\"test/official/test.jsx\",949,11,1,\"test\",\"should not fail on a plugin replacing `root`\",1]",
+    "test did not pass: [\"test/official/test.jsx\",26,1,0,\"test\",\"Markdown\",1]",
+    "test did not pass: [\"test/official/test.jsx\",967,11,1,\"test\",\"should support `MarkdownAsync` (2)\",1]",
+    "Node process did not complete: command deadline exceeded"
+  ],
+  "exercisedArtifacts": [
+    "dist/react-markdown.cjs",
+    "dist/react-markdown.closed.js",
+    "dist/react-markdown.development.cjs",
+    "dist/react-markdown.development.js",
+    "dist/react-markdown.esm.js"
+  ],
+  "inputsStable": true,
+  "workspaceMutations": [],
+  "elapsedMs": 312647.57211300003,
+  "completed": "2026-09-20T18:33:11.355Z",
+  "outputs": [
+    {
+      "path": "after.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fb27cc034739de0a90d3d13576c94c4d92556159b350e840bb2fa89f0d21f877",
+      "bytes": 7292742
+    },
+    {
+      "path": "before.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "fb27cc034739de0a90d3d13576c94c4d92556159b350e840bb2fa89f0d21f877",
+      "bytes": 7292742
+    },
+    {
+      "path": "declarations.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9c18ba763e0d4b92f6fe94ba9f4c80bd9a10997988e3a3dbd3e97520addddbfa",
+      "bytes": 7777
+    },
+    {
+      "path": "discovery-source.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "894c969c81b5325fd6d0bfcf1652940d108e72ee74b5dbfd55e38c0729c1bbe5",
+      "bytes": 17783
+    },
+    {
+      "path": "node/events.jsonl",
+      "kind": "file",
+      "executable": false,
+      "sha256": "29b3eb4c31ff9be16ee342da37c5b183c4b0a9ce15ac17d95966d2d98a78f9ab",
+      "bytes": 36576
+    },
+    {
+      "path": "node/loaded/3423497-97165e77-ae80-42f3-a717-b84863e8bcc6.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "540e93f36fea3bca94a8d61c929c7f5d9952a0ffaf321312009a8ba650c1e5f6",
+      "bytes": 398
+    },
+    {
+      "path": "node/loaded/3423497-c716120d-5273-4f8e-b738-aaf45f5ae0bf.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "0dc9330e573c23de108143769db1361956975b98587702b9fbc35e19c71b1d46",
+      "bytes": 384
+    },
+    {
+      "path": "node/loaded/3423497-e7d83d37-c2b2-4234-8317-5007c1db3392.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c91ade82310d6e18073c9db6629cd9baead695f885e2a3c299033246b768fb8c",
+      "bytes": 394
+    },
+    {
+      "path": "node/loaded/3423499-6acbb8e6-708c-47a5-a2f7-af54cc98fe8f.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "ddaccccfb6e7c3b769daaf00990af6ffc32f304145a2134d7c7fa7ff54b663c7",
+      "bytes": 394
+    },
+    {
+      "path": "node/loaded/3423505-474ac153-6023-43aa-b887-91e8b39d4510.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "b710a5433610582debb6c25cbdb7c6bb328434312cdebebc2003c93bce55dad8",
+      "bytes": 378
+    },
+    {
+      "path": "node/loaded/3423505-ffa81fb9-ccf0-4ea5-8110-c9e5036167f7.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "410a07339e0d741f56dbc14388e7923cf2ee1785409861694dc9c1132d6d9878",
+      "bytes": 394
+    },
+    {
+      "path": "node/loaded/3423516-2e85deba-1312-4083-931c-71664e06e23b.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7abbcc365cdb8f43703fc00ba3c27408a6eb6982657ca6d9000891ad721ce2c4",
+      "bytes": 394
+    },
+    {
+      "path": "node/loaded/3423601-817cd03e-1db3-4926-97e7-342d1da89316.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "68a13a0c4401384d011612455f98bada3c892d54306b57bad0bad78d0b9c520c",
+      "bytes": 378
+    },
+    {
+      "path": "node/loaded/3423601-d9da3189-f729-4e36-9391-4592b5b53ad3.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c5beecca2bcedb087b88433891da6b5c85ca07853cf084d084a45f4a6425022d",
+      "bytes": 374
+    },
+    {
+      "path": "node/observe.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "5d0e9cf28975a465744b15bb69133ffcbf96807a5316bd4f0612574c2084ffee",
+      "bytes": 769
+    },
+    {
+      "path": "node/prerequisite-0.stderr",
+      "kind": "file",
+      "executable": false,
+      "sha256": "a7c465bd7725ac7b7c6cb87429d55f6dc0500b449fa7617d46e3f3237dcb32c7",
+      "bytes": 211
+    },
+    {
+      "path": "node/prerequisite-0.stdout",
+      "kind": "file",
+      "executable": false,
+      "sha256": "39ec915a1457126e0c266692674a05617fe63144c6cba2019a0672c168337503",
+      "bytes": 161
+    },
+    {
+      "path": "node/report.json",
+      "kind": "file",
+      "executable": false,
+      "sha256": "c5e69728614eca5aad7ff4d1b5902f4a2e2d3052f26203f0e46871ec5240efc6",
+      "bytes": 131369
+    },
+    {
+      "path": "node/runner.log",
+      "kind": "file",
+      "executable": false,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "npm-global.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "npm-user.npmrc",
+      "kind": "file",
+      "executable": false,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "runner-sources/adapter-derivation.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "2823984982e9d927c88c85b02a26eb21be68b23e1e1d3dbb4fa33f18f215bc6e",
+      "bytes": 6822
+    },
+    {
+      "path": "runner-sources/adapter-discovery.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "894c969c81b5325fd6d0bfcf1652940d108e72ee74b5dbfd55e38c0729c1bbe5",
+      "bytes": 17783
+    },
+    {
+      "path": "runner-sources/artifact-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "runner-sources/bounded-command.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    },
+    {
+      "path": "runner-sources/node-test-evidence.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "runner-sources/node-test-reporter.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "runner-sources/observe-node-artifacts.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    }
+  ]
+}

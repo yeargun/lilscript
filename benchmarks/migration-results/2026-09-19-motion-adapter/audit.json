@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "kind": "motion-node-and-geometry-read-only-audit",
+  "reviewer": "root; no independent agent review",
+  "runs": [
+    {
+      "name": "existing-dist",
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-motion-adapter/existing-dist/receipt.json",
+        "sha256": "13478e56418f011009b0b74e39fd92065f4516d22294fe4a2550eb34909d3b77",
+        "bytes": 12019
+      },
+      "outputs": 24,
+      "passed": true,
+      "cases": 11,
+      "elapsedMs": 6052.098678
+    },
+    {
+      "name": "geometry",
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-motion-adapter/geometry/receipt.json",
+        "sha256": "6237acb39a2643b7fe790d5d611878092f00404d3fa0a947c221546d3cf5675d",
+        "bytes": 4948
+      },
+      "outputs": 8,
+      "passed": false,
+      "cases": 0,
+      "elapsedMs": 2221.8983329999996
+    },
+    {
+      "name": "geometry-r1",
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1/receipt.json",
+        "sha256": "462522c111e9cbb28d4fb26f2569062e19115abe15e70df832e3bcec5181706c",
+        "bytes": 11225
+      },
+      "outputs": 14,
+      "passed": true,
+      "cases": 10,
+      "elapsedMs": 1987.4958609999999
+    }
+  ],
+  "supervisors": [
+    {
+      "path": "benchmarks/migration-results/2026-09-19-motion-adapter/supervisor.json",
+      "sha256": "340fa5813d7e89ad068165c4439558fb02cda2c1194c67d5d7e679672f8e9494",
+      "bytes": 595
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-motion-adapter/geometry-supervisor.json",
+      "sha256": "abecb5181abb56e7520c153bc43b52a78304c9c79434bbbb0a3870fab41a7ee4",
+      "bytes": 644
+    },
+    {
+      "path": "benchmarks/migration-results/2026-09-19-motion-adapter/geometry-r1-supervisor.json",
+      "sha256": "2ddaf4909edec0bf3a5c7e521c7c2123e785c58421746d12d1d1852fe62d79fa",
+      "bytes": 593
+    }
+  ],
+  "inventory": {
+    "path": "benchmarks/libraries/motionlil.required-tests.json",
+    "sha256": "c17cb9bfed1f09c5221e4c8bd3928402ebb042cfb59aef099b475c76199b7888",
+    "bytes": 120111
+  },
+  "features": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/public-features.json",
+    "sha256": "ad649c328dbbad3c14ff256937a70bb2b32afdaedd13c81af72ff685be59e804",
+    "bytes": 6831
+  },
+  "manifest": {
+    "path": "benchmarks/libraries/maintained-workloads.json",
+    "sha256": "972f431ed87a5e70816df92bc738d8384143b386256e5fef9d8b299b1dcb4a3d",
+    "bytes": 104370
+  },
+  "manifestRow": {
+    "id": "motionlil",
+    "kind": "maintained-library",
+    "required": true,
+    "workspace": "/tmp/motionlil-cost-audit-20260911/current",
+    "workspaceCandidates": [
+      "/tmp/motionlil-cost-audit-20260911/current",
+      "/home/azureuser/motionlil",
+      "/tmp/lilscript-source-performance-20260910/motion-work"
+    ],
+    "portHeadAtInventory": "d4e7a9c2261c8b4b3e264fec5717e970eaed1729",
+    "package": {
+      "name": "motionlil",
+      "version": "0.1.5",
+      "declaredEntryFiles": [
+        "./dist/debug.cjs",
+        "./dist/debug.js",
+        "./dist/full.cjs",
+        "./dist/full.js",
+        "./dist/index.cjs",
+        "./dist/index.js",
+        "./dist/mini.cjs",
+        "./dist/mini.js",
+        "./dist/motionlil.global.js"
+      ]
+    },
+    "upstream": {
+      "repository": "https://github.com/motiondivision/motion.git",
+      "commit": "adaf7a4e5368d704ea350669f6ac674fb26ff270",
+      "package": "motion",
+      "version": "13.1.0",
+      "directory": "packages/motion"
+    },
+    "recordedComparisonScope": "motion@13.1.0 public ESM runtime graph; dependency installation excluded; this is a comparison bundle build, not the upstream vendor release pipeline",
+    "recordedUpstreamEntry": "packages/motion/dist/es/index.mjs",
+    "recordedExternalDependencies": [],
+    "build": {
+      "recordedCommand": "node scripts/build.mjs --compile --force",
+      "packageScripts": {
+        "build": "node scripts/build.mjs",
+        "build:site": "node scripts/build-site.mjs"
+      },
+      "adapterStatus": "original-nine-invocation-build-inspected-source-replay-pending"
+    },
+    "tests": {
+      "recordedCommand": "npm test && npm run check:types && npm run test:browser",
+      "packageScripts": {
+        "check": "npm run test && npm run check:types && npm run check:site && npm run check:pack",
+        "check:types": "tsc -p test/types/tsconfig.json",
+        "test": "node --test test/node.test.mjs test/terser.test.mjs test/vite.test.mjs test/shake.test.mjs",
+        "test:size": "node scripts/measure-size.mjs",
+        "test:browser": "node --test test/browser-controls.test.mjs test/browser-runtime.test.mjs test/browser-backends.test.mjs test/browser-lifecycle.test.mjs",
+        "test:performance": "node scripts/measure-performance.mjs site/performance"
+      },
+      "adapterStatus": "original-node-cases-frozen-recovered-dependencies-browser-and-source-replay-pending",
+      "requiredCaseInventory": "motionlil.required-tests.json",
+      "nodeAdapter": {
+        "files": [
+          "test/node.test.mjs",
+          "test/terser.test.mjs",
+          "test/vite.test.mjs",
+          "test/shake.test.mjs"
+        ],
+        "artifacts": [
+          "dist/index.js",
+          "dist/index.cjs",
+          "dist/animate.js",
+          "dist/animate-mini.js",
+          "dist/scroll.js",
+          "dist/gestures.js",
+          "dist/viewport.js",
+          "dist/resize.js",
+          "dist/full.js",
+          "dist/mini.js",
+          "dist/debug.js"
+        ],
+        "caseInventory": "motionlil.required-tests.json"
+      }
+    },
+    "configurations": [
+      {
+        "path": "src/lilscript.memory-parity.toml",
+        "sha256": "1da8a634f07359b375b13970b39874f9aeb3d5e8142e463e0973e9a89ce4dcff"
+      },
+      {
+        "path": "src/lilscript.toml",
+        "sha256": "f52ee0d997baadd39170780db522f4b810a1869abb4970f32e80d6c925c30864"
+      }
+    ],
+    "objectives": [
+      "raw",
+      "gzip",
+      "brotli"
+    ],
+    "primaryObjective": "brotli",
+    "worlds": [
+      "open",
+      "closed"
+    ],
+    "acceptanceStatus": "unverified",
+    "pending": [
+      "Keep full 312-export scope separate from 52-export default; constructor/layout coverage incomplete in recorded evidence.",
+      "Audit exact public boundary and comparison entry.",
+      "Freeze production artifact and test identities.",
+      "Rebuild valid incumbent and eligible baselines.",
+      "Calibrate and pin compilation/runtime budgets."
+    ],
+    "currentDisposition": {
+      "status": "production-adapter-and-profile-recovery-pending",
+      "record": "/home/azureuser/lilscript-planning-archive/2026-09-18-reset/repository/lilscript-finer-structured/migration/evidence/001-current-dispositions-20260913.json",
+      "row": "motionlil"
+    }
+  },
+  "inventoryCheck": {
+    "path": "benchmarks/migration-results/2026-09-19-motion-adapter/inventory-check.json",
+    "sha256": "a5adbc0a164f1e4577dfc43df3e44ae0cbe1a9249637cf71d639b2a92d9ae725",
+    "bytes": 145207
+  },
+  "counts": {
+    "sourceFiles": 469,
+    "fullTreeFiles": 491,
+    "dependencyEntries": 1761,
+    "dependencyFiles": 1518,
+    "dependencyBytes": 78414745,
+    "parentInputPins": 8
+  },
+  "validated": {
+    "beforeAfterCurrentSourceAndIsolatedCopy": true,
+    "completeRecoveredDependencyTree": true,
+    "allOutputPins": true,
+    "toolAndRuntimePins": true,
+    "exactCaseIdentitiesAndLoads": true,
+    "unchangedGeometryAssertionsAcrossSetupCorrection": true
+  },
+  "limitations": [
+    "Original maintained dependency closure is missing; this explicitly pins a recovered sibling tree",
+    "Playwright, type/browser/pack/site and fresh-source compiler qualification remain open",
+    "New geometry observations are separate from the eleven original Node identities",
+    "No compiler, codec, or tests are re-executed by this audit"
+  ]
+}

@@ -1,0 +1,4700 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/unifiedlil/node/events.jsonl",
+    "test/api.test.mjs",
+    "test/browser.test.mjs",
+    "test/closed.test.mjs",
+    "test/differential.test.mjs",
+    "test/graph.test.mjs",
+    "test/official/index.js",
+    "test/site.test.mjs",
+    "test/vfile.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+      "bytes": 7199
+    },
+    {
+      "path": "test/browser.test.mjs",
+      "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+      "bytes": 1184
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+      "bytes": 1083
+    },
+    {
+      "path": "test/differential.test.mjs",
+      "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+      "bytes": 1995
+    },
+    {
+      "path": "test/graph.test.mjs",
+      "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+      "bytes": 577
+    },
+    {
+      "path": "test/official/index.js",
+      "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+      "bytes": 340
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+      "bytes": 961
+    },
+    {
+      "path": "test/vfile.test.mjs",
+      "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+      "bytes": 7877
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/*.test.mjs",
+      "test/official/index.js"
+    ],
+    "files": [
+      "test/api.test.mjs",
+      "test/browser.test.mjs",
+      "test/closed.test.mjs",
+      "test/differential.test.mjs",
+      "test/graph.test.mjs",
+      "test/official/index.js",
+      "test/site.test.mjs",
+      "test/vfile.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/unifiedlil/node/observe.mjs",
+    "sha256": "d3d986836be4c771e0739564cf0ef61b5c7560f117eae04438a7f9fe158cee51",
+    "bytes": 636,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804",
+          "bytes": 418
+        },
+        "actual": {
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804",
+          "bytes": 418
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2",
+          "bytes": 1545
+        },
+        "actual": {
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2",
+          "bytes": 1545
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+          "bytes": 23659
+        },
+        "actual": {
+          "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+          "bytes": 23659
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+          "bytes": 2411
+        },
+        "actual": {
+          "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+          "bytes": 2411
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "2ad94c6419216dea1807eaf1ab6e0bca333fea14d5361614899095b9fa19d871",
+          "bytes": 1128
+        },
+        "actual": {
+          "sha256": "2ad94c6419216dea1807eaf1ab6e0bca333fea14d5361614899095b9fa19d871",
+          "bytes": 1128
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "f2cb5a278ac922d20ae811adc2f1bb1a71c0465da30a5dc88fe3921e57232ddb",
+          "bytes": 4633
+        },
+        "actual": {
+          "sha256": "f2cb5a278ac922d20ae811adc2f1bb1a71c0465da30a5dc88fe3921e57232ddb",
+          "bytes": 4633
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "c79827574496dfc794b7df73379dd06f88de5c9af967313af6d0e7f1ca24c225",
+          "bytes": 1343
+        },
+        "actual": {
+          "sha256": "c79827574496dfc794b7df73379dd06f88de5c9af967313af6d0e7f1ca24c225",
+          "bytes": 1343
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/check-shared-sources.mjs",
+        "expected": {
+          "path": "scripts/check-shared-sources.mjs",
+          "sha256": "42a76c5c8decedd46151acdda487e259cafcef8eca01621ead95a8b2762dc5e4",
+          "bytes": 1103
+        },
+        "actual": {
+          "sha256": "42a76c5c8decedd46151acdda487e259cafcef8eca01621ead95a8b2762dc5e4",
+          "bytes": 1103
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/measure-graph.mjs",
+        "expected": {
+          "path": "scripts/measure-graph.mjs",
+          "sha256": "bde24796dfe35f31b725f22722067aea5a77a36324147c2a0fd13c9a6a432e97",
+          "bytes": 2800
+        },
+        "actual": {
+          "sha256": "bde24796dfe35f31b725f22722067aea5a77a36324147c2a0fd13c9a6a432e97",
+          "bytes": 2800
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "cc84bba6f37744239314cebfa57c0cf51b507cff218e0af1a18b60853359e8d1",
+          "bytes": 9351
+        },
+        "actual": {
+          "sha256": "cc84bba6f37744239314cebfa57c0cf51b507cff218e0af1a18b60853359e8d1",
+          "bytes": 9351
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3aa46541f7491ee8c1c1376e0b42c5cbdadf5bfe68ce2b35493ede623f2a186b",
+          "bytes": 55620
+        },
+        "actual": {
+          "sha256": "3aa46541f7491ee8c1c1376e0b42c5cbdadf5bfe68ce2b35493ede623f2a186b",
+          "bytes": 55620
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/pipeline.html",
+        "expected": {
+          "path": "site/pipeline.html",
+          "sha256": "bda518ee3da5933503630d4ccf655d7bad1886913fab8dcba210b70d1705caf6",
+          "bytes": 3630
+        },
+        "actual": {
+          "sha256": "bda518ee3da5933503630d4ccf655d7bad1886913fab8dcba210b70d1705caf6",
+          "bytes": 3630
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/pipeline.js",
+        "expected": {
+          "path": "site/pipeline.js",
+          "sha256": "67dc9ee515ba525d942f16f3fbb8a497379994776ebf908fa967ebb8bca9ce80",
+          "bytes": 2401
+        },
+        "actual": {
+          "sha256": "67dc9ee515ba525d942f16f3fbb8a497379994776ebf908fa967ebb8bca9ce80",
+          "bytes": 2401
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "b91101141cd41492a98605ac071ff5fb588c1afecabc90703cb284a5f01fa9b1",
+          "bytes": 2530
+        },
+        "actual": {
+          "sha256": "b91101141cd41492a98605ac071ff5fb588c1afecabc90703cb284a5f01fa9b1",
+          "bytes": 2530
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/rehype-katex.js",
+        "expected": {
+          "path": "site/vendor/rehype-katex.js",
+          "sha256": "16b09aa761c3929be9059ac6ef4975cce48ad48e6179240b3017461f5e11734f",
+          "bytes": 13655
+        },
+        "actual": {
+          "sha256": "16b09aa761c3929be9059ac6ef4975cce48ad48e6179240b3017461f5e11734f",
+          "bytes": 13655
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/rehype-stringify.js",
+        "expected": {
+          "path": "site/vendor/rehype-stringify.js",
+          "sha256": "a5bf304c7518ad1b3f10290e1f7bb20af1dcd0cc7e9e0f908590b132960a49b6",
+          "bytes": 2148
+        },
+        "actual": {
+          "sha256": "a5bf304c7518ad1b3f10290e1f7bb20af1dcd0cc7e9e0f908590b132960a49b6",
+          "bytes": 2148
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-breaks.js",
+        "expected": {
+          "path": "site/vendor/remark-breaks.js",
+          "sha256": "f64ee17b8ba63b625481144d42bb6cf8dedb2e90f15ef480d58082b7a22f66e7",
+          "bytes": 853
+        },
+        "actual": {
+          "sha256": "f64ee17b8ba63b625481144d42bb6cf8dedb2e90f15ef480d58082b7a22f66e7",
+          "bytes": 853
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-gfm.js",
+        "expected": {
+          "path": "site/vendor/remark-gfm.js",
+          "sha256": "301189e739c0d3f6eb640ea16d41e9fc2e5b368babe42253c4909eba15a34a10",
+          "bytes": 645
+        },
+        "actual": {
+          "sha256": "301189e739c0d3f6eb640ea16d41e9fc2e5b368babe42253c4909eba15a34a10",
+          "bytes": 645
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-math.js",
+        "expected": {
+          "path": "site/vendor/remark-math.js",
+          "sha256": "28e11466962935855a62a7464bb7154a56bc9ec00061005ab585dde440626801",
+          "bytes": 1849
+        },
+        "actual": {
+          "sha256": "28e11466962935855a62a7464bb7154a56bc9ec00061005ab585dde440626801",
+          "bytes": 1849
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-rehype.js",
+        "expected": {
+          "path": "site/vendor/remark-rehype.js",
+          "sha256": "c2b5991d237ff673ac37c7b64a97c241288881b99b2b048d6b4274f87beda54b",
+          "bytes": 3888
+        },
+        "actual": {
+          "sha256": "c2b5991d237ff673ac37c7b64a97c241288881b99b2b048d6b4274f87beda54b",
+          "bytes": 3888
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+          "bytes": 7199
+        },
+        "actual": {
+          "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+          "bytes": 7199
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/browser.test.mjs",
+        "expected": {
+          "path": "test/browser.test.mjs",
+          "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+          "bytes": 1184
+        },
+        "actual": {
+          "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+          "bytes": 1184
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+          "bytes": 1083
+        },
+        "actual": {
+          "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+          "bytes": 1083
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/differential.test.mjs",
+        "expected": {
+          "path": "test/differential.test.mjs",
+          "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+          "bytes": 1995
+        },
+        "actual": {
+          "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+          "bytes": 1995
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/graph.test.mjs",
+        "expected": {
+          "path": "test/graph.test.mjs",
+          "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+          "bytes": 577
+        },
+        "actual": {
+          "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+          "bytes": 577
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/core.js",
+        "expected": {
+          "path": "test/official/core.js",
+          "sha256": "9f592bb6bf88a0dcba3035fb17c553083f5f2432f39128e874a09eb2d7f25bee",
+          "bytes": 939
+        },
+        "actual": {
+          "sha256": "9f592bb6bf88a0dcba3035fb17c553083f5f2432f39128e874a09eb2d7f25bee",
+          "bytes": 939
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/data.js",
+        "expected": {
+          "path": "test/official/data.js",
+          "sha256": "cab8ecfeac1b25170e2858510bdd3e7ffd567883f802fbf633e3fb03d751ccf1",
+          "bytes": 1759
+        },
+        "actual": {
+          "sha256": "cab8ecfeac1b25170e2858510bdd3e7ffd567883f802fbf633e3fb03d751ccf1",
+          "bytes": 1759
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/freeze.js",
+        "expected": {
+          "path": "test/official/freeze.js",
+          "sha256": "d830c5696d7a9b0f63b65348525b92ff859c2fd554fbaea8005c71fa63ff99df",
+          "bytes": 5277
+        },
+        "actual": {
+          "sha256": "d830c5696d7a9b0f63b65348525b92ff859c2fd554fbaea8005c71fa63ff99df",
+          "bytes": 5277
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+          "bytes": 340
+        },
+        "actual": {
+          "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+          "bytes": 340
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/parse.js",
+        "expected": {
+          "path": "test/official/parse.js",
+          "sha256": "20cd7e70eb92a20c74ec73faa6a0292e7344cf9bdf51a2e07b5484c6934fcabd",
+          "bytes": 1164
+        },
+        "actual": {
+          "sha256": "20cd7e70eb92a20c74ec73faa6a0292e7344cf9bdf51a2e07b5484c6934fcabd",
+          "bytes": 1164
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process-compilers.js",
+        "expected": {
+          "path": "test/official/process-compilers.js",
+          "sha256": "fca7f4933789c977fbfc7da8b14538fbe350a61f696bb28b0aa91721540d1328",
+          "bytes": 1507
+        },
+        "actual": {
+          "sha256": "fca7f4933789c977fbfc7da8b14538fbe350a61f696bb28b0aa91721540d1328",
+          "bytes": 1507
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process-sync.js",
+        "expected": {
+          "path": "test/official/process-sync.js",
+          "sha256": "31f9bc3b7b25ceab0f91c755e67df2b08e31e3e3ff2f682739a99b5ec8937dad",
+          "bytes": 2023
+        },
+        "actual": {
+          "sha256": "31f9bc3b7b25ceab0f91c755e67df2b08e31e3e3ff2f682739a99b5ec8937dad",
+          "bytes": 2023
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process.js",
+        "expected": {
+          "path": "test/official/process.js",
+          "sha256": "5bc0d6f7366f6d820cf5ee1445d6873050b237b52265c2c3b0b2c203d2edf214",
+          "bytes": 2628
+        },
+        "actual": {
+          "sha256": "5bc0d6f7366f6d820cf5ee1445d6873050b237b52265c2c3b0b2c203d2edf214",
+          "bytes": 2628
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/run-sync.js",
+        "expected": {
+          "path": "test/official/run-sync.js",
+          "sha256": "56c19980629dc7993c977bc0c8c191525bd0eef3d012309b88d7f9bf154f0465",
+          "bytes": 5045
+        },
+        "actual": {
+          "sha256": "56c19980629dc7993c977bc0c8c191525bd0eef3d012309b88d7f9bf154f0465",
+          "bytes": 5045
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/run.js",
+        "expected": {
+          "path": "test/official/run.js",
+          "sha256": "4eb9ac7077edb7fcb08235337ec4c5b284797a676e83b9ce74a4e759684ac25b",
+          "bytes": 15743
+        },
+        "actual": {
+          "sha256": "4eb9ac7077edb7fcb08235337ec4c5b284797a676e83b9ce74a4e759684ac25b",
+          "bytes": 15743
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/stringify.js",
+        "expected": {
+          "path": "test/official/stringify.js",
+          "sha256": "849ed4b75df79ca31bb45c25fd46b4fa46b7764348a88dea619389faa708c420",
+          "bytes": 1324
+        },
+        "actual": {
+          "sha256": "849ed4b75df79ca31bb45c25fd46b4fa46b7764348a88dea619389faa708c420",
+          "bytes": 1324
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/use.js",
+        "expected": {
+          "path": "test/official/use.js",
+          "sha256": "be5e948ebfe7891d1925f8b28d7d74bc8b8e28667a75e17360246c882e419720",
+          "bytes": 31461
+        },
+        "actual": {
+          "sha256": "be5e948ebfe7891d1925f8b28d7d74bc8b8e28667a75e17360246c882e419720",
+          "bytes": 31461
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/util/simple.js",
+        "expected": {
+          "path": "test/official/util/simple.js",
+          "sha256": "3cde0b5292c5760d40bd3c73c9fb22ec4901f015359bbe1027b651bd46ab7f80",
+          "bytes": 432
+        },
+        "actual": {
+          "sha256": "3cde0b5292c5760d40bd3c73c9fb22ec4901f015359bbe1027b651bd46ab7f80",
+          "bytes": 432
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+          "bytes": 961
+        },
+        "actual": {
+          "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+          "bytes": 961
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "67b6b8325ae0e8a8fbebd347ec163489d1b607e52aa0af94d3b4bea9af6888ce",
+          "bytes": 1976
+        },
+        "actual": {
+          "sha256": "67b6b8325ae0e8a8fbebd347ec163489d1b607e52aa0af94d3b4bea9af6888ce",
+          "bytes": 1976
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/vfile.test.mjs",
+        "expected": {
+          "path": "test/vfile.test.mjs",
+          "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+          "bytes": 7877
+        },
+        "actual": {
+          "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+          "bytes": 7877
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/types/unified.d.ts",
+        "expected": {
+          "path": "types/unified.d.ts",
+          "sha256": "25dd92c7cb062f8a187feeefd703685c2b863f9dc190584ee9fb12e7059242d4",
+          "bytes": 24
+        },
+        "actual": {
+          "sha256": "25dd92c7cb062f8a187feeefd703685c2b863f9dc190584ee9fb12e7059242d4",
+          "bytes": 24
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/types/vfile.d.ts",
+        "expected": {
+          "path": "types/vfile.d.ts",
+          "sha256": "64ed096e93d92ec3e078397f4f33de7d11d08290f3292523352c13ddebe09bad",
+          "bytes": 211
+        },
+        "actual": {
+          "sha256": "64ed096e93d92ec3e078397f4f33de7d11d08290f3292523352c13ddebe09bad",
+          "bytes": 211
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804",
+          "bytes": 418
+        },
+        "actual": {
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804",
+          "bytes": 418
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2",
+          "bytes": 1545
+        },
+        "actual": {
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2",
+          "bytes": 1545
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+          "bytes": 23659
+        },
+        "actual": {
+          "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+          "bytes": 23659
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+          "bytes": 2411
+        },
+        "actual": {
+          "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+          "bytes": 2411
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "2ad94c6419216dea1807eaf1ab6e0bca333fea14d5361614899095b9fa19d871",
+          "bytes": 1128
+        },
+        "actual": {
+          "sha256": "2ad94c6419216dea1807eaf1ab6e0bca333fea14d5361614899095b9fa19d871",
+          "bytes": 1128
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "f2cb5a278ac922d20ae811adc2f1bb1a71c0465da30a5dc88fe3921e57232ddb",
+          "bytes": 4633
+        },
+        "actual": {
+          "sha256": "f2cb5a278ac922d20ae811adc2f1bb1a71c0465da30a5dc88fe3921e57232ddb",
+          "bytes": 4633
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "c79827574496dfc794b7df73379dd06f88de5c9af967313af6d0e7f1ca24c225",
+          "bytes": 1343
+        },
+        "actual": {
+          "sha256": "c79827574496dfc794b7df73379dd06f88de5c9af967313af6d0e7f1ca24c225",
+          "bytes": 1343
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/check-shared-sources.mjs",
+        "expected": {
+          "path": "scripts/check-shared-sources.mjs",
+          "sha256": "42a76c5c8decedd46151acdda487e259cafcef8eca01621ead95a8b2762dc5e4",
+          "bytes": 1103
+        },
+        "actual": {
+          "sha256": "42a76c5c8decedd46151acdda487e259cafcef8eca01621ead95a8b2762dc5e4",
+          "bytes": 1103
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/measure-graph.mjs",
+        "expected": {
+          "path": "scripts/measure-graph.mjs",
+          "sha256": "bde24796dfe35f31b725f22722067aea5a77a36324147c2a0fd13c9a6a432e97",
+          "bytes": 2800
+        },
+        "actual": {
+          "sha256": "bde24796dfe35f31b725f22722067aea5a77a36324147c2a0fd13c9a6a432e97",
+          "bytes": 2800
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "cc84bba6f37744239314cebfa57c0cf51b507cff218e0af1a18b60853359e8d1",
+          "bytes": 9351
+        },
+        "actual": {
+          "sha256": "cc84bba6f37744239314cebfa57c0cf51b507cff218e0af1a18b60853359e8d1",
+          "bytes": 9351
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3aa46541f7491ee8c1c1376e0b42c5cbdadf5bfe68ce2b35493ede623f2a186b",
+          "bytes": 55620
+        },
+        "actual": {
+          "sha256": "3aa46541f7491ee8c1c1376e0b42c5cbdadf5bfe68ce2b35493ede623f2a186b",
+          "bytes": 55620
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/pipeline.html",
+        "expected": {
+          "path": "site/pipeline.html",
+          "sha256": "bda518ee3da5933503630d4ccf655d7bad1886913fab8dcba210b70d1705caf6",
+          "bytes": 3630
+        },
+        "actual": {
+          "sha256": "bda518ee3da5933503630d4ccf655d7bad1886913fab8dcba210b70d1705caf6",
+          "bytes": 3630
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/pipeline.js",
+        "expected": {
+          "path": "site/pipeline.js",
+          "sha256": "67dc9ee515ba525d942f16f3fbb8a497379994776ebf908fa967ebb8bca9ce80",
+          "bytes": 2401
+        },
+        "actual": {
+          "sha256": "67dc9ee515ba525d942f16f3fbb8a497379994776ebf908fa967ebb8bca9ce80",
+          "bytes": 2401
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "b91101141cd41492a98605ac071ff5fb588c1afecabc90703cb284a5f01fa9b1",
+          "bytes": 2530
+        },
+        "actual": {
+          "sha256": "b91101141cd41492a98605ac071ff5fb588c1afecabc90703cb284a5f01fa9b1",
+          "bytes": 2530
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/rehype-katex.js",
+        "expected": {
+          "path": "site/vendor/rehype-katex.js",
+          "sha256": "16b09aa761c3929be9059ac6ef4975cce48ad48e6179240b3017461f5e11734f",
+          "bytes": 13655
+        },
+        "actual": {
+          "sha256": "16b09aa761c3929be9059ac6ef4975cce48ad48e6179240b3017461f5e11734f",
+          "bytes": 13655
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/rehype-stringify.js",
+        "expected": {
+          "path": "site/vendor/rehype-stringify.js",
+          "sha256": "a5bf304c7518ad1b3f10290e1f7bb20af1dcd0cc7e9e0f908590b132960a49b6",
+          "bytes": 2148
+        },
+        "actual": {
+          "sha256": "a5bf304c7518ad1b3f10290e1f7bb20af1dcd0cc7e9e0f908590b132960a49b6",
+          "bytes": 2148
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-breaks.js",
+        "expected": {
+          "path": "site/vendor/remark-breaks.js",
+          "sha256": "f64ee17b8ba63b625481144d42bb6cf8dedb2e90f15ef480d58082b7a22f66e7",
+          "bytes": 853
+        },
+        "actual": {
+          "sha256": "f64ee17b8ba63b625481144d42bb6cf8dedb2e90f15ef480d58082b7a22f66e7",
+          "bytes": 853
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-gfm.js",
+        "expected": {
+          "path": "site/vendor/remark-gfm.js",
+          "sha256": "301189e739c0d3f6eb640ea16d41e9fc2e5b368babe42253c4909eba15a34a10",
+          "bytes": 645
+        },
+        "actual": {
+          "sha256": "301189e739c0d3f6eb640ea16d41e9fc2e5b368babe42253c4909eba15a34a10",
+          "bytes": 645
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-math.js",
+        "expected": {
+          "path": "site/vendor/remark-math.js",
+          "sha256": "28e11466962935855a62a7464bb7154a56bc9ec00061005ab585dde440626801",
+          "bytes": 1849
+        },
+        "actual": {
+          "sha256": "28e11466962935855a62a7464bb7154a56bc9ec00061005ab585dde440626801",
+          "bytes": 1849
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-rehype.js",
+        "expected": {
+          "path": "site/vendor/remark-rehype.js",
+          "sha256": "c2b5991d237ff673ac37c7b64a97c241288881b99b2b048d6b4274f87beda54b",
+          "bytes": 3888
+        },
+        "actual": {
+          "sha256": "c2b5991d237ff673ac37c7b64a97c241288881b99b2b048d6b4274f87beda54b",
+          "bytes": 3888
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+          "bytes": 7199
+        },
+        "actual": {
+          "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+          "bytes": 7199
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/browser.test.mjs",
+        "expected": {
+          "path": "test/browser.test.mjs",
+          "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+          "bytes": 1184
+        },
+        "actual": {
+          "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+          "bytes": 1184
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+          "bytes": 1083
+        },
+        "actual": {
+          "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+          "bytes": 1083
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/differential.test.mjs",
+        "expected": {
+          "path": "test/differential.test.mjs",
+          "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+          "bytes": 1995
+        },
+        "actual": {
+          "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+          "bytes": 1995
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/graph.test.mjs",
+        "expected": {
+          "path": "test/graph.test.mjs",
+          "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+          "bytes": 577
+        },
+        "actual": {
+          "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+          "bytes": 577
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/core.js",
+        "expected": {
+          "path": "test/official/core.js",
+          "sha256": "9f592bb6bf88a0dcba3035fb17c553083f5f2432f39128e874a09eb2d7f25bee",
+          "bytes": 939
+        },
+        "actual": {
+          "sha256": "9f592bb6bf88a0dcba3035fb17c553083f5f2432f39128e874a09eb2d7f25bee",
+          "bytes": 939
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/data.js",
+        "expected": {
+          "path": "test/official/data.js",
+          "sha256": "cab8ecfeac1b25170e2858510bdd3e7ffd567883f802fbf633e3fb03d751ccf1",
+          "bytes": 1759
+        },
+        "actual": {
+          "sha256": "cab8ecfeac1b25170e2858510bdd3e7ffd567883f802fbf633e3fb03d751ccf1",
+          "bytes": 1759
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/freeze.js",
+        "expected": {
+          "path": "test/official/freeze.js",
+          "sha256": "d830c5696d7a9b0f63b65348525b92ff859c2fd554fbaea8005c71fa63ff99df",
+          "bytes": 5277
+        },
+        "actual": {
+          "sha256": "d830c5696d7a9b0f63b65348525b92ff859c2fd554fbaea8005c71fa63ff99df",
+          "bytes": 5277
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+          "bytes": 340
+        },
+        "actual": {
+          "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+          "bytes": 340
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/parse.js",
+        "expected": {
+          "path": "test/official/parse.js",
+          "sha256": "20cd7e70eb92a20c74ec73faa6a0292e7344cf9bdf51a2e07b5484c6934fcabd",
+          "bytes": 1164
+        },
+        "actual": {
+          "sha256": "20cd7e70eb92a20c74ec73faa6a0292e7344cf9bdf51a2e07b5484c6934fcabd",
+          "bytes": 1164
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process-compilers.js",
+        "expected": {
+          "path": "test/official/process-compilers.js",
+          "sha256": "fca7f4933789c977fbfc7da8b14538fbe350a61f696bb28b0aa91721540d1328",
+          "bytes": 1507
+        },
+        "actual": {
+          "sha256": "fca7f4933789c977fbfc7da8b14538fbe350a61f696bb28b0aa91721540d1328",
+          "bytes": 1507
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process-sync.js",
+        "expected": {
+          "path": "test/official/process-sync.js",
+          "sha256": "31f9bc3b7b25ceab0f91c755e67df2b08e31e3e3ff2f682739a99b5ec8937dad",
+          "bytes": 2023
+        },
+        "actual": {
+          "sha256": "31f9bc3b7b25ceab0f91c755e67df2b08e31e3e3ff2f682739a99b5ec8937dad",
+          "bytes": 2023
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process.js",
+        "expected": {
+          "path": "test/official/process.js",
+          "sha256": "5bc0d6f7366f6d820cf5ee1445d6873050b237b52265c2c3b0b2c203d2edf214",
+          "bytes": 2628
+        },
+        "actual": {
+          "sha256": "5bc0d6f7366f6d820cf5ee1445d6873050b237b52265c2c3b0b2c203d2edf214",
+          "bytes": 2628
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/run-sync.js",
+        "expected": {
+          "path": "test/official/run-sync.js",
+          "sha256": "56c19980629dc7993c977bc0c8c191525bd0eef3d012309b88d7f9bf154f0465",
+          "bytes": 5045
+        },
+        "actual": {
+          "sha256": "56c19980629dc7993c977bc0c8c191525bd0eef3d012309b88d7f9bf154f0465",
+          "bytes": 5045
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/run.js",
+        "expected": {
+          "path": "test/official/run.js",
+          "sha256": "4eb9ac7077edb7fcb08235337ec4c5b284797a676e83b9ce74a4e759684ac25b",
+          "bytes": 15743
+        },
+        "actual": {
+          "sha256": "4eb9ac7077edb7fcb08235337ec4c5b284797a676e83b9ce74a4e759684ac25b",
+          "bytes": 15743
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/stringify.js",
+        "expected": {
+          "path": "test/official/stringify.js",
+          "sha256": "849ed4b75df79ca31bb45c25fd46b4fa46b7764348a88dea619389faa708c420",
+          "bytes": 1324
+        },
+        "actual": {
+          "sha256": "849ed4b75df79ca31bb45c25fd46b4fa46b7764348a88dea619389faa708c420",
+          "bytes": 1324
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/use.js",
+        "expected": {
+          "path": "test/official/use.js",
+          "sha256": "be5e948ebfe7891d1925f8b28d7d74bc8b8e28667a75e17360246c882e419720",
+          "bytes": 31461
+        },
+        "actual": {
+          "sha256": "be5e948ebfe7891d1925f8b28d7d74bc8b8e28667a75e17360246c882e419720",
+          "bytes": 31461
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/util/simple.js",
+        "expected": {
+          "path": "test/official/util/simple.js",
+          "sha256": "3cde0b5292c5760d40bd3c73c9fb22ec4901f015359bbe1027b651bd46ab7f80",
+          "bytes": 432
+        },
+        "actual": {
+          "sha256": "3cde0b5292c5760d40bd3c73c9fb22ec4901f015359bbe1027b651bd46ab7f80",
+          "bytes": 432
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+          "bytes": 961
+        },
+        "actual": {
+          "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+          "bytes": 961
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "67b6b8325ae0e8a8fbebd347ec163489d1b607e52aa0af94d3b4bea9af6888ce",
+          "bytes": 1976
+        },
+        "actual": {
+          "sha256": "67b6b8325ae0e8a8fbebd347ec163489d1b607e52aa0af94d3b4bea9af6888ce",
+          "bytes": 1976
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/vfile.test.mjs",
+        "expected": {
+          "path": "test/vfile.test.mjs",
+          "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+          "bytes": 7877
+        },
+        "actual": {
+          "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+          "bytes": 7877
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/types/unified.d.ts",
+        "expected": {
+          "path": "types/unified.d.ts",
+          "sha256": "25dd92c7cb062f8a187feeefd703685c2b863f9dc190584ee9fb12e7059242d4",
+          "bytes": 24
+        },
+        "actual": {
+          "sha256": "25dd92c7cb062f8a187feeefd703685c2b863f9dc190584ee9fb12e7059242d4",
+          "bytes": 24
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/types/vfile.d.ts",
+        "expected": {
+          "path": "types/vfile.d.ts",
+          "sha256": "64ed096e93d92ec3e078397f4f33de7d11d08290f3292523352c13ddebe09bad",
+          "bytes": 211
+        },
+        "actual": {
+          "sha256": "64ed096e93d92ec3e078397f4f33de7d11d08290f3292523352c13ddebe09bad",
+          "bytes": 211
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/lilscript.closed.toml",
+        "expected": {
+          "path": "lilscript.closed.toml",
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804",
+          "bytes": 418
+        },
+        "actual": {
+          "sha256": "8dc7fa0f2fa771b768097702b1f318b3b58a7e34eb96dea765e885477e6ae804",
+          "bytes": 418
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/lilscript.toml",
+        "expected": {
+          "path": "lilscript.toml",
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2",
+          "bytes": 1545
+        },
+        "actual": {
+          "sha256": "936ac9b21ecd4b250ac6825250982cf9897d45caaed91425d7456a3dbf70b0f2",
+          "bytes": 1545
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+          "bytes": 23659
+        },
+        "actual": {
+          "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+          "bytes": 23659
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+          "bytes": 2411
+        },
+        "actual": {
+          "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+          "bytes": 2411
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "2ad94c6419216dea1807eaf1ab6e0bca333fea14d5361614899095b9fa19d871",
+          "bytes": 1128
+        },
+        "actual": {
+          "sha256": "2ad94c6419216dea1807eaf1ab6e0bca333fea14d5361614899095b9fa19d871",
+          "bytes": 1128
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "f2cb5a278ac922d20ae811adc2f1bb1a71c0465da30a5dc88fe3921e57232ddb",
+          "bytes": 4633
+        },
+        "actual": {
+          "sha256": "f2cb5a278ac922d20ae811adc2f1bb1a71c0465da30a5dc88fe3921e57232ddb",
+          "bytes": 4633
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "c79827574496dfc794b7df73379dd06f88de5c9af967313af6d0e7f1ca24c225",
+          "bytes": 1343
+        },
+        "actual": {
+          "sha256": "c79827574496dfc794b7df73379dd06f88de5c9af967313af6d0e7f1ca24c225",
+          "bytes": 1343
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/check-shared-sources.mjs",
+        "expected": {
+          "path": "scripts/check-shared-sources.mjs",
+          "sha256": "42a76c5c8decedd46151acdda487e259cafcef8eca01621ead95a8b2762dc5e4",
+          "bytes": 1103
+        },
+        "actual": {
+          "sha256": "42a76c5c8decedd46151acdda487e259cafcef8eca01621ead95a8b2762dc5e4",
+          "bytes": 1103
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/scripts/measure-graph.mjs",
+        "expected": {
+          "path": "scripts/measure-graph.mjs",
+          "sha256": "bde24796dfe35f31b725f22722067aea5a77a36324147c2a0fd13c9a6a432e97",
+          "bytes": 2800
+        },
+        "actual": {
+          "sha256": "bde24796dfe35f31b725f22722067aea5a77a36324147c2a0fd13c9a6a432e97",
+          "bytes": 2800
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "actual": {
+          "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+          "bytes": 14889
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "cc84bba6f37744239314cebfa57c0cf51b507cff218e0af1a18b60853359e8d1",
+          "bytes": 9351
+        },
+        "actual": {
+          "sha256": "cc84bba6f37744239314cebfa57c0cf51b507cff218e0af1a18b60853359e8d1",
+          "bytes": 9351
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/official.js",
+        "expected": {
+          "path": "site/official.js",
+          "sha256": "3aa46541f7491ee8c1c1376e0b42c5cbdadf5bfe68ce2b35493ede623f2a186b",
+          "bytes": 55620
+        },
+        "actual": {
+          "sha256": "3aa46541f7491ee8c1c1376e0b42c5cbdadf5bfe68ce2b35493ede623f2a186b",
+          "bytes": 55620
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/pipeline.html",
+        "expected": {
+          "path": "site/pipeline.html",
+          "sha256": "bda518ee3da5933503630d4ccf655d7bad1886913fab8dcba210b70d1705caf6",
+          "bytes": 3630
+        },
+        "actual": {
+          "sha256": "bda518ee3da5933503630d4ccf655d7bad1886913fab8dcba210b70d1705caf6",
+          "bytes": 3630
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/pipeline.js",
+        "expected": {
+          "path": "site/pipeline.js",
+          "sha256": "67dc9ee515ba525d942f16f3fbb8a497379994776ebf908fa967ebb8bca9ce80",
+          "bytes": 2401
+        },
+        "actual": {
+          "sha256": "67dc9ee515ba525d942f16f3fbb8a497379994776ebf908fa967ebb8bca9ce80",
+          "bytes": 2401
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "b91101141cd41492a98605ac071ff5fb588c1afecabc90703cb284a5f01fa9b1",
+          "bytes": 2530
+        },
+        "actual": {
+          "sha256": "b91101141cd41492a98605ac071ff5fb588c1afecabc90703cb284a5f01fa9b1",
+          "bytes": 2530
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "actual": {
+          "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+          "bytes": 11136
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/rehype-katex.js",
+        "expected": {
+          "path": "site/vendor/rehype-katex.js",
+          "sha256": "16b09aa761c3929be9059ac6ef4975cce48ad48e6179240b3017461f5e11734f",
+          "bytes": 13655
+        },
+        "actual": {
+          "sha256": "16b09aa761c3929be9059ac6ef4975cce48ad48e6179240b3017461f5e11734f",
+          "bytes": 13655
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/rehype-stringify.js",
+        "expected": {
+          "path": "site/vendor/rehype-stringify.js",
+          "sha256": "a5bf304c7518ad1b3f10290e1f7bb20af1dcd0cc7e9e0f908590b132960a49b6",
+          "bytes": 2148
+        },
+        "actual": {
+          "sha256": "a5bf304c7518ad1b3f10290e1f7bb20af1dcd0cc7e9e0f908590b132960a49b6",
+          "bytes": 2148
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-breaks.js",
+        "expected": {
+          "path": "site/vendor/remark-breaks.js",
+          "sha256": "f64ee17b8ba63b625481144d42bb6cf8dedb2e90f15ef480d58082b7a22f66e7",
+          "bytes": 853
+        },
+        "actual": {
+          "sha256": "f64ee17b8ba63b625481144d42bb6cf8dedb2e90f15ef480d58082b7a22f66e7",
+          "bytes": 853
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-gfm.js",
+        "expected": {
+          "path": "site/vendor/remark-gfm.js",
+          "sha256": "301189e739c0d3f6eb640ea16d41e9fc2e5b368babe42253c4909eba15a34a10",
+          "bytes": 645
+        },
+        "actual": {
+          "sha256": "301189e739c0d3f6eb640ea16d41e9fc2e5b368babe42253c4909eba15a34a10",
+          "bytes": 645
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-math.js",
+        "expected": {
+          "path": "site/vendor/remark-math.js",
+          "sha256": "28e11466962935855a62a7464bb7154a56bc9ec00061005ab585dde440626801",
+          "bytes": 1849
+        },
+        "actual": {
+          "sha256": "28e11466962935855a62a7464bb7154a56bc9ec00061005ab585dde440626801",
+          "bytes": 1849
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-parse.js",
+        "expected": {
+          "path": "site/vendor/remark-parse.js",
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "actual": {
+          "sha256": "5a42a56d2d6ec6b7e0bc5b05f99658b592c1debc136c4f1564794d86541e7bad",
+          "bytes": 35260
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/site/vendor/remark-rehype.js",
+        "expected": {
+          "path": "site/vendor/remark-rehype.js",
+          "sha256": "c2b5991d237ff673ac37c7b64a97c241288881b99b2b048d6b4274f87beda54b",
+          "bytes": 3888
+        },
+        "actual": {
+          "sha256": "c2b5991d237ff673ac37c7b64a97c241288881b99b2b048d6b4274f87beda54b",
+          "bytes": 3888
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/api.test.mjs",
+        "expected": {
+          "path": "test/api.test.mjs",
+          "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+          "bytes": 7199
+        },
+        "actual": {
+          "sha256": "624e68cb226720619f7748b8380df04778e17de846fe2a5096904be00aec7515",
+          "bytes": 7199
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/browser.test.mjs",
+        "expected": {
+          "path": "test/browser.test.mjs",
+          "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+          "bytes": 1184
+        },
+        "actual": {
+          "sha256": "81487b0ea2e2aef6d59a3551772917be911aac2b24e382d40e5d8f96462f36f7",
+          "bytes": 1184
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/closed.test.mjs",
+        "expected": {
+          "path": "test/closed.test.mjs",
+          "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+          "bytes": 1083
+        },
+        "actual": {
+          "sha256": "55ec60fe5520ee5800408ebff690a53d5f9b36c233994d3e112c6ad9a8b7c5ef",
+          "bytes": 1083
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/differential.test.mjs",
+        "expected": {
+          "path": "test/differential.test.mjs",
+          "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+          "bytes": 1995
+        },
+        "actual": {
+          "sha256": "7bfc75722183feed2bd6ba51153e7341abf71f7e4bec1c46181674f3728fd679",
+          "bytes": 1995
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/graph.test.mjs",
+        "expected": {
+          "path": "test/graph.test.mjs",
+          "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+          "bytes": 577
+        },
+        "actual": {
+          "sha256": "31fa1ba9e45eb33761f669212ba46a4a2c2cb98c178583e7a0b1ea9102efbf2f",
+          "bytes": 577
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/core.js",
+        "expected": {
+          "path": "test/official/core.js",
+          "sha256": "9f592bb6bf88a0dcba3035fb17c553083f5f2432f39128e874a09eb2d7f25bee",
+          "bytes": 939
+        },
+        "actual": {
+          "sha256": "9f592bb6bf88a0dcba3035fb17c553083f5f2432f39128e874a09eb2d7f25bee",
+          "bytes": 939
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/data.js",
+        "expected": {
+          "path": "test/official/data.js",
+          "sha256": "cab8ecfeac1b25170e2858510bdd3e7ffd567883f802fbf633e3fb03d751ccf1",
+          "bytes": 1759
+        },
+        "actual": {
+          "sha256": "cab8ecfeac1b25170e2858510bdd3e7ffd567883f802fbf633e3fb03d751ccf1",
+          "bytes": 1759
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/freeze.js",
+        "expected": {
+          "path": "test/official/freeze.js",
+          "sha256": "d830c5696d7a9b0f63b65348525b92ff859c2fd554fbaea8005c71fa63ff99df",
+          "bytes": 5277
+        },
+        "actual": {
+          "sha256": "d830c5696d7a9b0f63b65348525b92ff859c2fd554fbaea8005c71fa63ff99df",
+          "bytes": 5277
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/index.js",
+        "expected": {
+          "path": "test/official/index.js",
+          "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+          "bytes": 340
+        },
+        "actual": {
+          "sha256": "ba3df2d0eb9eaf372966aa074f26b76c4538a7e1a63f1f0898ec0ae57b88fdbf",
+          "bytes": 340
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/parse.js",
+        "expected": {
+          "path": "test/official/parse.js",
+          "sha256": "20cd7e70eb92a20c74ec73faa6a0292e7344cf9bdf51a2e07b5484c6934fcabd",
+          "bytes": 1164
+        },
+        "actual": {
+          "sha256": "20cd7e70eb92a20c74ec73faa6a0292e7344cf9bdf51a2e07b5484c6934fcabd",
+          "bytes": 1164
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process-compilers.js",
+        "expected": {
+          "path": "test/official/process-compilers.js",
+          "sha256": "fca7f4933789c977fbfc7da8b14538fbe350a61f696bb28b0aa91721540d1328",
+          "bytes": 1507
+        },
+        "actual": {
+          "sha256": "fca7f4933789c977fbfc7da8b14538fbe350a61f696bb28b0aa91721540d1328",
+          "bytes": 1507
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process-sync.js",
+        "expected": {
+          "path": "test/official/process-sync.js",
+          "sha256": "31f9bc3b7b25ceab0f91c755e67df2b08e31e3e3ff2f682739a99b5ec8937dad",
+          "bytes": 2023
+        },
+        "actual": {
+          "sha256": "31f9bc3b7b25ceab0f91c755e67df2b08e31e3e3ff2f682739a99b5ec8937dad",
+          "bytes": 2023
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/process.js",
+        "expected": {
+          "path": "test/official/process.js",
+          "sha256": "5bc0d6f7366f6d820cf5ee1445d6873050b237b52265c2c3b0b2c203d2edf214",
+          "bytes": 2628
+        },
+        "actual": {
+          "sha256": "5bc0d6f7366f6d820cf5ee1445d6873050b237b52265c2c3b0b2c203d2edf214",
+          "bytes": 2628
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/run-sync.js",
+        "expected": {
+          "path": "test/official/run-sync.js",
+          "sha256": "56c19980629dc7993c977bc0c8c191525bd0eef3d012309b88d7f9bf154f0465",
+          "bytes": 5045
+        },
+        "actual": {
+          "sha256": "56c19980629dc7993c977bc0c8c191525bd0eef3d012309b88d7f9bf154f0465",
+          "bytes": 5045
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/run.js",
+        "expected": {
+          "path": "test/official/run.js",
+          "sha256": "4eb9ac7077edb7fcb08235337ec4c5b284797a676e83b9ce74a4e759684ac25b",
+          "bytes": 15743
+        },
+        "actual": {
+          "sha256": "4eb9ac7077edb7fcb08235337ec4c5b284797a676e83b9ce74a4e759684ac25b",
+          "bytes": 15743
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/stringify.js",
+        "expected": {
+          "path": "test/official/stringify.js",
+          "sha256": "849ed4b75df79ca31bb45c25fd46b4fa46b7764348a88dea619389faa708c420",
+          "bytes": 1324
+        },
+        "actual": {
+          "sha256": "849ed4b75df79ca31bb45c25fd46b4fa46b7764348a88dea619389faa708c420",
+          "bytes": 1324
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/use.js",
+        "expected": {
+          "path": "test/official/use.js",
+          "sha256": "be5e948ebfe7891d1925f8b28d7d74bc8b8e28667a75e17360246c882e419720",
+          "bytes": 31461
+        },
+        "actual": {
+          "sha256": "be5e948ebfe7891d1925f8b28d7d74bc8b8e28667a75e17360246c882e419720",
+          "bytes": 31461
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/official/util/simple.js",
+        "expected": {
+          "path": "test/official/util/simple.js",
+          "sha256": "3cde0b5292c5760d40bd3c73c9fb22ec4901f015359bbe1027b651bd46ab7f80",
+          "bytes": 432
+        },
+        "actual": {
+          "sha256": "3cde0b5292c5760d40bd3c73c9fb22ec4901f015359bbe1027b651bd46ab7f80",
+          "bytes": 432
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+          "bytes": 961
+        },
+        "actual": {
+          "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+          "bytes": 961
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/types.test.ts",
+        "expected": {
+          "path": "test/types.test.ts",
+          "sha256": "67b6b8325ae0e8a8fbebd347ec163489d1b607e52aa0af94d3b4bea9af6888ce",
+          "bytes": 1976
+        },
+        "actual": {
+          "sha256": "67b6b8325ae0e8a8fbebd347ec163489d1b607e52aa0af94d3b4bea9af6888ce",
+          "bytes": 1976
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/test/vfile.test.mjs",
+        "expected": {
+          "path": "test/vfile.test.mjs",
+          "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+          "bytes": 7877
+        },
+        "actual": {
+          "sha256": "f6999109bd5304983edbb591de33dfb7dac44f8218bd1eee289b80115ff75f08",
+          "bytes": 7877
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/types/unified.d.ts",
+        "expected": {
+          "path": "types/unified.d.ts",
+          "sha256": "25dd92c7cb062f8a187feeefd703685c2b863f9dc190584ee9fb12e7059242d4",
+          "bytes": 24
+        },
+        "actual": {
+          "sha256": "25dd92c7cb062f8a187feeefd703685c2b863f9dc190584ee9fb12e7059242d4",
+          "bytes": 24
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/types/vfile.d.ts",
+        "expected": {
+          "path": "types/vfile.d.ts",
+          "sha256": "64ed096e93d92ec3e078397f4f33de7d11d08290f3292523352c13ddebe09bad",
+          "bytes": 211
+        },
+        "actual": {
+          "sha256": "64ed096e93d92ec3e078397f4f33de7d11d08290f3292523352c13ddebe09bad",
+          "bytes": 211
+        },
+        "matches": true
+      }
+    ]
+  },
+  "prerequisites": [
+    {
+      "declaration": {
+        "id": "original-check:sources",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:sources"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:sources"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "actual": {
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "actual": {
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/unifiedlil/node/prerequisite-0.stdout",
+        "sha256": "5bff093907d41189311688f24deb6ae36861f260b8d7c414b357517f122afafe",
+        "bytes": 117
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/unifiedlil/node/prerequisite-0.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "actual": {
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "actual": {
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "actual": {
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "actual": {
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "matches": true
+        }
+      ]
+    },
+    {
+      "declaration": {
+        "id": "original-check:types",
+        "executable": {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+          "bytes": 54
+        },
+        "args": [
+          "run",
+          "check:types"
+        ],
+        "timeoutMs": 180000,
+        "inputs": [
+          {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          }
+        ]
+      },
+      "command": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+      "args": [
+        "run",
+        "check:types"
+      ],
+      "attempted": true,
+      "status": 0,
+      "before": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "actual": {
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "actual": {
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "matches": true
+        }
+      ],
+      "signal": null,
+      "error": null,
+      "supervision": {
+        "timeoutMs": 180000,
+        "killAfterMs": 1000,
+        "maxBuffer": 268435456,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "stdout": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/unifiedlil/node/prerequisite-1.stdout",
+        "sha256": "3a4afdfa4549ca57b2c588f381c80566b6bb34d3c4a5956d07c2077e362d2a9a",
+        "bytes": 144
+      },
+      "stderr": {
+        "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/unifiedlil/node/prerequisite-1.stderr",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "after": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "actual": {
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "actual": {
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "matches": true
+        }
+      ],
+      "final": [
+        {
+          "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+          "expected": {
+            "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "actual": {
+            "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+            "bytes": 54
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package.json",
+          "expected": {
+            "path": "package.json",
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "actual": {
+            "sha256": "af9c262beafa281f16cf7dfeb3cb554043bf302d21e34f8784741a0b3520e9b7",
+            "bytes": 2411
+          },
+          "matches": true
+        },
+        {
+          "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/package-lock.json",
+          "expected": {
+            "path": "package-lock.json",
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "actual": {
+            "sha256": "17482e0d5c61348686711c73e43b47e176d38da90510271d7b07b0a32811794d",
+            "bytes": 23659
+          },
+          "matches": true
+        }
+      ]
+    }
+  ],
+  "prerequisiteEnvironment": {
+    "PATH": "/home/azureuser/.nvm/versions/node/v24.11.1/bin:/home/azureuser/.nvm/versions/node/v24.11.1/bin:/usr/local/bin:/usr/bin:/bin"
+  },
+  "supervision": {
+    "timeoutMs": 598666,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",60,3,1,\"test\",\"keeps export names and pinned processor keys\",1]",
+        "file": "test/api.test.mjs",
+        "name": "keeps export names and pinned processor keys",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",87,3,1,\"test\",\"exposes unified on ESM and CJS\",1]",
+        "file": "test/api.test.mjs",
+        "name": "exposes unified on ESM and CJS",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",97,3,1,\"test\",\"processSync parses, transforms, and stringifies\",1]",
+        "file": "test/api.test.mjs",
+        "name": "processSync parses, transforms, and stringifies",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",108,3,1,\"test\",\"preserves caller-provided VFile identity in CommonJS\",1]",
+        "file": "test/api.test.mjs",
+        "name": "preserves caller-provided VFile identity in CommonJS",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",116,3,1,\"test\",\"preserves caller-provided VFile identity in ESM\",1]",
+        "file": "test/api.test.mjs",
+        "name": "preserves caller-provided VFile identity in ESM",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",121,3,1,\"test\",\"runs transformers in order and accepts plugin options\",1]",
+        "file": "test/api.test.mjs",
+        "name": "runs transformers in order and accepts plugin options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",135,3,1,\"test\",\"parse treats a string as file.value\",1]",
+        "file": "test/api.test.mjs",
+        "name": "parse treats a string as file.value",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",141,3,1,\"test\",\"registers a direct plugin in each Node artifact\",1]",
+        "file": "test/api.test.mjs",
+        "name": "registers a direct plugin in each Node artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",163,3,1,\"test\",\"always passes parser documents as strings\",1]",
+        "file": "test/api.test.mjs",
+        "name": "always passes parser documents as strings",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",174,3,1,\"test\",\"data() is a mutable bag\",1]",
+        "file": "test/api.test.mjs",
+        "name": "data() is a mutable bag",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",186,3,1,\"test\",\"supports the deprecated copy method\",1]",
+        "file": "test/api.test.mjs",
+        "name": "supports the deprecated copy method",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",193,3,1,\"test\",\"process and run return promises\",1]",
+        "file": "test/api.test.mjs",
+        "name": "process and run return promises",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",201,3,1,\"test\",\"throws when parser or compiler is missing\",1]",
+        "file": "test/api.test.mjs",
+        "name": "throws when parser or compiler is missing",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/api.test.mjs\",59,1,0,\"suite\",\"@itslil/unified JS library API\",1]",
+        "file": "test/api.test.mjs",
+        "name": "@itslil/unified JS library API",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/browser.test.mjs\",6,1,0,\"test\",\"browser graph contains the directly composed pure LilScript VFile\",1]",
+        "file": "test/browser.test.mjs",
+        "name": "browser graph contains the directly composed pure LilScript VFile",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",11,3,1,\"test\",\"is compiled next to the library artifact\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "is compiled next to the library artifact",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",15,3,1,\"test\",\"keeps the unified export and can construct a processor\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "keeps the unified export and can construct a processor",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/unified closed LilScript lane\",1]",
+        "file": "test/closed.test.mjs",
+        "name": "@itslil/unified closed LilScript lane",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/differential.test.mjs\",31,1,0,\"test\",\"processor behavior and evaluation order match unified@11.0.5\",1]",
+        "file": "test/differential.test.mjs",
+        "name": "processor behavior and evaluation order match unified@11.0.5",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/differential.test.mjs\",45,1,0,\"test\",\"plugin errors and asynchronous completion match upstream\",1]",
+        "file": "test/differential.test.mjs",
+        "name": "plugin errors and asynchronous completion match upstream",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/graph.test.mjs\",5,1,0,\"test\",\"canonical graph measurement uses pinned official Terser\",1]",
+        "file": "test/graph.test.mjs",
+        "name": "canonical graph measurement uses pinned official Terser",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",6,11,1,\"test\",\"should expose the public api\",1]",
+        "file": "test/official/core.js",
+        "name": "should expose the public api",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",12,11,1,\"test\",\"should expose a frozen processor\",1]",
+        "file": "test/official/core.js",
+        "name": "should expose a frozen processor",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",18,11,1,\"test\",\"should create a new processor implementing the ancestral processor when called\",1]",
+        "file": "test/official/core.js",
+        "name": "should create a new processor implementing the ancestral processor when called",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/core.js\",5,1,0,\"test\",\"core\",1]",
+        "file": "test/official/core.js",
+        "name": "core",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",6,11,1,\"test\",\"should return self as setter\",1]",
+        "file": "test/official/data.js",
+        "name": "should return self as setter",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",12,11,1,\"test\",\"should yield data as getter (not defined)\",1]",
+        "file": "test/official/data.js",
+        "name": "should yield data as getter (not defined)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",16,11,1,\"test\",\"should yield data as getter (defined)\",1]",
+        "file": "test/official/data.js",
+        "name": "should yield data as getter (defined)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",20,11,1,\"test\",\"should not yield data prototypal fields\",1]",
+        "file": "test/official/data.js",
+        "name": "should not yield data prototypal fields",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",26,11,1,\"test\",\"should yield dataset as getter w/o key\",1]",
+        "file": "test/official/data.js",
+        "name": "should yield dataset as getter w/o key",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",30,11,1,\"test\",\"should set dataset as setter w/o key (#1)\",1]",
+        "file": "test/official/data.js",
+        "name": "should set dataset as setter w/o key (#1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",37,11,1,\"test\",\"should set dataset as setter w/o key (#2)\",1]",
+        "file": "test/official/data.js",
+        "name": "should set dataset as setter w/o key (#2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",43,11,1,\"test\",\"should support functions in data\",1]",
+        "file": "test/official/data.js",
+        "name": "should support functions in data",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/data.js\",5,1,0,\"test\",\"`data`\",1]",
+        "file": "test/official/data.js",
+        "name": "`data`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",17,13,2,\"test\",\"should be able to call `data()` (getter) when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `data()` (getter) when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",24,13,2,\"test\",\"should be able to call `data()` (getter) when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `data()` (getter) when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",31,13,2,\"test\",\"should be able to call `data(key)` (getter) when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `data(key)` (getter) when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",38,13,2,\"test\",\"should be able to call `data(key)` (getter) when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `data(key)` (getter) when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",45,13,2,\"test\",\"should be able to call `data(value)` (setter) when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `data(value)` (setter) when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",52,13,2,\"test\",\"should not be able to call `data(value)` (setter) when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should not be able to call `data(value)` (setter) when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",61,13,2,\"test\",\"should be able to call `data(key, value)` (setter) when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `data(key, value)` (setter) when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",68,13,2,\"test\",\"should not be able to call `data(key, value)` (setter) when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should not be able to call `data(key, value)` (setter) when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",16,11,1,\"test\",\"data\",1]",
+        "file": "test/official/freeze.js",
+        "name": "data",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",79,13,2,\"test\",\"should be able to call `parse` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `parse` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",86,13,2,\"test\",\"should be able to call `parse` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `parse` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",78,11,1,\"test\",\"parse\",1]",
+        "file": "test/official/freeze.js",
+        "name": "parse",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",95,13,2,\"test\",\"should be able to call `stringify` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `stringify` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",102,13,2,\"test\",\"should be able to call `stringify` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `stringify` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",94,11,1,\"test\",\"stringify\",1]",
+        "file": "test/official/freeze.js",
+        "name": "stringify",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",111,13,2,\"test\",\"should be able to call `run` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `run` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",118,13,2,\"test\",\"should be able to call `run` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `run` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",110,11,1,\"test\",\"run\",1]",
+        "file": "test/official/freeze.js",
+        "name": "run",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",124,13,2,\"test\",\"should be able to call `runSync` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `runSync` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",131,13,2,\"test\",\"should be able to call `runSync` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `runSync` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",123,11,1,\"test\",\"runSync\",1]",
+        "file": "test/official/freeze.js",
+        "name": "runSync",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",140,13,2,\"test\",\"should be able to call `process` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `process` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",147,13,2,\"test\",\"should be able to call `process` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `process` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",139,11,1,\"test\",\"process\",1]",
+        "file": "test/official/freeze.js",
+        "name": "process",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",156,13,2,\"test\",\"should be able to call `processSync` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `processSync` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",163,13,2,\"test\",\"should be able to call `processSync` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `processSync` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",155,11,1,\"test\",\"processSync\",1]",
+        "file": "test/official/freeze.js",
+        "name": "processSync",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",172,13,2,\"test\",\"should be able to call `freeze` when not frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `freeze` when not frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",179,13,2,\"test\",\"should be able to call `freeze` when frozen\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should be able to call `freeze` when frozen",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",186,13,2,\"test\",\"should freeze once, even for nested calls\",1]",
+        "file": "test/official/freeze.js",
+        "name": "should freeze once, even for nested calls",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",171,11,1,\"test\",\"freeze\",1]",
+        "file": "test/official/freeze.js",
+        "name": "freeze",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/freeze.js\",11,1,0,\"test\",\"`freeze`\",1]",
+        "file": "test/official/freeze.js",
+        "name": "`freeze`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/parse.js\",8,11,1,\"test\",\"should throw without `parser`\",1]",
+        "file": "test/official/parse.js",
+        "name": "should throw without `parser`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/parse.js\",14,11,1,\"test\",\"should support a plain function\",1]",
+        "file": "test/official/parse.js",
+        "name": "should support a plain function",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/parse.js\",27,11,1,\"test\",\"should support an arrow function\",1]",
+        "file": "test/official/parse.js",
+        "name": "should support an arrow function",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/parse.js\",5,1,0,\"test\",\"`parse`\",1]",
+        "file": "test/official/parse.js",
+        "name": "`parse`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process.js\",11,11,1,\"test\",\"should throw w/o `parser`\",1]",
+        "file": "test/official/process.js",
+        "name": "should throw w/o `parser`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process.js\",17,11,1,\"test\",\"should throw w/o `compiler`\",1]",
+        "file": "test/official/process.js",
+        "name": "should throw w/o `compiler`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process.js\",25,11,1,\"test\",\"should pass/yield expected values\",1]",
+        "file": "test/official/process.js",
+        "name": "should pass/yield expected values",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process.js\",59,11,1,\"test\",\"should rethrow errors in `done` throws\",1]",
+        "file": "test/official/process.js",
+        "name": "should rethrow errors in `done` throws",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process.js\",72,11,1,\"test\",\"should support `process` w/o `done` (promise)\",1]",
+        "file": "test/official/process.js",
+        "name": "should support `process` w/o `done` (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process.js\",7,1,0,\"test\",\"`process`\",1]",
+        "file": "test/official/process.js",
+        "name": "`process`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-compilers.js\",7,11,1,\"test\",\"should compile `string`\",1]",
+        "file": "test/official/process-compilers.js",
+        "name": "should compile `string`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-compilers.js\",22,11,1,\"test\",\"should compile `Uint8Array`\",1]",
+        "file": "test/official/process-compilers.js",
+        "name": "should compile `Uint8Array`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-compilers.js\",37,11,1,\"test\",\"should compile non-text\",1]",
+        "file": "test/official/process-compilers.js",
+        "name": "should compile non-text",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-compilers.js\",6,1,0,\"test\",\"process (compilers)\",1]",
+        "file": "test/official/process-compilers.js",
+        "name": "process (compilers)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-sync.js\",12,11,1,\"test\",\"should throw w/o `parser`\",1]",
+        "file": "test/official/process-sync.js",
+        "name": "should throw w/o `parser`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-sync.js\",18,11,1,\"test\",\"should throw w/o `compiler`\",1]",
+        "file": "test/official/process-sync.js",
+        "name": "should throw w/o `compiler`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-sync.js\",26,11,1,\"test\",\"should support `processSync`\",1]",
+        "file": "test/official/process-sync.js",
+        "name": "should support `processSync`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-sync.js\",35,11,1,\"test\",\"should throw transform errors from `processSync`\",1]",
+        "file": "test/official/process-sync.js",
+        "name": "should throw transform errors from `processSync`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/process-sync.js\",11,1,0,\"test\",\"`processSync`\",1]",
+        "file": "test/official/process-sync.js",
+        "name": "`processSync`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",12,11,1,\"test\",\"should pass/yield expected values\",1]",
+        "file": "test/official/run.js",
+        "name": "should pass/yield expected values",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",24,11,1,\"test\",\"should pass a file if implicitly not given\",1]",
+        "file": "test/official/run.js",
+        "name": "should pass a file if implicitly not given",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",34,11,1,\"test\",\"should pass a file if explicitly not given\",1]",
+        "file": "test/official/run.js",
+        "name": "should pass a file if explicitly not given",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",44,11,1,\"test\",\"should yield an error returned from a sync transformer\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error returned from a sync transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",62,11,1,\"test\",\"should yield a tree when returned from a sync transformer\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when returned from a sync transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",81,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (sync)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error when passed to a transformer’s `next` (sync)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",99,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (async)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error when passed to a transformer’s `next` (async)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",120,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (sync)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when passed to a transformer’s `next` (sync)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",139,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (async)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when passed to a transformer’s `next` (async)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",161,11,1,\"test\",\"should yield an error when rejected from a transformer\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error when rejected from a transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",181,11,1,\"test\",\"should yield a tree when resolved from a transformer\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when resolved from a transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",202,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (sync)\",1]",
+        "file": "test/official/run.js",
+        "name": "should swallow further errors when passed to a transformer’s `next` (sync)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",222,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (async)\",1]",
+        "file": "test/official/run.js",
+        "name": "should swallow further errors when passed to a transformer’s `next` (async)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",251,11,1,\"test\",\"should support `async function`s\",1]",
+        "file": "test/official/run.js",
+        "name": "should support `async function`s",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",281,11,1,\"test\",\"should pass/yield expected values (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should pass/yield expected values (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",295,11,1,\"test\",\"should pass a file if implicitly not given (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should pass a file if implicitly not given (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",309,11,1,\"test\",\"should pass a file if explicitly not given (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should pass a file if explicitly not given (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",323,11,1,\"test\",\"should yield an error returned from a sync transformer (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error returned from a sync transformer (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",350,11,1,\"test\",\"should yield a tree when returned from a sync transformer (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when returned from a sync transformer (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",369,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (sync) (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error when passed to a transformer’s `next` (sync) (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",396,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (async) (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error when passed to a transformer’s `next` (async) (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",425,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (sync) (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when passed to a transformer’s `next` (sync) (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",444,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (async) (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when passed to a transformer’s `next` (async) (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",465,11,1,\"test\",\"should yield an error when rejected from a transformer (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield an error when rejected from a transformer (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",494,11,1,\"test\",\"should yield a tree when resolved from a transformer (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should yield a tree when resolved from a transformer (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",515,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (sync) (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should swallow further errors when passed to a transformer’s `next` (sync) (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",535,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (async) (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should swallow further errors when passed to a transformer’s `next` (async) (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",557,11,1,\"test\",\"should support `async function`s (promise)\",1]",
+        "file": "test/official/run.js",
+        "name": "should support `async function`s (promise)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run.js\",6,1,0,\"test\",\"`run`\",1]",
+        "file": "test/official/run.js",
+        "name": "`run`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",13,11,1,\"test\",\"should throw w/o `tree`\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw w/o `tree`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",21,11,1,\"test\",\"should pass/yield expected values\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should pass/yield expected values",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",25,11,1,\"test\",\"should throw an error returned from a sync transformer\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw an error returned from a sync transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",40,11,1,\"test\",\"should yield a tree when returned from a sync transformer\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should yield a tree when returned from a sync transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",56,11,1,\"test\",\"should throw an error when passed to a transformer’s `next` (sync)\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw an error when passed to a transformer’s `next` (sync)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",71,11,1,\"test\",\"should throw and leave an error uncaught when passed to a transformer’s `next` (async)\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw and leave an error uncaught when passed to a transformer’s `next` (async)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",103,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (sync)\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should yield a tree when passed to a transformer’s `next` (sync)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",119,11,1,\"test\",\"should throw and ignore a tree when passed to a transformer’s `next` (async)\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw and ignore a tree when passed to a transformer’s `next` (async)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",138,11,1,\"test\",\"should throw and leave an error unhandled when rejected from a transformer\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw and leave an error unhandled when rejected from a transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",166,11,1,\"test\",\"should throw and ignore a tree when resolved from a transformer\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "should throw and ignore a tree when resolved from a transformer",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/run-sync.js\",7,1,0,\"test\",\"`runSync`\",1]",
+        "file": "test/official/run-sync.js",
+        "name": "`runSync`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/stringify.js\",14,11,1,\"test\",\"should throw without `compiler`\",1]",
+        "file": "test/official/stringify.js",
+        "name": "should throw without `compiler`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/stringify.js\",20,11,1,\"test\",\"should support a plain function\",1]",
+        "file": "test/official/stringify.js",
+        "name": "should support a plain function",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/stringify.js\",33,11,1,\"test\",\"should support an arrow function\",1]",
+        "file": "test/official/stringify.js",
+        "name": "should support an arrow function",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/stringify.js\",10,1,0,\"test\",\"`stringify`\",1]",
+        "file": "test/official/stringify.js",
+        "name": "`stringify`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",12,11,1,\"test\",\"should ignore no value\",1]",
+        "file": "test/official/use.js",
+        "name": "should ignore no value",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",17,11,1,\"test\",\"should ignore `undefined`\",1]",
+        "file": "test/official/use.js",
+        "name": "should ignore `undefined`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",22,11,1,\"test\",\"should ignore `null`\",1]",
+        "file": "test/official/use.js",
+        "name": "should ignore `null`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",27,11,1,\"test\",\"should throw when given invalid values (`false`)\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given invalid values (`false`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",34,11,1,\"test\",\"should throw when given invalid values (`true`)\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given invalid values (`true`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",44,11,1,\"test\",\"should throw when given invalid values (`string`)\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given invalid values (`string`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",54,11,1,\"test\",\"should support a plugin\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a plugin",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",69,11,1,\"test\",\"should support a plugin w/ options\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a plugin w/ options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",85,11,1,\"test\",\"should support a list of plugins\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a list of plugins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",107,11,1,\"test\",\"should support a list w/ a single plugin\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a list w/ a single plugin",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",124,11,1,\"test\",\"should support a list of tuples and plugins\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a list of tuples and plugins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",151,11,1,\"test\",\"should throw when given invalid values (`false`) in lists\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given invalid values (`false`) in lists",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",161,11,1,\"test\",\"should throw when given invalid values (`true`) in lists\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given invalid values (`true`) in lists",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",171,11,1,\"test\",\"should throw when given invalid values (`string`) in lists\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given invalid values (`string`) in lists",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",181,11,1,\"test\",\"should attach transformers\",1]",
+        "file": "test/official/use.js",
+        "name": "should attach transformers",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",198,11,1,\"test\",\"should throw when given a preset w/ invalid `plugins` (`false`)\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given a preset w/ invalid `plugins` (`false`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",208,11,1,\"test\",\"should throw when given a preset w/ invalid `plugins` (`object`)\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given a preset w/ invalid `plugins` (`object`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",218,11,1,\"test\",\"should throw when given a preset w/o `settings` or `plugins`\",1]",
+        "file": "test/official/use.js",
+        "name": "should throw when given a preset w/o `settings` or `plugins`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",227,11,1,\"test\",\"should support a preset w/ empty `plugins`\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a preset w/ empty `plugins`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",232,11,1,\"test\",\"should support a preset w/ empty `settings`\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a preset w/ empty `settings`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",237,11,1,\"test\",\"should support a preset w/ a plugin\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a preset w/ a plugin",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",251,11,1,\"test\",\"should support a preset w/ plugins\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a preset w/ plugins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",269,11,1,\"test\",\"should support a preset w/ settings\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a preset w/ settings",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",279,11,1,\"test\",\"should support presets w/ settings and merge\",1]",
+        "file": "test/official/use.js",
+        "name": "should support presets w/ settings and merge",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",289,11,1,\"test\",\"should support extending presets\",1]",
+        "file": "test/official/use.js",
+        "name": "should support extending presets",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",310,11,1,\"test\",\"should support a preset w/ plugin tuples\",1]",
+        "file": "test/official/use.js",
+        "name": "should support a preset w/ plugin tuples",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",341,11,1,\"test\",\"should support presets w/ presets\",1]",
+        "file": "test/official/use.js",
+        "name": "should support presets w/ presets",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",370,13,2,\"test\",\"should reconfigure plugins: nothing -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: nothing -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",389,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `undefined` -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",408,13,2,\"test\",\"should reconfigure plugins: `null` -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `null` -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",427,13,2,\"test\",\"should reconfigure plugins: `false` -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `false` -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",446,13,2,\"test\",\"should reconfigure plugins: `true` -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `true` -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",465,13,2,\"test\",\"should reconfigure plugins: `string` -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `string` -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",484,13,2,\"test\",\"should reconfigure plugins: `array` -> `object`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `array` -> `object`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",506,13,2,\"test\",\"should reconfigure plugins: `object` -> `object`, merge\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `object` -> `object`, merge",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",369,11,1,\"test\",\"reconfigure (to `object`)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (to `object`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",528,13,2,\"test\",\"should reconfigure plugins: nothing -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: nothing -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",547,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `undefined` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",566,13,2,\"test\",\"should reconfigure plugins: `null` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `null` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",585,13,2,\"test\",\"should reconfigure plugins: `false` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `false` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",604,13,2,\"test\",\"should reconfigure plugins: `true` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `true` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",623,13,2,\"test\",\"should reconfigure plugins: `string` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `string` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",642,13,2,\"test\",\"should reconfigure plugins: `array` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `array` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",664,13,2,\"test\",\"should reconfigure plugins: `object` -> `array`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `object` -> `array`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",527,11,1,\"test\",\"reconfigure (to `array`)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (to `array`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",688,13,2,\"test\",\"should reconfigure plugins: nothing -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: nothing -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",707,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `undefined` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",726,13,2,\"test\",\"should reconfigure plugins: `null` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `null` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",745,13,2,\"test\",\"should reconfigure plugins: `false` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `false` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",764,13,2,\"test\",\"should reconfigure plugins: `true` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `true` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",783,13,2,\"test\",\"should reconfigure plugins: `string` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `string` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",802,13,2,\"test\",\"should reconfigure plugins: `array` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `array` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",821,13,2,\"test\",\"should reconfigure plugins: `object` -> `string`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `object` -> `string`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",687,11,1,\"test\",\"reconfigure (to `string`)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (to `string`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",842,13,2,\"test\",\"should reconfigure plugins: nothing -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: nothing -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",861,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `undefined` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",880,13,2,\"test\",\"should reconfigure plugins: `null` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `null` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",899,13,2,\"test\",\"should reconfigure plugins: `false` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `false` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",918,13,2,\"test\",\"should reconfigure plugins: `true` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `true` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",937,13,2,\"test\",\"should reconfigure plugins: `string` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `string` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",956,13,2,\"test\",\"should reconfigure plugins: `array` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `array` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",975,13,2,\"test\",\"should reconfigure plugins: `object` -> `undefined`, right wins\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `object` -> `undefined`, right wins",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",841,11,1,\"test\",\"reconfigure (to `undefined`)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (to `undefined`)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",996,13,2,\"test\",\"should reconfigure plugins: nothing -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: nothing -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1015,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `undefined` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1034,13,2,\"test\",\"should reconfigure plugins: `null` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `null` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1053,13,2,\"test\",\"should reconfigure plugins: `false` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `false` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1072,13,2,\"test\",\"should reconfigure plugins: `true` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `true` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1091,13,2,\"test\",\"should reconfigure plugins: `string` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `string` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1110,13,2,\"test\",\"should reconfigure plugins: `array` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `array` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1129,13,2,\"test\",\"should reconfigure plugins: `object` -> `true`, used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `object` -> `true`, used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",995,11,1,\"test\",\"reconfigure (to `true`, to turn on)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (to `true`, to turn on)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1150,13,2,\"test\",\"should reconfigure plugins: nothing -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: nothing -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1168,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `undefined` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1186,13,2,\"test\",\"should reconfigure plugins: `null` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `null` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1204,13,2,\"test\",\"should reconfigure plugins: `false` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `false` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1222,13,2,\"test\",\"should reconfigure plugins: `true` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `true` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1240,13,2,\"test\",\"should reconfigure plugins: `string` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `string` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1258,13,2,\"test\",\"should reconfigure plugins: `array` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `array` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1276,13,2,\"test\",\"should reconfigure plugins: `object` -> `false`, not used\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins: `object` -> `false`, not used",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1149,11,1,\"test\",\"reconfigure (to `false`, to turn off)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (to `false`, to turn off)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1296,13,2,\"test\",\"should reconfigure plugins (non-first parameters)\",1]",
+        "file": "test/official/use.js",
+        "name": "should reconfigure plugins (non-first parameters)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1325,13,2,\"test\",\"should keep parameter length (#1)\",1]",
+        "file": "test/official/use.js",
+        "name": "should keep parameter length (#1)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1341,13,2,\"test\",\"should keep parameter length (#2)\",1]",
+        "file": "test/official/use.js",
+        "name": "should keep parameter length (#2)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1357,13,2,\"test\",\"should keep parameter length (#3)\",1]",
+        "file": "test/official/use.js",
+        "name": "should keep parameter length (#3)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",1295,11,1,\"test\",\"reconfigure (non-first parameters)\",1]",
+        "file": "test/official/use.js",
+        "name": "reconfigure (non-first parameters)",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/official/use.js\",5,1,0,\"test\",\"`use`\",1]",
+        "file": "test/official/use.js",
+        "name": "`use`",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+        "file": "test/site.test.mjs",
+        "name": "has a markedlil-style lab with receipts",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+        "file": "test/site.test.mjs",
+        "name": "site",
+        "type": "suite",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",14,1,0,\"test\",\"pure Lil VFile keeps constructor, value, and path behavior\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile keeps constructor, value, and path behavior",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",39,1,0,\"test\",\"pure Lil VFile matches upstream construction and diagnostics\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile matches upstream construction and diagnostics",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",80,1,0,\"test\",\"pure Lil VFile preserves path validation\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile preserves path validation",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",97,1,0,\"test\",\"CommonJS exposes the pure Lil VFile subpath\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "CommonJS exposes the pure Lil VFile subpath",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",107,1,0,\"test\",\"pure Lil constructors and prototypes match upstream\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil constructors and prototypes match upstream",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",131,1,0,\"test\",\"pure Lil VFile matches official ordered path options\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile matches official ordered path options",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",149,1,0,\"test\",\"pure Lil VFile supports URLs, encodings, and custom fields\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile supports URLs, encodings, and custom fields",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",163,1,0,\"test\",\"pure Lil VFile diagnostics match official messages\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile diagnostics match official messages",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vfile.test.mjs\",185,1,0,\"test\",\"pure Lil VFile rejects invalid path parts at the same evaluation point\",1]",
+        "file": "test/vfile.test.mjs",
+        "name": "pure Lil VFile rejects invalid path parts at the same evaluation point",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.cjs",
+        "sha256": "bdb5354e496002a6e2150a04fc4e1dd4a11443f14f0d3f0c7cff30985398e609",
+        "bytes": 21715
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.closed.js",
+        "sha256": "de4908f87c3e9da6d8fe9d0b7223c9d34c0203ee61010f61341406050fa10287",
+        "bytes": 14744
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "sha256": "135731a87b44827d4143d98d1b13762029cc4969be3d8f0f23f39d6ac687a40a",
+        "bytes": 14490
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.cjs",
+        "sha256": "45e03f75a64ce49225452d0f285ce497caf6e34a823df2fe3d8aa4357b1bc439",
+        "bytes": 12156
+      },
+      {
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.esm.js",
+        "sha256": "6f356a869344326ff29da57168def88aee37ce82869b6e462eadd964eb2e2731",
+        "bytes": 7833
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.closed.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.closed.js",
+        "format": "module",
+        "sha256": "de4908f87c3e9da6d8fe9d0b7223c9d34c0203ee61010f61341406050fa10287",
+        "bytes": 14744,
+        "pid": 486178
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.cjs",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.cjs",
+        "format": "commonjs",
+        "sha256": "bdb5354e496002a6e2150a04fc4e1dd4a11443f14f0d3f0c7cff30985398e609",
+        "bytes": 21715,
+        "pid": 486178
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "format": "module",
+        "sha256": "135731a87b44827d4143d98d1b13762029cc4969be3d8f0f23f39d6ac687a40a",
+        "bytes": 14490,
+        "pid": 486178
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.closed.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.closed.js",
+        "format": "module",
+        "sha256": "de4908f87c3e9da6d8fe9d0b7223c9d34c0203ee61010f61341406050fa10287",
+        "bytes": 14744,
+        "pid": 486185
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "format": "module",
+        "sha256": "135731a87b44827d4143d98d1b13762029cc4969be3d8f0f23f39d6ac687a40a",
+        "bytes": 14490,
+        "pid": 486187
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/unified.esm.js",
+        "format": "module",
+        "sha256": "135731a87b44827d4143d98d1b13762029cc4969be3d8f0f23f39d6ac687a40a",
+        "bytes": 14490,
+        "pid": 486199
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.esm.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.esm.js",
+        "format": "module",
+        "sha256": "6f356a869344326ff29da57168def88aee37ce82869b6e462eadd964eb2e2731",
+        "bytes": 7833,
+        "pid": 486199
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.cjs",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.cjs",
+        "format": "commonjs",
+        "sha256": "45e03f75a64ce49225452d0f285ce497caf6e34a823df2fe3d8aa4357b1bc439",
+        "bytes": 12156,
+        "pid": 486231
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.esm.js",
+        "url": "file:///tmp/lilscript-adapter-unifiedlil-9r38qI/unifiedlil/dist/vfile.esm.js",
+        "format": "module",
+        "sha256": "6f356a869344326ff29da57168def88aee37ce82869b6e462eadd964eb2e2731",
+        "bytes": 7833,
+        "pid": 486231
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/api.test.mjs\",60,3,1,\"test\",\"keeps export names and pinned processor keys\",1]",
+    "[\"test/api.test.mjs\",87,3,1,\"test\",\"exposes unified on ESM and CJS\",1]",
+    "[\"test/api.test.mjs\",97,3,1,\"test\",\"processSync parses, transforms, and stringifies\",1]",
+    "[\"test/api.test.mjs\",108,3,1,\"test\",\"preserves caller-provided VFile identity in CommonJS\",1]",
+    "[\"test/api.test.mjs\",116,3,1,\"test\",\"preserves caller-provided VFile identity in ESM\",1]",
+    "[\"test/api.test.mjs\",121,3,1,\"test\",\"runs transformers in order and accepts plugin options\",1]",
+    "[\"test/api.test.mjs\",135,3,1,\"test\",\"parse treats a string as file.value\",1]",
+    "[\"test/api.test.mjs\",141,3,1,\"test\",\"registers a direct plugin in each Node artifact\",1]",
+    "[\"test/api.test.mjs\",163,3,1,\"test\",\"always passes parser documents as strings\",1]",
+    "[\"test/api.test.mjs\",174,3,1,\"test\",\"data() is a mutable bag\",1]",
+    "[\"test/api.test.mjs\",186,3,1,\"test\",\"supports the deprecated copy method\",1]",
+    "[\"test/api.test.mjs\",193,3,1,\"test\",\"process and run return promises\",1]",
+    "[\"test/api.test.mjs\",201,3,1,\"test\",\"throws when parser or compiler is missing\",1]",
+    "[\"test/api.test.mjs\",59,1,0,\"suite\",\"@itslil/unified JS library API\",1]",
+    "[\"test/browser.test.mjs\",6,1,0,\"test\",\"browser graph contains the directly composed pure LilScript VFile\",1]",
+    "[\"test/closed.test.mjs\",11,3,1,\"test\",\"is compiled next to the library artifact\",1]",
+    "[\"test/closed.test.mjs\",15,3,1,\"test\",\"keeps the unified export and can construct a processor\",1]",
+    "[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/unified closed LilScript lane\",1]",
+    "[\"test/differential.test.mjs\",31,1,0,\"test\",\"processor behavior and evaluation order match unified@11.0.5\",1]",
+    "[\"test/differential.test.mjs\",45,1,0,\"test\",\"plugin errors and asynchronous completion match upstream\",1]",
+    "[\"test/graph.test.mjs\",5,1,0,\"test\",\"canonical graph measurement uses pinned official Terser\",1]",
+    "[\"test/official/core.js\",6,11,1,\"test\",\"should expose the public api\",1]",
+    "[\"test/official/core.js\",12,11,1,\"test\",\"should expose a frozen processor\",1]",
+    "[\"test/official/core.js\",18,11,1,\"test\",\"should create a new processor implementing the ancestral processor when called\",1]",
+    "[\"test/official/core.js\",5,1,0,\"test\",\"core\",1]",
+    "[\"test/official/data.js\",6,11,1,\"test\",\"should return self as setter\",1]",
+    "[\"test/official/data.js\",12,11,1,\"test\",\"should yield data as getter (not defined)\",1]",
+    "[\"test/official/data.js\",16,11,1,\"test\",\"should yield data as getter (defined)\",1]",
+    "[\"test/official/data.js\",20,11,1,\"test\",\"should not yield data prototypal fields\",1]",
+    "[\"test/official/data.js\",26,11,1,\"test\",\"should yield dataset as getter w/o key\",1]",
+    "[\"test/official/data.js\",30,11,1,\"test\",\"should set dataset as setter w/o key (#1)\",1]",
+    "[\"test/official/data.js\",37,11,1,\"test\",\"should set dataset as setter w/o key (#2)\",1]",
+    "[\"test/official/data.js\",43,11,1,\"test\",\"should support functions in data\",1]",
+    "[\"test/official/data.js\",5,1,0,\"test\",\"`data`\",1]",
+    "[\"test/official/freeze.js\",17,13,2,\"test\",\"should be able to call `data()` (getter) when not frozen\",1]",
+    "[\"test/official/freeze.js\",24,13,2,\"test\",\"should be able to call `data()` (getter) when frozen\",1]",
+    "[\"test/official/freeze.js\",31,13,2,\"test\",\"should be able to call `data(key)` (getter) when not frozen\",1]",
+    "[\"test/official/freeze.js\",38,13,2,\"test\",\"should be able to call `data(key)` (getter) when frozen\",1]",
+    "[\"test/official/freeze.js\",45,13,2,\"test\",\"should be able to call `data(value)` (setter) when not frozen\",1]",
+    "[\"test/official/freeze.js\",52,13,2,\"test\",\"should not be able to call `data(value)` (setter) when frozen\",1]",
+    "[\"test/official/freeze.js\",61,13,2,\"test\",\"should be able to call `data(key, value)` (setter) when not frozen\",1]",
+    "[\"test/official/freeze.js\",68,13,2,\"test\",\"should not be able to call `data(key, value)` (setter) when frozen\",1]",
+    "[\"test/official/freeze.js\",16,11,1,\"test\",\"data\",1]",
+    "[\"test/official/freeze.js\",79,13,2,\"test\",\"should be able to call `parse` when not frozen\",1]",
+    "[\"test/official/freeze.js\",86,13,2,\"test\",\"should be able to call `parse` when frozen\",1]",
+    "[\"test/official/freeze.js\",78,11,1,\"test\",\"parse\",1]",
+    "[\"test/official/freeze.js\",95,13,2,\"test\",\"should be able to call `stringify` when not frozen\",1]",
+    "[\"test/official/freeze.js\",102,13,2,\"test\",\"should be able to call `stringify` when frozen\",1]",
+    "[\"test/official/freeze.js\",94,11,1,\"test\",\"stringify\",1]",
+    "[\"test/official/freeze.js\",111,13,2,\"test\",\"should be able to call `run` when not frozen\",1]",
+    "[\"test/official/freeze.js\",118,13,2,\"test\",\"should be able to call `run` when frozen\",1]",
+    "[\"test/official/freeze.js\",110,11,1,\"test\",\"run\",1]",
+    "[\"test/official/freeze.js\",124,13,2,\"test\",\"should be able to call `runSync` when not frozen\",1]",
+    "[\"test/official/freeze.js\",131,13,2,\"test\",\"should be able to call `runSync` when frozen\",1]",
+    "[\"test/official/freeze.js\",123,11,1,\"test\",\"runSync\",1]",
+    "[\"test/official/freeze.js\",140,13,2,\"test\",\"should be able to call `process` when not frozen\",1]",
+    "[\"test/official/freeze.js\",147,13,2,\"test\",\"should be able to call `process` when frozen\",1]",
+    "[\"test/official/freeze.js\",139,11,1,\"test\",\"process\",1]",
+    "[\"test/official/freeze.js\",156,13,2,\"test\",\"should be able to call `processSync` when not frozen\",1]",
+    "[\"test/official/freeze.js\",163,13,2,\"test\",\"should be able to call `processSync` when frozen\",1]",
+    "[\"test/official/freeze.js\",155,11,1,\"test\",\"processSync\",1]",
+    "[\"test/official/freeze.js\",172,13,2,\"test\",\"should be able to call `freeze` when not frozen\",1]",
+    "[\"test/official/freeze.js\",179,13,2,\"test\",\"should be able to call `freeze` when frozen\",1]",
+    "[\"test/official/freeze.js\",186,13,2,\"test\",\"should freeze once, even for nested calls\",1]",
+    "[\"test/official/freeze.js\",171,11,1,\"test\",\"freeze\",1]",
+    "[\"test/official/freeze.js\",11,1,0,\"test\",\"`freeze`\",1]",
+    "[\"test/official/parse.js\",8,11,1,\"test\",\"should throw without `parser`\",1]",
+    "[\"test/official/parse.js\",14,11,1,\"test\",\"should support a plain function\",1]",
+    "[\"test/official/parse.js\",27,11,1,\"test\",\"should support an arrow function\",1]",
+    "[\"test/official/parse.js\",5,1,0,\"test\",\"`parse`\",1]",
+    "[\"test/official/process.js\",11,11,1,\"test\",\"should throw w/o `parser`\",1]",
+    "[\"test/official/process.js\",17,11,1,\"test\",\"should throw w/o `compiler`\",1]",
+    "[\"test/official/process.js\",25,11,1,\"test\",\"should pass/yield expected values\",1]",
+    "[\"test/official/process.js\",59,11,1,\"test\",\"should rethrow errors in `done` throws\",1]",
+    "[\"test/official/process.js\",72,11,1,\"test\",\"should support `process` w/o `done` (promise)\",1]",
+    "[\"test/official/process.js\",7,1,0,\"test\",\"`process`\",1]",
+    "[\"test/official/process-compilers.js\",7,11,1,\"test\",\"should compile `string`\",1]",
+    "[\"test/official/process-compilers.js\",22,11,1,\"test\",\"should compile `Uint8Array`\",1]",
+    "[\"test/official/process-compilers.js\",37,11,1,\"test\",\"should compile non-text\",1]",
+    "[\"test/official/process-compilers.js\",6,1,0,\"test\",\"process (compilers)\",1]",
+    "[\"test/official/process-sync.js\",12,11,1,\"test\",\"should throw w/o `parser`\",1]",
+    "[\"test/official/process-sync.js\",18,11,1,\"test\",\"should throw w/o `compiler`\",1]",
+    "[\"test/official/process-sync.js\",26,11,1,\"test\",\"should support `processSync`\",1]",
+    "[\"test/official/process-sync.js\",35,11,1,\"test\",\"should throw transform errors from `processSync`\",1]",
+    "[\"test/official/process-sync.js\",11,1,0,\"test\",\"`processSync`\",1]",
+    "[\"test/official/run.js\",12,11,1,\"test\",\"should pass/yield expected values\",1]",
+    "[\"test/official/run.js\",24,11,1,\"test\",\"should pass a file if implicitly not given\",1]",
+    "[\"test/official/run.js\",34,11,1,\"test\",\"should pass a file if explicitly not given\",1]",
+    "[\"test/official/run.js\",44,11,1,\"test\",\"should yield an error returned from a sync transformer\",1]",
+    "[\"test/official/run.js\",62,11,1,\"test\",\"should yield a tree when returned from a sync transformer\",1]",
+    "[\"test/official/run.js\",81,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (sync)\",1]",
+    "[\"test/official/run.js\",99,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (async)\",1]",
+    "[\"test/official/run.js\",120,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (sync)\",1]",
+    "[\"test/official/run.js\",139,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (async)\",1]",
+    "[\"test/official/run.js\",161,11,1,\"test\",\"should yield an error when rejected from a transformer\",1]",
+    "[\"test/official/run.js\",181,11,1,\"test\",\"should yield a tree when resolved from a transformer\",1]",
+    "[\"test/official/run.js\",202,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (sync)\",1]",
+    "[\"test/official/run.js\",222,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (async)\",1]",
+    "[\"test/official/run.js\",251,11,1,\"test\",\"should support `async function`s\",1]",
+    "[\"test/official/run.js\",281,11,1,\"test\",\"should pass/yield expected values (promise)\",1]",
+    "[\"test/official/run.js\",295,11,1,\"test\",\"should pass a file if implicitly not given (promise)\",1]",
+    "[\"test/official/run.js\",309,11,1,\"test\",\"should pass a file if explicitly not given (promise)\",1]",
+    "[\"test/official/run.js\",323,11,1,\"test\",\"should yield an error returned from a sync transformer (promise)\",1]",
+    "[\"test/official/run.js\",350,11,1,\"test\",\"should yield a tree when returned from a sync transformer (promise)\",1]",
+    "[\"test/official/run.js\",369,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (sync) (promise)\",1]",
+    "[\"test/official/run.js\",396,11,1,\"test\",\"should yield an error when passed to a transformer’s `next` (async) (promise)\",1]",
+    "[\"test/official/run.js\",425,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (sync) (promise)\",1]",
+    "[\"test/official/run.js\",444,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (async) (promise)\",1]",
+    "[\"test/official/run.js\",465,11,1,\"test\",\"should yield an error when rejected from a transformer (promise)\",1]",
+    "[\"test/official/run.js\",494,11,1,\"test\",\"should yield a tree when resolved from a transformer (promise)\",1]",
+    "[\"test/official/run.js\",515,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (sync) (promise)\",1]",
+    "[\"test/official/run.js\",535,11,1,\"test\",\"should swallow further errors when passed to a transformer’s `next` (async) (promise)\",1]",
+    "[\"test/official/run.js\",557,11,1,\"test\",\"should support `async function`s (promise)\",1]",
+    "[\"test/official/run.js\",6,1,0,\"test\",\"`run`\",1]",
+    "[\"test/official/run-sync.js\",13,11,1,\"test\",\"should throw w/o `tree`\",1]",
+    "[\"test/official/run-sync.js\",21,11,1,\"test\",\"should pass/yield expected values\",1]",
+    "[\"test/official/run-sync.js\",25,11,1,\"test\",\"should throw an error returned from a sync transformer\",1]",
+    "[\"test/official/run-sync.js\",40,11,1,\"test\",\"should yield a tree when returned from a sync transformer\",1]",
+    "[\"test/official/run-sync.js\",56,11,1,\"test\",\"should throw an error when passed to a transformer’s `next` (sync)\",1]",
+    "[\"test/official/run-sync.js\",71,11,1,\"test\",\"should throw and leave an error uncaught when passed to a transformer’s `next` (async)\",1]",
+    "[\"test/official/run-sync.js\",103,11,1,\"test\",\"should yield a tree when passed to a transformer’s `next` (sync)\",1]",
+    "[\"test/official/run-sync.js\",119,11,1,\"test\",\"should throw and ignore a tree when passed to a transformer’s `next` (async)\",1]",
+    "[\"test/official/run-sync.js\",138,11,1,\"test\",\"should throw and leave an error unhandled when rejected from a transformer\",1]",
+    "[\"test/official/run-sync.js\",166,11,1,\"test\",\"should throw and ignore a tree when resolved from a transformer\",1]",
+    "[\"test/official/run-sync.js\",7,1,0,\"test\",\"`runSync`\",1]",
+    "[\"test/official/stringify.js\",14,11,1,\"test\",\"should throw without `compiler`\",1]",
+    "[\"test/official/stringify.js\",20,11,1,\"test\",\"should support a plain function\",1]",
+    "[\"test/official/stringify.js\",33,11,1,\"test\",\"should support an arrow function\",1]",
+    "[\"test/official/stringify.js\",10,1,0,\"test\",\"`stringify`\",1]",
+    "[\"test/official/use.js\",12,11,1,\"test\",\"should ignore no value\",1]",
+    "[\"test/official/use.js\",17,11,1,\"test\",\"should ignore `undefined`\",1]",
+    "[\"test/official/use.js\",22,11,1,\"test\",\"should ignore `null`\",1]",
+    "[\"test/official/use.js\",27,11,1,\"test\",\"should throw when given invalid values (`false`)\",1]",
+    "[\"test/official/use.js\",34,11,1,\"test\",\"should throw when given invalid values (`true`)\",1]",
+    "[\"test/official/use.js\",44,11,1,\"test\",\"should throw when given invalid values (`string`)\",1]",
+    "[\"test/official/use.js\",54,11,1,\"test\",\"should support a plugin\",1]",
+    "[\"test/official/use.js\",69,11,1,\"test\",\"should support a plugin w/ options\",1]",
+    "[\"test/official/use.js\",85,11,1,\"test\",\"should support a list of plugins\",1]",
+    "[\"test/official/use.js\",107,11,1,\"test\",\"should support a list w/ a single plugin\",1]",
+    "[\"test/official/use.js\",124,11,1,\"test\",\"should support a list of tuples and plugins\",1]",
+    "[\"test/official/use.js\",151,11,1,\"test\",\"should throw when given invalid values (`false`) in lists\",1]",
+    "[\"test/official/use.js\",161,11,1,\"test\",\"should throw when given invalid values (`true`) in lists\",1]",
+    "[\"test/official/use.js\",171,11,1,\"test\",\"should throw when given invalid values (`string`) in lists\",1]",
+    "[\"test/official/use.js\",181,11,1,\"test\",\"should attach transformers\",1]",
+    "[\"test/official/use.js\",198,11,1,\"test\",\"should throw when given a preset w/ invalid `plugins` (`false`)\",1]",
+    "[\"test/official/use.js\",208,11,1,\"test\",\"should throw when given a preset w/ invalid `plugins` (`object`)\",1]",
+    "[\"test/official/use.js\",218,11,1,\"test\",\"should throw when given a preset w/o `settings` or `plugins`\",1]",
+    "[\"test/official/use.js\",227,11,1,\"test\",\"should support a preset w/ empty `plugins`\",1]",
+    "[\"test/official/use.js\",232,11,1,\"test\",\"should support a preset w/ empty `settings`\",1]",
+    "[\"test/official/use.js\",237,11,1,\"test\",\"should support a preset w/ a plugin\",1]",
+    "[\"test/official/use.js\",251,11,1,\"test\",\"should support a preset w/ plugins\",1]",
+    "[\"test/official/use.js\",269,11,1,\"test\",\"should support a preset w/ settings\",1]",
+    "[\"test/official/use.js\",279,11,1,\"test\",\"should support presets w/ settings and merge\",1]",
+    "[\"test/official/use.js\",289,11,1,\"test\",\"should support extending presets\",1]",
+    "[\"test/official/use.js\",310,11,1,\"test\",\"should support a preset w/ plugin tuples\",1]",
+    "[\"test/official/use.js\",341,11,1,\"test\",\"should support presets w/ presets\",1]",
+    "[\"test/official/use.js\",370,13,2,\"test\",\"should reconfigure plugins: nothing -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",389,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",408,13,2,\"test\",\"should reconfigure plugins: `null` -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",427,13,2,\"test\",\"should reconfigure plugins: `false` -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",446,13,2,\"test\",\"should reconfigure plugins: `true` -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",465,13,2,\"test\",\"should reconfigure plugins: `string` -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",484,13,2,\"test\",\"should reconfigure plugins: `array` -> `object`, right wins\",1]",
+    "[\"test/official/use.js\",506,13,2,\"test\",\"should reconfigure plugins: `object` -> `object`, merge\",1]",
+    "[\"test/official/use.js\",369,11,1,\"test\",\"reconfigure (to `object`)\",1]",
+    "[\"test/official/use.js\",528,13,2,\"test\",\"should reconfigure plugins: nothing -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",547,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",566,13,2,\"test\",\"should reconfigure plugins: `null` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",585,13,2,\"test\",\"should reconfigure plugins: `false` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",604,13,2,\"test\",\"should reconfigure plugins: `true` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",623,13,2,\"test\",\"should reconfigure plugins: `string` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",642,13,2,\"test\",\"should reconfigure plugins: `array` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",664,13,2,\"test\",\"should reconfigure plugins: `object` -> `array`, right wins\",1]",
+    "[\"test/official/use.js\",527,11,1,\"test\",\"reconfigure (to `array`)\",1]",
+    "[\"test/official/use.js\",688,13,2,\"test\",\"should reconfigure plugins: nothing -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",707,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",726,13,2,\"test\",\"should reconfigure plugins: `null` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",745,13,2,\"test\",\"should reconfigure plugins: `false` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",764,13,2,\"test\",\"should reconfigure plugins: `true` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",783,13,2,\"test\",\"should reconfigure plugins: `string` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",802,13,2,\"test\",\"should reconfigure plugins: `array` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",821,13,2,\"test\",\"should reconfigure plugins: `object` -> `string`, right wins\",1]",
+    "[\"test/official/use.js\",687,11,1,\"test\",\"reconfigure (to `string`)\",1]",
+    "[\"test/official/use.js\",842,13,2,\"test\",\"should reconfigure plugins: nothing -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",861,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",880,13,2,\"test\",\"should reconfigure plugins: `null` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",899,13,2,\"test\",\"should reconfigure plugins: `false` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",918,13,2,\"test\",\"should reconfigure plugins: `true` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",937,13,2,\"test\",\"should reconfigure plugins: `string` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",956,13,2,\"test\",\"should reconfigure plugins: `array` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",975,13,2,\"test\",\"should reconfigure plugins: `object` -> `undefined`, right wins\",1]",
+    "[\"test/official/use.js\",841,11,1,\"test\",\"reconfigure (to `undefined`)\",1]",
+    "[\"test/official/use.js\",996,13,2,\"test\",\"should reconfigure plugins: nothing -> `true`, used\",1]",
+    "[\"test/official/use.js\",1015,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `true`, used\",1]",
+    "[\"test/official/use.js\",1034,13,2,\"test\",\"should reconfigure plugins: `null` -> `true`, used\",1]",
+    "[\"test/official/use.js\",1053,13,2,\"test\",\"should reconfigure plugins: `false` -> `true`, used\",1]",
+    "[\"test/official/use.js\",1072,13,2,\"test\",\"should reconfigure plugins: `true` -> `true`, used\",1]",
+    "[\"test/official/use.js\",1091,13,2,\"test\",\"should reconfigure plugins: `string` -> `true`, used\",1]",
+    "[\"test/official/use.js\",1110,13,2,\"test\",\"should reconfigure plugins: `array` -> `true`, used\",1]",
+    "[\"test/official/use.js\",1129,13,2,\"test\",\"should reconfigure plugins: `object` -> `true`, used\",1]",
+    "[\"test/official/use.js\",995,11,1,\"test\",\"reconfigure (to `true`, to turn on)\",1]",
+    "[\"test/official/use.js\",1150,13,2,\"test\",\"should reconfigure plugins: nothing -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1168,13,2,\"test\",\"should reconfigure plugins: `undefined` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1186,13,2,\"test\",\"should reconfigure plugins: `null` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1204,13,2,\"test\",\"should reconfigure plugins: `false` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1222,13,2,\"test\",\"should reconfigure plugins: `true` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1240,13,2,\"test\",\"should reconfigure plugins: `string` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1258,13,2,\"test\",\"should reconfigure plugins: `array` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1276,13,2,\"test\",\"should reconfigure plugins: `object` -> `false`, not used\",1]",
+    "[\"test/official/use.js\",1149,11,1,\"test\",\"reconfigure (to `false`, to turn off)\",1]",
+    "[\"test/official/use.js\",1296,13,2,\"test\",\"should reconfigure plugins (non-first parameters)\",1]",
+    "[\"test/official/use.js\",1325,13,2,\"test\",\"should keep parameter length (#1)\",1]",
+    "[\"test/official/use.js\",1341,13,2,\"test\",\"should keep parameter length (#2)\",1]",
+    "[\"test/official/use.js\",1357,13,2,\"test\",\"should keep parameter length (#3)\",1]",
+    "[\"test/official/use.js\",1295,11,1,\"test\",\"reconfigure (non-first parameters)\",1]",
+    "[\"test/official/use.js\",5,1,0,\"test\",\"`use`\",1]",
+    "[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]",
+    "[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]",
+    "[\"test/vfile.test.mjs\",14,1,0,\"test\",\"pure Lil VFile keeps constructor, value, and path behavior\",1]",
+    "[\"test/vfile.test.mjs\",39,1,0,\"test\",\"pure Lil VFile matches upstream construction and diagnostics\",1]",
+    "[\"test/vfile.test.mjs\",80,1,0,\"test\",\"pure Lil VFile preserves path validation\",1]",
+    "[\"test/vfile.test.mjs\",97,1,0,\"test\",\"CommonJS exposes the pure Lil VFile subpath\",1]",
+    "[\"test/vfile.test.mjs\",107,1,0,\"test\",\"pure Lil constructors and prototypes match upstream\",1]",
+    "[\"test/vfile.test.mjs\",131,1,0,\"test\",\"pure Lil VFile matches official ordered path options\",1]",
+    "[\"test/vfile.test.mjs\",149,1,0,\"test\",\"pure Lil VFile supports URLs, encodings, and custom fields\",1]",
+    "[\"test/vfile.test.mjs\",163,1,0,\"test\",\"pure Lil VFile diagnostics match official messages\",1]",
+    "[\"test/vfile.test.mjs\",185,1,0,\"test\",\"pure Lil VFile rejects invalid path parts at the same evaluation point\",1]"
+  ]
+}

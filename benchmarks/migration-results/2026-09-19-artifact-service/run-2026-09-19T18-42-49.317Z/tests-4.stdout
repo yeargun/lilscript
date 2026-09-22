@@ -1,0 +1,36 @@
+
+running 31 tests
+test compilation_policy::tests::absent_deadline_has_no_clock_owner_and_large_limits_do_not_overflow ... ok
+test compilation_policy::tests::baseline_entry_guard_checks_phase_and_deadline_without_mutating_allowances ... ok
+test compilation_policy::tests::baseline_first_deadline_seal_failure_and_clone_keep_cleanup_available ... ok
+test compilation_policy::tests::baseline_first_limits_cap_plans_and_reject_unavailable_terminal_reserve ... ok
+test compilation_policy::tests::baseline_first_phase_gates_are_atomic_including_zero_admissions ... ok
+test compilation_policy::tests::baseline_first_fixed_partition_compatibility_and_extreme_caps ... ok
+test compilation_policy::tests::baseline_first_seal_opens_only_actual_remaining_headroom ... ok
+test compilation_policy::tests::baseline_first_terminal_work_is_reserved_before_and_after_seal ... ok
+test compilation_policy::tests::cloned_ledgers_keep_the_compilation_deadline_origin ... ok
+test compilation_policy::tests::deadline_blocks_memory_admission_but_always_allows_cleanup ... ok
+test compilation_policy::tests::deadline_checks_all_work_admissions_without_partial_charges ... ok
+test compilation_policy::tests::deadlines_are_explicit_cooperative_limits ... ok
+test compilation_policy::tests::exact_size_ranking_does_not_quantize_away_real_bytes ... ok
+test compilation_policy::tests::hard_constraints_precede_size_and_explicit_tactic_permissions ... ok
+test compilation_policy::tests::invalid_search_cadences_and_unknown_schedule_controls_are_rejected ... ok
+test compilation_policy::tests::explicit_codec_budgets_are_part_of_the_resolved_identity ... ok
+test compilation_policy::tests::explicit_search_schedules_round_trip_through_the_common_config_owner ... ok
+test compilation_policy::tests::legacy_and_new_permissions_have_the_same_resolved_identity ... ok
+test compilation_policy::tests::legacy_lists_cannot_reenable_off_through_another_producer ... ok
+test compilation_policy::tests::logging_and_boundaries_are_independent_of_effort_and_codec ... ok
+test compilation_policy::tests::stronger_cached_analysis_cannot_leak_into_lower_effort ... ok
+test compilation_policy::tests::unavailable_baseline_and_overflow_fail_without_partial_charges ... ok
+test compilation_policy::tests::version_and_level_boundaries_are_explicit ... ok
+test compilation_policy::tests::native_policy_ignores_javascript_effort_and_build_choices ... ok
+test compilation_policy::tests::search_schedule_defaults_and_partial_configuration_are_resolved_once ... ok
+test compilation_policy::tests::native_policy_has_no_search_objective_or_schedule_identity ... ok
+test compilation_policy::tests::optional_work_and_memory_cannot_consume_the_direct_artifact_reserve ... ok
+test compilation_policy::tests::zero_optional_work_still_has_a_measured_direct_route ... ok
+test compilation_policy::tests::every_schedule_field_changes_the_receipt_without_changing_contract_or_caps ... ok
+test compilation_policy::tests::startup_effort_and_recurring_permissions_are_candidate_specific ... ok
+test compilation_policy::tests::every_tactic_obeys_explicit_off_and_on_without_forcing_a_winner ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 2850 filtered out; finished in 0.02s
+

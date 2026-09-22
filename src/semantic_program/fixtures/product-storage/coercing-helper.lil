@@ -1,0 +1,9 @@
+struct State { int value; int sibling; }
+extern int opaque();
+extern void keep(func()->void replace);
+State state = State{opaque(),1};
+State saved = state;
+keep(()=>{state=State{7,9};});
+auto step=()=>{state.value;return state.value+saved.value;};
+try { print(step()); } catch { print(99); }
+try { print(step()); } catch { print(99); }

@@ -1,0 +1,1454 @@
+{
+  "schemaVersion": 1,
+  "kind": "node-production-tests",
+  "cwd": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil",
+  "args": [
+    "--test",
+    "--test-reporter",
+    "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+    "--test-reporter-destination",
+    "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/motionlil/node/events.jsonl",
+    "test/node.test.mjs",
+    "test/shake.test.mjs",
+    "test/terser.test.mjs",
+    "test/vite.test.mjs"
+  ],
+  "testFiles": [
+    {
+      "path": "test/node.test.mjs",
+      "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+      "bytes": 2992
+    },
+    {
+      "path": "test/shake.test.mjs",
+      "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+      "bytes": 1434
+    },
+    {
+      "path": "test/terser.test.mjs",
+      "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+      "bytes": 1022
+    },
+    {
+      "path": "test/vite.test.mjs",
+      "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+      "bytes": 1190
+    }
+  ],
+  "selection": {
+    "patterns": [
+      "test/node.test.mjs",
+      "test/terser.test.mjs",
+      "test/vite.test.mjs",
+      "test/shake.test.mjs"
+    ],
+    "files": [
+      "test/node.test.mjs",
+      "test/shake.test.mjs",
+      "test/terser.test.mjs",
+      "test/vite.test.mjs"
+    ]
+  },
+  "observer": {
+    "preload": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-inventory-verification/motionlil/node/observe.mjs",
+    "sha256": "b68133bbbda0d2896a992bca9880e460788d215fdfcf256d60c141c6c893b07a",
+    "bytes": 877,
+    "inheritedNodeOptionsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896,
+    "version": "v24.11.1",
+    "supervision": {
+      "timeoutMs": 10000,
+      "killAfterMs": 1000,
+      "maxBuffer": 1048576,
+      "timedOut": false,
+      "childExitObserved": true,
+      "forcedPipeClosure": false,
+      "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+    }
+  },
+  "toolInputs": [
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-evidence.mjs",
+      "sha256": "4c78b92ed0e176a33a1c9f6f25f29b372958dcd6cb7837a7452476899f5cf1f4",
+      "bytes": 12751
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/node-test-reporter.mjs",
+      "sha256": "da8403a6dc2cf01f348fecc065abf40f858941bf4cc846e06aaead9076329c1d",
+      "bytes": 1457
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs",
+      "sha256": "d46d89995c67661bdd6c644803fea0f5383fa1f8479ec9debca728ea08b1a362",
+      "bytes": 1612
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+      "sha256": "f808b265b34ba06d58ab99acf5c004b11745d9daf6031ab991eb4f33b257fb71",
+      "bytes": 15672
+    },
+    {
+      "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "suiteExecuted": true,
+  "fixtureInputs": {
+    "before": [
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+          "bytes": 40337
+        },
+        "actual": {
+          "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+          "bytes": 40337
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+          "bytes": 2558
+        },
+        "actual": {
+          "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+          "bytes": 2558
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+          "bytes": 527
+        },
+        "actual": {
+          "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+          "bytes": 527
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+          "bytes": 8502
+        },
+        "actual": {
+          "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+          "bytes": 8502
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+          "bytes": 1176
+        },
+        "actual": {
+          "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+          "bytes": 1176
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/measure-size.mjs",
+        "expected": {
+          "path": "scripts/measure-size.mjs",
+          "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+          "bytes": 3390
+        },
+        "actual": {
+          "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+          "bytes": 3390
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+          "bytes": 3314
+        },
+        "actual": {
+          "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+          "bytes": 3314
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.css",
+        "expected": {
+          "path": "site/demo.css",
+          "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+          "bytes": 7929
+        },
+        "actual": {
+          "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+          "bytes": 7929
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.html",
+        "expected": {
+          "path": "site/demo.html",
+          "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+          "bytes": 350
+        },
+        "actual": {
+          "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+          "bytes": 350
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.js",
+        "expected": {
+          "path": "site/demo.js",
+          "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+          "bytes": 12210
+        },
+        "actual": {
+          "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+          "bytes": 12210
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+          "bytes": 6112
+        },
+        "actual": {
+          "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+          "bytes": 6112
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+          "bytes": 2968
+        },
+        "actual": {
+          "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+          "bytes": 2968
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+          "bytes": 9071
+        },
+        "actual": {
+          "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+          "bytes": 9071
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/fixtures/vite/index.html",
+        "expected": {
+          "path": "test/fixtures/vite/index.html",
+          "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+          "bytes": 195
+        },
+        "actual": {
+          "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+          "bytes": 195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/fixtures/vite/main.js",
+        "expected": {
+          "path": "test/fixtures/vite/main.js",
+          "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+          "bytes": 231
+        },
+        "actual": {
+          "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+          "bytes": 231
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/node.test.mjs",
+        "expected": {
+          "path": "test/node.test.mjs",
+          "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+          "bytes": 2992
+        },
+        "actual": {
+          "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+          "bytes": 2992
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/shake.test.mjs",
+        "expected": {
+          "path": "test/shake.test.mjs",
+          "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+          "bytes": 1434
+        },
+        "actual": {
+          "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+          "bytes": 1434
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+          "bytes": 3663
+        },
+        "actual": {
+          "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+          "bytes": 3663
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/terser.test.mjs",
+        "expected": {
+          "path": "test/terser.test.mjs",
+          "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+          "bytes": 1022
+        },
+        "actual": {
+          "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+          "bytes": 1022
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/types/consumer.ts",
+        "expected": {
+          "path": "test/types/consumer.ts",
+          "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+          "bytes": 388
+        },
+        "actual": {
+          "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+          "bytes": 388
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/types/tsconfig.json",
+        "expected": {
+          "path": "test/types/tsconfig.json",
+          "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+          "bytes": 240
+        },
+        "actual": {
+          "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+          "bytes": 240
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/vite.test.mjs",
+        "expected": {
+          "path": "test/vite.test.mjs",
+          "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+          "bytes": 1190
+        },
+        "actual": {
+          "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+          "bytes": 1190
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/debug.d.ts",
+        "expected": {
+          "path": "types/debug.d.ts",
+          "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+          "bytes": 80
+        },
+        "actual": {
+          "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+          "bytes": 80
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/dom.d.ts",
+        "expected": {
+          "path": "types/dom.d.ts",
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/full.d.ts",
+        "expected": {
+          "path": "types/full.d.ts",
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/index.d.ts",
+        "expected": {
+          "path": "types/index.d.ts",
+          "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+          "bytes": 12044
+        },
+        "actual": {
+          "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+          "bytes": 12044
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/mini.d.ts",
+        "expected": {
+          "path": "types/mini.d.ts",
+          "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+          "bytes": 2915
+        },
+        "actual": {
+          "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+          "bytes": 2915
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/motion-dom.d.ts",
+        "expected": {
+          "path": "types/motion-dom.d.ts",
+          "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+          "bytes": 204959
+        },
+        "actual": {
+          "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+          "bytes": 204959
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/motion-utils.d.ts",
+        "expected": {
+          "path": "types/motion-utils.d.ts",
+          "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+          "bytes": 5249
+        },
+        "actual": {
+          "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+          "bytes": 5249
+        },
+        "matches": true
+      }
+    ],
+    "afterPrerequisites": [
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+          "bytes": 40337
+        },
+        "actual": {
+          "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+          "bytes": 40337
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+          "bytes": 2558
+        },
+        "actual": {
+          "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+          "bytes": 2558
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+          "bytes": 527
+        },
+        "actual": {
+          "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+          "bytes": 527
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+          "bytes": 8502
+        },
+        "actual": {
+          "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+          "bytes": 8502
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+          "bytes": 1176
+        },
+        "actual": {
+          "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+          "bytes": 1176
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/measure-size.mjs",
+        "expected": {
+          "path": "scripts/measure-size.mjs",
+          "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+          "bytes": 3390
+        },
+        "actual": {
+          "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+          "bytes": 3390
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+          "bytes": 3314
+        },
+        "actual": {
+          "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+          "bytes": 3314
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.css",
+        "expected": {
+          "path": "site/demo.css",
+          "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+          "bytes": 7929
+        },
+        "actual": {
+          "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+          "bytes": 7929
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.html",
+        "expected": {
+          "path": "site/demo.html",
+          "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+          "bytes": 350
+        },
+        "actual": {
+          "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+          "bytes": 350
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.js",
+        "expected": {
+          "path": "site/demo.js",
+          "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+          "bytes": 12210
+        },
+        "actual": {
+          "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+          "bytes": 12210
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+          "bytes": 6112
+        },
+        "actual": {
+          "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+          "bytes": 6112
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+          "bytes": 2968
+        },
+        "actual": {
+          "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+          "bytes": 2968
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+          "bytes": 9071
+        },
+        "actual": {
+          "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+          "bytes": 9071
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/fixtures/vite/index.html",
+        "expected": {
+          "path": "test/fixtures/vite/index.html",
+          "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+          "bytes": 195
+        },
+        "actual": {
+          "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+          "bytes": 195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/fixtures/vite/main.js",
+        "expected": {
+          "path": "test/fixtures/vite/main.js",
+          "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+          "bytes": 231
+        },
+        "actual": {
+          "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+          "bytes": 231
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/node.test.mjs",
+        "expected": {
+          "path": "test/node.test.mjs",
+          "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+          "bytes": 2992
+        },
+        "actual": {
+          "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+          "bytes": 2992
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/shake.test.mjs",
+        "expected": {
+          "path": "test/shake.test.mjs",
+          "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+          "bytes": 1434
+        },
+        "actual": {
+          "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+          "bytes": 1434
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+          "bytes": 3663
+        },
+        "actual": {
+          "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+          "bytes": 3663
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/terser.test.mjs",
+        "expected": {
+          "path": "test/terser.test.mjs",
+          "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+          "bytes": 1022
+        },
+        "actual": {
+          "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+          "bytes": 1022
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/types/consumer.ts",
+        "expected": {
+          "path": "test/types/consumer.ts",
+          "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+          "bytes": 388
+        },
+        "actual": {
+          "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+          "bytes": 388
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/types/tsconfig.json",
+        "expected": {
+          "path": "test/types/tsconfig.json",
+          "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+          "bytes": 240
+        },
+        "actual": {
+          "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+          "bytes": 240
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/vite.test.mjs",
+        "expected": {
+          "path": "test/vite.test.mjs",
+          "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+          "bytes": 1190
+        },
+        "actual": {
+          "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+          "bytes": 1190
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/debug.d.ts",
+        "expected": {
+          "path": "types/debug.d.ts",
+          "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+          "bytes": 80
+        },
+        "actual": {
+          "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+          "bytes": 80
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/dom.d.ts",
+        "expected": {
+          "path": "types/dom.d.ts",
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/full.d.ts",
+        "expected": {
+          "path": "types/full.d.ts",
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/index.d.ts",
+        "expected": {
+          "path": "types/index.d.ts",
+          "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+          "bytes": 12044
+        },
+        "actual": {
+          "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+          "bytes": 12044
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/mini.d.ts",
+        "expected": {
+          "path": "types/mini.d.ts",
+          "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+          "bytes": 2915
+        },
+        "actual": {
+          "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+          "bytes": 2915
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/motion-dom.d.ts",
+        "expected": {
+          "path": "types/motion-dom.d.ts",
+          "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+          "bytes": 204959
+        },
+        "actual": {
+          "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+          "bytes": 204959
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/motion-utils.d.ts",
+        "expected": {
+          "path": "types/motion-utils.d.ts",
+          "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+          "bytes": 5249
+        },
+        "actual": {
+          "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+          "bytes": 5249
+        },
+        "matches": true
+      }
+    ],
+    "final": [
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/package-lock.json",
+        "expected": {
+          "path": "package-lock.json",
+          "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+          "bytes": 40337
+        },
+        "actual": {
+          "sha256": "a3fa09810d8aceab81d2d3b1c21a175c1b0d35c3ff4abb8f10cab9136bc82df4",
+          "bytes": 40337
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/package.json",
+        "expected": {
+          "path": "package.json",
+          "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+          "bytes": 2558
+        },
+        "actual": {
+          "sha256": "cb480afcff3c0b6d5ce8f835efda4a029204d555d85d812a25a0ab22237d2722",
+          "bytes": 2558
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/build-site.mjs",
+        "expected": {
+          "path": "scripts/build-site.mjs",
+          "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+          "bytes": 527
+        },
+        "actual": {
+          "sha256": "0034e7d4020d844c857e2187ffdc9cd8c7cbe36355b0ac10008e7aedf281942b",
+          "bytes": 527
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/build.mjs",
+        "expected": {
+          "path": "scripts/build.mjs",
+          "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+          "bytes": 8502
+        },
+        "actual": {
+          "sha256": "be8865a129a5150c889f6a548414e324e38741fa30764a3a3d584f4382a3d45f",
+          "bytes": 8502
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/check-pack.mjs",
+        "expected": {
+          "path": "scripts/check-pack.mjs",
+          "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+          "bytes": 1176
+        },
+        "actual": {
+          "sha256": "2e5c80bcac562ed4d91518cbb68aebfe930dc2511722b1c8433ae2b937f73741",
+          "bytes": 1176
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/scripts/measure-size.mjs",
+        "expected": {
+          "path": "scripts/measure-size.mjs",
+          "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+          "bytes": 3390
+        },
+        "actual": {
+          "sha256": "bfa4b5a8a7eeeac47d5c166435449ad944e03f98ab0221a6937dc88221d25f9a",
+          "bytes": 3390
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/app.js",
+        "expected": {
+          "path": "site/app.js",
+          "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+          "bytes": 3314
+        },
+        "actual": {
+          "sha256": "f506e4d4a8638c58cad95e1f6268adfeb0e8ebabafc6891372ab3945956d019a",
+          "bytes": 3314
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.css",
+        "expected": {
+          "path": "site/demo.css",
+          "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+          "bytes": 7929
+        },
+        "actual": {
+          "sha256": "ae1e775bb48c901fe31a2975df1e257790396c18bacffaba74945b97c367fd6f",
+          "bytes": 7929
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.html",
+        "expected": {
+          "path": "site/demo.html",
+          "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+          "bytes": 350
+        },
+        "actual": {
+          "sha256": "2f055394b75718b0283462b35ac4e28f456d0e200d85242105efec8bf04ed918",
+          "bytes": 350
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/demo.js",
+        "expected": {
+          "path": "site/demo.js",
+          "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+          "bytes": 12210
+        },
+        "actual": {
+          "sha256": "a3270d803ba82124165ce7983fdefb8265417794fb00adf4dc0116b904cd11ae",
+          "bytes": 12210
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/index.html",
+        "expected": {
+          "path": "site/index.html",
+          "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+          "bytes": 6112
+        },
+        "actual": {
+          "sha256": "58fe4204c410bbf5a32604114f0af32640e2566682fb670702afea58348ac6d1",
+          "bytes": 6112
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/results.json",
+        "expected": {
+          "path": "site/results.json",
+          "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+          "bytes": 2968
+        },
+        "actual": {
+          "sha256": "1954a00b1cc7113db49d40cf1e6c9d5305241eb73375750fd2e24e93fdad6e52",
+          "bytes": 2968
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/site/styles.css",
+        "expected": {
+          "path": "site/styles.css",
+          "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+          "bytes": 9071
+        },
+        "actual": {
+          "sha256": "5c26251782a3743b07b8be9106efe815bd602cba17a9c980ad49042530aab903",
+          "bytes": 9071
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/fixtures/vite/index.html",
+        "expected": {
+          "path": "test/fixtures/vite/index.html",
+          "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+          "bytes": 195
+        },
+        "actual": {
+          "sha256": "f851a9679429695e027997c97e41d70691f769aacd3f246ffe70a5932ad8c353",
+          "bytes": 195
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/fixtures/vite/main.js",
+        "expected": {
+          "path": "test/fixtures/vite/main.js",
+          "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+          "bytes": 231
+        },
+        "actual": {
+          "sha256": "cbcd4050b86dc824d88606c16661085327c1021b6497aa12708cf006407098ff",
+          "bytes": 231
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/node.test.mjs",
+        "expected": {
+          "path": "test/node.test.mjs",
+          "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+          "bytes": 2992
+        },
+        "actual": {
+          "sha256": "0050a2a0374dbe73b40f3418c84049f49fc6c2eeb13b7276b896bdcc2bb03fdb",
+          "bytes": 2992
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/shake.test.mjs",
+        "expected": {
+          "path": "test/shake.test.mjs",
+          "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+          "bytes": 1434
+        },
+        "actual": {
+          "sha256": "ba5eba9ce95c0d743b49bed1179969604c5d88677b7203bac9c05978a3182fcf",
+          "bytes": 1434
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/site.test.mjs",
+        "expected": {
+          "path": "test/site.test.mjs",
+          "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+          "bytes": 3663
+        },
+        "actual": {
+          "sha256": "227cabd5966c047af746e969de925c156c3e5ab756e6038c71d7a43ed9bf63eb",
+          "bytes": 3663
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/terser.test.mjs",
+        "expected": {
+          "path": "test/terser.test.mjs",
+          "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+          "bytes": 1022
+        },
+        "actual": {
+          "sha256": "c917b863e730a47854f94d2bbb77445af460481beb658432a04df001eb8ffb1e",
+          "bytes": 1022
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/types/consumer.ts",
+        "expected": {
+          "path": "test/types/consumer.ts",
+          "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+          "bytes": 388
+        },
+        "actual": {
+          "sha256": "4e77d95f52effe3499708b404763078b16ab3d4445f214e496c299ed294485fe",
+          "bytes": 388
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/types/tsconfig.json",
+        "expected": {
+          "path": "test/types/tsconfig.json",
+          "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+          "bytes": 240
+        },
+        "actual": {
+          "sha256": "ab468ce61bd0075d8629382619fc95e9ad6c5d7b1b80bf1afe37f8f58730d257",
+          "bytes": 240
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/test/vite.test.mjs",
+        "expected": {
+          "path": "test/vite.test.mjs",
+          "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+          "bytes": 1190
+        },
+        "actual": {
+          "sha256": "122f3c70d192a8750af9d6a76e87eed321e6b207b8155033e99a6d537dcfdcdc",
+          "bytes": 1190
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/debug.d.ts",
+        "expected": {
+          "path": "types/debug.d.ts",
+          "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+          "bytes": 80
+        },
+        "actual": {
+          "sha256": "edb741bda7c0d3dfe9bdb4913430cd99c31b6343b4b714d8547c2da19ce28d21",
+          "bytes": 80
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/dom.d.ts",
+        "expected": {
+          "path": "types/dom.d.ts",
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/full.d.ts",
+        "expected": {
+          "path": "types/full.d.ts",
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "actual": {
+          "sha256": "ad07747a3f143dc86c39461d5e5bc0aa022cea07cf709b1725105d969053f508",
+          "bytes": 27
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/index.d.ts",
+        "expected": {
+          "path": "types/index.d.ts",
+          "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+          "bytes": 12044
+        },
+        "actual": {
+          "sha256": "c7a81ca9a016b6db3d116c3c63d88a32ad9bbc5bb00459bff303130937d4d068",
+          "bytes": 12044
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/mini.d.ts",
+        "expected": {
+          "path": "types/mini.d.ts",
+          "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+          "bytes": 2915
+        },
+        "actual": {
+          "sha256": "3da0eba0e97d173532289edb349f2081ac0b36d55c1223608bf26554a879907f",
+          "bytes": 2915
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/motion-dom.d.ts",
+        "expected": {
+          "path": "types/motion-dom.d.ts",
+          "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+          "bytes": 204959
+        },
+        "actual": {
+          "sha256": "9603f05f17df2c7fd1ec3e7654563fa17bec65ae02397a85d67fa869861f5be9",
+          "bytes": 204959
+        },
+        "matches": true
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/types/motion-utils.d.ts",
+        "expected": {
+          "path": "types/motion-utils.d.ts",
+          "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+          "bytes": 5249
+        },
+        "actual": {
+          "sha256": "ffeb91f2c925ded5147acdeaef2b5060a8e48f5c5e528e646ea872f4440bd2be",
+          "bytes": 5249
+        },
+        "matches": true
+      }
+    ]
+  },
+  "supervision": {
+    "timeoutMs": 597613,
+    "killAfterMs": 1000,
+    "maxBuffer": 268435456,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "evidence": {
+    "exitCode": 0,
+    "requiredCases": [],
+    "cases": [
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+        "file": "test/node.test.mjs",
+        "name": "ESM entry points load without a browser global",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+        "file": "test/node.test.mjs",
+        "name": "pure utilities and MotionValue behavior work",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+        "file": "test/node.test.mjs",
+        "name": "CommonJS entry points expose the same public names",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+        "file": "test/node.test.mjs",
+        "name": "every Motion DOM export is present on the full entry",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+        "file": "test/node.test.mjs",
+        "name": "default entry keeps the JS consumer API",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+        "file": "test/node.test.mjs",
+        "name": "public constructor compatibility covers common direct usage",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+        "file": "test/shake.test.mjs",
+        "name": "named imports do not pull the whole consumer graph",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+        "file": "test/terser.test.mjs",
+        "name": "the distributed animate module survives a second Terser pass",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      },
+      {
+        "kind": "test-case",
+        "id": "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]",
+        "file": "test/vite.test.mjs",
+        "name": "Vite bundles the public package entry",
+        "type": "test",
+        "status": "pass",
+        "error": null
+      }
+    ],
+    "requiredArtifacts": [
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.cjs",
+        "sha256": "f1ae8c3d9ea6b5414ae387011aff00695929554c1e52003d6d98ca709aa36929",
+        "bytes": 850
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.js",
+        "sha256": "4720d017c032e85faa88dad2851a49226e25c4c323fabcc450a38bfe64875fbe",
+        "bytes": 504
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.cjs",
+        "sha256": "6bd15300647a033c2da1c581aa0037dbd53d7d5ea3b8d12486fa41f75e5d82d1",
+        "bytes": 182049
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.js",
+        "sha256": "380cdd5984c7736693a31b9cf937f43dde483baffa2d3bff9957552860401398",
+        "bytes": 181724
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.cjs",
+        "sha256": "c8c0f6fe9431a45d78e9e514d9c20f7a9951f9b5d04819a09e26f685799348cc",
+        "bytes": 117367
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.js",
+        "sha256": "93f5cdfe1357d660994a944767a86692ec187e6749e0afe6c720daf82e92da4f",
+        "bytes": 764
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.cjs",
+        "sha256": "8b6d6d550a64f5899571f8051ae7831d7d75b3cb2422b18800dfa5633e4e2e3d",
+        "bytes": 35546
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.js",
+        "sha256": "60a4065d8ae2e68d52ed07e06bb1331e3dec4465518b2e967a394ce4c672b5f0",
+        "bytes": 34800
+      },
+      {
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/motionlil.global.js",
+        "sha256": "ea125fe75d3e173b1954362166871b1bf3443a66ff03c1f7e810d5a1715ea9df",
+        "bytes": 117359
+      }
+    ],
+    "loadedArtifacts": [
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.js",
+        "url": "file:///tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.js",
+        "format": "module",
+        "sha256": "4720d017c032e85faa88dad2851a49226e25c4c323fabcc450a38bfe64875fbe",
+        "bytes": 504,
+        "pid": 483705
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.js",
+        "url": "file:///tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.js",
+        "format": "module",
+        "sha256": "380cdd5984c7736693a31b9cf937f43dde483baffa2d3bff9957552860401398",
+        "bytes": 181724,
+        "pid": 483705
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.js",
+        "url": "file:///tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.js",
+        "format": "module",
+        "sha256": "93f5cdfe1357d660994a944767a86692ec187e6749e0afe6c720daf82e92da4f",
+        "bytes": 764,
+        "pid": 483705
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.js",
+        "url": "file:///tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.js",
+        "format": "module",
+        "sha256": "60a4065d8ae2e68d52ed07e06bb1331e3dec4465518b2e967a394ce4c672b5f0",
+        "bytes": 34800,
+        "pid": 483705
+      },
+      {
+        "schemaVersion": 1,
+        "kind": "node-module-load",
+        "path": "/tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.cjs",
+        "url": "file:///tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/index.cjs",
+        "format": "commonjs",
+        "sha256": "c8c0f6fe9431a45d78e9e514d9c20f7a9951f9b5d04819a09e26f685799348cc",
+        "bytes": 117367,
+        "pid": 483705
+      }
+    ]
+  },
+  "errors": [
+    "required test inventory missing or ambiguous",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/debug.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/full.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/mini.cjs",
+    "production artifact was not tested: /tmp/lilscript-adapter-motionlil-u0hGc4/motionlil/dist/motionlil.global.js"
+  ],
+  "certification": "unverified",
+  "inventoryCandidate": [
+    "[\"test/node.test.mjs\",11,1,0,\"test\",\"ESM entry points load without a browser global\",1]",
+    "[\"test/node.test.mjs\",21,1,0,\"test\",\"pure utilities and MotionValue behavior work\",1]",
+    "[\"test/node.test.mjs\",40,1,0,\"test\",\"CommonJS entry points expose the same public names\",1]",
+    "[\"test/node.test.mjs\",47,1,0,\"test\",\"every Motion DOM export is present on the full entry\",1]",
+    "[\"test/node.test.mjs\",55,1,0,\"test\",\"default entry keeps the JS consumer API\",1]",
+    "[\"test/node.test.mjs\",64,1,0,\"test\",\"public constructor compatibility covers common direct usage\",1]",
+    "[\"test/shake.test.mjs\",31,1,0,\"test\",\"named imports do not pull the whole consumer graph\",1]",
+    "[\"test/terser.test.mjs\",7,1,0,\"test\",\"the distributed animate module survives a second Terser pass\",1]",
+    "[\"test/vite.test.mjs\",12,1,0,\"test\",\"Vite bundles the public package entry\",1]"
+  ]
+}

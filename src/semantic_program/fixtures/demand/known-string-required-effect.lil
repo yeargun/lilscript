@@ -1,0 +1,1 @@
+extern int effect();int marker=effect();string value="left"+"right";print(value);print(marker);

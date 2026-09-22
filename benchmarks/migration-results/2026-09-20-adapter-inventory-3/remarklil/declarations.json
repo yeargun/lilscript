@@ -1,0 +1,246 @@
+{
+  "patterns": [
+    "test/*.test.mjs",
+    "test/official/*.js"
+  ],
+  "nodeArguments": [],
+  "artifacts": [
+    "dist/remark.cjs",
+    "dist/remark.closed.js",
+    "dist/remark.esm.js"
+  ],
+  "fixtures": [
+    {
+      "path": "lilscript.closed.toml",
+      "sha256": "c5c414ff585e90b7a88ec6e0bed61a6b892a5b5e6d8bdf107d60eb21f316856a",
+      "bytes": 437
+    },
+    {
+      "path": "lilscript.toml",
+      "sha256": "a9d868ee0c5b43e335a12d1e67efe7e7315ab2a053cd46996bf6251b7674449e",
+      "bytes": 2632
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "2f93f0da0e9b0cbee86fdccf288da646db0d9852da6e65c46fc3db69075fbae0",
+      "bytes": 61639
+    },
+    {
+      "path": "package.json",
+      "sha256": "fbc1f1f3426cc87b9bced5e5e12968f5ea9a089938801b9c0062c84c5ce03fdc",
+      "bytes": 2581
+    },
+    {
+      "path": "scripts/_dump-baseline.mjs",
+      "sha256": "e8644ea869088d87b4fda1603f6e354c86672133d43a1980e8890c24faee22f7",
+      "bytes": 1063
+    },
+    {
+      "path": "scripts/_dump2.mjs",
+      "sha256": "31713f95886437a57e0dc751f7d06b9d2dee5e2525a9e26984c850e1164645cd",
+      "bytes": 1207
+    },
+    {
+      "path": "scripts/_min.mjs",
+      "sha256": "aceb5d73d74ff8a77e5eedcf2d1a13e3f81b491fe73937262a9ef32782c590a8",
+      "bytes": 466
+    },
+    {
+      "path": "scripts/_mm.mjs",
+      "sha256": "e3cefcca7984315f82acb3af8142e85894c6f1ed89ce67b4caf75ee95c727535",
+      "bytes": 717
+    },
+    {
+      "path": "scripts/_mm2.mjs",
+      "sha256": "aec7ff2d2f15a71aa672b3f425a48e7853c9a88d35a2cfe3576bb8222eaceac3",
+      "bytes": 1382
+    },
+    {
+      "path": "scripts/_mm3.mjs",
+      "sha256": "045c26ade6d0648005e3fc9e6084fb33ec5a60489fc02d20dbbffabd5e578cd4",
+      "bytes": 1305
+    },
+    {
+      "path": "scripts/_mmcheck.mjs",
+      "sha256": "8ffa578edd5b805f5454da861a51255c9cf11f49fa717c15f556c0dc970b801d",
+      "bytes": 657
+    },
+    {
+      "path": "scripts/_norm.mjs",
+      "sha256": "bcf4589c4c42326f1dbbda44fea95c4bf111cba2426b61a98bb784785cd2c96e",
+      "bytes": 887
+    },
+    {
+      "path": "scripts/_rm3.mjs",
+      "sha256": "d5a36bab70e11dcbf396dc1af174401c9c3a884b9346aaeef696fc7baf954ee2",
+      "bytes": 961
+    },
+    {
+      "path": "scripts/_terser-ours.mjs",
+      "sha256": "52aa4892a7e64d87475f129d4a633e509e0550363ffecd0e98faae9f204b5a07",
+      "bytes": 938
+    },
+    {
+      "path": "scripts/build-site.mjs",
+      "sha256": "ae1107a8d636e2e5a8a9e6aae3054e7d6a648fd82357f2537f8ab0a17b247a3a",
+      "bytes": 944
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "47f469e8c6bad078062aa11562ba2b7d49b1db26c555853f29499fc71a0eefad",
+      "bytes": 3841
+    },
+    {
+      "path": "scripts/check-pack.mjs",
+      "sha256": "61e0eb34d172ff7767364237afcb0479cda8b7c00b2172ee12ef4c8e2070dab6",
+      "bytes": 1537
+    },
+    {
+      "path": "scripts/measure-graph.mjs",
+      "sha256": "5ddb34dedd411993e55f942d185154d49c8f09f8705bddbfa99dcaf2cddd42d9",
+      "bytes": 2728
+    },
+    {
+      "path": "scripts/shared-sources.mjs",
+      "sha256": "10af46803bef0bf23bba285aea7fb88151eae8bc11a044b6831818f8ea35008e",
+      "bytes": 1376
+    },
+    {
+      "path": "site/app.js",
+      "sha256": "39d53c01a4c4fa1a82827c5f661c41817ea47267cdbc97b5247c03921bfee4c8",
+      "bytes": 14889
+    },
+    {
+      "path": "site/index.html",
+      "sha256": "0f10c1719af39713ec4f20912a1de2f4a8ab6f7cba53f172cd433717023d2da1",
+      "bytes": 9183
+    },
+    {
+      "path": "site/official.js",
+      "sha256": "e53800e9b7f67ff8f2d2ea822ac68f49958e35a6d5197114aa6800bc6e82f904",
+      "bytes": 290887
+    },
+    {
+      "path": "site/results.json",
+      "sha256": "e0148728f5f138eeaa55ffa4cf18e834812407e8b63ddcbd6f8f1a78e92f3ced",
+      "bytes": 2597
+    },
+    {
+      "path": "site/styles.css",
+      "sha256": "890d7a4a8faa83d04a1078d013b2558a2ec7bb38f4d23f44eb23deeb8fc8a82a",
+      "bytes": 11136
+    },
+    {
+      "path": "test/api.test.mjs",
+      "sha256": "86ac5a2306e800d712bb10b4aca6aa0c01d4bffd221128206dfe69454a706dc2",
+      "bytes": 4097
+    },
+    {
+      "path": "test/closed.test.mjs",
+      "sha256": "23bb4c7ce5d743c831611985cf12f81d8fd4a35bf34378817287c45a1326ac45",
+      "bytes": 774
+    },
+    {
+      "path": "test/differential.test.mjs",
+      "sha256": "b1b95c4215cd160f450b8a5423295b8ee8ccac9fea3130d9e25436be6485a1e9",
+      "bytes": 2063
+    },
+    {
+      "path": "test/graph.test.mjs",
+      "sha256": "27ae2a18c39336029bda682928dae572603da6a5d2bce5e1ef6327f083afe2fb",
+      "bytes": 576
+    },
+    {
+      "path": "test/official.test.mjs",
+      "sha256": "259b9c86acc566a4739318316de99c72eaa6551630efa3273fda75b5ab34ec2b",
+      "bytes": 1680
+    },
+    {
+      "path": "test/official/remark.js",
+      "sha256": "2f4a7bbe867a7f09c10d6bcc0e39f239d34ca13fcc8d580cf7ae4f42f7ddffd0",
+      "bytes": 5487
+    },
+    {
+      "path": "test/official/to-markdown.js",
+      "sha256": "d78877a96bfa9fd62e3fa8c438fef36913cfa71272b3586a0b3cbddea3d9239b",
+      "bytes": 124840
+    },
+    {
+      "path": "test/site.test.mjs",
+      "sha256": "24e19aaa7f15751019cc16bbafc69c75ccd997266fa6358b7080bb3b6af47c2c",
+      "bytes": 961
+    },
+    {
+      "path": "test/specs/commonmark.0.31.2.json",
+      "sha256": "d820486441d6ec364781bca6dd32c7bc47976c9e5582e4b00bb41387df6d91bd",
+      "bytes": 140872
+    },
+    {
+      "path": "test/specs/gfm.0.29.json",
+      "sha256": "ec4acacbd3198a9086a9d95d1b2516a87d0f8ab457a0c545886a3d45a9e8da55",
+      "bytes": 8884
+    },
+    {
+      "path": "test/types.test.ts",
+      "sha256": "297a22b272f57ec5412a0708d8b5858788a3de39fefac0e335e2e99169fb2dea",
+      "bytes": 413
+    },
+    {
+      "path": "types/remark.d.ts",
+      "sha256": "d4b59f6cf6f393aa9e6edf6ae27997904e82bc478f37ab8ddb092b402c7441ce",
+      "bytes": 867
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "original-check:sources",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "check:sources"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "fbc1f1f3426cc87b9bced5e5e12968f5ea9a089938801b9c0062c84c5ce03fdc",
+          "bytes": 2581
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "2f93f0da0e9b0cbee86fdccf288da646db0d9852da6e65c46fc3db69075fbae0",
+          "bytes": 61639
+        }
+      ]
+    },
+    {
+      "id": "original-test:types",
+      "executable": {
+        "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7",
+        "bytes": 54
+      },
+      "args": [
+        "run",
+        "test:types"
+      ],
+      "timeoutMs": 180000,
+      "inputs": [
+        {
+          "path": "package.json",
+          "sha256": "fbc1f1f3426cc87b9bced5e5e12968f5ea9a089938801b9c0062c84c5ce03fdc",
+          "bytes": 2581
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "2f93f0da0e9b0cbee86fdccf288da646db0d9852da6e65c46fc3db69075fbae0",
+          "bytes": 61639
+        }
+      ]
+    }
+  ]
+}

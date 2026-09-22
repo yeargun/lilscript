@@ -1,0 +1,1 @@
+const reads=[];globalThis.keep=f=>reads.push(f);globalThis.saved=i=>reads[i]();

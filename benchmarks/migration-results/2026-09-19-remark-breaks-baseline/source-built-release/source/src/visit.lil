@@ -1,0 +1,84 @@
+import { childCount, copyParents, stringField } from "./host.lil";
+
+JsValue emptyResult() {
+  return JS.object("action", JS.undefined(), "offset", JS.undefined());
+}
+
+JsValue toResult(JsValue value) {
+  if (JS.isArray(value)) {
+    JsValue action = JS.undefined();
+    JsValue offset = JS.undefined();
+    if (childCount(value) > 0) {
+      action = value[0];
+    }
+    if (childCount(value) > 1) {
+      offset = value[1];
+    }
+    return JS.object("action", action, "offset", offset);
+  }
+  if (JS.typeOf(value) == "number") {
+    return JS.object("action", true, "offset", value);
+  }
+  if (JS.isUndefined(value) || JS.isNullish(value)) {
+    return emptyResult();
+  }
+  return JS.object("action", value, "offset", JS.undefined());
+}
+
+bool isExit(JsValue result) {
+  JsValue action = JS.get(result, "action");
+  if (action is bool) {
+    return !action;
+  }
+  return false;
+}
+
+bool isSkip(JsValue result) {
+  JsValue action = JS.get(result, "action");
+  if (action is string) {
+    return action == "skip";
+  }
+  return false;
+}
+
+bool typeMatches(JsValue node, string testType) {
+  if (testType.length == 0) {
+    return true;
+  }
+  return stringField(node, "type") == testType;
+}
+
+JsValue walk(JsValue node, int index, JsValue parents, string testType, JsValue visitor) {
+  JsValue result = emptyResult();
+  if (typeMatches(node, testType)) {
+    result = toResult(JS.call(visitor, JS.undefined(), node, parents));
+    if (isExit(result)) {
+      return result;
+    }
+  }
+  JsValue kids = JS.get(node, "children");
+  if (JS.isArray(kids) && !isSkip(result)) {
+    JsValue grandparents = copyParents(parents, node);
+    int offset = 0;
+    int n = childCount(kids);
+    while (offset >= 0 && offset < n) {
+      JsValue child = kids[offset];
+      JsValue sub = walk(child, offset, grandparents, testType, visitor);
+      if (isExit(sub)) {
+        return sub;
+      }
+      JsValue next = JS.get(sub, "offset");
+      if (JS.typeOf(next) == "number") {
+        offset = JS.number(next).toInt();
+      } else {
+        offset = offset + 1;
+      }
+      n = childCount(kids);
+    }
+  }
+  return result;
+}
+
+export void visitParents(JsValue tree, string testType, JsValue visitor) {
+  walk(tree, -1, JS.array(), testType, visitor);
+}

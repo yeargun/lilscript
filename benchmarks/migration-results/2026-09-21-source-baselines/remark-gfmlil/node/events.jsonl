@@ -1,0 +1,30 @@
+{"kind":"test-case","id":"[\"test/api.test.mjs\",23,3,1,\"test\",\"exposes the upstream public API\",1]","file":"test/api.test.mjs","name":"exposes the upstream public API","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",30,3,1,\"test\",\"registers micromark and mdast extensions\",1]","file":"test/api.test.mjs","name":"registers micromark and mdast extensions","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",44,3,1,\"test\",\"forwards options into the GFM combiners\",1]","file":"test/api.test.mjs","name":"forwards options into the GFM combiners","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",51,3,1,\"test\",\"works through processor.use(plugin, options)\",1]","file":"test/api.test.mjs","name":"works through processor.use(plugin, options)","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",60,3,1,\"test\",\"does not start an email autolink after escaped atext\",1]","file":"test/api.test.mjs","name":"does not start an email autolink after escaped atext","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/api.test.mjs\",22,1,0,\"suite\",\"@itslil/remark-gfm\",1]","file":"test/api.test.mjs","name":"@itslil/remark-gfm","type":"suite","status":"fail","error":"1 subtest failed"}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",11,3,1,\"test\",\"ships a closed artifact whose exports stay callable\",1]","file":"test/closed.test.mjs","name":"ships a closed artifact whose exports stay callable","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/closed.test.mjs\",10,1,0,\"suite\",\"@itslil/remark-gfm closed lane\",1]","file":"test/closed.test.mjs","name":"@itslil/remark-gfm closed lane","type":"suite","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",16,11,1,\"test\",\"should expose the public api\",1]","file":"test/official/index.js","name":"should expose the public api","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",22,11,1,\"test\",\"should not throw if not passed options\",1]","file":"test/official/index.js","name":"should not throw if not passed options","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",15,1,0,\"test\",\"remarkGfm\",1]","file":"test/official/index.js","name":"remarkGfm","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"autolink-literal\",1]","file":"test/official/index.js","name":"autolink-literal","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-default\",1]","file":"test/official/index.js","name":"strikethrough-default","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"strikethrough-not-one\",1]","file":"test/official/index.js","name":"strikethrough-not-one","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"table\",1]","file":"test/official/index.js","name":"table","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"table-no-align\",1]","file":"test/official/index.js","name":"table-no-align","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"table-no-padding\",1]","file":"test/official/index.js","name":"table-no-padding","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"table-string-length\",1]","file":"test/official/index.js","name":"table-string-length","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",40,13,1,\"test\",\"tasklist\",1]","file":"test/official/index.js","name":"tasklist","type":"test","status":"fail","error":"Cannot read properties of undefined (reading 'call')"}
+{"kind":"test-case","id":"[\"test/official/index.js\",29,1,0,\"test\",\"fixtures\",1]","file":"test/official/index.js","name":"fixtures","type":"test","status":"fail","error":"8 subtests failed"}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",10,3,1,\"test\",\"has a markedlil-style lab with receipts\",1]","file":"test/site.test.mjs","name":"has a markedlil-style lab with receipts","type":"test","status":"pass","error":null}
+{"kind":"test-case","id":"[\"test/site.test.mjs\",9,1,0,\"suite\",\"site\",1]","file":"test/site.test.mjs","name":"site","type":"suite","status":"pass","error":null}
+{"kind":"diagnostic","event":"test:diagnostic","message":"tests 19"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"suites 3"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"pass 9"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"fail 10"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"cancelled 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"skipped 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"todo 0"}
+{"kind":"diagnostic","event":"test:diagnostic","message":"duration_ms 196.988353"}

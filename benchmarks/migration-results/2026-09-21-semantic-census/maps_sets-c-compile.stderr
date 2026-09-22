@@ -1,0 +1,11 @@
+error: direct module checking does not yet support class or enum declarations
+ --> /home/azureuser/lilscript/tests/cases/maps_sets.lil:1:1
+  |
+ 1 | class Token {
+  int id;
+
+  init(int id) {
+    this.id = id;
+  }
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

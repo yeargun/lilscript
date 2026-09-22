@@ -27,6 +27,14 @@ native JavaScript completion order is preserved: `finally` runs for normal and a
 completion and may replace the earlier completion. Catch values are `JsValue`; no
 error-record shape is assumed.
 
+[Compiler design D3](../../compiler-design.md#decisions-and-scope) proposes that
+implementation-specific resource-exhaustion timing may differ after optimization,
+while ordinary throws/argument errors, host effects and divergence remain observable.
+Its exact wording and cross-target obligations are settled in
+[step 002](../../migration/index.md#002-language-and-public-boundaries).
+This proposal is not permission to remove ordinary exceptions or perform unbounded
+evaluation, and does not establish current backend enforcement.
+
 ## Compiler boundary
 
 Ordinary reducible flow enters SSA with explicit phis and structure metadata. The JS

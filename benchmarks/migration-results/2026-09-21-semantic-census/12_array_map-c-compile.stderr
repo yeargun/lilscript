@@ -1,0 +1,5 @@
+error: unsupported semantic source: missing checked call signature
+ --> /home/azureuser/lilscript/tests/cases/12_array_map.lil:2:15
+  |
+ 2 | auto mapped = values.map((int value) => value * value);
+  |               ^^^^^^^^^^

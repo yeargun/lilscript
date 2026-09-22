@@ -1,0 +1,383 @@
+[
+  {
+    "label": "direct",
+    "scores": [
+      [
+        "Raw",
+        74
+      ],
+      [
+        "Gzip",
+        77
+      ],
+      [
+        "Brotli",
+        61
+      ]
+    ],
+    "search": {
+      "request": {
+        "objectives": [
+          "Raw",
+          "Gzip",
+          "Brotli"
+        ],
+        "scalar": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "helper": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "string": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "local_facts": {
+          "work": 1000000,
+          "result_bytes": 512000
+        },
+        "facts_cache": {
+          "entries": 128,
+          "bytes": 16000000,
+          "result_bytes": 512000
+        }
+      },
+      "proposals": 0,
+      "structures": 1,
+      "renders": 1,
+      "codec_probes": 0,
+      "proof_queries": 0,
+      "beam_evictions": 0,
+      "admitted_artifacts": 1,
+      "stop": null
+    },
+    "medianCaseWallNs": {
+      "off": 1399112,
+      "on": 1409290
+    },
+    "phases": [
+      {
+        "name": "js_demand",
+        "calls": 1,
+        "medianNs": 17403,
+        "minNs": 15018,
+        "maxNs": 19847
+      },
+      {
+        "name": "js_formation",
+        "calls": 1,
+        "medianNs": 24315,
+        "minNs": 20559,
+        "maxNs": 26189
+      },
+      {
+        "name": "target_verify",
+        "calls": 1,
+        "medianNs": 2374,
+        "minNs": 2314,
+        "maxNs": 4127
+      },
+      {
+        "name": "target_edition",
+        "calls": 1,
+        "medianNs": 60,
+        "minNs": 60,
+        "maxNs": 70
+      },
+      {
+        "name": "target_basis",
+        "calls": 1,
+        "medianNs": 1703,
+        "minNs": 1613,
+        "maxNs": 1744
+      },
+      {
+        "name": "target_names",
+        "calls": 1,
+        "medianNs": 4328,
+        "minNs": 2926,
+        "maxNs": 4719
+      },
+      {
+        "name": "target_print",
+        "calls": 1,
+        "medianNs": 4498,
+        "minNs": 3076,
+        "maxNs": 7605
+      },
+      {
+        "name": "canonical_gzip",
+        "calls": 1,
+        "medianNs": 88555,
+        "minNs": 85058,
+        "maxNs": 115686
+      },
+      {
+        "name": "canonical_brotli",
+        "calls": 1,
+        "medianNs": 772151,
+        "minNs": 723250,
+        "maxNs": 807778
+      }
+    ]
+  },
+  {
+    "label": "naming",
+    "scores": [
+      [
+        "Raw",
+        74
+      ],
+      [
+        "Gzip",
+        77
+      ],
+      [
+        "Brotli",
+        61
+      ]
+    ],
+    "search": {
+      "request": {
+        "objectives": [
+          "Raw",
+          "Gzip",
+          "Brotli"
+        ],
+        "scalar": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "helper": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "string": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "local_facts": {
+          "work": 1000000,
+          "result_bytes": 512000
+        },
+        "facts_cache": {
+          "entries": 128,
+          "bytes": 16000000,
+          "result_bytes": 512000
+        }
+      },
+      "proposals": 2,
+      "structures": 1,
+      "renders": 3,
+      "codec_probes": 2,
+      "proof_queries": 0,
+      "beam_evictions": 0,
+      "admitted_artifacts": 3,
+      "stop": null
+    },
+    "medianCaseWallNs": {
+      "off": 1589157,
+      "on": 1582654
+    },
+    "phases": [
+      {
+        "name": "js_demand",
+        "calls": 1,
+        "medianNs": 11130,
+        "minNs": 11071,
+        "maxNs": 11382
+      },
+      {
+        "name": "js_formation",
+        "calls": 1,
+        "medianNs": 14997,
+        "minNs": 14848,
+        "maxNs": 15198
+      },
+      {
+        "name": "target_verify",
+        "calls": 2,
+        "medianNs": 4438,
+        "minNs": 4089,
+        "maxNs": 4970
+      },
+      {
+        "name": "target_edition",
+        "calls": 2,
+        "medianNs": 111,
+        "minNs": 91,
+        "maxNs": 120
+      },
+      {
+        "name": "target_basis",
+        "calls": 2,
+        "medianNs": 2977,
+        "minNs": 2725,
+        "maxNs": 3236
+      },
+      {
+        "name": "target_names",
+        "calls": 3,
+        "medianNs": 7064,
+        "minNs": 6502,
+        "maxNs": 8417
+      },
+      {
+        "name": "target_print",
+        "calls": 3,
+        "medianNs": 6934,
+        "minNs": 6652,
+        "maxNs": 7343
+      },
+      {
+        "name": "canonical_gzip",
+        "calls": 2,
+        "medianNs": 63269,
+        "minNs": 58329,
+        "maxNs": 64760
+      },
+      {
+        "name": "canonical_brotli",
+        "calls": 2,
+        "medianNs": 1202996,
+        "minNs": 1196163,
+        "maxNs": 1253710
+      }
+    ]
+  },
+  {
+    "label": "structural",
+    "scores": [
+      [
+        "Raw",
+        243
+      ],
+      [
+        "Gzip",
+        167
+      ],
+      [
+        "Brotli",
+        143
+      ]
+    ],
+    "search": {
+      "request": {
+        "objectives": [
+          "Raw",
+          "Gzip",
+          "Brotli"
+        ],
+        "scalar": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "helper": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "string": {
+          "work": 2000000,
+          "scratch_bytes": 4000000,
+          "output_bytes": 2000000
+        },
+        "local_facts": {
+          "work": 1000000,
+          "result_bytes": 512000
+        },
+        "facts_cache": {
+          "entries": 128,
+          "bytes": 16000000,
+          "result_bytes": 512000
+        }
+      },
+      "proposals": 17,
+      "structures": 6,
+      "renders": 18,
+      "codec_probes": 34,
+      "proof_queries": 5,
+      "beam_evictions": 4,
+      "admitted_artifacts": 18,
+      "stop": null
+    },
+    "medianCaseWallNs": {
+      "off": 16622708,
+      "on": 16536086
+    },
+    "phases": [
+      {
+        "name": "js_demand",
+        "calls": 6,
+        "medianNs": 317794,
+        "minNs": 314608,
+        "maxNs": 353011
+      },
+      {
+        "name": "js_formation",
+        "calls": 6,
+        "medianNs": 296725,
+        "minNs": 291825,
+        "maxNs": 299151
+      },
+      {
+        "name": "target_verify",
+        "calls": 7,
+        "medianNs": 33894,
+        "minNs": 32220,
+        "maxNs": 34174
+      },
+      {
+        "name": "target_edition",
+        "calls": 7,
+        "medianNs": 410,
+        "minNs": 402,
+        "maxNs": 540
+      },
+      {
+        "name": "target_basis",
+        "calls": 7,
+        "medianNs": 20019,
+        "minNs": 19747,
+        "maxNs": 20388
+      },
+      {
+        "name": "target_names",
+        "calls": 18,
+        "medianNs": 126824,
+        "minNs": 123687,
+        "maxNs": 127829
+      },
+      {
+        "name": "target_print",
+        "calls": 18,
+        "medianNs": 97079,
+        "minNs": 94266,
+        "maxNs": 98934
+      },
+      {
+        "name": "canonical_gzip",
+        "calls": 18,
+        "medianNs": 414561,
+        "minNs": 412888,
+        "maxNs": 442465
+      },
+      {
+        "name": "canonical_brotli",
+        "calls": 18,
+        "medianNs": 14635859,
+        "minNs": 14501969,
+        "maxNs": 14902259
+      }
+    ]
+  }
+]

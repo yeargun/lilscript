@@ -1,0 +1,4 @@
+extern JsValue object();extern int argument();extern int invoke(func()->int action);
+export JsValue reference(){return object()["go"](argument());}
+export JsValue value(){JsValue obj=object();auto detached=obj["go"];return detached(argument());}
+export int snapshot(){auto callee=(int value)=>value+1;return callee(invoke(()=>{callee=(int value)=>value+100;return 5;}));}

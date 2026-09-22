@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "kind": "rest-capture-focused-evidence-audit",
+  "inputs": "504cd39f6d3aff54c89c79f7408e6cd4810e4230656b9c32fa0f2d2ec9b7a813",
+  "inputCount": 975,
+  "runs": [
+    {
+      "run": "run-2026-09-19T21-29-13.790Z",
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/receipt.json",
+        "sha256": "52aa9ee69c62c38b23c1badbe40d41b64bc619fb055811e4272d718bbcfc777d",
+        "bytes": 12412
+      },
+      "inputs": "50a0b9a034496d0435200ad2ff4b7e0ac57024ecca60c9264450c9ee0d0250f8",
+      "count": 10,
+      "tests": [
+        "compiler::rest_capture_tests::rest_argument_alias_keeps_nested_mutation_and_invocation_identity_at_emission",
+        "compiler::rest_capture_tests::rest_argument_alias_keeps_nested_mutation_and_invocation_identity_in_configured_pipeline",
+        "codegen_ir_js::tests::preserves_captured_arguments_by_aliasing_the_arguments_object",
+        "codegen_ir_js::tests::preserves_captured_receiver_by_aliasing_this",
+        "codegen_ir_js::tests::preserves_adapter_for_stored_or_mutably_captured_replaced_parameters",
+        "codegen_ir_js::tests::specializes_rest_binders_to_native_arguments_without_allocating_arrays",
+        "codegen_ir_js::tests::keeps_js_method_binders_for_shared_function_targets",
+        "codegen_ir_js::tests::transitive_nested_shadowing_keeps_rest_formals_off_defaulted_locals",
+        "codegen_ir_js::tests::nested_body_still_reads_the_outer_binding_an_inner_local_must_not_steal",
+        "compiler::tests::inner_temps_do_not_clobber_module_bindings_used_as_exports"
+      ],
+      "outputs": [
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/build-tests.stderr",
+          "sha256": "c471bf12580eeca4e77148701a2402796c5ad06e809801a06d5148fe265480fc",
+          "bytes": 132
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/build-tests.stdout",
+          "sha256": "c8929fc58fd69e6b566b01af834dd16328e637e8093ab0de7faaac2d40c22e7c",
+          "bytes": 178163
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/inputs-after.json",
+          "sha256": "c3f4e05cceaf47e628f35efbd0d66c82de843560364edee490b4818a3d2df410",
+          "bytes": 176713
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/inputs-before.json",
+          "sha256": "c3f4e05cceaf47e628f35efbd0d66c82de843560364edee490b4818a3d2df410",
+          "bytes": 176713
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/receipt.json",
+          "sha256": "52aa9ee69c62c38b23c1badbe40d41b64bc619fb055811e4272d718bbcfc777d",
+          "bytes": 12412
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-0.stdout",
+          "sha256": "b6f1d0b30cf3e4cd7ff6957d508aa71b49515162c5bd4b20de37a49d30868221",
+          "bytes": 367
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-1.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-1.stdout",
+          "sha256": "97b7065b16c7f96b0f7305d33e92ed95fb486351a330e5a9aca11d65015fc847",
+          "bytes": 291
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-2.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-2.stdout",
+          "sha256": "cbb93580db54b8e431ea59463944dafd15832252dc184991930a41698106e7aa",
+          "bytes": 218
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-3.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-3.stdout",
+          "sha256": "92ddb5cce247aed1918536cc6a4e630f19114be306ec3a8aefac970ee0c249ba",
+          "bytes": 220
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-4.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-4.stdout",
+          "sha256": "0f88ea478f5f7141557f18044200bb7d1c8a1d437db35e0d6be2bc32078efef1",
+          "bytes": 201
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-5.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-5.stdout",
+          "sha256": "a359030d261c38712f479533d3846aab2b01cad18efef113596929173da97949",
+          "bytes": 217
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-6.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-6.stdout",
+          "sha256": "7ad6803f98257514a6319f564cf28c9093ac2f5236b8ccd8dcc37e24c5c2634a",
+          "bytes": 221
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-7.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-29-13.790Z/tests-7.stdout",
+          "sha256": "1f5c09ed630e80b5bf9ff4d8a26fe2317dc6c7180f4bd75760c3a3ba2c5b2d4a",
+          "bytes": 203
+        }
+      ],
+      "archivedTestSource": {
+        "path": "../../../tmp/lilscript-rest-capture-before-20260919/static-capture-tests.rs",
+        "sha256": "9037f4cf413573d17b889f69431972ea4598e53741da122940f2c1da7f7a5197",
+        "bytes": 4571
+      }
+    },
+    {
+      "run": "run-2026-09-19T21-31-59.442Z",
+      "receipt": {
+        "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/receipt.json",
+        "sha256": "976301c525f05fb4466ef8505a29eb689d4a7d999e20b2b6edfa46d9971eaee2",
+        "bytes": 5808
+      },
+      "inputs": "504cd39f6d3aff54c89c79f7408e6cd4810e4230656b9c32fa0f2d2ec9b7a813",
+      "count": 2,
+      "tests": [
+        "compiler::rest_capture_tests::rest_argument_alias_keeps_nested_mutation_and_invocation_identity_at_emission",
+        "compiler::rest_capture_tests::rest_argument_alias_keeps_nested_mutation_and_invocation_identity_in_configured_pipeline"
+      ],
+      "outputs": [
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/build-tests.stderr",
+          "sha256": "1f66842619bf42334662fc5313764ea449fc072c658ee4da50a6fdb9f3c76609",
+          "bytes": 132
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/build-tests.stdout",
+          "sha256": "adf0f40aa314c5fe7395db03a4efa886101c9add0e823a8bf33b270a0cd4c973",
+          "bytes": 178163
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/cargo-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/cargo-version.stdout",
+          "sha256": "fb3f25aefd6d5441842d285f5a9b125b3f0f0b0bf2013d9a32677f9e99c6c854",
+          "bytes": 36
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/cc-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/cc-version.stdout",
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "bytes": 245
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/inputs-after.json",
+          "sha256": "04f6ebbec0ea6452394c87b4a10c4c4474b34eb4e54e8852736f29c48add74a0",
+          "bytes": 176713
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/inputs-before.json",
+          "sha256": "04f6ebbec0ea6452394c87b4a10c4c4474b34eb4e54e8852736f29c48add74a0",
+          "bytes": 176713
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/node-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/node-version.stdout",
+          "sha256": "748eb133647756c1f6659600e99aef70247f4e62e6e86390400e67967fb69e52",
+          "bytes": 9
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/receipt.json",
+          "sha256": "976301c525f05fb4466ef8505a29eb689d4a7d999e20b2b6edfa46d9971eaee2",
+          "bytes": 5808
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/rust-version.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/rust-version.stdout",
+          "sha256": "3975d062e234a9f3921955bf6ae5b90f5819df94fa825d057f76b34a35ed0f4d",
+          "bytes": 196
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/tests-0.stderr",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-19T21-31-59.442Z/tests-0.stdout",
+          "sha256": "07d934024d84baa006e86669756c244c2fac2a6d6a90aff4a43e2c6237e13d86",
+          "bytes": 367
+        }
+      ],
+      "changedSinceStatic": [
+        "src/compiler_rest_capture_tests.rs"
+      ],
+      "preservedBinary": {
+        "path": "../../../tmp/lilscript-rest-capture-baseline-20260919/lilscript-c737e884cfca95f9",
+        "sha256": "8f2cc1d61241e7343aa6c3ddfb157f9e0a0c789ccde9c0a528954611ef8cfc50",
+        "bytes": 414235016
+      }
+    }
+  ],
+  "changedSinceC3": [
+    "src/compiler_rest_capture_tests.rs",
+    "src/compiler.rs"
+  ],
+  "passed": true
+}

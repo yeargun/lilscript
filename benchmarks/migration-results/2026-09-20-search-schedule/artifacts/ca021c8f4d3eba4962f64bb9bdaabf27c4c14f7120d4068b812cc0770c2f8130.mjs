@@ -1,0 +1,1 @@
+let first;let second;let run;let side;first=function(a){return (a&512)+ 3;};let a=first;second=function(a){return a&255^65;};let b=second;run=function(c){return a(c)+ b(c)|0;};let c=run;side=function(a){let b;let c;let d;c=(b=a,d=b,d&65^12);return c;};let d=side;export{c as run,d as side};

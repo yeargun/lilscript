@@ -1,0 +1,334 @@
+{
+  "complete": true,
+  "edit_ratio_summary": {
+    "geometric_mean": 0.7979892447977555,
+    "max": 0.7979892447977555,
+    "median": 0.7979892447977555,
+    "min": 0.7979892447977555,
+    "scope": "Observed paired samples; no confidence interval or speed gate is inferred."
+  },
+  "issues": [],
+  "pairs": [
+    {
+      "advance_over_retain_edit_time": 0.7979892447977555,
+      "advance_over_retain_peak_rss": 1.0172278778386845,
+      "ordinal": 0,
+      "qualified": true
+    }
+  ],
+  "qualified": true,
+  "runs": [
+    {
+      "artifacts": [
+        [
+          "baseline",
+          "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        ],
+        [
+          "retained-branch",
+          "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        ],
+        [
+          "final",
+          "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        ],
+        [
+          "retained-branch-recheck",
+          "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        ],
+        [
+          "baseline-recheck",
+          "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        ]
+      ],
+      "checks": [
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/baseline.mjs"
+          ],
+          "elapsed_ns": 36416101,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/retained-branch.mjs"
+          ],
+          "elapsed_ns": 35657645,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/final.mjs"
+          ],
+          "elapsed_ns": 35490603,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/retained-branch-recheck.mjs"
+          ],
+          "elapsed_ns": 33604872,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/baseline-recheck.mjs"
+          ],
+          "elapsed_ns": 37895042,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33"
+        },
+        {
+          "command": [
+            "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/lilscript-codec",
+            "--json",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/baseline.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/retained-branch.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/final.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/retained-branch-recheck.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain/baseline-recheck.mjs"
+          ],
+          "elapsed_ns": 42142354,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "0e69973cea047d6f1f04c95166d3ff1795a3b9a94419cec6475c1a47ca956ab4"
+        }
+      ],
+      "command": [
+        "/usr/bin/time",
+        "-o",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain.time",
+        "-f",
+        "wall_s=%e\nuser_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nexit=%x",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/examples/semantic-integrated",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain",
+        "--mode",
+        "retain",
+        "--edits",
+        "4",
+        "--work",
+        "200000000",
+        "--memory",
+        "256000000",
+        "--retain-at",
+        "1"
+      ],
+      "copied_payload_bytes": 2032,
+      "counter_scope": {
+        "copied_payload_bytes": "all edits including the common first fork",
+        "post_fork": "edits after the common first fork; same interval as edit_ns",
+        "reused_units": "all edits including the common first fork"
+      },
+      "directory": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-retain",
+      "edit_ns": 38493,
+      "elapsed_ns": 115259227,
+      "exit_code": 0,
+      "issues": [],
+      "mode": "retain",
+      "ordinal": 0,
+      "post_fork_copied_payload_bytes": 1524,
+      "post_fork_reused_units": 0,
+      "process": {
+        "exit": 0.0,
+        "peak_rss_kib": 10216.0,
+        "system_s": 0.0,
+        "user_s": 0.1,
+        "wall_s": 0.11
+      },
+      "qualified": true,
+      "report_sha256": "950856372e6ae2283a94ea34a5f09b2f9ebb6b0120643d7b6925bb9f889e78f7",
+      "reused_units": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "artifacts": [
+        [
+          "baseline",
+          "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        ],
+        [
+          "retained-branch",
+          "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        ],
+        [
+          "final",
+          "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        ],
+        [
+          "retained-branch-recheck",
+          "f0e8a1f4dc6fdff19e4c291e74309549a2f88a19461857a4d1853b74539383f9"
+        ],
+        [
+          "baseline-recheck",
+          "2576d0e1f628f397e9b934f9b25d23a4349f328d9d63e0f6dd2fe192790d9dea"
+        ]
+      ],
+      "checks": [
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline.mjs"
+          ],
+          "elapsed_ns": 34925798,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch.mjs"
+          ],
+          "elapsed_ns": 35362193,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/final.mjs"
+          ],
+          "elapsed_ns": 36603597,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch-recheck.mjs"
+          ],
+          "elapsed_ns": 35345693,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "0b51e24c1405edab75e6c95f1fee5592a5ef9822d48b4ff28713b6ccc117a29e"
+        },
+        {
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import fs from 'node:fs';import{pathToFileURL}from'node:url';\nconst events=[];\nconst retained=new Map();\nlet mode='normal';\nglobalThis.emit=(label,value)=>events.push([label,value]);\nglobalThis.seedEffect=seed=>{events.push(['unused',seed]);return -1;};\nglobalThis.keep=(seed,read,write)=>{retained.set(seed,{read,write});events.push(['keep',seed]);};\nglobalThis.visit=(seed,value,label)=>{\n  events.push(['visit',seed,value,label]);\n  if(mode==='reenter'){\n    mode='normal';retained.get(seed).write(40);\n    events.push(['reentry',retained.get(seed).read()]);\n  }else if(mode==='throw'){\n    mode='normal';retained.get(seed).write(50);throw new Error('host');\n  }\n};\nglobalThis.caughtEarly=error=>{if(!(error instanceof ReferenceError)||!/before initialization/.test(error.message))throw error;events.push(['early-tdz',1]);};\n\n// Authored observations for the integrated API and portable source segment.\nconsole.log=value=>events.push(['portable',value]);\nglobalThis.textEvent=(label,value)=>events.push([label,value]);\nglobalThis.demandSeen=value=>events.push(['match',Array.isArray(value)?[value[0],value.index]:value]);\nglobalThis.demandFallback=label=>{events.push(['fallback',label]);return 0;};\n\nconst library=await import(pathToFileURL(process.argv[1]).href);\nconst a=library.make(3),b=library.make(10);\nevents.push(['a',a(2)]);\nevents.push(['b',b(1)]);\nmode='reenter';events.push(['reentered',a(1)]);\nmode='throw';try{b(2);}catch(error){events.push(['caught',error.message]);}\nevents.push(['retained',retained.get(3).read(),retained.get(10).read()]);\nretained.get(3).write(8);events.push(['saved',a(1)]);\nevents.push(['live',library.total,library.liveTotal]);\nconst first=library.exposed(2),second=library.exposed(2);first.count=7;\nevents.push(['public',first!==second,Object.getPrototypeOf(first)===null,first.count,second.count]);\nevents.push(['exports',Object.keys(library).sort()]);\n\nmode='reenter';\nevents.push(['integrated',library.runIntegrated(30,2,'    one\\n\\tsecond')]);\nevents.push(['integrated-live',library.total,retained.get(30).read()]);\nconst originalExec=Object.getOwnPropertyDescriptor(library.tabRule,'exec');\ntry {\n  for(const value of [0,null,{marker:7}]) {\n    Object.defineProperty(library.tabRule,'exec',{configurable:true,value:function(input){events.push(['override',input]);return value;}});\n    library.inspectMatch();\n  }\n} finally {\n  if(originalExec)Object.defineProperty(library.tabRule,'exec',originalExec);\n  else delete library.tabRule.exec;\n}\nevents.push(['edit',library.editTarget()]);\n\nprocess.stdout.write(JSON.stringify(events));\n",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline-recheck.mjs"
+          ],
+          "elapsed_ns": 35806302,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "fcd4dd171df414c29efb40b33f2bbc8f11bc5c6f09ac0fe0790c32b8e3bdba33"
+        },
+        {
+          "command": [
+            "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/lilscript-codec",
+            "--json",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/final.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/retained-branch-recheck.mjs",
+            "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance/baseline-recheck.mjs"
+          ],
+          "elapsed_ns": 47587618,
+          "exit_code": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stdout_sha256": "f8d928002e15d81db2e395284f00c270ec91687ee02d263e2a10bd54c568a97c"
+        }
+      ],
+      "command": [
+        "/usr/bin/time",
+        "-o",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance.time",
+        "-f",
+        "wall_s=%e\nuser_s=%U\nsystem_s=%S\npeak_rss_kib=%M\nexit=%x",
+        "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/release/examples/semantic-integrated",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/entry.lil",
+        "--config",
+        "/home/azureuser/lilscript/src/semantic_program/fixtures/integrated-architecture/config.toml",
+        "--output",
+        "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance",
+        "--mode",
+        "advance",
+        "--edits",
+        "4",
+        "--work",
+        "200000000",
+        "--memory",
+        "256000000",
+        "--retain-at",
+        "1"
+      ],
+      "copied_payload_bytes": 1016,
+      "counter_scope": {
+        "copied_payload_bytes": "all edits including the common first fork",
+        "post_fork": "edits after the common first fork; same interval as edit_ns",
+        "reused_units": "all edits including the common first fork"
+      },
+      "directory": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/run-2026-09-20T02-12-30.329Z/example-paired/00-advance",
+      "edit_ns": 30717,
+      "elapsed_ns": 119914029,
+      "exit_code": 0,
+      "issues": [],
+      "mode": "advance",
+      "ordinal": 0,
+      "post_fork_copied_payload_bytes": 508,
+      "post_fork_reused_units": 2,
+      "process": {
+        "exit": 0.0,
+        "peak_rss_kib": 10392.0,
+        "system_s": 0.0,
+        "user_s": 0.11,
+        "wall_s": 0.11
+      },
+      "qualified": true,
+      "report_sha256": "e6be4c4a5274c8541efaaf3d5dc01912d823eecba8d5f3988e292ba7c0d46c49",
+      "reused_units": 2,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

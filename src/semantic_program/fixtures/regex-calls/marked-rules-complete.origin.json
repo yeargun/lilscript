@@ -1,0 +1,24 @@
+{
+  "source": "/home/azureuser/markedlil/src/rules.lil",
+  "sourceSha256": "5d340d701aee699f5fca2a47bc091c1904dfc448b30caf19160eca71ffcb940a",
+  "lineCount": 184,
+  "bytes": 20051,
+  "constantCount": 117,
+  "factoryCount": 7,
+  "factories": [
+    "nextBulletRegex",
+    "hrIndentRegex",
+    "fencesBeginRegex",
+    "headingBeginRegex",
+    "htmlBeginRegex",
+    "blockquoteBeginRegex",
+    "listItemRegex"
+  ],
+  "adaptation": "None: complete original rules module copied byte for byte, including header, every declaration and factory. This exercises one complete source module through the new core, not linking or the complete Marked library.",
+  "patternOracle": {
+    "table": "rules-oracle-table.json",
+    "origin": "rules-oracle-origin.json",
+    "reproducer": "rules-oracle.mjs",
+    "scope": "117 independently sourced upstream rule values, preserving four documented escaped-tab spelling differences in the maintained library; generator is not executed."
+  }
+}

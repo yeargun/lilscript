@@ -1,0 +1,5 @@
+error: unsupported semantic source: missing checked call signature
+ --> /home/azureuser/lilscript/tests/cases/13_filter_reduce.lil:2:17
+  |
+ 2 | auto selected = values.filter((int value) => value % 2 == 0);
+  |                 ^^^^^^^^^^^^^

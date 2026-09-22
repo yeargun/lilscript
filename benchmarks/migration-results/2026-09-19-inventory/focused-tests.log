@@ -1,0 +1,40 @@
+✔ a real fast invocation produces a complete receipt without a duration floor (39.698166ms)
+✔ timing text cannot substitute for a compiler invocation (0.235981ms)
+✔ the production wrapper forwards explicit arguments and records its actual cwd (32.878626ms)
+✔ an exit-zero compiler that writes nothing cannot inherit old dist bytes (32.343444ms)
+✔ a failed compiler cannot be accepted even if it writes output (33.412217ms)
+✔ the exact intended compiler is required before touching an old output (1.795414ms)
+✔ changes to inputs during compilation reject the receipt (29.141591ms)
+✔ post-build output substitution and changed contracts are detected (34.737063ms)
+✔ source identity includes configuration and generated files without git (2.937217ms)
+✔ an explicit configuration outside the port is captured as an input (33.138181ms)
+✔ output declarations cannot move source inputs or escape via a symlink (1.459025ms)
+✔ all required tests must execute and pass against the production bytes (1.56847ms)
+✔ unknown or ambiguous test evidence fails closed (1.195893ms)
+✔ canonical measurements reject missing, duplicated, or incomplete rows (1.184222ms)
+✔ inventory preserves missing and related rows without executing scripts (29.184704ms)
+✔ source-file imports are not misclassified as sibling directories (13.019491ms)
+✔ config and installed dependency identities participate in the inventory (30.27783ms)
+✔ recovery does not hide the missing recorded workspace or duplicate identities (11.354993ms)
+✔ declared missing dependency roots reject the shared input snapshot (2.39838ms)
+✔ a missing runtime dependency cannot pass frozen production cases (621.897085ms)
+✔ node_modules code is an explicit limitation of the shared default snapshot (47.686356ms)
+✔ frozen case inventories reject empty cases and changed source or fixture identities (109.81907ms)
+✔ declared adapter inputs and configurations stay gaps when missing (22.585044ms)
+✔ inventory validation rejects omissions, tampered hashes, role changes and completion claims (24.404948ms)
+✔ production tests capture exact ESM and CommonJS bytes without changing loaders (653.253926ms)
+✔ removing a required case cannot turn a passing subset into certification (628.063862ms)
+✔ tests loading a development artifact cannot certify the production artifact (612.27981ms)
+✔ an empty test file cannot establish a case inventory (283.710887ms)
+✔ inventory discovery retains failed and skipped declarations (309.635971ms)
+✔ artifacts executed by a nested Node process are observed as well (335.66735ms)
+✔ unchanged case names cannot conceal changed required test source (615.452111ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3517.678617
+

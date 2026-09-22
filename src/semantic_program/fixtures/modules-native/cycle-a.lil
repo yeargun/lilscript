@@ -1,0 +1,11 @@
+import { later } from "./cycle-b";
+
+int privateValue(int value) {
+  return value * 2;
+}
+
+export int first(int value) {
+  return privateValue(value);
+}
+
+print(later(3));

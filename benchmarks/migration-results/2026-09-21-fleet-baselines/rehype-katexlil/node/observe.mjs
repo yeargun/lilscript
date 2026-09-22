@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-baseline-rehype-katexlil-EinLZ0/rehype-katexlil/dist/rehype-katex.cjs","/tmp/lilscript-baseline-rehype-katexlil-EinLZ0/rehype-katexlil/dist/rehype-katex.closed.js","/tmp/lilscript-baseline-rehype-katexlil-EinLZ0/rehype-katexlil/dist/rehype-katex.esm.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-fleet-baselines/rehype-katexlil/node/loaded"});

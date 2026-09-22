@@ -1,0 +1,302 @@
+{
+  "schema": 1,
+  "scope": "explicit affected debug Rust test filters only; no CLI, delivery, library-fleet or speed qualification",
+  "started": "2026-09-20T01:13:34.822Z",
+  "commands": [
+    {
+      "label": "node-version",
+      "command": "node",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 7.796544999999995
+    },
+    {
+      "label": "rust-version",
+      "command": "rustc",
+      "args": [
+        "-Vv"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 16.023141999999993
+    },
+    {
+      "label": "cargo-version",
+      "command": "cargo",
+      "args": [
+        "-V"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 11.733323999999996
+    },
+    {
+      "label": "cc-version",
+      "command": "/usr/bin/cc",
+      "args": [
+        "--version"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 2.5721110000000067
+    },
+    {
+      "label": "build-tests",
+      "command": "cargo",
+      "args": [
+        "test",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 38047.993593
+    },
+    {
+      "label": "tests-0",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic::"
+      ],
+      "status": 101,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 504.71071599999414
+    },
+    {
+      "label": "tests-1",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "compiler_service::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 2505.206020999998
+    },
+    {
+      "label": "tests-2",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::from_source::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 39.18192999999883
+    },
+    {
+      "label": "tests-3",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::module_contract::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 9.431101000001945
+    },
+    {
+      "label": "tests-4",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::integrated_javascript_tests::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 20855.868594
+    },
+    {
+      "label": "tests-5",
+      "command": "/home/azureuser/lilscript/target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "args": [
+        "semantic_program::native_tests::closure_tests::"
+      ],
+      "status": 0,
+      "signal": null,
+      "supervision": {
+        "timeoutMs": 600000,
+        "killAfterMs": 1000,
+        "maxBuffer": 67108864,
+        "timedOut": false,
+        "childExitObserved": true,
+        "forcedPipeClosure": false,
+        "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+      },
+      "ms": 2780.2002649999995
+    }
+  ],
+  "profile": "debug",
+  "buildJobs": "2",
+  "semanticCore": false,
+  "moduleBoundary": false,
+  "publicIntegration": false,
+  "testsOnly": true,
+  "testFilters": [
+    "semantic::",
+    "compiler_service::",
+    "semantic_program::from_source::",
+    "semantic_program::module_contract::",
+    "semantic_program::integrated_javascript_tests::",
+    "semantic_program::native_tests::closure_tests::"
+  ],
+  "limitations": [
+    "Frontend allocation accounting incomplete",
+    "No full fleet or release-speed qualification",
+    "Native byte metrics describe C/header delivery, not linked executables",
+    "Retained descriptors are not an implemented recipe replay engine",
+    "Shared sessions do not yet migrate LSP, playground or Lilpack",
+    "Only the recorded library test filters execute; prior production evidence is not rerun"
+  ],
+  "buildEnvironment": {},
+  "inputSha256": "2026e0c6eb7cd2bdd208a56e8c092515959676749f25d225a8a7b21eaeb51396",
+  "tools": [
+    "v24.11.1",
+    "rustc 1.98.0 (88d9e12ae 2026-08-18)\nbinary: rustc\ncommit-hash: 88d9e12ae178fab0fb5cc050a94da85685d449ea\ncommit-date: 2026-08-18\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.0\nLLVM version: 22.1.8",
+    "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+    "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  ],
+  "testBuildProfiles": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "target": "lilscript",
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 2,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": true
+      },
+      "features": []
+    }
+  ],
+  "testBinaries": [
+    {
+      "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+      "sha256": "b321b858f5a9c4ff2202f1299c85f5bb614af30e1848d580c34eac29351c8974",
+      "bytes": 415206520
+    }
+  ],
+  "focusedTests": [
+    {
+      "filter": "compiler_service::",
+      "passed": 33
+    },
+    {
+      "filter": "semantic_program::from_source::",
+      "passed": 8
+    },
+    {
+      "filter": "semantic_program::module_contract::",
+      "passed": 5
+    },
+    {
+      "filter": "semantic_program::integrated_javascript_tests::",
+      "passed": 8
+    },
+    {
+      "filter": "semantic_program::native_tests::closure_tests::",
+      "passed": 9
+    }
+  ],
+  "focusedFailures": [
+    {
+      "filter": "semantic::",
+      "message": "tests-0: \nid_parameter_defaults ... ok\ntest semantic::tests::rejects_out_of_range_integer_literals ... ok\ntest semantic::tests::rejects_numeric_mutable_array_widening ... ok\ntest semantic::tests::rejects_nominal_array_widening_to_js_value ... ok\ntest semantic::tests::rejects_unimplemented_struct_equality_and_allows_function_equality ... ok\ntest semantic::tests::rejects_transported_defaults_that_depend_on_local_bindings ... ok\ntest semantic::tests::rejects_uninitialized_variables ... ok\ntest semantic::tests::rejects_unknown_identifiers ... ok\ntest semantic::tests::rejects_wrong_initializer_type ... ok\ntest semantic::tests::requires_all_paths_to_return ... ok\ntest semantic::tests::rejects_writes_through_heterogeneous_collection_unions ... ok\ntest semantic::tests::requires_a_common_index_key_across_union_members ... ok\ntest semantic::tests::shared_callable_metadata_finalizes_in_each_checking_context ... ok\ntest semantic::tests::requires_numeric_assignable_update_targets ... ok\ntest semantic::tests::treats_number_as_non_wrapping_binary64 ... ok\ntest semantic::tests::resolves_generic_struct_literals_from_context ... ok\ntest semantic::tests::revalidates_earlier_generic_arguments_after_inference_widens ... ok\ntest semantic::tests::validates_class_construction_and_methods ... ok\ntest semantic::tests::requires_every_union_callable_member_to_accept_a_call ... ok\ntest semantic::tests::validates_compact_string_search_and_repeat_methods ... ok\ntest semantic::tests::validates_constructor_arguments ... ok\ntest semantic::tests::validates_collections_and_binary_memory ... ok\ntest semantic::tests::validates_control_flow_mutation_and_templates ... ok\ntest semantic::tests::validates_compact_array_and_typed_array_bulk_methods ... ok\ntest semantic::tests::validates_explicit_math_imul_calls ... ok\ntest semantic::tests::validates_functions_and_returns ... ok\ntest semantic::tests::validates_javascript_regex_construction_testing_and_metadata ... ok\ntest semantic::tests::validates_optional_access_only_for_nullable_data ... ok\ntest semantic::tests::validates_generator_boundaries_delegation_and_iteration ... ok\ntest semantic::tests::validates_nullable_assignments_calls_and_equality ... ok\ntest semantic::tests::validates_nullish_operators_without_truthiness_coercion ... ok\ntest semantic::tests::validates_flattened_generic_single_inheritance_without_unsound_overrides ... ok\ntest semantic::binary_types::tests::shared_binary_and_common_types_match_frozen_prior_rules_and_diagnostics ... ok\ntest semantic::tests::validates_struct_fields_and_literals ... ok\ntest semantic::tests::validates_standard_array_and_string_methods ... ok\ntest semantic::type_admission::tests::clone_allowance_lives_through_comparison_and_refusal_preserves_inputs ... ok\ntest semantic::type_admission::tests::primitive_queries_charge_work_without_allocating_payload_workspace ... ok\ntest semantic::type_admission::tests::binary_expected_result_survives_comparison_and_failed_construction_cleans_up ... ok\ntest semantic::type_admission::tests::query_vector_denial_and_unwind_preserve_charge_ownership ... ok\ntest semantic::type_admission::tests::unmetered_verification_uses_plain_results_and_shared_function_clones ... ok\ntest semantic::type_payload::tests::admission_and_visitor_refusals_drop_branch_workspace_before_return ... ok\ntest semantic::type_payload::tests::leaf_and_single_child_payloads_need_no_heap_workspace ... ok\ntest semantic::type_payload::tests::signature_defaults_names_and_actual_vector_capacities_share_one_walk ... ok\ntest semantic::tests::validates_union_assignments_arrays_and_generic_inference ... ok\ntest semantic::type_admission::tests::repeated_named_and_default_equality_pays_each_queried_payload ... ok\ntest semantic::type_relation::tests::reordered_union_array_nesting_does_not_repeat_symmetric_descent_or_equality ... ok\ntest semantic::type_relation::tests::admission_refusal_is_never_a_false_or_successful_type_result ... ok\ntest semantic::tests::validates_scalar_parameter_defaults_and_optional_calls ... ok\ntest semantic::type_relation::tests::equal_invalid_signatures_keep_equality_shortcut_and_bit_defaults ... ok\ntest semantic::type_relation::tests::nested_function_parameters_use_one_invariant_relation_per_parameter ... ok\ntest semantic::type_resolution_tests::arity_resolution_order_and_key_diagnostics_keep_exact_spans ... FAILED\ntest semantic::type_resolution_tests::explicit_and_contextual_collection_constructors_keep_nested_types ... FAILED\ntest semantic::type_resolution_tests::nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays_nominal ... FAILED\ntest semantic::type_substitution::tests::admitted_callable_result_stays_live_through_exact_comparison_then_releases_scope ... ok\ntest semantic::type_substitution::tests::partial_substitution_refusals_and_unwind_release_the_same_query_owner ... ok\ntest semantic::type_substitution::tests::primitive_substitution_has_no_scratch_allocation_and_never_rewrites_argument_itself ... ok\ntest semantic::type_resolution_tests::nested_builtin_types_preserve_every_resolved_argument ... FAILED\ntest semantic::type_substitution::tests::forward_substitution_matches_previous_checker_with_nested_types_and_union_collapse ... ok\ntest semantic::type_relation::tests::shared_relation_matches_previous_directional_and_symmetric_contracts ... ok\ntest semantic::narrowing_input_tests::narrowed_inputs_match_full_traversal_across_boolean_shapes_and_live_contexts ... ok\ntest semantic::narrowing_input_tests::sparse_guard_checking_preserves_runtime_short_circuit_and_statement_boundaries ... ok\n\nfailures:\n\n---- semantic::type_resolution_tests::arity_resolution_order_and_key_diagnostics_keep_exact_spans stdout ----\n\nthread 'semantic::type_resolution_tests::arity_resolution_order_and_key_diagnostics_keep_exact_spans' (1685641) panicked at src/semantic/type_resolution_tests.rs:252:9:\nassertion `left == right` failed: void f(Map<int> value){}\n  left: SemanticError { span: Span { start: 7, end: 14 }, message: \"type `Map` expects 2 type arguments, found 1\" }\n right: SemanticError { span: Span { start: 7, end: 15 }, message: \"type `Map` expects 2 type arguments, found 1\" }\n\n---- semantic::type_resolution_tests::explicit_and_contextual_collection_constructors_keep_nested_types stdout ----\n\nthread 'semantic::type_resolution_tests::explicit_and_contextual_collection_constructors_keep_nested_types' (1685642) panicked at src/semantic/type_resolution_tests.rs:59:6:\ncalled `Result::unwrap()` on an `Err` value: ParseError { span: Span { start: 53, end: 55 }, message: \"expected `>` after type arguments\" }\n\n---- semantic::type_resolution_tests::nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays_nominal stdout ----\n\nthread 'semantic::type_resolution_tests::nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays_nominal' (1685644) panicked at src/semantic/type_resolution_tests.rs:102:6:\ncalled `Result::unwrap()` on an `Err` value: ParseError { span: Span { start: 206, end: 208 }, message: \"expected `>` after type arguments\" }\n\n---- semantic::type_resolution_tests::nested_builtin_types_preserve_every_resolved_argument stdout ----\n\nthread 'semantic::type_resolution_tests::nested_builtin_types_preserve_every_resolved_argument' (1685643) panicked at src/semantic/type_resolution_tests.rs:33:64:\ncalled `Result::unwrap()` on an `Err` value: ParseError { span: Span { start: 109, end: 112 }, message: \"expected `>` after type arguments\" }\n\n\nfailures:\n    semantic::type_resolution_tests::arity_resolution_order_and_key_diagnostics_keep_exact_spans\n    semantic::type_resolution_tests::explicit_and_contextual_collection_constructors_keep_nested_types\n    semantic::type_resolution_tests::nested_builtin_types_preserve_every_resolved_argument\n    semantic::type_resolution_tests::nominal_parameter_metadata_stays_canonical_and_task_generator_shadowing_stays_nominal\n\ntest result: FAILED. 193 passed; 4 failed; 0 ignored; 0 measured; 2737 filtered out; finished in 0.49s\n\n\n\n101 !== 0\n"
+    }
+  ],
+  "passed": false,
+  "failure": "AssertionError [ERR_ASSERTION]: 1 focused filters failed; see per-filter logs\n\n1 !== 0\n\n    at qualify (file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:180:10)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-artifact-service/qualify.mjs:277:3",
+  "inputsStable": true,
+  "completed": "2026-09-20T01:14:40.192Z"
+}

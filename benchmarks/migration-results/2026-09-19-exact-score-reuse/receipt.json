@@ -1,0 +1,710 @@
+{
+  "schema": 1,
+  "kind": "bounded-prototype-verification",
+  "task": "006-P1",
+  "sourceFiles": [
+    {
+      "path": "src/compilation_policy.rs",
+      "sha256": "cb23480cc0408ad87f21230b3df5d65aae61a0df7b1a9f963f139198c8b9c582",
+      "bytes": 81710
+    },
+    {
+      "path": "src/semantic_program/artifacts.rs",
+      "sha256": "b203fc35b19fa10c237f26334347217adca2ef262bfcba5691fa37688330b997",
+      "bytes": 24850
+    },
+    {
+      "path": "src/semantic_program/search_selection.rs",
+      "sha256": "680a750e46a39769c27f58fcf6493ade3c8222d54ff7991bb0840e4175038a4c",
+      "bytes": 23318
+    },
+    {
+      "path": "src/semantic_program/search_tests.rs",
+      "sha256": "07d78ae7190f728446cb043e6bde6ca28517fbf2f0dec081f4c39fe90d169cb6",
+      "bytes": 38565
+    },
+    {
+      "path": "src/semantic_program/artifact_reuse_tests.rs",
+      "sha256": "5684b448297e650ade205bd2c7fc2d2c83e90f88fcb1e9edcedc23c30b710d17",
+      "bytes": 12137
+    },
+    {
+      "path": "src/semantic_program/search_score_reuse_tests.rs",
+      "sha256": "8896e88a43be88483b867b9b31161643e15403bee8642b158f113bd3671729a4",
+      "bytes": 4654
+    }
+  ],
+  "compilerInputs": {
+    "sha256": "eaa6e41dde1fb3265f2726a5600b8c3f125e17c6a3131c15d26a854279d48fa3",
+    "bytes": 224022
+  },
+  "inputSha256": "7c74c3def9cfb3cb5a6d9ad4ba994c499aee3357ff87fe0e03455f02ba333013",
+  "buildReceipt": {
+    "sha256": "ddecbcb75413ca1706a8db2de2f543b58cef4ff3904ba6f0fb0ed986dbeae812",
+    "bytes": 981
+  },
+  "binary": {
+    "path": "target/qualification-internal-provenance-20260918-v3/debug/deps/lilscript-c737e884cfca95f9",
+    "sha256": "2c7ab34f8330371d0581989778d530c8c65dc5d23190b5ab5ba15fb2156ef7c9",
+    "bytes": 382888392
+  },
+  "node": "v24.11.1",
+  "tests": {
+    "passed": 92,
+    "failed": 0,
+    "filtered": 2606,
+    "wallSeconds": 14.79,
+    "receipt": {
+      "sha256": "81375bcbdd3a92ea55925766742e13e108c35eb02d55ee35013eaea2370d483d",
+      "bytes": 1010
+    },
+    "log": {
+      "sha256": "9a9c6418fbca4dae5b55cd23254378825db190dbb6130f07975067932589f64f",
+      "bytes": 192926
+    }
+  },
+  "baselineReceipt": {
+    "sha256": "e370ccf7687e6f8be293de5853a7e637a5338000af2434250b1c4bdeaba53d82",
+    "bytes": 18984
+  },
+  "factoryOracle": {
+    "case": "factory",
+    "proposals": 35,
+    "proof_queries": 9,
+    "unknown_proofs": 5,
+    "truncated_proofs": 0,
+    "inventory_truncated": false,
+    "conflicting_choices": 4,
+    "duplicate_states": 0,
+    "structures": 12,
+    "renders": 36,
+    "codec_probes": 70,
+    "admitted_artifacts": 36,
+    "beam_evictions": 0,
+    "stop": null,
+    "best_sizes": [
+      205,
+      159,
+      124
+    ],
+    "measured_count": 36,
+    "unique_recipe_hash_count": 12,
+    "brotli_naming_literal_local_minimum": {
+      "base": 143,
+      "literal_only": 144,
+      "naming_only": 144,
+      "combined": 142
+    }
+  },
+  "schedulePairs": [
+    {
+      "settings": [
+        "Factory",
+        "Immediate",
+        8,
+        4,
+        "All",
+        384,
+        384,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 70,
+        "renders": 36,
+        "work": 9534156,
+        "elapsedSeconds": 0.125945035
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 70,
+        "renders": 36,
+        "work": 9536012,
+        "elapsedSeconds": 0.123892024
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        384,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 70,
+        "renders": 36,
+        "work": 9541882,
+        "elapsedSeconds": 0.123803435
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 70,
+        "renders": 36,
+        "work": 9542997,
+        "elapsedSeconds": 0.122113673
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        0,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          293,
+          202,
+          162
+        ],
+        "probes": 0,
+        "renders": 1,
+        "work": 0,
+        "elapsedSeconds": 0.00427532
+      },
+      "after": {
+        "bytes": [
+          293,
+          202,
+          162
+        ],
+        "probes": 0,
+        "renders": 1,
+        "work": 0,
+        "elapsedSeconds": 0.004480687
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        1,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          293,
+          202,
+          162
+        ],
+        "probes": 0,
+        "renders": 1,
+        "work": 0,
+        "elapsedSeconds": 0.004311198
+      },
+      "after": {
+        "bytes": [
+          293,
+          202,
+          162
+        ],
+        "probes": 0,
+        "renders": 1,
+        "work": 0,
+        "elapsedSeconds": 0.004233104
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        2,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          209,
+          163,
+          129
+        ],
+        "probes": 2,
+        "renders": 9,
+        "work": 298618,
+        "elapsedSeconds": 0.011462546
+      },
+      "after": {
+        "bytes": [
+          209,
+          163,
+          129
+        ],
+        "probes": 2,
+        "renders": 9,
+        "work": 298644,
+        "elapsedSeconds": 0.010985432
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        4,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 4,
+        "renders": 18,
+        "work": 599862,
+        "elapsedSeconds": 0.018158996
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 4,
+        "renders": 18,
+        "work": 599914,
+        "elapsedSeconds": 0.018279812
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        8,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 8,
+        "renders": 27,
+        "work": 1172275,
+        "elapsedSeconds": 0.028580268
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 8,
+        "renders": 27,
+        "work": 1172379,
+        "elapsedSeconds": 0.028166373
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        8,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 8,
+        "renders": 27,
+        "work": 1172275,
+        "elapsedSeconds": 0.028580268
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 8,
+        "renders": 27,
+        "work": 1172379,
+        "elapsedSeconds": 0.028013698
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        16,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 16,
+        "renders": 32,
+        "work": 2268051,
+        "elapsedSeconds": 0.043555943
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 16,
+        "renders": 32,
+        "work": 2268259,
+        "elapsedSeconds": 0.042942783
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        32,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 32,
+        "renders": 36,
+        "work": 4433563,
+        "elapsedSeconds": 0.070466716
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 32,
+        "renders": 36,
+        "work": 4434210,
+        "elapsedSeconds": 0.067408477
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        96,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 70,
+        "renders": 36,
+        "work": 9541882,
+        "elapsedSeconds": 0.123697107
+      },
+      "after": {
+        "bytes": [
+          205,
+          159,
+          124
+        ],
+        "probes": 70,
+        "renders": 36,
+        "work": 9542997,
+        "elapsedSeconds": 0.123270821
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Byte",
+        "Staged",
+        8,
+        4,
+        "One(Gzip)",
+        384,
+        384,
+        2,
+        786432,
+        2
+      ],
+      "before": {
+        "bytes": [
+          null,
+          104,
+          null
+        ],
+        "probes": 2,
+        "renders": 3,
+        "work": 539221,
+        "elapsedSeconds": 0.001440028
+      },
+      "after": {
+        "bytes": [
+          null,
+          104,
+          null
+        ],
+        "probes": 2,
+        "renders": 3,
+        "work": 539334,
+        "elapsedSeconds": 0.001067834
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Immediate",
+        8,
+        4,
+        "One(Raw)",
+        384,
+        0,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          null,
+          null
+        ],
+        "probes": 0,
+        "renders": 36,
+        "work": 126173,
+        "elapsedSeconds": 0.023008158
+      },
+      "after": {
+        "bytes": [
+          205,
+          null,
+          null
+        ],
+        "probes": 0,
+        "renders": 36,
+        "work": 126208,
+        "elapsedSeconds": 0.017469379
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        4,
+        "One(Raw)",
+        384,
+        0,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          205,
+          null,
+          null
+        ],
+        "probes": 0,
+        "renders": 36,
+        "work": 126173,
+        "elapsedSeconds": 0.019004234
+      },
+      "after": {
+        "bytes": [
+          205,
+          null,
+          null
+        ],
+        "probes": 0,
+        "renders": 36,
+        "work": 126208,
+        "elapsedSeconds": 0.018103874
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Byte",
+        "Staged",
+        8,
+        4,
+        "All",
+        384,
+        384,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          105,
+          104,
+          84
+        ],
+        "probes": 4,
+        "renders": 3,
+        "work": 539588,
+        "elapsedSeconds": 0.008401943
+      },
+      "after": {
+        "bytes": [
+          105,
+          104,
+          84
+        ],
+        "probes": 4,
+        "renders": 3,
+        "work": 539745,
+        "elapsedSeconds": 0.008216932
+      },
+      "sameWinnerBytes": true
+    },
+    {
+      "settings": [
+        "Factory",
+        "Staged",
+        8,
+        1,
+        "All",
+        384,
+        384,
+        24,
+        786432,
+        10
+      ],
+      "before": {
+        "bytes": [
+          289,
+          199,
+          155
+        ],
+        "probes": 16,
+        "renders": 9,
+        "work": 2184323,
+        "elapsedSeconds": 0.033357787
+      },
+      "after": {
+        "bytes": [
+          289,
+          199,
+          155
+        ],
+        "probes": 16,
+        "renders": 9,
+        "work": 2185113,
+        "elapsedSeconds": 0.032984138
+      },
+      "sameWinnerBytes": true
+    }
+  ],
+  "sourcePatch": {
+    "sha256": "738b400f66fa4bb03c52758fed6e3489da37c6b20357bd00baf1dd4d2cec2ec9",
+    "bytes": 26221
+  },
+  "review": {
+    "production": "Independent read-only review: no actionable issue",
+    "tests": "Independent read-only review: no blocking gap; new package stream tests use synthetic views, existing real package tests also pass"
+  },
+  "limits": [
+    "Semantic prototype only; public compiler remains on the legacy route.",
+    "Only live retained records are donors; detached frozen producers keep their separate cache.",
+    "Optional preflight still stops new rendering when remaining codec allowance is exhausted; queued duplicates may reuse scores.",
+    "Probe counts are optional package-codec coordinates, not dependency encoder invocation counts.",
+    "Debug profile and single trials; no release-speed, full-fleet, global-optimum or milestone completion claim.",
+    "Factory has no equal-output reuse and still takes 70 probes; lookup work rises 1115 units in staged full search.",
+    "First root fixture incorrectly assumed all naming outputs matched. Initial failure receipt is preserved; a second diagnostic failure identified Source export-name differences. Final fixture asserts 3 trials/2 outputs and passes."
+  ]
+}

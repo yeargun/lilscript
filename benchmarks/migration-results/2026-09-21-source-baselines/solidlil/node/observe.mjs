@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-baseline-solidlil-wavPk2/solidlil/dist/index.cjs","/tmp/lilscript-baseline-solidlil-wavPk2/solidlil/dist/index.js","/tmp/lilscript-baseline-solidlil-wavPk2/solidlil/dist/web.js"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-21-source-baselines/solidlil/node/loaded"});

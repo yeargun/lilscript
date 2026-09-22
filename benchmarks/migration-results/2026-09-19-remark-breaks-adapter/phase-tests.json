@@ -1,0 +1,55 @@
+{
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--test",
+    "finer/tools/portgate-timeouts.test.mjs"
+  ],
+  "runtime": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "inputs": [
+    {
+      "path": "finer/tools/portgate-timeouts.test.mjs",
+      "sha256": "408e0b8bc58978d84cfc6616115ec979d3b66c3695511219b51d00a04b32c078",
+      "bytes": 4990
+    },
+    {
+      "path": "finer/tools/portgate.mjs",
+      "sha256": "14b26407da4b7c7437a454cd3067560e76faa6aacbdb7511c17596bff5670bd1",
+      "bytes": 29003
+    },
+    {
+      "path": "finer/tools/node-test-evidence.mjs",
+      "sha256": "de6d8ed3248b805a49febcd9ce40c69434c1a2fb777100de238cb06e5d3c4c6a",
+      "bytes": 11597
+    },
+    {
+      "path": "finer/tools/bounded-command.mjs",
+      "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+      "bytes": 5871
+    }
+  ],
+  "inputsStable": true,
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 33554432,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "af55dbd9d4acd3977226a3768247b12de19d3521d2f6c8f3244bddd65f65df7c",
+    "bytes": 308
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

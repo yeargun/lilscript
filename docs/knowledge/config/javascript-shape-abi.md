@@ -8,7 +8,8 @@ Parent: [config](README.md). Language consequences:
 These keys can change observable JavaScript shape; do not treat them as invisible
 minifier flags.
 
-The planned migration normalizes them into an immutable compilation contract before
+The [migration plan](../../migration/index.md#003-policy-and-resource-ownership)
+normalizes them into an immutable compilation contract before
 optimization. `cost_model`, `priority`, and candidate-search effort consume that
 contract but cannot change it. Every raw/gzip/Brotli artifact for one contract
 must pass the same expected-versus-observed ABI checks. The current source-derived

@@ -1,0 +1,2 @@
+import { observeNodeArtifacts } from "file:///home/azureuser/lilscript/finer/tools/observe-node-artifacts.mjs";
+observeNodeArtifacts({"paths":["/tmp/lilscript-marked-retained-open-20260919-pjMCdF/markedlil/dist/marked.esm.js","/tmp/lilscript-marked-retained-open-20260919-pjMCdF/markedlil/dist/marked.cjs"],"directory":"/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-library-baselines/marked-retained-open/tests/loaded"});

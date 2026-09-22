@@ -1,0 +1,1 @@
+let a;let b;void console.log((a=(b=21,b*2|0),a));

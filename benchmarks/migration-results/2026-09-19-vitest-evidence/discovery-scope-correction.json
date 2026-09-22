@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "discovery-scope-amendment",
+  "supersedesScopeOf": {
+    "path": "benchmarks/migration-results/2026-09-19-inventory/zodlil-discovery.json",
+    "sha256": "bff176f41b39d275f62a1919c0ff5d9eb6435b5be52a33a1dad296a0409615c0",
+    "bytes": 1554
+  },
+  "reason": "Vitest list --json omits skipped declarations and therefore cannot independently prove an original all-declaration inventory.",
+  "fullStructuredCollection": {
+    "path": "zod-collection/report.json",
+    "sha256": "143302f09cdf1a7795e527df9745d1618e789bb19813cccf435e01476de41f33",
+    "bytes": 880105,
+    "cases": 1353,
+    "files": 82,
+    "states": {
+      "pending": 1353
+    }
+  },
+  "finding": "This particular original configured suite contains the same 1353 declarations; no skip/todo declarations were lost here. The generic reporter fixture additionally proves skipped and todo retention and rejects them as passing execution.",
+  "remainingScope": "Original configuration excludes six source test files and disables typechecking; those cases and all other package suites remain outstanding. Collection is not execution or compiler qualification.",
+  "certification": "unverified"
+}

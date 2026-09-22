@@ -1,0 +1,36 @@
+
+running 31 tests
+test semantic_program::publication::search::cursor_tests::reclaim_scan_skips_active_states_and_charges_empty_state_slots ... ok
+test semantic_program::publication::search::cursor_tests::structural_age_turns_preserve_quality_turns_and_use_canonical_ties ... ok
+test semantic_program::publication::search::cursor_tests::refused_cursor_scan_preserves_progress_and_exact_incumbent ... ok
+test semantic_program::publication::search::cursor_tests::width_one_keeps_a_waiting_cursor_but_never_an_exhausted_tail ... ok
+test semantic_program::publication::search::function_support_tests::inactive_transport_keeps_stale_and_script_guards_at_their_owners ... ok
+test semantic_program::publication::search::function_support_tests::inactive_transport_query_refusal_is_not_a_negative_proof_or_allocation ... ok
+test semantic_program::publication::search::cursor_tests::partial_reclaim_refusal_preserves_pins_and_unvisited_states ... ok
+test semantic_program::publication::search::pairs::tests::publication_orders_and_late_proofs_visit_each_unordered_pair_once ... ok
+test semantic_program::publication::search::pairs::tests::refused_allocation_preserves_preexisting_retained_bytes ... ok
+test semantic_program::publication::search::pairs::tests::scan_refusal_does_not_advance_the_unadmitted_cursor ... ok
+test semantic_program::publication::search::cursor_tests::partial_finish_refusal_keeps_exact_incumbent_and_releases_discovery_owners ... ok
+test semantic_program::publication::search::function_support_tests::shared_transport_requires_every_exact_creator_and_survives_compatible_children ... ok
+test semantic_program::publication::search::selection::memory_tests::zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed ... ok
+test semantic_program::publication::search::selection::resource_tests::complete_package_keeps_consumer_and_producer_recipes_after_all_candidates_are_disposed ... ok
+test semantic_program::publication::search::selection::resource_tests::complete_package_qualification_owns_both_streams_and_retains_dependency_provenance ... ok
+test semantic_program::publication::search::selection::resource_tests::final_package_cost_uses_merged_risk_and_never_fabricates_unknown_runtime_evidence ... ok
+test semantic_program::publication::search::selection::resource_tests::invalid_producer_seed_preserves_baseline_and_zero_optional_does_not_consume_inputs ... ok
+test semantic_program::publication::search::selection::memory_tests::refused_facts_session_releases_prepared_proof_but_keeps_owned_cache ... ok
+test semantic_program::publication::search::selection::resource_tests::required_consumer_root_preserves_delivery_in_zero_and_optional_search ... ok
+test semantic_program::publication::search::selection::memory_tests::cold_memory_refusal_scores_existing_names_and_preserves_fixed_probe_prefixes ... ok
+test semantic_program::publication::search::selection::resource_tests::shared_producer_text_counts_once_and_package_handoff_is_atomic ... ok
+test semantic_program::publication::search::fairness_tests::width_one_keeps_later_skip_cursor_and_executes_its_actual_scored_winners ... ok
+test semantic_program::publication::search::selection::resource_tests::stale_supplied_input_is_not_a_choice_conflict_and_fragment_root_is_refused ... ok
+test semantic_program::publication::search::selection::resource_tests::sparse_pool_scan_is_admitted_and_whole_pool_keeps_constant_work ... ok
+test semantic_program::publication::search::selection::reuse_tests::staged_equal_bytes_reuse_exhausted_probes_but_recheck_naming_permission ... ok
+test semantic_program::publication::search::fairness_tests::bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union ... ok
+test semantic_program::publication::search::fairness_tests::narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper ... ok
+test semantic_program::publication::search::selection::resource_tests::preexisting_consumers_share_complete_codec_selection_and_execute_every_observation ... ok
+test semantic_program::publication::search::selection::resource_tests::required_consumer_search_selects_exact_distinct_product_and_function_families ... ok
+test semantic_program::publication::search::fairness_tests::finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults ... ok
+test semantic_program::publication::search::fairness_tests::opt_in_seed_pairs_recover_losing_parents_without_extra_search_allowances ... ok
+
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 2913 filtered out; finished in 5.09s
+

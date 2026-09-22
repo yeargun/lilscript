@@ -1,0 +1,35 @@
+{
+  "kind": "existing-dist-inventory-only",
+  "sourceBuilt": false,
+  "node": {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  "command": [
+    "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "--input-type=module",
+    "-e",
+    "\nimport assert from \"node:assert/strict\";import{writeFileSync}from\"node:fs\";import{join}from\"node:path\";import{runNodeTestEvidence}from\"./finer/tools/node-test-evidence.mjs\";import{fileIdentity,snapshotInputs}from\"./finer/tools/artifact-evidence.mjs\";\nconst output=\"benchmarks/migration-results/2026-09-19-remark-breaks-adapter\";const cwd=\"/home/azureuser/remark-breakslil\";const identify=path=>({path,...fileIdentity(join(cwd,path))});const prereq={id:\"original-check-types\",executable:{path:\"/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm\",...fileIdentity(\"/home/azureuser/.nvm/versions/node/v24.11.1/bin/npm\")},args:[\"run\",\"check:types\"],timeoutMs:60000,inputs:[\"package.json\",\"package-lock.json\",\"types/remark-breaks.d.ts\",\"dist/remark-breaks.d.ts\",\"test/types.test.ts\",\"node_modules/typescript/package.json\",\"node_modules/typescript/bin/tsc\",\"node_modules/typescript/lib/tsc.js\",\"node_modules/typescript/lib/_tsc.js\"].map(identify)};\nconst before={source:snapshotInputs(cwd,{exclude:[\".git\",\"node_modules\"]}),dependencies:snapshotInputs(join(cwd,\"node_modules\"),{exclude:[]})};writeFileSync(join(output,\"discovery-before.json\"),JSON.stringify(before,null,2)+\"\\n\");\nconst report=await runNodeTestEvidence({cwd,files:[\"test/api.test.mjs\",\"test/closed.test.mjs\",\"test/site.test.mjs\",\"test/official/index.js\"],artifactPaths:[\"dist/remark-breaks.esm.js\",\"dist/remark-breaks.cjs\",\"dist/remark-breaks.closed.js\"],requiredFilePatterns:[\"test/*.test.mjs\",\"test/official/index.js\"],prerequisites:[prereq],directory:join(output,\"discovery\"),timeoutMs:60000});\nconst after={source:snapshotInputs(cwd,{exclude:[\".git\",\"node_modules\"]}),dependencies:snapshotInputs(join(cwd,\"node_modules\"),{exclude:[]})};writeFileSync(join(output,\"discovery-after.json\"),JSON.stringify(after,null,2)+\"\\n\");assert.deepEqual(after,before);console.log(JSON.stringify({kind:\"existing-dist-inventory-only\",sourceBuilt:false,sourceStable:true,dependenciesStable:true,report:report.certification,prerequisites:report.prerequisites.map(p=>({id:p.declaration.id,status:p.status})),cases:report.evidence.cases.length,failed:report.evidence.cases.filter(c=>c.status!==\"pass\"),errors:report.errors}));\n"
+  ],
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "supervision": {
+    "timeoutMs": 90000,
+    "killAfterMs": 1000,
+    "maxBuffer": 33554432,
+    "timedOut": false,
+    "childExitObserved": true,
+    "forcedPipeClosure": false,
+    "scope": "POSIX process group; escaped sessions are not killed; final pipe wait is bounded; SIGKILL of the supervisor cannot run cleanup"
+  },
+  "stdout": {
+    "sha256": "5371de878d1db9730264cb7d5716df12a87c21ecb26df382808f76d9ff582b9c",
+    "bytes": 268
+  },
+  "stderr": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  }
+}

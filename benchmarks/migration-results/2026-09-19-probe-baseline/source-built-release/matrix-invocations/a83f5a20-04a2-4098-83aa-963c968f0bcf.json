@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "kind": "compiler-invocation",
+  "id": "a83f5a20-04a2-4098-83aa-963c968f0bcf",
+  "compiler": {
+    "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/lilscript",
+    "sha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+    "bytes": 17828488
+  },
+  "contractSha256": "8f2f89862cbb1b897416c58a369f2565e5eece87afa570acc17976b4d49a06e6",
+  "cwd": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil",
+  "args": [
+    "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/src/probe.lil",
+    "--target",
+    "js",
+    "--config",
+    "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.toml",
+    "-o",
+    "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js"
+  ],
+  "inputSha256": "6a58b2d58992bde22e814afe7bcf21bf0370fb89cdf40abc896e4ad937cdad97",
+  "inputs": [
+    {
+      "path": ".gitignore",
+      "kind": "file",
+      "executable": false,
+      "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910",
+      "bytes": 20
+    },
+    {
+      "path": ".lilscript-test-adapter/suite.test.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "546b5b71414b3b223b7f04955ad43dc6041abd8e7df3cd60b41d03947d4b1b90",
+      "bytes": 802
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9935f583d00b4b69906faea0549ffaff5c9d27f6b200302784fc66068dadfe79",
+      "bytes": 908
+    },
+    {
+      "path": "expected.out",
+      "kind": "file",
+      "executable": false,
+      "sha256": "7027e7b774b95fc281e044c710b1baa12dddb37d51021dbedfd510e3e1c23631",
+      "bytes": 136
+    },
+    {
+      "path": "lilscript.toml",
+      "kind": "file",
+      "executable": false,
+      "sha256": "d41d4749192fd5803a4bcbd04e851f9a36d7a6482fb9cf258200761f49088b68",
+      "bytes": 958
+    },
+    {
+      "path": "scripts/build.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "074f00e90c59d6791d8c55a0a99479360d76009c2ce310fe558b5dd9e513da74",
+      "bytes": 4311
+    },
+    {
+      "path": "scripts/configs.mjs",
+      "kind": "file",
+      "executable": false,
+      "sha256": "9ccf0b526cc46226698ca5ab0dd6967a3583c5209939c85e641a134321db95d9",
+      "bytes": 5251
+    },
+    {
+      "path": "src/probe.lil",
+      "kind": "file",
+      "executable": false,
+      "sha256": "f0280f8b3aff11753fa7a9fa4a6dc268c6f3c1594b56390da0695c2a4bbb47de",
+      "bytes": 15299
+    }
+  ],
+  "configuration": {
+    "path": "dist/configs/perfFirst.toml",
+    "location": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.toml",
+    "sha256": "9a779d1c7f122cf2960052cf028e1b07b7c86d59220550d5f24a58a370fd6670",
+    "bytes": 965
+  },
+  "output": {
+    "path": "/tmp/lilscript-probe-baseline-20260919-kKoGmp/portgate/workspaces/probelil/dist/configs/perfFirst.js",
+    "previous": null,
+    "sha256": "f1eaca58e823c8462ff634e07240877656ecb359af2e83fa85cc64df75a26e12",
+    "bytes": 4089
+  },
+  "exitCode": 0,
+  "signal": null,
+  "error": null,
+  "elapsedMs": 30710.869739,
+  "inputAfterSha256": "6a58b2d58992bde22e814afe7bcf21bf0370fb89cdf40abc896e4ad937cdad97",
+  "compilerAfterSha256": "3d8e450590247c53f928a7bc2eceb1ac50b60dfb21464c6629a55e8a813ea00e",
+  "validationErrors": []
+}

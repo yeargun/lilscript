@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "kind": "competitor-recipe-run",
+  "boundary": "markedlil",
+  "started": "2026-09-20T22:30:07.362Z",
+  "passed": true,
+  "ourArtifact": {
+    "path": "/home/azureuser/markedlil/dist/marked.esm.js",
+    "sha256": "a94b530633618d0f39819243bbece458109fb3fec1fce97f0391870a6fa6e166",
+    "bytes": 34068
+  },
+  "upstream": {
+    "directory": "/home/azureuser/markedlil/node_modules/marked",
+    "name": "marked",
+    "version": "18.0.10",
+    "entry": "./lib/marked.esm.js",
+    "externals": []
+  },
+  "competitors": [
+    {
+      "id": "terser@5.51.2/terser",
+      "recipe": "terser",
+      "tool": {
+        "name": "terser",
+        "version": "5.51.2",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/terser/package.json",
+          "sha256": "22ac1ee8fda1c4088a9d1615c5aacaa0562939d89dce2ff8bdfae7b3ff029067",
+          "bytes": 3334
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/terser",
+          "sha256": "312a3f9b37d3f5316ee384bfdc347313dae6f0f9056c44b3cae56c8e4e9f4496",
+          "bytes": 444
+        }
+      },
+      "renames": "locals and top-level module bindings (`-m --module`); property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/markedlil/terser.min.js",
+      "sha256": "9a4be7b82c0b83e3133307d8b8701f4678d24541f4f59e040d2a545c47ec218b",
+      "bytes": 43180,
+      "sizes": {
+        "raw": 43180,
+        "gzip": 12647,
+        "brotli": 11562
+      },
+      "exports": [
+        "Hooks",
+        "Lexer",
+        "Marked",
+        "Parser",
+        "Renderer",
+        "TextRenderer",
+        "Tokenizer",
+        "defaults",
+        "getDefaults",
+        "lexer",
+        "marked",
+        "options",
+        "parse",
+        "parseInline",
+        "parser",
+        "setOptions",
+        "use",
+        "walkTokens"
+      ],
+      "surfaceMatches": false,
+      "missingFromOurs": [
+        "Hooks",
+        "Lexer",
+        "Marked",
+        "Parser",
+        "Renderer",
+        "TextRenderer",
+        "Tokenizer",
+        "lexer",
+        "parser",
+        "use",
+        "walkTokens"
+      ],
+      "extraInOurs": [
+        "default"
+      ],
+      "rawRatio": 1.267,
+      "massMatches": false,
+      "comparable": false
+    },
+    {
+      "id": "esbuild@0.28.1/esbuild",
+      "recipe": "esbuild",
+      "tool": {
+        "name": "esbuild",
+        "version": "0.28.1",
+        "home": "/home/azureuser/unifiedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+          "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+          "bytes": 3980
+        },
+        "binary": {
+          "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+          "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+          "bytes": 11407472
+        }
+      },
+      "renames": "locals and top-level bindings; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/markedlil/esbuild.min.js",
+      "sha256": "15e8f04b02162137b501bb317a98807dc79dcfcf589eef05d908f97ff46bf2a1",
+      "bytes": 43058,
+      "sizes": {
+        "raw": 43058,
+        "gzip": 12898,
+        "brotli": 11903
+      },
+      "exports": [
+        "Hooks",
+        "Lexer",
+        "Marked",
+        "Parser",
+        "Renderer",
+        "TextRenderer",
+        "Tokenizer",
+        "defaults",
+        "getDefaults",
+        "lexer",
+        "marked",
+        "options",
+        "parse",
+        "parseInline",
+        "parser",
+        "setOptions",
+        "use",
+        "walkTokens"
+      ],
+      "surfaceMatches": false,
+      "missingFromOurs": [
+        "Hooks",
+        "Lexer",
+        "Marked",
+        "Parser",
+        "Renderer",
+        "TextRenderer",
+        "Tokenizer",
+        "lexer",
+        "parser",
+        "use",
+        "walkTokens"
+      ],
+      "extraInOurs": [
+        "default"
+      ],
+      "rawRatio": 1.264,
+      "massMatches": false,
+      "comparable": false
+    },
+    {
+      "id": "rolldown@1.2.5/oxc",
+      "recipe": "oxc",
+      "tool": {
+        "name": "rolldown",
+        "version": "1.2.5",
+        "home": "/home/azureuser/markedlil/node_modules",
+        "package": {
+          "path": "/home/azureuser/markedlil/node_modules/rolldown/package.json",
+          "sha256": "6be75efa1a51c115f17375d1fc4713f70392bff70335045ec5cf7eeaf1228c96",
+          "bytes": 6127
+        },
+        "binary": {
+          "path": "/home/azureuser/markedlil/node_modules/.bin/rolldown",
+          "sha256": "4f32d8fafabe786e739f8be56df684e56def00e63a32858ad9d5ede57406bc6c",
+          "bytes": 46
+        }
+      },
+      "renames": "locals and top-level bindings through Rolldown's Oxc minifier; property names untouched",
+      "artifact": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/markedlil/oxc.min.js",
+      "sha256": "c6944ed102656f2e03b0855cef21e224a217d42176572889c52703410e1a4169",
+      "bytes": 42806,
+      "sizes": {
+        "raw": 42806,
+        "gzip": 12605,
+        "brotli": 11606
+      },
+      "exports": [
+        "Hooks",
+        "Lexer",
+        "Marked",
+        "Parser",
+        "Renderer",
+        "TextRenderer",
+        "Tokenizer",
+        "defaults",
+        "getDefaults",
+        "lexer",
+        "marked",
+        "options",
+        "parse",
+        "parseInline",
+        "parser",
+        "setOptions",
+        "use",
+        "walkTokens"
+      ],
+      "surfaceMatches": false,
+      "missingFromOurs": [
+        "Hooks",
+        "Lexer",
+        "Marked",
+        "Parser",
+        "Renderer",
+        "TextRenderer",
+        "Tokenizer",
+        "lexer",
+        "parser",
+        "use",
+        "walkTokens"
+      ],
+      "extraInOurs": [
+        "default"
+      ],
+      "rawRatio": 1.256,
+      "massMatches": false,
+      "comparable": false
+    }
+  ],
+  "refused": [],
+  "limitations": [
+    "Byte construction only. These artifacts are not executed, so this receipt is not behavior evidence.",
+    "Each recipe states its own renaming policy; the comparison is only as fair as that statement.",
+    "The bundle leaves external exactly what our artifact imports. A boundary that bundles a different dependency graph is not comparable and says so.",
+    "NOT COMPARABLE (public surface): our artifact publishes 8 names, the reconstructed upstream 18. Absent from ours: Hooks, Lexer, Marked, Parser, Renderer, TextRenderer, Tokenizer, lexer, parser, use, walkTokens. Only in ours: default. A reduced export set is its own boundary, not a whole-library win (001)."
+  ],
+  "bundle": {
+    "tool": {
+      "name": "esbuild",
+      "version": "0.28.1",
+      "home": "/home/azureuser/unifiedlil/node_modules",
+      "package": {
+        "path": "/home/azureuser/unifiedlil/node_modules/esbuild/package.json",
+        "sha256": "d55d1d19fcc5b6079e4a71dd4111340c79c682bc36835ac7058a0c364c7db58a",
+        "bytes": 3980
+      },
+      "binary": {
+        "path": "/home/azureuser/unifiedlil/node_modules/.bin/esbuild",
+        "sha256": "0c6588b092a2c291a72bab90659f3c9e0e25e0fe59c9ac12b4dae4d945e5548c",
+        "bytes": 11407472
+      }
+    },
+    "args": [
+      "/home/azureuser/markedlil/node_modules/marked/lib/marked.esm.js",
+      "--bundle",
+      "--format=esm",
+      "--target=es2020",
+      "--outfile=/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/markedlil/upstream.bundle.mjs"
+    ],
+    "output": {
+      "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-20-competitors/markedlil/upstream.bundle.mjs",
+      "sha256": "e108190bd8784566747d61c2c8559faeb5f433a461e5310df4cd2c16d7ac2d1b",
+      "bytes": 56349
+    }
+  },
+  "ourSizes": {
+    "raw": 34068,
+    "gzip": 10326,
+    "brotli": 9263
+  },
+  "bundleSizes": {
+    "raw": 56349,
+    "gzip": 14135,
+    "brotli": 12838
+  },
+  "publicSurface": {
+    "ours": [
+      "default",
+      "defaults",
+      "getDefaults",
+      "marked",
+      "options",
+      "parse",
+      "parseInline",
+      "setOptions"
+    ]
+  },
+  "comparable": false,
+  "completed": "2026-09-20T22:30:09.022Z",
+  "fingerprint": "51fb5548cc2d50606d9cb41ab0c5ee0300b10276e063a3c1b50a153018d2b673"
+}

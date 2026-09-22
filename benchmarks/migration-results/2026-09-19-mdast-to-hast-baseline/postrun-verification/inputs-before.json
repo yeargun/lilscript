@@ -1,0 +1,57 @@
+[
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/verify-retained.mjs",
+    "sha256": "18e05bd36a584b67b6313f2a92f69b5e3b6c89ec0f410db8eef6b93979c6d63f",
+    "bytes": 8614
+  },
+  {
+    "path": "/home/azureuser/.nvm/versions/node/v24.11.1/bin/node",
+    "sha256": "5796fd9700e83170bc7ddfdf7f18858c794a9f91cb39dd6f9e95060b292f2563",
+    "bytes": 121116896
+  },
+  {
+    "path": "/tmp/lilscript-public-integration-release-baseline-20260919/lilscript-codec",
+    "sha256": "d55c6f33119cb11153f21145f45058ef3ed188c04554cc198af242f4b12e1ef9",
+    "bytes": 2601824
+  },
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/receipt.json",
+    "sha256": "b2c45af4b4bdf370f94383b936b8a56bd175ff342e5cbf8eb64b1abc1bd26cce",
+    "bytes": 256371
+  },
+  {
+    "path": "/home/azureuser/lilscript/finer/tools/artifact-evidence.mjs",
+    "sha256": "fe01b1fcb9a2cd108b9e34b5e099a34d0f4c94adc80d5d723f49e1c027140ef1",
+    "bytes": 14164
+  },
+  {
+    "path": "/home/azureuser/lilscript/finer/tools/bounded-command.mjs",
+    "sha256": "91a7c5d091c2856b822e4963a02e92736624def9bd800f49f39c96a0ea8e9369",
+    "bytes": 5871
+  },
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.cjs",
+    "sha256": "ee7d81ed82fba48b5d79c598b232de5677f7b7a4963c7ba76156185104a9dcfe",
+    "bytes": 15122
+  },
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.closed.js",
+    "sha256": "0d556d9a29c9961353fe5eb620707654d14ab2fa237a2c8bc38886558f93577a",
+    "bytes": 14473
+  },
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.esm.js",
+    "sha256": "5f00bdbaaae4f84d29dd233a3e2b81820f2792a39198279b3e7bc7ad893a858a",
+    "bytes": 14031
+  },
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.raw.js",
+    "sha256": "29af5b879abef6c2252f80568804298651d1349afd0a6cd641b0fb9ee47cb5bc",
+    "bytes": 13932
+  },
+  {
+    "path": "/home/azureuser/lilscript/benchmarks/migration-results/2026-09-19-mdast-to-hast-baseline/source-built-release/artifacts/to-hast.umd.js",
+    "sha256": "3f144e7261ccafdc0c06778db0c93e7433e0abf95ec304e0f5a4f5ce9956211c",
+    "bytes": 15193
+  }
+]

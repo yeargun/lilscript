@@ -1,0 +1,1 @@
+extern void mutate(Record<int> state);func()->int make(){Record<int> state=record{x:1};mutate(state);return ()=>state.x??0;}print(make()());
