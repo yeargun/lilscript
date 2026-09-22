@@ -2534,6 +2534,85 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         self.sequence(schedule)
     }
 
+    /// Whether a `JS.call`'s receiver argument is a call to a function whose
+    /// body only returns undefined: no parameters, no suspension, no effect.
+    fn undefined_receiver(&self, unit: ContextId, call: CallId) -> bool {
+        let program = self.program;
+        let data = self.data(unit);
+        let Some([_, CallArgument::Value(receiver), ..]) =
+            data.arguments(data.calls[call.index()].arguments)
+        else {
+            return false;
+        };
+        let OperationKind::Call(inner) =
+            data.operations[data.values[receiver.index()].definition.index()].kind
+        else {
+            return false;
+        };
+        let CallTarget::Value { callee, .. } = data.calls[inner.index()].target else {
+            return false;
+        };
+        let OperationKind::Load(place) = data.operations[data.values[callee.index()].definition.index()].kind
+        else {
+            return false;
+        };
+        let Place::Cell(cell) = data.places[place.index()] else {
+            return false;
+        };
+        let CellBinding::Function(body) = program.cells[cell.index()].binding else {
+            return false;
+        };
+        let Some(function) = program.unit(body) else {
+            return false;
+        };
+        if !function.parameters.is_empty()
+            || function.suspension != Suspension::None
+            || data
+                .arguments(data.calls[inner.index()].arguments)
+                .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return false;
+        }
+        // A call's preparation fixes its callee before its arguments; here
+        // it prepares a builtin and observes nothing.
+        let operations: Vec<OpId> = function.regions[function.entry.index()]
+            .operations
+            .iter()
+            .copied()
+            .filter(|operation| {
+                !matches!(
+                    function.operations[operation.index()].kind,
+                    OperationKind::PrepareCall(prepared)
+                        if matches!(function.calls[prepared.index()].target, CallTarget::Builtin(BuiltinCall::JsUndefined))
+                )
+            })
+            .collect();
+        let returned = |operation: OpId| {
+            let operation = &function.operations[operation.index()];
+            matches!(operation.kind, OperationKind::Return).then(|| {
+                function.operands(operation.operands).unwrap_or(&[]).first().copied()
+            })
+        };
+        match operations.as_slice() {
+            [only] => returned(*only) == Some(None),
+            [first, second] => {
+                let produced = &function.operations[first.index()];
+                let undefined = match produced.kind {
+                    OperationKind::Constant(Constant::Undefined) => true,
+                    OperationKind::Call(value) => matches!(
+                        function.calls[value.index()].target,
+                        CallTarget::Builtin(BuiltinCall::JsUndefined)
+                    ),
+                    _ => false,
+                };
+                undefined
+                    && produced.result.is_some()
+                    && returned(*second) == Some(produced.result)
+            }
+            _ => false,
+        }
+    }
+
     fn call(
         &mut self,
         unit: ContextId,
@@ -2588,6 +2667,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
             }
             CallTarget::Builtin(builtin) if crate::primitive::host_builtin(builtin) => {
+                let mut arguments = arguments;
+                // `JS.call(f, t, ...)` whose `t` is a call to a function that
+                // only returns undefined is `f(...)`: the dropped call has no
+                // effect, and a plain call's receiver is undefined too.
+                if builtin == BuiltinCall::JsCall
+                    && self.compact
+                    && arguments.len() >= 2
+                    && self.undefined_receiver(unit, call)
+                {
+                    arguments[1] = self.literal(js::Literal::Undefined)?;
+                }
                 self.host_builtin(builtin, arguments, span)?
             }
             // `value.truthy()`, `value.isArray()`, `value.isObject()` on a

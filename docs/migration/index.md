@@ -1059,6 +1059,19 @@ Brotli against batch 3:
 
 Library suite 3,018 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes. katexlil (1,230 and 21), zodlil and jquerylil (7) pass their suites; markedlil fails only its two known output-shape assertions.
 
+### 008 progress: calls with an undefined receiver, batch 5
+
+`JS.call(f, t, ...)` already printed as the plain call `f(...)` when `t` was a literal `undefined`. It now also does so when `t` calls a function whose body only returns undefined, with no parameters, no suspension and no effect, like katexlil's `undef()`. The dropped call has no effect, and a plain call's receiver is undefined too, so evaluation is unchanged. katexlil's `.call(` sites fall from 1,540 to 74.
+
+| Port | Raw | Brotli |
+|---|---|---|
+| katexlil | −13,183 | −368 |
+| zodlil | −41 | −16 |
+| markedlil | 0 | 0 |
+| probelil | 0 | 0 |
+
+A service test runs the plain form and keeps the call when the receiver helper has an effect. Library suite 3,019 passed; census 72/72/72 with zero miscompiles; probelil matches; katexlil (1,230 and 21) and zodlil pass their suites.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.

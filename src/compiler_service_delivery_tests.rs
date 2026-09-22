@@ -664,3 +664,34 @@ fn unread_exceptions_and_argumentless_constructions_print_short() {
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&output.stdout), "1\n", "{current}");
 }
+
+/// `JS.call(f, undef(), ...)` whose `undef` only returns undefined is the
+/// plain call `f(...)`; a receiver helper with an effect keeps its call.
+#[test]
+fn js_call_with_an_undefined_receiver_is_a_plain_call() {
+    let source = "extern JsValue target;JsValue undef(){return JS.undefined();}\
+                  JsValue noisy(){print(\"receiver\");return JS.undefined();}\
+                  print(JS.call(target, undef(), 1));print(JS.call(target, noisy(), 2));";
+    let config: ProjectConfig = toml::from_str("[javascript]\nstrip_console=false").unwrap();
+    let text = compile_source_semantic(source, &config, ServiceOptions::default())
+        .unwrap()
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
+    assert!(text.contains("target(1)"), "{text}");
+    assert_eq!(text.matches(".call(").count(), 1, "{text}");
+    let output = Command::new("node")
+        .args([
+            "--input-type=module",
+            "-e",
+            &format!("globalThis.target=function(n){{return [this===undefined,n].join()}};{text}"),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "true,1\nreceiver\ntrue,2\n",
+        "{text}"
+    );
+}
