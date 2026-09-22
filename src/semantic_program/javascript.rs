@@ -173,6 +173,45 @@ impl super::raw_domains::Recipes for JavaScriptRecipes {
     }
 }
 
+/// Builtins spelled as a literal or operator over their operands: nothing
+/// runs before the last operand is evaluated. Any other spelling first reads
+/// a host path or method, which only pristine builtins make unobservable
+/// where the forwarding function read it after its arguments.
+fn operands_first(builtin: BuiltinCall) -> bool {
+    use BuiltinCall as B;
+    matches!(
+        builtin,
+        B::JsArray
+            | B::JsObject
+            | B::JsUndefined
+            | B::JsAssume
+            | B::JsNumber
+            | B::JsString
+            | B::JsTypeOf
+            | B::JsIsNullish
+            | B::JsIsFalse
+            | B::JsIsUndefined
+            | B::JsAdd
+            | B::JsMod
+            | B::JsLessThan
+            | B::JsLessThanOrEqual
+            | B::JsGreaterThan
+            | B::JsGreaterThanOrEqual
+            | B::JsStrictEqual
+            | B::JsStrictNotEqual
+            | B::JsConstruct
+    )
+}
+
+/// `JS.call`, `JS.apply` and `JS.construct` only invoke their first operand;
+/// none reads its name.
+fn invokes_argument(target: &CallTarget) -> bool {
+    matches!(
+        target,
+        CallTarget::Builtin(BuiltinCall::JsCall | BuiltinCall::JsApply | BuiltinCall::JsConstruct)
+    )
+}
+
 pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
     // Explicit inspection defaults for Program::to_javascript. Project builds
     // enter through Compilation and always supply their resolved contract.
@@ -575,7 +614,18 @@ fn form_with_demand(
     // One-use forwarding: a checked target edit on the finished tree, part
     // of target compaction.
     if formation.compact {
-        if let Err(error) = formation.module.forward_single_uses(formation.budget) {
+        let pristine = formation.contract.assumptions.pristine_builtins;
+        let edited = formation
+            .module
+            .forward_single_uses(formation.budget)
+            .and_then(|_| {
+                if pristine {
+                    formation.module.fold_object_stores(formation.budget)?;
+                }
+                formation.module.elide_undefined(formation.budget)?;
+                formation.module.drop_unreferenced_functions(formation.budget)
+            });
+        if let Err(error) = edited {
             drop(formation);
             return Err(error.into());
         }
@@ -854,6 +904,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let Some(uses) = self.uses else {
             return Ok(false);
         };
+        if self.namespace_member(cell)? {
+            return Ok(false);
+        }
         let Some(cell_uses) = uses.cell(cell) else {
             return Ok(false);
         };
@@ -892,8 +945,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         Ok(true)
     }
 
-    /// A closure whose name nothing can read: each use calls it, directly or
-    /// through a private local cell it initializes.
+    /// A closure whose name nothing can read: each use invokes it, directly
+    /// or through local cells it initializes or is stored into.
     fn unobserved_closure_name(
         &mut self,
         unit: ContextId,
@@ -913,17 +966,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         for reader in readers {
             match *reader {
                 ValueUse::CallCallee { .. } => {}
+                ValueUse::CallArgument {
+                    call, position: 0, ..
+                } if invokes_argument(&data.calls[call.index()].target) => {}
                 ValueUse::Operand {
                     operation,
                     position: 0,
                 } => {
-                    let OperationKind::Initialize(cell) = data.operations[operation.index()].kind
-                    else {
-                        return Ok(false);
+                    let cell = match data.operations[operation.index()].kind {
+                        OperationKind::Initialize(cell) => cell,
+                        OperationKind::Store(place) => match data.places[place.index()] {
+                            Place::Cell(cell) => cell,
+                            _ => return Ok(false),
+                        },
+                        _ => return Ok(false),
                     };
-                    if self.program.cells[cell.index()].binding != CellBinding::Local
-                        || !self.callee_only_cell(cell)?
-                    {
+                    if !self.name_unobserved_cell(cell)? {
                         return Ok(false);
                     }
                 }
@@ -931,6 +989,111 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             }
         }
         Ok(!readers.is_empty())
+    }
+
+    /// Whether no read of local `cell` can observe a function's name: nothing
+    /// exports it or loads it through a module namespace, and each read only
+    /// invokes the value. Other values written to the cell do not matter.
+    fn name_unobserved_cell(&mut self, cell: CellId) -> Result<bool, FormationError> {
+        let Some(uses) = self.uses else {
+            return Ok(false);
+        };
+        if self.program.cells[cell.index()].binding != CellBinding::Local
+            || self.namespace_member(cell)?
+        {
+            return Ok(false);
+        }
+        let Some(cell_uses) = uses.cell(cell) else {
+            return Ok(false);
+        };
+        for site in cell_uses.sites() {
+            self.work(1)?;
+            match *site {
+                CellUseSite::Unit {
+                    usage: CellUse::Initialize(_) | CellUse::Capture | CellUse::Write { .. },
+                    ..
+                } => {}
+                CellUseSite::Unit {
+                    unit: reader,
+                    usage: CellUse::Read { operation, place },
+                } => {
+                    if !self.live(reader, operation)? {
+                        continue;
+                    }
+                    let data = self.program.units[reader.index()].data();
+                    if !matches!(data.places[place.index()], Place::Cell(root) if root == cell) {
+                        return Ok(false);
+                    }
+                    let operation = &data.operations[operation.index()];
+                    match operation.kind {
+                        OperationKind::Load(_) => {
+                            let Some(loaded) = operation.result else {
+                                return Ok(false);
+                            };
+                            if !self.invoked_only(reader, loaded)? {
+                                return Ok(false);
+                            }
+                        }
+                        OperationKind::Call(call)
+                            if matches!(
+                                data.calls[call.index()].target,
+                                CallTarget::Reference { place: callee } if callee == place
+                            ) => {}
+                        _ => return Ok(false),
+                    }
+                }
+                _ => return Ok(false),
+            }
+        }
+        Ok(true)
+    }
+
+    /// Whether every use of `value` that runs invokes it.
+    fn invoked_only(&mut self, unit: UnitId, value: ValueId) -> Result<bool, FormationError> {
+        let Some(uses) = self.uses else {
+            return Ok(false);
+        };
+        let Some(readers) = uses.unit(unit).and_then(|uses| uses.value_uses(value)) else {
+            return Ok(false);
+        };
+        self.work(readers.len())?;
+        let data = self.program.units[unit.index()].data();
+        for reader in readers {
+            match *reader {
+                ValueUse::CallCallee { .. } => {}
+                ValueUse::CallArgument {
+                    call, position: 0, ..
+                } if invokes_argument(&data.calls[call.index()].target) => {}
+                ValueUse::Operand { operation, .. }
+                | ValueUse::CallArgument { operation, .. }
+                | ValueUse::PlaceReceiver { operation, .. }
+                | ValueUse::PlaceKey { operation, .. } => {
+                    if self.live(unit, operation)? {
+                        return Ok(false);
+                    }
+                }
+                _ => return Ok(false),
+            }
+        }
+        Ok(true)
+    }
+
+    /// Whether any demand context of `unit` runs `operation`.
+    fn live(&mut self, unit: UnitId, operation: OpId) -> Result<bool, FormationError> {
+        self.work(self.demand.contexts().len())?;
+        Ok(self.demand.needs_operation_anywhere(unit, operation))
+    }
+
+    /// A dynamic import's namespace hands the cell's value to its importer.
+    fn namespace_member(&mut self, cell: CellId) -> Result<bool, FormationError> {
+        let program = self.program;
+        for module in program.modules.iter() {
+            self.work(1 + module.namespace.len())?;
+            if module.namespace.iter().any(|&(_, member)| member == cell) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
     fn semantic(&self, context: ContextId) -> UnitId {
         self.demand.context(context).unit
@@ -2389,6 +2552,43 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     let value = self.sequence(arguments)?.unwrap();
                     return self.save(unit, &operation, value);
                 }
+                // A call to a declared function that only forwards its
+                // arguments to a host builtin is that builtin: the same
+                // evaluations, one frame fewer. Measured never larger in
+                // Brotli on the reference ports, often smaller: the builtin
+                // spellings repeat where the wrapper names did not.
+                if self.compact && before.is_empty() && !expanded_products {
+                    if let Some(builtin) = operation
+                        .result
+                        .and_then(|result| self.forwarding_builtin(unit, result))
+                        .filter(|&builtin| {
+                            crate::primitive::host_builtin(builtin)
+                                && (self.contract.assumptions.pristine_builtins
+                                    || operands_first(builtin))
+                                && (builtin != BuiltinCall::JsObject
+                                    || arguments.len() % 2 == 0
+                                        && arguments
+                                            .chunks_exact(2)
+                                            .all(|pair| self.string_key(pair[0])))
+                        })
+                    {
+                        let expression = self.host_builtin(builtin, arguments, operation.span)?;
+                        let expression = self.expression(expression)?;
+                        return self.save(unit, &operation, expression);
+                    }
+                }
+                // A call to a function that only returns undefined is that
+                // value: its callee is a declared function, and it has no
+                // arguments to evaluate.
+                if self.compact
+                    && before.is_empty()
+                    && operation
+                        .result
+                        .is_some_and(|result| self.undefined_call(unit, result))
+                {
+                    let value = self.literal(js::Literal::Undefined)?;
+                    return self.save(unit, &operation, value);
+                }
                 let expression =
                     self.call(unit, call, arguments, operation.span, expanded_products)?;
                 // Host calls retain their evaluation/throwing behavior, but
@@ -2535,17 +2735,126 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     }
 
     /// Whether a `JS.call`'s receiver argument is a call to a function whose
-    /// body only returns undefined: no parameters, no suspension, no effect.
+    /// body only returns undefined.
     fn undefined_receiver(&self, unit: ContextId, call: CallId) -> bool {
-        let program = self.program;
         let data = self.data(unit);
         let Some([_, CallArgument::Value(receiver), ..]) =
             data.arguments(data.calls[call.index()].arguments)
         else {
             return false;
         };
+        self.undefined_call(unit, *receiver)
+    }
+
+    /// The host builtin that a call's declared callee only forwards to: its
+    /// body loads each by-value parameter once, in order, passes them to one
+    /// builtin and returns that result. The call is that builtin applied to
+    /// the same arguments, one frame fewer. `value` is the call's result.
+    fn forwarding_builtin(&self, unit: ContextId, value: ValueId) -> Option<BuiltinCall> {
+        let program = self.program;
+        let data = self.data(unit);
+        let OperationKind::Call(outer) =
+            data.operations[data.values[value.index()].definition.index()].kind
+        else {
+            return None;
+        };
+        let site = &data.calls[outer.index()];
+        let CallTarget::Value {
+            callee,
+            invocation: Invocation::Value,
+        } = site.target
+        else {
+            return None;
+        };
+        let OperationKind::Load(place) =
+            data.operations[data.values[callee.index()].definition.index()].kind
+        else {
+            return None;
+        };
+        let Place::Cell(cell) = data.places[place.index()] else {
+            return None;
+        };
+        let CellBinding::Function(body) = program.cells[cell.index()].binding else {
+            return None;
+        };
+        let function = program.unit(body)?;
+        let arguments = data.arguments(site.arguments)?;
+        if function.suspension != Suspension::None
+            || arguments.len() != function.parameters.len()
+            || arguments
+                .iter()
+                .any(|argument| !matches!(argument, CallArgument::Value(_)))
+            || function
+                .parameters
+                .iter()
+                .any(|&parameter| program.is_reference_parameter(parameter))
+        {
+            return None;
+        }
+        let mut loaded = 0;
+        let mut forwarded: Option<(CallId, ValueId)> = None;
+        let mut returned = false;
+        for &operation in &function.regions[function.entry.index()].operations {
+            let operation = &function.operations[operation.index()];
+            match operation.kind {
+                OperationKind::PrepareCall(call)
+                    if matches!(function.calls[call.index()].target, CallTarget::Builtin(_)) => {}
+                OperationKind::Load(place) if forwarded.is_none() => {
+                    let Place::Cell(cell) = function.places[place.index()] else {
+                        return None;
+                    };
+                    if function.parameters.get(loaded) != Some(&cell) || operation.result.is_none() {
+                        return None;
+                    }
+                    loaded += 1;
+                }
+                OperationKind::Call(call)
+                    if forwarded.is_none() && loaded == function.parameters.len() =>
+                {
+                    forwarded = Some((call, operation.result?));
+                }
+                OperationKind::Return if !returned => {
+                    let (_, result) = forwarded?;
+                    if function.operands(operation.operands)? != [result] {
+                        return None;
+                    }
+                    returned = true;
+                }
+                _ => return None,
+            }
+        }
+        let (call, result) = forwarded.filter(|_| returned)?;
+        let CallTarget::Builtin(builtin) = function.calls[call.index()].target else {
+            return None;
+        };
+        // Each builtin operand is its parameter's load, in order.
+        let operands = function.arguments(function.calls[call.index()].arguments)?;
+        let mut position = 0;
+        for &operation in &function.regions[function.entry.index()].operations {
+            let operation = &function.operations[operation.index()];
+            if let OperationKind::Load(_) = operation.kind {
+                if operands.get(position) != Some(&CallArgument::Value(operation.result?)) {
+                    return None;
+                }
+                position += 1;
+            }
+        }
+        // An integer result would owe the builtin's own normalization.
+        (position == operands.len()
+            && !matches!(
+                program.types[function.values[result.index()].ty.index()],
+                Type::Int
+            ))
+        .then_some(builtin)
+    }
+
+    /// Whether `value` is a zero-argument call to a declared function whose
+    /// body only returns undefined: no parameters, no suspension, no effect.
+    fn undefined_call(&self, unit: ContextId, value: ValueId) -> bool {
+        let program = self.program;
+        let data = self.data(unit);
         let OperationKind::Call(inner) =
-            data.operations[data.values[receiver.index()].definition.index()].kind
+            data.operations[data.values[value.index()].definition.index()].kind
         else {
             return false;
         };
@@ -2575,7 +2884,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         // A call's preparation fixes its callee before its arguments; here
         // it prepares a builtin and observes nothing.
-        let operations: Vec<OpId> = function.regions[function.entry.index()]
+        let mut operations = function.regions[function.entry.index()]
             .operations
             .iter()
             .copied()
@@ -2585,17 +2894,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     OperationKind::PrepareCall(prepared)
                         if matches!(function.calls[prepared.index()].target, CallTarget::Builtin(BuiltinCall::JsUndefined))
                 )
-            })
-            .collect();
+            });
         let returned = |operation: OpId| {
             let operation = &function.operations[operation.index()];
             matches!(operation.kind, OperationKind::Return).then(|| {
                 function.operands(operation.operands).unwrap_or(&[]).first().copied()
             })
         };
-        match operations.as_slice() {
-            [only] => returned(*only) == Some(None),
-            [first, second] => {
+        match (operations.next(), operations.next(), operations.next()) {
+            (Some(only), None, _) => returned(only) == Some(None),
+            (Some(first), Some(second), None) => {
                 let produced = &function.operations[first.index()];
                 let undefined = match produced.kind {
                     OperationKind::Constant(Constant::Undefined) => true,
@@ -2607,7 +2915,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 };
                 undefined
                     && produced.result.is_some()
-                    && returned(*second) == Some(produced.result)
+                    && returned(second) == Some(produced.result)
             }
             _ => false,
         }

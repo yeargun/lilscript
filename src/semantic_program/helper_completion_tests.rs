@@ -190,7 +190,6 @@ fn a_checked_nonvoid_body_without_its_return_is_not_void_fallthrough() {
 #[test]
 fn void_fallthrough_does_not_admit_early_branch_or_throwing_completion() {
     for source in [
-        "void helper(ref int value){return;value=7;}int state=1;helper(ref state);",
         "void helper(bool choose,ref int value){if(choose){return;}value=7;}int state=1;helper(true,ref state);",
         "void helper(){throw 7;}try{helper();}catch{}",
     ] {

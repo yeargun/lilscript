@@ -2444,8 +2444,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         region: RegionId,
         statements: &[Stmt<'ast, 'src>],
     ) -> Result<(), ConversionError> {
-        for statement in statements {
+        for (index, statement) in statements.iter().enumerate() {
             self.statement(unit, region, statement)?;
+            // Control never reaches what follows. A later declaration stays,
+            // since a closure lowered earlier may name it.
+            if terminates(statement) && !statements[index + 1..].iter().any(declares) {
+                break;
+            }
         }
         Ok(())
     }
@@ -4304,4 +4309,27 @@ fn base_class_name<'src>(base: &Type<'src>) -> Option<&'src str> {
         Type::ClassInstance { name, .. } => Some(name),
         _ => None,
     }
+}
+
+/// Whether control never continues past `statement`: every path returns,
+/// throws or jumps.
+fn terminates(statement: &Stmt<'_, '_>) -> bool {
+    match statement {
+        Stmt::Return { .. } | Stmt::Throw { .. } | Stmt::Break(_) | Stmt::Continue(_) => true,
+        Stmt::Block { body, .. } => body.iter().any(terminates),
+        Stmt::If {
+            then_branch,
+            else_branch: Some(else_branch),
+            ..
+        } => terminates(then_branch) && terminates(else_branch),
+        _ => false,
+    }
+}
+
+/// Whether `statement` declares a binding in its enclosing block.
+fn declares(statement: &Stmt<'_, '_>) -> bool {
+    matches!(
+        statement,
+        Stmt::VarDecl(_) | Stmt::ArrayDestructure { .. } | Stmt::RecordDestructure { .. }
+    )
 }

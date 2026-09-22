@@ -1107,6 +1107,32 @@ pub(super) fn operation_evaluation_behavior(
         {
             EvaluationBehavior::TOTAL
         }
+        // `JS.object(...)`, `JS.array(...)` and `JS.undefined()` print as
+        // literals, their operands separately scheduled: defining data
+        // properties on a fresh object neither throws nor runs user code.
+        Op::PrepareCall(call) | Op::Call(call)
+            if matches!(
+                unit.calls[call.index()].target,
+                CallTarget::Builtin(
+                    BuiltinCall::JsObject | BuiltinCall::JsArray | BuiltinCall::JsUndefined
+                )
+            ) =>
+        {
+            if matches!(operation.kind, Op::Call(_))
+                && !matches!(
+                    unit.calls[call.index()].target,
+                    CallTarget::Builtin(BuiltinCall::JsUndefined)
+                )
+            {
+                EvaluationBehavior {
+                    may_exhaust_resources: true,
+                    creates_identity: true,
+                    ..EvaluationBehavior::TOTAL
+                }
+            } else {
+                EvaluationBehavior::TOTAL
+            }
+        }
         Op::Closure(_)
         | Op::Allocate {
             kind: AllocationKind::Array | AllocationKind::Record(_) | AllocationKind::Object(_),

@@ -1160,6 +1160,45 @@ It is reverted as unproductive complexity. The default route's inlining lead on 
 - oxc does single-use substitution only (`peephole/minimize_statements.rs:1137-1330`) and no general function inlining.
 - 046 measured multi-use constant propagation as Brotli-negative on katexlil (+129), so it is not a target.
 
+### 009 batch 1: substitution and folding on the finished program (2026-09-22)
+
+The rules below are generic. Each carries its own soundness condition, and none consults a port. They run under target compaction, except the dead-statement rule, which runs at conversion.
+
+- **Function names nothing can read.** A closure keeps an exact `.name` only when something can observe it. It no longer does when every use calls it, directly, through `JS.call`/`JS.apply`/`JS.construct`, or through local cells it is initialized into or stored into (`let f; f=(…)=>…`) whose every read only calls it. Reads that no demand context keeps do not count. A public export or a dynamic-import namespace member still counts as an observation. The namespace check also closes a hole in the private-function rule: a lazy chunk's `answer` now keeps its name and constructibility.
+- **Unreachable statements.** Conversion stops lowering a block after a statement that returns, throws or jumps on every path, unless a later statement declares a variable an earlier closure may name. The ports' transliterated `return x; return undef();` pairs vanish.
+- **Calls to functions that only return undefined** are `undefined`. Then `let x=void 0` is `let x`, `return void 0` is `return`, and a bare `return` ending a function body goes.
+- **Forwarding functions.** A call to a declared function whose body passes each by-value parameter once, in order, to one host builtin and returns its result, is that builtin applied to the call's arguments. With pristine builtins that covers every host builtin. Otherwise it covers only literal and operator spellings, which evaluate nothing before their last operand. `JS.object` also needs literal keys. Substituting all of them never cost Brotli on a reference port. zodlil gains 478 bytes while its raw size grows by 2,313: the builtin spellings repeat where wrapper names did not.
+- **Stores into a fresh object literal.** With pristine builtins, `let o={…};o.k=v;o["j"]=w` becomes `let o={…,k:v,j:w}`. `__proto__` stays a store. Folding is refused when a stored value mentions `o`, or when an earlier statement or hoisted function of its region does. Such code could read `o` in its temporal dead zone.
+- **Liveness.** `JS.object`, `JS.array` and `JS.undefined` get literal effects instead of unknown ones, so unused namespace objects (`({default:E,SourceLocation:E});`, 37 on katexlil) are no longer evaluated. A function binding no reachable code references is dropped from the tree.
+
+| Step | markedlil | zodlil | katexlil |
+|---|---|---|---|
+| Before (`764fa9cf`) | 9,641 | 29,580 | 61,391 |
+| Function names nothing can read | 0 | 0 | −367 |
+| Unreachable statements, undefined calls, builtin literal effects | 0 | −402 | −1,277 |
+| Name proof ignores dead reads | 0 | 0 | −243 |
+| Forwarding functions, object-literal stores | −9 | −489 | −638 |
+| Unreferenced functions | 0 | −49 | −62 |
+| **After** | **9,632** | **28,640** | **58,804** |
+| Default route | 9,360 | 29,682 | 55,404 |
+
+probelil is unchanged at 1,905. katexlil's raw size falls from 257,809 to 242,762. zodlil's rises from 123,841 to 125,222, with Brotli down 940. zodlil now beats the default route by 1,042 bytes. katexlil's gap shrinks from 10.8% to 6.1%.
+
+**Measured and not pursued.** On katexlil, renaming the three most-used public bindings (`defineSymbol`, 650 uses; `defineMacro`; `defineFunction`) saves 10,490 raw bytes but only 44 Brotli. The wrappers their exact `.name` would need cost more than that. Terser's mangle-only pass on this output finds −453 in total: −136 from reassigning short names and about −317 from the remaining long ones. Most of those are functions held in namespace objects the port calls through (`JS.invoke(html, "buildGroup", …)`). Freeing them needs a heap proof that those objects' members are only invoked.
+
+**Verification.** The unit suite passes (3,024 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions. New tests:
+- `undefined_calls_and_unreachable_statements_leave_no_residue`
+- `a_closure_only_invoked_through_its_cell_loses_its_name`
+- `forwarding_wrappers_become_their_builtins_and_stores_fold_into_the_literal`
+- `a_store_whose_value_may_read_the_object_stays_a_store`
+
+**Next.** The default route's remaining lead on katexlil shows in its shapes:
+- It inlines single-expression helpers (`x.length` 186 times against our 96).
+- It spells literal arrays' methods directly (`a.push(b)`).
+- It forms conditional expressions (`?:` 371 times against our 55).
+
+The first needs a target-level inliner with an arena renumbering pass, so edits can splice subtrees. The second is the default route's native-array proof (`call_array_methods_directly`). The third belongs to 010's codec alternatives.
+
 
 ## 010 Bounded Codec Search
 

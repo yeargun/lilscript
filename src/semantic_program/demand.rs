@@ -540,6 +540,13 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
     pub(super) fn needs_operation(&self, id: ContextId, op: OpId) -> bool {
         self.context(id).operations[op.index()]
     }
+    /// Whether some context of `unit` keeps `op`. An operation no context
+    /// keeps never runs, so nothing it would read is observed.
+    pub(super) fn needs_operation_anywhere(&self, unit: UnitId, op: OpId) -> bool {
+        self.contexts
+            .iter()
+            .any(|context| context.unit == unit && context.operations[op.index()])
+    }
     pub(super) fn needs_execution(&self, id: ContextId, op: OpId) -> bool {
         self.context(id).execution[op.index()]
     }

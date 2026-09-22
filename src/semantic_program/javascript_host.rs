@@ -154,7 +154,7 @@ impl Formation<'_, '_, '_, '_, '_> {
 
     /// A constant string, possibly after effects scheduled before it; an
     /// object literal evaluates each key before its value, in order.
-    fn string_key(&self, key: js::ExprId) -> bool {
+    pub(super) fn string_key(&self, key: js::ExprId) -> bool {
         match &self.module.expressions[key.index()] {
             js::Expr::Literal(js::Literal::String(_)) => true,
             js::Expr::Sequence(items) => items.last().is_some_and(|last| self.string_key(*last)),

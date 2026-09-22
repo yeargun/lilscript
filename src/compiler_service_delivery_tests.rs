@@ -372,7 +372,8 @@ fn dynamic_import_loads_a_lazy_chunk_serving_only_the_members_read() {
         assert_eq!(artifact.chunks().len(), 1, "{:?}", delivered(&compiled));
         let chunk = &artifact.chunks()[0];
         assert!(chunk.lazy && chunk.name.ends_with("-feature.js"), "{}", chunk.name);
-        assert!(chunk.code.contains("as answer}"), "{}", chunk.code);
+        // The importer receives the namespace, so the member keeps its name.
+        assert!(chunk.code.contains("export{answer}"), "{}", chunk.code);
         assert!(!chunk.code.contains("99"), "{}", chunk.code);
         let links = artifact.entry_links();
         assert!(links.dependencies.is_empty());

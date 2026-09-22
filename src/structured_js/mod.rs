@@ -819,6 +819,36 @@ impl Statement {
         }
     }
 
+    /// Immediate child regions; a declared function's body is not one.
+    pub(super) fn visit_regions(&self, mut visit: impl FnMut(RegionId)) {
+        match self {
+            Self::If { yes, no, .. } => {
+                visit(*yes);
+                if let Some(no) = no {
+                    visit(*no);
+                }
+            }
+            Self::Loop { body, .. }
+            | Self::ForIn { body, .. }
+            | Self::ForOf { body, .. }
+            | Self::Block(body) => visit(*body),
+            Self::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                visit(*body);
+                if let Some(catch) = catch {
+                    visit(catch.body);
+                }
+                if let Some(finally) = finally {
+                    visit(*finally);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub(super) fn remap_expressions(&mut self, mut map: impl FnMut(ExprId) -> ExprId) {
         match self {
             Self::Let {
@@ -967,6 +997,343 @@ enum Leaf {
 }
 
 impl Module {
+    /// `let x=void 0` is `let x` and `return void 0` is `return`: a `let`
+    /// without a value still initializes to undefined each time it runs. A
+    /// bare `return` ending a function body is where the body ends anyway.
+    /// Returns the number of elided values and statements.
+    pub(crate) fn elide_undefined(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let expressions = &self.expressions;
+        let mut elided = 0;
+        for region in &mut self.regions {
+            budget.work(
+                crate::compilation_policy::WorkKind::Analysis,
+                1 + region.statements.len() as u64,
+            )?;
+            for statement in &mut region.statements {
+                if let Statement::Let { value, .. } | Statement::Return(value) = statement {
+                    if value.is_some_and(|value| {
+                        matches!(
+                            expressions[value.index()],
+                            Expr::Literal(Literal::Undefined)
+                        )
+                    }) {
+                        *value = None;
+                        elided += 1;
+                    }
+                }
+            }
+        }
+        budget.work(
+            crate::compilation_policy::WorkKind::Analysis,
+            self.functions.len() as u64,
+        )?;
+        for function in &self.functions {
+            let statements = &mut self.regions[function.body.index()].statements;
+            if matches!(statements.last(), Some(Statement::Return(None))) {
+                statements.pop();
+                elided += 1;
+            }
+        }
+        Ok(elided)
+    }
+
+    /// A function that no code references, bound by `let` or declared, is
+    /// never called, and creating it has no effect: its statement goes. A
+    /// call spelled as the builtin it forwards to leaves such functions.
+    /// Returns the number of dropped statements.
+    pub(crate) fn drop_unreferenced_functions(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut dropped = 0;
+        // Dropping one function can leave another unreferenced.
+        for _ in 0..4 {
+            let before = dropped;
+            self.drop_unreferenced_functions_once(budget, &mut dropped)?;
+            if dropped == before {
+                break;
+            }
+        }
+        Ok(dropped)
+    }
+
+    fn drop_unreferenced_functions_once(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+        dropped: &mut usize,
+    ) -> Result<(), AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        // Only code that can run counts: edits leave unreachable nodes.
+        let mut referenced = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
+        self.walk(&mut vec![self.root], &mut Vec::new(), budget, |binding| {
+            referenced[binding.index()] = true;
+        })?;
+        budget.work(Analysis, self.exports.len() as u64)?;
+        for export in &self.exports {
+            referenced[export.binding.index()] = true;
+        }
+        for region in 0..self.regions.len() {
+            let root = region == self.root.index();
+            let mut index = 0;
+            while index < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                let unused = |binding: BindingId| {
+                    !referenced[binding.index()] && !self.bindings[binding.index()].pinned
+                };
+                let drop = match &self.regions[region].statements[index] {
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => {
+                        unused(*binding)
+                            && matches!(self.expressions[value.index()], Expr::Function(_))
+                    }
+                    Statement::Function { binding, .. } => unused(*binding),
+                    _ => false,
+                };
+                if drop {
+                    self.regions[region].statements.remove(index);
+                    if root && index < self.root_modules.len() {
+                        self.root_modules.remove(index);
+                    }
+                    *dropped += 1;
+                } else {
+                    index += 1;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// `let o={…};o.k=v;o[1]=w` becomes `let o={…,k:v,1:w}`: the stores run
+    /// right after the object exists, so each defines a data property of a
+    /// fresh ordinary object. With pristine builtins no setter observes them
+    /// (`__proto__` stays a store). The values evaluate in the same order and
+    /// never mention `o`; nothing that could run first mentions it either: no
+    /// earlier statement of its region and no hoisted declaration there.
+    /// Returns the number of folded stores.
+    pub(crate) fn fold_object_stores(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let depths = self.region_depths(budget)?;
+        let mut folded = 0;
+        for region in 0..self.regions.len() {
+            let Some(region_depth) = depths[region] else {
+                continue;
+            };
+            budget.work(Analysis, 1 + self.regions[region].statements.len() as u64)?;
+            let candidates: Vec<BindingId> = self.regions[region]
+                .statements
+                .windows(2)
+                .filter_map(|pair| match pair {
+                    [Statement::Let {
+                        binding,
+                        value: Some(value),
+                    }, Statement::Evaluate(store)]
+                        if matches!(self.expressions[value.index()], Expr::Object(_))
+                            && self.object_store(*store, *binding).is_some() =>
+                    {
+                        Some(*binding)
+                    }
+                    _ => None,
+                })
+                .collect();
+            if candidates.is_empty() {
+                continue;
+            }
+            let first = self.first_mentions(RegionId::new(region), &candidates, budget)?;
+            let root = region == self.root.index();
+            let mut index = 0;
+            while index + 1 < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                let Statement::Let {
+                    binding,
+                    value: Some(object),
+                } = self.regions[region].statements[index]
+                else {
+                    index += 1;
+                    continue;
+                };
+                let Expr::Object(entries) = &self.expressions[object.index()] else {
+                    index += 1;
+                    continue;
+                };
+                if first
+                    .get(&binding)
+                    .is_none_or(|&mention| mention <= index)
+                {
+                    index += 1;
+                    continue;
+                }
+                let mut entries = entries.clone();
+                let mut end = index + 1;
+                while let Some(Statement::Evaluate(store)) = self.regions[region].statements.get(end)
+                {
+                    budget.work(Analysis, 1)?;
+                    if root && self.root_modules.get(end) != self.root_modules.get(index) {
+                        break;
+                    }
+                    let Some((property, value)) = self.object_store(*store, binding) else {
+                        break;
+                    };
+                    if self.mentions_within(value, binding, budget)? {
+                        break;
+                    }
+                    entries.push((property, value));
+                    end += 1;
+                }
+                if end == index + 1 {
+                    index += 1;
+                    continue;
+                }
+                let origin = self.origins[object.index()];
+                let id = self.expression_in(Expr::Object(entries), origin, budget)?;
+                if region_depth + 1 + self.subtree_depth(id) > verify::MAX_NESTING {
+                    self.expressions.pop();
+                    self.origins.pop();
+                    index += 1;
+                    continue;
+                }
+                self.regions[region].statements[index].replace_root(id);
+                folded += end - index - 1;
+                self.regions[region].statements.drain(index + 1..end);
+                if root {
+                    let modules = end.min(self.root_modules.len());
+                    if index + 1 < modules {
+                        self.root_modules.drain(index + 1..modules);
+                    }
+                }
+                index += 1;
+            }
+        }
+        Ok(folded)
+    }
+
+    /// `object.k=value` or `object["k"]=value` on `object`'s binding, as the
+    /// object-literal entry it would define.
+    fn object_store(&self, store: ExprId, object: BindingId) -> Option<(Property, ExprId)> {
+        let Expr::Assign { target, value } = self.expressions[store.index()] else {
+            return None;
+        };
+        let Expr::Member {
+            object: receiver,
+            property,
+        } = &self.expressions[target.index()]
+        else {
+            return None;
+        };
+        if !matches!(self.expressions[receiver.index()], Expr::Binding(found) if found == object) {
+            return None;
+        }
+        let entry = match property {
+            Property::Named(name) if name != "__proto__" => Property::Named(name.clone()),
+            Property::Computed(key) => match &self.expressions[key.index()] {
+                Expr::Literal(Literal::String(name))
+                    if name.as_unicode().is_some_and(|name| name != "__proto__") =>
+                {
+                    Property::Computed(*key)
+                }
+                Expr::Literal(Literal::Number(_)) => Property::Computed(*key),
+                _ => return None,
+            },
+            _ => return None,
+        };
+        Some((entry, value))
+    }
+
+    /// For each binding, the index of the first statement of `region` whose
+    /// code mentions it; a hoisted declaration's body counts as the first.
+    fn first_mentions(
+        &self,
+        region: RegionId,
+        bindings: &[BindingId],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<ahash::AHashMap<BindingId, usize>, AllocationError> {
+        let mut first = ahash::AHashMap::<BindingId, usize>::default();
+        for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
+            let at = if matches!(statement, Statement::Function { .. }) {
+                0
+            } else {
+                index
+            };
+            let mut regions = Vec::new();
+            let mut expressions = Vec::new();
+            statement.visit_expressions(|root| expressions.push(root));
+            statement.visit_regions(|child| regions.push(child));
+            if let Statement::Function { function, .. } = statement {
+                regions.push(self.functions[function.index()].body);
+            }
+            self.walk(&mut regions, &mut expressions, budget, |binding| {
+                if bindings.contains(&binding) {
+                    first
+                        .entry(binding)
+                        .and_modify(|seen| *seen = (*seen).min(at))
+                        .or_insert(at);
+                }
+            })?;
+        }
+        Ok(first)
+    }
+
+    /// Whether the code under `root` mentions `binding`.
+    fn mentions_within(
+        &self,
+        root: ExprId,
+        binding: BindingId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let mut found = false;
+        self.walk(&mut Vec::new(), &mut vec![root], budget, |seen| {
+            found |= seen == binding;
+        })?;
+        Ok(found)
+    }
+
+    /// Every binding reference under the pending regions and expressions,
+    /// function bodies included.
+    fn walk(
+        &self,
+        regions: &mut Vec<RegionId>,
+        expressions: &mut Vec<ExprId>,
+        budget: &mut AllocationBudget<'_>,
+        mut visit: impl FnMut(BindingId),
+    ) -> Result<(), AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        loop {
+            if let Some(id) = expressions.pop() {
+                budget.work(Analysis, 1)?;
+                let expression = &self.expressions[id.index()];
+                if let Expr::Binding(binding) = expression {
+                    visit(*binding);
+                }
+                if let Some(function) = expression.created_function() {
+                    regions.push(self.functions[function.index()].body);
+                }
+                let _ = expression.visit_children(|child| {
+                    expressions.push(child);
+                    Ok::<_, ()>(())
+                });
+                continue;
+            }
+            let Some(region) = regions.pop() else {
+                return Ok(());
+            };
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                statement.visit_expressions(|root| expressions.push(root));
+                statement.visit_regions(|child| regions.push(child));
+                if let Statement::Function { function, .. } = statement {
+                    regions.push(self.functions[function.index()].body);
+                }
+            }
+        }
+    }
+
     /// `let x=v;S` becomes `S` with `v` in place of `x` when `x` is referenced
     /// exactly once, as the first thing `S` evaluates: the same evaluations
     /// in the same order, one binding fewer. A function or class value keeps

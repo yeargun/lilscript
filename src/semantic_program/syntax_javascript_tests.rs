@@ -7,6 +7,10 @@ use crate::structured_js::selection::{Plan, Style};
 use std::process::Command;
 
 fn compile(source: &str) -> String {
+    compile_with(source, "[javascript]\nstrip_console=false\n")
+}
+
+fn compile_with(source: &str, config: &str) -> String {
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source)
         .unwrap_or_else(|error| panic!("parse: {error:?}\n{source}"));
@@ -15,8 +19,7 @@ fn compile(source: &str) -> String {
     let program = from_checked_source(&syntax, &checked)
         .unwrap_or_else(|error| panic!("convert: {error:?}\n{source}"));
     program.verify().unwrap();
-    let config: crate::config::ProjectConfig =
-        toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+    let config: crate::config::ProjectConfig = toml::from_str(config).unwrap();
     let policy = config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: true,
@@ -207,4 +210,117 @@ fn object_literals_give_each_struct_entry_its_public_shape() {
         // Each entry of the second object is a fresh object: `a !== b`.
         "{\"origin\":{\"x\":1,\"y\":2},\"label\":\"p\"} true\n{\"a\":{\"x\":3,\"y\":4},\"b\":{\"x\":3,\"y\":4}} false\n"
     );
+}
+
+#[test]
+fn undefined_calls_and_unreachable_statements_leave_no_residue() {
+    let javascript = compile(
+        r#"
+        JsValue nothing() { return JS.undefined(); }
+        int count = 0;
+        JsValue pick(JsValue a, JsValue b) {
+            if (JS.isNullish(a)) { return b; }
+            return a;
+            return nothing();
+        }
+        JsValue bump() {
+            JsValue seen = nothing();
+            count = count + 1;
+            if (count > 1) { seen = "many"; }
+            print(seen);
+            return nothing();
+        }
+        export JsValue run(JsValue a) { bump(); bump(); return pick(a, "fallback"); }
+        print(run(null));
+        print(run(5));
+        "#,
+    );
+    // `let seen=void 0` is `let seen`, `return void 0` at a body's end is
+    // nothing, and `return nothing()` after `return a` is never lowered.
+    assert!(!javascript.contains("void 0"), "{javascript}");
+    assert!(
+        !javascript.contains("return;") && !javascript.contains("return}"),
+        "{javascript}"
+    );
+    assert_eq!(
+        run(&javascript, ""),
+        "undefined\nmany\nfallback\nmany\nmany\n5\n"
+    );
+}
+
+#[test]
+fn a_closure_only_invoked_through_its_cell_loses_its_name() {
+    let javascript = compile(
+        r#"
+        JsValue nothing() { return JS.undefined(); }
+        JsValue twice = nothing();
+        twice = (JsValue value) => { return JS.add(value, value); };
+        JsValue shown = nothing();
+        shown = (JsValue value) => { return value; };
+        JsValue table = object { shown: shown };
+        export JsValue run(JsValue value) {
+            print(JS.call(twice, nothing(), value));
+            return table;
+        }
+        JsValue result = run(21);
+        print(result["shown"]["name"]);
+        "#,
+    );
+    // Every read of `twice` calls it; `shown` escapes into an exported object.
+    assert!(!javascript.contains("twice"), "{javascript}");
+    assert!(javascript.contains(";shown="), "{javascript}");
+    assert_eq!(run(&javascript, ""), "42\nshown\n");
+}
+
+const SHOW: &str = "globalThis.show=v=>console.log(JSON.stringify(v));";
+const PRISTINE: &str = "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\n";
+
+#[test]
+fn forwarding_wrappers_become_their_builtins_and_stores_fold_into_the_literal() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        JsValue emptyObject() { return JS.object(); }
+        string toStr(JsValue value) { return JS.string(value); }
+        number toNum(JsValue value) { return JS.number(value); }
+        bool isNullish(JsValue value) { return JS.isNullish(value); }
+        export JsValue build(JsValue a) {
+            JsValue o = emptyObject();
+            o["kind"] = toStr("tag");
+            o["size"] = toNum(a) * 2;
+            o["text"] = toStr(a);
+            if (isNullish(a)) { o["none"] = true; }
+            return o;
+        }
+        show(build(null));
+        show(build(4));
+        "#,
+        PRISTINE,
+    );
+    // `toStr("tag")` is the literal; the stores define the object's entries.
+    assert!(javascript.contains("{kind:\"tag\",size:"), "{javascript}");
+    assert!(javascript.contains("==null"), "{javascript}");
+    assert_eq!(
+        run(&javascript, SHOW),
+        "{\"kind\":\"tag\",\"size\":0,\"text\":\"null\",\"none\":true}\n{\"kind\":\"tag\",\"size\":8,\"text\":\"4\"}\n"
+    );
+}
+
+#[test]
+fn a_store_whose_value_may_read_the_object_stays_a_store() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        JsValue emptyObject() { return JS.object(); }
+        JsValue o = emptyObject();
+        JsValue seen() { return o["y"]; }
+        o["x"] = seen();
+        o["y"] = 2;
+        show(o);
+        "#,
+        PRISTINE,
+    );
+    // `seen` reads `o` while `o.x` is evaluated: a literal would still be
+    // in its temporal dead zone.
+    assert_eq!(run(&javascript, SHOW), "{\"y\":2}\n");
 }

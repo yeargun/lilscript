@@ -1296,7 +1296,10 @@ impl JavaScriptSearch<'_, '_> {
                         HelperOutcome::Unknown(reason) => {
                             // The refusal census behind 009's inlining task.
                             if std::env::var_os("LILSCRIPT_DEBUG_HELPERS").is_some() {
-                                eprintln!("helper-unknown {cell:?} {reason:?}");
+                                eprintln!(
+                                    "helper-unknown {cell:?} {} {reason:?}",
+                                    self.compilation.slots[0].checkpoint.as_ref().map_or("?", |c| c.semantic.program.cells[cell.index()].name.as_str())
+                                );
                             }
                             self.counters.unknown_proofs += 1;
                             Seed::Unknown
