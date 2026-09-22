@@ -87,7 +87,7 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [005 Public fast JS and native service](#005-public-fast-js-and-native-service) | 004; consumes 003 policy | implemented; public source/path/CLI semantic route, full library suite 2,970/2,970 incl. native GCC+Clang separate-TU executions, measured first-artifact/RSS baseline; public value-struct adapters assigned to 006, remaining frontend allocations to 011 | [accepted.json](../../benchmarks/migration-results/accepted.json) |
 | [ ] | [006 Integrated architecture proof](#006-integrated-architecture-proof) | 001-005 | implemented; D2 public value-struct adapter and D5 level-16 grant on the semantic route, reuse-versus-fresh measured under one ledger, owners traced, limits recorded; boundary shapes a copy cannot preserve assigned to 007, formation cleanup to 008, wrapper inlining to 009 | [accepted.json](../../benchmarks/migration-results/accepted.json) |
 | [ ] | [007 Language and port coverage](#007-language-and-port-coverage) | 006 | implemented; census script/module/native C 72/72/72 with zero miscompiles and every native program clean under ASan/UBSan/LSan; 24 of 25 ports build semantically, 18 pass their whole suites and the rest wait on 008 or the environment; syntax and class inheritance closed; dynamic `import()` moved to 008 by decision | [census 007e](../../benchmarks/migration-results/2026-09-21-semantic-census-007e/receipt.json), [ports 007e](../../benchmarks/migration-results/2026-09-21-semantic-ports-007e/receipt.json) |
-| [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | active; batch 1 (formation and printing compaction) measured on probelil, markedlil, zodlil and katexlil; census 72/72/72 with zero miscompiles; nine search tests wait on fixture re-derivation; liveness, naming, helpers and delivery modes remain | None |
+| [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | implemented. Every delivery mode: single, preserve-modules, split, lazy `import()` and carried host modules. Liveness is verified across modules, and six compaction batches landed. Real libraries run unchanged in multi-file delivery. Semantic Brotli is now below the default route on zodlil and within 3% on markedlil. Codec alternatives (for-head, logical ifs) and per-stream scoring go to 010. | [then vs now](../../benchmarks/migration-results/2026-09-22-then-vs-now/README.md) |
 | [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | waiting | None |
 | [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | waiting | None |
 | [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | waiting | None |
@@ -1086,6 +1086,28 @@ A service test runs the plain form and keeps the call when the receiver helper h
 Library suite 3,019 passed; census 72/72/72 with zero miscompiles; probelil matches in both lanes.
 
 **Measured and not adopted.** Printing a one-statement `if` as `c&&e;` (or `if(!c)e;` as `c||e;`) where neither side needs grouping cuts raw bytes, and the default route uses the shape. Here it costs zodlil +34 and katexlil +38 Brotli, and saves markedlil only 4. It stays behind `Module::logical_statements`, off, beside the for-head merge. Both are 010's codec-scored alternatives, and both are tested with the flag on.
+
+### 008 exit evidence: real libraries across delivery modes
+
+markedlil and zodlil, each built with `--backend semantic` from an unmodified scratch copy, differ from one build to the next only in `bundle.mode`.
+
+| Library | Mode | Files | What loading the entry observed |
+|---|---|---|---|
+| markedlil | single | 1 | Export names and four parses covering headings, emphasis, nested lists, quotes, fenced code, links, images, tables, rules and HTML |
+| markedlil | preserve-modules | 6: types, rules, str, lexer and parse chunks, plus the entry | The same bytes |
+| markedlil | split | 1: no chunk pays its request at the default cost | The same bytes |
+| zodlil | single | 1 | Export names, three object parses (valid, too small, invalid types) and a union parse |
+| zodlil | preserve-modules | 5: fastpass, host, api and engine chunks, plus the entry | The same bytes |
+
+The chunks share helpers and record shapes across module boundaries, and each import resolves only to another delivered file. The service tests above cover the rest of the exit list:
+- Each file loads independently.
+- Getters and callbacks run through the entry.
+- Cycles, including a cycle back into the entry.
+- Initialization order and side-effect imports.
+- Determinism.
+- The scored bytes are the delivered bytes.
+
+Scoring streams independently remains with 010.
 
 ## 009 Reusable Compression Families
 
