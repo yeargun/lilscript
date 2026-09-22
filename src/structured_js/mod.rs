@@ -946,6 +946,10 @@ pub struct Module {
     /// measured +125 Brotli on katexlil for -243 raw (neutral elsewhere), so
     /// it waits for 010 to score it per artifact.
     pub loop_head_declarations: bool,
+    /// Print `if(c)e;` as `c&&e;` (and `if(!c)e;` as `c||e;`) where neither
+    /// side needs grouping. Shorter, but measured +34 Brotli on zodlil and
+    /// +38 on katexlil (-4 on markedlil), so it waits for 010 as well.
+    pub logical_statements: bool,
 }
 
 impl Default for Module {
@@ -1356,6 +1360,7 @@ impl Module {
             reserved: vec![],
             carried: vec![],
             loop_head_declarations: false,
+            logical_statements: false,
         })
     }
 

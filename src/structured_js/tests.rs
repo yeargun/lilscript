@@ -5263,3 +5263,52 @@ fn a_loop_counter_moves_into_the_for_head_only_when_no_closure_captures_it() {
         "[null,null,null]".len()
     );
 }
+
+/// With `logical_statements`, a one-statement `if` prints as `&&` or `||`
+/// only where neither side needs grouping.
+#[test]
+fn single_statement_ifs_print_as_logical_expressions_where_shorter() {
+    let build = |negate: bool, assign: bool| {
+        let mut module = Module::default();
+        module.logical_statements = true;
+        let yes = module.region(module.regions[0].scope);
+        let flag = host(&mut module, "flag");
+        let condition = if negate {
+            expr(
+                &mut module,
+                Expr::Unary {
+                    op: Unary::Not,
+                    value: flag,
+                },
+            )
+        } else {
+            flag
+        };
+        let statement = if assign {
+            let target = host(&mut module, "slot");
+            let value = number(&mut module, 1.0);
+            expr(&mut module, Expr::Assign { target, value })
+        } else {
+            let output = host(&mut module, "capture");
+            let value = number(&mut module, 7.0);
+            call(&mut module, output, vec![value], Invocation::Value)
+        };
+        module.regions[yes.index()]
+            .statements
+            .push(Statement::Evaluate(statement));
+        module.regions[0].statements.push(Statement::If {
+            condition,
+            yes,
+            no: None,
+        });
+        module
+    };
+    let policy = PrintPolicy {
+        mangle_bindings: false,
+    };
+    assert_eq!(build(false, false).render(policy).unwrap(), "flag&&capture(7);");
+    assert_eq!(build(true, false).render(policy).unwrap(), "flag||capture(7);");
+    assert_eq!(build(false, true).render(policy).unwrap(), "if(flag)slot=1;");
+    assert_eq!(execute(&build(true, false), "globalThis.flag=false;", policy), "[7]");
+    assert_eq!(execute(&build(false, false), "globalThis.flag=false;", policy), "[]");
+}

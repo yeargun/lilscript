@@ -1085,6 +1085,8 @@ A service test runs the plain form and keeps the call when the receiver helper h
 
 Library suite 3,019 passed; census 72/72/72 with zero miscompiles; probelil matches in both lanes.
 
+**Measured and not adopted.** Printing a one-statement `if` as `c&&e;` (or `if(!c)e;` as `c||e;`) where neither side needs grouping cuts raw bytes, and the default route uses the shape. Here it costs zodlil +34 and katexlil +38 Brotli, and saves markedlil only 4. It stays behind `Module::logical_statements`, off, beside the for-head merge. Both are 010's codec-scored alternatives, and both are tested with the flag on.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.

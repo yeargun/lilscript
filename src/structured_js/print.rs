@@ -1482,6 +1482,13 @@ impl<'a> Printer<'a, '_, '_> {
                 self.output.separate_word(at);
                 end(self);
             }
+            Statement::If { condition, yes, no }
+                if no.is_none()
+                    && self.module.logical_statements
+                    && self.logical_statement(*condition, *yes) =>
+            {
+                end(self);
+            }
             Statement::If { condition, yes, no } => {
                 self.text("if(");
                 self.expression(*condition, 0);
@@ -1597,6 +1604,36 @@ impl<'a> Printer<'a, '_, '_> {
 
     /// Statements that complete in one piece: none declares a binding or can
     /// end in an `if` that would capture a following `else`.
+    /// `if(c)e;` as `c&&e;` and `if(!c)e;` as `c||e;`, only where neither
+    /// side needs grouping, so the statement is strictly shorter.
+    fn logical_statement(&mut self, condition: ExprId, yes: RegionId) -> bool {
+        let [Statement::Evaluate(value)] = self.module.regions[yes.index()].statements.as_slice()
+        else {
+            return false;
+        };
+        let (op, left) = match self.module.expressions[condition.index()] {
+            Expr::Unary {
+                op: Unary::Not,
+                value,
+            } => (Binary::Or, value),
+            _ => (Binary::And, condition),
+        };
+        let level = op.precedence();
+        let value = self.discarded(*value);
+        let fits = self.precedence(left) >= level
+            && self.precedence(value) > level
+            && !self.statement_needs_group(left, 0);
+        if !fits {
+            self.discarded_root = None;
+            return false;
+        }
+        self.expression(left, level);
+        self.text(op.token());
+        self.expression(value, level + 1);
+        self.discarded_root = None;
+        true
+    }
+
     fn simple(statement: &Statement) -> bool {
         matches!(
             statement,
