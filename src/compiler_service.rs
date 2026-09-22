@@ -203,6 +203,8 @@ struct Frontend {
     ledger: BudgetLedger,
     phases: Value,
     source_buffer_bytes: Option<u64>,
+    /// Relative host modules every output carries.
+    hosts: crate::host_modules::HostDelivery,
 }
 
 impl Frontend {
@@ -252,6 +254,7 @@ impl Frontend {
             ledger,
             phases: json!({"policy_ns": nanos(started)}),
             source_buffer_bytes: None,
+            hosts: Default::default(),
         };
         frontend.checkpoint(1)?;
         Ok(frontend)
@@ -282,6 +285,7 @@ impl Frontend {
             ledger,
             mut phases,
             source_buffer_bytes,
+            hosts,
         } = self;
         let frontend_work = ledger.work_used(WorkDomain::Baseline);
         let source_identity = digest(serde_json::to_vec(&inputs).unwrap());
@@ -331,6 +335,11 @@ impl Frontend {
             return Err((ServiceError::new("adoption", error), compilation.finish()));
         }
         compilation.set_chunk_extension(options.chunk_extension.as_str());
+        if !hosts.is_empty() {
+            if let Err(error) = compilation.set_host_modules(hosts) {
+                return Err((ServiceError::new("adoption", error), compilation.finish()));
+            }
+        }
         phases["adopt_ns"] = json!(nanos(phase));
         Ok(CheckedSourceSession {
             started,
@@ -991,9 +1000,56 @@ pub fn with_checked_path<R>(
                 eprintln!("module {index}: {}", module.path.display());
             }
         }
+        // Relative host modules travel with the output (008-D3).
+        if config.bundle.host_modules != crate::config::HostModules::External
+            && frontend.javascript.is_some()
+        {
+            let root_directory = modules.modules[modules.root]
+                .path
+                .parent()
+                .unwrap_or_else(|| Path::new("."));
+            let mut requests: Vec<std::path::PathBuf> = Vec::new();
+            for module in &modules.modules {
+                for dependency in &module.foreign_dependencies {
+                    if let Some(path) = &dependency.path {
+                        if !requests.contains(path) {
+                            requests.push(path.clone());
+                        }
+                    }
+                }
+            }
+            if !requests.is_empty() {
+                let edition = frontend
+                    .javascript
+                    .as_ref()
+                    .and_then(ResolvedPolicy::javascript_contract)
+                    .map(|contract| contract.ecmascript)
+                    .unwrap_or_default();
+                match crate::host_modules::deliver(root_directory, &requests, edition) {
+                    Ok(delivery) => {
+                        arena
+                            .with_ledger(|ledger, domain| {
+                                ledger.charge(domain, WorkKind::Analysis, delivery.retained_bytes())
+                            })
+                            .map_err(|error| {
+                                ServiceError::resources("frontend resources", error.into())
+                            })?;
+                        frontend.hosts = delivery;
+                    }
+                    Err(reason)
+                        if config.bundle.host_modules == crate::config::HostModules::Embed =>
+                    {
+                        return Err(ServiceError::new("host modules", reason));
+                    }
+                    Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
+                }
+            }
+        }
         let inputs = json!({"root": modules.root, "modules": modules.modules.iter().map(|module| json!({
             "path": module.path, "bytes": module.source.len(), "sha256": digest(module.source.as_bytes()),
             "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
+        })).collect::<Vec<_>>(), "host_modules": frontend.hosts.modules.iter().map(|module| json!({
+            "specifier": module.specifier, "delivered_bytes": module.delivered_bytes(),
         })).collect::<Vec<_>>()});
         arena
             .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))

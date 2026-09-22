@@ -36,6 +36,9 @@ semver = { version = "1", features = ["serde"] }
 oxc_allocator = "=0.143.0"
 oxc_parser = "=0.143.0"
 oxc_span = "=0.143.0"
+# Foreign host modules (TypeScript or JavaScript) are type-stripped from their
+# ESTree form's spans before delivery; no transformer or code generator.
+oxc_ast = { version = "=0.143.0", features = ["serialize"] }
 
 [dev-dependencies]
 oxc_ast = "=0.143.0"

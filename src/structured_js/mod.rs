@@ -915,6 +915,12 @@ pub struct Module {
     /// The source module of each root statement, in order, when the producer
     /// records it; multi-file delivery groups statements by it.
     pub root_modules: Vec<u32>,
+    /// Names delivered host code reads as globals from inside this module's
+    /// scope; no binding of this module may take one.
+    pub reserved: Vec<String>,
+    /// Import sources the output carries instead of importing; a classic
+    /// script can use these.
+    pub carried: Vec<String>,
 }
 
 impl Default for Module {
@@ -943,6 +949,8 @@ impl Module {
             root: RegionId::new(0),
             pristine_builtins: false,
             root_modules: vec![],
+            reserved: vec![],
+            carried: vec![],
         })
     }
 

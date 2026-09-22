@@ -2577,6 +2577,21 @@ pub enum BundleMode {
     PreserveModules,
 }
 
+/// Whether the output carries the relative JavaScript or TypeScript modules
+/// its `import extern` declarations name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum HostModules {
+    /// Import them from their original specifiers, as the default route
+    /// does for every helper it does not recognize.
+    #[default]
+    External,
+    /// Carry them when every one can be delivered; otherwise import them.
+    Auto,
+    /// Carry them, and refuse the build when one cannot be delivered.
+    Embed,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PreloadPolicy {
@@ -2664,6 +2679,8 @@ pub struct BundleConfig {
     pub max_chunks: usize,
     pub shared_min_imports: usize,
     pub preload: PreloadPolicy,
+    /// Whether relative host modules travel with the output (semantic route).
+    pub host_modules: HostModules,
     /// Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions.
     pub cost: ChunkCostConfig,
 }
@@ -2676,6 +2693,7 @@ impl Default for BundleConfig {
             max_chunks: 32,
             shared_min_imports: 2,
             preload: PreloadPolicy::None,
+            host_modules: HostModules::External,
             cost: ChunkCostConfig::default(),
         }
     }

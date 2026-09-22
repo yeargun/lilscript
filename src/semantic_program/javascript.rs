@@ -1893,10 +1893,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let Some(import) = found else {
             return Ok(None);
         };
+        // A classic script can only use a foreign module its output carries;
+        // output preparation refuses any other import there.
         let declaration = program.cells[cell.index()].declaration;
-        if self.contract.execution == crate::compilation_contract::JavaScriptExecution::Script {
-            return Err(self.error(declaration, "foreign module import in a classic script"));
-        }
         // Pinned local names are module-wide: modules importing the same
         // binding share one import, and one name cannot name two sources.
         let name = &program.cells[cell.index()].name;

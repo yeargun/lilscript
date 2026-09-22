@@ -174,3 +174,33 @@
    bool clearCloneStyle;
    func()->bool boxSizingReliable;
    func()->bool pixelBoxStyles;
+--- a/scripts/build.mjs
++++ b/scripts/build.mjs
+@@ -58,9 +58,14 @@
+   ])
+ }
+ 
++// The trailing export clause names jQuery's local binding, aliased or not.
+ function jqueryLocalName(source) {
+-  const match = source.match(/export\s*\{\s*(\w+)\s+as\s+jQuery/)
+-  return match?.[1] ?? "e"
++  const clause = source.match(/export\s*\{([^}]*)\}\s*;?\s*$/)
++  for (const entry of clause?.[1].split(",") ?? []) {
++    const [local, exported = local] = entry.trim().split(/\s+as\s+/)
++    if (exported === "jQuery") return local
++  }
++  return "e"
+ }
+ 
+ function stripNamedExport(source) {
+--- a/lilscript.toml
++++ b/lilscript.toml
+@@ -83,3 +83,8 @@
+ identifiers = true
+ properties = true
+ exports = false
++
++[bundle]
++# The semantic route carries js-host.ts inside the artifact; the default
++# route inlined its helpers by name.
++host_modules = "embed"

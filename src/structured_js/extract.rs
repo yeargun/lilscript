@@ -90,6 +90,8 @@ pub struct Output<'a> {
     has_literal_alternative: bool,
     permits_observed_literals: bool,
     pub reused_structure: bool,
+    /// Host modules the output carries, and whether they run strict.
+    hosts: Option<(&'a crate::host_modules::HostDelivery, bool)>,
     // Basis (including installed lazy caches) drops before its reservation owner.
     budget: RefCell<AllocationBudget<'a>>,
 }
@@ -145,6 +147,7 @@ impl<'a> Output<'a> {
             has_literal_alternative,
             permits_observed_literals,
             reused_structure: false,
+            hosts: None,
             budget: RefCell::new(budget),
         })
     }
@@ -173,8 +176,17 @@ impl<'a> Output<'a> {
             has_literal_alternative: false,
             permits_observed_literals: false,
             reused_structure,
+            hosts: None,
             budget: RefCell::new(budget),
         })
+    }
+
+    /// Carry these host modules in every render; `strict` for a script.
+    pub(crate) fn set_hosts(
+        &mut self,
+        hosts: Option<(&'a crate::host_modules::HostDelivery, bool)>,
+    ) {
+        self.hosts = hosts;
     }
 
     pub(crate) fn is_accounted(&self) -> bool {
@@ -227,6 +239,7 @@ impl<'a> Output<'a> {
                 literals,
                 limit,
                 &mut render,
+                self.hosts,
             )
             .map_err(|error| match error {
                 print::PrintError::Admission(error) => OutputError::Admission(error),
@@ -328,7 +341,8 @@ impl<'a> Output<'a> {
         let mut render = budget.scope();
         let result = (|| {
             let names = self.basis.names_in(plan, &mut render)?;
-            let partition = delivery::partition(self.module, spec.allowed.len(), &mut render)?;
+            let partition =
+                delivery::partition(self.module, spec.allowed.len(), &spec.hosted, &mut render)?;
             let deliver = |allowed: &[bool], limit: usize, budget: &mut AllocationBudget<'_>| {
                 self.deliver_files(&names, literals, &partition, allowed, spec, limit, budget)
             };
@@ -465,6 +479,7 @@ impl<'a> Output<'a> {
                 &links[file],
                 file == 0,
                 preload,
+                self.hosts,
                 part,
             )
             .map_err(|error| match error {
@@ -667,7 +682,13 @@ impl Module {
         &self,
         policy: &crate::compilation_policy::ResolvedPolicy,
     ) -> Result<(), OutputError> {
-        if !self.imports.is_empty()
+        let imported = self.imports.iter().any(|import| {
+            !import
+                .source
+                .as_unicode()
+                .is_some_and(|source| self.carried.iter().any(|carried| carried == source))
+        });
+        if imported
             && policy.javascript_contract().is_some_and(|contract| {
                 contract.execution != crate::compilation_contract::JavaScriptExecution::Module
             })

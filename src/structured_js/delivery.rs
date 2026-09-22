@@ -32,6 +32,8 @@ pub(crate) struct BundleSpec {
     pub preload: crate::config::PreloadPolicy,
     /// Split's selection; without it every allowed module keeps its chunk.
     pub split: Option<crate::compilation_policy::SplitRule>,
+    /// Per module import: its source is a host module the entry carries.
+    pub hosted: Vec<bool>,
 }
 
 /// One delivered file: its source modules and root statements, in root order.
@@ -194,10 +196,18 @@ pub(crate) struct Partition {
 pub(crate) fn partition(
     module: &Module,
     modules: usize,
+    hosted: &[bool],
     budget: &mut AllocationBudget<'_>,
 ) -> Result<Partition, OutputError> {
     let root = &module.regions[module.root.index()].statements;
     let owners = root_owners(module, budget)?;
+    // A carried host module's bindings exist only in the entry.
+    let mut entry_only = budget.filled(AllocationClass::Scratch, module.bindings.len(), false)?;
+    for (index, import) in module.imports.iter().enumerate() {
+        if hosted.get(index).copied().unwrap_or(false) {
+            entry_only[import.binding.index()] = true;
+        }
+    }
     let mut candidate = budget.filled(AllocationClass::Scratch, root.len(), false)?;
     for (index, statement) in root.iter().enumerate() {
         budget.work(WorkKind::Analysis, 1)?;
@@ -258,6 +268,9 @@ pub(crate) fn partition(
                     let owner = owners[binding.index()];
                     if owner != NONE && owner != index {
                         own.push(owner);
+                    }
+                    if entry_only[binding.index()] {
+                        stays = true;
                     }
                 }
                 Reference::Write(binding) => {

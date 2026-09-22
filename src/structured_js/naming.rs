@@ -192,6 +192,10 @@ impl<'a> Basis<'a> {
             source_candidates: OnceLock::new(),
         };
         basis.hosts.extend_from_slice(&["eval", "arguments"]);
+        for name in &module.reserved {
+            budget.work(WorkKind::Analysis, name.len() as u64)?;
+            budget.push(Retained, &mut basis.hosts, name.as_str())?;
+        }
         for (symbol, binding) in module.bindings.iter().enumerate() {
             budget.work(WorkKind::Analysis, 1)?;
             if binding.pinned {

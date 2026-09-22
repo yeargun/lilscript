@@ -12,6 +12,7 @@ pub mod compiler;
 pub mod compiler_service;
 pub mod compress_passes;
 pub mod compression;
+mod host_modules;
 pub mod config;
 pub mod decision_registry;
 pub mod for_of_family;

@@ -497,3 +497,140 @@ fn tasks_chain_then_catch_and_finally() {
     assert_eq!(run(&directory, &single), "6\ncaught\ndone\n");
     let _ = fs::remove_dir_all(directory);
 }
+
+fn host_workspace(name: &str, host: &str) -> std::path::PathBuf {
+    workspace(
+        name,
+        &[
+            (
+                "math.ts",
+                "export function sum(left: number, right: number): number {\n  return left + right\n}\n",
+            ),
+            ("host.ts", host),
+            (
+                "main.lil",
+                "import extern { add } from \"./host.ts\";extern int add(int left, int right);print(add(20, 22));",
+            ),
+        ],
+    )
+}
+
+const HOST: &str = "import { sum } from \"./math.ts\"\n// Adds.\nexport function add(left: number, right?: number): number {\n  return sum(left, right as number)\n}\n";
+
+fn with_config(directory: &Path, extra: &str) -> Result<ServiceCompilation, ServiceError> {
+    let config: ProjectConfig = toml::from_str(&format!(
+        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n{extra}"
+    ))
+    .unwrap();
+    compile_path_semantic(
+        &directory.join("main.lil"),
+        &config,
+        ServiceOptions {
+            target: ServiceTarget::JavaScript,
+            preserve_root_exports: true,
+            ..ServiceOptions::default()
+        },
+    )
+}
+
+/// A relative TypeScript host module and the host modules it imports travel
+/// with the output, type-stripped and compacted, evaluated once each.
+#[test]
+fn relative_host_modules_travel_with_the_output() {
+    let directory = host_workspace("host", HOST);
+    for mode in ["single", "preserve-modules", "split"] {
+        let compiled = with_config(
+            &directory,
+            &format!("[bundle]\nmode='{mode}'\nhost_modules='embed'"),
+        )
+        .unwrap();
+        let artifact = compiled.javascript(Objective::Brotli).unwrap();
+        let text = artifact.javascript();
+        assert!(!text.contains("import"), "{text}");
+        assert!(!text.contains("number") && !text.contains("Adds"), "{text}");
+        assert!(!text.contains('\n'), "{text}");
+        assert!(artifact.chunks().is_empty());
+        assert_eq!(run(&directory, &compiled), "42\n");
+    }
+    // A script output runs host code strict, as the module it was written as.
+    let config: ProjectConfig =
+        toml::from_str("[javascript]\nstrip_console=false\n[bundle]\nhost_modules='embed'")
+            .unwrap();
+    let script = compile_path_semantic(
+        &directory.join("main.lil"),
+        &config,
+        ServiceOptions {
+            target: ServiceTarget::JavaScript,
+            preserve_root_exports: false,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap();
+    let text = script.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    assert!(text.contains("\"use strict\""), "{text}");
+    let output = Command::new("node").args(["-e", &text]).output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "42\n", "{text}");
+    let _ = fs::remove_dir_all(directory);
+}
+
+#[test]
+fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
+    // A runtime TypeScript construct has no erasable form.
+    let directory = host_workspace(
+        "host-enum",
+        "export enum Mode { A }\nexport function add(left: number, right: number): number { return left + right }\n",
+    );
+    let auto = with_config(&directory, "[bundle]\nhost_modules='auto'").unwrap();
+    let text = auto.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    assert!(text.contains("from\"./host.ts\""), "{text}");
+    let error = with_config(&directory, "[bundle]\nhost_modules='embed'").unwrap_err();
+    assert!(error.message.contains("enum"), "{error}");
+    let _ = fs::remove_dir_all(&directory);
+    // Syntax newer than the target edition stays with the importer's toolchain.
+    let directory = host_workspace(
+        "host-edition",
+        "export function add(left: number, right: number): number { return (left ?? 0) + right }\n",
+    );
+    let old = with_config(&directory, "ecmascript='es2019'\n[bundle]\nhost_modules='auto'").unwrap();
+    let text = old.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    assert!(text.contains("from\"./host.ts\""), "{text}");
+    let current = with_config(&directory, "[bundle]\nhost_modules='auto'").unwrap();
+    assert!(!current
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .contains("import"));
+    // `external`, the default, imports every host module from its own specifier.
+    let external = with_config(&directory, "").unwrap();
+    let text = external.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    assert!(text.contains("import{add}from\"./host.ts\""), "{text}");
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// Across modules, values nothing reads are gone and every effect stays,
+/// including a module imported only for its effects.
+#[test]
+fn liveness_across_modules_drops_unread_values_and_keeps_effects() {
+    let directory = workspace(
+        "liveness",
+        &[
+            (
+                "lib.lil",
+                "extern int read();int plain=5;int effect=read();int[] table=[1,2,3];\
+                 export int used(int x){return x+1;}export int unused(int x){return x*99;}",
+            ),
+            ("side.lil", "extern int read();int touched=read();export int nothing(){return 0;}"),
+            (
+                "main.lil",
+                "import \"./side\";import {used} from \"./lib\";print(used(41));",
+            ),
+        ],
+    );
+    let compiled = compile(&directory, "single");
+    let text = compiled.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    assert!(!text.contains("99") && !text.contains("[1,2,3]") && !text.contains('5'), "{text}");
+    assert_eq!(text.matches("read()").count(), 2, "{text}");
+    // Each module's effects run once, in initialization order.
+    assert_eq!(run(&directory, &compiled), "42\n");
+    let _ = fs::remove_dir_all(directory);
+}

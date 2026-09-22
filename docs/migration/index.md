@@ -955,8 +955,8 @@ Next in 008: root liveness across modules, the delivery modes (preserve-modules,
 - **Evidence.** Six service tests run every delivered file under Node: each chunk loads without the entry, and the entry prints exactly what the single-file build prints. The cases cover module state, mutual recursion across chunks, a cycle back into the entry, determinism, and split's three outcomes (the chunk pays for itself, the request costs more than cache reuse saves, or the chunk is below the minimum size). Library suite 3,004 passed with 3 ignored; census 72/72/72 with zero miscompiles; probelil matches in both lanes.
 - **Remaining:**
   - ~~Lazy chunks for dynamic `import()`, with preload~~: done in 008-D2 below.
-  - jquery's host module.
-  - Root liveness across modules.
+  - ~~jquery's host module~~: done in 008-D3 below.
+  - ~~Root liveness across modules~~: verified rather than built. Demand already removes, across modules, pure globals, allocations and functions nothing reads. It keeps every initializer effect as a bare call and runs a module imported only for its effects. The service test `liveness_across_modules_drops_unread_values_and_keeps_effects` pins it. Constant folding across the call (the default route prints `console.log(42)`) is 009's.
   - Codec search over bundle plans, which is 010's.
 
 ### 008-D2 Lazy modules and dynamic `import()`
@@ -987,6 +987,35 @@ Next in 008: root liveness across modules, the delivery modes (preserve-modules,
   - The repository's `tests/bundles/lazy` and `lazy-cycle` fixtures print 42 in single, preserve-modules and split mode. The shipped fixture configs strip `print`, and they do so on both routes.
   - Library suite 3,009 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes.
   - probelil, markedlil, zodlil and katexlil are byte-identical to the 008-D1 binary.
+
+### 008-D3 Host modules travel with the output
+
+**Status: delivered.** The default route makes jquery's output self-contained with tables keyed by helper *names* (`windowSelf`, `arrayPush`, ...). The semantic route will not match names. It carries the host module's own code instead, when a port asks for it with `bundle.host_modules = "embed"`.
+
+- **Settings.**
+  - `external` is the default, because port build scripts, katexlil's among them, post-process these imports.
+  - `auto` carries the host modules when every one can be delivered, and imports them otherwise.
+  - `embed` refuses the build when one cannot be delivered.
+- **Stripping.** `oxc_ast` (already pinned; its `serialize` feature is now on) parses each relative `.ts`/`.js` host module. Type-only syntax is erased by the spans of its `TS*` ESTree nodes: annotations, type parameters and arguments, `as`, `satisfies`, `!`, optional marks, and type-only declarations and imports. Each erased byte becomes a space, and line breaks stay. Syntax with runtime meaning is refused: enums, parameter properties, namespaces, decorators, class member modifiers and JSX. The result must parse as JavaScript.
+- **Compaction.** Comments and every space and line break not needed between two tokens are removed. Where automatic semicolon insertion ended a statement, an explicit `;` replaces the line break, so the module is one line. The compacted text must parse to the same tree as the stripped text, compared without positions.
+- **Linking.**
+  - The host modules the output imports, and the relative host modules those import, become one expression. It evaluates each module once, in dependency order, in its own function scope, and returns their namespaces.
+  - The output binds its imports with one destructuring `let` before its first statement, where an import would have evaluated.
+  - A script output runs the host code strict, as the module it was written as. A classic script may therefore use a carried module.
+  - Identifiers host code reads without declaring are reserved from the output's naming.
+- **What is refused.**
+  - Package imports inside a host module.
+  - Default and star exports, and mutable exported bindings.
+  - `import.meta`.
+  - Syntax newer than the target edition.
+- **Bundle modes.** Only the entry reads carried bindings, so statements that read them stay in the entry.
+- **Evidence.**
+  - Host-module unit tests cover stripping, the refusals, compaction (`return⏎1` becomes `return;1`, and `for` heads are untouched) and linking.
+  - Two service tests cover single, preserve-modules and split modes, a strict script, `auto`'s fallback on an enum and on `??` under ES2019, `embed`'s refusal, and the `external` default.
+  - **jquerylil passes all 7 of its compatibility cases on the semantic route, from 0 of 1 before, because its output now loads.** Its migration patch sets `host_modules = "embed"` and teaches its build script to find the `jQuery` export whether or not it is aliased.
+  - The semantic artifact is 119,472 raw and 34,346 Brotli bytes, against 27,854 Brotli for the default route's committed dist. Closing that gap belongs to 009 (host helper inlining, mangling host locals) and 013.
+  - Library suite 3,016 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes.
+  - probelil, markedlil, zodlil and katexlil are byte-identical to the 008-D2 binary. None of their configs carries host modules; katexlil's font data, a `var` export, would stay an import even under `auto`.
 
 ## 009 Reusable Compression Families
 

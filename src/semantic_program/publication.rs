@@ -736,6 +736,7 @@ struct JavaScriptTarget<'scope, 'src> {
     /// Source module stems for delivered chunk names.
     module_names: &'scope [String],
     chunk_extension: &'static str,
+    hosts: Option<&'scope crate::host_modules::HostDelivery>,
     module: crate::structured_js::Module,
     literals: Vec<crate::structured_js::LiteralAlternative>,
     #[cfg(test)]
@@ -767,8 +768,33 @@ impl JavaScriptTarget<'_, '_> {
             budget,
             module_names,
             chunk_extension,
+            hosts,
             ..
         } = self;
+        // Delivered host code runs inside this module's scope; its globals
+        // must stay visible there. A script output runs it strict, as the
+        // module it was written as.
+        let hosts = hosts.filter(|hosts| {
+            module.imports.iter().any(|import| {
+                import
+                    .source
+                    .as_unicode()
+                    .is_some_and(|source| hosts.position(source).is_some())
+            })
+        });
+        if let Some(hosts) = hosts {
+            if module.carried.is_empty() {
+                module.reserved = hosts.reserved.clone();
+                module.carried = hosts
+                    .modules
+                    .iter()
+                    .map(|host| host.specifier.clone())
+                    .collect();
+            }
+        }
+        let strict = policy.javascript_contract().is_some_and(|contract| {
+            contract.execution != crate::compilation_contract::JavaScriptExecution::Module
+        });
         // Multi-file delivery: every source module but the entry may carry a
         // chunk of its self-contained functions; split mode then selects.
         let bundle = match policy.contract() {
@@ -801,6 +827,18 @@ impl JavaScriptTarget<'_, '_> {
                     }
                 }
                 Some(super::artifacts::BundleSpec {
+                    hosted: module
+                        .imports
+                        .iter()
+                        .map(|import| {
+                            hosts.is_some_and(|hosts| {
+                                import
+                                    .source
+                                    .as_unicode()
+                                    .is_some_and(|source| hosts.position(source).is_some())
+                            })
+                        })
+                        .collect(),
                     extension: chunk_extension,
                     eager,
                     dynamic_import: language
@@ -824,8 +862,9 @@ impl JavaScriptTarget<'_, '_> {
         };
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
-            let output =
+            let mut output =
                 module.prepare_output_with_literals_admitted(policy, literals, &mut phase)?;
+            output.set_hosts(hosts.map(|hosts| (hosts, strict)));
             #[cfg(test)]
             let output = super::search_target_reuse_tests::AdmittedOutputOwner::new(output);
             output.with_allocation_budget(|budget| budget.work(WorkKind::Render, 0))?;
@@ -947,6 +986,8 @@ pub struct Compilation<'src> {
     /// never part of a program's meaning.
     module_names: Option<(Vec<String>, Charge)>,
     chunk_extension: &'static str,
+    /// Relative host modules delivered with every output (008-D3).
+    host_modules: Option<(crate::host_modules::HostDelivery, Charge)>,
 }
 
 impl<'src> Compilation<'src> {
@@ -954,6 +995,19 @@ impl<'src> Compilation<'src> {
     /// Delivered chunk file names end in `.extension`.
     pub fn set_chunk_extension(&mut self, extension: &'static str) {
         self.chunk_extension = extension;
+    }
+
+    /// Host modules every output carries instead of importing them.
+    pub(crate) fn set_host_modules(
+        &mut self,
+        delivery: crate::host_modules::HostDelivery,
+    ) -> Result<(), PublicationError> {
+        let bytes = delivery.retained_bytes();
+        let charge = Charge::reserve(&mut self.ledger, WorkDomain::Baseline, bytes)?;
+        if let Some((_, previous)) = self.host_modules.replace((delivery, charge)) {
+            previous.release(&mut self.ledger)?;
+        }
+        Ok(())
     }
 
     pub fn set_module_names(&mut self, names: Vec<String>) -> Result<(), PublicationError> {
@@ -1019,6 +1073,7 @@ impl<'src> Compilation<'src> {
             artifacts: ArtifactArena::new(store),
             module_names: None,
             chunk_extension: "js",
+            host_modules: None,
         })
     }
     pub fn ledger(&self) -> &BudgetLedger {
@@ -2091,6 +2146,7 @@ impl<'src> Compilation<'src> {
                 .as_ref()
                 .map_or(&[][..], |(names, _)| names.as_slice()),
             chunk_extension: self.chunk_extension,
+            hosts: self.host_modules.as_ref().map(|(delivery, _)| delivery),
             module,
             literals,
             #[cfg(test)]
@@ -2410,6 +2466,7 @@ impl<'src> Compilation<'src> {
             local_facts,
             artifacts,
             module_names,
+            host_modules,
             ..
         } = self;
         if let Some((names, charge)) = module_names {
@@ -2417,6 +2474,12 @@ impl<'src> Compilation<'src> {
             charge
                 .release(&mut ledger)
                 .expect("owned module name reservation");
+        }
+        if let Some((delivery, charge)) = host_modules {
+            drop(delivery);
+            charge
+                .release(&mut ledger)
+                .expect("owned host module reservation");
         }
         artifacts.finish(&mut ledger);
         for slot in slots {

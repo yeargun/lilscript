@@ -120,6 +120,7 @@ pub(super) fn render_admitted(
         LiteralOutput::Original,
         limit,
         budget,
+        None,
     )
 }
 
@@ -131,6 +132,7 @@ pub(super) fn render_with_literals_admitted(
     literals: LiteralOutput,
     limit: usize,
     budget: &mut AllocationBudget<'_>,
+    hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
 ) -> Result<String, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
     let mut phase = budget.scope();
@@ -153,6 +155,9 @@ pub(super) fn render_with_literals_admitted(
         if !printer.output.work(1) {
             break;
         }
+        if hosted(hosts, import) {
+            continue;
+        }
         printer.text("import{");
         printer.text(&import.imported);
         let local = names.get(import.binding);
@@ -166,6 +171,9 @@ pub(super) fn render_with_literals_admitted(
         printer.text("}from");
         printer.string(&import.source);
         printer.text(";");
+    }
+    if let Some(hosts) = hosts {
+        printer.host_bindings(hosts, 0..module.imports.len());
     }
     printer.region(module.root, false);
     if !module.exports.is_empty() {
@@ -198,6 +206,16 @@ pub(super) fn render_with_literals_admitted(
     Ok(text)
 }
 
+/// Whether an import's source is a host module the output carries.
+fn hosted(hosts: Option<(&crate::host_modules::HostDelivery, bool)>, import: &Import) -> bool {
+    hosts.is_some_and(|(hosts, _)| {
+        import
+            .source
+            .as_unicode()
+            .is_some_and(|source| hosts.position(source).is_some())
+    })
+}
+
 /// A delivered file prints in two parts: its body (statements and exports),
 /// whose digest names a chunk, then the imports that name other files.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -223,6 +241,7 @@ pub(super) fn render_file_admitted(
     links: &delivery::FileLinks,
     entry: bool,
     preload: &[String],
+    hosts: Option<(&crate::host_modules::HostDelivery, bool)>,
     part: FilePart,
 ) -> Result<String, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
@@ -273,6 +292,9 @@ pub(super) fn render_file_admitted(
     }
     for &index in links.foreign.iter().filter(|_| header) {
         let import = &module.imports[index];
+        if hosted(hosts, import) {
+            continue;
+        }
         printer.text("import{");
         printer.text(&import.imported);
         let local = names.get(import.binding);
@@ -283,6 +305,9 @@ pub(super) fn render_file_admitted(
         printer.text("}from");
         printer.string(&import.source);
         printer.text(";");
+    }
+    if let Some(hosts) = hosts.filter(|_| header && entry) {
+        printer.host_bindings(hosts, links.foreign.iter().copied());
     }
     let root = &module.regions[module.root.index()].statements;
     if !header {
@@ -443,6 +468,68 @@ enum InferredName<'a> {
 }
 
 impl<'a> Printer<'a, '_, '_> {
+    /// `let{a:x,b}=<host modules>;` binding each carried import among
+    /// `imports` (indices into the module's imports), before any statement,
+    /// as ES evaluates imported modules first.
+    fn host_bindings(
+        &mut self,
+        (hosts, strict): (&crate::host_modules::HostDelivery, bool),
+        imports: impl Iterator<Item = usize>,
+    ) {
+        let mut groups: Vec<Vec<usize>> = vec![Vec::new(); hosts.modules.len()];
+        for index in imports {
+            let import = &self.module.imports[index];
+            if let Some(position) = import.source.as_unicode().and_then(|source| hosts.position(source)) {
+                if !groups[position].contains(&index) {
+                    groups[position].push(index);
+                }
+            }
+        }
+        if groups.iter().all(Vec::is_empty) {
+            return;
+        }
+        let pattern = |printer: &mut Self, group: &[usize]| {
+            printer.text("{");
+            for (position, &index) in group.iter().enumerate() {
+                if position != 0 {
+                    printer.text(",");
+                }
+                let import = &printer.module.imports[index];
+                let local = printer.names.get(import.binding);
+                if identifier_name(&import.imported) {
+                    printer.text(&import.imported);
+                } else {
+                    printer.string(&StringValue::from(import.imported.as_str()));
+                }
+                if local != import.imported {
+                    printer.text(":");
+                    printer.text(local);
+                }
+            }
+            printer.text("}");
+        };
+        self.text("let");
+        if let Some(single) = hosts.single(strict) {
+            pattern(self, &groups[0]);
+            self.text("=");
+            self.text(&single);
+        } else {
+            self.text("[");
+            let last = groups.iter().rposition(|group| !group.is_empty()).unwrap();
+            for (position, group) in groups.iter().enumerate().take(last + 1) {
+                if position != 0 {
+                    self.text(",");
+                }
+                if !group.is_empty() {
+                    pattern(self, group);
+                }
+            }
+            self.text("]=");
+            self.text(&hosts.expression(strict));
+        }
+        self.text(";");
+    }
+
     /// Returns only a nonnegative numeric literal, preserving primary precedence.
     /// The source observation was established by Formation, not by this lookup.
     fn observed_literal(&mut self, id: ExprId) -> Option<bool> {
