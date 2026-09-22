@@ -23,13 +23,26 @@ pub(super) fn initialization_order_admitted(
 ) -> Result<Vec<UnitId>, StaticOrderError> {
     let mut initializers = budget.vector(Scratch, modules.len())?;
     let mut scope = budget.scope();
-    let order = crate::module::static_evaluation_order_admitted(
+    let order = crate::module::initialization_order_admitted(
         entry.index(),
         modules.len(),
         |module| modules[module].dependencies.iter().map(|id| id.index()),
         &mut scope,
     )?;
-    if order.len() != modules.len() {
+    // A module the static order leaves out must be one `import()` loads.
+    let reachable = crate::module::static_evaluation_order_admitted(
+        entry.index(),
+        modules.len(),
+        |module| {
+            modules[module]
+                .dependencies
+                .iter()
+                .chain(&modules[module].dynamic_dependencies)
+                .map(|id| id.index())
+        },
+        &mut scope,
+    )?;
+    if reachable.len() != modules.len() {
         return Err(StaticOrderError::Invalid(
             "semantic module interface is unreachable from the entry",
         ));
@@ -85,6 +98,8 @@ mod tests {
             source: empty.source_identity().clone(),
             initializer,
             dependencies: vec![root],
+            dynamic_dependencies: Vec::new(),
+            namespace: Vec::new(),
             imports: vec![ModuleImport {
                 module: root,
                 name,

@@ -177,6 +177,10 @@ pub struct ArtifactChunk {
     pub modules: Vec<u32>,
     /// Chunk files this one imports, by name.
     pub dependencies: Vec<String>,
+    /// Lazy chunks this one loads with `import()`, by name.
+    pub dynamic_dependencies: Vec<String>,
+    /// Loaded only by `import()`.
+    pub lazy: bool,
     /// Modules importing this chunk's module, when split counts them.
     pub importers: usize,
     pub code: String,
@@ -200,17 +204,28 @@ pub struct DeliveredChunk {
     pub name: String,
     pub modules: Vec<u32>,
     pub dependencies: Vec<String>,
+    pub dynamic_dependencies: Vec<String>,
+    pub lazy: bool,
     /// Modules importing this chunk's module, when split counts them.
     pub importers: usize,
     pub code: String,
 }
 
-/// An exact multi-file delivery: the entry, the chunks it imports directly,
-/// and every chunk file.
+/// What a multi-file delivery's entry links to: the chunks it imports and
+/// loads with `import()`, and the lazy chunks it preloads.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EntryLinks {
+    pub dependencies: Vec<String>,
+    pub dynamic_dependencies: Vec<String>,
+    pub preload: Vec<String>,
+}
+
+/// An exact multi-file delivery: the entry, what it links to, and every
+/// chunk file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeliveredBundle {
     pub entry: String,
-    pub entry_dependencies: Vec<String>,
+    pub entry_links: EntryLinks,
     pub chunks: Vec<DeliveredChunk>,
 }
 
@@ -218,8 +233,8 @@ struct Record {
     text: String,
     /// Chunk files delivered with the entry text; empty for one file.
     chunks: Vec<ArtifactChunk>,
-    /// Chunks the entry imports directly, charged with the entry text.
-    entry_dependencies: Vec<String>,
+    /// What the entry links to, charged with the entry text.
+    entry_links: EntryLinks,
     execution: JavaScriptExecution,
     candidate: CandidateId,
     identity: SharedImplementationIdentity,
@@ -280,11 +295,11 @@ impl Record {
         self,
         owner: RevisionId,
         budget: &mut AllocationBudget<'_>,
-    ) -> (String, Vec<String>, Vec<DeliveredChunk>) {
+    ) -> (String, EntryLinks, Vec<DeliveredChunk>) {
         let Self {
             text,
             chunks,
-            entry_dependencies,
+            entry_links,
             charge,
             resource,
             provenance,
@@ -304,12 +319,14 @@ impl Record {
                     name: chunk.name,
                     modules: chunk.modules,
                     dependencies: chunk.dependencies,
+                    dynamic_dependencies: chunk.dynamic_dependencies,
+                    lazy: chunk.lazy,
                     importers: chunk.importers,
                     code: chunk.code,
                 }
             })
             .collect();
-        (text, entry_dependencies, chunks)
+        (text, entry_links, chunks)
     }
     fn discard(self, owner: RevisionId, budget: &mut AllocationBudget<'_>) {
         let Self {
@@ -740,10 +757,10 @@ impl ArtifactArena {
                 "complete package requires both resource files",
             ));
         }
-        let (entry, entry_dependencies, chunks) = self.remove(id.0)?.take(self.owner, budget);
+        let (entry, entry_links, chunks) = self.remove(id.0)?.take(self.owner, budget);
         Ok(DeliveredBundle {
             entry,
-            entry_dependencies,
+            entry_links,
             chunks,
         })
     }
@@ -911,7 +928,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         let primary_limit = byte_limit
             .checked_sub(dependency_bytes)
             .ok_or(crate::structured_js::extract::OutputError::ByteLimit)?;
-        let (text, charge, literals, chunks, entry_dependencies) = match self.bundle {
+        let (text, charge, literals, chunks, entry_links) = match self.bundle {
             Some(bundle) => {
                 if dependency_bytes != 0 {
                     return Err(CandidateError::Artifact(
@@ -933,12 +950,19 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                         name: chunk.name,
                         modules: chunk.modules,
                         dependencies: chunk.dependencies,
+                        dynamic_dependencies: chunk.dynamic_dependencies,
+                        lazy: chunk.lazy,
                         importers: chunk.importers,
                         code: chunk.code,
                         charge: chunk.charge,
                     })
                     .collect::<Vec<_>>();
-                (text, charge, literals, chunks, rendered.entry_dependencies)
+                let links = EntryLinks {
+                    dependencies: rendered.entry_dependencies,
+                    dynamic_dependencies: rendered.entry_dynamic_dependencies,
+                    preload: rendered.preload,
+                };
+                (text, charge, literals, chunks, links)
             }
             None => {
                 let (text, charge, literals) = self.output.render_with_literals_admitted(
@@ -947,7 +971,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
                     primary_limit,
                     self.staging.owner,
                 )?;
-                (text, charge, literals, Vec::new(), Vec::new())
+                (text, charge, literals, Vec::new(), EntryLinks::default())
             }
         };
         let actual_output = OutputTactics {
@@ -999,7 +1023,7 @@ impl<'scope, 'target> BudgetedJavaScriptOutput<'scope, 'target> {
         Ok(ScopedArtifactId(self.staging.insert(Record {
             text,
             chunks,
-            entry_dependencies,
+            entry_links,
             execution: self.execution,
             candidate: self.candidate,
             identity,

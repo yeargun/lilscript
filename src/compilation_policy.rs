@@ -48,6 +48,8 @@ pub enum CompilationContract {
         /// Split delivery's chunk rule; absent in the other modes, whose
         /// output these settings cannot change.
         split: Option<SplitRule>,
+        /// Which lazy chunks the entry preloads; `None` for one file.
+        preload: crate::config::PreloadPolicy,
     },
     Native {
         abi_version: u32,
@@ -706,6 +708,7 @@ impl ResolvedPolicy {
                 owned_properties,
                 bundle_mode,
                 split,
+                preload,
             } => json!({
                 "target":"javascript", "world":format!("{:?}",language.world), "execution":format!("{:?}",language.execution), "ecmascript":language.ecmascript.name(),
                 "preserve_root_exports":language.abi.preserve_root_exports,
@@ -720,7 +723,8 @@ impl ResolvedPolicy {
                 "preserved_properties":preserved_properties,
                 "owned_properties":format!("{owned_properties:?}"), "bundle_mode":format!("{bundle_mode:?}"),
                 "split":split.map(|rule| json!({"min_chunk_bytes":rule.min_chunk_bytes, "max_chunks":rule.max_chunks,
-                    "shared_min_imports":rule.shared_min_imports, "cost":format!("{:?}", rule.cost)}))
+                    "shared_min_imports":rule.shared_min_imports, "cost":format!("{:?}", rule.cost)})),
+                "preload":format!("{preload:?}")
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "realistic_performance_limit_percent":o.rank.realistic_performance_limit_percent, "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "cleanup_finalists":o.cleanup_finalists, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval,"interaction_interval":o.search.interaction_interval}}));

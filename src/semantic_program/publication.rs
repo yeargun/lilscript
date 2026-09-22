@@ -8,7 +8,7 @@
 //! construction or externally retained source/type storage.
 
 pub use super::artifact_provenance::{LiteralOutput, OutputTactics};
-pub use super::artifacts::{DeliveredBundle, DeliveredChunk};
+pub use super::artifacts::{DeliveredBundle, DeliveredChunk, EntryLinks};
 use super::artifacts::ArtifactArena;
 pub use super::artifacts::{
     ArtifactId, ArtifactResourceView, ArtifactRuntimeEvidence, ArtifactView,
@@ -735,6 +735,7 @@ struct Checkpoint<'src> {
 struct JavaScriptTarget<'scope, 'src> {
     /// Source module stems for delivered chunk names.
     module_names: &'scope [String],
+    chunk_extension: &'static str,
     module: crate::structured_js::Module,
     literals: Vec<crate::structured_js::LiteralAlternative>,
     #[cfg(test)]
@@ -765,14 +766,17 @@ impl JavaScriptTarget<'_, '_> {
             choices,
             budget,
             module_names,
+            chunk_extension,
             ..
         } = self;
         // Multi-file delivery: every source module but the entry may carry a
         // chunk of its self-contained functions; split mode then selects.
         let bundle = match policy.contract() {
             crate::compilation_policy::CompilationContract::JavaScript {
+                language,
                 bundle_mode,
                 split,
+                preload,
                 ..
             } if *bundle_mode != crate::config::BundleMode::Single => {
                 let program = &checkpoint.semantic.program;
@@ -788,7 +792,21 @@ impl JavaScriptTarget<'_, '_> {
                         importers[dependency.index()] += 1;
                     }
                 }
+                // Modules static imports reach from the entry.
+                let mut eager = vec![false; modules.len()];
+                let mut pending = vec![entry];
+                while let Some(module) = pending.pop() {
+                    if !std::mem::replace(&mut eager[module], true) {
+                        pending.extend(modules[module].dependencies.iter().map(|id| id.index()));
+                    }
+                }
                 Some(super::artifacts::BundleSpec {
+                    extension: chunk_extension,
+                    eager,
+                    dynamic_import: language
+                        .ecmascript
+                        .allows(crate::js_syntax_target::JsSyntaxFeature::DynamicImport),
+                    preload: *preload,
                     allowed: (0..modules.len()).map(|index| index != entry).collect(),
                     stems: (0..modules.len())
                         .map(|index| {
@@ -928,10 +946,16 @@ pub struct Compilation<'src> {
     /// Source module file stems for delivered chunk names: descriptive only,
     /// never part of a program's meaning.
     module_names: Option<(Vec<String>, Charge)>,
+    chunk_extension: &'static str,
 }
 
 impl<'src> Compilation<'src> {
     /// Name each source module, by index, for multi-file delivery.
+    /// Delivered chunk file names end in `.extension`.
+    pub fn set_chunk_extension(&mut self, extension: &'static str) {
+        self.chunk_extension = extension;
+    }
+
     pub fn set_module_names(&mut self, names: Vec<String>) -> Result<(), PublicationError> {
         let bytes = names
             .iter()
@@ -994,6 +1018,7 @@ impl<'src> Compilation<'src> {
             local_facts: None,
             artifacts: ArtifactArena::new(store),
             module_names: None,
+            chunk_extension: "js",
         })
     }
     pub fn ledger(&self) -> &BudgetLedger {
@@ -2065,6 +2090,7 @@ impl<'src> Compilation<'src> {
                 .module_names
                 .as_ref()
                 .map_or(&[][..], |(names, _)| names.as_slice()),
+            chunk_extension: self.chunk_extension,
             module,
             literals,
             #[cfg(test)]
@@ -2539,6 +2565,7 @@ fn copy_javascript_contract(
         owned_properties,
         bundle_mode,
         split,
+        preload,
     } = contract
     else {
         return Err(CandidateError::NotJavaScript);
@@ -2561,6 +2588,7 @@ fn copy_javascript_contract(
         owned_properties: *owned_properties,
         bundle_mode: *bundle_mode,
         split: *split,
+        preload: *preload,
     })
 }
 fn check_candidate_policy(
@@ -3082,6 +3110,15 @@ fn table_bytes(
                         import.source.capacity() as u64,
                         import.imported.capacity() as u64,
                     ])?;
+                }
+                workspace.work(module.dynamic_dependencies.len() + module.namespace.len())?;
+                total = sum(&[
+                    total,
+                    capacity(&module.dynamic_dependencies)?,
+                    capacity(&module.namespace)?,
+                ])?;
+                for (name, _) in &module.namespace {
+                    total = sum(&[total, name.capacity() as u64])?;
                 }
             }
         }

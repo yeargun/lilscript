@@ -365,8 +365,23 @@ fn convert_modules<'ast, 'src>(
                         )
                         .map_err(|error| make_error(error.into()))?;
                 }
+                let mut dynamic = lower
+                    .budget
+                    .vector(Retained, interface.dynamic_dependencies.len())
+                    .map_err(|error| make_error(error.into()))?;
+                for &target in &interface.dynamic_dependencies {
+                    lower.work(1).map_err(make_error)?;
+                    let target = ModuleId::from_index(target)
+                        .filter(|_| target < sources.len())
+                        .ok_or_else(|| fail(module, "checked dependency outside module set"))?;
+                    lower
+                        .budget
+                        .push(Retained, &mut dynamic, target)
+                        .map_err(|error| make_error(error.into()))?;
+                }
                 let data = &mut building_table(&mut lower.program.modules)[module];
                 data.dependencies = dependencies;
+                data.dynamic_dependencies = dynamic;
                 data.imports = imports;
             }
             Ok(())
@@ -419,6 +434,49 @@ fn convert_modules<'ast, 'src>(
             module: semantics.root(),
             error,
         })?;
+    // A namespace serves exactly the exports some module reads from it.
+    for module in 0..sources.len() {
+        let view = semantics.view(module).unwrap();
+        for (target, name) in view.used_dynamic_exports() {
+            lower.work(1).map_err(|error| ModuleConversionError { module, error })?;
+            let target = target as usize;
+            let cell = semantics
+                .interfaces()
+                .get(target)
+                .and_then(|interface| {
+                    interface
+                        .exports
+                        .iter()
+                        .find(|export| export.external == name)
+                })
+                .and_then(|export| interface_target(export.target))
+                .and_then(|target| match target {
+                    InterfaceTarget::Value(cell) => Some(cell),
+                    InterfaceTarget::Struct(_) => None,
+                })
+                .ok_or_else(|| fail(module, "dynamic export has no runtime cell"))?;
+            let name = lower
+                .budget
+                .string(Retained, name)
+                .map_err(|error| ModuleConversionError {
+                    module,
+                    error: error.into(),
+                })?;
+            let namespace = &mut building_table(&mut lower.program.modules)[target].namespace;
+            if !namespace.iter().any(|(known, _)| *known == name) {
+                lower
+                    .budget
+                    .push(Retained, namespace, (name, cell))
+                    .map_err(|error| ModuleConversionError {
+                        module,
+                        error: error.into(),
+                    })?;
+            }
+        }
+    }
+    for module in building_table(&mut lower.program.modules) {
+        module.namespace.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+    }
     // Register all canonical callable identities before lowering cyclic bodies.
     for (module, source) in sources.iter().enumerate() {
         lower.semantics = semantics.view(module).unwrap();
@@ -512,6 +570,8 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     source: source.source_identity().clone(),
                     initializer,
                     dependencies: Vec::new(),
+                    dynamic_dependencies: Vec::new(),
+                    namespace: Vec::new(),
                     imports: Vec::new(),
                     exports: 0..0,
                     foreign_imports: Vec::new(),
@@ -3248,6 +3308,25 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 (OperationKind::Constant(Constant::Boolean(*value)), vec![])
             }
             ExprKind::Null(_) => (OperationKind::Constant(Constant::Null), vec![]),
+            ExprKind::DynamicImport { source, span } => {
+                let module = self
+                    .semantics
+                    .dynamic_import_module(*span)
+                    .and_then(|module| ModuleId::from_index(module as usize))
+                    .filter(|module| module.index() < self.program.modules.len())
+                    .ok_or(Unsupported {
+                        span: *span,
+                        feature: "unresolved dynamic import",
+                    })?;
+                // The namespace's members are read once the task settles.
+                let members = self.program.modules[module.index()].namespace.len();
+                for index in 0..members {
+                    let cell = self.program.modules[module.index()].namespace[index].1;
+                    self.reference(unit, cell)?;
+                }
+                let specifier = self.string(source)?;
+                (OperationKind::LoadModule { module, specifier }, vec![])
+            }
             ExprKind::Ident(_) | ExprKind::Index { .. } => {
                 (OperationKind::Load(self.place(unit, region, expr)?), vec![])
             }

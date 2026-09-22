@@ -3028,6 +3028,36 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
             }
             OperationKind::Await => js::Expr::Await(self.value(unit, operands[0])?),
+            OperationKind::LoadModule { module, specifier } => {
+                let promise = self.host_path(&["Promise"])?;
+                let string = self.host_path(&["String"])?;
+                let program = self.program;
+                let members_len = program.modules[module.index()].namespace.len();
+                let mut members = self
+                    .budget
+                    .vector(AllocationClass::Retained, members_len)?;
+                for index in 0..members_len {
+                    let (name, cell) = &program.modules[module.index()].namespace[index];
+                    let binding = self.cell_binding(unit, *cell)?;
+                    let value = self.expression(js::Expr::Binding(binding))?;
+                    let name = self.text(name)?;
+                    self.budget
+                        .push(AllocationClass::Retained, &mut members, (name, value))?;
+                }
+                let specifier = program.strings[specifier.index()]
+                    .as_unicode()
+                    .ok_or_else(|| {
+                        self.error(operation.span, "dynamic import specifier is not text")
+                    })?;
+                let specifier = self.text(specifier)?;
+                js::Expr::LoadModule {
+                    module: module.index() as u32,
+                    specifier,
+                    members,
+                    promise,
+                    string,
+                }
+            }
             // `new C(...)`: the first operand is C's constructor, the class value.
             OperationKind::ConstructClass => {
                 let callee = self.value(unit, operands[0])?;

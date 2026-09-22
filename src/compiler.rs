@@ -1232,6 +1232,10 @@ pub struct SemanticBundleFile {
     /// Source module names, relative to the entry module's directory.
     pub modules: Vec<String>,
     pub dependencies: Vec<String>,
+    /// Lazy chunks this file loads with `import()`.
+    pub dynamic_dependencies: Vec<String>,
+    /// Loaded only by `import()`.
+    pub lazy: bool,
     /// Modules importing this file's module, when split counts them toward
     /// cache reuse; zero otherwise.
     pub importers: usize,
@@ -1243,6 +1247,7 @@ pub struct SemanticBundleFile {
 pub fn semantic_javascript_bundle(
     entry: SemanticBundleFile,
     chunks: Vec<SemanticBundleFile>,
+    preload: Vec<String>,
     config: &ProjectConfig,
 ) -> Result<JavaScriptBundle, String> {
     let files = std::iter::once(&entry).chain(&chunks).collect::<Vec<_>>();
@@ -1255,7 +1260,7 @@ pub fn semantic_javascript_bundle(
             let Some(depth) = depths.get(&file.file_name).copied() else {
                 continue;
             };
-            for dependency in &file.dependencies {
+            for dependency in file.dependencies.iter().chain(&file.dynamic_dependencies) {
                 let candidate = depth.saturating_add(1);
                 let slot = depths.entry(dependency.clone()).or_insert(candidate);
                 if candidate < *slot {
@@ -1267,7 +1272,11 @@ pub fn semantic_javascript_bundle(
     }
     let mut reachability: AHashMap<String, usize> = AHashMap::default();
     for file in &files {
-        let mut dependencies = file.dependencies.iter().collect::<Vec<_>>();
+        let mut dependencies = file
+            .dependencies
+            .iter()
+            .chain(&file.dynamic_dependencies)
+            .collect::<Vec<_>>();
         dependencies.sort_unstable();
         dependencies.dedup();
         for dependency in dependencies {
@@ -1290,7 +1299,7 @@ pub fn semantic_javascript_bundle(
             gzip_bytes,
             brotli_bytes,
             depth,
-            false,
+            index != 0 && preload.contains(&file.file_name),
             reachability
                 .get(&file.file_name)
                 .copied()
@@ -1311,9 +1320,9 @@ pub fn semantic_javascript_bundle(
             gzip_bytes,
             brotli_bytes,
             selected_transfer_bytes: transfer,
-            kind: "static".to_string(),
+            kind: if file.lazy { "lazy" } else { "static" }.to_string(),
             dependencies: file.dependencies.clone(),
-            dynamic_dependencies: Vec::new(),
+            dynamic_dependencies: file.dynamic_dependencies.clone(),
             cache_key: content_hash(file.code.as_bytes()),
             deploy_cost: cost,
         });
@@ -1365,7 +1374,7 @@ pub fn semantic_javascript_bundle(
             build_id,
             mode: bundle_mode_name(config.bundle.mode).to_string(),
             entry: entry_file,
-            preload: Vec::new(),
+            preload,
             objective,
             objective_fingerprint,
             selected_transfer_bytes,

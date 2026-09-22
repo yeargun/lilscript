@@ -208,18 +208,21 @@ fn static_foreign_and_nested_dynamic_imports_share_the_original_collector() {
         assert_eq!(modules.modules[0].foreign_dependencies.len(), 1);
         assert_eq!(modules.modules[0].dynamic_dependencies, [2]);
         assert_eq!(admitted_arena_activity_for_test().1, before.1 + 3);
-        let expected_error = crate::semantic::analyze_modules(&programs, &expected)
-            .err()
-            .unwrap();
-        let error = syntax.with_ledger(|ledger, domain| {
+        // Both checkers accept the lazy loader and agree on the order: the
+        // static graph from the entry, then the module only `import()` loads.
+        let expected_order = crate::semantic::analyze_modules(&programs, &expected)
+            .unwrap()
+            .initialization_order()
+            .to_vec();
+        let order = syntax.with_ledger(|ledger, domain| {
             let mut budget = AllocationBudget::new(Some((ledger, domain)));
-            with_analyzed_modules(&programs, &modules, &mut budget, |_, _| ()).unwrap_err()
+            with_analyzed_modules(&programs, &modules, &mut budget, |checked, _| {
+                checked.initialization_order().to_vec()
+            })
+            .unwrap()
         });
-        let crate::semantic::AdmittedSemanticError::Semantic(actual) = error.error else {
-            panic!("expected the same unsupported module diagnostic");
-        };
-        assert_eq!(error.module, expected_error.module);
-        assert_eq!(actual, expected_error.error);
+        assert_eq!(order, expected_order);
+        assert_eq!(order, [1, 0, 2]);
     }
     sources.discard(&mut ledger).unwrap();
     assert_eq!(ledger.retained_bytes(), SENTINEL);

@@ -105,6 +105,33 @@ pub(crate) fn static_evaluation_order_admitted<I: IntoIterator<Item = usize>>(
     Ok(order)
 }
 
+/// Static evaluation order from `root`, then every module only `import()`
+/// reaches, in module order. Such a module is initialization-free, so its
+/// place is unobservable; last, it runs after everything it may read.
+pub(crate) fn initialization_order_admitted<I: IntoIterator<Item = usize>>(
+    root: usize,
+    module_count: usize,
+    dependencies: impl Fn(usize) -> I,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<Vec<usize>, StaticOrderError> {
+    use crate::output_budget::AllocationClass::Scratch;
+    let mut order = static_evaluation_order_admitted(root, module_count, dependencies, budget)?;
+    if order.len() == module_count {
+        return Ok(order);
+    }
+    let mut reached = budget.filled(Scratch, module_count, false)?;
+    for &module in &order {
+        reached[module] = true;
+    }
+    budget.work(WorkKind::Analysis, module_count as u64)?;
+    for (module, reached) in reached.iter().enumerate() {
+        if !reached {
+            order.push(module);
+        }
+    }
+    Ok(order)
+}
+
 #[derive(Debug, Clone)]
 pub struct ModuleSource<S = String> {
     pub path: PathBuf,
@@ -759,7 +786,7 @@ fn resolve_import_path(parent: &Path, specifier: &str) -> Result<PathBuf, String
     Ok(parent.join(path))
 }
 
-fn collect_program_dynamic_imports<'ast, 'src>(
+pub(crate) fn collect_program_dynamic_imports<'ast, 'src>(
     program: &Program<'ast, 'src>,
     imports: &mut Vec<(&'src str, Span)>,
 ) {

@@ -1007,6 +1007,25 @@ pub(super) fn transfer(
                 .union(Effects::THROW)
                 .union(Effects::FOREIGN);
         }
+        // A host load: its namespace is read later, and a chunk may run any
+        // code; nothing about it is known now.
+        Expr::LoadModule {
+            members,
+            promise,
+            string,
+            ..
+        } => {
+            child(*promise);
+            child(*string);
+            for (_, member) in members {
+                child(*member);
+            }
+            result.value = ValueKind::Object;
+            result.effects = Effects::HEAP_READ
+                .union(Effects::WRITE)
+                .union(Effects::THROW)
+                .union(Effects::FOREIGN);
+        }
         // Any code runs while the function is suspended, including closures
         // over this frame; the resumed value is unknown.
         Expr::Await(value) | Expr::Yield { value, .. } => {

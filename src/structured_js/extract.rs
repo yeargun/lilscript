@@ -328,7 +328,7 @@ impl<'a> Output<'a> {
         let mut render = budget.scope();
         let result = (|| {
             let names = self.basis.names_in(plan, &mut render)?;
-            let partition = delivery::partition(self.module, &mut render)?;
+            let partition = delivery::partition(self.module, spec.allowed.len(), &mut render)?;
             let deliver = |allowed: &[bool], limit: usize, budget: &mut AllocationBudget<'_>| {
                 self.deliver_files(&names, literals, &partition, allowed, spec, limit, budget)
             };
@@ -346,15 +346,21 @@ impl<'a> Output<'a> {
             files,
             texts,
             dependencies,
+            dynamic,
+            preload,
             ..
         } = result?;
         let mut charges = Vec::with_capacity(texts.len());
-        for (text, dependencies) in texts.iter().zip(&dependencies) {
-            let names: usize = dependencies.iter().map(String::capacity).sum();
-            let bytes = u64::try_from(
-                text.capacity() + names + dependencies.capacity() * std::mem::size_of::<String>(),
-            )
-            .map_err(|_| AllocationError::Capacity)?;
+        for (index, (text, dependencies)) in texts.iter().zip(&dependencies).enumerate() {
+            let listed = |names: &Vec<String>| {
+                names.iter().map(String::capacity).sum::<usize>()
+                    + names.capacity() * std::mem::size_of::<String>()
+            };
+            let mut bytes = text.capacity() + listed(dependencies) + listed(&dynamic[index]);
+            if index == 0 {
+                bytes += listed(&preload);
+            }
+            let bytes = u64::try_from(bytes).map_err(|_| AllocationError::Capacity)?;
             match budget.detach_retained(owner, bytes) {
                 Ok(charge) => charges.push(charge),
                 Err(error) => {
@@ -371,13 +377,19 @@ impl<'a> Output<'a> {
         }
         let mut entry = None;
         let mut entry_dependencies = Vec::new();
+        let mut entry_dynamic_dependencies = Vec::new();
         let mut chunks = Vec::with_capacity(texts.len().saturating_sub(1));
-        for (((file, text), charge), dependencies) in
-            files.into_iter().zip(texts).zip(charges).zip(dependencies)
+        for ((((file, text), charge), dependencies), dynamic_dependencies) in files
+            .into_iter()
+            .zip(texts)
+            .zip(charges)
+            .zip(dependencies)
+            .zip(dynamic)
         {
             if entry.is_none() {
                 entry = Some((text, charge));
                 entry_dependencies = dependencies;
+                entry_dynamic_dependencies = dynamic_dependencies;
             } else {
                 // Split counts a chunk's importing modules toward its cache
                 // reuse, as the default route does; other modes do not.
@@ -394,6 +406,8 @@ impl<'a> Output<'a> {
                     name: file.name,
                     modules: file.modules,
                     dependencies,
+                    dynamic_dependencies,
+                    lazy: file.lazy,
                     importers,
                     code: text,
                     charge,
@@ -404,14 +418,17 @@ impl<'a> Output<'a> {
             RenderedBundle {
                 entry: entry.expect("the entry file is always planned"),
                 entry_dependencies,
+                entry_dynamic_dependencies,
+                preload,
                 chunks,
             },
             literals,
         ))
     }
 
-    /// Print every file of one partition: bodies first, so each chunk's name
-    /// is its body's digest, then headers that import those names.
+    /// Print every file of one partition: chunk bodies first, so each chunk's
+    /// name is its body's digest, then the entry's body, which may load lazy
+    /// chunks by name, then headers that import those names.
     #[allow(clippy::too_many_arguments)]
     fn deliver_files(
         &self,
@@ -425,11 +442,13 @@ impl<'a> Output<'a> {
     ) -> Result<Delivered, OutputError> {
         use sha2::{Digest, Sha256};
         let chunkable = delivery::chunkable(self.module, partition, allowed, budget)?;
-        let mut files = delivery::plan_files(self.module, &chunkable, budget)?;
-        let links = delivery::link(self.module, &files, 0, budget)?;
+        let lazy = delivery::lazy_modules(self.module, partition, &chunkable, spec, budget)?;
+        let mut files = delivery::plan_files(self.module, &chunkable, &lazy, budget)?;
+        let links = delivery::link(self.module, &files, 0, partition, &lazy, budget)?;
         let print = |file: usize,
                      part: print::FilePart,
                      files: &[delivery::DeliveryFile],
+                     preload: &[String],
                      remaining: usize,
                      budget: &mut AllocationBudget<'_>|
          -> Result<String, OutputError> {
@@ -445,6 +464,7 @@ impl<'a> Output<'a> {
                 file,
                 &links[file],
                 file == 0,
+                preload,
                 part,
             )
             .map_err(|error| match error {
@@ -454,8 +474,8 @@ impl<'a> Output<'a> {
         };
         let mut bodies = Vec::with_capacity(files.len());
         let mut used = 0usize;
-        for file in 0..files.len() {
-            let body = print(file, print::FilePart::Body, &files, limit - used, budget)?;
+        for file in (1..files.len()).chain(std::iter::once(0)) {
+            let body = print(file, print::FilePart::Body, &files, &[], limit - used, budget)?;
             used += body.len();
             if file != 0 {
                 let stem = files[file]
@@ -465,13 +485,35 @@ impl<'a> Output<'a> {
                     .map_or("module", String::as_str);
                 let digest = format!("{:x}", Sha256::digest(body.as_bytes()));
                 budget.work(WorkKind::Render, body.len() as u64)?;
-                files[file].name = format!("chunk-{}-{stem}.js", &digest[..10]);
+                files[file].name =
+                    format!("chunk-{}-{stem}.{}", &digest[..10], spec.extension);
             }
-            bodies.push(body);
+            bodies.push((file, body));
         }
+        bodies.sort_unstable_by_key(|(file, _)| *file);
+        let preload: Vec<String> = match spec.preload {
+            crate::config::PreloadPolicy::None => Vec::new(),
+            crate::config::PreloadPolicy::Entry => links[0]
+                .dynamic
+                .iter()
+                .map(|&file| files[file].name.clone())
+                .collect(),
+            crate::config::PreloadPolicy::All => files
+                .iter()
+                .filter(|file| file.lazy)
+                .map(|file| file.name.clone())
+                .collect(),
+        };
         let mut texts = Vec::with_capacity(files.len());
-        for (file, body) in bodies.into_iter().enumerate() {
-            let mut text = print(file, print::FilePart::Header, &files, limit - used, budget)?;
+        for (file, body) in bodies {
+            let mut text = print(
+                file,
+                print::FilePart::Header,
+                &files,
+                &preload,
+                limit - used,
+                budget,
+            )?;
             used += text.len();
             budget.push_str(AllocationClass::Retained, &mut text, &body)?;
             drop(body);
@@ -486,20 +528,33 @@ impl<'a> Output<'a> {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        let dynamic = links
+            .iter()
+            .map(|link| {
+                link.dynamic
+                    .iter()
+                    .map(|&file| files[file].name.clone())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
         let depths = delivery::depths(&links, budget)?;
         Ok(Delivered {
             files,
             texts,
             dependencies,
+            dynamic,
+            preload,
             links,
             depths,
         })
     }
 
-    /// The default route's split rule on this partition: shared modules whose
-    /// provisional chunk has `min_chunk_bytes`, then the chunk that lowers the
-    /// bundle's deploy cost most, while one does and fewer than `max_chunks`
-    /// are selected. Each trial renders in a scope released before the next.
+    /// The default route's split rule on this partition. A module only
+    /// `import()` reaches keeps its chunk, and more of those than
+    /// `max_chunks` is an error. Then shared modules whose provisional chunk
+    /// has `min_chunk_bytes` join, the one that lowers the bundle's deploy
+    /// cost most first, while one does and fewer than `max_chunks` are
+    /// selected. Each trial renders in a scope released before the next.
     fn select_split(
         &self,
         rule: crate::compilation_policy::SplitRule,
@@ -507,27 +562,54 @@ impl<'a> Output<'a> {
         deliver: &dyn Fn(&[bool], usize, &mut AllocationBudget<'_>) -> Result<Delivered, OutputError>,
         render: &mut AllocationBudget<'_>,
     ) -> Result<Vec<bool>, OutputError> {
+        let eager = |module: usize| spec.eager.get(module).copied().unwrap_or(true);
+        let mut selected = spec
+            .allowed
+            .iter()
+            .enumerate()
+            .map(|(module, &allowed)| allowed && !eager(module))
+            .collect::<Vec<_>>();
         let shared = spec
             .allowed
             .iter()
             .enumerate()
             .map(|(module, &allowed)| {
-                allowed && spec.importers.get(module).copied().unwrap_or(0) >= rule.shared_min_imports
+                allowed
+                    && eager(module)
+                    && spec.importers.get(module).copied().unwrap_or(0) >= rule.shared_min_imports
             })
             .collect::<Vec<_>>();
-        let mut selected = vec![false; spec.allowed.len()];
+        let mut count = {
+            let mut trial = render.scope();
+            let delivered = deliver(&selected, usize::MAX, &mut trial)?;
+            let count = delivered.files.len() - 1;
+            drop(delivered);
+            count
+        };
+        if count > rule.max_chunks {
+            return Err(OutputError::Invalid(
+                "`bundle.max_chunks` is below the split plan's mandatory lazy chunks; increase `bundle.max_chunks` or reduce the number of lazy modules",
+            ));
+        }
         if !shared.contains(&true) {
             return Ok(selected);
         }
         let mut optional = {
+            let candidates = selected
+                .iter()
+                .zip(&shared)
+                .map(|(mandatory, shared)| *mandatory || *shared)
+                .collect::<Vec<_>>();
             let mut trial = render.scope();
-            let delivered = deliver(&shared, usize::MAX, &mut trial)?;
+            let delivered = deliver(&candidates, usize::MAX, &mut trial)?;
             let sizes = delivered
                 .files
                 .iter()
                 .zip(&delivered.texts)
                 .skip(1)
-                .filter(|(_, text)| text.len() >= rule.min_chunk_bytes)
+                .filter(|(file, text)| {
+                    shared[file.modules[0] as usize] && text.len() >= rule.min_chunk_bytes
+                })
                 .map(|(file, text)| (file.modules[0] as usize, text.len()))
                 .collect::<Vec<_>>();
             drop(delivered);
@@ -542,7 +624,6 @@ impl<'a> Output<'a> {
             drop(delivered);
             cost
         };
-        let mut count = 0usize;
         let mut current = cost(&selected, render)?;
         while count < rule.max_chunks && !optional.is_empty() {
             let mut best = None::<(usize, u64)>;
@@ -654,6 +735,10 @@ pub(crate) struct RenderedChunk<Owner> {
     pub modules: Vec<u32>,
     /// Chunk files this one imports, by name.
     pub dependencies: Vec<String>,
+    /// Lazy chunks this one loads with `import()`, by name.
+    pub dynamic_dependencies: Vec<String>,
+    /// Loaded only by `import()`.
+    pub lazy: bool,
     /// Modules importing this chunk's module, when split counts them.
     pub importers: usize,
     pub code: String,
@@ -665,6 +750,9 @@ struct Delivered {
     files: Vec<delivery::DeliveryFile>,
     texts: Vec<String>,
     dependencies: Vec<Vec<String>>,
+    dynamic: Vec<Vec<String>>,
+    /// Lazy chunks the entry preloads, by name.
+    preload: Vec<String>,
     links: Vec<delivery::FileLinks>,
     depths: Vec<usize>,
 }
@@ -703,8 +791,16 @@ impl Delivered {
         };
         let mut reachability = vec![0usize; self.files.len()];
         for link in &self.links {
-            for (source, _) in &link.imports {
-                reachability[*source] += 1;
+            let mut targets = link
+                .imports
+                .iter()
+                .map(|(source, _)| *source)
+                .chain(link.dynamic.iter().copied())
+                .collect::<Vec<_>>();
+            targets.sort_unstable();
+            targets.dedup();
+            for target in targets {
+                reachability[target] += 1;
             }
         }
         let mut total = 0u64;
@@ -740,7 +836,7 @@ impl Delivered {
                 gzip,
                 brotli,
                 depth,
-                false,
+                index != 0 && self.preload.contains(&self.files[index].name),
                 reachability[index].max(importers),
             ));
         }
@@ -753,6 +849,9 @@ impl Delivered {
 pub(crate) struct RenderedBundle<Owner> {
     pub entry: (String, RetainedCharge<Owner>),
     pub entry_dependencies: Vec<String>,
+    pub entry_dynamic_dependencies: Vec<String>,
+    /// Lazy chunks the entry preloads, by name.
+    pub preload: Vec<String>,
     pub chunks: Vec<RenderedChunk<Owner>>,
 }
 

@@ -319,3 +319,181 @@ fn split_keeps_a_shared_module_chunk_only_when_it_lowers_the_deploy_cost() {
         .is_empty());
     let _ = fs::remove_dir_all(directory);
 }
+
+fn lazy_workspace(name: &str, main: &str) -> std::path::PathBuf {
+    workspace(
+        name,
+        &[
+            (
+                "feature.lil",
+                "export int answer(int value){return value+2;}export int unused(int value){return value*99;}",
+            ),
+            ("main.lil", main),
+        ],
+    )
+}
+
+fn with_bundle(directory: &Path, bundle: &str) -> ServiceCompilation {
+    let config: ProjectConfig = toml::from_str(&format!(
+        "[javascript]\nstrip_console=false\ncost_model='brotli'\ncandidate_proposal_limit=24\nterminal_codec_probe_limit=48\n[bundle]\n{bundle}"
+    ))
+    .unwrap();
+    compile_path_semantic(
+        &directory.join("main.lil"),
+        &config,
+        ServiceOptions {
+            target: ServiceTarget::JavaScript,
+            preserve_root_exports: true,
+            ..ServiceOptions::default()
+        },
+    )
+    .unwrap()
+}
+
+const LAZY_MAIN: &str = "import(\"./feature\").then((auto feature)=>print(feature.answer(40)))\
+    .catch((auto error)=>print(error.message));";
+
+/// `import()` of a module nothing imports statically loads its own chunk,
+/// which exports exactly the namespace members some code reads.
+#[test]
+fn dynamic_import_loads_a_lazy_chunk_serving_only_the_members_read() {
+    let directory = lazy_workspace("lazy", LAZY_MAIN);
+    let single = compile(&directory, "single");
+    assert_eq!(run(&directory, &single), "42\n");
+    let single_text = single.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    assert!(!single_text.contains("99"), "{single_text}");
+    for (bundle, preloaded) in [
+        ("mode='preserve-modules'", false),
+        ("mode='split'\nmin_chunk_bytes=1\nmax_chunks=1\npreload='entry'", true),
+    ] {
+        let compiled = with_bundle(&directory, bundle);
+        assert_eq!(run(&directory, &compiled), "42\n");
+        let artifact = compiled.javascript(Objective::Brotli).unwrap();
+        assert_eq!(artifact.chunks().len(), 1, "{:?}", delivered(&compiled));
+        let chunk = &artifact.chunks()[0];
+        assert!(chunk.lazy && chunk.name.ends_with("-feature.js"), "{}", chunk.name);
+        assert!(chunk.code.contains("as answer}"), "{}", chunk.code);
+        assert!(!chunk.code.contains("99"), "{}", chunk.code);
+        let links = artifact.entry_links();
+        assert!(links.dependencies.is_empty());
+        assert_eq!(links.dynamic_dependencies, [chunk.name.clone()]);
+        assert_eq!(links.preload.len(), usize::from(preloaded));
+        assert_eq!(artifact.javascript().contains("modulepreload"), preloaded);
+        assert!(artifact
+            .javascript()
+            .contains(&format!("import(\"./{}\")", chunk.name)));
+        // A failed load rejects with the source specifier and a message.
+        let out = directory.join("out");
+        fs::remove_file(out.join(&chunk.name)).unwrap();
+        let output = Command::new("node")
+            .args(["--input-type=module", "-e"])
+            .arg(format!(
+                "await import({});await new Promise(r=>setTimeout(r,10));",
+                serde_json::to_string(out.join("entry.js").to_str().unwrap()).unwrap()
+            ))
+            .output()
+            .unwrap();
+        let printed = String::from_utf8_lossy(&output.stdout);
+        assert!(printed.contains("ERR_MODULE_NOT_FOUND"), "{printed}");
+    }
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// A lazy module that calls into the entry module cannot move without
+/// importing the entry, so its namespace is built in place.
+#[test]
+fn a_lazy_module_that_calls_the_entry_loads_in_place() {
+    let directory = workspace(
+        "lazy-cycle",
+        &[
+            (
+                "feature.lil",
+                "import {base} from \"./main\";export int run(){return base()+2;}",
+            ),
+            (
+                "main.lil",
+                "export int base(){return 40;}import(\"./feature\").then((auto feature)=>print(feature.run()));",
+            ),
+        ],
+    );
+    let single = compile(&directory, "single");
+    assert_eq!(run(&directory, &single), "42\n");
+    let bundle = with_bundle(&directory, "mode='split'\nmin_chunk_bytes=1\nmax_chunks=8");
+    assert_eq!(run(&directory, &bundle), "42\n");
+    let artifact = bundle.javascript(Objective::Brotli).unwrap();
+    assert!(artifact.chunks().is_empty(), "{:?}", delivered(&bundle));
+    assert!(artifact.javascript().contains(".resolve().then("));
+    let _ = fs::remove_dir_all(directory);
+}
+
+#[test]
+fn split_refuses_more_lazy_chunks_than_max_chunks() {
+    let directory = workspace(
+        "lazy-limit",
+        &[
+            ("first.lil", "export int answer(){return 1;}"),
+            ("second.lil", "export int answer(){return 2;}"),
+            (
+                "main.lil",
+                "import(\"./first\").then((auto first)=>print(first.answer()));\
+                 import(\"./second\").then((auto second)=>print(second.answer()));",
+            ),
+        ],
+    );
+    let config: ProjectConfig = toml::from_str(
+        "[javascript]\nstrip_console=false\n[bundle]\nmode='split'\nmin_chunk_bytes=1\nmax_chunks=1",
+    )
+    .unwrap();
+    let error = compile_path_semantic(
+        &directory.join("main.lil"),
+        &config,
+        ServiceOptions::default(),
+    )
+    .unwrap_err();
+    assert!(error.message.contains("bundle.max_chunks"), "{error}");
+    let two = with_bundle(&directory, "mode='split'\nmin_chunk_bytes=1\nmax_chunks=2");
+    assert_eq!(two.javascript(Objective::Brotli).unwrap().chunks().len(), 2);
+    assert_eq!(run(&directory, &two), "1\n2\n");
+    let _ = fs::remove_dir_all(directory);
+}
+
+#[test]
+fn lazy_modules_must_be_initialization_free() {
+    let directory = workspace(
+        "lazy-init",
+        &[
+            ("feature.lil", "int seed=read();extern int read();export int answer(){return seed;}"),
+            (
+                "main.lil",
+                "import(\"./feature\").then((auto feature)=>print(feature.answer()));",
+            ),
+        ],
+    );
+    let config: ProjectConfig = toml::from_str("[javascript]\nstrip_console=false").unwrap();
+    let error = compile_path_semantic(
+        &directory.join("main.lil"),
+        &config,
+        ServiceOptions::default(),
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("initialization-free"), "{error}");
+    let _ = fs::remove_dir_all(directory);
+}
+
+/// `then`, `catch` and `finally` chain host tasks with checked callbacks.
+#[test]
+fn tasks_chain_then_catch_and_finally() {
+    let directory = workspace(
+        "tasks",
+        &[(
+            "main.lil",
+            "Task<int> ok=Task.resolve(5);\
+             ok.then((int value)=>print(value+1)).finally(()=>print(\"done\"));\
+             Task<int> failed=Task.reject(JS.object(\"reason\",\"no\"));\
+             failed.catch((auto error)=>print(\"caught\"));",
+        )],
+    );
+    let single = compile(&directory, "single");
+    assert_eq!(run(&directory, &single), "6\ncaught\ndone\n");
+    let _ = fs::remove_dir_all(directory);
+}

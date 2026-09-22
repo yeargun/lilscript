@@ -782,6 +782,9 @@ struct ModuleFacts<'ast, 'src> {
     enum_variant_values: AHashMap<Span, i64>,
     dynamic_import_modules: AHashMap<Span, u32>,
     module_exports: AHashMap<u32, AHashMap<&'src str, &'src str>>,
+    /// Direct module checking: a dynamically imported module's runtime
+    /// exports, resolved through its interface rather than a merged scope.
+    dynamic_export_symbols: AHashMap<(u32, &'src str), SymbolId>,
     used_dynamic_exports: AHashSet<(u32, &'src str)>,
 }
 
@@ -897,6 +900,7 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
             enum_variant_values: AHashMap::default(),
             dynamic_import_modules: AHashMap::default(),
             module_exports: AHashMap::default(),
+            dynamic_export_symbols: AHashMap::default(),
             used_dynamic_exports: AHashSet::default(),
         }
     }
@@ -1389,6 +1393,11 @@ impl<'view, 'ast, 'src> SemanticView<'view, 'ast, 'src> {
 
     pub(crate) fn dynamic_export_used(&self, module: u32, name: &str) -> bool {
         self.facts.used_dynamic_exports.contains(&(module, name))
+    }
+
+    /// Every `(module, export)` this module's code reads from a namespace.
+    pub(crate) fn used_dynamic_exports(&self) -> impl Iterator<Item = (u32, &'src str)> + '_ {
+        self.facts.used_dynamic_exports.iter().copied()
     }
 }
 
@@ -5109,29 +5118,36 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ]))
             }
             Type::ModuleNamespace(module) => {
-                let binding = self
+                let symbol = if let Some(symbol) = self
                     .facts
-                    .module_exports
-                    .get(&module)
-                    .and_then(|exports| exports.get(property.name))
-                    .copied()
-                    .ok_or_else(|| {
-                        AdmittedSemanticError::new(
-                            property.span,
-                            format!("dynamic module has no runtime export `{}`", property.name),
-                        )
-                    })?;
-                let symbol = self
-                    .scopes
-                    .first()
-                    .and_then(|scope| scope.get(binding))
-                    .and_then(|symbol| self.declarations.symbols.get(symbol.0 as usize))
-                    .ok_or_else(|| {
-                        AdmittedSemanticError::new(
-                            property.span,
-                            format!("dynamic export `{}` is type-only", property.name),
-                        )
-                    })?;
+                    .dynamic_export_symbols
+                    .get(&(module, property.name))
+                {
+                    self.declarations.symbols.get(symbol.0 as usize)
+                } else {
+                    let binding = self
+                        .facts
+                        .module_exports
+                        .get(&module)
+                        .and_then(|exports| exports.get(property.name))
+                        .copied()
+                        .ok_or_else(|| {
+                            AdmittedSemanticError::new(
+                                property.span,
+                                format!("dynamic module has no runtime export `{}`", property.name),
+                            )
+                        })?;
+                    self.scopes
+                        .first()
+                        .and_then(|scope| scope.get(binding))
+                        .and_then(|symbol| self.declarations.symbols.get(symbol.0 as usize))
+                }
+                .ok_or_else(|| {
+                    AdmittedSemanticError::new(
+                        property.span,
+                        format!("dynamic export `{}` is type-only", property.name),
+                    )
+                })?;
                 let ty = symbol.ty.clone();
                 self.facts
                     .used_dynamic_exports
@@ -5446,7 +5462,20 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 self.analyze_array_predicate(*element, args, property.name, span, Type::Int)?,
             ),
             (Type::Task(value), "then" | "catch" | "finally") => {
-                return self.analyze_task_call(property.name, *value, args, span);
+                let result = self.analyze_task_call(property.name, *value, args, span)?;
+                // A host method with one checked callback; record its
+                // contract on the callee like any other checked call.
+                let callback = self.facts.expression_types[args[0].expression.id.index()]
+                    .clone()
+                    .ok_or_else(|| {
+                        AdmittedSemanticError::new(args[0].span, "task callback lost its checked type")
+                    })?;
+                self.facts.expression_types[member.id.index()] =
+                    Some(Type::Function(FunctionType::new(FunctionSignature {
+                        params: vec![FunctionParameter::value(callback)],
+                        return_type: Box::new(result.clone()),
+                    })));
+                return Ok(result);
             }
             (receiver, _) => {
                 let callee =

@@ -2550,6 +2550,17 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 self.observe_region(context, test, ObservationDemand::Truthy, budget)?;
                 let _ = update;
             }
+            // A namespace's members are read once its task settles, like an
+            // export's.
+            OperationKind::LoadModule { module, .. } => {
+                let root = self.root();
+                let members = &self.program.modules[module.index()].namespace;
+                budget.work(members.len())?;
+                for index in 0..members.len() {
+                    let cell = self.program.modules[module.index()].namespace[index].1;
+                    self.need_cell(root, cell, budget)?;
+                }
+            }
             _ => {}
         }
         Ok(())

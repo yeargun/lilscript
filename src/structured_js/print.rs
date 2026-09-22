@@ -67,7 +67,8 @@ fn precedence(expression: &Expr) -> u8 {
         Expr::Call { .. }
         | Expr::Construct { .. }
         | Expr::ConstructIntrinsic { .. }
-        | Expr::SuperCall { .. } => 17,
+        | Expr::SuperCall { .. }
+        | Expr::LoadModule { .. } => 17,
         Expr::Member { .. } => 18,
         _ => 19,
     }
@@ -146,6 +147,7 @@ pub(super) fn render_with_literals_admitted(
             error: None,
         },
         discarded_root: None,
+        files: None,
     };
     for import in &module.imports {
         if !printer.output.work(1) {
@@ -220,6 +222,7 @@ pub(super) fn render_file_admitted(
     file: usize,
     links: &delivery::FileLinks,
     entry: bool,
+    preload: &[String],
     part: FilePart,
 ) -> Result<String, PrintError> {
     let _timing = crate::timing::TARGET_PRINT.scope(0);
@@ -237,8 +240,21 @@ pub(super) fn render_file_admitted(
             error: None,
         },
         discarded_root: None,
+        files: Some(files),
     };
     let header = part == FilePart::Header;
+    if header && entry && !preload.is_empty() {
+        // The default route's preload prelude, verbatim.
+        printer.text("typeof document!=\"undefined\"&&[");
+        for (index, file) in preload.iter().enumerate() {
+            if index != 0 {
+                printer.text(",");
+            }
+            let path = format!("./{file}");
+            printer.string(&crate::literal::StringValue::from(path.as_str()));
+        }
+        printer.text("].forEach(a=>{let b=document.createElement(\"link\");b.rel=\"modulepreload\",b.href=a,document.head.append(b)});");
+    }
     for (source, bindings) in links.imports.iter().filter(|_| header) {
         printer.text("import{");
         for (index, binding) in bindings.iter().enumerate() {
@@ -272,16 +288,39 @@ pub(super) fn render_file_admitted(
     if !header {
         printer.statement_list(root, &files[file].statements);
     }
-    if !header && !links.exports.is_empty() {
+    if !header && (!links.exports.is_empty() || !links.namespace.is_empty()) {
         printer.text("export{");
-        for (index, binding) in links.exports.iter().enumerate() {
+        let mut first = true;
+        for binding in &links.exports {
             if !printer.output.work(1) {
                 break;
             }
-            if index != 0 {
+            if !std::mem::take(&mut first) {
                 printer.text(",");
             }
             printer.text(names.get(*binding));
+        }
+        // A lazy chunk's namespace members, under their export names.
+        for (name, binding) in &links.namespace {
+            if !printer.output.work(1) {
+                break;
+            }
+            if links.exports.contains(binding) && names.get(*binding) == name {
+                continue;
+            }
+            if !std::mem::take(&mut first) {
+                printer.text(",");
+            }
+            let local = names.get(*binding);
+            printer.text(local);
+            if local != name {
+                printer.text(" as ");
+                if identifier_name(name) {
+                    printer.text(name);
+                } else {
+                    printer.string(&crate::literal::StringValue::from(name.as_str()));
+                }
+            }
         }
         printer.text("};");
     }
@@ -390,6 +429,8 @@ struct Printer<'a, 'budget, 'ledger> {
     output: Buffer<'budget, 'ledger>,
     /// The statement value being printed without its normalization.
     discarded_root: Option<ExprId>,
+    /// The delivered files, when this prints one of several.
+    files: Option<&'a [delivery::DeliveryFile]>,
 }
 
 /// The surrounding JavaScript syntax's named-evaluation behavior. A computed
@@ -930,6 +971,56 @@ impl<'a> Printer<'a, '_, '_> {
             Expr::Await(value) => {
                 self.text("await ");
                 self.expression(*value, 14);
+            }
+            Expr::LoadModule {
+                module,
+                specifier,
+                members,
+                promise,
+                string,
+            } => {
+                let chunk = self.files.and_then(|files| {
+                    files
+                        .iter()
+                        .find(|file| file.lazy && file.modules.first() == Some(module))
+                });
+                if let Some(chunk) = chunk {
+                    // The chunk's own namespace; a failed load reports the
+                    // source specifier, as the default route does.
+                    self.text("import(");
+                    let path = format!("./{}", chunk.name);
+                    self.string(&StringValue::from(path.as_str()));
+                    self.text(").catch(e=>");
+                    self.expression(*promise, 18);
+                    self.text(".reject({specifier:");
+                    self.string(&StringValue::from(specifier.as_str()));
+                    self.text(",message:");
+                    self.expression(*string, 18);
+                    self.text("(e)}))");
+                } else if members.is_empty() {
+                    self.expression(*promise, 18);
+                    self.text(".resolve({})");
+                } else {
+                    // Built a turn later, once every module has initialized.
+                    self.expression(*promise, 18);
+                    self.text(".resolve().then(()=>({");
+                    for (index, (name, value)) in members.iter().enumerate() {
+                        if !self.output.work(1) {
+                            return;
+                        }
+                        if index != 0 {
+                            self.text(",");
+                        }
+                        if identifier_name(name) {
+                            self.text(name);
+                        } else {
+                            self.string(&StringValue::from(name.as_str()));
+                        }
+                        self.text(":");
+                        self.expression(*value, 2);
+                    }
+                    self.text("}))");
+                }
             }
             Expr::Yield { value, delegate } => {
                 self.text(if *delegate { "yield*" } else { "yield " });

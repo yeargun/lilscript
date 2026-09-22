@@ -72,7 +72,7 @@ pub use compiler::{
 };
 pub use compiler_service::{
     CheckedSourceSession, FinishedSourceSession, ServiceCompilation, ServiceError,
-    ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions, ServiceTarget,
+    ChunkExtension, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions, ServiceTarget,
     compile_path_semantic, compile_source_semantic, with_checked_path, with_checked_source,
 };
 pub use interpreter::{

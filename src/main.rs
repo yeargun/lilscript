@@ -280,6 +280,11 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
             Target::All => ServiceTarget::All,
         },
         preserve_root_exports: matches!(args.target, Target::JsModule),
+        chunk_extension: args
+            .output
+            .as_deref()
+            .map(lilscript::ChunkExtension::of)
+            .unwrap_or_default(),
         // Whole ports exceed the library default: Micromark's 303 KB of
         // source uses 354M units. This interim CLI ceiling stops a runaway
         // compile after roughly 16 s at that rate; 012 sets the cost policy.
@@ -351,7 +356,9 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
             let entry = lilscript::SemanticBundleFile {
                 file_name: entry_file.to_string(),
                 modules: Vec::new(),
-                dependencies: selected.entry_dependencies().to_vec(),
+                dependencies: selected.entry_links().dependencies.clone(),
+                dynamic_dependencies: selected.entry_links().dynamic_dependencies.clone(),
+                lazy: false,
                 importers: 0,
                 code: selected.javascript().to_string(),
             };
@@ -362,11 +369,18 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
                     file_name: chunk.name.clone(),
                     modules: chunk.modules.iter().map(|&module| name(module)).collect(),
                     dependencies: chunk.dependencies.clone(),
+                    dynamic_dependencies: chunk.dynamic_dependencies.clone(),
+                    lazy: chunk.lazy,
                     importers: chunk.importers,
                     code: chunk.code.clone(),
                 })
                 .collect();
-            let bundle = lilscript::semantic_javascript_bundle(entry, chunks, config)?;
+            let bundle = lilscript::semantic_javascript_bundle(
+                entry,
+                chunks,
+                selected.entry_links().preload.clone(),
+                config,
+            )?;
             write_javascript_bundle(output, &bundle)
         }
         Target::Js | Target::JsModule => write_or_print(

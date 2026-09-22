@@ -273,6 +273,11 @@ impl ProjectConfig {
                                 cost: self.bundle.cost,
                             },
                         ),
+                        preload: if self.bundle.mode == BundleMode::Single {
+                            PreloadPolicy::None
+                        } else {
+                            self.bundle.preload
+                        },
                     },
                     Some(objective),
                 )

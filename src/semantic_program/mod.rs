@@ -326,6 +326,12 @@ pub struct ModuleInterface {
     pub source: crate::ast::SourceIdentity,
     pub initializer: UnitId,
     pub dependencies: Vec<ModuleId>,
+    /// Modules this one loads with `import()`. A module only these edges
+    /// reach is initialization-free and initializes after every other.
+    pub dynamic_dependencies: Vec<ModuleId>,
+    /// The runtime exports some code reads through an `import()` namespace
+    /// of this module, by name.
+    pub namespace: Vec<(String, CellId)>,
     pub imports: Vec<ModuleImport>,
     pub exports: std::ops::Range<usize>,
     /// `import extern` edges: each binds one of this module's foreign cells
@@ -746,6 +752,13 @@ pub enum OperationKind {
     /// is the fulfilled `T`; a rejection throws here. Any code may run in
     /// between.
     Await,
+    /// `import(specifier)`: a task fulfilled, on a later turn, with the
+    /// module's namespace, whose members are its `namespace` exports. A
+    /// failed load rejects with a `ModuleLoadError`.
+    LoadModule {
+        module: ModuleId,
+        specifier: StringId,
+    },
     /// Suspends a generator body, yielding its operand to the consumer, or
     /// with `delegate` each element of an array, typed array or generator.
     Yield {

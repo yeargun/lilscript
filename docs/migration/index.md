@@ -954,10 +954,39 @@ Next in 008: root liveness across modules, the delivery modes (preserve-modules,
 - **Contract.** The split rule and its costs are part of the JavaScript contract only in split mode, so they change neither other modes' fingerprints nor their bytes. `UnsupportedBundleMode` is gone.
 - **Evidence.** Six service tests run every delivered file under Node: each chunk loads without the entry, and the entry prints exactly what the single-file build prints. The cases cover module state, mutual recursion across chunks, a cycle back into the entry, determinism, and split's three outcomes (the chunk pays for itself, the request costs more than cache reuse saves, or the chunk is below the minimum size). Library suite 3,004 passed with 3 ignored; census 72/72/72 with zero miscompiles; probelil matches in both lanes.
 - **Remaining:**
-  - Lazy chunks for dynamic `import()`, with preload.
+  - ~~Lazy chunks for dynamic `import()`, with preload~~: done in 008-D2 below.
   - jquery's host module.
   - Root liveness across modules.
   - Codec search over bundle plans, which is 010's.
+
+### 008-D2 Lazy modules and dynamic `import()`
+
+**Status: delivered on the semantic route in all three modes.** Dynamic `import()` resolves to the same `Task<namespace>` the default route gives, and `Task` `then`, `catch` and `finally` now convert.
+
+- **Checking.** The direct module checker admits dynamic loaders.
+  - A module only `import()` reaches must be initialization-free (the linker's rule and message).
+  - Namespace members resolve through the target module's interface exports, not a merged scope.
+  - The initialization order is the static order from the entry, then the lazy modules in module order. Both checkers and the program verifier compute it the same way, and the verifier requires every module to be reachable through static or dynamic edges.
+- **Program.**
+  - New operation: `LoadModule { module, specifier }`.
+  - Each module records its dynamic dependencies and its namespace: the exports some code reads through `import()`.
+  - Demand keeps a namespace's members live exactly when a load of that module is live, like exports. Unread exports are removed, including from lazy chunks.
+- **Output.**
+  - In one file, `import()` becomes `Promise.resolve().then(()=>({answer:a}))`. The namespace is built a turn later, once every module has initialized, because our functions are `let` bindings and the default route's synchronous object would read them in their temporal dead zone.
+  - A module that nothing imports statically, whose every root statement and namespace member can move, gets a lazy chunk. The chunk exports its namespace under the export names. The entry loads it with `import("./chunk-…").catch(e=>Promise.reject({specifier,message:String(e)}))`, the default route's rejection shape.
+  - A lazy module that reads the entry's bindings (the `lazy-cycle` case) keeps the in-file namespace instead, so no chunk ever imports the entry.
+  - Syntax targets before ES2020 keep the in-file form.
+- **Delivery details.**
+  - Chunk bodies print before the entry's, so the entry names lazy chunks by their digests.
+  - The default route's `modulepreload` prelude follows `bundle.preload`, which the contract now carries outside single mode.
+  - Split counts lazy chunks as mandatory, with the default route's `max_chunks` error.
+  - The manifest marks lazy chunks `lazy`, lists dynamic dependencies and preloads, and counts both in depth and reuse.
+  - Chunk files take the entry's extension (`.mjs` for an `.mjs` entry) through the new `ServiceOptions::chunk_extension`, so the scored names are the delivered names.
+- **Evidence.**
+  - Eleven delivery tests run each file under Node. They cover a lazy chunk serving only the members read, preload on and off, a missing chunk rejecting with `ERR_MODULE_NOT_FOUND`, the in-place fallback, the `max_chunks` refusal, the initialization-free rule, and `then`/`catch`/`finally` ordering.
+  - The repository's `tests/bundles/lazy` and `lazy-cycle` fixtures print 42 in single, preserve-modules and split mode. The shipped fixture configs strip `print`, and they do so on both routes.
+  - Library suite 3,009 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes.
+  - probelil, markedlil, zodlil and katexlil are byte-identical to the 008-D1 binary.
 
 ## 009 Reusable Compression Families
 

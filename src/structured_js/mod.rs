@@ -274,6 +274,21 @@ pub enum Expr {
         value: ExprId,
         delegate: bool,
     },
+    /// `import()` of source module `module`: a promise of its namespace. A
+    /// module delivered in its own lazy chunk loads that file; otherwise the
+    /// namespace is an object of `members`, built a turn later, once every
+    /// module has initialized. A failed load rejects with
+    /// `{specifier, message}`.
+    LoadModule {
+        module: u32,
+        /// The import's specifier, as a failed load reports it.
+        specifier: String,
+        /// Each member's export name and binding.
+        members: Vec<(String, ExprId)>,
+        /// The host `Promise` and `String`, as checked external references.
+        promise: ExprId,
+        string: ExprId,
+    },
 }
 
 impl Expr {
@@ -298,6 +313,18 @@ impl Expr {
             | Self::Spread(value)
             | Self::Await(value)
             | Self::Yield { value, .. } => *value = map(*value),
+            Self::LoadModule {
+                members,
+                promise,
+                string,
+                ..
+            } => {
+                *promise = map(*promise);
+                *string = map(*string);
+                for (_, member) in members {
+                    *member = map(*member);
+                }
+            }
             Self::Binary { left, right, .. } | Self::IntBinary { left, right, .. } => {
                 *left = map(*left);
                 *right = map(*right);
@@ -383,6 +410,18 @@ impl Expr {
             | Self::Spread(value)
             | Self::Await(value)
             | Self::Yield { value, .. } => visit(*value)?,
+            Self::LoadModule {
+                members,
+                promise,
+                string,
+                ..
+            } => {
+                visit(*promise)?;
+                visit(*string)?;
+                for (_, member) in members {
+                    visit(*member)?;
+                }
+            }
             Self::Binary { left, right, .. } | Self::IntBinary { left, right, .. } => {
                 visit(*left)?;
                 visit(*right)?;

@@ -1020,6 +1020,14 @@ fn verify_units(
                             }
                             (Some(1), true)
                         }
+                        OperationKind::LoadModule { module, specifier } => {
+                            if module.index() >= program.modules.len()
+                                || specifier.index() >= program.strings.len()
+                            {
+                                return fail("dynamic import of an unknown module");
+                            }
+                            (Some(0), true)
+                        }
                         OperationKind::ConstructClass => (None, true),
                         OperationKind::SuperConstruct => {
                             if unit.host_class.is_none() {
@@ -1691,6 +1699,11 @@ fn verify_types(
             };
             expect(type_matches(result, Some(fulfilled), &mut query)?)
         }
+        OperationKind::LoadModule { module, .. } => expect(matches!(
+            result,
+            Some(Type::Task(namespace))
+                if matches!(namespace.as_ref(), Type::ModuleNamespace(found) if *found as usize == module.index())
+        )),
         // A host-derived class's own constructor, with every parameter.
         OperationKind::ConstructClass => {
             let Some(Type::Class(name) | Type::ClassInstance { name, .. }) = result else {

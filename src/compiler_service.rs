@@ -32,10 +32,37 @@ pub enum ServiceTarget {
     All,
 }
 
+/// The extension delivered chunk files share with their entry file, as the
+/// default route names them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ChunkExtension {
+    #[default]
+    Js,
+    Mjs,
+}
+
+impl ChunkExtension {
+    /// `.mjs` for an `.mjs` entry, otherwise `.js`.
+    pub fn of(entry: &Path) -> Self {
+        match entry.extension().and_then(|extension| extension.to_str()) {
+            Some("mjs") => Self::Mjs,
+            _ => Self::Js,
+        }
+    }
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Js => "js",
+            Self::Mjs => "mjs",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct ServiceOptions {
     pub target: ServiceTarget,
     pub preserve_root_exports: bool,
+    /// Delivered chunk file names end in this.
+    pub chunk_extension: ChunkExtension,
     /// None requests the independently resolved policy's codec.
     pub objectives: Option<Objectives>,
     /// Finite defaults, further restricted by policy.resources.
@@ -48,6 +75,7 @@ impl Default for ServiceOptions {
         Self {
             target: ServiceTarget::JavaScript,
             preserve_root_exports: true,
+            chunk_extension: ChunkExtension::Js,
             objectives: None,
             logical_work: 200_000_000,
             retained_bytes: 256_000_000,
@@ -116,8 +144,8 @@ pub struct ServiceJavaScript {
     javascript: String,
     /// Chunk files the entry loads; empty for single-file delivery.
     chunks: Vec<crate::semantic_program::publication::DeliveredChunk>,
-    /// Chunks the entry imports directly.
-    entry_dependencies: Vec<String>,
+    /// What the entry imports, loads and preloads.
+    entry_links: crate::semantic_program::publication::EntryLinks,
     sha256: String,
     sizes: Sizes,
     details: Value,
@@ -131,7 +159,10 @@ impl ServiceJavaScript {
         &self.chunks
     }
     pub fn entry_dependencies(&self) -> &[String] {
-        &self.entry_dependencies
+        &self.entry_links.dependencies
+    }
+    pub fn entry_links(&self) -> &crate::semantic_program::publication::EntryLinks {
+        &self.entry_links
     }
     pub fn sha256(&self) -> &str {
         &self.sha256
@@ -299,6 +330,7 @@ impl Frontend {
         if let Err(error) = compilation.set_module_names(names) {
             return Err((ServiceError::new("adoption", error), compilation.finish()));
         }
+        compilation.set_chunk_extension(options.chunk_extension.as_str());
         phases["adopt_ns"] = json!(nanos(phase));
         Ok(CheckedSourceSession {
             started,
@@ -755,21 +787,21 @@ fn deliver_javascript(
             "output":{"dead_code_elimination":view.output.dead_code_elimination,
                 "target_compaction":view.output.target_compaction,"literals":format!("{:?}",view.output.literals)},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
-            "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len()})).collect::<Vec<_>>(),
+            "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len(),"lazy":chunk.lazy})).collect::<Vec<_>>(),
             "policy_fingerprint":receipt.policy_fingerprint(),
         })))
     }).map_err(|error| ServiceError::new("handoff",error))??;
-        let (javascript, entry_dependencies, chunks) = if bundle {
+        let (javascript, entry_links, chunks) = if bundle {
             let delivered = compilation
                 .take_qualified_bundle(receipt)
                 .map_err(|error| ServiceError::new("handoff", error))?;
-            (delivered.entry, delivered.entry_dependencies, delivered.chunks)
+            (delivered.entry, delivered.entry_links, delivered.chunks)
         } else {
             (
                 compilation
                     .take_qualified_artifact(receipt)
                     .map_err(|error| ServiceError::new("handoff", error))?,
-                Vec::new(),
+                Default::default(),
                 Vec::new(),
             )
         };
@@ -777,7 +809,7 @@ fn deliver_javascript(
             sha256: digest(javascript.as_bytes()),
             javascript,
             chunks,
-            entry_dependencies,
+            entry_links,
             sizes,
             details,
         })

@@ -56,6 +56,8 @@ pub struct ModuleExport<'src> {
 pub struct ModuleInterface<'src> {
     pub module: ModuleId,
     pub dependencies: Vec<ModuleId>,
+    /// Modules this one loads with `import()`, in source order.
+    pub dynamic_dependencies: Vec<ModuleId>,
     pub imports: Vec<ModuleImport<'src>>,
     pub exports: Vec<ModuleExport<'src>>,
     /// One output specifier per `import extern` declaration, in source
@@ -189,6 +191,9 @@ fn analyze_modules_in<'ast, 'src, S>(
         let dependencies = budget
             .copy_slice(AllocationClass::Scratch, &source.dependencies)
             .map_err(|error| resource(module, error))?;
+        let dynamic_dependencies = budget
+            .copy_slice(AllocationClass::Scratch, &source.dynamic_dependencies)
+            .map_err(|error| resource(module, error))?;
         let import_count = program
             .imports
             .iter()
@@ -234,6 +239,7 @@ fn analyze_modules_in<'ast, 'src, S>(
                 ModuleInterface {
                     module,
                     dependencies,
+                    dynamic_dependencies,
                     imports,
                     exports,
                     foreign_sources,
@@ -363,6 +369,43 @@ fn analyze_modules_in<'ast, 'src, S>(
     aliases.finish(programs, &mut checked, &mut scopes, &locals, budget)?;
     drop(aliases);
     drop(locals);
+    // Each `import()` names its module; the namespace's members are that
+    // module's runtime exports, resolved through its interface.
+    for (module, program) in programs.iter().enumerate() {
+        let dynamic = &modules.modules[module].dynamic_dependencies;
+        if dynamic.is_empty() {
+            continue;
+        }
+        let mut sites = Vec::new();
+        crate::module::collect_program_dynamic_imports(program, &mut sites);
+        if sites.len() != dynamic.len() {
+            return Err(error(
+                module,
+                program.span,
+                "internal dynamic module dependency mismatch",
+            )
+            .into());
+        }
+        for ((_, span), &target) in sites.iter().zip(dynamic) {
+            budget
+                .work(
+                    WorkKind::Analysis,
+                    checked.interfaces[target].exports.len() as u64 + 1,
+                )
+                .map_err(|error| resource(module, error))?;
+            let id = u32::try_from(target)
+                .map_err(|_| error(module, *span, "dynamic module id range"))?;
+            let facts = &mut checked.facts[module];
+            facts.dynamic_import_modules.insert(*span, id);
+            for export in &checked.interfaces[target].exports {
+                if let InterfaceTarget::Value(symbol) = export.target {
+                    facts
+                        .dynamic_export_symbols
+                        .insert((id, export.external), symbol);
+                }
+            }
+        }
+    }
 
     for &module in &checked.initialization_order {
         let program = &programs[module];
@@ -450,13 +493,31 @@ fn validate_graph<S>(
                 );
             }
         }
-        if !source.dynamic_dependencies.is_empty() || !modules.eager[module] {
-            return Err(error(
-                module,
-                program.span,
-                "direct module checking does not yet support dynamic or lazy loaders",
-            )
-            .into());
+        // A module reached only through `import()` runs no code when it
+        // loads, so its place in the initialization order is unobservable.
+        if !modules.eager[module] {
+            if let Some(item) = program
+                .items
+                .iter()
+                .find(|item| matches!(item, Item::Stmt(_)))
+            {
+                return Err(error(
+                    module,
+                    item.span(),
+                    "lazy modules must be initialization-free; move top-level executable declarations into an exported function",
+                )
+                .into());
+            }
+        }
+        for &target in &source.dynamic_dependencies {
+            budget
+                .work(WorkKind::Analysis, 1)
+                .map_err(|error| resource(module, error))?;
+            if target >= programs.len() {
+                return Err(
+                    error(module, program.span, "direct module dependency mismatch").into(),
+                );
+            }
         }
         if program.foreign_imports.len() != source.foreign_dependencies.len() {
             return Err(error(module, program.span, "foreign module dependency mismatch").into());
@@ -490,8 +551,9 @@ fn validate_graph<S>(
             }
         }
     }
-    // Shared graph owner defines the source and core initialization order.
-    let order = crate::module::static_evaluation_order_admitted(
+    // Shared graph owner defines the source and core initialization order;
+    // modules only `import()` reaches follow, in module order.
+    let order = crate::module::initialization_order_admitted(
         modules.root,
         programs.len(),
         |module| modules.modules[module].dependencies.iter().copied(),
@@ -503,8 +565,14 @@ fn validate_graph<S>(
         }
         crate::module::StaticOrderError::Resources(reason) => resource(modules.root, reason),
     })?;
+    // Discovery's post-order interleaves dynamic edges, so it matches the
+    // static order only in a graph without them.
+    let dynamic = modules
+        .modules
+        .iter()
+        .any(|module| !module.dynamic_dependencies.is_empty());
     let mut same = order.len() == programs.len() && order.len() == modules.dependency_order.len();
-    if same {
+    if same && !dynamic {
         for (actual, expected) in order.iter().zip(&modules.dependency_order) {
             budget
                 .work(WorkKind::Analysis, 1)
