@@ -1744,6 +1744,20 @@ impl Module {
                 } else {
                     None
                 };
+                // An inert value (literals, and arrays or objects of them)
+                // can be created later without any observer seeing it: it
+                // may take its one reference anywhere the next statement
+                // evaluates once.
+                let leaf = match leaf {
+                    Some(leaf) => Some(leaf),
+                    None if movable && self.inert_value(value, budget)? => {
+                        self.single_evaluation_reference(
+                            &self.regions[region].statements[index + 1],
+                            binding,
+                        )
+                    }
+                    None => None,
+                };
                 // Children precede their parents in the arena, and the moved
                 // value's deepest point must stay within the nesting limit.
                 let fits = leaf.is_some_and(|(leaf, path)| {
@@ -1794,6 +1808,33 @@ impl Module {
             }
         }
         Ok(forwarded)
+    }
+
+    /// Where `binding` is read in the expressions `statement` evaluates
+    /// exactly once (not a loop's test or update, nor a nested function):
+    /// the reading node's parent and depth below the statement root.
+    fn single_evaluation_reference(
+        &self,
+        statement: &Statement,
+        binding: BindingId,
+    ) -> Option<(Leaf, usize)> {
+        if matches!(statement, Statement::Loop { .. }) {
+            return None;
+        }
+        let mut roots = Vec::new();
+        statement.visit_expressions(|root| roots.push(root));
+        let mut pending: Vec<(ExprId, Option<ExprId>, usize)> =
+            roots.into_iter().map(|root| (root, None, 0)).collect();
+        while let Some((id, parent, depth)) = pending.pop() {
+            if matches!(self.expressions[id.index()], Expr::Binding(found) if found == binding) {
+                return Some((parent.map_or(Leaf::Root, Leaf::Child), depth));
+            }
+            let _ = self.expressions[id.index()].visit_children(|child| {
+                pending.push((child, Some(id), depth + 1));
+                Ok::<_, ()>(())
+            });
+        }
+        None
     }
 
     /// Each reachable region's nesting depth, as the verifier counts it.

@@ -92,7 +92,7 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | implemented. Every exit item is covered by a named test or measurement. Real libraries replay byte-identically across effort levels and thread counts. The search is saturated there: the winner never moves, because the families propose almost nothing. Codec-scored spellings measured, and only `for(let …)` heads kept. Scheduler heuristics 3–6 wait for opportunities to schedule. | [010 status](#010-status-2026-09-22-exit-evidence-mapped-search-measured-saturated-on-real-libraries) |
 | [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | partial. `[compiler] backend` selects the route explicitly, and the backend and policy are recorded on every build. Reference-port suites pass through public entrypoints: katexlil, zodlil, markedlil (29/29 with a representation patch) and jquerylil. Compression losses recorded for 013. The full-fleet suites wait for a worker pool. | [011 status](#011-status-2026-09-22-route-selection-reference-suites-through-public-entrypoints) |
 | [ ] | [012 Compilation speed and resource gates](#012-compilation-speed-and-resource-gates) | 011 | partial. Paired reference-port builds: the semantic route compiles in 0.27–4.2 s against 27–352 s on the default route, at a quarter or less of the peak RSS. Runtime is equal on markedlil and ~10% slower on katexlil. Envelopes are not yet frozen, p95 is not measured, and the fleet has not run. | [012 status](#012-status-2026-09-22-the-semantic-route-is-two-orders-of-magnitude-cheaper-to-compile) |
-| [ ] | [013 Compression qualification](#013-compression-qualification) | 011, 012 | open. katexlil loses to Terser by 4,017 Brotli on the semantic route (1,576 on the default route); zodlil and markedlil are not comparable boundaries. The loss causes are grouped, and the fleet cells have not run. | [013 status](#013-status-2026-09-22-katex-is-a-loss-the-other-reference-boundaries-are-not-comparable) |
+| [ ] | [013 Compression qualification](#013-compression-qualification) | 011, 012 | open. katexlil loses to Terser by 2,683 Brotli on the semantic route, narrowed from 4,017 by two batches (the default route loses 1,576). zodlil and markedlil are not comparable boundaries. The fleet cells have not run. | [013 status](#013-status-2026-09-22-katex-is-a-loss-the-other-reference-boundaries-are-not-comparable) |
 | [ ] | [014 Retirement and final certification](#014-retirement-and-final-certification) | 001-013 | waiting | None |
 
 Baseline collection and contract discussion can proceed together. 008 and 010 may begin against 006's validated interfaces, with closure prerequisites still binding. **No broad language/optimization migration before 006 passes.** Small interacting family implementations and exact selection belong in 006; they cannot wait for 009/010.
@@ -1507,6 +1507,19 @@ Terser's `reduce_vars` + `unused` subset alone takes 807 Brotli bytes off our ka
 The temporal-dead-zone guard costs katexlil 68 bytes, and it is kept. katexlil's `buildCommon` namespace is read by functions defined earlier in the bundle than the assignment that creates it. A call before that assignment would throw a `TypeError` in the source, so those reads stay. Proving no such call happens needs call-graph evidence over module initialization.
 
 **Verification.** The unit suite passes (3,031 tests, plus the new `a_constant_namespace_object_reads_as_its_members`), as do the census (72/72/72, no miscompiles) and probelil in both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29 and jquerylil 7/7.
+
+### 013 batch 2: inert values forward past the first evaluation (2026-09-22)
+
+`forward_single_uses` moved a single-use value only into the next statement's first evaluation, so the order of evaluation could not change. An inert value (literals, and arrays or objects of them) can be created later without any observer seeing it. It now takes its one reference anywhere the next statement evaluates exactly once: not a loop's test or update, nor a nested function. `let S={…};R.output=S` becomes `R.output={…}`, and the store fold then gathers those stores into `R`'s own literal. katexlil's settings schema and symbol tables collapse this way, and single-use string temporaries inline.
+
+| | probelil | markedlil | zodlil | katexlil |
+|---|---|---|---|---|
+| Batch 1 | 1,863 | 9,397 | 28,326 | 57,437 |
+| **After** | **1,863** | **9,397** | **28,326** | **56,132** |
+
+katexlil's complete delivery falls from 67,061 to 65,727 Brotli against Terser's 63,044: the loss narrows from 4,017 to 2,683. The delivery's extra 9.6 KB over the compiler output is the minified `fontMetricsData` table, which the competitors carry too.
+
+**Verification.** The unit suite passes (3,032 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29 and jquerylil 7/7.
 
 ## 014 Retirement and Final Certification
 
