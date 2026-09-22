@@ -421,6 +421,23 @@ impl Buffer<'_, '_> {
         bytes[at..].rotate_right(1);
         self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
     }
+    /// A keyword printed just before `at` needs a space only when the
+    /// following token would otherwise continue its word.
+    fn separate_word(&mut self, at: usize) {
+        let Some(&next) = self.text.as_bytes().get(at) else {
+            return;
+        };
+        if !(next.is_ascii_alphanumeric() || matches!(next, b'_' | b'$' | b'\\') || next >= 0x80) {
+            return;
+        }
+        self.push_str(" ");
+        if self.error.is_some() {
+            return;
+        }
+        let mut bytes = std::mem::take(&mut self.text).into_bytes();
+        bytes[at..].rotate_right(1);
+        self.text = String::from_utf8(bytes).expect("moving one ASCII byte keeps UTF-8");
+    }
     fn push_str(&mut self, value: &str) {
         if self.error.is_some() {
             return;
@@ -1452,14 +1469,17 @@ impl<'a> Printer<'a, '_, '_> {
             Statement::Return(value) => {
                 self.text("return");
                 if let Some(value) = value {
-                    self.text(" ");
+                    let at = self.output.text.len();
                     self.expression(*value, 0);
+                    self.output.separate_word(at);
                 }
                 end(self);
             }
             Statement::Throw(value) => {
-                self.text("throw ");
+                self.text("throw");
+                let at = self.output.text.len();
                 self.expression(*value, 0);
+                self.output.separate_word(at);
                 end(self);
             }
             Statement::If { condition, yes, no } => {
@@ -1473,8 +1493,10 @@ impl<'a> Printer<'a, '_, '_> {
                     // no braces; a keyword or name must not touch `else`.
                     if let [only] = statements.as_slice() {
                         if matches!(only, Statement::If { .. }) || Self::simple(only) {
-                            self.text("else ");
+                            self.text("else");
+                            let at = self.output.text.len();
                             self.statement(only, closing);
+                            self.output.separate_word(at);
                             return;
                         }
                     }

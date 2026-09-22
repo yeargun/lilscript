@@ -1072,6 +1072,19 @@ Library suite 3,018 passed with 3 ignored. Census 72/72/72 with zero miscompiles
 
 A service test runs the plain form and keeps the call when the receiver helper has an effect. Library suite 3,019 passed; census 72/72/72 with zero miscompiles; probelil matches; katexlil (1,230 and 21) and zodlil pass their suites.
 
+### 008 progress: keyword spacing, batch 6
+
+`return`, `throw` and `else` print a space only when the next token would otherwise continue the keyword. So `return!0`, `return(a+b)`, `throw"x"` and `else if` all print correctly.
+
+| Port | Brotli | Raw |
+|---|---|---|
+| zodlil | −41 | −270 |
+| markedlil | −3 | −18 |
+| katexlil | −3 | −152 |
+| probelil | −1 | −12 |
+
+Library suite 3,019 passed; census 72/72/72 with zero miscompiles; probelil matches in both lanes.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.
