@@ -1043,6 +1043,22 @@ Brotli against the 008-D3 binary, same sources and configs:
   - Library suite 3,018 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes.
   - Port suites pass: katexlil 1,230/1,230 and 21/21, zodlil, and jquerylil 7/7. markedlil fails only its two known output-shape assertions.
 
+### 008 progress: numeric and boolean spelling, batch 4
+
+- **Booleans.** Booleans print `!0` and `!1`, as the default route prints them, with unary precedence so a member access parenthesizes them.
+- **Length ranges.** Under pristine builtins a string or array length is at most 2^30, the bound counting loops already use. A length now carries that range into the numeric facts, so `a[a.length-1]` needs no `|0`.
+
+Brotli against batch 3:
+
+| Port | Brotli | Raw |
+|---|---|---|
+| zodlil | −41 | −1,375 |
+| katexlil | −33 | −1,410 |
+| markedlil | −20 | −422 |
+| probelil | −3 | −7 |
+
+Library suite 3,018 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes. katexlil (1,230 and 21), zodlil and jquerylil (7) pass their suites; markedlil fails only its two known output-shape assertions.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.

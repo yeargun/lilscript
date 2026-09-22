@@ -60,7 +60,10 @@ fn precedence(expression: &Expr) -> u8 {
             Binary::BitOr.precedence()
         }
         Expr::Intrinsic { .. } => 17,
-        Expr::Unary { .. } | Expr::Await(_) | Expr::Literal(Literal::Undefined) => 14,
+        Expr::Unary { .. }
+        | Expr::Await(_)
+        | Expr::Literal(Literal::Undefined)
+        | Expr::Literal(Literal::Bool(_)) => 14,
         // A YieldExpression is an AssignmentExpression.
         Expr::Yield { .. } => 2,
         Expr::Literal(Literal::Number(value)) if value.is_sign_negative() => 14,
@@ -939,7 +942,8 @@ impl<'a> Printer<'a, '_, '_> {
                         self.string(value);
                     }
                 }
-                Literal::Bool(value) => self.text(if *value { "true" } else { "false" }),
+                // `!0` and `!1` are the booleans, three and four bytes shorter.
+                Literal::Bool(value) => self.text(if *value { "!0" } else { "!1" }),
                 Literal::Null => self.text("null"),
                 Literal::Undefined => self.text("void 0"),
             },
