@@ -42,6 +42,10 @@ pub struct JavaScriptAbiContract {
 pub struct JavaScriptUnsafeAssumptions {
     pub pristine_builtins: bool,
     pub pure_property_reads: bool,
+    /// A host value's `length` is an int32 Number, as it is for strings,
+    /// arrays, typed arrays, `arguments` and functions: size-first's
+    /// length-to-number decision.
+    pub numeric_lengths: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -335,6 +339,9 @@ impl ProjectConfig {
             assumptions: JavaScriptUnsafeAssumptions {
                 pristine_builtins: self.javascript.assume_pristine_builtins,
                 pure_property_reads: self.javascript.assume_pure_property_reads,
+                numeric_lengths: self
+                    .javascript
+                    .compression_enabled(crate::config::CompressionDecision::LengthToNumberElision),
             },
             effects: JavaScriptEffectPolicy {
                 strip_console: self.javascript.strip_console,

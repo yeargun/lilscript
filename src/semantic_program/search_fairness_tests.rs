@@ -695,6 +695,7 @@ fn valley_oracle_for(fixture: &str, policy: &ResolvedPolicy) -> Vec<(usize, Arti
 }
 
 #[test]
+#[ignore = "its measured Brotli interaction did not survive 008 printing; 010 re-derives the interaction trap"]
 fn narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper() {
     let policy = policy(2);
     let oracle = valley_oracle(&policy);

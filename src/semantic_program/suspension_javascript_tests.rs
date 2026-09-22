@@ -114,7 +114,12 @@ fn async_bodies_await_tasks_and_resolve_with_their_result() {
         export Task<string> broken() { return fails(); }
     "#;
     let javascript = compile(source, Style::Scoped);
-    assert!(javascript.contains("async function") && javascript.contains("await "), "{javascript}");
+    // A private async body may be an async arrow; either way it awaits.
+    assert!(
+        (javascript.contains("async function") || javascript.contains("async("))
+            && javascript.contains("await "),
+        "{javascript}"
+    );
     assert_eq!(
         run(
             &javascript,

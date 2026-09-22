@@ -699,6 +699,7 @@ impl ResolvedPolicy {
                 "public_function_spelling":format!("{:?}",language.abi.public_function_spelling),
                 "pristine_builtins":language.assumptions.pristine_builtins,
                 "pure_property_reads":language.assumptions.pure_property_reads,
+                "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,
                 "owned_properties":format!("{owned_properties:?}"), "bundle_mode":format!("{bundle_mode:?}")

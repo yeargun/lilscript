@@ -18,7 +18,8 @@ const FACTORY_EXPECTED: &str =
 const WORD: &str = "export string word(){string first=\"path/\"+\"ready\";string second=\"path/\"+\"ready\";return first+second;}";
 // `+2-1` rather than `+1`: this spelling keeps a real codec crossover (the
 // scoped naming wins gzip, the global one Brotli), which these tests need.
-const BYTE: &str = "export int byte(int value){return(value&255)+2-1;}";
+// Two scopes, so scoped naming reuses a name that global naming cannot.
+const BYTE: &str = "int mask(int bits){return bits&255;}export int byte(int value){return mask(value)+1;}";
 
 fn policy(schedule: &str, probes: usize, proposals: usize, structural: bool) -> ResolvedPolicy {
     let tactic = if structural { "on" } else { "off" };

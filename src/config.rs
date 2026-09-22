@@ -227,6 +227,9 @@ impl ProjectConfig {
                     assumptions: JavaScriptUnsafeAssumptions {
                         pristine_builtins: self.javascript.assume_pristine_builtins,
                         pure_property_reads: self.javascript.assume_pure_property_reads,
+                        numeric_lengths: self
+                            .javascript
+                            .compression_enabled(CompressionDecision::LengthToNumberElision),
                     },
                     effects: JavaScriptEffectPolicy {
                         strip_console: self.javascript.strip_console,
@@ -2124,7 +2127,7 @@ impl JavaScriptConfig {
         resolve_ecmascript_target(self.ecmascript, &self.browsers).unwrap_or(self.ecmascript)
     }
 
-    fn compression_enabled(&self, decision: CompressionDecision) -> bool {
+    pub(crate) fn compression_enabled(&self, decision: CompressionDecision) -> bool {
         self.compression.as_ref().map_or_else(
             || self.priority.enables_compression(decision),
             |enabled| enabled.contains(&decision),

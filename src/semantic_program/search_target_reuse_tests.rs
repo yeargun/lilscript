@@ -245,13 +245,16 @@ fn one_target_two_bases_preserve_three_styles_and_exact_old_artifacts() {
                 })
                 .unwrap();
             assert!(search.stopped().is_none(), "{:?}", search.stopped());
+            // All three styles print the same bytes, so equal trials keep each
+            // schedule's own fixed order.
+            let (second, third) = if schedule == "immediate" {
+                (Style::Scoped, Style::Source)
+            } else {
+                (Style::Source, Style::Scoped)
+            };
             assert_eq!(
                 rows,
-                [
-                    (Style::Global, true),
-                    (Style::Scoped, false),
-                    (Style::Source, false)
-                ]
+                [(Style::Global, true), (second, false), (third, false)]
             );
             assert_eq!(search.counters().structures, 1);
             assert_eq!(search.counters().renders, 3);

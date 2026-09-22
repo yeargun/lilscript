@@ -924,6 +924,16 @@ Brotli on the semantic route, same source and config: probelil 2,775 at the star
 
 Next in 008: re-derive those fixtures, then liveness and tree shaking, declaration merging and one-use cell forwarding through checked target edits, naming, helpers and the delivery modes.
 
+### 008 progress: integer coercions, batch 2
+
+`|0` stays only where it can change a value. `+x|0` is `x|0` (ToInt32 applies ToNumber, with the same single coercion). Under size-first's length-to-number decision, now the contract assumption `numeric_lengths`, a host `length` is an int32 Number. An `int` cell is int32 when every write is (constants, int operations, normalized loads and host results, and parameters of directly-called-only functions whose every argument is int32). A counting loop then bounds its counter: every write in the loop is one `±1` step toward an int32 bound, the steps one iteration can take are counted (exclusive branches once, a nested loop disqualifies), and under pristine builtins a string or array length is at most 2^30. markedlil keeps 111 of 148 coercions, zodlil 257 of 458; Brotli moves -112 on zodlil, -43 on katexlil, +11 on markedlil and +6 on probelil.
+
+Measured and not adopted, because Brotli rose while raw fell: `return c?a:b` chains (+207 across markedlil, zodlil and katexlil), `x=c?a:b` for two-armed assignments (+56), mangling a binding the naming basis spells with its function's exact name (katexlil +99 at -13,524 raw), and folding calls to constant-returning functions (+26 zodlil, +42 katexlil). Per this milestone's rule, shapes like these become codec-scored alternatives in 010 rather than defaults.
+
+The search fixtures now choose their programs by the property each test needs: a naming crossover between codecs for `byte`, a two-scope `byte` for memory refusal, surviving locals for identical naming outputs, and a longer record key for the pooling tradeoff. The two interaction traps (A and B each lose, A+B wins) did not survive the new printing; both tests are ignored with that reason, and 010's interaction-trap task re-derives them. Library suite 2,998 passed with 3 ignored, census 72/72/72 with zero miscompiles, zodlil and katexlil pass their suites, markedlil fails its two output-shape assertions.
+
+Next in 008: root liveness across modules, the delivery modes (preserve-modules, split and lazy with dynamic `import()`), host-module delivery for jquery's `./js-host.ts`, and deterministic chunk manifests.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.

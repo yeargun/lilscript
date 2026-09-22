@@ -16,11 +16,11 @@ const MEMORY: u64 = 128_000_000;
 const CODECS: [Objective; 3] = [Objective::Raw, Objective::Gzip, Objective::Brotli];
 // `+2-1` rather than `+1`: this spelling keeps a real codec crossover (the
 // scoped naming wins gzip, the global one Brotli), which these tests need.
-const BYTE: &str = "export int byte(int value){return(value&255)+2-1;}";
+const BYTE: &str = "export int byte(int value){return(value&255)+1;}";
 // The Factory program with a long private record key used four times:
 // pooling the key string is the raw winner, while Brotli prefers the repeated
 // literal spelling it compresses for free. Observations are unchanged.
-const KEYS: &str = "extern int argument();extern string observe(int value,string label);\nexport func()->string make(int seed){Record<int> state=record{observedEventCountForThisLabel:seed};auto createLabel=(int unused)=>\"place/\"+\"ready\";return ()=>{int before=state.observedEventCountForThisLabel??0;state.observedEventCountForThisLabel=before+1;return observe(state.observedEventCountForThisLabel??0,createLabel(argument()));};}\n";
+const KEYS: &str = "extern int argument();extern string observe(int value,string label);\nexport func()->string make(int seed){Record<int> state=record{theNumberOfEventsObservedForThisParticularLabel:seed};auto createLabel=(int unused)=>\"place/\"+\"ready\";return ()=>{int before=state.theNumberOfEventsObservedForThisParticularLabel??0;state.theNumberOfEventsObservedForThisParticularLabel=before+1;return observe(state.theNumberOfEventsObservedForThisParticularLabel??0,createLabel(argument()));};}\n";
 const FACTORY: &str = include_str!("fixtures/value-placement/representation-composition.lil");
 const FACTORY_SETUP: &str =
     include_str!("fixtures/value-placement/representation-composition.setup.js");

@@ -47,6 +47,8 @@ mod structs;
 mod public_structs;
 #[path = "javascript_host.rs"]
 mod host;
+#[path = "javascript_int32.rs"]
+mod int32;
 
 /// The operation's selected result recipe, shared by formation and domain
 /// evidence. The source signature alone never supplies a runtime domain.
@@ -188,6 +190,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
         assumptions: JavaScriptUnsafeAssumptions {
             pristine_builtins: false,
             pure_property_reads: false,
+            numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
             strip_console: false,
@@ -436,6 +439,7 @@ fn form_with_demand(
         foreign_bindings: Vec::new(),
         stable_cells: Vec::new(),
         arguments_read: None,
+        int32_cells: Vec::new(),
         budget: &mut phase,
     };
     let result = (|| {
@@ -645,6 +649,8 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     stable_cells: Vec<u8>,
     /// Whether any unit reads `arguments`, computed on first need.
     arguments_read: Option<bool>,
+    /// Per cell, whether every write is an int32 Number; built on first need.
+    int32_cells: Vec<u8>,
 }
 
 impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
@@ -749,6 +755,20 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             self.stable_cells[cell.index()] = if written { 2 } else { 1 };
         }
         Ok(self.stable_cells[cell.index()] == 1)
+    }
+
+    /// `object.length`, spelled either way.
+    pub(super) fn length_member(&self, expression: js::ExprId) -> bool {
+        let js::Expr::Member { property, .. } = &self.module.expressions[expression.index()] else {
+            return false;
+        };
+        match property {
+            js::Property::Named(name) => name == "length",
+            js::Property::Computed(key) => matches!(
+                &self.module.expressions[key.index()],
+                js::Expr::Literal(js::Literal::String(value)) if value.as_unicode() == Some("length")
+            ),
+        }
     }
 
     /// Whether any unit reads the ambient `arguments` object.
@@ -1360,11 +1380,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             *slot = ValueStorage::Captured(binding);
         }
         let numbers = if self.compact {
-            self.budget.filled(
+            let mut numbers = self.budget.filled(
                 AllocationClass::Scratch,
                 data.values.len(),
                 NumberFacts::UNKNOWN,
-            )?
+            )?;
+            self.counter_facts(context, &mut numbers)?;
+            numbers
         } else {
             Vec::new()
         };
@@ -2568,7 +2590,26 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             CallTarget::Intrinsic {
                 operation: ResolvedIntrinsic::Method(Intrinsic::FloatToInt),
                 receiver: Some(receiver),
-            } if arguments.is_empty() => js::Expr::ToInt32(self.value(unit, receiver)?),
+            } if arguments.is_empty() => {
+                let mut value = self.value(unit, receiver)?;
+                if self.compact {
+                    // ToInt32 applies ToNumber itself: `+x|0` is `x|0`,
+                    // with the same single coercion and the same throws.
+                    if let js::Expr::Unary {
+                        op: js::Unary::Plus,
+                        value: inner,
+                    } = self.module.expressions[value.index()]
+                    {
+                        value = inner;
+                    }
+                    // Under the numeric-lengths assumption a length is
+                    // already an int32 Number.
+                    if self.contract.assumptions.numeric_lengths && self.length_member(value) {
+                        return Ok(value);
+                    }
+                }
+                js::Expr::ToInt32(value)
+            }
             CallTarget::Intrinsic {
                 operation: ResolvedIntrinsic::Method(Intrinsic::StringCodePointLength),
                 receiver: Some(receiver),

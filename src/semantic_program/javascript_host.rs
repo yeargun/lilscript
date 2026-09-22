@@ -314,6 +314,15 @@ impl Formation<'_, '_, '_, '_, '_> {
                 let empty = self.literal(js::Literal::String(empty))?;
                 self.host_binary(js::Binary::Add, argument(0), empty)?
             }
+            // Under the numeric-lengths assumption a length is already a Number.
+            B::JsNumber
+                if count == 1
+                    && self.compact
+                    && self.contract.assumptions.numeric_lengths
+                    && self.length_member(argument(0)) =>
+            {
+                self.module.expressions[argument(0).index()].clone()
+            }
             B::JsNumber if count == 1 => js::Expr::Unary {
                 op: js::Unary::Plus,
                 value: argument(0),
