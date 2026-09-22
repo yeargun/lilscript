@@ -1270,6 +1270,34 @@ katexlil's SVG path builders are single-expression functions called once, from `
 
 **Verification.** The unit suite passes (3,028 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions. New test: `inlined_bodies_repeat_only_arguments_whose_value_cannot_change`.
 
+### 009 batch 5: constructors become literals (2026-09-22)
+
+markedlil's token constructor printed as a literal of defaults, a call to a reset method that stored the same defaults, an alias, then the constructor's own stores. The default route prints `(t,e)=>({kind:t,raw:e,…})`. Four generic edits now reach that shape:
+- **Statement-level inlining.** `f(x);` becomes `f`'s statements when:
+  - `f` is a `let`-bound arrow that nothing reassigns or exports;
+  - this is its only call, and nothing reads `f` but that call;
+  - its body is only expression statements, with no `this`, `arguments`, function creation or assignment to a parameter.
+
+  Every argument must hold one value through the body. That means a literal, or a binding no call can reach that no other argument mentions, initialized before the call (a parameter, or declared earlier in the call's region). A classic script keeps a frame whose user code could see it. A copied body may call a function whose own inlining edited the original, so the pass runs up to three rounds.
+- **In-place store replacement.** In the object-store fold, a store to a key the fresh literal already has replaces that entry where it stands. The property keeps its first position either way. The replaced value must be inert, and so must everything after it.
+- **Alias elimination.** `let c=d` goes, and `c` reads as `d`, when:
+  - neither is ever assigned;
+  - `d` is initialized there (a parameter, or declared earlier in the region);
+  - nothing earlier in the region mentions `c`.
+- **Ordering.** Declarations merge (`let o;o={…}` becomes `let o={…}`) before stores fold, and forwarding runs again after a fold. Forwarding counts only references code can reach, since edits leave unreachable nodes.
+
+| | probelil | markedlil | zodlil | katexlil |
+|---|---|---|---|---|
+| Batch 4 | 1,877 | 9,461 | 28,383 | 57,743 |
+| **After** | **1,872** | **9,398** | **28,326** | **57,622** |
+| Default route | 1,492 | 9,360 | 29,682 | 55,404 |
+
+markedlil is now 38 bytes (0.4%) above the default route.
+
+**Verification.** The unit suite passes (3,030 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions. New tests:
+- `a_reset_method_and_its_stores_fold_into_the_constructed_literal`
+- `inlined_statements_never_repeat_an_argument_with_effects`, which covers an argument with effects and an alias whose source is assigned again.
+
 
 ## 010 Bounded Codec Search
 

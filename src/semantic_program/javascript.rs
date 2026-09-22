@@ -660,6 +660,28 @@ fn form_with_demand(
             Ok((_, None)) => Ok(()),
             Err(error) => Err(error),
         };
+        let inlined = inlined.and_then(|()| {
+            // A body copied into its caller may still call a function whose
+            // own inlining edited the original: a later round inlines the copy.
+            for _ in 0..3 {
+                match formation
+                    .module
+                    .inline_statement_functions(strict, formation.budget)?
+                {
+                    (_, Some(map)) => {
+                        formation
+                            .literal_alternatives
+                            .retain_mut(|alternative| alternative.remap(&map));
+                        formation
+                            .literal_alternatives
+                            .sort_unstable_by_key(|alternative| alternative.expression());
+                    }
+                    (_, None) => break,
+                }
+            }
+            formation.module.eliminate_aliases(formation.budget)?;
+            Ok(())
+        });
         let protected: Vec<js::ExprId> = formation
             .literal_alternatives
             .iter()
@@ -679,12 +701,14 @@ fn form_with_demand(
             .module
             .forward_single_uses(formation.budget)
             .and_then(|_| {
-                if pristine {
-                    formation.module.fold_object_stores(formation.budget)?;
-                }
                 formation.module.elide_undefined(formation.budget)?;
-                formation.module.drop_double_negations(formation.budget)?;
+                // `let o;o={…}` must meet as `let o={…}` before stores fold.
                 formation.module.merge_declarations(prunes, formation.budget)?;
+                // A literal that took its stores often has one reader left.
+                if pristine && formation.module.fold_object_stores(formation.budget)? != 0 {
+                    formation.module.forward_single_uses(formation.budget)?;
+                }
+                formation.module.drop_double_negations(formation.budget)?;
                 if prunes {
                     formation.module.drop_unreferenced_functions(formation.budget)?;
                 }

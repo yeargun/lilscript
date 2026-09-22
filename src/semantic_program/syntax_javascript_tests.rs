@@ -384,3 +384,53 @@ fn inlined_bodies_repeat_only_arguments_whose_value_cannot_change() {
     assert!(javascript.contains("show(14)"), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "\"M83 l3 h3\"\n2\n14\n4\n");
 }
+
+#[test]
+fn a_reset_method_and_its_stores_fold_into_the_constructed_literal() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        class Token {
+            int kind;
+            string raw;
+            string text;
+            bool task;
+            init(int kind, string raw) { this.reset(); this.kind = kind; this.raw = raw; }
+            void reset() { this.kind = 0; this.raw = ""; this.text = ""; this.task = false; }
+        }
+        Token make(int kind, string raw) { return new Token(kind, raw); }
+        Token token = make(3, "x");
+        show(JS.box(token.kind));
+        show(JS.box(token.raw));
+        show(JS.box(token.task));
+        "#,
+        PRISTINE,
+    );
+    // `reset` inlines at its one call, its stores replace the literal's own
+    // entries in place, and the literal is returned directly.
+    assert!(javascript.contains("=>({kind:"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "3\n\"x\"\nfalse\n");
+}
+
+#[test]
+fn inlined_statements_never_repeat_an_argument_with_effects() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        int count = 0;
+        JsValue next() { count = count + 1; return JS.box(count); }
+        void fill(JsValue target, JsValue value) { target["a"] = value; target["b"] = value; }
+        JsValue holder = JS.object();
+        fill(holder, next());
+        show(holder);
+        JsValue first = JS.object("x", 1);
+        JsValue alias = first;
+        first = JS.object("x", 2);
+        show(alias);
+        "#,
+        PRISTINE,
+    );
+    // `next()` runs once, so `fill` stays a call; `alias` keeps the value
+    // `first` had, since `first` is assigned again.
+    assert_eq!(run(&javascript, SHOW), "{\"a\":1,\"b\":1}\n{\"x\":1}\n");
+}

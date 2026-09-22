@@ -1504,7 +1504,27 @@ impl Module {
                     if self.mentions_within(value, binding, budget)? {
                         break;
                     }
-                    entries.push((property, value));
+                    // A store to a key the literal already has replaces that
+                    // entry where it stands: the property keeps its first
+                    // position either way. The old value must be inert (it no
+                    // longer runs) and so must everything after it (the new
+                    // value now runs first).
+                    let replaced = match self.entry_position(&entries, &property) {
+                        Some(position) if self.inert_value(entries[position].1, budget)? => {
+                            let mut later = true;
+                            for &(ref key, item) in &entries[position + 1..] {
+                                later = later
+                                    && !matches!(key, Property::Computed(key) if !matches!(self.expressions[key.index()], Expr::Literal(_)))
+                                    && self.inert_value(item, budget)?;
+                            }
+                            later.then_some(position)
+                        }
+                        _ => None,
+                    };
+                    match replaced {
+                        Some(position) => entries[position].1 = value,
+                        None => entries.push((property, value)),
+                    }
                     end += 1;
                 }
                 if end == index + 1 {
@@ -1532,6 +1552,22 @@ impl Module {
             }
         }
         Ok(folded)
+    }
+
+    /// The entry of an object literal that defines the same key as `key`,
+    /// for keys spelled as a name or a literal string.
+    fn entry_position(&self, entries: &[(Property, ExprId)], key: &Property) -> Option<usize> {
+        let text = |property: &Property| match property {
+            Property::Named(name) => Some(StringValue::from(name.as_str())),
+            Property::Computed(key) => match &self.expressions[key.index()] {
+                Expr::Literal(Literal::String(value)) => Some(value.clone()),
+                _ => None,
+            },
+        };
+        let wanted = text(key)?;
+        entries
+            .iter()
+            .position(|(property, _)| text(property).as_ref() == Some(&wanted))
     }
 
     /// `object.k=value` or `object["k"]=value` on `object`'s binding, as the
@@ -1668,13 +1704,12 @@ impl Module {
             budget.filled(AllocationClass::Scratch, self.bindings.len(), 0u32)?;
         budget.work(
             crate::compilation_policy::WorkKind::Analysis,
-            (self.expressions.len() + self.exports.len()) as u64,
+            self.exports.len() as u64,
         )?;
-        for expression in &self.expressions {
-            if let Expr::Binding(binding) = expression {
-                references[binding.index()] = references[binding.index()].saturating_add(1);
-            }
-        }
+        // Only code that can run counts: edits leave unreachable nodes.
+        self.walk(&mut vec![self.root], &mut Vec::new(), budget, |binding| {
+            references[binding.index()] = references[binding.index()].saturating_add(1);
+        })?;
         for export in &self.exports {
             references[export.binding.index()] = u32::MAX;
         }

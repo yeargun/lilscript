@@ -179,7 +179,7 @@ impl Module {
             let Expr::Call {
                 callee,
                 arguments,
-                invocation: Invocation::Value,
+                invocation: Invocation::Value | Invocation::Reference,
             } = &self.expressions[id.index()]
             else {
                 continue;
@@ -801,5 +801,408 @@ impl Module {
             }
         }
         Ok(map)
+    }
+}
+
+impl Module {
+    /// `f(x);` becomes `f`'s statements with `x` in place, when `f` is a
+    /// `let`-bound arrow nothing reassigns or exports, this is its only call,
+    /// and its body is only expression statements. Every argument is stable
+    /// (a literal, or a binding no call can reach that no other argument
+    /// mentions, declared earlier in the call's region or a parameter): the
+    /// call evaluated it first, and every later read sees that same value.
+    /// A classic script keeps a frame its body's user code could observe.
+    /// Returns the number of inlined calls and the arena renumbering.
+    pub(crate) fn inline_statement_functions(
+        &mut self,
+        strict: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+        let reach = self.reach(budget)?;
+        let mut written = vec![false; self.bindings.len()];
+        let mut calls = vec![0usize; self.bindings.len()];
+        let mut other_use = vec![false; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            match &self.expressions[id.index()] {
+                Expr::Assign { target, .. } => {
+                    if let Expr::Binding(binding) = self.expressions[target.index()] {
+                        written[binding.index()] = true;
+                    }
+                }
+                Expr::Call { callee, .. } => {
+                    if let Expr::Binding(binding) = self.expressions[callee.index()] {
+                        calls[binding.index()] += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for export in &self.exports {
+            written[export.binding.index()] = true;
+        }
+        // Bindings read other than as a callee (they must keep their value).
+        for &(id, _) in &reach.expressions {
+            let _ = self.expressions[id.index()].visit_children(|child| {
+                if let Expr::Binding(binding) = self.expressions[child.index()] {
+                    let callee = matches!(
+                        &self.expressions[id.index()],
+                        Expr::Call { callee, .. } if *callee == child
+                    );
+                    if !callee {
+                        other_use[binding.index()] = true;
+                    }
+                }
+                Ok::<_, ()>(())
+            });
+        }
+        // Candidate bodies, by binding.
+        let mut bodies: Vec<Option<(FunctionId, Vec<ExprId>)>> = vec![None; self.bindings.len()];
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                let Statement::Let {
+                    binding,
+                    value: Some(value),
+                } = *statement
+                else {
+                    continue;
+                };
+                let Expr::Function(function) = self.expressions[value.index()] else {
+                    continue;
+                };
+                if written[binding.index()]
+                    || other_use[binding.index()]
+                    || calls[binding.index()] != 1
+                    || self.bindings[binding.index()].pinned
+                {
+                    continue;
+                }
+                let declared = &self.functions[function.index()];
+                if !declared.arrow
+                    || declared.strict
+                    || declared.suspension != Suspension::None
+                    || declared.length.is_some()
+                {
+                    continue;
+                }
+                let mut roots = Vec::new();
+                let mut plain = true;
+                let statements = &self.regions[declared.body.index()].statements;
+                for (position, statement) in statements.iter().enumerate() {
+                    match statement {
+                        Statement::Evaluate(root) => roots.push(*root),
+                        Statement::Return(None) if position + 1 == statements.len() => {}
+                        _ => plain = false,
+                    }
+                }
+                if !plain || roots.is_empty() {
+                    continue;
+                }
+                let mut fits = true;
+                for &root in &roots {
+                    fits = fits
+                        && self.movable_statement(root, &declared.parameters, binding)
+                        && (strict || self.runs_no_user_code(root));
+                }
+                if fits {
+                    bodies[binding.index()] = Some((function, roots));
+                }
+            }
+        }
+        // The one call of each candidate, as a statement.
+        let mut sites = Vec::new();
+        for &region in &reach.regions {
+            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let Statement::Evaluate(mut call) = *statement else {
+                    continue;
+                };
+                // A discarded `void f()` is the call.
+                if let Expr::Unary {
+                    op: Unary::Void,
+                    value,
+                } = self.expressions[call.index()]
+                {
+                    call = value;
+                }
+                // A binding callee has no receiver: `Reference` and `Value`
+                // invocations of it are the same call.
+                let Expr::Call {
+                    callee,
+                    ref arguments,
+                    invocation: Invocation::Value | Invocation::Reference,
+                } = self.expressions[call.index()]
+                else {
+                    continue;
+                };
+                let Expr::Binding(binding) = self.expressions[callee.index()] else {
+                    continue;
+                };
+                let Some((function, _)) = &bodies[binding.index()] else {
+                    continue;
+                };
+                let parameters = &self.functions[function.index()].parameters;
+                if arguments.len() != parameters.len() {
+                    continue;
+                }
+                let mut stable = true;
+                for (position, &argument) in arguments.iter().enumerate() {
+                    stable = stable
+                        && self.settled(argument, position, arguments, region, index, &reach, budget)?;
+                }
+                if stable {
+                    sites.push((region, index, binding));
+                }
+            }
+        }
+        if sites.is_empty() {
+            return Ok((0, None));
+        }
+        // Splice from the last site backwards so indices stay valid.
+        sites.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
+        for &(region, index, binding) in &sites {
+            let Statement::Evaluate(mut call) = self.regions[region.index()].statements[index]
+            else {
+                unreachable!("a recorded site is a call statement");
+            };
+            if let Expr::Unary {
+                op: Unary::Void,
+                value,
+            } = self.expressions[call.index()]
+            {
+                call = value;
+            }
+            let Expr::Call { arguments, .. } = self.expressions[call.index()].clone() else {
+                unreachable!("a recorded site is a call");
+            };
+            let (function, roots) = bodies[binding.index()].clone().unwrap();
+            let parameters = self.functions[function.index()].parameters.clone();
+            let origin = self.origins[call.index()];
+            let mut statements = Vec::with_capacity(roots.len());
+            for root in roots {
+                let copy = self.substitute(root, &parameters, &arguments, origin, budget)?;
+                let id = self.expression_in(copy, origin, budget)?;
+                statements.push(Statement::Evaluate(id));
+            }
+            let root = region == self.root;
+            let module = root.then(|| self.root_modules.get(index).copied()).flatten();
+            let count = statements.len();
+            self.regions[region.index()]
+                .statements
+                .splice(index..=index, statements);
+            if let Some(module) = module {
+                if index < self.root_modules.len() {
+                    self.root_modules
+                        .splice(index..=index, std::iter::repeat_n(module, count));
+                }
+            }
+        }
+        let map = self.renumber(budget)?;
+        Ok((sites.len(), Some(map)))
+    }
+
+    /// Whether a body statement may run at a call site: no own `this`,
+    /// `arguments`, function creation, suspension or assignment to a
+    /// parameter, and no mention of the function itself.
+    fn movable_statement(&self, root: ExprId, parameters: &[BindingId], own: BindingId) -> bool {
+        let expression = &self.expressions[root.index()];
+        let own_ok = match expression {
+            Expr::This
+            | Expr::Function(_)
+            | Expr::Class { .. }
+            | Expr::SuperCall { .. }
+            | Expr::Await(_)
+            | Expr::Yield { .. }
+            | Expr::LoadModule { .. } => false,
+            Expr::Host(name) => name != "arguments" && name != "eval",
+            Expr::Binding(binding) => *binding != own,
+            Expr::Assign { target, .. } => !matches!(
+                self.expressions[target.index()],
+                Expr::Binding(binding) if parameters.contains(&binding)
+            ),
+            Expr::Unary {
+                op: Unary::Delete,
+                value,
+            } => !matches!(
+                self.expressions[value.index()],
+                Expr::Binding(_)
+            ),
+            _ => true,
+        };
+        let mut children = true;
+        let _ = expression.visit_children(|child| {
+            children &= self.movable_statement(child, parameters, own);
+            Ok::<_, ()>(())
+        });
+        own_ok && children
+    }
+
+    /// Whether this argument keeps one value from the call through every
+    /// statement of the body: a literal, or a binding no call can reach that
+    /// no other argument mentions, initialized before the call (a parameter,
+    /// or declared earlier in the call's own region).
+    #[allow(clippy::too_many_arguments)]
+    fn settled(
+        &self,
+        argument: ExprId,
+        position: usize,
+        arguments: &[ExprId],
+        region: RegionId,
+        index: usize,
+        reach: &Reach,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        match self.expressions[argument.index()] {
+            Expr::Literal(_) => Ok(true),
+            Expr::Binding(binding) if !reach.captured[binding.index()] => {
+                let initialized = reach.parameters[binding.index()]
+                    || self.regions[region.index()].statements[..index]
+                        .iter()
+                        .any(|statement| matches!(statement, Statement::Let { binding: found, .. } if *found == binding));
+                if !initialized {
+                    return Ok(false);
+                }
+                for (other, &value) in arguments.iter().enumerate() {
+                    if other != position && self.mentions_within(value, binding, budget)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// `root` copied with every parameter read replaced by a copy of its
+    /// (settled) argument.
+    fn substitute(
+        &mut self,
+        root: ExprId,
+        parameters: &[BindingId],
+        arguments: &[ExprId],
+        origin: Option<SourceNodeId>,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Expr, AllocationError> {
+        budget.work(Analysis, 1)?;
+        let mut node = self.expressions[root.index()].clone();
+        if let Expr::Binding(binding) = node {
+            if let Some(index) = parameters.iter().position(|&p| p == binding) {
+                return Ok(self.expressions[arguments[index].index()].clone());
+            }
+        }
+        let mut children = Vec::new();
+        let _ = node.visit_children(|child| {
+            children.push(child);
+            Ok::<_, ()>(())
+        });
+        let mut replaced = Vec::with_capacity(children.len());
+        for child in children {
+            let copy = self.substitute(child, parameters, arguments, origin, budget)?;
+            replaced.push(self.expression_in(copy, origin, budget)?);
+        }
+        let mut next = replaced.into_iter();
+        node.remap_children(|_| next.next().expect("one replacement per child"));
+        Ok(node)
+    }
+
+    /// `let c=d` goes, and `c` reads as `d`, when neither is ever assigned
+    /// and `d` is initialized there (a parameter, or declared earlier in the
+    /// same region): both always hold the same value. Nothing before the
+    /// declaration mentions `c`, so no read of it met its temporal dead zone.
+    /// Returns the number of aliases removed.
+    pub(crate) fn eliminate_aliases(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let reach = self.reach(budget)?;
+        let mut written = vec![false; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            if let Expr::Assign { target, .. } = &self.expressions[id.index()] {
+                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    written[binding.index()] = true;
+                }
+            }
+        }
+        for export in &self.exports {
+            written[export.binding.index()] = true;
+        }
+        let mut replacement: Vec<Option<BindingId>> = vec![None; self.bindings.len()];
+        let mut removed = 0;
+        for &region in &reach.regions {
+            budget.work(Analysis, 1 + self.regions[region.index()].statements.len() as u64)?;
+            let aliases: Vec<(usize, BindingId, BindingId)> = self.regions[region.index()]
+                .statements
+                .iter()
+                .enumerate()
+                .filter_map(|(index, statement)| match *statement {
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => match self.expressions[value.index()] {
+                        Expr::Binding(source)
+                            if !written[binding.index()]
+                                && !written[source.index()]
+                                && !self.bindings[binding.index()].pinned
+                                && source != binding =>
+                        {
+                            Some((index, binding, source))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                })
+                .collect();
+            if aliases.is_empty() {
+                continue;
+            }
+            let wanted: Vec<BindingId> = aliases.iter().map(|&(_, alias, _)| alias).collect();
+            let first = self.first_mentions(region, &wanted, budget)?;
+            let mut remove = Vec::new();
+            for (index, alias, source) in aliases {
+                let initialized = reach.parameters[source.index()]
+                    || self.regions[region.index()].statements[..index].iter().any(
+                        |statement| matches!(statement, Statement::Let { binding, .. } if *binding == source),
+                    );
+                // A source that is itself an alias being removed reads as its
+                // own source.
+                let source = replacement[source.index()].unwrap_or(source);
+                if initialized && first.get(&alias).is_none_or(|&mention| mention > index) {
+                    replacement[alias.index()] = Some(source);
+                    remove.push(index);
+                }
+            }
+            let root = region == self.root;
+            for &index in remove.iter().rev() {
+                self.regions[region.index()].statements.remove(index);
+                if root && index < self.root_modules.len() {
+                    self.root_modules.remove(index);
+                }
+                removed += 1;
+            }
+        }
+        if removed != 0 {
+            // Follow chains of aliases to the binding that remains.
+            for index in 0..replacement.len() {
+                let mut target = replacement[index];
+                let mut steps = 0;
+                while let Some(next) = target.and_then(|t| replacement[t.index()]) {
+                    target = Some(next);
+                    steps += 1;
+                    if steps > replacement.len() {
+                        break;
+                    }
+                }
+                replacement[index] = target;
+            }
+            budget.work(Analysis, self.expressions.len() as u64)?;
+            for expression in &mut self.expressions {
+                if let Expr::Binding(binding) = expression {
+                    if let Some(source) = replacement[binding.index()] {
+                        *binding = source;
+                    }
+                }
+            }
+        }
+        Ok(removed)
     }
 }
