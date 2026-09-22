@@ -1,0 +1,5 @@
+const [a, b] = await Promise.all(process.argv.slice(2).map((p) => import(p)))
+const describe = (m) => Object.keys(m).sort().map((k) => `${k}:${typeof m[k]}${typeof m[k] === "function" ? `:${m[k].name}:${m[k].length}` : ""}`).join(" ")
+console.log("007e :", describe(a))
+console.log("now  :", describe(b))
+console.log("identical:", describe(a) === describe(b))

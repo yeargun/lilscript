@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "compiler": {
+    "path": "/tmp/claude-1000/-home-azureuser-lilscript/3de072ae-233a-45f7-a7d6-9d07057b517c/scratchpad/bin/lilscript-b79efb1",
+    "sha256": "b3651a042b3c929ec90bc718c9003dfd83703b390b6c993fcdf570f6263ab498"
+  },
+  "node": "v24.11.1",
+  "ports": [
+    {
+      "port": "markedlil",
+      "head": "dbfaf30fb162a0f100e5d97c232d263b84d1cfd3",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 3806,
+        "errors": []
+      },
+      "test": {
+        "status": 1,
+        "ms": 1230,
+        "tests": 29,
+        "pass": 27,
+        "fail": 2,
+        "failures": [
+          "keeps every public parse-path name exact in the compiler output",
+          "@itslil/marked JS library API",
+          "mangles the JS option keys and keeps default parse working",
+          "@itslil/marked closed LilScript lane"
+        ]
+      }
+    },
+    {
+      "port": "zodlil",
+      "head": "b80748e784c5b40d6dd50d6f1ef220cd640ca0b2",
+      "dirty": true,
+      "patch": null,
+      "build": {
+        "status": 0,
+        "ms": 4777,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 21960,
+        "tests": 1353,
+        "pass": 1353,
+        "fail": 0,
+        "failures": []
+      }
+    },
+    {
+      "port": "katexlil",
+      "head": "13cd81b9f47d9038112daf5aefea480e82e15f2b",
+      "dirty": true,
+      "patch": {
+        "path": "finer/port-migrations/katexlil.patch",
+        "sha256": "7ab0646323dacd8d7b62e04318cab40ebff70f187887de14e71d6aa577b79441"
+      },
+      "build": {
+        "status": 0,
+        "ms": 16537,
+        "errors": []
+      },
+      "test": {
+        "status": 0,
+        "ms": 18847,
+        "tests": 1251,
+        "pass": 1251,
+        "fail": 0,
+        "failures": []
+      }
+    }
+  ]
+}

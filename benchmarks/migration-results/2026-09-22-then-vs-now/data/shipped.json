@@ -1,0 +1,74 @@
+[
+ {
+  "arm": "old-legacy",
+  "port": "markedlil",
+  "artifact": "marked.esm.js",
+  "raw": 34232,
+  "gzip9": 10546,
+  "brotli11": 9469
+ },
+ {
+  "arm": "old-legacy",
+  "port": "zodlil",
+  "artifact": "zod.core.js",
+  "raw": 124426,
+  "gzip9": 34963,
+  "brotli11": 29753
+ },
+ {
+  "arm": "old-legacy-samecfg",
+  "port": "katexlil",
+  "artifact": "katex.esm.js",
+  "raw": 275002,
+  "gzip9": 78634,
+  "brotli11": 64842
+ },
+ {
+  "arm": "new-legacy",
+  "port": "katexlil",
+  "artifact": "katex.esm.js",
+  "raw": 274944,
+  "gzip9": 78628,
+  "brotli11": 64901
+ },
+ {
+  "arm": "new-legacy",
+  "port": "markedlil",
+  "artifact": "marked.esm.js",
+  "raw": 34317,
+  "gzip9": 10510,
+  "brotli11": 9423
+ },
+ {
+  "arm": "new-legacy",
+  "port": "zodlil",
+  "artifact": "zod.core.js",
+  "raw": 124409,
+  "gzip9": 34932,
+  "brotli11": 29682
+ },
+ {
+  "arm": "new-semantic",
+  "port": "katexlil",
+  "artifact": "katex.esm.js",
+  "raw": 331891,
+  "gzip9": 87527,
+  "brotli11": 71731
+ },
+ {
+  "arm": "new-semantic",
+  "port": "markedlil",
+  "artifact": "marked.esm.js",
+  "raw": 40233,
+  "gzip9": 10835,
+  "brotli11": 9737
+ },
+ {
+  "arm": "new-semantic",
+  "port": "zodlil",
+  "artifact": "zod.core.js",
+  "raw": 126400,
+  "gzip9": 34442,
+  "brotli11": 29796
+ }
+]

@@ -1,0 +1,4 @@
+js        passed  72  diagnosed   0  wrong-output  0  execution-failed  0  native-build  0
+js-module passed  72  diagnosed   0  wrong-output  0  execution-failed  0  native-build  0
+c         passed  72  diagnosed   0  wrong-output  0  execution-failed  0  native-build  0
+no miscompiles: every emitted program printed exactly its expected output

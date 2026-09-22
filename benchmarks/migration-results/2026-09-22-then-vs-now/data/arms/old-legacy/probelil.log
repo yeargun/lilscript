@@ -1,0 +1,7 @@
+error: SSA value 3 has no emitted name in function `sameParity`
+ --> /tmp/claude-1000/-home-azureuser-lilscript/3de072ae-233a-45f7-a7d6-9d07057b517c/scratchpad/cmp/ws/old-legacy/probelil/src/probe.lil:336:1
+  |
+336 | bool sameParity(int previous, int next) {
+  return previous % 2 == next % 2;
+}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

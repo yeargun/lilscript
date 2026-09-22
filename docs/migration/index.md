@@ -87,7 +87,7 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [005 Public fast JS and native service](#005-public-fast-js-and-native-service) | 004; consumes 003 policy | implemented; public source/path/CLI semantic route, full library suite 2,970/2,970 incl. native GCC+Clang separate-TU executions, measured first-artifact/RSS baseline; public value-struct adapters assigned to 006, remaining frontend allocations to 011 | [accepted.json](../../benchmarks/migration-results/accepted.json) |
 | [ ] | [006 Integrated architecture proof](#006-integrated-architecture-proof) | 001-005 | implemented; D2 public value-struct adapter and D5 level-16 grant on the semantic route, reuse-versus-fresh measured under one ledger, owners traced, limits recorded; boundary shapes a copy cannot preserve assigned to 007, formation cleanup to 008, wrapper inlining to 009 | [accepted.json](../../benchmarks/migration-results/accepted.json) |
 | [ ] | [007 Language and port coverage](#007-language-and-port-coverage) | 006 | implemented; census script/module/native C 72/72/72 with zero miscompiles and every native program clean under ASan/UBSan/LSan; 24 of 25 ports build semantically, 18 pass their whole suites and the rest wait on 008 or the environment; syntax and class inheritance closed; dynamic `import()` moved to 008 by decision | [census 007e](../../benchmarks/migration-results/2026-09-21-semantic-census-007e/receipt.json), [ports 007e](../../benchmarks/migration-results/2026-09-21-semantic-ports-007e/receipt.json) |
-| [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | waiting | None |
+| [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | active; batch 1 (formation and printing compaction) measured on probelil, markedlil, zodlil and katexlil; census 72/72/72 with zero miscompiles; nine search tests wait on fixture re-derivation; liveness, naming, helpers and delivery modes remain | None |
 | [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | waiting | None |
 | [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | waiting | None |
 | [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | waiting | None |
@@ -909,6 +909,20 @@ Root liveness in public entries and host effects. Preserve initialization, cycle
 Implement declaration, one-use, branch/sequence/logical, loop, boolean/numeric and precedence/token compaction through checked target edits. Preserve alternatives where shorter text hurts codecs. Finalize names, helpers, adapters and every supported single/preserve-modules/split/lazy mode in one delivery plan. Fixed primary-plus-one-resource output is not general chunk support. Chunk hashes/manifests must finalize deterministically and terminate.
 
 **Exit:** independent parse/execution of emitted files, covering reflection, getters, callbacks, cycles, initialization and grammar floors. Exercise shared helpers/properties across real library and split boundaries. Deployment replay loads exactly the scored files and required resources/manifests. Score streams independently unless transport combines them. Artifacts are immutable; subsequent packaging changes require readmission/rescoring. No generated-text identity recovery returns.
+
+### 008 progress: output compaction, batch 1
+
+The semantic route ran no pass between formation and printing, and every value it could not fuse got a declared temporary. Batch 1 removes the waste where it is created:
+
+- A total read of a cell that nothing writes after initialization is read again at each use instead of copied to a temporary. Demand already proves such a read cannot throw; a classic script's parameters qualify when no unit reads `arguments`.
+- A single-use closure forms in place. Its consumer tree is capped at 16 target layers, so its body's entry depth is fixed before the tree exists; only a deferred closure pays that allowance.
+- Private functions (unobserved name, never constructed, no own `this`/`arguments`) print as arrows, and a closure whose every use is a call keeps no exact name.
+- Printing: adjacent `let`s share one declaration, single statements lose their braces, `else if` chains, `;` before `}` is implied, `a=>a*2` concise arrows, `==` between two numbers, strings or booleans, and no `|0` on intrinsics that are int32 by specification when the contract assumes pristine builtins.
+- Inspection formation builds a use index, so it forms exactly what an admitted build forms.
+
+Brotli on the semantic route, same source and config: probelil 2,775 at the start of 008, 1,919 now (default route 1,492). On the [2026-09-22 comparison](../../benchmarks/migration-results/2026-09-22-then-vs-now/README.md): markedlil 9,673, zodlil 29,796 and katexlil 62,397, against the default route's 9,360, 29,682 and 55,404; the default route itself is within 0.3% of the pre-migration compiler. The census passes 72/72/72 with zero miscompiles; zodlil (1,353) and katexlil (1,251) pass their suites; markedlil fails two output-shape assertions (the closed-world option keys already assigned in 007, and one that requires every export to be an alias). Nine search tests assert byte-exact fixtures that the new printing changed; they are re-derived at the end of the batch.
+
+Next in 008: re-derive those fixtures, then liveness and tree shaking, declaration merging and one-use cell forwarding through checked target edits, naming, helpers and the delivery modes.
 
 ## 009 Reusable Compression Families
 
