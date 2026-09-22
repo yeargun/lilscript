@@ -572,6 +572,14 @@ fn form_with_demand(
         drop(formation);
         return Err(error);
     }
+    // One-use forwarding: a checked target edit on the finished tree, part
+    // of target compaction.
+    if formation.compact {
+        if let Err(error) = formation.module.forward_single_uses(formation.budget) {
+            drop(formation);
+            return Err(error.into());
+        }
+    }
     let Formation {
         module,
         literal_alternatives,
@@ -3690,8 +3698,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                                     )?;
                                     statements.push(js::Statement::Evaluate(boxed));
                                     statements.rotate_right(1);
+                                    Some(binding)
+                                } else if self
+                                    .contract
+                                    .ecmascript
+                                    .allows(JsSyntaxFeature::OptionalCatchBinding)
+                                    && !self.module.mentions(&[body], &[], binding, false)
+                                {
+                                    // `catch{…}`: nothing reads the exception.
+                                    None
+                                } else {
+                                    Some(binding)
                                 }
-                                Some(binding)
                             }
                             None if !self
                                 .contract

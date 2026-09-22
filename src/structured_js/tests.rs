@@ -5177,3 +5177,89 @@ fn a_sequenced_computed_object_key_is_parenthesized() {
     capture(&mut module, value);
     assert_eq!(execute(&module, "", PrintPolicy::default()), "[1,2]");
 }
+
+/// With `loop_head_declarations`, a block's counter moves into the for head,
+/// unless a closure in the loop captures it: the head's binding is fresh
+/// each iteration, the block's is shared.
+#[test]
+fn a_loop_counter_moves_into_the_for_head_only_when_no_closure_captures_it() {
+    let build = |captured: bool| {
+        let mut module = Module::default();
+        module.loop_head_declarations = true;
+        let block = module.region(ScopeId::new(0));
+        let body = module.region(module.regions[block.index()].scope);
+        let counter = binding(&mut module, block, 0, "i");
+        let zero = number(&mut module, 0.0);
+        module.regions[block.index()].statements.push(Statement::Let {
+            binding: counter,
+            value: Some(zero),
+        });
+        let read = expr(&mut module, Expr::Binding(counter));
+        let three = number(&mut module, 3.0);
+        let condition = expr(
+            &mut module,
+            Expr::Binary {
+                op: Binary::Less,
+                left: read,
+                right: three,
+            },
+        );
+        let target = expr(&mut module, Expr::Binding(counter));
+        let current = expr(&mut module, Expr::Binding(counter));
+        let one = number(&mut module, 1.0);
+        let next = expr(
+            &mut module,
+            Expr::Binary {
+                op: Binary::Add,
+                left: current,
+                right: one,
+            },
+        );
+        let update = expr(&mut module, Expr::Assign { target, value: next });
+        let value = if captured {
+            let closure = module.region(module.regions[body.index()].scope);
+            let read = expr(&mut module, Expr::Binding(counter));
+            module.regions[closure.index()]
+                .statements
+                .push(Statement::Return(Some(read)));
+            module.functions.push(Function {
+                name: FunctionName::Unobserved,
+                strict: false,
+                length: None,
+                suspension: crate::structured_js::Suspension::None,
+                arrow: true,
+                parameters: vec![],
+                body: closure,
+            });
+            expr(&mut module, Expr::Function(FunctionId::new(0)))
+        } else {
+            expr(&mut module, Expr::Binding(counter))
+        };
+        let output = host(&mut module, "capture");
+        let recorded = call(&mut module, output, vec![value], Invocation::Value);
+        module.regions[body.index()]
+            .statements
+            .push(Statement::Evaluate(recorded));
+        module.regions[block.index()].statements.push(Statement::Loop {
+            condition: Some(condition),
+            update: Some(update),
+            body,
+        });
+        module.regions[0].statements.push(Statement::Block(block));
+        module
+    };
+    let policy = PrintPolicy {
+        mangle_bindings: false,
+    };
+    let plain = build(false);
+    let text = plain.render(policy).unwrap();
+    assert!(text.starts_with("for(let i=0;i<3;i=i+1)"), "{text}");
+    assert_eq!(execute(&plain, "", policy), "[0,1,2]");
+    let captured = build(true);
+    let text = captured.render(policy).unwrap();
+    assert!(text.starts_with("{let i=0;for(;"), "{text}");
+    assert_eq!(
+        execute(&captured, "globalThis.x=0;", policy).len(),
+        "[null,null,null]".len()
+    );
+}

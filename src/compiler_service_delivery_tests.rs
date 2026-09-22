@@ -634,3 +634,33 @@ fn liveness_across_modules_drops_unread_values_and_keeps_effects() {
     assert_eq!(run(&directory, &compiled), "42\n");
     let _ = fs::remove_dir_all(directory);
 }
+
+/// Two local compactions: an exception nothing reads needs no binding, and
+/// `new X` constructs as `new X()` does where no call or member follows.
+#[test]
+fn unread_exceptions_and_argumentless_constructions_print_short() {
+    let source = "extern int read();int total=0;try{if(read()>0){throw \"x\";}}catch(auto e){total=total+1;}\
+                  Map<string,int> map=new Map<string,int>();map.set(\"a\",total);print(map.size);";
+    let config = |edition: &str| -> ProjectConfig {
+        toml::from_str(&format!("[javascript]\nstrip_console=false\necmascript='{edition}'")).unwrap()
+    };
+    let text = |edition: &str| {
+        compile_source_semantic(source, &config(edition), ServiceOptions::default())
+            .unwrap()
+            .javascript(Objective::Brotli)
+            .unwrap()
+            .javascript()
+            .to_string()
+    };
+    let current = text("es2022");
+    assert!(current.contains("catch{"), "{current}");
+    assert!(current.contains("new Map;") || current.contains("new Map,"), "{current}");
+    // Before ES2019 a catch clause needs its binding.
+    let old = text("es2017");
+    assert!(old.contains("catch("), "{old}");
+    let output = Command::new("node")
+        .args(["--input-type=module", "-e", &format!("globalThis.read=()=>1;{current}")])
+        .output()
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "1\n", "{current}");
+}

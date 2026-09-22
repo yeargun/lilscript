@@ -468,6 +468,66 @@ enum InferredName<'a> {
 }
 
 impl<'a> Printer<'a, '_, '_> {
+    /// `{let i=v;for(;c;u)body}` as `for(let i=v;c;u)body`. A for head's
+    /// binding is fresh each iteration, so no closure in the loop may capture
+    /// it, and `in` cannot appear in the head's initializer.
+    fn loop_head(&mut self, region: RegionId, closing: bool) -> bool {
+        let [Statement::Let {
+            binding,
+            value: Some(value),
+        }, Statement::Loop {
+            condition,
+            update,
+            body,
+        }] = self.module.regions[region.index()].statements.as_slice()
+        else {
+            return false;
+        };
+        let roots: Vec<ExprId> = condition.iter().chain(update.iter()).copied().collect();
+        if !self.module.loop_head_declarations
+            || !self.output.work(1)
+            || self.module.mentions(&[*body], &roots, *binding, true)
+            || self.contains_in(*value)
+        {
+            return false;
+        }
+        self.text("for(let ");
+        self.text(self.names.get(*binding));
+        self.text("=");
+        self.expression(*value, 2);
+        self.text(";");
+        if let Some(condition) = condition {
+            self.expression(*condition, 0);
+        }
+        self.text(";");
+        if let Some(update) = update {
+            self.expression(*update, 0);
+        }
+        self.text(")");
+        self.body(*body, false, closing);
+        true
+    }
+
+    /// Whether an `in` operator appears outside any function or parentheses
+    /// the printer would add; conservatively, anywhere outside a function.
+    fn contains_in(&self, root: ExprId) -> bool {
+        let mut stack = vec![root];
+        while let Some(id) = stack.pop() {
+            let expression = &self.module.expressions[id.index()];
+            if matches!(expression, Expr::Binary { op: Binary::In, .. }) {
+                return true;
+            }
+            if expression.created_function().is_some() {
+                continue;
+            }
+            let _ = expression.visit_children(|child| {
+                stack.push(child);
+                Ok::<_, ()>(())
+            });
+        }
+        false
+    }
+
     /// `let{a:x,b}=<host modules>;` binding each carried import among
     /// `imports` (indices into the module's imports), before any statement,
     /// as ES evaluates imported modules first.
@@ -939,7 +999,11 @@ impl<'a> Printer<'a, '_, '_> {
                         .expect("verified construction")
                         .name,
                 );
-                self.arguments(arguments);
+                // `new X` constructs as `new X()` does wherever no call or
+                // member access follows it.
+                if !arguments.is_empty() || minimum >= 17 {
+                    self.arguments(arguments);
+                }
             }
             Expr::Intrinsic {
                 operation,
@@ -1009,7 +1073,9 @@ impl<'a> Printer<'a, '_, '_> {
                 if force {
                     self.text(")");
                 }
-                self.arguments(arguments);
+                if !arguments.is_empty() || minimum >= 17 {
+                    self.arguments(arguments);
+                }
             }
             Expr::Conditional { condition, yes, no } => {
                 self.expression(*condition, 4);
@@ -1431,7 +1497,11 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text(")");
                 self.body(*body, false, closing);
             }
-            Statement::Block(region) => self.region(*region, true),
+            Statement::Block(region) => {
+                if !self.loop_head(*region, closing) {
+                    self.region(*region, true);
+                }
+            }
             Statement::ForIn {
                 binding,
                 object,

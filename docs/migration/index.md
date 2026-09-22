@@ -1017,6 +1017,32 @@ Next in 008: root liveness across modules, the delivery modes (preserve-modules,
   - Library suite 3,016 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes.
   - probelil, markedlil, zodlil and katexlil are byte-identical to the 008-D2 binary. None of their configs carries host modules; katexlil's font data, a `var` export, would stay an import even under `auto`.
 
+### 008 progress: target compaction, batch 3
+
+Three compactions ship as defaults. They run as checked edits on the finished target tree, under the target-compaction tactic.
+
+- **One-use forwarding.**
+  - `let x=v;S` becomes `S` with `v` in place of `x` when `x` is referenced exactly once, as the first thing `S` evaluates. That covers a return, an expression statement, a throw, a declaration, an `if` test, and a `for-in`/`for-of` head. The same evaluations then run in the same order, and chains collapse: `a=>{let b=a,c=b/4,d=c*2.5-1.5;return d}` prints `a=>a/4*2.5-1.5`.
+  - Exempt: function and class values, which their binding names, exported and pinned names, and loop tests, which repeat.
+  - Root statements merge only within one source module.
+  - Every edit keeps the verifier's invariants by construction: a value moves only below a later parent in the arena, and only while its deepest point stays within the nesting limit.
+- **Optional catch binding.** A catch whose exception nothing reads prints `catch{`, from ES2019.
+- **Argument-less construction.** `new X()` prints `new X` wherever no call or member access follows it.
+
+Brotli against the 008-D3 binary, same sources and configs:
+
+| Port | Brotli | Raw |
+|---|---|---|
+| katexlil | −559 | −1,730 |
+| markedlil | −20 | −32 |
+| probelil | −16 | −102 |
+| zodlil | −6 | −132 |
+
+- **Measured and not adopted.** Moving a block's counter into its `for` head (`for(let i=0;…)`) cuts 243 raw bytes on katexlil but adds 125 Brotli, and it is neutral elsewhere. It stays behind `Module::loop_head_declarations`, off, for 010 to score per artifact.
+- **Evidence.**
+  - Library suite 3,018 passed with 3 ignored. Census 72/72/72 with zero miscompiles, and probelil matches in both lanes.
+  - Port suites pass: katexlil 1,230/1,230 and 21/21, zodlil, and jquerylil 7/7. markedlil fails only its two known output-shape assertions.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.

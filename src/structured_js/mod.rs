@@ -772,6 +772,27 @@ pub struct Catch {
 }
 
 impl Statement {
+    /// Point the statement's own root expression at `value`.
+    fn replace_root(&mut self, replacement: ExprId) {
+        match self {
+            Self::Return(Some(value))
+            | Self::Evaluate(value)
+            | Self::Throw(value)
+            | Self::Let {
+                value: Some(value),
+                ..
+            }
+            | Self::If {
+                condition: value, ..
+            }
+            | Self::ForIn { object: value, .. }
+            | Self::ForOf {
+                iterable: value, ..
+            } => *value = replacement,
+            _ => {}
+        }
+    }
+
     /// Immediate expression owners only. Child regions own their expressions;
     /// consumers that need evaluation order must handle control flow explicitly.
     pub(super) fn visit_expressions(&self, mut visit: impl FnMut(ExprId)) {
@@ -921,6 +942,10 @@ pub struct Module {
     /// Import sources the output carries instead of importing; a classic
     /// script can use these.
     pub carried: Vec<String>,
+    /// Print `{let i=v;for(;c;u)b}` as `for(let i=v;c;u)b`. Shorter, but
+    /// measured +125 Brotli on katexlil for -243 raw (neutral elsewhere), so
+    /// it waits for 010 to score it per artifact.
+    pub loop_head_declarations: bool,
 }
 
 impl Default for Module {
@@ -929,7 +954,386 @@ impl Default for Module {
     }
 }
 
+/// Where a statement's first-evaluated leaf sits: a statement's own root
+/// expression, or a child of another expression.
+#[derive(Clone, Copy)]
+enum Leaf {
+    Root,
+    Child(ExprId),
+}
+
 impl Module {
+    /// `let x=v;S` becomes `S` with `v` in place of `x` when `x` is referenced
+    /// exactly once, as the first thing `S` evaluates: the same evaluations
+    /// in the same order, one binding fewer. A function or class value keeps
+    /// its binding, which names it; a loop test repeats, so it never takes one.
+    /// Root statements merge only within one source module. Returns the
+    /// number of forwarded bindings.
+    pub(crate) fn forward_single_uses(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut references =
+            budget.filled(AllocationClass::Scratch, self.bindings.len(), 0u32)?;
+        budget.work(
+            crate::compilation_policy::WorkKind::Analysis,
+            (self.expressions.len() + self.exports.len()) as u64,
+        )?;
+        for expression in &self.expressions {
+            if let Expr::Binding(binding) = expression {
+                references[binding.index()] = references[binding.index()].saturating_add(1);
+            }
+        }
+        for export in &self.exports {
+            references[export.binding.index()] = u32::MAX;
+        }
+        let depths = self.region_depths(budget)?;
+        let mut forwarded = 0;
+        for region in 0..self.regions.len() {
+            let Some(region_depth) = depths[region] else {
+                continue;
+            };
+            let root = region == self.root.index();
+            let mut index = 0;
+            while index + 1 < self.regions[region].statements.len() {
+                budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                let Statement::Let {
+                    binding,
+                    value: Some(value),
+                } = self.regions[region].statements[index]
+                else {
+                    index += 1;
+                    continue;
+                };
+                let movable = references[binding.index()] == 1
+                    && !self.bindings[binding.index()].pinned
+                    && !matches!(
+                        self.expressions[value.index()],
+                        Expr::Function(_) | Expr::Class { .. }
+                    )
+                    && (!root
+                        || self.root_modules.get(index) == self.root_modules.get(index + 1));
+                let leaf = if movable {
+                    self.first_leaf(&self.regions[region].statements[index + 1], binding)
+                } else {
+                    None
+                };
+                // Children precede their parents in the arena, and the moved
+                // value's deepest point must stay within the nesting limit.
+                let fits = leaf.is_some_and(|(leaf, path)| {
+                    let ordered = match leaf {
+                        Leaf::Root => true,
+                        Leaf::Child(parent) => value.index() < parent.index(),
+                    };
+                    ordered
+                        && region_depth + 1 + path + self.subtree_depth(value)
+                            <= verify::MAX_NESTING
+                });
+                budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                let Some((leaf, _)) = leaf.filter(|_| fits) else {
+                    index += 1;
+                    continue;
+                };
+                match leaf {
+                    Leaf::Root => self.regions[region].statements[index + 1]
+                        .replace_root(value),
+                    Leaf::Child(parent) => {
+                        let target = binding;
+                        let expressions = &self.expressions;
+                        let slot = {
+                            let mut found = None;
+                            let _ = expressions[parent.index()].visit_children(|child| {
+                                if matches!(expressions[child.index()], Expr::Binding(b) if b == target)
+                                {
+                                    found.get_or_insert(child);
+                                }
+                                Ok::<_, ()>(())
+                            });
+                            found
+                        };
+                        let Some(slot) = slot else {
+                            index += 1;
+                            continue;
+                        };
+                        self.expressions[parent.index()]
+                            .remap_children(|child| if child == slot { value } else { child });
+                    }
+                }
+                self.regions[region].statements.remove(index);
+                if root && index < self.root_modules.len() {
+                    self.root_modules.remove(index);
+                }
+                references[binding.index()] = 0;
+                forwarded += 1;
+            }
+        }
+        Ok(forwarded)
+    }
+
+    /// Each reachable region's nesting depth, as the verifier counts it.
+    fn region_depths(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<Option<usize>>, AllocationError> {
+        let mut depths = budget.filled(AllocationClass::Scratch, self.regions.len(), None)?;
+        let mut regions = vec![(self.root, 0usize)];
+        let mut expressions: Vec<(ExprId, usize)> = Vec::new();
+        while let Some((region, depth)) = regions.pop() {
+            budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            if depths[region.index()].replace(depth).is_some() {
+                continue;
+            }
+            for statement in &self.regions[region.index()].statements {
+                statement.visit_expressions(|root| expressions.push((root, depth + 1)));
+                match statement {
+                    Statement::If { yes, no, .. } => {
+                        regions.push((*yes, depth + 1));
+                        if let Some(no) = no {
+                            regions.push((*no, depth + 1));
+                        }
+                    }
+                    Statement::Loop { body, .. }
+                    | Statement::ForIn { body, .. }
+                    | Statement::ForOf { body, .. }
+                    | Statement::Block(body) => regions.push((*body, depth + 1)),
+                    Statement::Try {
+                        body,
+                        catch,
+                        finally,
+                    } => {
+                        regions.push((*body, depth + 1));
+                        if let Some(catch) = catch {
+                            regions.push((catch.body, depth + 1));
+                        }
+                        if let Some(finally) = finally {
+                            regions.push((*finally, depth + 1));
+                        }
+                    }
+                    Statement::Function { function, .. } => {
+                        regions.push((self.functions[function.index()].body, depth + 2))
+                    }
+                    _ => {}
+                }
+                while let Some((id, at)) = expressions.pop() {
+                    budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                    let expression = &self.expressions[id.index()];
+                    if let Some(function) = expression.created_function() {
+                        regions.push((self.functions[function.index()].body, at + 2));
+                    }
+                    let _ = expression.visit_children(|child| {
+                        expressions.push((child, at + 1));
+                        Ok::<_, ()>(())
+                    });
+                }
+            }
+        }
+        Ok(depths)
+    }
+
+    /// The deepest point below `root`, relative to it, as the verifier counts
+    /// depth, including regions of functions created there.
+    fn subtree_depth(&self, root: ExprId) -> usize {
+        let mut deepest = 0;
+        let mut expressions = vec![(root, 0usize)];
+        let mut regions: Vec<(RegionId, usize)> = Vec::new();
+        loop {
+            if let Some((id, at)) = expressions.pop() {
+                deepest = deepest.max(at);
+                let expression = &self.expressions[id.index()];
+                if let Some(function) = expression.created_function() {
+                    regions.push((self.functions[function.index()].body, at + 2));
+                }
+                let _ = expression.visit_children(|child| {
+                    expressions.push((child, at + 1));
+                    Ok::<_, ()>(())
+                });
+                continue;
+            }
+            let Some((region, depth)) = regions.pop() else {
+                return deepest;
+            };
+            deepest = deepest.max(depth);
+            for statement in &self.regions[region.index()].statements {
+                statement.visit_expressions(|root| expressions.push((root, depth + 1)));
+                match statement {
+                    Statement::If { yes, no, .. } => {
+                        regions.push((*yes, depth + 1));
+                        if let Some(no) = no {
+                            regions.push((*no, depth + 1));
+                        }
+                    }
+                    Statement::Loop { body, .. }
+                    | Statement::ForIn { body, .. }
+                    | Statement::ForOf { body, .. }
+                    | Statement::Block(body) => regions.push((*body, depth + 1)),
+                    Statement::Try {
+                        body,
+                        catch,
+                        finally,
+                    } => {
+                        regions.push((*body, depth + 1));
+                        if let Some(catch) = catch {
+                            regions.push((catch.body, depth + 1));
+                        }
+                        if let Some(finally) = finally {
+                            regions.push((*finally, depth + 1));
+                        }
+                    }
+                    Statement::Function { function, .. } => {
+                        regions.push((self.functions[function.index()].body, depth + 2))
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// The first leaf `statement` evaluates, when it is `binding` itself,
+    /// with the number of expression steps from the statement's root to it.
+    fn first_leaf(&self, statement: &Statement, binding: BindingId) -> Option<(Leaf, usize)> {
+        let root = match statement {
+            Statement::Return(Some(value))
+            | Statement::Evaluate(value)
+            | Statement::Throw(value)
+            | Statement::Let {
+                value: Some(value),
+                ..
+            }
+            | Statement::If {
+                condition: value, ..
+            }
+            | Statement::ForIn { object: value, .. }
+            | Statement::ForOf {
+                iterable: value, ..
+            } => *value,
+            _ => return None,
+        };
+        let mut current = root;
+        let mut parent = Leaf::Root;
+        let mut path = 0;
+        loop {
+            let next = match &self.expressions[current.index()] {
+                Expr::Binding(found) => {
+                    return (*found == binding).then_some((parent, path));
+                }
+                Expr::Unary { value, .. }
+                | Expr::ToInt32(value)
+                | Expr::IntNegate(value)
+                | Expr::Spread(value)
+                | Expr::Await(value)
+                | Expr::Yield { value, .. } => *value,
+                Expr::Binary { left, .. } | Expr::IntBinary { left, .. } => *left,
+                Expr::Member { object, .. } => *object,
+                Expr::Call { callee, .. } | Expr::Construct { callee, .. } => *callee,
+                Expr::Intrinsic { receiver, .. } => *receiver,
+                Expr::Conditional { condition, .. } => *condition,
+                Expr::Assign { target, value } => match &self.expressions[target.index()] {
+                    // Resolving a plain name observes nothing before the value.
+                    Expr::Binding(_) => *value,
+                    Expr::Member { object, .. } => {
+                        parent = Leaf::Child(*target);
+                        current = *object;
+                        path += 2;
+                        continue;
+                    }
+                    _ => return None,
+                },
+                Expr::Sequence(items) | Expr::Array(items) => *items.first()?,
+                Expr::Template(parts) => match parts.iter().find_map(|part| match part {
+                    TemplatePart::Expression(value) => Some(*value),
+                    TemplatePart::String(_) => None,
+                }) {
+                    Some(value) => value,
+                    None => return None,
+                },
+                Expr::Object(entries) => match entries.first()? {
+                    (Property::Computed(key), _) => *key,
+                    (Property::Named(_), value) => *value,
+                },
+                Expr::Class { base, .. } => *base,
+                _ => return None,
+            };
+            parent = Leaf::Child(current);
+            current = next;
+            path += 1;
+        }
+    }
+
+    /// Whether code under `regions` and `expressions` mentions `binding`;
+    /// with `captured`, only inside a function created there.
+    pub(crate) fn mentions(
+        &self,
+        regions: &[RegionId],
+        expressions: &[ExprId],
+        binding: BindingId,
+        captured: bool,
+    ) -> bool {
+        enum Node {
+            Region(RegionId, bool),
+            Expr(ExprId, bool),
+        }
+        let mut stack: Vec<Node> = regions
+            .iter()
+            .map(|region| Node::Region(*region, false))
+            .chain(expressions.iter().map(|expression| Node::Expr(*expression, false)))
+            .collect();
+        while let Some(node) = stack.pop() {
+            match node {
+                Node::Expr(id, inside) => {
+                    let expression = &self.expressions[id.index()];
+                    if matches!(expression, Expr::Binding(found) if *found == binding)
+                        && (inside || !captured)
+                    {
+                        return true;
+                    }
+                    if let Some(function) = expression.created_function() {
+                        stack.push(Node::Region(self.functions[function.index()].body, true));
+                    }
+                    let _ = expression.visit_children(|child| {
+                        stack.push(Node::Expr(child, inside));
+                        Ok::<_, ()>(())
+                    });
+                }
+                Node::Region(region, inside) => {
+                    for statement in &self.regions[region.index()].statements {
+                        statement.visit_expressions(|root| stack.push(Node::Expr(root, inside)));
+                        match statement {
+                            Statement::If { yes, no, .. } => {
+                                stack.push(Node::Region(*yes, inside));
+                                if let Some(no) = no {
+                                    stack.push(Node::Region(*no, inside));
+                                }
+                            }
+                            Statement::Loop { body, .. }
+                            | Statement::ForIn { body, .. }
+                            | Statement::ForOf { body, .. }
+                            | Statement::Block(body) => stack.push(Node::Region(*body, inside)),
+                            Statement::Try {
+                                body,
+                                catch,
+                                finally,
+                            } => {
+                                stack.push(Node::Region(*body, inside));
+                                if let Some(catch) = catch {
+                                    stack.push(Node::Region(catch.body, inside));
+                                }
+                                if let Some(finally) = finally {
+                                    stack.push(Node::Region(*finally, inside));
+                                }
+                            }
+                            Statement::Function { function, .. } => stack.push(Node::Region(
+                                self.functions[function.index()].body,
+                                true,
+                            )),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
     pub(crate) fn new_in(budget: &mut AllocationBudget<'_>) -> Result<Self, AllocationError> {
         let scopes = budget.filled(AllocationClass::Retained, 1, None)?;
         let mut regions = budget.vector(AllocationClass::Retained, 1)?;
@@ -951,6 +1355,7 @@ impl Module {
             root_modules: vec![],
             reserved: vec![],
             carried: vec![],
+            loop_head_declarations: false,
         })
     }
 
