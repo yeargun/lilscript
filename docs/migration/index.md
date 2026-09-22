@@ -1487,6 +1487,27 @@ The pinned recipes (Terser, esbuild, Oxc through Rolldown) ran against the seman
 
 These stay open losses, not baseline changes.
 
+### 013 batch 1: constant namespace objects (2026-09-22)
+
+Terser's `reduce_vars` + `unused` subset alone takes 807 Brotli bytes off our katexlil output. Most of it resolves reads of never-mutated namespace objects: the transliteration's `__star` modules, read as `html.buildGroup(…)`. Two generic target edits cover the sound part ([inline.rs](../../src/structured_js/inline.rs)):
+- **`flatten_constant_objects`.** `let M={k:f,…}` reads as its members when all four hold:
+  - `M` is never assigned, exported or pinned;
+  - every use of `M` reads a literal key;
+  - nothing earlier in `M`'s region, and no hoisted declaration, mentions `M`, since such a read could run in its temporal dead zone;
+  - the member's binding is settled when the literal reads it. Nothing assigns it, or only statements before the literal in its region do.
+
+  A method call passes `M` as `this`, so the member there must be an arrow. Literal members are copied. When nothing reads `M` any more and the literal read only bindings declared before it, the declaration goes.
+- **`unobserve_called_names`.** A `let`-bound function whose every reference calls it has an unobservable name. Flattening leaves formerly escaping functions in that state.
+
+| | probelil | markedlil | zodlil | katexlil |
+|---|---|---|---|---|
+| Before | 1,872 | 9,398 | 28,326 | 57,589 |
+| **After** | **1,863** | **9,397** | **28,326** | **57,437** |
+
+The temporal-dead-zone guard costs katexlil 68 bytes, and it is kept. katexlil's `buildCommon` namespace is read by functions defined earlier in the bundle than the assignment that creates it. A call before that assignment would throw a `TypeError` in the source, so those reads stay. Proving no such call happens needs call-graph evidence over module initialization.
+
+**Verification.** The unit suite passes (3,031 tests, plus the new `a_constant_namespace_object_reads_as_its_members`), as do the census (72/72/72, no miscompiles) and probelil in both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29 and jquerylil 7/7.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

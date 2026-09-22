@@ -434,3 +434,29 @@ fn inlined_statements_never_repeat_an_argument_with_effects() {
     // `first` had, since `first` is assigned again.
     assert_eq!(run(&javascript, SHOW), "{\"a\":1,\"b\":1}\n{\"x\":1}\n");
 }
+
+#[test]
+fn a_constant_namespace_object_reads_as_its_members() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        JsValue helper = JS.undefined();
+        helper = (JsValue x) => { return JS.add(x, 1); };
+        JsValue other = JS.undefined();
+        other = (JsValue x) => { return JS.add(x, 2); };
+        JsValue ns = JS.object("helper", helper, "other", other, "scale", 10);
+        JsValue useIt = JS.undefined();
+        useIt = (JsValue v) => { return JS.invoke(ns, "helper", v); };
+        show(JS.call(useIt, JS.undefined(), 1));
+        show(JS.invoke(ns, "other", 5));
+        show(ns["scale"]);
+        "#,
+        PRISTINE,
+    );
+    // Every use of `ns` reads a literal key of a literal nothing assigns: the
+    // reads become the members, the object goes, and the arrows called only
+    // directly lose their observable names.
+    assert!(!javascript.contains("helper:"), "{javascript}");
+    assert!(javascript.contains("show(10)"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "2\n7\n10\n");
+}

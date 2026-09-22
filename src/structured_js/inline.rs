@@ -1206,3 +1206,327 @@ impl Module {
         Ok(removed)
     }
 }
+
+impl Module {
+    /// A constant namespace object is its members: `let M={k:f};…M.k(x)`
+    /// reads as `f(x)`. `M` is never assigned, exported or pinned, and every
+    /// use of it reads a literal key, so nothing can change or observe its
+    /// properties: each read yields the value the literal gave, which is
+    /// the same `f` when `f` is never assigned (it was initialized when the
+    /// literal read it). A method call passes `M` as `this`, so there `f`
+    /// must be an arrow. A literal member value is copied. When every use is
+    /// replaced and the literal only reads bindings declared before it in
+    /// its region, the declaration goes. Returns the replaced reads.
+    pub(crate) fn flatten_constant_objects(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let reach = self.reach(budget)?;
+        let mut written = vec![false; self.bindings.len()];
+        let mut arrows = vec![false; self.bindings.len()];
+        // Where each binding is assigned: a statement of a region, or (None)
+        // somewhere a later evaluation could run it.
+        let mut writes: Vec<Vec<Option<(RegionId, usize)>>> = vec![Vec::new(); self.bindings.len()];
+        let mut assigned_arrow = vec![true; self.bindings.len()];
+        // Each reachable node's parent, and how it uses the node.
+        #[derive(Clone, Copy, PartialEq)]
+        enum Role {
+            Object,
+            Callee,
+            Target,
+            Other,
+        }
+        let mut parent: Vec<Option<(ExprId, Role)>> = vec![None; self.expressions.len()];
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            let expression = &self.expressions[id.index()];
+            if let Expr::Assign { target, value } = expression {
+                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    written[binding.index()] = true;
+                    let arrow = matches!(
+                        self.expressions[value.index()],
+                        Expr::Function(function) if self.functions[function.index()].arrow
+                    );
+                    assigned_arrow[binding.index()] &= arrow;
+                }
+            }
+            let _ = expression.visit_children(|child| {
+                let role = match expression {
+                    Expr::Member { object, .. } if *object == child => Role::Object,
+                    Expr::Call { callee, .. } if *callee == child => Role::Callee,
+                    Expr::Assign { target, .. } if *target == child => Role::Target,
+                    Expr::Unary {
+                        op: Unary::Delete, ..
+                    } => Role::Target,
+                    _ => Role::Other,
+                };
+                parent[child.index()] = Some((id, role));
+                Ok::<_, ()>(())
+            });
+        }
+        for export in &self.exports {
+            written[export.binding.index()] = true;
+        }
+        // Statement roots and loop heads also use bindings.
+        let mut root_use = vec![false; self.bindings.len()];
+        let mut literals: Vec<(RegionId, usize, BindingId, ExprId)> = Vec::new();
+        for &region in &reach.regions {
+            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                statement.visit_expressions(|root| {
+                    if let Expr::Binding(binding) = self.expressions[root.index()] {
+                        root_use[binding.index()] = true;
+                    }
+                });
+                if let Statement::Evaluate(root) = *statement {
+                    if let Expr::Assign { target, .. } = self.expressions[root.index()] {
+                        if let Expr::Binding(binding) = self.expressions[target.index()] {
+                            writes[binding.index()].push(Some((region, index)));
+                        }
+                    }
+                }
+                match *statement {
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => {
+                        match &self.expressions[value.index()] {
+                            Expr::Object(_) => literals.push((region, index, binding, value)),
+                            Expr::Function(function) => {
+                                arrows[binding.index()] = self.functions[function.index()].arrow;
+                            }
+                            _ => {}
+                        }
+                    }
+                    Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
+                        written[binding.index()] = true;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // Where each binding is read.
+        let mut uses: Vec<Vec<ExprId>> = vec![Vec::new(); self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            if let Expr::Binding(binding) = self.expressions[id.index()] {
+                uses[binding.index()].push(id);
+            }
+        }
+        // A binding holds one value from the literal's creation on when
+        // nothing assigns it, or when only statements before the literal in
+        // its own region do: those ran before the literal read it.
+        let assignments = |binding: BindingId| {
+            // Writes found as statement roots, against all reachable writes.
+            writes[binding.index()].len()
+        };
+        let mut all_writes = vec![0usize; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            if let Expr::Assign { target, .. } = &self.expressions[id.index()] {
+                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    all_writes[binding.index()] += 1;
+                }
+            }
+        }
+        let settled_at = |binding: BindingId, region: RegionId, index: usize| {
+            !written[binding.index()]
+                || assignments(binding) == all_writes[binding.index()]
+                    && writes[binding.index()]
+                        .iter()
+                        .all(|site| matches!(site, Some((found, at)) if *found == region && *at < index))
+        };
+        // A read of `M` before its declaration throws; the flattened read
+        // would not. So nothing earlier in its region may mention `M`, not
+        // even a function that could be called before the declaration runs.
+        let mut first: Vec<Option<usize>> = vec![None; self.bindings.len()];
+        {
+            let mut by_region: Vec<(RegionId, Vec<BindingId>)> = Vec::new();
+            for &(region, _, object, _) in &literals {
+                match by_region.iter_mut().find(|(found, _)| *found == region) {
+                    Some((_, list)) => list.push(object),
+                    None => by_region.push((region, vec![object])),
+                }
+            }
+            for (region, objects) in by_region {
+                for (binding, at) in self.first_mentions(region, &objects, budget)? {
+                    first[binding.index()] = Some(at);
+                }
+            }
+        }
+        let mut replaced = 0;
+        let mut removals: Vec<(RegionId, usize)> = Vec::new();
+        for (region, index, object, value) in literals {
+            budget.work(Analysis, 1)?;
+            if written[object.index()]
+                || root_use[object.index()]
+                || self.bindings[object.index()].pinned
+                || first[object.index()].is_some_and(|at| at <= index)
+            {
+                continue;
+            }
+            let Expr::Object(entries) = self.expressions[value.index()].clone() else {
+                continue;
+            };
+            let mut members: Vec<(StringValue, ExprId)> = Vec::with_capacity(entries.len());
+            let mut plain = true;
+            for (key, item) in &entries {
+                let name = match key {
+                    Property::Named(name) => StringValue::from(name.as_str()),
+                    Property::Computed(key) => match &self.expressions[key.index()] {
+                        Expr::Literal(Literal::String(name)) => name.clone(),
+                        _ => {
+                            plain = false;
+                            break;
+                        }
+                    },
+                };
+                if name.as_unicode() == Some("__proto__") {
+                    plain = false;
+                    break;
+                }
+                // The last entry for a key wins.
+                members.retain(|(known, _)| *known != name);
+                members.push((name, *item));
+            }
+            if !plain {
+                continue;
+            }
+            // Every use reads a literal key and stores nothing.
+            let mut sites = Vec::new();
+            let mut all_reads = true;
+            for &site in &uses[object.index()] {
+                let Some((member, Role::Object)) = parent[site.index()] else {
+                    all_reads = false;
+                    break;
+                };
+                let Expr::Member { property, .. } = &self.expressions[member.index()] else {
+                    all_reads = false;
+                    break;
+                };
+                let key = match property {
+                    Property::Named(name) => Some(StringValue::from(name.as_str())),
+                    Property::Computed(key) => match &self.expressions[key.index()] {
+                        Expr::Literal(Literal::String(name)) => Some(name.clone()),
+                        _ => None,
+                    },
+                };
+                let role = parent[member.index()].map(|(_, role)| role);
+                if key.is_none() || role == Some(Role::Target) {
+                    all_reads = false;
+                    break;
+                }
+                sites.push((member, key.unwrap(), role == Some(Role::Callee)));
+            }
+            if !all_reads {
+                continue;
+            }
+            let mut every = true;
+            for (member, key, callee) in sites {
+                let Some(&(_, item)) = members.iter().find(|(known, _)| *known == key) else {
+                    every = false;
+                    continue;
+                };
+                let replacement = match self.expressions[item.index()] {
+                    Expr::Literal(ref literal) if !callee => Some(Expr::Literal(literal.clone())),
+                    Expr::Binding(binding)
+                        if binding != object
+                            && settled_at(binding, region, index)
+                            && (!callee
+                                || arrows[binding.index()]
+                                || written[binding.index()] && assigned_arrow[binding.index()]) =>
+                    {
+                        Some(Expr::Binding(binding))
+                    }
+                    _ => None,
+                };
+                match replacement {
+                    Some(replacement) => {
+                        self.expressions[member.index()] = replacement;
+                        replaced += 1;
+                    }
+                    None => every = false,
+                }
+            }
+            // The literal goes when nothing reads it and evaluating it could
+            // not throw: it reads only bindings declared before it here.
+            if every {
+                let earlier = &self.regions[region.index()].statements[..index];
+                let settled = members.iter().all(|&(_, item)| match self.expressions[item.index()] {
+                    Expr::Literal(_) | Expr::Function(_) => true,
+                    Expr::Binding(binding) => earlier.iter().any(|statement| {
+                        matches!(statement, Statement::Let { binding: found, .. } if *found == binding)
+                    }),
+                    _ => false,
+                });
+                if settled {
+                    removals.push((region, index));
+                }
+            }
+        }
+        removals.sort_unstable_by(|a, b| (a.0.index(), a.1).cmp(&(b.0.index(), b.1)).reverse());
+        for (region, index) in removals {
+            self.regions[region.index()].statements.remove(index);
+            if region == self.root && index < self.root_modules.len() {
+                self.root_modules.remove(index);
+            }
+        }
+        Ok(replaced)
+    }
+
+    /// A function bound by `let`, never assigned or exported, whose every
+    /// reference calls it, has a name nothing can read. Earlier edits (a
+    /// flattened namespace) can leave a formerly escaping function so.
+    pub(crate) fn unobserve_called_names(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let reach = self.reach(budget)?;
+        let mut escaped = vec![false; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            let expression = &self.expressions[id.index()];
+            let _ = expression.visit_children(|child| {
+                if let Expr::Binding(binding) = self.expressions[child.index()] {
+                    if !matches!(expression, Expr::Call { callee, .. } if *callee == child) {
+                        escaped[binding.index()] = true;
+                    }
+                }
+                Ok::<_, ()>(())
+            });
+        }
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                statement.visit_expressions(|root| {
+                    if let Expr::Binding(binding) = self.expressions[root.index()] {
+                        escaped[binding.index()] = true;
+                    }
+                });
+            }
+        }
+        for export in &self.exports {
+            escaped[export.binding.index()] = true;
+        }
+        let mut changed = 0;
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                let Statement::Let {
+                    binding,
+                    value: Some(value),
+                } = *statement
+                else {
+                    continue;
+                };
+                let Expr::Function(function) = self.expressions[value.index()] else {
+                    continue;
+                };
+                if !escaped[binding.index()]
+                    && !self.bindings[binding.index()].pinned
+                    && self.functions[function.index()].name != FunctionName::Unobserved
+                {
+                    self.functions[function.index()].name = FunctionName::Unobserved;
+                    changed += 1;
+                }
+            }
+        }
+        Ok(changed)
+    }
+}

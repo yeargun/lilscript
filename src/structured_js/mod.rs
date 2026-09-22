@@ -1604,7 +1604,7 @@ impl Module {
 
     /// For each binding, the index of the first statement of `region` whose
     /// code mentions it; a hoisted declaration's body counts as the first.
-    fn first_mentions(
+    pub(super) fn first_mentions(
         &self,
         region: RegionId,
         bindings: &[BindingId],

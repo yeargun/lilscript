@@ -707,6 +707,13 @@ fn form_with_demand(
                 formation.module.elide_undefined(formation.budget)?;
                 // `let o;o={…}` must meet as `let o={…}` before stores fold.
                 formation.module.merge_declarations(prunes, formation.budget)?;
+                // `let N;N=M` merged into `let N=M` is an alias to remove before
+                // namespace objects flatten; flattening can leave functions
+                // only called, whose names nothing reads any more.
+                formation.module.eliminate_aliases(formation.budget)?;
+                if formation.module.flatten_constant_objects(formation.budget)? != 0 {
+                    formation.module.unobserve_called_names(formation.budget)?;
+                }
                 // A literal that took its stores often has one reader left.
                 if pristine && formation.module.fold_object_stores(formation.budget)? != 0 {
                     formation.module.forward_single_uses(formation.budget)?;
