@@ -1044,11 +1044,13 @@ impl Module {
     /// `let x;…;x=v` becomes `…;let x=v` when that assignment is the first
     /// code of the region to mention `x` and `v` does not: nothing before it
     /// can read `x`, and no hoisted declaration of the region mentions it, so
-    /// no read meets the later declaration's temporal dead zone. A bare
-    /// statement whose value is only a literal, a function or a literal of
-    /// those has no effect and goes. Returns the number of edits.
+    /// no read meets the later declaration's temporal dead zone. With
+    /// `prunes`, a bare statement whose value is only a literal, a function
+    /// or a literal of those has no effect and goes. Returns the number of
+    /// edits.
     pub(crate) fn merge_declarations(
         &mut self,
+        prunes: bool,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         use crate::compilation_policy::WorkKind::Analysis;
@@ -1057,7 +1059,7 @@ impl Module {
             budget.work(Analysis, 1 + self.regions[region].statements.len() as u64)?;
             let root = region == self.root.index();
             let mut index = 0;
-            while index < self.regions[region].statements.len() {
+            while prunes && index < self.regions[region].statements.len() {
                 budget.work(Analysis, 1)?;
                 if let Statement::Evaluate(value) = self.regions[region].statements[index] {
                     if self.inert_value(value, budget)? {

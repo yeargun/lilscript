@@ -352,3 +352,35 @@ fn single_expression_helpers_inline_only_where_the_arguments_keep_their_order() 
     assert!(javascript.matches("=>").count() >= 3, "{javascript}");
     assert_eq!(run(&javascript, SHOW), "4\n2\n[2,3]\n6\n4\n");
 }
+
+#[test]
+fn inlined_bodies_repeat_only_arguments_whose_value_cannot_change() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        JsValue path(JsValue a, JsValue b) {
+            return JS.add(JS.add(JS.add(JS.add("M", JS.add(a, b)), " l"), a), JS.add(" h", a));
+        }
+        JsValue build(JsValue kind, JsValue size) {
+            size = JS.add(size, 1);
+            JsValue d = "";
+            if (JS.strictEqual(kind, "main")) { d = path(size, 80); }
+            return d;
+        }
+        int calls = 0;
+        JsValue next() { calls = calls + 1; return calls; }
+        JsValue twice(JsValue x) { return JS.add(x, x); }
+        show(build("main", 2));
+        show(twice(next()));
+        show(twice(7));
+        show(twice(next()));
+        "#,
+        PRISTINE,
+    );
+    // `path` reads `a` three times: its argument is a parameter no other
+    // function reaches. `twice(7)` copies the literal and folds; a call
+    // argument is never repeated, so `twice(next())` stays a call.
+    assert!(javascript.contains("+80)+\" l\"+"), "{javascript}");
+    assert!(javascript.contains("show(14)"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "\"M83 l3 h3\"\n2\n14\n4\n");
+}

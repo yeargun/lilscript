@@ -637,6 +637,9 @@ fn form_with_demand(
     // of target compaction.
     if formation.compact {
         let pristine = formation.contract.assumptions.pristine_builtins;
+        // Removing an unused declaration or a bare inert statement is dead-code
+        // elimination, which its own permission governs.
+        let prunes = formation.demand.prunes();
         // Bodies up to six nodes: measured best on the reference ports (a
         // limit of 3 keeps markedlil 97 bytes larger; 10 and 20 add nothing).
         let strict = formation.contract.execution.guarantees_strict_execution();
@@ -681,8 +684,11 @@ fn form_with_demand(
                 }
                 formation.module.elide_undefined(formation.budget)?;
                 formation.module.drop_double_negations(formation.budget)?;
-                formation.module.merge_declarations(formation.budget)?;
-                formation.module.drop_unreferenced_functions(formation.budget)
+                formation.module.merge_declarations(prunes, formation.budget)?;
+                if prunes {
+                    formation.module.drop_unreferenced_functions(formation.budget)?;
+                }
+                Ok(0)
             });
         if let Err(error) = edited {
             drop(formation);

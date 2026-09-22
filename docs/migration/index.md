@@ -1248,9 +1248,27 @@ Found by ablating Terser's compressor on our own output, one option at a time an
 | `x.push(v)` instead of `Array.prototype.push.call(x,v)` (59 sites) | katexlil +21 at −1,239 raw |
 | Terser's `join_vars`, `loops`, `conditionals`, `sequences` | negative on our output |
 
+**Correction.** One late change in this batch went in after only targeted tests and the census: dropping any unused `let` whose value creates only literals and functions. It removed `let discardedProduct=134623` even with `dead-code-elimination = "off"`. Batch 4 gates it, and the bare-statement removal, on that permission.
+
 **What remains.** Terser's full compressor still takes katexlil from 57,743 to 56,313. Leave-one-out puts most of it in `unused` with `reduce_vars`. That is single-use function inlining: `sqrtPath`'s one call receives each SVG path builder as an IIFE with the constant `Ma` substituted, and the definitions go. Next is target-level inlining of single-use functions, where arguments that are literals or never-written bindings may be read more than once.
 
 **Verification.** The unit suite passes (3,027 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions.
+
+### 009 batch 4: arguments an inlined body may repeat (2026-09-22)
+
+The single-expression inliner now takes bodies that read a parameter more than once, or not at all, when the argument's value cannot change. Each argument read exactly once still follows batch 2's rule: read in order, outside a branch, with only inert evaluations before the last such read. The stable arguments depend on the call:
+- **Any call:** a literal, which is copied or dropped. Or a binding no other function mentions, which the call's other arguments do not mention either. No call can reach that binding and the body assigns nothing, so every read sees one value. Its first read still keeps its place, so an uninitialized binding throws where the argument would have.
+- **A function's only call,** where the function then goes: additionally a parameter nothing assigns, and a root constant declared with a literal before any root statement runs code. Such an argument may be read at any point, since it is initialized and cannot change. Doing this at every call measured worse on markedlil (+20) and zodlil (+15).
+
+| | probelil | markedlil | zodlil | katexlil |
+|---|---|---|---|---|
+| Batch 3 | 1,877 | 9,496 | 28,399 | 57,743 |
+| **After** | **1,877** | **9,461** | **28,383** | **57,743** |
+| Default route | 1,492 | 9,360 | 29,682 | 55,404 |
+
+katexlil's SVG path builders are single-expression functions called once, from `sqrtPath`, and Terser inlines them. They pass `Ma`, a root constant. `Ma` follows root statements that call functions, so without a call-graph argument it is not provably initialized when read.
+
+**Verification.** The unit suite passes (3,028 tests), as do the census (72/72/72, no miscompiles) and probelil in both lanes. The katexlil suites pass (21/21 and 1,230/1,230), and so do zodlil's. jquerylil passes 7/7. markedlil fails only its two known shape assertions. New test: `inlined_bodies_repeat_only_arguments_whose_value_cannot_change`.
 
 
 ## 010 Bounded Codec Search

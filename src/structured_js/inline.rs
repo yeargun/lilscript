@@ -56,6 +56,13 @@ const SITE_DEPTH: usize = verify::MAX_NESTING / 2;
 struct Template {
     parameters: Vec<BindingId>,
     body: ExprId,
+    /// How often the body reads each parameter.
+    reads: Vec<usize>,
+    /// The evaluation position of each parameter's first read, and whether
+    /// it sits in a branch.
+    first: Vec<Option<(usize, bool)>>,
+    /// How many leading evaluations are inert.
+    prefix: usize,
 }
 
 /// Every expression and region that can run, with each expression's depth as
@@ -63,6 +70,11 @@ struct Template {
 struct Reach {
     expressions: Vec<(ExprId, usize)>,
     regions: Vec<RegionId>,
+    /// Bindings mentioned by a function other than the one declaring them:
+    /// a call can reach such a binding, and may write it.
+    captured: Vec<bool>,
+    /// Function parameters: initialized before any code reads them.
+    parameters: Vec<bool>,
 }
 
 impl Module {
@@ -97,6 +109,23 @@ impl Module {
         for export in &self.exports {
             written[export.binding.index()] = true;
         }
+        // Root constants declared with a literal before any root statement can
+        // run code: every read inside a function finds them initialized.
+        let mut early = vec![false; self.bindings.len()];
+        for statement in &self.regions[self.root.index()].statements {
+            budget.work(Analysis, 1)?;
+            let Statement::Let { binding, value } = *statement else {
+                break;
+            };
+            match value {
+                Some(value) if !self.inert_value(value, budget)? => break,
+                Some(value) => {
+                    early[binding.index()] = !written[binding.index()]
+                        && matches!(self.expressions[value.index()], Expr::Literal(_));
+                }
+                None => {}
+            }
+        }
         let mut templates: Vec<Option<Template>> = Vec::new();
         for &region in &reach.regions {
             for statement in &self.regions[region.index()].statements {
@@ -114,7 +143,9 @@ impl Module {
                 if written[binding.index()] || self.bindings[binding.index()].pinned {
                     continue;
                 }
-                let Some((body, nodes)) = self.template_body(function, binding, budget)? else {
+                let Some((body, nodes, reads, first, prefix)) =
+                    self.template_body(function, binding, budget)?
+                else {
                     continue;
                 };
                 // A sloppy script's user code, run from the body by a getter,
@@ -132,6 +163,9 @@ impl Module {
                 templates[binding.index()] = Some(Template {
                     parameters: self.functions[function.index()].parameters.clone(),
                     body,
+                    reads,
+                    first,
+                    prefix,
                 });
             }
         }
@@ -164,6 +198,42 @@ impl Module {
             {
                 continue;
             }
+            // An argument read exactly once is read in argument order, outside a
+            // branch, with only inert evaluations before the last such read.
+            // One whose value cannot change may also be read again or not at
+            // all. Where the call is the function's only one (so the function
+            // goes), a stable argument may also be read at any time: measured,
+            // doing that at every call grows markedlil and zodlil.
+            let single = calls[binding.index()] == 1;
+            let mut fits = true;
+            let mut last: Option<usize> = None;
+            for (index, &argument) in arguments.iter().enumerate() {
+                let reads = found.reads[index];
+                let stable = if single {
+                    self.stable(argument, index, arguments, &reach, &written, &early, budget)?
+                } else {
+                    reads != 1 && self.repeatable(argument, index, arguments, &reach, budget)?
+                };
+                if (single && stable) || (reads == 0 && stable) {
+                    continue;
+                }
+                if reads != 1 && !stable {
+                    fits = false;
+                    break;
+                }
+                match found.first[index] {
+                    Some((position, false)) if last.is_none_or(|last| position > last) => {
+                        last = Some(position);
+                    }
+                    _ => {
+                        fits = false;
+                        break;
+                    }
+                }
+            }
+            if !fits || last.is_some_and(|last| last >= found.prefix) {
+                continue;
+            }
             sites.push((id, binding));
         }
         // A site inside another template's body is edited in place, so later
@@ -174,7 +244,9 @@ impl Module {
                 unreachable!("a recorded site is a call");
             };
             let origin = self.origins[site.index()];
-            let root = self.clone_template(found, found.body, &arguments, origin, budget)?;
+            let mut placed = vec![false; arguments.len()];
+            let root =
+                self.clone_template(found, found.body, &arguments, &mut placed, origin, budget)?;
             self.expressions[site.index()] = root;
         }
         if sites.is_empty() {
@@ -191,7 +263,8 @@ impl Module {
         function: FunctionId,
         binding: BindingId,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<Option<(ExprId, usize)>, AllocationError> {
+    ) -> Result<Option<(ExprId, usize, Vec<usize>, Vec<Option<(usize, bool)>>, usize)>, AllocationError>
+    {
         let function = &self.functions[function.index()];
         // A strict body keeps strict `delete` and assignment semantics that a
         // sloppy call site would not.
@@ -211,34 +284,24 @@ impl Module {
         if !self.evaluation_order(body, &function.parameters, false, &mut events, budget)? {
             return Ok(None);
         }
-        let mut next = 0;
-        let mut last = None;
-        for (position, &(id, _)) in events.iter().enumerate() {
+        let mut reads = vec![0usize; function.parameters.len()];
+        let mut first = vec![None; function.parameters.len()];
+        for (position, &(id, branch)) in events.iter().enumerate() {
             if let Expr::Binding(read) = self.expressions[id.index()] {
                 if read == binding {
                     return Ok(None);
                 }
                 if let Some(index) = function.parameters.iter().position(|&p| p == read) {
-                    if index != next {
-                        return Ok(None);
-                    }
-                    next += 1;
-                    last = Some(position);
+                    first[index].get_or_insert((position, branch));
+                    reads[index] += 1;
                 }
             }
         }
-        if next != function.parameters.len() {
-            return Ok(None);
-        }
-        if let Some(last) = last {
-            if !events[..last]
-                .iter()
-                .all(|&(id, _)| self.inert(id, &function.parameters))
-            {
-                return Ok(None);
-            }
-        }
-        Ok(Some((body, events.len())))
+        let prefix = events
+            .iter()
+            .take_while(|&&(id, _)| self.inert(id, &function.parameters))
+            .count();
+        Ok(Some((body, events.len(), reads, first, prefix)))
     }
 
     /// Appends `root`'s nodes in evaluation order, with whether each sits in
@@ -271,12 +334,7 @@ impl Module {
         };
         match expression {
             Expr::Literal(_) => events.push((root, branch)),
-            Expr::Binding(binding) => {
-                if branch && parameters.contains(binding) {
-                    return Ok(false);
-                }
-                events.push((root, branch));
-            }
+            Expr::Binding(_) => events.push((root, branch)),
             Expr::Host(name) => {
                 if name == "arguments" || name == "eval" {
                     return Ok(false);
@@ -372,6 +430,69 @@ impl Module {
             _ => return Ok(false),
         }
         Ok(true)
+    }
+
+    /// At a call that is not the function's only one, the narrower test that
+    /// measured best: a literal, or a binding no other function mentions (no
+    /// call reaches it) that the call's other arguments do not mention. Its
+    /// first read keeps the order rule, so an uninitialized binding throws
+    /// where the argument would have, and later reads see the same value.
+    fn repeatable(
+        &self,
+        argument: ExprId,
+        index: usize,
+        arguments: &[ExprId],
+        reach: &Reach,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        match self.expressions[argument.index()] {
+            Expr::Literal(_) => Ok(true),
+            Expr::Binding(binding) if !reach.captured[binding.index()] => {
+                for (other, &value) in arguments.iter().enumerate() {
+                    if other != index && self.mentions_within(value, binding, budget)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Whether this argument's value is the same whenever, and however often,
+    /// the body reads it. A literal is. So is a parameter nothing assigns, or
+    /// one no other function mentions (no call reaches it) that the call's
+    /// other arguments do not mention: a parameter is initialized before any
+    /// code reads it. So is a root constant initialized before any code runs.
+    fn stable(
+        &self,
+        argument: ExprId,
+        index: usize,
+        arguments: &[ExprId],
+        reach: &Reach,
+        written: &[bool],
+        early: &[bool],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        match self.expressions[argument.index()] {
+            Expr::Literal(_) => Ok(true),
+            Expr::Binding(binding) if early[binding.index()] => Ok(true),
+            Expr::Binding(binding) if reach.parameters[binding.index()] => {
+                if !written[binding.index()] {
+                    return Ok(true);
+                }
+                if reach.captured[binding.index()] {
+                    return Ok(false);
+                }
+                for (other, &value) in arguments.iter().enumerate() {
+                    if other != index && self.mentions_within(value, binding, budget)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     /// Whether evaluating this node can neither observe nor change state,
@@ -481,6 +602,7 @@ impl Module {
         template: &Template,
         root: ExprId,
         arguments: &[ExprId],
+        placed: &mut [bool],
         origin: Option<SourceNodeId>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Expr, AllocationError> {
@@ -488,6 +610,7 @@ impl Module {
         let mut node = self.expressions[root.index()].clone();
         if let Expr::Binding(binding) = node {
             if let Some(index) = template.parameters.iter().position(|&p| p == binding) {
+                placed[index] = true;
                 return Ok(self.expressions[arguments[index].index()].clone());
             }
         }
@@ -499,17 +622,20 @@ impl Module {
         let mut replaced = Vec::with_capacity(children.len());
         for child in children {
             let argument = match self.expressions[child.index()] {
-                Expr::Binding(binding) => template
-                    .parameters
-                    .iter()
-                    .position(|&p| p == binding)
-                    .map(|index| arguments[index]),
+                Expr::Binding(binding) => template.parameters.iter().position(|&p| p == binding),
                 _ => None,
             };
             let id = match argument {
-                Some(argument) => argument,
+                // The first read takes the argument itself; a repeated one,
+                // allowed only for a literal or a stable binding, a copy.
+                Some(index) if !std::mem::replace(&mut placed[index], true) => arguments[index],
+                Some(index) => {
+                    let copy = self.expressions[arguments[index].index()].clone();
+                    self.expression_in(copy, origin, budget)?
+                }
                 None => {
-                    let copy = self.clone_template(template, child, arguments, origin, budget)?;
+                    let copy =
+                        self.clone_template(template, child, arguments, placed, origin, budget)?;
                     self.expression_in(copy, origin, budget)?
                 }
             };
@@ -528,10 +654,15 @@ impl Module {
         let mut reach = Reach {
             expressions: Vec::new(),
             regions: Vec::new(),
+            captured: vec![false; self.bindings.len()],
+            parameters: vec![false; self.bindings.len()],
         };
-        let mut regions = vec![(self.root, 0usize)];
+        // The function each binding is declared in, and each reference's.
+        let mut declared: Vec<Option<Option<FunctionId>>> = vec![None; self.bindings.len()];
+        let mut references: Vec<(BindingId, Option<FunctionId>)> = Vec::new();
+        let mut regions = vec![(self.root, 0usize, None::<FunctionId>)];
         let mut pending: Vec<(ExprId, usize)> = Vec::new();
-        while let Some((region, depth)) = regions.pop() {
+        while let Some((region, depth, owner)) = regions.pop() {
             budget.work(Analysis, 1)?;
             if std::mem::replace(&mut seen_regions[region.index()], true) {
                 continue;
@@ -539,10 +670,31 @@ impl Module {
             reach.regions.push(region);
             for statement in &self.regions[region.index()].statements {
                 budget.work(Analysis, 1)?;
+                match statement {
+                    Statement::Let { binding, .. }
+                    | Statement::ForIn { binding, .. }
+                    | Statement::ForOf { binding, .. }
+                    | Statement::Function { binding, .. } => {
+                        declared[binding.index()] = Some(owner);
+                    }
+                    Statement::Try {
+                        catch:
+                            Some(Catch {
+                                binding: Some(binding),
+                                ..
+                            }),
+                        ..
+                    } => declared[binding.index()] = Some(owner),
+                    _ => {}
+                }
                 statement.visit_expressions(|root| pending.push((root, depth + 1)));
-                statement.visit_regions(|child| regions.push((child, depth + 1)));
+                statement.visit_regions(|child| regions.push((child, depth + 1, owner)));
                 if let Statement::Function { function, .. } = statement {
-                    regions.push((self.functions[function.index()].body, depth + 2));
+                    for parameter in &self.functions[function.index()].parameters {
+                        declared[parameter.index()] = Some(Some(*function));
+                        reach.parameters[parameter.index()] = true;
+                    }
+                    regions.push((self.functions[function.index()].body, depth + 2, Some(*function)));
                 }
                 while let Some((id, at)) = pending.pop() {
                     budget.work(Analysis, 1)?;
@@ -551,14 +703,28 @@ impl Module {
                     }
                     reach.expressions.push((id, at));
                     let expression = &self.expressions[id.index()];
+                    if let Expr::Binding(binding) = expression {
+                        references.push((*binding, owner));
+                    }
                     if let Some(function) = expression.created_function() {
-                        regions.push((self.functions[function.index()].body, at + 2));
+                        for parameter in &self.functions[function.index()].parameters {
+                            declared[parameter.index()] = Some(Some(function));
+                            reach.parameters[parameter.index()] = true;
+                        }
+                        regions.push((self.functions[function.index()].body, at + 2, Some(function)));
                     }
                     let _ = expression.visit_children(|child| {
                         pending.push((child, at + 1));
                         Ok::<_, ()>(())
                     });
                 }
+            }
+        }
+        budget.work(Analysis, references.len() as u64)?;
+        for (binding, owner) in references {
+            // An undeclared binding (an import or host) counts as captured.
+            if declared[binding.index()] != Some(owner) {
+                reach.captured[binding.index()] = true;
             }
         }
         Ok(reach)

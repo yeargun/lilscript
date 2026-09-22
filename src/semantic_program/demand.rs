@@ -537,6 +537,10 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
     pub(super) fn child(&self, id: ContextId, operation: OpId) -> Option<ContextId> {
         self.context(id).children[operation.index()]
     }
+    /// Whether dead code may go: the dead-code-elimination permission.
+    pub(super) fn prunes(&self) -> bool {
+        self.mode == DemandMode::Prune
+    }
     pub(super) fn needs_operation(&self, id: ContextId, op: OpId) -> bool {
         self.context(id).operations[op.index()]
     }
