@@ -1,0 +1,16 @@
+# Terser 5.x (katexlil/node_modules) applied to OUR artifacts: compress only (passes 2, toplevel),
+# mangle only (toplevel), both. Brotli-11 bytes. probelil as a script, the others as modules.
+probelil semantic-prod base=1863 compress=1728 mangle=1843 full=1700
+probelil legacy-dev base=1556 compress=1514 mangle=1518 full=1486
+markedlil semantic-prod base=9397 compress=9450 mangle=9425 full=9506
+markedlil legacy-dev base=9818 compress=9748 mangle=9838 full=9758
+zodlil semantic-prod base=28326 compress=28568 mangle=28730 full=28893
+zodlil legacy-dev base=31834 compress=31267 mangle=29745 full=29249
+katexlil semantic-prod base=56132 compress=55669 mangle=55748 full=55195
+katexlil legacy-dev base=58829 compress=56824 mangle=57536 full=55895
+# Regex literals instead of new RegExp("...") with constant arguments (regex-lit.mjs), semantic prod:
+markedlil 117 rewrites 9397 -> 9312
+zodlil 69 rewrites 28326 -> 28308
+katexlil 43 rewrites 56132 -> 56156
+# Script frames: probelil compiled as a module instead of a script
+probelil semantic script 1863 module 1836 ; default route script 1492 (prod) module 1492

@@ -1,0 +1,36 @@
+javascript codec                   brotli
+ABI world                          reusable-library
+public aggregate ABI               named
+runtime exports                    default:Global, defaults:Global, getDefaults:Function, marked:Global, options:Function, parse:Function, parseInline:Function, setOptions:Function
+selected transfer bytes            9360
+syntax tokens                      13667
+syntax AST nodes                   9211
+estimated parse cost               118054
+estimated compile cost             134900
+estimated startup memory           692378
+JavaScript performance score       13514
+deoptimization risk                193
+allocation pressure                267
+indirect-call pressure             0
+monomorphic call weight            289
+candidates evaluated               20
+search guarantee                   best-observed
+search stop                        work-budget-exhausted
+decision registry version          1
+plans registered                   264
+optimizer emissions attempted      16
+structural emissions attempted     251
+structural proposal work           264/264 (exhausted)
+terminal work                      266/264 (exhausted)
+terminal exact-codec calls         110
+peephole rewrites                  1037
+layout searched                    yes
+cartesian emission axes            string-pooling, identifier-string-pooling, numeric-literal-pooling, compact-boolean-literals, structured-closure-inlining, string-array-packing, regex-literals, unused-catch-binding-elision, compact-generator-star, scalar-phi-copies, phi-affinity
+scored emission families           precise-cross-scope-shadowing, frequency-order-local-names, stable-local-names, struct-method-shorthand, length-to-number-elision, pool-window-roots, alias-array-prototype-methods, closure-environment-snapshots, inline-exclusive-closures, iife-private-callee-clusters, nested-once-run-helpers, string-pool-minimum-savings, batch-property-assigns, constructor-initializer-fusion, host-alias-spelling, indexed-char-at, elide-call-chain-parentheses, elide-new-parentheses, elide-block-terminal-semicolons, inline-single-use-functions, pure-helper-dense-tables, callee-default-arguments, truthy-nullable-checks, conditional-expressions, phi-expression-regions, phi-edge-value-forwarding, operand-order-fusion, aggregate-operand-order-fusion, comma-expressions, structural-control-flow, loop-spelling, do-loop, update-loop-layout, mutation-spelling, switch-lowering, local-name-reserve, function-layout, named-aggregate-layout, owner-scoped-property-names, property-mangling, stable-local-names-late, fresh-literal-factory, local-name-coalescing, transitive-nested-shadowing, precise-cross-scope-shadowing-late
+starved emission families          aggregate-operand-order-fusion, alias-array-prototype-methods, batch-property-assigns, callee-default-arguments, closure-environment-snapshots, comma-expressions, conditional-expressions, constructor-initializer-fusion, do-loop, elide-block-terminal-semicolons, elide-call-chain-parentheses, elide-new-parentheses, frequency-order-local-names, function-layout, host-alias-spelling, iife-private-callee-clusters, indexed-char-at, inline-exclusive-closures, inline-single-use-functions, length-to-number-elision, local-name-coalescing, local-name-reserve, loop-spelling, mutation-spelling, named-aggregate-layout, nested-once-run-helpers, operand-order-fusion, owner-scoped-property-names, phi-edge-value-forwarding, phi-expression-regions, pool-window-roots, precise-cross-scope-shadowing, precise-cross-scope-shadowing-late, property-mangling, pure-helper-dense-tables, stable-local-names, stable-local-names-late, string-pool-minimum-savings, struct-method-shorthand, structural-control-flow, switch-lowering, transitive-nested-shadowing, truthy-nullable-checks, update-loop-layout
+scored ir variants                 closure-factory-outlining, ir-inlining-off, exported-internal-inlining, keep-object, ir-specialization-off, call-site-specialization-off, call-graph-reusable-helpers, capture-signature-cloning-off, function-subsumption-on, function-subsumption-off
+compression families removed       (none)
+operation origin                   3811 source, 3 generated
+compiler time (microseconds)       148749005
+lilscript-timing {"wall_ms":148770.3,"admission_ms":0.0,"admission_calls":152,"admission_mb":0.00,"direct_validate_ms":0.0,"direct_validate_calls":27,"direct_validate_mb":0.00,"probe_dropped_ms":0.0,"probe_dropped_calls":0,"probe_dropped_mb":0.00,"codec_ms":16203.2,"codec_calls":573,"codec_mb":19.98,"analyze_ms":1757.5,"analyze_calls":379,"analyze_mb":13.05,"emit_ms":469141.1,"emit_calls":267,"emit_mb":0.04,"peephole_ms":26947.2,"peephole_calls":68,"peephole_mb":2.37,"cleanup_ms":0.0,"cleanup_calls":0,"cleanup_mb":0.00,"optimize_ms":1850.3,"optimize_calls":16,"optimize_mb":0.00,"lex_ms":5156.5,"lex_calls":21722,"lex_mb":740.77,"closers_ms":1360.9,"closers_calls":18474,"closers_mb":252.24,"regions_ms":628.6,"regions_calls":490,"regions_mb":6.84,"scopes_ms":572.5,"scopes_calls":548,"scopes_mb":7.56,"bindings_ms":780.2,"bindings_calls":1269,"bindings_mb":17.01,"idle_fold_ms":12379.2,"idle_fold_calls":8993,"idle_fold_mb":300.46,"active_fold_ms":14239.1,"active_fold_calls":2417,"active_fold_mb":81.38,"scalar_fixpoint_ms":1326.7,"scalar_fixpoint_runs":93,"scalar_fixpoint_max":3,"inline_fixpoint_ms":55.7,"inline_fixpoint_runs":28,"inline_fixpoint_max":5,"js_demand_ms":0.000,"js_demand_calls":0,"js_formation_ms":0.000,"js_formation_calls":0,"target_verify_ms":0.000,"target_verify_calls":0,"target_edition_ms":0.000,"target_edition_calls":0,"target_basis_ms":0.000,"target_basis_calls":0,"target_names_ms":0.000,"target_names_calls":0,"target_print_ms":0.000,"target_print_calls":0,"canonical_gzip_ms":287.106,"canonical_gzip_calls":244,"canonical_brotli_ms":15915.267,"canonical_brotli_calls":329,"cleanup_entered":7,"cleanup_entered_sum":139,"cleanup_unbudgeted":13,"cleanup_unbudgeted_sum":0,"cleanup_skipped":0,"cleanup_skipped_sum":0,"cleanup_canonical_err":0,"cleanup_canonical_err_sum":0,"cleanup_canonical_same":0,"cleanup_canonical_same_sum":0,"cleanup_canonical_boundary":0,"cleanup_canonical_boundary_sum":0,"cleanup_canonical_refused":0,"cleanup_canonical_refused_sum":0,"cleanup_canonical_unprobed":2,"cleanup_canonical_unprobed_sum":0,"cleanup_canonical_pushed":5,"cleanup_canonical_pushed_sum":47294,"cleanup_shaped_pushed":1,"cleanup_shaped_pushed_sum":6,"cleanup_shaped_lost":3,"cleanup_shaped_lost_sum":54,"cleanup_shaped_refused":5,"cleanup_shaped_refused_sum":0,"rename_candidates":10,"rename_candidates_sum":343500,"rename_starved":2,"rename_starved_sum":2,"rename_idle":0,"rename_idle_sum":0,"rename_unparsed":0,"rename_unparsed_sum":0,"rename_refused":0,"rename_refused_sum":0,"rename_unprobed":0,"rename_unprobed_sum":0,"rename_won":9,"rename_won_sum":583,"idiom_candidates":26,"idiom_candidates_sum":890162,"idiom_won":1,"idiom_won_sum":10,"idiom_lost":25,"idiom_lost_sum":1007,"idiom_idle":0,"idiom_idle_sum":0,"rename_lost":1,"rename_lost_sum":39,"rename_templated":0,"rename_templated_sum":0,"rename_unsound":0,"rename_unsound_sum":0,"rename_ambiguous":36,"rename_ambiguous_sum":36,"memo_codec_hits":129,"memo_analyze_hits":1976}
+148.77 505.98 1.13 84384

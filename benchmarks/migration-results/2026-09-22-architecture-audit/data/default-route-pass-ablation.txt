@@ -1,0 +1,43 @@
+# Default (legacy) route, optimization_level 0, candidate search off (l0.toml from cfgvar.py),
+# one [optimization] key set to false per row. Columns: raw gzip9 brotli11 (repository codec).
+# probelil compiled with --target js-module.
+probelil base 4442 1769 1624
+probelil none 6356 2131 1940
+probelil constant_folding 4594 1786 1642
+probelil algebraic_simplification 4463 1779 1635
+probelil common_subexpression_elimination 4508 1751 1620
+probelil finite_value_propagation 4442 1769 1624
+probelil global_optimization 4532 1793 1652
+probelil inlining 5987 2084 1895
+probelil inline_closure_factories 4591 1781 1634
+probelil constant_parameter_specialization 4442 1769 1624
+probelil scalar_replacement 4536 1771 1634
+probelil dead_store_elimination 4442 1769 1624
+probelil dead_code_elimination 4474 1748 1612
+probelil call_site_specialization 4442 1769 1624
+probelil capture_signature_cloning 4442 1769 1624
+probelil identical_function_folding 4442 1769 1624
+markedlil base 42301 11598 10179
+markedlil none 41900 11617 10268
+markedlil inlining 41849 11619 10221
+markedlil scalar_replacement 42301 11598 10179
+markedlil constant_folding 42342 11608 10160
+markedlil global_optimization 42301 11598 10179
+markedlil common_subexpression_elimination 42305 11590 10169
+markedlil call_site_specialization 42301 11598 10179
+zodlil base 157773 40420 33995
+zodlil none 155705 41187 35213
+zodlil inlining 153190 40388 34516
+zodlil scalar_replacement 157773 40420 33995
+zodlil constant_folding 157802 40432 34026
+zodlil global_optimization 158364 40860 34430
+zodlil common_subexpression_elimination 158124 40503 34016
+zodlil call_site_specialization 157773 40420 33995
+katexlil base 269885 73520 59999
+katexlil none 275601 77855 64257
+katexlil inlining 278070 73460 60644
+katexlil scalar_replacement 269885 73520 59999
+katexlil constant_folding 270036 73528 60043
+katexlil global_optimization 263961 76228 62199
+katexlil common_subexpression_elimination 269701 73432 59896
+katexlil call_site_specialization 269885 73520 59999

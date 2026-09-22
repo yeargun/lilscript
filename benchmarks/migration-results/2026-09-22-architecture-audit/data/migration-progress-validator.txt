@@ -1,0 +1,62 @@
+[ ] 001 Baselines and support inventory        implemented [accepted.json](../../benchmarks/migration-results/accepted.json)
+[ ] 002 Language and public boundaries         implemented [accepted.json](../../benchmarks/migration-results/accepted.json)
+[ ] 003 Policy and resource ownership          implemented [accepted.json](../../benchmarks/migration-results/accepted.json)
+[ ] 004 Semantic facts and checked edits       implemented [accepted.json](../../benchmarks/migration-results/accepted.json)
+[ ] 005 Public fast JS and native service      implemented [accepted.json](../../benchmarks/migration-results/accepted.json)
+[ ] 006 Integrated architecture proof          implemented [accepted.json](../../benchmarks/migration-results/accepted.json)
+[ ] 007 Language and port coverage             implemented [census 007e](../../benchmarks/migration-results/2026-09-21-semantic-census-007e/receipt.json), [ports 007e](../../benchmarks/migration-results/2026-09-21-semantic-ports-007e/receipt.json)
+[ ] 008 Whole-program JS and delivery          implemented. Every delivery mode: single, preserve-modules, split, lazy `import()` and carried host modules. Liveness is verified across modules, and six compaction batches landed. Real libraries run unchanged in multi-file delivery. Semantic Brotli is now below the default route on zodlil and within 3% on markedlil. Codec alternatives (for-head, logical ifs) and per-stream scoring go to 010. [then vs now](../../benchmarks/migration-results/2026-09-22-then-vs-now/README.md)
+[ ] 009 Reusable compression families          implemented. Five batches of generic target edits: unobserved function names, forwarding-builtin substitution, single-expression and statement inlining with arena renumbering, literal and store folds, spellings. Brotli since the milestone began: katexlil 61,391 → 57,589, zodlil 29,580 → 28,326 (below the default route's 29,682), markedlil 9,641 → 9,398 (default route 9,360), probelil 1,905 → 1,872. No runtime regression. The proof-heavy families measure 0–8 bytes and are kept until 013's fleet ablation. [009 sections](#009-batch-1-substitution-and-folding-on-the-finished-program-2026-09-22)
+[ ] 010 Bounded codec search                   implemented. Every exit item is covered by a named test or measurement. Real libraries replay byte-identically across effort levels and thread counts. The search is saturated there: the winner never moves, because the families propose almost nothing. Codec-scored spellings measured, and only `for(let …)` heads kept. Scheduler heuristics 3–6 wait for opportunities to schedule. [010 status](#010-status-2026-09-22-exit-evidence-mapped-search-measured-saturated-on-real-libraries)
+[ ] 011 Public compiler and fleet integration  partial. `[compiler] backend` selects the route explicitly, and the backend and policy are recorded on every build. Reference-port suites pass through public entrypoints: katexlil, zodlil, markedlil (29/29 with a representation patch) and jquerylil. Compression losses recorded for 013. The full-fleet suites wait for a worker pool. [011 status](#011-status-2026-09-22-route-selection-reference-suites-through-public-entrypoints)
+[ ] 012 Compilation speed and resource gates   partial. Paired reference-port builds: the semantic route compiles in 0.27–4.2 s against 27–352 s on the default route, at a quarter or less of the peak RSS. Runtime is equal on markedlil and ~10% slower on katexlil. Envelopes are not yet frozen, p95 is not measured, and the fleet has not run. [012 status](#012-status-2026-09-22-the-semantic-route-is-two-orders-of-magnitude-cheaper-to-compile)
+[ ] 013 Compression qualification              open. katexlil loses to Terser by 2,683 Brotli on the semantic route, narrowed from 4,017 by two batches (the default route loses 1,576). zodlil and markedlil are not comparable boundaries. The fleet cells have not run. [013 status](#013-status-2026-09-22-katex-is-a-loss-the-other-reference-boundaries-are-not-comparable)
+[ ] 014 Retirement and final certification     waiting    no accepted receipt
+
+46 unsupported claim(s):
+  - 003 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/config.rs
+  - 003 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/main.rs
+  - 003 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compilation_policy.rs
+  - 003 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compilation_policy.rs
+  - 003 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/config.rs
+  - 003 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compilation_contract.rs
+  - 003 receipt 3 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/config.rs
+  - 003 receipt 3 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compilation_policy.rs
+  - 004 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/publication_edits.rs
+  - 004 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/facts.rs
+  - 004 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/rewrite_tests.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_public_structs.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_structs.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/structured_js/mod.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_struct_boundary_tests.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compiler_service_tests.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/class_javascript_tests.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/from_source.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/verify.rs
+  - 005 receipt 1 inputs: recorded file is missing: /home/azureuser/lilscript/src/semantic_program/javascript_classes.rs
+  - 005 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/structured_js/print.rs
+  - 006 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_public_structs.rs
+  - 006 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_structs.rs
+  - 006 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript.rs
+  - 006 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/structured_js/mod.rs
+  - 006 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_struct_boundary_tests.rs
+  - 006 receipt 1 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compiler_service_tests.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_public_structs.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_structs.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/structured_js/mod.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/javascript_struct_boundary_tests.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/compiler_service_tests.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/class_javascript_tests.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/from_source.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/semantic_program/verify.rs
+  - 006 receipt 2 inputs: recorded file is missing: /home/azureuser/lilscript/src/semantic_program/javascript_classes.rs
+  - 006 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/src/structured_js/print.rs
+  - 007 receipt 2 inputs: content changed since it was recorded: /home/azureuser/lilscript/finer/port-migrations/jquerylil.patch
+  - 008: `implemented. Every delivery mode: single, preserve-modules, split, lazy `import()` and carried host modules. Liveness is verified across modules, and six compaction batches landed. Real libraries run unchanged in multi-file delivery. Semantic Brotli is now below the default route on zodlil and within 3% on markedlil. Codec alternatives (for-head, logical ifs) and per-stream scoring go to 010.` is not one of the declared states
+  - 009: `implemented. Five batches of generic target edits: unobserved function names, forwarding-builtin substitution, single-expression and statement inlining with arena renumbering, literal and store folds, spellings. Brotli since the milestone began: katexlil 61,391 → 57,589, zodlil 29,580 → 28,326 (below the default route's 29,682), markedlil 9,641 → 9,398 (default route 9,360), probelil 1,905 → 1,872. No runtime regression. The proof-heavy families measure 0–8 bytes and are kept until 013's fleet ablation.` is not one of the declared states
+  - 010: `implemented. Every exit item is covered by a named test or measurement. Real libraries replay byte-identically across effort levels and thread counts. The search is saturated there: the winner never moves, because the families propose almost nothing. Codec-scored spellings measured, and only `for(let …)` heads kept. Scheduler heuristics 3–6 wait for opportunities to schedule.` is not one of the declared states
+  - 011: `partial. `[compiler] backend` selects the route explicitly, and the backend and policy are recorded on every build. Reference-port suites pass through public entrypoints: katexlil, zodlil, markedlil (29/29 with a representation patch) and jquerylil. Compression losses recorded for 013. The full-fleet suites wait for a worker pool.` is not one of the declared states
+  - 012: `partial. Paired reference-port builds: the semantic route compiles in 0.27–4.2 s against 27–352 s on the default route, at a quarter or less of the peak RSS. Runtime is equal on markedlil and ~10% slower on katexlil. Envelopes are not yet frozen, p95 is not measured, and the fleet has not run.` is not one of the declared states
+  - 013: `open. katexlil loses to Terser by 2,683 Brotli on the semantic route, narrowed from 4,017 by two batches (the default route loses 1,576). zodlil and markedlil are not comparable boundaries. The fleet cells have not run.` is not one of the declared states
