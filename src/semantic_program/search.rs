@@ -1293,7 +1293,11 @@ impl JavaScriptSearch<'_, '_> {
                         .outcome
                     {
                         HelperOutcome::Published(candidate) => Seed::Ready(candidate),
-                        HelperOutcome::Unknown(_) => {
+                        HelperOutcome::Unknown(reason) => {
+                            // The refusal census behind 009's inlining task.
+                            if std::env::var_os("LILSCRIPT_DEBUG_HELPERS").is_some() {
+                                eprintln!("helper-unknown {cell:?} {reason:?}");
+                            }
                             self.counters.unknown_proofs += 1;
                             Seed::Unknown
                         }

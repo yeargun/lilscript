@@ -1125,6 +1125,33 @@ Each family declares facts, changed domains, compatibility/conflicts, lowering, 
 
 **Exit:** legality/refusal, direct/search veto and useful positive tests; cross-family cases for flattening/inlining, sharing/naming, packing/placement and specialization/DCE. Ablate real workloads with exact bytes and compiler/runtime costs. Remove unproductive complexity unless a bounded measured use justifies it. Retire replaced facts/mutation paths. Package matchers, independent family budgets/solvers and untracked edits fail the gate. Competitive claims wait for 013.
 
+### 009 ablation: which families earn their bytes today (2026-09-22)
+
+Each run switches one tactic off with `[policy.tactics] <tactic> = "off"`. Every build is the semantic route on an unmodified scratch copy (katexlil with its recorded migration patch), measured by the repository codec. Cells give the Brotli bytes added by switching the family off.
+
+| Family off | probelil (1,905) | markedlil (9,641) | zodlil (29,580) | katexlil (61,391) |
+|---|---|---|---|---|
+| target compaction | +2,278 | +10,344 | +40,410 | +80,937 |
+| naming search | +573 | +1,912 | +9,571 | +11,687 |
+| dead-code elimination | +269 | +15 | +2,036 | +4,364 |
+| scalar replacement | +13 | 0 | 0 | 0 |
+| inlining (leaf helpers) | +1 | +2 | 0 | 0 |
+| constant folding | 0 | 0 | +11 | 0 |
+| call specialization | refused* | 0 | refused* | 0 |
+| string pooling | refused* | refused* | refused* | 0 |
+
+\* The port's config pins the tactic explicitly, so a policy override contradicts it.
+
+**The proof-heavy families contribute almost nothing on the reference ports.** Formation compaction, naming and liveness carry the output. The default route's remaining lead comes from IR-level inlining and folding. The semantic helper family admits only pure scalar bodies (loads, stores, constants, arithmetic, selects, a tail return), so it refuses almost every real helper. Refusals logged on katexlil's search: 44 body operations (every call, intrinsic or host builtin), 33 not a private callable, 12 callable observations, 3 completion shapes. On probelil: 37 body operations and 13 initializations. katexlil's search made only 5 proposals from 1,160 proof queries.
+
+**009's first family task:** inlining that admits real helper bodies, while keeping the frame-elision and observation proofs the helper family already owns. Next come folding and propagation on its results, then a decision on the families that stay at zero.
+
+**Prior art** (from `finer/refs/competitor-techniques.md`, §D):
+- Terser inlines small non-recursive bodies at call sites (`compress/inline.js`, gated 0–3) and collapses single-use declarators (`tighten-body.js`).
+- oxc does single-use substitution only (`peephole/minimize_statements.rs:1137-1330`) and no general function inlining.
+- 046 measured multi-use constant propagation as Brotli-negative on katexlil (+129), so it is not a target.
+
+
 ## 010 Bounded Codec Search
 
 Contracts: A4/A6/A7. Consume validated choices and the family registry. Naming selection is one component of semantic representation search.
