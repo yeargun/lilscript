@@ -1243,8 +1243,9 @@ fn binary_facts(op: Binary, left: Facts, right: Facts) -> Facts {
     {
         result.effects = result.effects.union(Effects::THROW).union(Effects::FOREIGN);
     }
-    if op == Binary::In {
-        // A proxy `has` trap can run arbitrary code; a primitive right side throws.
+    if matches!(op, Binary::In | Binary::InstanceOf) {
+        // A proxy `has` trap or a `Symbol.hasInstance` method can run
+        // arbitrary code; a right side of the wrong kind throws.
         result.effects = result
             .effects
             .union(Effects::HEAP_READ)
@@ -1253,7 +1254,7 @@ fn binary_facts(op: Binary, left: Facts, right: Facts) -> Facts {
             .union(Effects::FOREIGN);
     }
     result.value = match op {
-        Binary::Equal | Binary::NotEqual | Binary::In => ValueKind::Bool,
+        Binary::Equal | Binary::NotEqual | Binary::In | Binary::InstanceOf => ValueKind::Bool,
         Binary::StrictEqual
         | Binary::StrictNotEqual
         | Binary::Less

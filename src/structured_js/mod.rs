@@ -45,6 +45,7 @@ mod print;
 mod rewrite;
 mod simplify;
 mod blocks;
+mod host_lowering;
 pub(crate) use rewrite::literal_array_projection;
 #[cfg(test)]
 mod string_recipe_tests;
@@ -133,6 +134,9 @@ pub enum Binary {
     NotEqual,
     /// `key in object`; the key converts to a property key first.
     In,
+    /// `value instanceof constructor`: consults `Symbol.hasInstance`, so it
+    /// can run code, and throws for a right side that is not callable.
+    InstanceOf,
     BitAnd,
     BitXor,
     BitOr,
@@ -1657,6 +1661,41 @@ impl Module {
             });
         }
         false
+    }
+
+    /// Whether `function`'s body reads no frame of its own: no `this`,
+    /// `arguments`, `super` or direct `eval`, in it or in the arrows it
+    /// creates, which share its frame. Called, such a function is its body.
+    pub(crate) fn frame_free(&self, function: FunctionId) -> bool {
+        let mut expressions = Vec::new();
+        let mut regions = vec![self.functions[function.index()].body];
+        while let Some(region) = regions.pop() {
+            for statement in &self.regions[region.index()].statements {
+                statement.visit_expressions(|root| expressions.push(root));
+                if !matches!(statement, Statement::Function { .. }) {
+                    statement.visit_regions(|child| regions.push(child));
+                }
+            }
+            while let Some(id) = expressions.pop() {
+                match &self.expressions[id.index()] {
+                    Expr::This | Expr::SuperCall { .. } => return false,
+                    Expr::Host(name) if name == "arguments" || name == "eval" => return false,
+                    Expr::Call {
+                        invocation: Invocation::DirectEval,
+                        ..
+                    } => return false,
+                    Expr::Function(inner) if self.functions[inner.index()].arrow => {
+                        regions.push(self.functions[inner.index()].body)
+                    }
+                    _ => {}
+                }
+                let _ = self.expressions[id.index()].visit_children(|child| {
+                    expressions.push(child);
+                    Ok::<_, ()>(())
+                });
+            }
+        }
+        true
     }
 
     /// Whether the reference to `binding` under `leaf` is a callee.

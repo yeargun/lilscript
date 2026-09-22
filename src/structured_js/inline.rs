@@ -265,10 +265,12 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Option<(ExprId, usize, Vec<usize>, Vec<Option<(usize, bool)>>, usize)>, AllocationError>
     {
+        let frame_free = self.frame_free(function);
         let function = &self.functions[function.index()];
         // A strict body keeps strict `delete` and assignment semantics that a
-        // sloppy call site would not.
-        if !function.arrow
+        // sloppy call site would not. A function that is not an arrow is its
+        // body only while that reads no frame of its own.
+        if !(function.arrow || frame_free)
             || function.strict
             || function.suspension != Suspension::None
             || function.length.is_some()

@@ -233,7 +233,8 @@ impl NumberFacts {
             | Binary::StrictNotEqual
             | Binary::Equal
             | Binary::NotEqual
-            | Binary::In => return Self::UNKNOWN,
+            | Binary::In
+            | Binary::InstanceOf => return Self::UNKNOWN,
             _ => {}
         }
         if !self.is_number() || !right.is_number() {

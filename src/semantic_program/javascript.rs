@@ -362,6 +362,7 @@ pub(super) fn lower_admitted(
         mode,
         compact,
         false,
+        None,
         ResourceView::Whole,
         budget,
     )
@@ -375,6 +376,7 @@ pub(super) fn lower_resource_admitted(
     mode: DemandMode,
     compact: bool,
     raw_structure: bool,
+    hosts: Option<&crate::host_modules::HostDelivery>,
     resource: ResourceView<'_>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
@@ -397,6 +399,7 @@ pub(super) fn lower_resource_admitted(
         &demand,
         compact,
         raw_structure,
+        hosts,
         &mut phase,
     );
     let discarded = phase.with_ledger(|ledger| demand.discard(ledger.map(|(ledger, _)| ledger)));
@@ -440,6 +443,7 @@ fn form(
         &demand,
         false,
         false,
+        None,
         &mut AllocationBudget::new(None),
     );
     demand
@@ -461,6 +465,7 @@ fn form_with_demand(
     demand: &DemandPlan<'_, '_>,
     compact: bool,
     raw_structure: bool,
+    hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
@@ -659,6 +664,14 @@ fn form_with_demand(
         // Bodies up to six nodes: measured best on the reference ports (a
         // limit of 3 keeps markedlil 97 bytes larger; 10 and 20 add nothing).
         let strict = formation.contract.execution.guarantees_strict_execution();
+        // Delivered host modules become target code, so every edit below
+        // reaches them as well; they are strict, as the output must be.
+        if let (true, Some(hosts)) = (strict, hosts) {
+            if let Err(error) = formation.module.lower_hosts(hosts, formation.budget) {
+                drop(formation);
+                return Err(error.into());
+            }
+        }
         // Exact folds first: an inlining candidate is judged by its size, so
         // `!!Number.isInteger(v)` should already read `Number.isInteger(v)`.
         let numeric_lengths = formation.contract.assumptions.numeric_lengths;

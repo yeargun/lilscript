@@ -19,16 +19,16 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now (batch 7) | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 8) | Bar | Gap |
 |---|---|---|---|---|
 | katexlil (complete `katex.esm.js`) | 65,727 | 64,886 | 63,044 | +1,842 |
 | markedlil (`marked.raw.js`) | 9,397 | 9,300 | 10,092 | **win −792** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,620 | 5,622 | level (−2) |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 31,373 | 27,445 | +3,928 |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,555 | 27,445 | +2,110 |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,720 | 51,948 | **win −6,228** |
-| motionlil (`full.js`) | does not build | 52,080 (batch 4) | 41,032 | +11,048 |
+| motionlil (`full.js`) | does not build | 52,893 | 41,032 | +11,861 |
 
-| Raw objective | Start | Now (batch 7) | Bar | Gap |
+| Raw objective | Start | Now (batch 8) | Bar | Gap |
 |---|---|---|---|---|
 | markedlil (`marked.bytes.js`) | 39,687 | 36,460 | 37,022 | **win −562** |
 | posthoglil (`posthog.bytes.js`) | 19,750 | 18,350 | 16,123 | +2,227 |
@@ -41,12 +41,12 @@ The default route, for reference with the same binary: posthoglil 5,602 (it also
 
 ## Known causes, by port
 
-- **jquerylil:** measured against the default route's 28,764 with the same binary, and estimated by editing our output (batch 7 in `docs/migration/index.md`):
-  - The carried `js-host.ts` is 9.1 KB raw and 2,189 Brotli on its own. Only 41 of its 102 functions are used, and each call spells the long host name. Pruning and minifying the block is worth −1,204 Brotli.
-  - The methods pass through `this` adapters at 117 sites (`function(a){return function(){return a(this,arguments)}}`), and their bodies read arguments by position.
-  - The output is statement-heavy: 1,224 `if(` against 303, and 957 `let` against 28.
+- **jquerylil:** measured against the default route's 28,764 with the same binary, and estimated by editing our output (batches 7 and 8 in `docs/migration/index.md`):
+  - Batch 8 lowers the carried `js-host.ts` into the program (−1,818). Its unused functions go, and its wrappers inline.
+  - The methods pass through `this` adapters at 117 sites (`function(a){return function(){return a(this,arguments)}}`). Dissolving them into `function(){…this…}` measured +42 Brotli, since `this` is longer than the parameter it replaces, so they stay.
+  - The output is statement-heavy: 1,224 `if(` against 303, and 957 `let` against 28. Terser's full compression over our output finds only −246, so spelling is not the main cause.
   - The 65 single-use struct encoders are gone in batch 7 (−794).
-- **motionlil:** 12 class names are declared in two modules (`JSAnimation`, `GroupAnimation`). The semantic checker keys classes and enums by bare name (`Type::Class(&str)`), which rejects that; the default route's linker qualifies them. Owed as a language fix; a rename patch unblocks measurement.
+- **motionlil:** feature by feature against upstream bundles with the same exports, the small entries carry large fixed costs: viewport 717 against 345, mini 10,980 against 4,446. Classes are constructed as a null-filled literal plus an `init` call, so every value type is a module-level effect nothing can prune, and it keeps color parsing and the frame loop in every entry (batch 8 in the plan). Duplicate module variants are only 4.5 KB raw of a 230 KB core. The port's `full.js` is esbuild plus Terser over our output, and that reprint costs about 1.1 KB Brotli over our own core (51,757 against 52,893).
 - **katexlil:** the port is an untyped transliteration (3,990 `JsValue`, 394 `toNum`, no `pure`). Terser still finds 1.7% in our output, mostly single-use functions.
 - **posthoglil:** string arrays are not packed, small `JsValue` wrappers are not inlined, and the port declares builtins through `JsValue` (`JS.number(JS.invoke(Math,"trunc",x))`).
 

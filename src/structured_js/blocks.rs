@@ -266,40 +266,15 @@ impl Module {
         Ok(None)
     }
 
-    /// A function whose body may stand in its caller's place.
+    /// A function whose body may stand in its caller's place: it keeps no
+    /// frame a strict caller could see, reads no frame of its own, and does
+    /// not suspend.
     fn block_inlinable(&self, function: FunctionId) -> bool {
         let declared = &self.functions[function.index()];
-        if declared.suspension != Suspension::None || declared.length.is_some() || declared.strict {
-            return false;
-        }
-        // No own `this`/`arguments`/`super`: an arrow's are its creator's,
-        // which the caller does not share; a function's are the call's.
-        let mut expressions = Vec::new();
-        let mut regions = vec![declared.body];
-        while let Some(region) = regions.pop() {
-            for statement in &self.regions[region.index()].statements {
-                statement.visit_expressions(|root| expressions.push(root));
-                if !matches!(statement, Statement::Function { .. }) {
-                    statement.visit_regions(|child| regions.push(child));
-                }
-            }
-            while let Some(id) = expressions.pop() {
-                match &self.expressions[id.index()] {
-                    Expr::This | Expr::SuperCall { .. } => return false,
-                    Expr::Host(name) if name == "arguments" || name == "eval" => return false,
-                    // An arrow shares the body's `this`; a function has its own.
-                    Expr::Function(inner) if self.functions[inner.index()].arrow => {
-                        regions.push(self.functions[inner.index()].body)
-                    }
-                    _ => {}
-                }
-                let _ = self.expressions[id.index()].visit_children(|child| {
-                    expressions.push(child);
-                    Ok::<_, ()>(())
-                });
-            }
-        }
-        true
+        declared.suspension == Suspension::None
+            && declared.length.is_none()
+            && !declared.strict
+            && self.frame_free(function)
     }
 
     /// The one call of `binding`, when it stands as a whole statement form.

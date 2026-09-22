@@ -35,6 +35,22 @@ impl HostModule {
     pub fn delivered_bytes(&self) -> usize {
         self.body.len()
     }
+
+    /// The compacted body, without its imports and `export` keywords.
+    pub(crate) fn body(&self) -> &str {
+        &self.body
+    }
+
+    /// Exported names and the local bindings they export.
+    pub(crate) fn exports(&self) -> &[(String, String)] {
+        &self.exports
+    }
+
+    /// Other host modules this one imports: index, then each imported name
+    /// (`None` for a namespace import) and its local binding.
+    pub(crate) fn imports(&self) -> &[(usize, Vec<(Option<String>, String)>)] {
+        &self.imports
+    }
 }
 
 /// Every host module an output needs, evaluated by one expression.
@@ -376,6 +392,16 @@ fn syntax_beyond(
 }
 
 fn parse_tree(source: &str, typescript: bool) -> Result<Value, String> {
+    parse_with(source, typescript, true)
+}
+
+/// A delivered module body's ESTree, without grouping parentheses, which
+/// change no meaning: `(a.b)()` still calls with `a` as its receiver.
+pub(crate) fn parse_program(source: &str) -> Result<Value, String> {
+    parse_with(source, false, false)
+}
+
+fn parse_with(source: &str, typescript: bool, preserve_parens: bool) -> Result<Value, String> {
     let allocator = oxc_allocator::Allocator::default();
     let source_type = if typescript {
         oxc_span::SourceType::ts().with_module(true)
@@ -385,6 +411,7 @@ fn parse_tree(source: &str, typescript: bool) -> Result<Value, String> {
     let parsed = oxc_parser::Parser::new(&allocator, source, source_type)
         .with_options(oxc_parser::ParseOptions {
             parse_regular_expression: true,
+            preserve_parens,
             ..oxc_parser::ParseOptions::default()
         })
         .parse();

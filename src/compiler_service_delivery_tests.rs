@@ -608,6 +608,49 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
     let _ = fs::remove_dir_all(directory);
 }
 
+/// Embedded host modules of a strict output become program code: what the
+/// program does not reach is gone, one-line wrappers inline, and the rest
+/// runs as the module did.
+#[test]
+fn embedded_host_modules_become_program_code_in_a_strict_output() {
+    let directory = workspace(
+        "host-lowered",
+        &[
+            (
+                "host.ts",
+                "const offset: number = 2\n\
+                 export function callMethod1(obj: any, name: string, arg: any): any { return obj[name](arg) }\n\
+                 export function kind(value: any): string { return value instanceof Map ? \"map\" : typeof value }\n\
+                 export function getProp(obj: any, key: string): any { return obj?.[key] }\n\
+                 export function sumTo(n: number): number { let total = 0; for (let i = 0; i < n; i++) { total += i } return total + offset }\n\
+                 export function safe(): string { try { return (null as any).x } catch (e) { return \"caught\" } }\n\
+                 export function neverUsedByTheProgram(): string { return \"UNUSED_MARKER\" }\n",
+            ),
+            (
+                "main.lil",
+                "import extern { callMethod1, kind, getProp, sumTo, safe } from \"./host.ts\";\
+                 extern JsValue callMethod1(JsValue obj, string name, JsValue arg);\
+                 extern string kind(JsValue value);\
+                 extern JsValue getProp(JsValue obj, string key);\
+                 extern int sumTo(int n);\
+                 extern string safe();\
+                 print(callMethod1(JS.array(1, 2, 3), \"indexOf\", 2));\
+                 print(kind(JS.object()));\
+                 print(getProp(JS.object(), \"x\"));\
+                 print(sumTo(4));\
+                 print(safe());",
+            ),
+        ],
+    );
+    let compiled = with_config(&directory, "[bundle]\nhost_modules='embed'").unwrap();
+    let text = compiled.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    // No module is carried as text, and nothing the program leaves unused.
+    assert!(!text.contains("(()=>") && !text.contains("UNUSED_MARKER"), "{text}");
+    assert!(text.contains(".indexOf(2)"), "{text}");
+    assert_eq!(run(&directory, &compiled), "1\nobject\nundefined\n8\ncaught\n");
+    let _ = fs::remove_dir_all(directory);
+}
+
 /// Across modules, values nothing reads are gone and every effect stays,
 /// including a module imported only for its effects.
 #[test]

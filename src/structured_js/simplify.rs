@@ -397,7 +397,8 @@ impl Module {
                 | Binary::StrictNotEqual
                 | Binary::Equal
                 | Binary::NotEqual
-                | Binary::In => Some(Known::Boolean),
+                | Binary::In
+                | Binary::InstanceOf => Some(Known::Boolean),
                 // BigInt `>>>` throws, so a completed one is a Number.
                 Binary::UnsignedShiftRight => Some(Known::Number),
                 Binary::Subtract

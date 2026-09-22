@@ -2131,6 +2131,7 @@ impl<'src> Compilation<'src> {
             demand,
             choices.target_compaction,
             choices.raw_structure,
+            self.host_modules.as_ref().map(|(delivery, _)| delivery),
             resource,
             &mut budget,
         )

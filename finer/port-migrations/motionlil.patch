@@ -904,3 +904,15 @@ diff -ru a/src/motion-utils/types/geometry.lil b/src/motion-utils/types/geometry
 +    this.y = y;
 +  }
  }
+diff -ru a/src/lilscript.toml b/src/lilscript.toml
+--- a/src/lilscript.toml
++++ b/src/lilscript.toml
+@@ -20,3 +20,8 @@
+ properties = true
+ exports = false
+ pool_strings = true
++
++[bundle]
++# The semantic route lowers these host modules into the program, where
++# pruning, inlining and naming reach them.
++host_modules = "embed"

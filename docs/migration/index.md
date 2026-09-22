@@ -1674,6 +1674,41 @@ What remains of Terser's `reduce_vars` gain is chiefly functions called once fro
 - Methods pass through `this` adapters: `function(a){return function(){return a(this,arguments)}}` and three siblings, at 117 sites. Each body reads its arguments by position (`c[0]`). The default route prints `function(){…this…arguments…}`.
 - The default route prints expressions where we print statements (`if(` 303 against 1,224, `?` 331 against 64), and merges declarations (`let` 28 against 957).
 
+### 013 batch 8: host modules become program code (2026-09-22)
+
+- **Host modules lowered into the target tree.** An embedded host module was carried as compacted text: every function kept whether the program called it or not, and every call went through a long name. For jquerylil's `js-host.ts` that was 9.1 KB raw with 41 of 102 functions used. [host_lowering.rs](../../src/structured_js/host_lowering.rs) now parses each delivered module (ESTree from oxc, without grouping parentheses) and lowers it into the root ahead of the program's statements, since an imported module evaluates first. The program's imports then resolve to the lowered bindings, so pruning, inlining, forwarding and naming reach host code. The lowering is exact for the subset it accepts; anything else leaves the whole delivery as text:
+  - `let`/`const` and function declarations are declared per block before any statement runs. A block's function declarations become its first statements (`let f=function…`), because strict code creates them on entry and creating a function runs nothing.
+  - Statements are those the tree has. A `for` whose per-iteration `let` a closure could capture is refused.
+  - `x op= y` becomes `x=x op y` where re-reading the target observes nothing. `x++` with its value unused becomes `x=x+1` for a binding every write keeps a number. `o?.[k]` becomes `o===null||o===void 0?void 0:o[k]` for a binding `o`; `document.all` keeps it strict.
+  - Functions have plain parameters, no `async`, no generators and no self-names. Their names are unobserved, since the program reaches host code only through its imports and D2 publishes none of it.
+  - `var`, classes, labels, `switch`, spread arguments and `**` are refused. So is a script output, because host modules are strict.
+  - The tree gains `instanceof` (`Binary::InstanceOf`, which may run code like `in`).
+- **A function that reads no frame of its own is its body.** The expression inliner took only arrows, because a `function` has its own `this` and `arguments`. `frame_free` checks the body (and its arrows) for `this`, `arguments`, `super` and direct `eval`, so a lowered host wrapper inlines like an arrow; the block inliner shares the check. No other port changed: their `function`s are the ones that use their frame.
+- **Measured and reverted:** letting a stable argument read once be read out of order at every call. It inlined more host wrappers in motionlil (−43) but cost zodlil +66 Brotli and +883 raw-objective bytes, and jquerylil +138. That is the growth the inliner's comment records. A per-site size test would have to come first.
+- **motionlil embeds its host modules** ([motionlil.patch](../../finer/port-migrations/motionlil.patch)), so the four motion-dom host modules are lowered too.
+
+| Brotli | posthoglil (`raw.js`) | markedlil (`raw.js`) | zodlil | katexlil (`esm`) | jquerylil (`esm`) | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|
+| Batch 7 | 5,620 | 9,300 | 28,015 | 64,886 | 31,373 | 53,064 |
+| **After** | **5,620** | **9,300** | **28,015** | **64,886** | **29,555** | **52,893** |
+
+The raw-objective sizes of markedlil, posthoglil and zodlil are unchanged.
+
+**Verification.** 3,047 unit tests pass, including `embedded_host_modules_become_program_code_in_a_strict_output`, and the existing delivery tests still carry text for a script output. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 (on lowered host code), posthoglil 21/21 and motionlil 9/9 (with embedded, lowered host modules).
+
+**Where motionlil's gap is.** Measured feature by feature against upstream bundles with the same exports (esbuild + `terser -c passes=3 -m --module`, as the bar):
+
+| Brotli | scroll | gestures | viewport | resize | mini | full |
+|---|---|---|---|---|---|---|
+| Upstream | 5,657 | 956 | 345 | 565 | 4,446 | 41,032 |
+| Ours | 5,945 | 1,621 | 717 | 936 | 10,980 | 52,893 |
+
+Exact duplicates (the port's `…Full`/`…Mini` module variants) are only 4.5 KB raw, and near-duplicates 6.2 KB, of a 230 KB core. The loss is what each entry carries:
+- `mini` is 2.5 times upstream's `motion/mini`, which is a thin WAAPI wrapper. Ours holds the frame loop, color parsing and the complex-value machinery.
+- Classes are constructed as a null-filled literal plus a call to their `init` (`Ya={test:null,…};G(Ya,…)`). Even a constructor that only stores its parameters (`ValueType`) is therefore a call. Every value type becomes a module-level effect nothing can prune, and it keeps its dependencies alive in every entry.
+
+The next lever is to form a field-storing constructor's construction as the literal itself. That is typed-layout work (013-T3), and formation has the facts for it.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

@@ -23,6 +23,7 @@ impl Binary {
             Self::Equal => "==",
             Self::NotEqual => "!=",
             Self::In => " in ",
+            Self::InstanceOf => " instanceof ",
             Self::BitAnd => "&",
             Self::BitXor => "^",
             Self::BitOr => "|",
@@ -39,7 +40,12 @@ impl Binary {
             Self::BitXor => 7,
             Self::BitAnd => 8,
             Self::StrictEqual | Self::StrictNotEqual | Self::Equal | Self::NotEqual => 9,
-            Self::Less | Self::LessEqual | Self::Greater | Self::GreaterEqual | Self::In => 10,
+            Self::Less
+            | Self::LessEqual
+            | Self::Greater
+            | Self::GreaterEqual
+            | Self::In
+            | Self::InstanceOf => 10,
             Self::ShiftLeft | Self::ShiftRight | Self::UnsignedShiftRight => 11,
             Self::Add | Self::Subtract => 12,
             Self::Multiply | Self::Divide | Self::Remainder => 13,
