@@ -877,6 +877,22 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
         changed.mangle.preserve_properties = Some(vec!["stable".into()]);
         variants.push(resolve(&changed, true));
         variants.push(resolve(&config, false));
+        // Delivery is part of the contract: a candidate formed for one file
+        // is not another mode's candidate.
+        for mode in [
+            crate::config::BundleMode::Split,
+            crate::config::BundleMode::PreserveModules,
+        ] {
+            let mut changed = config.clone();
+            changed.bundle.mode = mode;
+            variants.push(resolve(&changed, true));
+        }
+        let mut changed = config.clone();
+        changed.bundle.mode = crate::config::BundleMode::Split;
+        changed.bundle.min_chunk_bytes = 1;
+        let split = resolve(&changed, true);
+        changed.bundle.min_chunk_bytes = 2;
+        assert_ne!(split.fingerprint(), resolve(&changed, true).fingerprint());
         for variant in variants {
             assert!(matches!(
                 compiler.direct_javascript(source, &variant, WorkDomain::Optional),
@@ -890,17 +906,6 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
             ));
             assert_eq!(compiler.ledger().retained_bytes(), before);
             assert_eq!(compiler.checkpoint_count(), 2);
-        }
-        for mode in [
-            crate::config::BundleMode::Split,
-            crate::config::BundleMode::PreserveModules,
-        ] {
-            let mut changed = config.clone();
-            changed.bundle.mode = mode;
-            assert!(
-                matches!(compiler.direct_javascript(source, &resolve(&changed,true), WorkDomain::Optional), Err(CandidateError::UnsupportedBundleMode(found)) if found == mode)
-            );
-            assert_eq!(compiler.ledger().retained_bytes(), before);
         }
         assert_eq!(execute(&mut compiler, source), "7\n");
         assert_eq!(compiler.finish().retained_bytes(), 0);
@@ -978,13 +983,16 @@ fn rejected_source_adoption_and_unsupported_package_do_not_bind_the_store() {
             .adopt_checked(program, WorkDomain::Baseline)
             .unwrap();
         let before = compiler.ledger().retained_bytes();
-        let unsupported =
-            policy("[bundle]\nmode='split'\n[mangle]\npreserve_properties=['not_retained']\n");
+        // A native contract is no JavaScript package; refusing it binds nothing.
+        let mut config: crate::config::ProjectConfig =
+            toml::from_str("[mangle]\npreserve_properties=['not_retained']\n").unwrap();
+        config.javascript.strip_console = false;
+        let unsupported = config
+            .resolve_policy(crate::compilation_policy::CompilationRequest::Native)
+            .unwrap();
         assert!(matches!(
             compiler.direct_javascript(source, &unsupported, WorkDomain::Optional),
-            Err(CandidateError::UnsupportedBundleMode(
-                crate::config::BundleMode::Split
-            ))
+            Err(CandidateError::NotJavaScript)
         ));
         assert_eq!(compiler.ledger().retained_bytes(), before);
         let direct = compiler

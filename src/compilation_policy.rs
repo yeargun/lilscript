@@ -45,10 +45,25 @@ pub enum CompilationContract {
         preserved_properties: Vec<String>,
         owned_properties: crate::config::InternalProperties,
         bundle_mode: crate::config::BundleMode,
+        /// Split delivery's chunk rule; absent in the other modes, whose
+        /// output these settings cannot change.
+        split: Option<SplitRule>,
     },
     Native {
         abi_version: u32,
     },
+}
+
+/// The default route's split rule: a module keeps its chunk when at least
+/// `shared_min_imports` modules import it and the chunk has at least
+/// `min_chunk_bytes`; up to `max_chunks` such chunks are then added while
+/// each lowers the bundle's deploy cost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SplitRule {
+    pub min_chunk_bytes: usize,
+    pub max_chunks: usize,
+    pub shared_min_imports: usize,
+    pub cost: crate::config::ChunkCostConfig,
 }
 
 /// This is a permission to compete, never a forced representation.
@@ -690,6 +705,7 @@ impl ResolvedPolicy {
                 preserved_properties,
                 owned_properties,
                 bundle_mode,
+                split,
             } => json!({
                 "target":"javascript", "world":format!("{:?}",language.world), "execution":format!("{:?}",language.execution), "ecmascript":language.ecmascript.name(),
                 "preserve_root_exports":language.abi.preserve_root_exports,
@@ -702,7 +718,9 @@ impl ResolvedPolicy {
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,
-                "owned_properties":format!("{owned_properties:?}"), "bundle_mode":format!("{bundle_mode:?}")
+                "owned_properties":format!("{owned_properties:?}"), "bundle_mode":format!("{bundle_mode:?}"),
+                "split":split.map(|rule| json!({"min_chunk_bytes":rule.min_chunk_bytes, "max_chunks":rule.max_chunks,
+                    "shared_min_imports":rule.shared_min_imports, "cost":format!("{:?}", rule.cost)}))
             }),
         };
         let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "realistic_performance_limit_percent":o.rank.realistic_performance_limit_percent, "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "cleanup_finalists":o.cleanup_finalists, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval,"interaction_interval":o.search.interaction_interval}}));

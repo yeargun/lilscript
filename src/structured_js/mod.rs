@@ -21,6 +21,7 @@ use std::collections::BTreeSet;
 pub mod analysis;
 mod compact;
 mod constants;
+pub(crate) mod delivery;
 pub mod extract;
 mod literal_output;
 pub use literal_output::LiteralOutput;
@@ -872,6 +873,9 @@ pub struct Module {
     /// The artifact's contract assumes unpatched builtins: an intrinsic whose
     /// specified result is always an int32 needs no `|0`.
     pub pristine_builtins: bool,
+    /// The source module of each root statement, in order, when the producer
+    /// records it; multi-file delivery groups statements by it.
+    pub root_modules: Vec<u32>,
 }
 
 impl Default for Module {
@@ -899,6 +903,7 @@ impl Module {
             regions,
             root: RegionId::new(0),
             pristine_builtins: false,
+            root_modules: vec![],
         })
     }
 

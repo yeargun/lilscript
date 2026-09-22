@@ -1286,6 +1286,8 @@ impl<'demand, 'program, 'src, 'budget, 'ledger>
                 .reserve_vec(AllocationClass::Retained, statements, count)?;
             statements.extend(prefix.drain(..));
             statements.rotate_right(count);
+            let module = self.current_module;
+            self.prepend_root_owners(root, count, module)?;
         }
         self.drop_scratch(prefix)
     }

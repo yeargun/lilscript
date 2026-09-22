@@ -1226,6 +1226,155 @@ pub fn measure_javascript_transfer_sizes(bytes: &[u8]) -> Result<JavaScriptTrans
     })
 }
 
+/// One delivered file of a semantic bundle, by name.
+pub struct SemanticBundleFile {
+    pub file_name: String,
+    /// Source module names, relative to the entry module's directory.
+    pub modules: Vec<String>,
+    pub dependencies: Vec<String>,
+    /// Modules importing this file's module, when split counts them toward
+    /// cache reuse; zero otherwise.
+    pub importers: usize,
+    pub code: String,
+}
+
+/// The default route's bundle and manifest for a semantic multi-file
+/// delivery: the same depth, reachability, transfer and deploy-cost rules.
+pub fn semantic_javascript_bundle(
+    entry: SemanticBundleFile,
+    chunks: Vec<SemanticBundleFile>,
+    config: &ProjectConfig,
+) -> Result<JavaScriptBundle, String> {
+    let files = std::iter::once(&entry).chain(&chunks).collect::<Vec<_>>();
+    let mut depths = AHashMap::default();
+    depths.insert(entry.file_name.clone(), 0usize);
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for file in &files {
+            let Some(depth) = depths.get(&file.file_name).copied() else {
+                continue;
+            };
+            for dependency in &file.dependencies {
+                let candidate = depth.saturating_add(1);
+                let slot = depths.entry(dependency.clone()).or_insert(candidate);
+                if candidate < *slot {
+                    *slot = candidate;
+                    changed = true;
+                }
+            }
+        }
+    }
+    let mut reachability: AHashMap<String, usize> = AHashMap::default();
+    for file in &files {
+        let mut dependencies = file.dependencies.iter().collect::<Vec<_>>();
+        dependencies.sort_unstable();
+        dependencies.dedup();
+        for dependency in dependencies {
+            *reachability.entry(dependency.clone()).or_insert(0) += 1;
+        }
+    }
+    let selected = |raw: usize, gzip: usize, brotli: usize| match config.javascript.cost_model {
+        CompressionCostModel::Raw => raw,
+        CompressionCostModel::Gzip => gzip,
+        CompressionCostModel::Brotli => brotli,
+    };
+    let mut deploy_cost = 0u64;
+    let mut selected_transfer_bytes = 0usize;
+    let mut manifest_chunks = Vec::with_capacity(chunks.len());
+    for (index, file) in files.iter().enumerate() {
+        let (gzip_bytes, brotli_bytes) = compressed_artifact_sizes(&file.code)?;
+        let depth = depths.get(&file.file_name).copied().unwrap_or(0);
+        let cost = artifact_deploy_cost(
+            file.code.len(),
+            gzip_bytes,
+            brotli_bytes,
+            depth,
+            false,
+            reachability
+                .get(&file.file_name)
+                .copied()
+                .unwrap_or(0)
+                .max(file.importers),
+            config,
+        );
+        deploy_cost = deploy_cost.saturating_add(cost);
+        let transfer = selected(file.code.len(), gzip_bytes, brotli_bytes);
+        selected_transfer_bytes = selected_transfer_bytes.saturating_add(transfer);
+        if index == 0 {
+            continue;
+        }
+        manifest_chunks.push(JavaScriptBundleManifestChunk {
+            file: file.file_name.clone(),
+            modules: file.modules.clone(),
+            bytes: file.code.len(),
+            gzip_bytes,
+            brotli_bytes,
+            selected_transfer_bytes: transfer,
+            kind: "static".to_string(),
+            dependencies: file.dependencies.clone(),
+            dynamic_dependencies: Vec::new(),
+            cache_key: content_hash(file.code.as_bytes()),
+            deploy_cost: cost,
+        });
+    }
+    let mut hasher = Sha256::new();
+    for file in &files {
+        hasher.update((file.file_name.len() as u64).to_le_bytes());
+        hasher.update(file.file_name.as_bytes());
+        hasher.update((file.code.len() as u64).to_le_bytes());
+        hasher.update(file.code.as_bytes());
+    }
+    let build_id = content_hash(&hasher.finalize());
+    let objective = JavaScriptBundleObjectiveManifest {
+        javascript_codec: compression_cost_model_name(config.javascript.cost_model).to_string(),
+        raw_weight: config.bundle.cost.raw_weight,
+        gzip_weight: config.bundle.cost.gzip_weight,
+        brotli_weight: config.bundle.cost.brotli_weight,
+        request_overhead_bytes: config.bundle.cost.request_overhead_bytes,
+        dependency_depth_penalty_bytes: config.bundle.cost.dependency_depth_penalty_bytes,
+        preload_request_discount_percent: config.bundle.cost.preload_request_discount_percent,
+        cache_reuse_discount_percent: config.bundle.cost.cache_reuse_discount_percent,
+    };
+    let objective_fingerprint = content_hash(
+        format!(
+            "v1:{}:{}:{}:{}:{}:{}:{}:{}",
+            objective.javascript_codec,
+            objective.raw_weight,
+            objective.gzip_weight,
+            objective.brotli_weight,
+            objective.request_overhead_bytes,
+            objective.dependency_depth_penalty_bytes,
+            objective.preload_request_discount_percent,
+            objective.cache_reuse_discount_percent,
+        )
+        .as_bytes(),
+    );
+    let entry_file = entry.file_name.clone();
+    let bundle_files = std::iter::once(entry)
+        .chain(chunks)
+        .map(|file| JavaScriptBundleFile {
+            file_name: file.file_name,
+            code: file.code,
+        })
+        .collect();
+    Ok(JavaScriptBundle {
+        files: bundle_files,
+        manifest: JavaScriptBundleManifest {
+            version: 2,
+            build_id,
+            mode: bundle_mode_name(config.bundle.mode).to_string(),
+            entry: entry_file,
+            preload: Vec::new(),
+            objective,
+            objective_fingerprint,
+            selected_transfer_bytes,
+            deploy_cost,
+            chunks: manifest_chunks,
+        },
+    })
+}
+
 fn compressed_artifact_sizes(code: &str) -> Result<(usize, usize), String> {
     let sizes = measure_javascript_transfer_sizes(code.as_bytes())?;
     Ok((sizes.gzip9, sizes.brotli11))
@@ -1327,34 +1476,10 @@ fn artifact_deploy_cost(
     reachability: usize,
     config: &ProjectConfig,
 ) -> u64 {
-    let cost = &config.bundle.cost;
-    let byte_cost = (raw as u64)
-        .saturating_mul(u64::from(cost.raw_weight))
-        .saturating_add((gzip as u64).saturating_mul(u64::from(cost.gzip_weight)))
-        .saturating_add((brotli as u64).saturating_mul(u64::from(cost.brotli_weight)));
-    let request = if depth == 0 {
-        0
-    } else {
-        let request = cost.request_overhead_bytes as u64;
-        if preloaded {
-            request.saturating_mul(u64::from(
-                100u32.saturating_sub(cost.preload_request_discount_percent),
-            )) / 100
-        } else {
-            request
-        }
-    };
-    let depth_cost =
-        (cost.dependency_depth_penalty_bytes as u64).saturating_mul(depth.saturating_sub(1) as u64);
-    let cache_reuse = reachability.saturating_sub(1).min(4) as u64;
-    let cache_discount = byte_cost
-        .saturating_mul(u64::from(cost.cache_reuse_discount_percent))
-        .saturating_mul(cache_reuse)
-        / 100;
-    byte_cost
-        .saturating_add(request)
-        .saturating_add(depth_cost)
-        .saturating_sub(cache_discount)
+    config
+        .bundle
+        .cost
+        .deploy_cost(raw, gzip, brotli, depth, preloaded, reachability)
 }
 
 fn compile_program_all<'ast, 'src>(

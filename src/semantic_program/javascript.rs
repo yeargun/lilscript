@@ -440,6 +440,7 @@ fn form_with_demand(
         stable_cells: Vec::new(),
         arguments_read: None,
         int32_cells: Vec::new(),
+        current_module: 0,
         budget: &mut phase,
     };
     let result = (|| {
@@ -449,6 +450,7 @@ fn form_with_demand(
         // since its captures may refer to a later module in an import cycle.
         for &context in demand.roots() {
             formation.work(1)?;
+            formation.current_module = formation.data(context).module.index() as u32;
             formation.plan_context(context, formation.module.root)?;
         }
         // The checked interface separates instantiation from evaluation.
@@ -458,6 +460,7 @@ fn form_with_demand(
         for &context in demand.roots() {
             formation.work(1)?;
             let data = formation.data(context);
+            formation.current_module = data.module.index() as u32;
             let prefix = data.instantiation_prefix as usize;
             formation.statement_operations(
                 context,
@@ -468,6 +471,7 @@ fn form_with_demand(
         for &context in demand.roots() {
             formation.work(1)?;
             let data = formation.data(context);
+            formation.current_module = data.module.index() as u32;
             let prefix = data.instantiation_prefix as usize;
             formation.statement_operations(
                 context,
@@ -561,6 +565,13 @@ fn form_with_demand(
         drop(formation);
         return Err(error);
     }
+    if formation.module.root_modules.len()
+        != formation.module.regions[formation.module.root.index()].statements.len()
+    {
+        let error = formation.error(Span::default(), "root statement without its source module");
+        drop(formation);
+        return Err(error);
+    }
     let Formation {
         module,
         literal_alternatives,
@@ -651,6 +662,8 @@ struct Formation<'demand, 'program, 'src, 'budget, 'ledger> {
     arguments_read: Option<bool>,
     /// Per cell, whether every write is an int32 Number; built on first need.
     int32_cells: Vec<u8>,
+    /// The source module whose root statements are being formed.
+    current_module: u32,
 }
 
 impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
@@ -958,6 +971,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             &mut self.module.regions[region.index()].statements,
             statement,
         )?;
+        if region == self.module.root {
+            let module = self.current_module;
+            self.budget
+                .push(AllocationClass::Retained, &mut self.module.root_modules, module)?;
+        }
         Ok(())
     }
     fn append<T>(&mut self, values: &mut Vec<T>, value: T) -> Result<(), FormationError> {
@@ -1718,6 +1736,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 .reserve_vec(AllocationClass::Retained, statements, count)?;
             statements.extend(reference_prefix.drain(..));
             statements.rotate_right(count);
+            let module = self.data(unit).module.index() as u32;
+            self.prepend_root_owners(body, count, module)?;
         }
         self.drop_scratch(reference_prefix)?;
         let mut prefix = [None, None];
@@ -1742,7 +1762,29 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 statements.push(statement);
             }
             statements.rotate_right(count);
+            let module = self.data(unit).module.index() as u32;
+            self.prepend_root_owners(body, count, module)?;
         }
+        Ok(())
+    }
+
+    /// Keep `root_modules` aligned when statements are prepended to a region
+    /// that is the artifact root.
+    pub(super) fn prepend_root_owners(
+        &mut self,
+        region: js::RegionId,
+        count: usize,
+        module: u32,
+    ) -> Result<(), FormationError> {
+        if region != self.module.root {
+            return Ok(());
+        }
+        self.work(self.module.root_modules.len())?;
+        let owners = &mut self.module.root_modules;
+        self.budget
+            .reserve_vec(AllocationClass::Retained, owners, count)?;
+        owners.extend(std::iter::repeat(module).take(count));
+        owners.rotate_right(count);
         Ok(())
     }
 

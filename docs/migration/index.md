@@ -934,6 +934,31 @@ The search fixtures now choose their programs by the property each test needs: a
 
 Next in 008: root liveness across modules, the delivery modes (preserve-modules, split and lazy with dynamic `import()`), host-module delivery for jquery's `./js-host.ts`, and deterministic chunk manifests.
 
+### 008-D1 Multi-file delivery on the semantic route
+
+- **Owner and files.** `structured_js/delivery.rs` (new: partition, imports/exports, per-file printing), `semantic_program` (the partition and bundle rendering), `compiler_service.rs` (bundle results) and `main.rs` (writing files and the manifest).
+- **Contract.** The default route's bundle contract: `--output entry.js` writes the entry, sibling chunk files and `entry.manifest.json` (version 2: entry, mode, chunks with modules, sizes, dependencies and cache keys).
+- **Model.** Module state, initialization and every function that touches either stay in the entry; a function whose free references are its own locals, hosts and other chunk functions moves to its source module's chunk. Chunk files only define functions, so even cyclic chunk imports cannot observe an uninitialized binding, and no file assigns an import. Cross-file names are the bundle's final names.
+- **Modes.** `preserve-modules` gives one chunk per source module; `split` keeps a chunk only for modules with at least `shared_min_imports` importers and `min_chunk_bytes`, as the default route does. Lazy chunks follow dynamic `import()` support.
+- **Assertions.** Every file parses independently, and loading the entry runs the single-file program's observations exactly. Imports never target the entry, cross-file writes are refused, manifests are deterministic across runs, and the census still passes 72/72/72.
+- **Open decision.** The winner is scored as one stream and then delivered as several. The exit criterion scores streams independently, which is 010's job once bundles are search candidates.
+
+**Status: preserve-modules and split delivered; lazy chunks next.** `--backend semantic` with `bundle.mode` `preserve-modules` or `split` writes the entry, its chunks and the version-2 manifest through the same contract as the default route. Every candidate is scored as the sum of its delivered files, so the scored bytes are exactly the delivered bytes.
+
+- **Partition.** A root `let f=<function>` is a chunk candidate when nothing assigns it again and its subtree writes no root binding. It moves to its module's chunk when that module may carry one and everything it reads is itself chunked (greatest fixpoint). A function that calls into the entry module therefore stays in the entry, and no chunk imports the entry.
+- **Names.** A chunk's file name is `chunk-<sha256(body)[..10]>-<stem>.js`. Bodies print first, then headers that import those names.
+- **Split** is the default route's rule, run inside the render with every codec and render charged to the candidate's budget:
+  - Keep only modules imported by at least `shared_min_imports` modules whose provisional chunk has `min_chunk_bytes`.
+  - Then add, up to `max_chunks`, the chunk that lowers the bundle's deploy cost most, while one does.
+  - Deploy cost is `bundle.cost` over each file's weighted codec bytes, request, depth and cache reuse. That cost function now lives on `ChunkCostConfig` and is shared by both routes. A codec with zero weight is not run.
+- **Contract.** The split rule and its costs are part of the JavaScript contract only in split mode, so they change neither other modes' fingerprints nor their bytes. `UnsupportedBundleMode` is gone.
+- **Evidence.** Six service tests run every delivered file under Node: each chunk loads without the entry, and the entry prints exactly what the single-file build prints. The cases cover module state, mutual recursion across chunks, a cycle back into the entry, determinism, and split's three outcomes (the chunk pays for itself, the request costs more than cache reuse saves, or the chunk is below the minimum size). Library suite 3,004 passed with 3 ignored; census 72/72/72 with zero miscompiles; probelil matches in both lanes.
+- **Remaining:**
+  - Lazy chunks for dynamic `import()`, with preload.
+  - jquery's host module.
+  - Root liveness across modules.
+  - Codec search over bundle plans, which is 010's.
+
 ## 009 Reusable Compression Families
 
 Contracts: A2-A7. Consume 006's interfaces and 008's target/delivery owner. Use [optimization coverage](../optimization-coverage.md) as inventory and the design's competitor mapping as questions to test, not parity evidence.

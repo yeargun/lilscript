@@ -265,6 +265,14 @@ impl ProjectConfig {
                             .internal_properties
                             .unwrap_or(InternalProperties::UnderscoreSuffix),
                         bundle_mode: self.bundle.mode,
+                        split: (self.bundle.mode == BundleMode::Split).then_some(
+                            crate::compilation_policy::SplitRule {
+                                min_chunk_bytes: self.bundle.min_chunk_bytes,
+                                max_chunks: self.bundle.max_chunks,
+                                shared_min_imports: self.bundle.shared_min_imports,
+                                cost: self.bundle.cost,
+                            },
+                        ),
                     },
                     Some(objective),
                 )
@@ -2573,7 +2581,7 @@ pub enum PreloadPolicy {
     All,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ChunkCostConfig {
     pub raw_weight: u32,
@@ -2583,6 +2591,50 @@ pub struct ChunkCostConfig {
     pub dependency_depth_penalty_bytes: usize,
     pub preload_request_discount_percent: u32,
     pub cache_reuse_discount_percent: u32,
+}
+
+impl ChunkCostConfig {
+    /// One delivered file's cost: weighted codec bytes, plus a request for
+    /// every file but the entry (discounted when preloaded) and a penalty per
+    /// level below the first, minus a discount for files several importers
+    /// share from cache.
+    pub fn deploy_cost(
+        &self,
+        raw: usize,
+        gzip: usize,
+        brotli: usize,
+        depth: usize,
+        preloaded: bool,
+        reachability: usize,
+    ) -> u64 {
+        let byte_cost = (raw as u64)
+            .saturating_mul(u64::from(self.raw_weight))
+            .saturating_add((gzip as u64).saturating_mul(u64::from(self.gzip_weight)))
+            .saturating_add((brotli as u64).saturating_mul(u64::from(self.brotli_weight)));
+        let request = if depth == 0 {
+            0
+        } else {
+            let request = self.request_overhead_bytes as u64;
+            if preloaded {
+                request.saturating_mul(u64::from(
+                    100u32.saturating_sub(self.preload_request_discount_percent),
+                )) / 100
+            } else {
+                request
+            }
+        };
+        let depth_cost = (self.dependency_depth_penalty_bytes as u64)
+            .saturating_mul(depth.saturating_sub(1) as u64);
+        let cache_reuse = reachability.saturating_sub(1).min(4) as u64;
+        let cache_discount = byte_cost
+            .saturating_mul(u64::from(self.cache_reuse_discount_percent))
+            .saturating_mul(cache_reuse)
+            / 100;
+        byte_cost
+            .saturating_add(request)
+            .saturating_add(depth_cost)
+            .saturating_sub(cache_discount)
+    }
 }
 
 impl Default for ChunkCostConfig {

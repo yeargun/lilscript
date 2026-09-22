@@ -68,6 +68,7 @@ pub use compiler::{
     compile_path_with_source_configured, compile_source, compile_source_all, compile_source_to_c,
     compile_source_to_js_module, measure_javascript_transfer_sizes,
     profile_template_path_configured, render_diagnostic, render_module_diagnostic,
+    semantic_javascript_bundle, SemanticBundleFile,
 };
 pub use compiler_service::{
     CheckedSourceSession, FinishedSourceSession, ServiceCompilation, ServiceError,

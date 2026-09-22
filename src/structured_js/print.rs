@@ -196,6 +196,122 @@ pub(super) fn render_with_literals_admitted(
     Ok(text)
 }
 
+/// A delivered file prints in two parts: its body (statements and exports),
+/// whose digest names a chunk, then the imports that name other files.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum FilePart {
+    Header,
+    Body,
+}
+
+/// One delivered file of a module: imports from the other files, the
+/// foreign imports it uses, its root statements, then its exports (and the
+/// public exports, for the entry).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_file_admitted(
+    module: &Module,
+    names: &Names,
+    choices: Option<extract::JavaScriptChoices<'_>>,
+    literal_alternatives: &[LiteralAlternative],
+    literals: LiteralOutput,
+    limit: usize,
+    budget: &mut AllocationBudget<'_>,
+    files: &[delivery::DeliveryFile],
+    file: usize,
+    links: &delivery::FileLinks,
+    entry: bool,
+    part: FilePart,
+) -> Result<String, PrintError> {
+    let _timing = crate::timing::TARGET_PRINT.scope(0);
+    let mut phase = budget.scope();
+    let mut printer = Printer {
+        module,
+        names,
+        choices,
+        literal_alternatives,
+        literals,
+        output: Buffer {
+            text: String::new(),
+            budget: &mut phase,
+            limit,
+            error: None,
+        },
+        discarded_root: None,
+    };
+    let header = part == FilePart::Header;
+    for (source, bindings) in links.imports.iter().filter(|_| header) {
+        printer.text("import{");
+        for (index, binding) in bindings.iter().enumerate() {
+            if !printer.output.work(1) {
+                break;
+            }
+            if index != 0 {
+                printer.text(",");
+            }
+            printer.text(names.get(*binding));
+        }
+        printer.text("}from");
+        let path = format!("./{}", files[*source].name);
+        printer.string(&crate::literal::StringValue::from(path.as_str()));
+        printer.text(";");
+    }
+    for &index in links.foreign.iter().filter(|_| header) {
+        let import = &module.imports[index];
+        printer.text("import{");
+        printer.text(&import.imported);
+        let local = names.get(import.binding);
+        if local != import.imported {
+            printer.text(" as ");
+            printer.text(local);
+        }
+        printer.text("}from");
+        printer.string(&import.source);
+        printer.text(";");
+    }
+    let root = &module.regions[module.root.index()].statements;
+    if !header {
+        printer.statement_list(root, &files[file].statements);
+    }
+    if !header && !links.exports.is_empty() {
+        printer.text("export{");
+        for (index, binding) in links.exports.iter().enumerate() {
+            if !printer.output.work(1) {
+                break;
+            }
+            if index != 0 {
+                printer.text(",");
+            }
+            printer.text(names.get(*binding));
+        }
+        printer.text("};");
+    }
+    if !header && entry && !module.exports.is_empty() {
+        printer.text("export{");
+        for (index, export) in module.exports.iter().enumerate() {
+            if !printer.output.work(1) {
+                break;
+            }
+            if index != 0 {
+                printer.text(",");
+            }
+            let local = names.get(export.binding);
+            printer.text(local);
+            if local != export.name {
+                printer.text(" as ");
+                printer.text(&export.name);
+            }
+        }
+        printer.text("};");
+    }
+    let Buffer { text, error, .. } = printer.output;
+    if let Some(error) = error {
+        drop(text);
+        return Err(error);
+    }
+    phase.finish_retained().map_err(PrintError::Admission)?;
+    Ok(text)
+}
+
 struct Buffer<'a, 'ledger> {
     text: String,
     budget: &'a mut AllocationBudget<'ledger>,
@@ -1028,6 +1144,38 @@ impl<'a> Printer<'a, '_, '_> {
             }
             declaring = false;
             self.statement(statement, last && closing);
+        }
+    }
+
+    /// Selected root statements, in order: adjacent declarations still share
+    /// one `let`, and every statement keeps its `;`.
+    fn statement_list(&mut self, statements: &[Statement], order: &[usize]) {
+        let mut declaring = false;
+        for (position, &index) in order.iter().enumerate() {
+            if !self.output.work(1) {
+                return;
+            }
+            if let Statement::Let { binding, value } = &statements[index] {
+                self.text(if declaring { "," } else { "let " });
+                self.text(self.names.get(*binding));
+                if let Some(value) = value {
+                    self.text("=");
+                    self.expression_with_name(
+                        *value,
+                        2,
+                        InferredName::Known(self.names.get(*binding)),
+                    );
+                }
+                declaring = order
+                    .get(position + 1)
+                    .is_some_and(|&next| matches!(statements[next], Statement::Let { .. }));
+                if !declaring {
+                    self.text(";");
+                }
+                continue;
+            }
+            declaring = false;
+            self.statement(&statements[index], false);
         }
     }
 

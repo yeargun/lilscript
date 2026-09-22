@@ -114,6 +114,10 @@ impl std::error::Error for ServiceError {
 #[derive(Debug)]
 pub struct ServiceJavaScript {
     javascript: String,
+    /// Chunk files the entry loads; empty for single-file delivery.
+    chunks: Vec<crate::semantic_program::publication::DeliveredChunk>,
+    /// Chunks the entry imports directly.
+    entry_dependencies: Vec<String>,
     sha256: String,
     sizes: Sizes,
     details: Value,
@@ -122,6 +126,12 @@ pub struct ServiceJavaScript {
 impl ServiceJavaScript {
     pub fn javascript(&self) -> &str {
         &self.javascript
+    }
+    pub fn chunks(&self) -> &[crate::semantic_program::publication::DeliveredChunk] {
+        &self.chunks
+    }
+    pub fn entry_dependencies(&self) -> &[String] {
+        &self.entry_dependencies
     }
     pub fn sha256(&self) -> &str {
         &self.sha256
@@ -267,6 +277,28 @@ impl Frontend {
                 return Err((ServiceError::new("adoption", error), compilation.finish()));
             }
         };
+        // File stems name delivered chunks; they never affect a program.
+        let names = inputs["modules"]
+            .as_array()
+            .map(|modules| {
+                modules
+                    .iter()
+                    .map(|module| {
+                        let stem = module["path"]
+                            .as_str()
+                            .and_then(|path| std::path::Path::new(path).file_stem())
+                            .and_then(|stem| stem.to_str())
+                            .unwrap_or("module");
+                        stem.chars()
+                            .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+                            .collect::<String>()
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if let Err(error) = compilation.set_module_names(names) {
+            return Err((ServiceError::new("adoption", error), compilation.finish()));
+        }
         phases["adopt_ns"] = json!(nanos(phase));
         Ok(CheckedSourceSession {
             started,
@@ -706,12 +738,12 @@ fn deliver_javascript(
     receipt: QualifiedArtifact,
 ) -> Result<ServiceJavaScript, ServiceError> {
     let delivered = (|| {
-        let (sizes, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
+        let (sizes, bundle, details) = compilation.with_qualified_artifact(&receipt, |view, provenance| {
         if !matches!(view.implementation.resource(), ResourceDescription::Whole) {
             return Err(ServiceError::new("handoff", "this service delivers Whole artifacts, not resource packages"));
         }
         let plan = provenance.naming();
-        Ok((view.sizes, json!({
+        Ok((view.sizes, !view.chunks.is_empty(), json!({
             "recipe_words":view.implementation.recipe_words(),
             "recipe_fingerprint":view.recipe_fingerprint,
             "semantic":semantic_report(view.implementation.snapshot_identity(),
@@ -723,15 +755,29 @@ fn deliver_javascript(
             "output":{"dead_code_elimination":view.output.dead_code_elimination,
                 "target_compaction":view.output.target_compaction,"literals":format!("{:?}",view.output.literals)},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
+            "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len()})).collect::<Vec<_>>(),
             "policy_fingerprint":receipt.policy_fingerprint(),
         })))
     }).map_err(|error| ServiceError::new("handoff",error))??;
-        let javascript = compilation
-            .take_qualified_artifact(receipt)
-            .map_err(|error| ServiceError::new("handoff", error))?;
+        let (javascript, entry_dependencies, chunks) = if bundle {
+            let delivered = compilation
+                .take_qualified_bundle(receipt)
+                .map_err(|error| ServiceError::new("handoff", error))?;
+            (delivered.entry, delivered.entry_dependencies, delivered.chunks)
+        } else {
+            (
+                compilation
+                    .take_qualified_artifact(receipt)
+                    .map_err(|error| ServiceError::new("handoff", error))?,
+                Vec::new(),
+                Vec::new(),
+            )
+        };
         Ok(ServiceJavaScript {
             sha256: digest(javascript.as_bytes()),
             javascript,
+            chunks,
+            entry_dependencies,
             sizes,
             details,
         })
@@ -1111,3 +1157,7 @@ mod tests;
 #[cfg(test)]
 #[path = "compiler_service_budget_tests.rs"]
 mod budget_tests;
+
+#[cfg(test)]
+#[path = "compiler_service_delivery_tests.rs"]
+mod delivery_tests;

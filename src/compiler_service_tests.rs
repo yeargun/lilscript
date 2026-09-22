@@ -374,15 +374,20 @@ fn service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback(
     // The target session no longer holds source text, so a formation refusal
     // carries its span in the message but no rendered diagnostic (011 work).
     assert!(result.diagnostic.is_none());
-    let result = compile_source_semantic(
-        "export int answer(){return 17;}",
-        &config("[bundle]\nmode='preserve-modules'"),
-        ServiceOptions::default(),
-    );
-    assert!(
-        result.is_err(),
-        "unsupported delivery must not borrow a legacy bundle"
-    );
+    // Multi-file delivery of one source module is its entry file alone.
+    for mode in ["preserve-modules", "split"] {
+        let result = compile_source_semantic(
+            "export int answer(){return 17;}",
+            &config(&format!("[bundle]\nmode='{mode}'")),
+            ServiceOptions::default(),
+        )
+        .unwrap();
+        assert!(result
+            .javascript(Objective::Brotli)
+            .unwrap()
+            .chunks()
+            .is_empty());
+    }
 }
 
 #[test]

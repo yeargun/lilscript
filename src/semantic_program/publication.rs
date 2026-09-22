@@ -8,6 +8,7 @@
 //! construction or externally retained source/type storage.
 
 pub use super::artifact_provenance::{LiteralOutput, OutputTactics};
+pub use super::artifacts::{DeliveredBundle, DeliveredChunk};
 use super::artifacts::ArtifactArena;
 pub use super::artifacts::{
     ArtifactId, ArtifactResourceView, ArtifactRuntimeEvidence, ArtifactView,
@@ -192,7 +193,6 @@ pub enum CandidateError {
     Budget(BudgetError),
     NotJavaScript,
     ContractMismatch,
-    UnsupportedBundleMode(crate::config::BundleMode),
     UnknownCandidate,
     ForbiddenTactic(TacticId),
     UnsupportedRisk,
@@ -733,6 +733,8 @@ struct Checkpoint<'src> {
 /// Target buffers drop before their fixed-domain reservation. Each output owns
 /// a separate budget so Optional naming cannot spend the Baseline reserve.
 struct JavaScriptTarget<'scope, 'src> {
+    /// Source module stems for delivered chunk names.
+    module_names: &'scope [String],
     module: crate::structured_js::Module,
     literals: Vec<crate::structured_js::LiteralAlternative>,
     #[cfg(test)]
@@ -762,8 +764,46 @@ impl JavaScriptTarget<'_, '_> {
             policy,
             choices,
             budget,
+            module_names,
             ..
         } = self;
+        // Multi-file delivery: every source module but the entry may carry a
+        // chunk of its self-contained functions; split mode then selects.
+        let bundle = match policy.contract() {
+            crate::compilation_policy::CompilationContract::JavaScript {
+                bundle_mode,
+                split,
+                ..
+            } if *bundle_mode != crate::config::BundleMode::Single => {
+                let program = &checkpoint.semantic.program;
+                let modules = program.modules();
+                let entry = program.entry_module().index();
+                // Importing modules per module, counted once per importer.
+                let mut importers = vec![0usize; modules.len()];
+                for module in modules {
+                    let mut unique = module.dependencies.clone();
+                    unique.sort_unstable();
+                    unique.dedup();
+                    for dependency in unique {
+                        importers[dependency.index()] += 1;
+                    }
+                }
+                Some(super::artifacts::BundleSpec {
+                    allowed: (0..modules.len()).map(|index| index != entry).collect(),
+                    stems: (0..modules.len())
+                        .map(|index| {
+                            module_names
+                                .get(index)
+                                .cloned()
+                                .unwrap_or_else(|| format!("m{index}"))
+                        })
+                        .collect(),
+                    importers,
+                    split: *split,
+                })
+            }
+            _ => None,
+        };
         budget.with_ledger(|ledger| {
             let mut phase = AllocationBudget::new(ledger.map(|(ledger, _)| (ledger, domain)));
             let output =
@@ -803,7 +843,8 @@ impl JavaScriptTarget<'_, '_> {
                 policy.javascript_contract().unwrap().execution,
                 *choices,
                 resource,
-            );
+            )
+            .with_bundle(bundle.as_ref());
             Ok(inspect(&mut facade))
         })
     }
@@ -884,9 +925,26 @@ pub struct Compilation<'src> {
     /// Capacity persists between callbacks and belongs to the same ledger.
     local_facts: Option<RetainedFactsCache>,
     artifacts: ArtifactArena,
+    /// Source module file stems for delivered chunk names: descriptive only,
+    /// never part of a program's meaning.
+    module_names: Option<(Vec<String>, Charge)>,
 }
 
 impl<'src> Compilation<'src> {
+    /// Name each source module, by index, for multi-file delivery.
+    pub fn set_module_names(&mut self, names: Vec<String>) -> Result<(), PublicationError> {
+        let bytes = names
+            .iter()
+            .map(|name| name.capacity() as u64)
+            .sum::<u64>()
+            .saturating_add((names.capacity() * std::mem::size_of::<String>()) as u64);
+        let charge = Charge::reserve(&mut self.ledger, WorkDomain::Baseline, bytes)?;
+        if let Some((_, previous)) = self.module_names.replace((names, charge)) {
+            previous.release(&mut self.ledger)?;
+        }
+        Ok(())
+    }
+
     pub fn new(ledger: BudgetLedger, limit: CheckpointLimit) -> Result<Self, PublicationError> {
         Self::new_preserving_ledger(ledger, limit).map_err(|(_, error)| error)
     }
@@ -935,6 +993,7 @@ impl<'src> Compilation<'src> {
             javascript: None,
             local_facts: None,
             artifacts: ArtifactArena::new(store),
+            module_names: None,
         })
     }
     pub fn ledger(&self) -> &BudgetLedger {
@@ -2002,6 +2061,10 @@ impl<'src> Compilation<'src> {
             super::javascript::FormationError::Allocation(error) => error.into(),
         })?;
         let mut target = JavaScriptTarget {
+            module_names: self
+                .module_names
+                .as_ref()
+                .map_or(&[][..], |(names, _)| names.as_slice()),
             module,
             literals,
             #[cfg(test)]
@@ -2070,6 +2133,19 @@ impl<'src> Compilation<'src> {
         self.artifacts.with_artifact(artifact.artifact(), |view| {
             inspect(view, provenance.description())
         })
+    }
+
+    /// Deliver the exact multi-file artifact admitted by this receipt: its
+    /// entry text and every chunk file scored with it.
+    pub fn take_qualified_bundle(
+        &mut self,
+        artifact: QualifiedArtifact,
+    ) -> Result<DeliveredBundle, CandidateError> {
+        self.artifacts.check_qualified(&artifact)?;
+        self.artifacts.take_bundle(
+            artifact.artifact(),
+            &mut AllocationBudget::new(Some((&mut self.ledger, WorkDomain::Baseline))),
+        )
     }
 
     /// Deliver the exact single-file artifact admitted by this receipt.
@@ -2307,8 +2383,15 @@ impl<'src> Compilation<'src> {
             javascript,
             local_facts,
             artifacts,
+            module_names,
             ..
         } = self;
+        if let Some((names, charge)) = module_names {
+            drop(names);
+            charge
+                .release(&mut ledger)
+                .expect("owned module name reservation");
+        }
         artifacts.finish(&mut ledger);
         for slot in slots {
             if let Some(checkpoint) = slot.checkpoint {
@@ -2424,15 +2507,11 @@ fn admitted_contract_payload(
 ) -> Result<u64, CandidateError> {
     let CompilationContract::JavaScript {
         preserved_properties,
-        bundle_mode,
         ..
     } = contract
     else {
         return Err(CandidateError::NotJavaScript);
     };
-    if *bundle_mode != crate::config::BundleMode::Single {
-        return Err(CandidateError::UnsupportedBundleMode(*bundle_mode));
-    }
     ledger.charge(
         domain,
         WorkKind::Edit,
@@ -2459,6 +2538,7 @@ fn copy_javascript_contract(
         preserved_properties,
         owned_properties,
         bundle_mode,
+        split,
     } = contract
     else {
         return Err(CandidateError::NotJavaScript);
@@ -2480,6 +2560,7 @@ fn copy_javascript_contract(
         preserved_properties: names,
         owned_properties: *owned_properties,
         bundle_mode: *bundle_mode,
+        split: *split,
     })
 }
 fn check_candidate_policy(

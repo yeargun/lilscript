@@ -312,6 +312,63 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
     }
     let codec = config.javascript.cost_model;
     match args.target {
+        Target::Js | Target::JsModule if config.bundle.mode != BundleMode::Single => {
+            let selected = result
+                .javascript(codec)
+                .ok_or("missing selected JavaScript artifact")?;
+            let output = args.output.as_deref().ok_or_else(|| {
+                "split and preserve-modules bundle modes require an explicit --output entry file"
+                    .to_string()
+            })?;
+            let entry_file = output
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
+            // Module names relative to the entry module's directory, as the
+            // default route writes them into the manifest.
+            let paths = result.report()["inputs"]["modules"]
+                .as_array()
+                .map(|modules| {
+                    modules
+                        .iter()
+                        .map(|module| module["path"].as_str().unwrap_or("").to_string())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            let base = args
+                .input
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."));
+            let base = fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
+            let name = |index: u32| {
+                let path = Path::new(paths.get(index as usize).map_or("", String::as_str));
+                path.strip_prefix(&base)
+                    .unwrap_or(path)
+                    .display()
+                    .to_string()
+            };
+            let entry = lilscript::SemanticBundleFile {
+                file_name: entry_file.to_string(),
+                modules: Vec::new(),
+                dependencies: selected.entry_dependencies().to_vec(),
+                importers: 0,
+                code: selected.javascript().to_string(),
+            };
+            let chunks = selected
+                .chunks()
+                .iter()
+                .map(|chunk| lilscript::SemanticBundleFile {
+                    file_name: chunk.name.clone(),
+                    modules: chunk.modules.iter().map(|&module| name(module)).collect(),
+                    dependencies: chunk.dependencies.clone(),
+                    importers: chunk.importers,
+                    code: chunk.code.clone(),
+                })
+                .collect();
+            let bundle = lilscript::semantic_javascript_bundle(entry, chunks, config)?;
+            write_javascript_bundle(output, &bundle)
+        }
         Target::Js | Target::JsModule => write_or_print(
             args.output.as_deref(),
             result
