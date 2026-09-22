@@ -89,7 +89,7 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [007 Language and port coverage](#007-language-and-port-coverage) | 006 | implemented; census script/module/native C 72/72/72 with zero miscompiles and every native program clean under ASan/UBSan/LSan; 24 of 25 ports build semantically, 18 pass their whole suites and the rest wait on 008 or the environment; syntax and class inheritance closed; dynamic `import()` moved to 008 by decision | [census 007e](../../benchmarks/migration-results/2026-09-21-semantic-census-007e/receipt.json), [ports 007e](../../benchmarks/migration-results/2026-09-21-semantic-ports-007e/receipt.json) |
 | [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | implemented. Every delivery mode: single, preserve-modules, split, lazy `import()` and carried host modules. Liveness is verified across modules, and six compaction batches landed. Real libraries run unchanged in multi-file delivery. Semantic Brotli is now below the default route on zodlil and within 3% on markedlil. Codec alternatives (for-head, logical ifs) and per-stream scoring go to 010. | [then vs now](../../benchmarks/migration-results/2026-09-22-then-vs-now/README.md) |
 | [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | implemented. Five batches of generic target edits: unobserved function names, forwarding-builtin substitution, single-expression and statement inlining with arena renumbering, literal and store folds, spellings. Brotli since the milestone began: katexlil 61,391 → 57,589, zodlil 29,580 → 28,326 (below the default route's 29,682), markedlil 9,641 → 9,398 (default route 9,360), probelil 1,905 → 1,872. No runtime regression. The proof-heavy families measure 0–8 bytes and are kept until 013's fleet ablation. | [009 sections](#009-batch-1-substitution-and-folding-on-the-finished-program-2026-09-22) |
-| [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | waiting | None |
+| [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | implemented. Every exit item is covered by a named test or measurement. Real libraries replay byte-identically across effort levels and thread counts. The search is saturated there: the winner never moves, because the families propose almost nothing. Codec-scored spellings measured, and only `for(let …)` heads kept. Scheduler heuristics 3–6 wait for opportunities to schedule. | [010 status](#010-status-2026-09-22-exit-evidence-mapped-search-measured-saturated-on-real-libraries) |
 | [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | waiting | None |
 | [ ] | [012 Compilation speed and resource gates](#012-compilation-speed-and-resource-gates) | 011 | waiting; phase telemetry, production-slice cost and probe ablations pass | None |
 | [ ] | [013 Compression qualification](#013-compression-qualification) | 011, 012 | waiting | None |
@@ -1353,6 +1353,36 @@ Develop heuristics in this order, using the fast-feedback policy above:
 An initial heuristic may remain simple. Measure quality regret against the finite oracle and bytes-versus-cost curves on frozen tuning/held-out boundaries before adding adaptive or learned ranking. A fixed number of unsuccessful proposals alone is not proof that interaction work is exhausted. No heuristic is adopted solely because it wins a hand-selected fixture.
 
 **Exit:** tiny finite-space compatibility/winner tests against exhaustive references and interaction traps under narrow heuristic beams. Test stale caches, collision-safe deduplication, failed codecs, discovery fairness, memory refusal and parallel reservations. Declare deterministic seeds/ties/schedules and warm/cold behavior; time cutoffs report truncation. Continued compatible search cannot worsen its incumbent. Presets promising higher-effort nonregression must replay/include lower-effort winners; changing a beam/schedule proves no monotonicity. Real-library effort/objective/flag matrices and ablations show bounded scaling and replayable winners.
+
+### 010 status (2026-09-22): exit evidence mapped, search measured saturated on real libraries
+
+The search built in 006 already carries this milestone's scheduler, portfolio, beams, seeds, score reuse and accounting. Each exit item maps to an existing test or to today's measurement:
+
+| Exit item | Evidence |
+|---|---|
+| Finite-space winners against exhaustive references | `structural_discovery_matches_independent_twelve_state_oracle_and_measured_union`; the product, record and module oracles (`product_storage_and_captured_helper_oracle_measures_the_complete_compatible_space`, `private_product_oracle_covers_all_storage_transport_and_inline_combinations`, `module_oracle`) |
+| Interaction traps under narrow beams | `narrow_brotli_search_crosses_two_singleton_losses_with_a_competing_helper`, `opt_in_seed_pairs_recover_losing_parents_without_extra_search_allowances`, `bounded_structural_service_reaches_skipped_helper_and_independent_compatible_union` |
+| Stale caches | `stale_supplied_input_is_not_a_choice_conflict_and_fragment_root_is_refused`, `stale_facts_and_source_edits_cannot_qualify_retained_string_choices`, `a_stale_or_corrupted_dead_value_proof_is_refused_without_publication` |
+| Collision-safe deduplication | `identical_naming_outputs_keep_distinct_trials_without_repeating_codec_probes` |
+| Failed codecs | `zero_byte_and_partial_all_codec_failures_are_never_retried_or_observed` |
+| Discovery fairness | `search_fairness_tests` (five cases), `truncated_queries_are_skipped_within_the_request_and_retried_with_stronger_bounds` |
+| Memory refusal and reservations | `optional_work_memory_and_probe_exhaustion_preserve_scored_incumbents`, `search_memory_tests`, `helper_attempt_caps_and_one_shot_fact_qualification_release_every_reservation` |
+| Determinism and no regression from continued search | `fixed_schedule_probe_prefixes_are_deterministic_and_additional_probes_do_not_regress`, `finite_valley_schedule_ablation_reports_quality_and_work_without_changing_defaults` |
+| Zero budgets return an admitted incumbent | `zero_optional_work_seals_a_completely_scored_direct_baseline` |
+| Separate winners per codec | `real_gzip_and_brotli_winners_survive_independently`, `requested_codecs_keep_separate_winners_and_diversity_reaches_a_real_raw_loser` |
+
+**Real-library effort matrix.** Semantic route, each port's own configuration with only `optimization_level` changed:
+
+| Port | Levels | Bytes | Compile time | Replay |
+|---|---|---|---|---|
+| markedlil | 8, 11, 13, 15, 16, each run twice | byte-identical, 39,738 / 9,398 Brotli | 0.8 s | identical |
+| katexlil | 8, 13, 16, plus `-j1` against `-j4` | byte-identical, 238,795 / 57,589 Brotli | 3.6 s | identical |
+
+Higher effort includes the lower-effort winner trivially: the winner never moves. This is the saturation my notes recorded for the default route. Optional structural proposals do not beat the direct candidate, because the IR families find almost nothing to propose on these ports (009 ablation). The bytes come from deterministic target edits applied to every candidate.
+
+**Codec-scored spellings.** 008 deferred these to here, and they are measured instead of searched. `for(let …)` heads never lose and are now on. `&&`/`||` statements, loose `typeof` comparisons, `else` after a jump and direct array methods each lose Brotli on the reference ports (see 009 batch 3 and the re-run ablation), so none earns a slot. Per-stream scoring was delivered in 008: a multi-file candidate is scored as the sum of its delivered files.
+
+**What 010 leaves open.** The scheduler heuristics in steps 3–6 (interleaved neighborhoods, an interaction lane, domain-scoped rediscovery, naming moves after structural changes) matter once the families produce more opportunities. On the reference ports today they would schedule an empty space. That work waits for opportunities worth scheduling, and 013's fleet ablation decides whether those appear.
 
 ## 011 Public Compiler and Fleet Integration
 
