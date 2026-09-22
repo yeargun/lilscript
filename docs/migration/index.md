@@ -88,7 +88,7 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [006 Integrated architecture proof](#006-integrated-architecture-proof) | 001-005 | implemented; D2 public value-struct adapter and D5 level-16 grant on the semantic route, reuse-versus-fresh measured under one ledger, owners traced, limits recorded; boundary shapes a copy cannot preserve assigned to 007, formation cleanup to 008, wrapper inlining to 009 | [accepted.json](../../benchmarks/migration-results/accepted.json) |
 | [ ] | [007 Language and port coverage](#007-language-and-port-coverage) | 006 | implemented; census script/module/native C 72/72/72 with zero miscompiles and every native program clean under ASan/UBSan/LSan; 24 of 25 ports build semantically, 18 pass their whole suites and the rest wait on 008 or the environment; syntax and class inheritance closed; dynamic `import()` moved to 008 by decision | [census 007e](../../benchmarks/migration-results/2026-09-21-semantic-census-007e/receipt.json), [ports 007e](../../benchmarks/migration-results/2026-09-21-semantic-ports-007e/receipt.json) |
 | [ ] | [008 Whole-program JS and delivery](#008-whole-program-js-and-delivery) | 006, 007 | implemented. Every delivery mode: single, preserve-modules, split, lazy `import()` and carried host modules. Liveness is verified across modules, and six compaction batches landed. Real libraries run unchanged in multi-file delivery. Semantic Brotli is now below the default route on zodlil and within 3% on markedlil. Codec alternatives (for-head, logical ifs) and per-stream scoring go to 010. | [then vs now](../../benchmarks/migration-results/2026-09-22-then-vs-now/README.md) |
-| [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | waiting | None |
+| [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | implemented. Five batches of generic target edits: unobserved function names, forwarding-builtin substitution, single-expression and statement inlining with arena renumbering, literal and store folds, spellings. Brotli since the milestone began: katexlil 61,391 → 57,589, zodlil 29,580 → 28,326 (below the default route's 29,682), markedlil 9,641 → 9,398 (default route 9,360), probelil 1,905 → 1,872. No runtime regression. The proof-heavy families measure 0–8 bytes and are kept until 013's fleet ablation. | [009 sections](#009-batch-1-substitution-and-folding-on-the-finished-program-2026-09-22) |
 | [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | waiting | None |
 | [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | waiting | None |
 | [ ] | [012 Compilation speed and resource gates](#012-compilation-speed-and-resource-gates) | 011 | waiting; phase telemetry, production-slice cost and probe ablations pass | None |
@@ -1320,6 +1320,15 @@ The batch work lives in target compaction and dead-code elimination, where it be
 **Recommendation, not yet acted on:** keep them until 013 ablates the whole fleet. Four ports are too narrow to justify deleting tested subsystems whose value may lie in typed ports outside this set. If the fleet agrees they are zero, 013 removes them.
 
 **Two gated spellings, measured.** Loop-head declarations (`for(let i=0;…)`) are never larger: katexlil −33, the others 0. They are now on under target compaction. `&&`/`||` statements for one-statement `if`s lose on three ports (markedlil +9, zodlil +67, katexlil +22) and stay off.
+
+**Runtime.** Node 24, medians after warm-up, comparing the semantic route now, the default route and the semantic route before 009 began:
+
+| Workload | Semantic, now | Default route | Semantic, before 009 |
+|---|---|---|---|
+| markedlil `parse` over the spec corpus (40 rounds) | 33.3 ms | 34.5 ms | 34.6 ms |
+| katexlil `renderToString` over 8 formulas × 20 (30 rounds) | 22.0 ms | 20.0 ms | 22.1 ms |
+
+The 009 edits leave runtime unchanged. katexlil's roughly 10% gap to the default route predates them and goes to 012's speed gates.
 
 **Where katexlil's remaining gap is.** Terser's leave-one-out on the current output still puts most of it in `unused` and `reduce_vars` (+1,245 and +1,150 when removed). That is single-use multi-statement functions moved into their call sites as IIFEs: `sqrtPath`, `tallDelim`, the console helpers and the surrogate-pair decoder. An IIFE allocates a closure every time its enclosing code runs. That is a runtime cost 012's speed gates would have to accept, so it is not taken here.
 
