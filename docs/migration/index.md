@@ -91,8 +91,8 @@ A checked box requires implementation, accepted evidence and review of the asser
 | [ ] | [009 Reusable compression families](#009-reusable-compression-families) | 006, 008 | implemented. Five batches of generic target edits: unobserved function names, forwarding-builtin substitution, single-expression and statement inlining with arena renumbering, literal and store folds, spellings. Brotli since the milestone began: katexlil 61,391 → 57,589, zodlil 29,580 → 28,326 (below the default route's 29,682), markedlil 9,641 → 9,398 (default route 9,360), probelil 1,905 → 1,872. No runtime regression. The proof-heavy families measure 0–8 bytes and are kept until 013's fleet ablation. | [009 sections](#009-batch-1-substitution-and-folding-on-the-finished-program-2026-09-22) |
 | [ ] | [010 Bounded codec search](#010-bounded-codec-search) | 006, 009 | implemented. Every exit item is covered by a named test or measurement. Real libraries replay byte-identically across effort levels and thread counts. The search is saturated there: the winner never moves, because the families propose almost nothing. Codec-scored spellings measured, and only `for(let …)` heads kept. Scheduler heuristics 3–6 wait for opportunities to schedule. | [010 status](#010-status-2026-09-22-exit-evidence-mapped-search-measured-saturated-on-real-libraries) |
 | [ ] | [011 Public compiler and fleet integration](#011-public-compiler-and-fleet-integration) | 007-010 | partial. `[compiler] backend` selects the route explicitly, and the backend and policy are recorded on every build. Reference-port suites pass through public entrypoints: katexlil, zodlil, markedlil (29/29 with a representation patch) and jquerylil. Compression losses recorded for 013. The full-fleet suites wait for a worker pool. | [011 status](#011-status-2026-09-22-route-selection-reference-suites-through-public-entrypoints) |
-| [ ] | [012 Compilation speed and resource gates](#012-compilation-speed-and-resource-gates) | 011 | waiting; phase telemetry, production-slice cost and probe ablations pass | None |
-| [ ] | [013 Compression qualification](#013-compression-qualification) | 011, 012 | waiting | None |
+| [ ] | [012 Compilation speed and resource gates](#012-compilation-speed-and-resource-gates) | 011 | partial. Paired reference-port builds: the semantic route compiles in 0.27–4.2 s against 27–352 s on the default route, at a quarter or less of the peak RSS. Runtime is equal on markedlil and ~10% slower on katexlil. Envelopes are not yet frozen, p95 is not measured, and the fleet has not run. | [012 status](#012-status-2026-09-22-the-semantic-route-is-two-orders-of-magnitude-cheaper-to-compile) |
+| [ ] | [013 Compression qualification](#013-compression-qualification) | 011, 012 | open. katexlil loses to Terser by 4,017 Brotli on the semantic route (1,576 on the default route); zodlil and markedlil are not comparable boundaries. The loss causes are grouped, and the fleet cells have not run. | [013 status](#013-status-2026-09-22-katex-is-a-loss-the-other-reference-boundaries-are-not-comparable) |
 | [ ] | [014 Retirement and final certification](#014-retirement-and-final-certification) | 001-013 | waiting | None |
 
 Baseline collection and contract discussion can proceed together. 008 and 010 may begin against 006's validated interfaces, with closure prerequisites still binding. **No broad language/optimization migration before 006 passes.** Small interacting family implementations and exact selection belong in 006; they cannot wait for 009/010.
@@ -1438,6 +1438,21 @@ The [production CLI study](../../benchmarks/migration-results/2026-09-20-semanti
 
 Three rounds over ten explicit configurations compare immediate/staged scoring at 8/24/48/96/192 optional probes, holding proposals at 96 and all other policy/contract fields equal. At 24 probes, staged scoring delivers the exact full-run artifact in 521.818 ms versus 1,944.863 ms at the original cap; eight probes cost 202.235 ms and one additional Brotli byte. Immediate scoring remains at 3,512 bytes at 24/48 probes. At 96/192 caps, only 96 optional probes execute before the proposal limit. Staged exploration spends more formation/work at tight probe budgets. These are configured-workload tradeoffs, not a compiler algorithm improvement, universal cap or proof that a plateau is safe to stop. All 42 accepted outputs, including warmups, pass unchanged host observations and independent codecs. Root reconciles 608 outputs, five binaries and the unchanged 981 inputs; the initial benchmark JSON-parser failure is preserved. No independent agent review or milestone closure is claimed. Next compare interaction retention and held-out quality-per-effort before changing defaults; do not substitute a naming cache or blanket early-stop rule for that evidence.
 
+### 012 status (2026-09-22): the semantic route is two orders of magnitude cheaper to compile
+
+Paired builds of the reference ports, alternating routes, each port's own configuration, four worker threads ([evidence](../../benchmarks/migration-results/2026-09-22-semantic-competitors/README.md#compile-time-and-memory-012)):
+
+| Port | Default route, median wall / peak RSS | Semantic route, median wall / peak RSS |
+|---|---|---|
+| probelil | 27.0 s / 32 MB | 0.27 s / 14 MB |
+| markedlil | 174.8 s / 83 MB | 1.02 s / 21 MB |
+| zodlil | 189.7 s / 244 MB | 3.00 s / 45 MB |
+| katexlil | 352.1 s / 259 MB | 4.18 s / 68 MB |
+
+Runtime, measured under 009: markedlil `parse` runs in 33.3 ms on the semantic route against 34.5 ms on the default route. katexlil `renderToString` runs in 22.0 ms against 20.0 ms. That roughly 10% gap is older than the 009 edits.
+
+**What stays open.** No declared compile-time, RSS or runtime envelope has been violated, but none is frozen yet. There is no p95, since this host throttles before a round set completes. The rows are the reference ports, not the fleet. katexlil's runtime gap needs a profile before 014. Hot-loop timings on this host move by up to ±17% with code alignment alone, so the profile needs a no-op perturbation build as a control.
+
 ## 013 Compression Qualification
 
 Contracts: objective, A2/A4-A7. Generate, test and independently measure raw-, gzip- and Brotli-selected release artifacts for every frozen competitive cell. Qualify applicable pinned competitor recipes under the same public/runtime contract. Missing/failed expected competitors require investigation; neither they nor losing workloads silently disappear.
@@ -1454,6 +1469,23 @@ Use complete delivery and pinned codecs. Runtime eligibility on both sides binds
 Group losses by lost facts, unavailable families, incompatible layouts, syntax/names/order, search allocation or packaging. Add bounded child tasks here with reproduction, owner, negative behavior cases and cost limit. Fix general mechanisms; recheck interactions and held-out cases. Update baselines deliberately as a new comparison contract, never selectively per losing row.
 
 **Exit:** every required cell passes behavior, eligibility, per-codec no-loss and cost gates on the same compiler inputs. Independently replay recipes/hashes; report per-row bytes, wins/ties/losses and costs. Remaining losses keep the gate open. Measure strict-win percentages without inventing the threshold or claiming "almost always" is settled. Architecture completion alone cannot close a competitive loss.
+
+### 013 status (2026-09-22): katex is a loss; the other reference boundaries are not comparable
+
+The pinned recipes (Terser, esbuild, Oxc through Rolldown) ran against the semantic route's complete delivery ([receipts](../../benchmarks/migration-results/2026-09-22-semantic-competitors/README.md#competitors-013)):
+
+| Boundary | Semantic route, Brotli | Best competitor | Verdict |
+|---|---|---|---|
+| katexlil | 67,061 | Terser 63,044 | **loss 4,017** (the default route's dist loses 1,576) |
+| zodlil | 28,326 | | not comparable: the port publishes 2 names, upstream 240 |
+| markedlil | | | not comparable: 8 names against 18 |
+
+**Grouped causes for the katex loss.** The semantic route's own gap to the default route on the compiler output is +2,185. The rest of the default route's loss comes from the port itself. The remaining causes:
+- **Single-use functions left as definitions:** Terser's `unused` and `reduce_vars` together, measured by leave-one-out on our output.
+- **Names:** exact names on escaping functions, and namespace objects the port invokes through.
+- **Structure:** the port's `JsValue` transliteration. Flattening pays only on typed sources: markedlil and cnlil are typed and win, while katexlil, mobxlil and remarklil are untyped transliterations and lose.
+
+These stay open losses, not baseline changes.
 
 ## 014 Retirement and Final Certification
 
