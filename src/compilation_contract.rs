@@ -36,6 +36,9 @@ pub struct JavaScriptAbiContract {
     pub preserve_extern_fields: bool,
     pub internal_export_bindings_may_mangle: bool,
     pub public_function_spelling: Option<FunctionSpelling>,
+    /// Every function whose name some code could read keeps its exact source
+    /// name, not only published exports.
+    pub keep_function_names: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -335,6 +338,7 @@ impl ProjectConfig {
                         // `function`, an exported arrow stays an arrow. The
                         // `function_spelling` knob governs private functions only.
                         public_function_spelling: None,
+                keep_function_names: self.javascript.keep_function_names,
             },
             assumptions: JavaScriptUnsafeAssumptions {
                 pristine_builtins: self.javascript.assume_pristine_builtins,

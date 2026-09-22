@@ -246,6 +246,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             preserve_extern_fields: true,
             internal_export_bindings_may_mangle: true,
             public_function_spelling: None,
+            keep_function_names: false,
         },
         assumptions: JavaScriptUnsafeAssumptions {
             pristine_builtins: false,
@@ -1193,6 +1194,47 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     fn live(&mut self, unit: UnitId, operation: OpId) -> Result<bool, FormationError> {
         self.work(self.demand.contexts().len())?;
         Ok(self.demand.needs_operation_anywhere(unit, operation))
+    }
+
+    /// Whether a function value initializes or is stored into a cell that a
+    /// declared public boundary publishes: a root export or a module
+    /// namespace member.
+    fn flows_into_exported_cell(
+        &mut self,
+        unit: ContextId,
+        value: ValueId,
+    ) -> Result<bool, FormationError> {
+        let Some(uses) = self.uses else {
+            return Ok(true);
+        };
+        let data = self.data(unit);
+        let Some(readers) = uses
+            .unit(self.semantic(unit))
+            .and_then(|uses| uses.value_uses(value))
+        else {
+            return Ok(true);
+        };
+        self.work(readers.len())?;
+        for reader in readers {
+            let ValueUse::Operand { operation, position: 0 } = *reader else {
+                continue;
+            };
+            let cell = match data.operations[operation.index()].kind {
+                OperationKind::Initialize(cell) => cell,
+                OperationKind::Store(place) => match data.places[place.index()] {
+                    Place::Cell(cell) => cell,
+                    _ => continue,
+                },
+                _ => continue,
+            };
+            if self.namespace_member(cell)?
+                || (self.contract.abi.preserve_root_exports
+                    && self.program.value_exports().any(|(_, exported)| exported == cell))
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// A dynamic import's namespace hands the cell's value to its importer.
@@ -3959,8 +4001,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     _ => false,
                 };
+                // D2 keeps a published function's source name. Any other
+                // function's name is its binding's unless the contract keeps
+                // every name some code could read.
+                let internal = self.compact
+                    && !self.contract.abi.keep_function_names
+                    && !match operation.result {
+                        Some(result) => self.flows_into_exported_cell(unit, result)?,
+                        None => true,
+                    };
                 // The exact name is allocated only when it is kept.
-                let name = if private || private_cell.is_some() || unobserved {
+                let name = if private || private_cell.is_some() || unobserved || internal {
                     js::FunctionName::Unobserved
                 } else {
                     js::FunctionName::Exact(self.string(&self.program.strings[name.index()])?)

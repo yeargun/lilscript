@@ -254,7 +254,7 @@ fn undefined_calls_and_unreachable_statements_leave_no_residue() {
 
 #[test]
 fn a_closure_only_invoked_through_its_cell_loses_its_name() {
-    let javascript = compile(
+    let javascript = compile_with(
         r#"
         JsValue nothing() { return JS.undefined(); }
         JsValue twice = nothing();
@@ -269,11 +269,35 @@ fn a_closure_only_invoked_through_its_cell_loses_its_name() {
         JsValue result = run(21);
         print(result["shown"]["name"]);
         "#,
+        "[javascript]\nstrip_console=false\nkeep_function_names=true\n",
     );
-    // Every read of `twice` calls it; `shown` escapes into an exported object.
+    // Every read of `twice` calls it; `shown` escapes into an exported object,
+    // and this contract keeps every name some code could read.
     assert!(!javascript.contains("twice"), "{javascript}");
     assert!(javascript.contains("let shown="), "{javascript}");
     assert_eq!(run(&javascript, ""), "42\nshown\n");
+}
+
+#[test]
+fn only_published_functions_keep_their_source_names_by_default() {
+    let javascript = compile(
+        r#"
+        extern void inspect(JsValue value);
+        JsValue callbackWithALongName(JsValue value) { return JS.add(value, value); }
+        export JsValue publishedFunction(JsValue value) {
+            inspect(callbackWithALongName);
+            return callbackWithALongName(value);
+        }
+        print(publishedFunction(21));
+        inspect(publishedFunction);
+        "#,
+    );
+    // The escaping callback is named by its binding; the export keeps its own.
+    assert!(!javascript.contains("callbackWithALongName"), "{javascript}");
+    assert_eq!(
+        run(&javascript, "globalThis.inspect=f=>console.log(f.name.length<3);"),
+        "true\n42\nfalse\n"
+    );
 }
 
 const SHOW: &str = "globalThis.show=v=>console.log(JSON.stringify(v));";

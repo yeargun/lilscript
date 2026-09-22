@@ -1574,6 +1574,24 @@ The owner set the six-port goal the same day: katexlil, markedlil, motionlil, zo
 
 **Verification.** 3,037 unit tests pass, including `redundant_operators_and_conversions_leave_no_residue`, `constant_regex_constructors_become_literals_only_when_valid`, `a_raw_plan_names_functions_themselves_and_keeps_their_names_exact` and the regex grammar test. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21. [posthoglil.patch](../../finer/port-migrations/posthoglil.patch) gains the same export-spelling assertion fix as markedlil's: every public name is still exported exactly.
 
+### 013 batch 4: published functions keep their names; motionlil builds (2026-09-22)
+
+- **Function names follow D2, not every escape.** A function keeps its exact source `name` when it is published: when it initializes or is stored into a root export or a module namespace member. An internal function that escapes through a `JsValue` is named by its binding. That is what Terser's and the default route's mangling give, and what upstream code gives too: upstream `jQuery.fn.load` is anonymous, while ours was pinned to the port's own `fnLoad`. `[javascript] keep_function_names = true` restores the stricter contract (every name some code could read), and the helper fixtures that observe `twice.name` now declare it. katexlil's 43 `{name:f}.name` wrappers and jquerylil's pinned method names go. The tests are `only_published_functions_keep_their_source_names_by_default` and the updated `a_closure_only_invoked_through_its_cell_loses_its_name`.
+- **motionlil on the semantic route.** It had never built there. [motionlil.patch](../../finer/port-migrations/motionlil.patch) makes three changes:
+  - It renames 16 class declarations that share a name with a class in another module. The semantic checker keys classes and enums by bare name (`Type::Class(&str)`), where the default route's linker qualifies them. Module-scoped nominal identity is owed, but these classes are erased, so the renames are unobservable.
+  - It imports `Math` where `arc.lil` used another module's extern.
+  - It turns the six geometry structs (`Point`, `Axis`, `Box`, `BoundingBox`, `AxisDelta`, `Delta`) into classes. Motion's projection code shares and mutates them in place, which is reference semantics; under D1 a struct store is a copy.
+
+  The port passes its 9 tests. The interim CLI work ceiling rises from 4G to 40G units: motionlil's conversion alone charges 4.4G (3 s). Its compile is dominated by 73 Brotli-11 scores of 230 KB candidates (34 s of 41 s), which is 012's codec-cost finding at scale.
+
+| Brotli | posthoglil (`raw.js`) | markedlil (`raw.js`) | zodlil | katexlil (`esm`) | jquerylil (`esm`) | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|
+| Batch 3 | 5,907 | 9,288 | 28,145 | 65,494 | 33,507 | did not build |
+| **After** | **5,884** | **9,293** | **28,060** | **65,131** | **32,558** | **52,080** |
+| Bar | 5,622 | 10,092 | open | 63,044 | 27,445 | 41,032 |
+
+**Verification.** 3,038 unit tests pass. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7, posthoglil 21/21 and motionlil 9/9. The config schema is regenerated (`finer/tools/config-schema.mjs --check`).
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

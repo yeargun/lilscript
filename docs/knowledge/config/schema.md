@@ -12,6 +12,7 @@ error, not a silently ignored setting.
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `resources` | `CompilerResourceConfig` |  | Worker threads and codec workers the compiler may use; the CLI flags `--jobs` and `--codec-jobs` override these. |
+| `backend` | `CompilerBackend` |  | The compiler route a build takes: `legacy` (the default) or `semantic`. |
 
 ### `[compiler.resources]` — closed
 
@@ -101,6 +102,7 @@ error, not a silently ignored setting.
 | `aggregate_layout` | `AggregateLayout` | `AggregateLayout::default()` | See [javascript-priority.md](javascript-priority.md). |
 | `assume_pristine_builtins` | `bool` | `false` | Allow representations that bypass ambient JavaScript constructor bindings. |
 | `assume_pure_property_reads` | `bool` | `false` | Treat a dynamic member read as free of coercion hooks, the way Terser's `pure_getters` does. |
+| `keep_function_names` | `bool` | `false` | Keep the exact source `name` of every function whose name some code could read, not only of published exports. |
 | `strip_console` | `bool` | `true` | Drop `print()` / `debugLog` from JavaScript. |
 | `startup` | `StartupCostConfig` | `StartupCostConfig::default()` | Limits on the startup cost an emitted artifact may add (parse, compile and initialization work); a candidate over them is not admitted. |
 | `performance` | `JavaScriptPerformanceConfig` | `JavaScriptPerformanceConfig::default()` | See [configuration.md](../../configuration.md). |
@@ -148,6 +150,7 @@ error, not a silently ignored setting.
 | `max_chunks` | `usize` | `32` | See [configuration.md](../../configuration.md). |
 | `shared_min_imports` | `usize` | `2` | See [configuration.md](../../configuration.md). |
 | `preload` | `PreloadPolicy` | `PreloadPolicy::None` | See [configuration.md](../../configuration.md). |
+| `host_modules` | `HostModules` | `HostModules::External` | Whether relative host modules travel with the output (semantic route). |
 | `cost` | `ChunkCostConfig` | `ChunkCostConfig::default()` | Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions. |
 
 ### `[bundle.cost]` — closed

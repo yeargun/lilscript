@@ -235,6 +235,7 @@ impl ProjectConfig {
                         // `function`, an exported arrow stays an arrow. The
                         // `function_spelling` knob governs private functions only.
                         public_function_spelling: None,
+                        keep_function_names: self.javascript.keep_function_names,
                     },
                     assumptions: JavaScriptUnsafeAssumptions {
                         pristine_builtins: self.javascript.assume_pristine_builtins,
@@ -1733,6 +1734,13 @@ pub struct JavaScriptConfig {
     /// it is false by default because a library cannot assume its callers'
     /// objects have no accessors.
     pub assume_pure_property_reads: bool,
+    /// Keep the exact source `name` of every function whose name some code
+    /// could read, not only of published exports. Off by default: an exported
+    /// function always keeps its source name (D2), while an internal function
+    /// that escapes through a `JsValue` gets whatever name its binding has, as
+    /// Terser's and the default route's mangling give it. Turn it on for code
+    /// that reads `fn.name` of callbacks it did not export.
+    pub keep_function_names: bool,
     /// Drop `print()` / `debugLog` from JavaScript. On by default so production
     /// builds do not ship `console.log`. Test oracles set false. Does not strip
     /// `console.warn` (observable library behavior).
@@ -1800,6 +1808,7 @@ impl Default for JavaScriptConfig {
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,
             assume_pure_property_reads: false,
+            keep_function_names: false,
             strip_console: true,
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),

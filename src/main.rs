@@ -295,14 +295,14 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
             .map(lilscript::ChunkExtension::of)
             .unwrap_or_default(),
         // Whole ports exceed the library default: Micromark's 303 KB of
-        // source uses 354M units. This interim CLI ceiling stops a runaway
-        // compile after roughly 16 s at that rate; 012 sets the cost policy.
-        // `LILSCRIPT_SEMANTIC_WORK` overrides it for measurement, and policy
-        // resources still restrict it.
+        // source uses 354M units, and motionlil's full entry 4.4G, most of it
+        // in conversion (3 s). This interim CLI ceiling only stops a runaway
+        // compile; 012 sets the cost policy. `LILSCRIPT_SEMANTIC_WORK`
+        // overrides it for measurement, and policy resources still restrict it.
         logical_work: std::env::var("LILSCRIPT_SEMANTIC_WORK")
             .ok()
             .and_then(|value| value.parse().ok())
-            .unwrap_or(4_000_000_000),
+            .unwrap_or(40_000_000_000),
         ..ServiceOptions::default()
     };
     let result = compile_path_semantic(&args.input, config, options).map_err(|error| {
