@@ -200,7 +200,7 @@ pub fn interpret_program_with_limits<'ast, 'src>(
             "semantic facts belong to a different source program",
         ));
     }
-    if let Some(span) = crate::lower::reference_parameter_span(semantics) {
+    if let Some(span) = semantics.reference_parameter_span() {
         return Err(InterpretError::new(
             span,
             "reference parameters are not supported by this interpreter",

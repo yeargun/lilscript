@@ -1,4 +1,3 @@
-use crate::codegen_ir_js::FunctionSpelling;
 use crate::config::{
     CandidateSearch, CompressionCostModel, JavaScriptPriority, ProjectConfig, PublicAggregateAbi,
 };
@@ -35,7 +34,6 @@ pub struct JavaScriptAbiContract {
     pub public_aggregate_abi: PublicAggregateAbi,
     pub preserve_extern_fields: bool,
     pub internal_export_bindings_may_mangle: bool,
-    pub public_function_spelling: Option<FunctionSpelling>,
     /// Every function whose name some code could read keeps its exact source
     /// name, not only published exports.
     pub keep_function_names: bool,
@@ -183,10 +181,7 @@ impl JavaScriptCompilationContract {
                                 arity,
                                 Some(ir_function.is_some_and(|function| {
                                     matches!(function.kind, FunctionKind::Constructor { .. })
-                                        || (!function.is_async
-                                            && !function.is_generator
-                                            && self.abi.public_function_spelling
-                                                != Some(FunctionSpelling::Arrow))
+                                        || (!function.is_async && !function.is_generator)
                                 })),
                                 methods,
                             )
@@ -339,11 +334,6 @@ impl ProjectConfig {
                 public_aggregate_abi: self.javascript.public_aggregate_abi,
                 preserve_extern_fields: options.mangle_extern_fields,
                 internal_export_bindings_may_mangle: options.mangle_exports,
-                // D2: an export keeps the callable kind its *source* declares —
-                        // a function declaration is an ordinary constructible
-                        // `function`, an exported arrow stays an arrow. The
-                        // `function_spelling` knob governs private functions only.
-                        public_function_spelling: None,
                 keep_function_names: self.javascript.keep_function_names,
                 keep_published_function_names: self.javascript.keep_published_function_names,
             },
@@ -376,7 +366,6 @@ impl ProjectConfig {
 #[cfg(test)]
 mod tests {
     use super::{JavaScriptWorld, ProjectConfig};
-    use crate::codegen_ir_js::FunctionSpelling;
     use crate::config::{CompressionCostModel, JavaScriptPriority, PublicAggregateAbi};
     use crate::{analyze, lower_to_control_flow, parse_source};
     use bumpalo::Bump;
@@ -387,7 +376,6 @@ mod tests {
         config.javascript.cost_model = CompressionCostModel::Raw;
         config.javascript.priority = JavaScriptPriority::Balanced;
         config.javascript.public_aggregate_abi = PublicAggregateAbi::Positional;
-        config.javascript.function_spelling = Some(FunctionSpelling::Function);
         config.javascript.assume_pure_property_reads = true;
         config.mangle.exports = Some(true);
         config.mangle.extern_fields = Some(false);
@@ -401,9 +389,6 @@ mod tests {
             contract.abi.public_aggregate_abi,
             PublicAggregateAbi::Positional
         );
-        // The spelling knob is private-only: public callable kind follows
-        // the source declaration (D2), so the contract carries no override.
-        assert_eq!(contract.abi.public_function_spelling, None);
         assert!(!contract.abi.preserve_extern_fields);
         assert!(contract.abi.internal_export_bindings_may_mangle);
         assert!(contract.assumptions.pure_property_reads);

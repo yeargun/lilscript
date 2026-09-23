@@ -203,7 +203,7 @@ impl<'sem, 'src> JsEmitter<'sem, 'src> {
                 "semantic facts belong to a different source program",
             ));
         }
-        if let Some(span) = crate::lower::reference_parameter_span(semantics) {
+        if let Some(span) = semantics.reference_parameter_span() {
             return Err(CodegenError::new(
                 span,
                 "legacy JavaScript reference parameters are not supported",

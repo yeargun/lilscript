@@ -973,6 +973,52 @@ impl<'src> DeclarationTables<'src> {
 }
 
 impl<'ast, 'src> SemanticModel<'ast, 'src> {
+    /// The first declaration whose type passes a parameter by reference, or
+    /// whose signature holds such a callable. Consumers that represent
+    /// parameters by value only (the reference interpreter) refuse the
+    /// program there.
+    pub(crate) fn reference_parameter_span(&self) -> Option<Span> {
+        let contains_signature = |signature: &FunctionType<'_>| {
+            signature.params.iter().any(|parameter| {
+                parameter.passing != crate::primitive::ParameterPassing::Value
+                    || parameter.ty.contains_mutable_reference_parameters()
+            }) || signature
+                .return_type
+                .contains_mutable_reference_parameters()
+        };
+        for symbol in self.symbols() {
+            if symbol.ty.contains_mutable_reference_parameters() {
+                return Some(symbol.span);
+            }
+        }
+        for definition in self.structs() {
+            for field in definition.fields.values() {
+                if field.ty.contains_mutable_reference_parameters() {
+                    return Some(field.span);
+                }
+            }
+        }
+        for definition in self.classes() {
+            for field in definition.fields.values() {
+                if field.ty.contains_mutable_reference_parameters() {
+                    return Some(field.span);
+                }
+            }
+            if definition
+                .constructor
+                .as_ref()
+                .is_some_and(contains_signature)
+                || definition
+                    .methods
+                    .values()
+                    .any(|method| contains_signature(&method.signature))
+            {
+                return Some(definition.span);
+            }
+        }
+        None
+    }
+
     pub fn view(&self) -> SemanticView<'_, 'ast, 'src> {
         SemanticView {
             declarations: &self.declarations,

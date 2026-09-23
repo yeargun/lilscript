@@ -1660,7 +1660,7 @@ fn requested_objectives_own_codec_work_and_unmeasured_scores_stay_absent() {
                         requested || objective == Objective::Raw
                     );
                     if let Some(size) = artifact.sizes.get(objective) {
-                        let reference = crate::measure_javascript_transfer_sizes(
+                        let reference = crate::compression::measure_javascript_transfer_sizes(
                             artifact.javascript.as_bytes(),
                         )
                         .unwrap();

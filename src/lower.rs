@@ -60,58 +60,13 @@ pub fn lower_to_control_flow<'ast, 'src>(
             "semantic facts belong to a different source program",
         ));
     }
-    if let Some(span) = reference_parameter_span(semantics) {
+    if let Some(span) = semantics.reference_parameter_span() {
         return Err(LowerError::new(
             span,
             "legacy lowering of reference parameters is not supported",
         ));
     }
     ModuleLowerer::new(program, semantics)?.lower(program)
-}
-
-/// Legacy consumers cannot erase a checked reference convention into their
-/// value-only AST/CFG parameter representations. Inspect shared declarations
-/// at the existing entry boundary; no alternate type table is retained.
-pub(crate) fn reference_parameter_span(semantics: &SemanticModel<'_, '_>) -> Option<Span> {
-    let contains_signature = |signature: &FunctionType<'_>| {
-        signature.params.iter().any(|parameter| {
-            parameter.passing != crate::primitive::ParameterPassing::Value
-                || parameter.ty.contains_mutable_reference_parameters()
-        }) || signature
-            .return_type
-            .contains_mutable_reference_parameters()
-    };
-    for symbol in semantics.symbols() {
-        if symbol.ty.contains_mutable_reference_parameters() {
-            return Some(symbol.span);
-        }
-    }
-    for definition in semantics.structs() {
-        for field in definition.fields.values() {
-            if field.ty.contains_mutable_reference_parameters() {
-                return Some(field.span);
-            }
-        }
-    }
-    for definition in semantics.classes() {
-        for field in definition.fields.values() {
-            if field.ty.contains_mutable_reference_parameters() {
-                return Some(field.span);
-            }
-        }
-        if definition
-            .constructor
-            .as_ref()
-            .is_some_and(contains_signature)
-            || definition
-                .methods
-                .values()
-                .any(|method| contains_signature(&method.signature))
-        {
-            return Some(definition.span);
-        }
-    }
-    None
 }
 
 enum PlannedFunction<'ast, 'src> {

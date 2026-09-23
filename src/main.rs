@@ -363,7 +363,7 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
                     .display()
                     .to_string()
             };
-            let entry = lilscript::SemanticBundleFile {
+            let entry = lilscript::ManifestFile {
                 file_name: entry_file.to_string(),
                 modules: Vec::new(),
                 dependencies: selected.entry_links().dependencies.clone(),
@@ -375,7 +375,7 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
             let chunks = selected
                 .chunks()
                 .iter()
-                .map(|chunk| lilscript::SemanticBundleFile {
+                .map(|chunk| lilscript::ManifestFile {
                     file_name: chunk.name.clone(),
                     modules: chunk.modules.iter().map(|&module| name(module)).collect(),
                     dependencies: chunk.dependencies.clone(),
@@ -385,11 +385,13 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
                     code: chunk.code.clone(),
                 })
                 .collect();
-            let bundle = lilscript::semantic_javascript_bundle(
+            let bundle = lilscript::javascript_bundle(
                 entry,
                 chunks,
                 selected.entry_links().preload.clone(),
-                config,
+                config.bundle.mode,
+                config.javascript.cost_model,
+                &config.bundle.cost,
             )?;
             write_javascript_bundle(output, &bundle)
         }

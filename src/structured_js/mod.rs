@@ -28,6 +28,7 @@ mod scalar_objects;
 mod tables;
 mod typed;
 pub(crate) mod delivery;
+pub mod manifest;
 pub mod extract;
 mod literal_output;
 pub use literal_output::LiteralOutput;

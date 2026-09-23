@@ -1,4 +1,4 @@
-use crate::ir::Intrinsic;
+use crate::primitive::Intrinsic;
 use crate::semantic::Type;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

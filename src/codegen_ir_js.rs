@@ -28620,9 +28620,9 @@ mod tests {
         );
         assert!(statements.contains("if("), "{statements}");
         assert!(statements.contains("else"), "{statements}");
-        let ternary_sizes = crate::measure_javascript_transfer_sizes(ternary.as_bytes()).unwrap();
+        let ternary_sizes = crate::compression::measure_javascript_transfer_sizes(ternary.as_bytes()).unwrap();
         let statement_sizes =
-            crate::measure_javascript_transfer_sizes(statements.as_bytes()).unwrap();
+            crate::compression::measure_javascript_transfer_sizes(statements.as_bytes()).unwrap();
         assert!(
             statement_sizes.brotli11 >= ternary_sizes.brotli11,
             "ternary={ternary_sizes:?} statements={statement_sizes:?}"
@@ -28657,8 +28657,8 @@ mod tests {
         assert!(indexed.contains("["), "{indexed}");
         assert_ne!(canonical, indexed);
         let canonical_sizes =
-            crate::measure_javascript_transfer_sizes(canonical.as_bytes()).unwrap();
-        let indexed_sizes = crate::measure_javascript_transfer_sizes(indexed.as_bytes()).unwrap();
+            crate::compression::measure_javascript_transfer_sizes(canonical.as_bytes()).unwrap();
+        let indexed_sizes = crate::compression::measure_javascript_transfer_sizes(indexed.as_bytes()).unwrap();
         assert!(
             indexed_sizes.brotli11 <= canonical_sizes.brotli11,
             "canonical={canonical_sizes:?} indexed={indexed_sizes:?}"

@@ -742,7 +742,6 @@ fn native_source_queries_do_not_create_target_state_or_target_work() {
         // Queries did not install a default JS delivery contract: a later
         // explicit first target may choose a distinct ABI/syntax configuration.
         let mut config = crate::config::ProjectConfig::default();
-        config.javascript.function_spelling = Some(crate::codegen_ir_js::FunctionSpelling::Arrow);
         config.javascript.ecmascript = crate::js_syntax_target::EcmaScriptEdition::Es2015;
         let javascript = config
             .resolve_policy(CompilationRequest::JavaScript {

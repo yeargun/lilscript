@@ -180,58 +180,11 @@ pub struct JavaScriptSelectionDecisions {
     pub terminal_string_pooling_best_bytes: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct JavaScriptBundle {
-    pub files: Vec<JavaScriptBundleFile>,
-    pub manifest: JavaScriptBundleManifest,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct JavaScriptBundleFile {
-    pub file_name: String,
-    pub code: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct JavaScriptBundleManifest {
-    pub version: u32,
-    pub build_id: String,
-    pub mode: String,
-    pub entry: String,
-    pub preload: Vec<String>,
-    pub objective: JavaScriptBundleObjectiveManifest,
-    pub objective_fingerprint: String,
-    pub selected_transfer_bytes: usize,
-    pub deploy_cost: u64,
-    pub chunks: Vec<JavaScriptBundleManifestChunk>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct JavaScriptBundleObjectiveManifest {
-    pub javascript_codec: String,
-    pub raw_weight: u32,
-    pub gzip_weight: u32,
-    pub brotli_weight: u32,
-    pub request_overhead_bytes: usize,
-    pub dependency_depth_penalty_bytes: usize,
-    pub preload_request_discount_percent: u32,
-    pub cache_reuse_discount_percent: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct JavaScriptBundleManifestChunk {
-    pub file: String,
-    pub modules: Vec<String>,
-    pub bytes: usize,
-    pub gzip_bytes: usize,
-    pub brotli_bytes: usize,
-    pub selected_transfer_bytes: usize,
-    pub kind: String,
-    pub dependencies: Vec<String>,
-    pub dynamic_dependencies: Vec<String>,
-    pub cache_key: String,
-    pub deploy_cost: u64,
-}
+pub use crate::structured_js::manifest::{
+    JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
+    JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest,
+};
+use crate::structured_js::manifest::content_hash;
 
 #[derive(Debug)]
 pub enum SourceCompileError {
@@ -1211,182 +1164,11 @@ const fn bundle_mode_name(mode: BundleMode) -> &'static str {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct JavaScriptTransferSizes {
-    pub raw: usize,
-    pub gzip9: usize,
-    pub brotli11: usize,
-}
-
-pub fn measure_javascript_transfer_sizes(bytes: &[u8]) -> Result<JavaScriptTransferSizes, String> {
-    Ok(JavaScriptTransferSizes {
-        raw: bytes.len(),
-        gzip9: compressed_size(bytes, CompressionCostModel::Gzip)?,
-        brotli11: compressed_size(bytes, CompressionCostModel::Brotli)?,
-    })
-}
-
-/// One delivered file of a semantic bundle, by name.
-pub struct SemanticBundleFile {
-    pub file_name: String,
-    /// Source module names, relative to the entry module's directory.
-    pub modules: Vec<String>,
-    pub dependencies: Vec<String>,
-    /// Lazy chunks this file loads with `import()`.
-    pub dynamic_dependencies: Vec<String>,
-    /// Loaded only by `import()`.
-    pub lazy: bool,
-    /// Modules importing this file's module, when split counts them toward
-    /// cache reuse; zero otherwise.
-    pub importers: usize,
-    pub code: String,
-}
-
-/// The default route's bundle and manifest for a semantic multi-file
-/// delivery: the same depth, reachability, transfer and deploy-cost rules.
-pub fn semantic_javascript_bundle(
-    entry: SemanticBundleFile,
-    chunks: Vec<SemanticBundleFile>,
-    preload: Vec<String>,
-    config: &ProjectConfig,
-) -> Result<JavaScriptBundle, String> {
-    let files = std::iter::once(&entry).chain(&chunks).collect::<Vec<_>>();
-    let mut depths = AHashMap::default();
-    depths.insert(entry.file_name.clone(), 0usize);
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for file in &files {
-            let Some(depth) = depths.get(&file.file_name).copied() else {
-                continue;
-            };
-            for dependency in file.dependencies.iter().chain(&file.dynamic_dependencies) {
-                let candidate = depth.saturating_add(1);
-                let slot = depths.entry(dependency.clone()).or_insert(candidate);
-                if candidate < *slot {
-                    *slot = candidate;
-                    changed = true;
-                }
-            }
-        }
-    }
-    let mut reachability: AHashMap<String, usize> = AHashMap::default();
-    for file in &files {
-        let mut dependencies = file
-            .dependencies
-            .iter()
-            .chain(&file.dynamic_dependencies)
-            .collect::<Vec<_>>();
-        dependencies.sort_unstable();
-        dependencies.dedup();
-        for dependency in dependencies {
-            *reachability.entry(dependency.clone()).or_insert(0) += 1;
-        }
-    }
-    let selected = |raw: usize, gzip: usize, brotli: usize| match config.javascript.cost_model {
-        CompressionCostModel::Raw => raw,
-        CompressionCostModel::Gzip => gzip,
-        CompressionCostModel::Brotli => brotli,
-    };
-    let mut deploy_cost = 0u64;
-    let mut selected_transfer_bytes = 0usize;
-    let mut manifest_chunks = Vec::with_capacity(chunks.len());
-    for (index, file) in files.iter().enumerate() {
-        let (gzip_bytes, brotli_bytes) = compressed_artifact_sizes(&file.code)?;
-        let depth = depths.get(&file.file_name).copied().unwrap_or(0);
-        let cost = artifact_deploy_cost(
-            file.code.len(),
-            gzip_bytes,
-            brotli_bytes,
-            depth,
-            index != 0 && preload.contains(&file.file_name),
-            reachability
-                .get(&file.file_name)
-                .copied()
-                .unwrap_or(0)
-                .max(file.importers),
-            config,
-        );
-        deploy_cost = deploy_cost.saturating_add(cost);
-        let transfer = selected(file.code.len(), gzip_bytes, brotli_bytes);
-        selected_transfer_bytes = selected_transfer_bytes.saturating_add(transfer);
-        if index == 0 {
-            continue;
-        }
-        manifest_chunks.push(JavaScriptBundleManifestChunk {
-            file: file.file_name.clone(),
-            modules: file.modules.clone(),
-            bytes: file.code.len(),
-            gzip_bytes,
-            brotli_bytes,
-            selected_transfer_bytes: transfer,
-            kind: if file.lazy { "lazy" } else { "static" }.to_string(),
-            dependencies: file.dependencies.clone(),
-            dynamic_dependencies: file.dynamic_dependencies.clone(),
-            cache_key: content_hash(file.code.as_bytes()),
-            deploy_cost: cost,
-        });
-    }
-    let mut hasher = Sha256::new();
-    for file in &files {
-        hasher.update((file.file_name.len() as u64).to_le_bytes());
-        hasher.update(file.file_name.as_bytes());
-        hasher.update((file.code.len() as u64).to_le_bytes());
-        hasher.update(file.code.as_bytes());
-    }
-    let build_id = content_hash(&hasher.finalize());
-    let objective = JavaScriptBundleObjectiveManifest {
-        javascript_codec: compression_cost_model_name(config.javascript.cost_model).to_string(),
-        raw_weight: config.bundle.cost.raw_weight,
-        gzip_weight: config.bundle.cost.gzip_weight,
-        brotli_weight: config.bundle.cost.brotli_weight,
-        request_overhead_bytes: config.bundle.cost.request_overhead_bytes,
-        dependency_depth_penalty_bytes: config.bundle.cost.dependency_depth_penalty_bytes,
-        preload_request_discount_percent: config.bundle.cost.preload_request_discount_percent,
-        cache_reuse_discount_percent: config.bundle.cost.cache_reuse_discount_percent,
-    };
-    let objective_fingerprint = content_hash(
-        format!(
-            "v1:{}:{}:{}:{}:{}:{}:{}:{}",
-            objective.javascript_codec,
-            objective.raw_weight,
-            objective.gzip_weight,
-            objective.brotli_weight,
-            objective.request_overhead_bytes,
-            objective.dependency_depth_penalty_bytes,
-            objective.preload_request_discount_percent,
-            objective.cache_reuse_discount_percent,
-        )
-        .as_bytes(),
-    );
-    let entry_file = entry.file_name.clone();
-    let bundle_files = std::iter::once(entry)
-        .chain(chunks)
-        .map(|file| JavaScriptBundleFile {
-            file_name: file.file_name,
-            code: file.code,
-        })
-        .collect();
-    Ok(JavaScriptBundle {
-        files: bundle_files,
-        manifest: JavaScriptBundleManifest {
-            version: 2,
-            build_id,
-            mode: bundle_mode_name(config.bundle.mode).to_string(),
-            entry: entry_file,
-            preload,
-            objective,
-            objective_fingerprint,
-            selected_transfer_bytes,
-            deploy_cost,
-            chunks: manifest_chunks,
-        },
-    })
-}
-
 fn compressed_artifact_sizes(code: &str) -> Result<(usize, usize), String> {
-    let sizes = measure_javascript_transfer_sizes(code.as_bytes())?;
-    Ok((sizes.gzip9, sizes.brotli11))
+    Ok((
+        compressed_size(code.as_bytes(), CompressionCostModel::Gzip)?,
+        compressed_size(code.as_bytes(), CompressionCostModel::Brotli)?,
+    ))
 }
 
 fn apply_module_preloads(chunks: &mut [IrJsChunk], entry: &str, preload: &[String]) {
@@ -1409,15 +1191,6 @@ fn apply_module_preloads(chunks: &mut [IrJsChunk], entry: &str, preload: &[Strin
     );
 }
 
-fn content_hash(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    let mut encoded = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        use std::fmt::Write as _;
-        write!(encoded, "{byte:02x}").expect("writing a digest to String cannot fail");
-    }
-    encoded
-}
 
 fn bundle_build_id(chunks: &[IrJsChunk]) -> String {
     let mut hasher = Sha256::new();
@@ -10407,13 +10180,12 @@ const fn compression_cost_model_key(model: CompressionCostModel) -> u8 {
     }
 }
 
-// Public API compatibility only; the encoder implementation has one owner.
 #[cfg(test)]
-use crate::compression::canonical_brotli_size;
-pub use crate::compression::{
-    canonical_brotli_version, canonical_zlib_version, CANONICAL_BROTLI_LIBRARY_VERSION,
-    CANONICAL_BROTLI_PACKAGE_VERSION, CANONICAL_ZLIB_LIBRARY_VERSION,
-    CANONICAL_ZLIB_PACKAGE_VERSION,
+use crate::diagnostics::render_diagnostic;
+#[cfg(test)]
+use crate::compression::{
+    canonical_brotli_size, canonical_brotli_version, canonical_zlib_version,
+    CANONICAL_BROTLI_LIBRARY_VERSION, CANONICAL_ZLIB_LIBRARY_VERSION,
 };
 
 fn compile_program_to_c<'ast, 'src>(
@@ -10448,40 +10220,10 @@ fn module_compile_error(modules: &ModuleSet, error: CompileError) -> ModuleError
     ModuleError::new(&module.path, &module.source, local_span, message)
 }
 
-pub fn render_module_diagnostic(error: &ModuleError) -> String {
-    render_message_diagnostic(&error.path, &error.source, error.span, &error.message)
-}
-
-pub fn render_diagnostic(
-    path: &std::path::Path,
-    source: &str,
-    error: &SourceCompileError,
-) -> String {
-    render_message_diagnostic(path, source, error.span(), &error.to_string())
-}
-
-fn render_message_diagnostic(path: &Path, source: &str, span: Span, message: &str) -> String {
-    let start = span.start.min(source.len());
-    let end = span.end.min(source.len()).max(start);
-    let line_start = source[..start].rfind('\n').map_or(0, |index| index + 1);
-    let line_end = source[end..]
-        .find('\n')
-        .map_or(source.len(), |index| end + index);
-    let line_number = source[..line_start]
-        .bytes()
-        .filter(|byte| *byte == b'\n')
-        .count()
-        + 1;
-    let column = source[line_start..start].chars().count() + 1;
-    let width = source[start..end].chars().count().max(1);
-    let source_line = &source[line_start..line_end];
-    let padding = " ".repeat(column.saturating_sub(1));
-    let marker = "^".repeat(width);
-
-    format!(
-        "error: {message}\n --> {}:{line_number}:{column}\n  |\n{line_number:>2} | {source_line}\n  | {padding}{marker}",
-        path.display()
-    )
+impl crate::diagnostics::SourceDiagnostic for SourceCompileError {
+    fn span(&self) -> Span {
+        SourceCompileError::span(self)
+    }
 }
 
 #[cfg(test)]

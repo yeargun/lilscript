@@ -18,7 +18,6 @@ use super::string_family::StringChoice;
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::value_placement::{self, PlacementDepth, ValueStorage};
 use super::*;
-use crate::codegen_ir_js::FunctionSpelling;
 use crate::compilation_contract::{
     JavaScriptAbiContract, JavaScriptCompilationContract, JavaScriptEffectPolicy,
     JavaScriptUnsafeAssumptions, JavaScriptWorld,
@@ -245,7 +244,6 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             public_aggregate_abi: crate::config::PublicAggregateAbi::Named,
             preserve_extern_fields: true,
             internal_export_bindings_may_mangle: true,
-            public_function_spelling: None,
             keep_function_names: false,
             keep_published_function_names: true,
         },
@@ -1069,9 +1067,6 @@ struct UnitPlan {
     observes_activation: bool,
     /// Printed strict (a classic script's struct-bearing frame).
     strict_frame: bool,
-    // At most one physical capture per ambient binding and owning activation.
-    // Created on demand during formation, with no extra source graph scan.
-    ambient_captures: [Option<js::BindingId>; 2],
     reference_parameters: Vec<(CellId, js::BindingId)>,
     prepared_references: Vec<references::PreparedReference>,
 }
@@ -2088,7 +2083,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 lexical_owner,
                 observes_activation: false,
                 strict_frame,
-                ambient_captures: [None; 2],
                 reference_parameters: Vec::new(),
                 prepared_references: Vec::new(),
             },
@@ -2289,47 +2283,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             .unwrap()
             .plan
             .observes_activation = true;
-        if owner == unit
-            || self.contract.abi.public_function_spelling != Some(FunctionSpelling::Function)
-        {
-            return Ok(self.ambient_expression(ambient)?);
-        }
-        // An ordinary spelling of a source closure must still use its lexical
-        // activation. Reading an ordinary function's own immutable arguments
-        // binding or this on entry is safe; module arguments is a potentially
-        // missing, effectful global lookup and must remain at the source read.
-        if ambient == Ambient::Arguments && self.data(owner).kind == UnitKind::ModuleInitialization
-        {
-            return Err(self.error(span, "ordinary closure with module-lexical arguments"));
-        }
-        if let Some(binding) = self.plan(owner).ambient_captures[ambient as usize] {
-            return Ok(self.reference(binding)?);
-        }
-        let body = self.plan(owner).regions[self.data(owner).entry.index()];
-        let binding = {
-            let binding = js::Binding {
-                source_symbol: None,
-                scope: self.module.regions[body.index()].scope,
-                spelling: self.format(format_args!(
-                    "activation_{}_{}",
-                    owner.index(),
-                    ambient as usize
-                ))?,
-                pinned: false,
-            };
-            self.module.binding_in(binding, self.budget)?
-        };
-        self.contexts[owner.index()]
-            .as_mut()
-            .unwrap()
-            .plan
-            .ambient_captures[ambient as usize] = Some(binding);
-        Ok(self.reference(binding)?)
+        Ok(self.ambient_expression(ambient)?)
     }
 
     fn finish_unit(&mut self, unit: ContextId) -> Result<(), FormationError> {
         self.work(1)?;
-        let captures = self.plan(unit).ambient_captures;
         let body = self.plan(unit).regions[self.data(unit).entry.index()];
         let mut reference_prefix = self.product_parameter_prefix(unit)?;
         for &cell in &self.data(unit).parameters {
@@ -2360,31 +2318,6 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             self.prepend_root_owners(body, count, module)?;
         }
         self.drop_scratch(reference_prefix)?;
-        let mut prefix = [None, None];
-        let mut count = 0;
-        for ambient in [Ambient::This, Ambient::Arguments] {
-            if let Some(binding) = captures[ambient as usize] {
-                prefix[count] = Some(js::Statement::Let {
-                    binding,
-                    value: Some(self.ambient_expression(ambient)?),
-                });
-                count += 1;
-            }
-        }
-        if count != 0 {
-            self.work(self.module.regions[body.index()].statements.len())?;
-            let statements = &mut self.module.regions[body.index()].statements;
-            self.budget
-                .reserve_vec(AllocationClass::Retained, statements, count)?;
-            // Existing statements move once; no splice iterator buffer or new
-            // source scan. Prefix contains at most two admitted expressions.
-            for statement in prefix.into_iter().flatten() {
-                statements.push(statement);
-            }
-            statements.rotate_right(count);
-            let module = self.data(unit).module.index() as u32;
-            self.prepend_root_owners(body, count, module)?;
-        }
         Ok(())
     }
 
@@ -4324,14 +4257,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 // Only direct calls reach a private function: nothing can
                 // construct it or read its prototype, so an arrow is the same
                 // callable unless it observes its own activation (below).
-                let requested_arrow = match self.contract.abi.public_function_spelling {
-                    Some(FunctionSpelling::Arrow) => true,
-                    Some(FunctionSpelling::Function) => false,
-                    None => {
-                        self.data(child).kind == UnitKind::Closure
-                            || self.compact && (private || private_cell.is_some())
-                    }
-                };
+                let requested_arrow = self.data(child).kind == UnitKind::Closure
+                    || self.compact && (private || private_cell.is_some());
                 // A declaration supplies its own receiver/arguments, including
                 // observations in lexical descendants. That language contract
                 // takes precedence over arrow spelling, as with the legacy

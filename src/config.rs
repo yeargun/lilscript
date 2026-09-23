@@ -156,14 +156,15 @@ impl ProjectConfig {
             permission: TacticPermission::Auto,
             enabled: false,
         }; TacticId::ALL.len()];
-        let optimizer = self.optimization.resolve();
+        let maximum_preset = self.optimization.preset == OptimizationPreset::Maximum;
         for tactic in TacticId::ALL {
             let spec = tactic.spec();
             if spec.javascript_only && !javascript {
                 continue;
             }
-            let (legacy_explicit, legacy_default) =
-                self.legacy_tactic_setting(tactic, javascript, &optimizer);
+            let (legacy_explicit, configured_default) =
+                self.legacy_tactic_setting(tactic, javascript);
+            let default = configured_default.unwrap_or(spec.default.enabled(maximum_preset));
             let configured = policy
                 .tactics
                 .get(&tactic)
@@ -186,7 +187,9 @@ impl ProjectConfig {
                 && match permission {
                     TacticPermission::Off => false,
                     TacticPermission::On => true,
-                    TacticPermission::Auto => legacy_default && effort >= spec.minimum_effort,
+                    TacticPermission::Auto => {
+                        default && (!javascript || effort >= spec.minimum_effort)
+                    }
                 };
             tactics[tactic as usize] = ResolvedTactic {
                 permission,
@@ -231,11 +234,6 @@ impl ProjectConfig {
                                     .compression_enabled(CompressionDecision::ExportMangling)
                             },
                         ),
-                        // D2: an export keeps the callable kind its *source* declares —
-                        // a function declaration is an ordinary constructible
-                        // `function`, an exported arrow stays an arrow. The
-                        // `function_spelling` knob governs private functions only.
-                        public_function_spelling: None,
                         keep_function_names: self.javascript.keep_function_names,
                         keep_published_function_names: self
                             .javascript
@@ -314,15 +312,16 @@ impl ProjectConfig {
         ))
     }
 
-    /// The sole bridge from historical flags/allowlists into the new tactic
-    /// registry. Explicit omission from a legacy allowlist means off; it must
-    /// not reappear through a different aggregate producer.
+    /// The sole bridge from historical flags/allowlists into the tactic
+    /// registry: an explicit setting, and a default that replaces the spec
+    /// row's where the configured priority decides it. Explicit omission from
+    /// a legacy allowlist means off; it must not reappear through a different
+    /// aggregate producer.
     fn legacy_tactic_setting(
         &self,
         tactic: crate::compilation_policy::TacticId,
         javascript: bool,
-        optimizer: &OptimizationOptions,
-    ) -> (Option<bool>, bool) {
+    ) -> (Option<bool>, Option<bool>) {
         use crate::compilation_policy::TacticId as T;
         let compression = |decision| {
             (
@@ -330,23 +329,14 @@ impl ProjectConfig {
                     .compression
                     .as_ref()
                     .map(|list| list.contains(&decision)),
-                self.javascript.compression_enabled(decision),
+                Some(self.javascript.compression_enabled(decision)),
             )
         };
         match tactic {
-            T::DeadCodeElimination => (
-                self.optimization.dead_code_elimination,
-                optimizer.dead_code_elimination,
-            ),
-            T::ConstantFolding => (
-                self.optimization.constant_folding,
-                optimizer.constant_folding,
-            ),
-            T::Inlining => (self.optimization.inlining, optimizer.inlining),
-            T::ScalarReplacement => (
-                self.optimization.scalar_replacement,
-                optimizer.scalar_replacement,
-            ),
+            T::DeadCodeElimination => (self.optimization.dead_code_elimination, None),
+            T::ConstantFolding => (self.optimization.constant_folding, None),
+            T::Inlining => (self.optimization.inlining, None),
+            T::ScalarReplacement => (self.optimization.scalar_replacement, None),
             T::CallSpecialization => {
                 let explicit = self.optimization.call_site_specialization.or_else(|| {
                     if javascript {
@@ -358,62 +348,37 @@ impl ProjectConfig {
                         None
                     }
                 });
-                (
-                    explicit,
-                    optimizer.call_site_specialization
-                        && (!javascript
-                            || self.javascript.optimization_enabled(
-                                JavaScriptOptimization::CallSiteSpecialization,
-                                None,
-                            )),
-                )
+                (explicit, None)
             }
             T::HelperSharing => {
                 let (legacy, _) = compression(CompressionDecision::ParameterizedFunctionMerging);
                 (
                     self.optimization.parameterized_function_merging.or(legacy),
-                    self.js_parameterized_function_merging_enabled(),
+                    Some(self.js_parameterized_function_merging_enabled()),
                 )
             }
-            T::TargetCompaction => (
-                (!self.javascript.operand_order_fusion).then_some(false),
-                self.javascript.operand_order_fusion,
-            ),
+            T::TargetCompaction => ((!self.javascript.operand_order_fusion).then_some(false), None),
             T::IdentifierMangling => {
-                let (legacy, default) = compression(CompressionDecision::IdentifierMangling);
-                (
-                    self.mangle.identifiers.or(legacy),
-                    self.mangle.identifiers.unwrap_or(default),
-                )
+                let (legacy, _) = compression(CompressionDecision::IdentifierMangling);
+                (self.mangle.identifiers.or(legacy), None)
             }
             T::PropertyMangling => {
                 let (legacy, default) = compression(CompressionDecision::PropertyMangling);
-                (
-                    self.mangle.properties.or(legacy),
-                    self.mangle.properties.unwrap_or(default),
-                )
+                (self.mangle.properties.or(legacy), default)
             }
             T::StringPooling => {
                 let (legacy, default) = compression(CompressionDecision::StringPooling);
-                (
-                    self.mangle.pool_strings.or(legacy),
-                    self.mangle.pool_strings.unwrap_or(default),
-                )
+                (self.mangle.pool_strings.or(legacy), default)
             }
             T::StringArrayPacking => compression(CompressionDecision::StringArrayPacking),
-            T::StartupReconstruction => (None, true),
-            T::RecurringReconstruction => (None, false),
+            T::StartupReconstruction | T::RecurringReconstruction => (None, None),
             T::NamingSearch => {
                 let explicit = self
                     .javascript
                     .optimizations
                     .as_ref()
                     .map(|v| v.contains(&JavaScriptOptimization::EntropyCrossScopeReuse));
-                (
-                    explicit,
-                    self.javascript
-                        .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
-                )
+                (explicit, None)
             }
         }
     }
@@ -2053,6 +2018,17 @@ pub enum CompressionCostModel {
     Brotli,
 }
 
+impl CompressionCostModel {
+    /// The configuration spelling.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Raw => "raw",
+            Self::Gzip => "gzip",
+            Self::Brotli => "brotli",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CandidateSearch {
@@ -2617,6 +2593,17 @@ pub enum BundleMode {
     Single,
     Split,
     PreserveModules,
+}
+
+impl BundleMode {
+    /// The configuration spelling.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Single => "single",
+            Self::Split => "split",
+            Self::PreserveModules => "preserve-modules",
+        }
+    }
 }
 
 /// Whether the output carries the relative JavaScript or TypeScript modules

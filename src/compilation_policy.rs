@@ -108,16 +108,39 @@ pub enum AnalysisRequirement {
     NamesAndBoundary,
 }
 
+/// What `auto` resolves a tactic to, before the effort gate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TacticDefault {
+    On,
+    /// Only an explicit `on` enables it.
+    Off,
+    /// On under the `maximum` optimization preset, off under `none`.
+    Preset,
+}
+
+impl TacticDefault {
+    pub const fn enabled(self, maximum_preset: bool) -> bool {
+        match self {
+            Self::On => true,
+            Self::Off => false,
+            Self::Preset => maximum_preset,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TacticSpec {
     pub id: TacticId,
     pub name: &'static str,
     pub javascript_only: bool,
+    /// The lowest JavaScript effort level at which `auto` enables the
+    /// tactic. Native requests have no effort schedule and are not gated.
     pub minimum_effort: u8,
     pub startup_at_level_16: bool,
     /// Declaring an analysis requirement never makes the analysis itself
     /// conditional on whether this tactic is enabled.
     pub analysis: AnalysisRequirement,
+    pub default: TacticDefault,
 }
 
 impl TacticId {
@@ -140,29 +163,78 @@ impl TacticId {
 
     pub const fn spec(self) -> TacticSpec {
         use AnalysisRequirement as A;
+        use TacticDefault as D;
         use TacticId as T;
-        let (name, javascript_only, minimum_effort, startup_at_level_16, analysis) = match self {
-            T::DeadCodeElimination => ("dead-code-elimination", false, 0, false, A::UsesAndEffects),
-            T::ConstantFolding => ("constant-folding", false, 0, false, A::Values),
-            T::Inlining => ("inlining", false, 0, false, A::CallsAndCaptures),
-            T::ScalarReplacement => (
-                "scalar-replacement",
-                false,
-                0,
-                false,
-                A::OwnershipAndObservations,
-            ),
-            T::CallSpecialization => ("call-specialization", false, 0, false, A::CallsAndCaptures),
-            T::HelperSharing => ("helper-sharing", true, 0, false, A::CallsAndCaptures),
-            T::TargetCompaction => ("target-compaction", true, 0, false, A::TargetSchedule),
-            T::IdentifierMangling => ("identifier-mangling", true, 0, false, A::NamesAndBoundary),
-            T::PropertyMangling => ("property-mangling", true, 0, false, A::NamesAndBoundary),
-            T::StringPooling => ("string-pooling", true, 0, false, A::Values),
-            T::StringArrayPacking => ("string-array-packing", true, 0, true, A::Values),
-            T::StartupReconstruction => ("startup-reconstruction", true, 16, true, A::Values),
-            T::RecurringReconstruction => ("recurring-reconstruction", true, 0, false, A::Values),
-            T::NamingSearch => ("naming-search", true, 0, false, A::NamesAndBoundary),
-        };
+        let (name, javascript_only, minimum_effort, startup_at_level_16, analysis, default) =
+            match self {
+                T::DeadCodeElimination => (
+                    "dead-code-elimination",
+                    false,
+                    0,
+                    false,
+                    A::UsesAndEffects,
+                    D::Preset,
+                ),
+                T::ConstantFolding => ("constant-folding", false, 0, false, A::Values, D::Preset),
+                T::Inlining => ("inlining", false, 0, false, A::CallsAndCaptures, D::Preset),
+                T::ScalarReplacement => (
+                    "scalar-replacement",
+                    false,
+                    0,
+                    false,
+                    A::OwnershipAndObservations,
+                    D::Preset,
+                ),
+                T::CallSpecialization => (
+                    "call-specialization",
+                    false,
+                    11,
+                    false,
+                    A::CallsAndCaptures,
+                    D::Preset,
+                ),
+                T::HelperSharing => (
+                    "helper-sharing",
+                    true,
+                    0,
+                    false,
+                    A::CallsAndCaptures,
+                    D::Preset,
+                ),
+                T::TargetCompaction => (
+                    "target-compaction",
+                    true,
+                    0,
+                    false,
+                    A::TargetSchedule,
+                    D::On,
+                ),
+                T::IdentifierMangling => (
+                    "identifier-mangling",
+                    true,
+                    0,
+                    false,
+                    A::NamesAndBoundary,
+                    D::On,
+                ),
+                T::PropertyMangling => (
+                    "property-mangling",
+                    true,
+                    0,
+                    false,
+                    A::NamesAndBoundary,
+                    D::On,
+                ),
+                T::StringPooling => ("string-pooling", true, 0, false, A::Values, D::On),
+                T::StringArrayPacking => ("string-array-packing", true, 0, true, A::Values, D::On),
+                T::StartupReconstruction => {
+                    ("startup-reconstruction", true, 16, true, A::Values, D::On)
+                }
+                T::RecurringReconstruction => {
+                    ("recurring-reconstruction", true, 0, false, A::Values, D::Off)
+                }
+                T::NamingSearch => ("naming-search", true, 8, false, A::NamesAndBoundary, D::On),
+            };
         TacticSpec {
             id: self,
             name,
@@ -170,6 +242,7 @@ impl TacticId {
             minimum_effort,
             startup_at_level_16,
             analysis,
+            default,
         }
     }
 }
@@ -715,7 +788,6 @@ impl ResolvedPolicy {
                 "public_aggregate_abi":format!("{:?}",language.abi.public_aggregate_abi),
                 "preserve_extern_fields":language.abi.preserve_extern_fields,
                 "internal_exports_may_mangle":language.abi.internal_export_bindings_may_mangle,
-                "public_function_spelling":format!("{:?}",language.abi.public_function_spelling),
                 "keep_function_names":language.abi.keep_function_names,
                 "keep_published_function_names":language.abi.keep_published_function_names,
                 "pristine_builtins":language.assumptions.pristine_builtins,

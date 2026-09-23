@@ -15,6 +15,7 @@ pub mod compression;
 mod host_modules;
 pub mod config;
 pub mod decision_registry;
+pub mod diagnostics;
 pub mod for_of_family;
 pub mod formatter;
 pub mod interpreter;
@@ -55,21 +56,24 @@ pub use compilation_contract::{
     JavaScriptOptimizationObjective, JavaScriptUnsafeAssumptions, JavaScriptWorld,
 };
 pub use compiler::{
-    BundledCompilationArtifacts, CANONICAL_BROTLI_LIBRARY_VERSION,
-    CANONICAL_BROTLI_PACKAGE_VERSION, CANONICAL_ZLIB_LIBRARY_VERSION,
-    CANONICAL_ZLIB_PACKAGE_VERSION, CompilationArtifacts, JavaScriptBundle, JavaScriptBundleFile,
-    JavaScriptBundleManifest, JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest,
-    JavaScriptCompilation, JavaScriptSelectionMetrics, JavaScriptTransferSizes, SourceCompileError,
-    canonical_brotli_version, canonical_zlib_version, compile_path, compile_path_all,
+    BundledCompilationArtifacts, CompilationArtifacts, JavaScriptCompilation,
+    JavaScriptSelectionMetrics, SourceCompileError, compile_path, compile_path_all,
     compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
     compile_path_explained_configured, compile_path_to_c, compile_path_to_c_configured,
     compile_path_to_js_bundle_configured, compile_path_to_js_module,
     compile_path_to_js_module_configured, compile_path_to_js_module_explained_configured,
     compile_path_to_js_module_with_source, compile_path_with_source,
     compile_path_with_source_configured, compile_source, compile_source_all, compile_source_to_c,
-    compile_source_to_js_module, measure_javascript_transfer_sizes,
-    profile_template_path_configured, render_diagnostic, render_module_diagnostic,
-    semantic_javascript_bundle, SemanticBundleFile,
+    compile_source_to_js_module, profile_template_path_configured,
+};
+pub use diagnostics::{
+    SourceDiagnostic, render_diagnostic, render_message_diagnostic, render_module_diagnostic,
+    render_service_error,
+};
+pub use structured_js::manifest::{
+    JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
+    JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest, ManifestFile,
+    javascript_bundle,
 };
 pub use compiler_service::{
     CheckedSourceSession, FinishedSourceSession, ServiceCompilation, ServiceError,

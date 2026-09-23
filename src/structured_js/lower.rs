@@ -140,7 +140,7 @@ pub fn lower_slice<'ast, 'sem, 'src>(
             feature: "semantic facts belong to a different source program",
         });
     }
-    if let Some(span) = crate::lower::reference_parameter_span(semantics) {
+    if let Some(span) = semantics.reference_parameter_span() {
         return Err(Unsupported {
             span,
             feature: "reference parameter calling convention",

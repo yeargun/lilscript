@@ -36,6 +36,24 @@ pub fn measure(bytes: &[u8], model: CompressionCostModel) -> Result<usize, Strin
     }
 }
 
+/// One artifact's delivered size under every canonical codec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct JavaScriptTransferSizes {
+    pub raw: usize,
+    pub gzip9: usize,
+    pub brotli11: usize,
+}
+
+/// Measure one artifact under every canonical codec, for inspection and
+/// delivery manifests. Each call encodes; nothing is cached.
+pub fn measure_javascript_transfer_sizes(bytes: &[u8]) -> Result<JavaScriptTransferSizes, String> {
+    Ok(JavaScriptTransferSizes {
+        raw: bytes.len(),
+        gzip9: measure(bytes, CompressionCostModel::Gzip)?,
+        brotli11: measure(bytes, CompressionCostModel::Brotli)?,
+    })
+}
+
 fn measure_inspection(bytes: &[u8], model: CompressionCostModel) -> Result<usize, String> {
     measure_admitted(bytes, model, &mut AllocationBudget::new(None))
         .map_err(|error| format!("canonical candidate measurement failed: {error:?}"))

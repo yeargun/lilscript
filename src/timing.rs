@@ -356,10 +356,7 @@ pub fn report(wall_nanos: u128) -> Option<String> {
             name = bucket.name,
         ));
     }
-    let [(codec_hits, _), (analyze_hits, _)] = crate::artifact_memo::statistics();
-    out.push_str(&format!(
-        r#","memo_codec_hits":{codec_hits},"memo_analyze_hits":{analyze_hits}}}"#
-    ));
+    out.push('}');
     Some(out)
 }
 

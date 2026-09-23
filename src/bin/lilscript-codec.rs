@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use lilscript::compression::{
+    canonical_brotli_version, canonical_zlib_version, measure_javascript_transfer_sizes,
+    CANONICAL_BROTLI_LIBRARY_VERSION, CANONICAL_BROTLI_PACKAGE_VERSION,
+    CANONICAL_ZLIB_LIBRARY_VERSION, CANONICAL_ZLIB_PACKAGE_VERSION,
+};
 use serde::Serialize;
 
 #[derive(Debug, Parser)]
@@ -73,18 +78,18 @@ fn run() -> Result<(), String> {
     let args = Args::parse();
     debug_assert!(args.json);
 
-    let zlib_version = lilscript::canonical_zlib_version()?;
-    if zlib_version != lilscript::CANONICAL_ZLIB_LIBRARY_VERSION {
+    let zlib_version = canonical_zlib_version()?;
+    if zlib_version != CANONICAL_ZLIB_LIBRARY_VERSION {
         return Err(format!(
             "expected bundled zlib {}, linked {zlib_version}",
-            lilscript::CANONICAL_ZLIB_LIBRARY_VERSION
+            CANONICAL_ZLIB_LIBRARY_VERSION
         ));
     }
-    let brotli_version = lilscript::canonical_brotli_version();
-    if brotli_version != lilscript::CANONICAL_BROTLI_LIBRARY_VERSION {
+    let brotli_version = canonical_brotli_version();
+    if brotli_version != CANONICAL_BROTLI_LIBRARY_VERSION {
         return Err(format!(
             "expected bundled Brotli {:#010x}, linked {brotli_version:#010x}",
-            lilscript::CANONICAL_BROTLI_LIBRARY_VERSION
+            CANONICAL_BROTLI_LIBRARY_VERSION
         ));
     }
 
@@ -92,7 +97,7 @@ fn run() -> Result<(), String> {
     for path in args.paths {
         let bytes = std::fs::read(&path)
             .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-        let sizes = lilscript::measure_javascript_transfer_sizes(&bytes)
+        let sizes = measure_javascript_transfer_sizes(&bytes)
             .map_err(|error| format!("failed to measure {}: {error}", path.display()))?;
         artifacts.push(ArtifactMeasurement {
             path: path.to_string_lossy().into_owned(),
@@ -107,9 +112,9 @@ fn run() -> Result<(), String> {
         codecs: CodecProvenance {
             gzip9: GzipProvenance {
                 encoder: "upstream-stock-zlib-c",
-                library_version: lilscript::CANONICAL_ZLIB_LIBRARY_VERSION,
+                library_version: CANONICAL_ZLIB_LIBRARY_VERSION,
                 cargo_package: "libz-sys",
-                cargo_package_version: lilscript::CANONICAL_ZLIB_PACKAGE_VERSION,
+                cargo_package_version: CANONICAL_ZLIB_PACKAGE_VERSION,
                 level: 9,
                 mtime: 0,
             },
@@ -117,7 +122,7 @@ fn run() -> Result<(), String> {
                 encoder: "official-google-brotli-c",
                 library_version: "1.1.0",
                 cargo_package: "compu-brotli-sys",
-                cargo_package_version: lilscript::CANONICAL_BROTLI_PACKAGE_VERSION,
+                cargo_package_version: CANONICAL_BROTLI_PACKAGE_VERSION,
                 quality: 11,
                 lgwin: 22,
                 mode: "generic",
