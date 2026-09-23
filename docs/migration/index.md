@@ -2157,6 +2157,43 @@ motionlil's `full.js` falls by 783 Brotli and about 4,600 raw.
 
 **Verification.** 3,066 unit tests pass, including `an_initializer_store_the_literal_already_holds_goes`, `a_default_only_erased_callers_could_use_is_no_check` and `an_object_only_read_through_its_fields_is_its_fields`. `defaults_of_a_function_only_ever_called_print_natively` now exercises `JsValue` parameters, whose defaults stay. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 24: jquerylil rewritten module by module (2026-09-23)
+
+The census found jquerylil's loss in content, not class shells: every module but the selector engine compiled 8–68% larger than upstream's. Six agents each rewrote one disjoint group of the port's LilScript, bottom-up against upstream's minified form of the same modules. The groups were event, css (with dimensions and offset), effects and queue, ajax, core (with data, deferred, callbacks and the host layer), and the DOM modules.
+
+Each agent wrote a jsdom differential harness that runs official jquery@3.7.1 and our build side by side over its group's API. They are kept in [jquerylil-harness](../../finer/port-migrations/jquerylil-harness/README.md). What the rewrites removed:
+- defensive checks upstream does not make;
+- explicit `arguments` unpacking where upstream names its parameters;
+- null-to-false normalizations;
+- field-by-field copies;
+- statement transliterations of upstream's expressions.
+
+The harnesses also exposed divergences the port's 7 tests never saw, and the rewrites fixed them. Examples: every dimension getter, `beforeSend` returning false, and 190 event scenarios.
+
+A host reboot erased the agents' patches under `/tmp`. They were rebuilt by replaying each agent's recorded commands onto the same baseline, then merged; the file sets matched what each agent had reported. Merging exposed one cross-group break: the css group had dropped `isHiddenWithinTree`'s second parameter, but `fadeTo` passes the function to `.filter()`, which calls it as `(index, elem)`. Upstream's `elem = el || elem` is restored.
+
+| jquerylil | Brotli objective (`esm`) | Raw objective |
+|---|---|---|
+| Batch 23 | 28,994 | 85,501 |
+| **Rewritten port** | **25,527** | **72,406** |
+| Bar | 27,445 | 87,151 |
+
+| Harness (cases) | Mismatches vs official, before | After |
+|---|---|---|
+| ajax (43) | 12 | 0 |
+| css (1,086) | 287 | 0 |
+| effects (183) | 51 | 0 |
+| event (291) | 190 | 11 |
+| dom (5,630) | 120 | 15 |
+| core (187) | 12 | 2 |
+
+Every remaining mismatch already existed before the rewrite. Some examples:
+- `$.Event`'s prototype link and its lazy `addProp` getters;
+- invalid-selector timing;
+- constructor whitespace handling.
+
+jquerylil now wins both objectives. Its tests pass on both (7/7).
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

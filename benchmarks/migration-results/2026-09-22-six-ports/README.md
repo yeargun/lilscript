@@ -19,21 +19,21 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now (batch 17) | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 24) | Bar | Gap |
 |---|---|---|---|---|
 | katexlil (complete `katex.esm.js`; without our 76-byte banner, which the bar lacks: 62,680) | 65,727 | 62,665 | 63,044 | **win −379** (like for like −364) |
-| markedlil (`marked.raw.js`) | 9,397 | 9,258 | 10,092 | **win −834** |
+| markedlil (`marked.raw.js`) | 9,397 | 9,221 | 10,092 | **win −871** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,393 | 5,622 | **win −229** |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,048 | 27,445 | +1,603 |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 25,527 | 27,445 | **win −1,918** |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 46,030 (41,845 whitespace-minified) | 29,634 | +16,396 (+12,211) |
-| motionlil (`full.js`) | does not build | 50,629 | 41,032 | +9,597 |
+| motionlil (`full.js`) | does not build | 49,846 | 41,032 | +8,814 |
 
-| Raw objective | Start | Now (batch 17) | Bar | Gap |
+| Raw objective | Start | Now (batch 24) | Bar | Gap |
 |---|---|---|---|---|
 | katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 248,553 | 267,050 | **win −18,497** |
-| markedlil (`marked.bytes.js`) | 39,687 | 35,377 | 37,022 | **win −1,645** |
+| markedlil (`marked.bytes.js`) | 39,687 | 35,289 | 37,022 | **win −1,733** |
 | posthoglil (`posthog.bytes.js`) | 19,750 | 15,678 | 16,123 | **win −445** |
-| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 85,713 | 87,151 | **win −1,438** |
+| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 72,406 | 87,151 | **win −14,745** |
 | zodlil (complete package, built with the raw objective) | open | 246,267 (180,944 whitespace-minified) | 130,463 | +115,804 (+50,481) |
 | motionlil | no raw configuration yet | | | |
 
