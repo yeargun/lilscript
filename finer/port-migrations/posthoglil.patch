@@ -1,3 +1,248 @@
+
+--- a/lilscript.bytes.toml
++++ b/lilscript.bytes.toml
+@@ -1,4 +1,7 @@
+ [javascript]
++# The raw artifact publishes its names, not `fn.name`: its bars mangle every
++# published function, and reflecting the source name costs about 1,000 bytes.
++keep_published_function_names = false
+ priority = "size-first"
+ optimization_level = 15
+ cost_model = "raw"
+
+--- a/src/bot.lil
++++ b/src/bot.lil
+@@ -1,6 +1,6 @@
+ import { isArr, isUndef, len, toStr } from "./host.lil";
+ 
+-string[] blockedUserAgents = [
++export string[] DEFAULT_BLOCKED_UA_STRS = [
+   "amazonbot",
+   "amazonproductbot",
+   "app.hypefactors.com",
+@@ -80,7 +80,6 @@
+   "bytespider"
+ ];
+ 
+-export JsValue DEFAULT_BLOCKED_UA_STRS = blockedUserAgents;
+ 
+ bool listBlocksUa(string uaLower, JsValue list) {
+   int n = len(list);
+@@ -99,7 +98,7 @@
+     return false;
+   }
+   string uaLower = toStr(ua).toLowerCase();
+-  if (listBlocksUa(uaLower, blockedUserAgents)) {
++  if (listBlocksUa(uaLower, DEFAULT_BLOCKED_UA_STRS)) {
+     return true;
+   }
+   if (isUndef(customBlockedUserAgents) || !isArr(customBlockedUserAgents)) {
+
+--- a/src/bucketed.lil
++++ b/src/bucketed.lil
+@@ -8,12 +8,12 @@
+     return fallback;
+   }
+   JsValue primary = config[key];
+-  if (isNum(primary)) {
+-    return toNum(primary);
++  if (primary is float) {
++    return primary;
+   }
+   JsValue legacy = config[fallbackKey];
+-  if (isNum(legacy)) {
+-    return toNum(legacy);
++  if (legacy is float) {
++    return legacy;
+   }
+   return fallback;
+ }
+@@ -55,9 +55,7 @@
+   string keyStr = toStr(key);
+   JsValue bucket = buckets[keyStr];
+   if (isUndef(bucket) || JS.isNullish(bucket)) {
+-    bucket = JS.object();
+-    bucket["tokens"] = bucketSize;
+-    bucket["lastAccess"] = now;
++    bucket = JS.object("tokens", bucketSize, "lastAccess", now);
+     buckets[keyStr] = bucket;
+   } else {
+     applyRefill(bucket, now, refillRate, bucketSize, refillInterval);
+
+--- a/src/cookie.lil
++++ b/src/cookie.lil
+@@ -17,14 +17,6 @@
+ Regex slashRe = new Regex("/", "g");
+ Regex eqRe = new Regex("=", "g");
+ 
+-JsValue cookieGet(JsValue self, JsValue name) {
+-  JsValue cookies = self["c"];
+-  string key = toStr(name);
+-  if (!hasKey(cookies, key)) {
+-    return undef();
+-  }
+-  return JS.object("value", cookies[key]);
+-}
+ 
+ export string getPostHogCookieName(string apiKey) {
+   return "ph_" + apiKey.replace(plusRe, "PL").replace(slashRe, "SL").replace(eqRe, "EQ") + "_posthog";
+@@ -32,10 +24,7 @@
+ 
+ export string serializePostHogCookie(string anonymousId) {
+   number now = nowMs();
+-  JsValue sesid = JS.array();
+-  JS.invoke(sesid, "push", now);
+-  JS.invoke(sesid, "push", uuidv7());
+-  JS.invoke(sesid, "push", now);
++  JsValue[] sesid = [now, uuidv7(), now];
+   JsValue payload = JS.object();
+   payload["distinct_id"] = anonymousId;
+   payload["$device_id"] = anonymousId;
+@@ -100,8 +89,12 @@
+     }
+   }
+   JsValue store = JS.object();
+-  store["c"] = cookies;
+-  store["get"] = JS.method1(cookieGet);
++  store["get"] = (JsValue name) => {
++    if (JS.in(name, cookies)) {
++      return JS.object("value", cookies[name]);
++    }
++    return undef();
++  };
+   return store;
+ }
+ 
+@@ -133,12 +126,12 @@
+ export string getConsentCookieName(string apiKey, JsValue config) {
+   if (!isUndef(config) && !JS.isNullish(config)) {
+     JsValue named = config["consent_persistence_name"];
+-    if (isStr(named) && named.truthy()) {
+-      return toStr(named);
++    if (named.truthy() && named is string) {
++      return named;
+     }
+     JsValue prefix = config["opt_out_capturing_cookie_prefix"];
+-    if (isStr(prefix) && prefix.truthy()) {
+-      return toStr(prefix) + apiKey;
++    if (prefix.truthy() && prefix is string) {
++      return prefix + apiKey;
+     }
+   }
+   return "__ph_opt_in_out_" + apiKey;
+@@ -149,8 +142,5 @@
+   if (!isUndef(cookie) && !JS.isNullish(cookie)) {
+     return isNoLike(cookie["value"]);
+   }
+-  if (!isUndef(config) && !JS.isNullish(config) && config["opt_out_capturing_by_default"].truthy()) {
+-    return true;
+-  }
+-  return false;
++  return !JS.isNullish(config) && config["opt_out_capturing_by_default"].truthy();
+ }
+
+--- a/src/flags.lil
++++ b/src/flags.lil
+@@ -10,7 +10,7 @@
+   undef
+ } from "./host.lil";
+ 
+-string[] campaignKeys = [
++export string[] MINIMAL_FLAG_CALLED_EVENT_CAMPAIGN_PROPERTIES = [
+   "utm_source",
+   "utm_medium",
+   "utm_campaign",
+@@ -37,7 +37,7 @@
+   "_kx"
+ ];
+ 
+-string[] flagCalledKeys = [
++export string[] MINIMAL_FLAG_CALLED_EVENT_PROPERTIES = [
+   "$feature_flag",
+   "$feature_flag_response",
+   "$feature_flag_has_experiment",
+@@ -54,7 +54,7 @@
+   "$current_url",
+   "$pathname",
+   "$referring_domain",
+-  ...campaignKeys,
++  ...MINIMAL_FLAG_CALLED_EVENT_CAMPAIGN_PROPERTIES,
+   "$session_id",
+   "$window_id",
+   "$lib",
+@@ -63,8 +63,6 @@
+   "$is_server"
+ ];
+ 
+-export JsValue MINIMAL_FLAG_CALLED_EVENT_CAMPAIGN_PROPERTIES = campaignKeys;
+-export JsValue MINIMAL_FLAG_CALLED_EVENT_PROPERTIES = flagCalledKeys;
+ 
+ JsValue empty() {
+   return JS.object();
+@@ -221,31 +219,14 @@
+   JsValue flags = orEmpty(featureFlags);
+   JsValue payloads = orEmpty(featureFlagPayloads);
+   JsValue enabled = empty();
+-  JsValue seen = empty();
+-  JsValue flagKeys = objectKeys(flags);
+-  JsValue payloadKeys = objectKeys(payloads);
++  JsValue keys = JS.invoke(objectKeys(flags), "concat", objectKeys(payloads));
+   int i = 0;
+-  int n = len(flagKeys);
++  int n = len(keys);
+   while (i < n) {
+-    JsValue key = flagKeys[i];
+-    seen[key] = true;
++    JsValue key = keys[i];
+     if (flags[key].truthy() || payloads[key].truthy()) {
+       JsValue value = flags[key];
+-      if (isUndef(value) || JS.isNullish(value)) {
+-        enabled[key] = true;
+-      } else {
+-        enabled[key] = value;
+-      }
+-    }
+-    i = i + 1;
+-  }
+-  i = 0;
+-  n = len(payloadKeys);
+-  while (i < n) {
+-    JsValue key = payloadKeys[i];
+-    if (!JS.in(key, seen) && (flags[key].truthy() || payloads[key].truthy())) {
+-      JsValue value = flags[key];
+-      if (isUndef(value) || JS.isNullish(value)) {
++      if (JS.isNullish(value)) {
+         enabled[key] = true;
+       } else {
+         enabled[key] = value;
+@@ -304,8 +285,8 @@
+ export JsValue minimizeFlagCalledEventProperties(JsValue properties, JsValue transportKeys) {
+   JsValue out = empty();
+   int i = 0;
+-  while (i < flagCalledKeys.length) {
+-    copyIfPresent(properties, out, flagCalledKeys[i]);
++  while (i < MINIMAL_FLAG_CALLED_EVENT_PROPERTIES.length) {
++    copyIfPresent(properties, out, MINIMAL_FLAG_CALLED_EVENT_PROPERTIES[i]);
+     i = i + 1;
+   }
+   if (!isUndef(transportKeys) && !JS.isNullish(transportKeys)) {
+
+--- a/src/host.lil
++++ b/src/host.lil
+@@ -185,9 +185,8 @@
+   if (JS.strictEqual(value, 0)) {
+     return true;
+   }
+-  if (!isStr(value)) {
+-    return false;
++  if (value is string) {
++    return value == "false" || value == "0" || value == "no";
+   }
+-  string text = JS.string(value);
+-  return text == "false" || text == "0" || text == "no";
++  return false;
+ }
+
 --- a/src/number.lil
 +++ b/src/number.lil
 @@ -1,6 +1,7 @@
@@ -8,7 +253,303 @@
  export number clampToRange(
    JsValue value,
    number min,
-diff -ru a/test/api.test.mjs b/test/api.test.mjs
+@@ -40,13 +41,13 @@
+   if (JS.isNullish(field)) {
+     return defaultValue;
+   }
+-  if (isBool(field)) {
+-    return field.truthy();
++  if (field is bool) {
++    return field;
+   }
+   if (JS.typeOf(field) == "object") {
+     JsValue value = field[key];
+-    if (isBool(value)) {
+-      return value.truthy();
++    if (value is bool) {
++      return value;
+     }
+     return defaultValue;
+   }
+@@ -58,11 +59,11 @@
+     return undef();
+   }
+   JsValue value = field[key];
+-  if (isNum(value) && isFiniteNum(toNum(value))) {
++  if (value is float && isFiniteNum(value)) {
+     return value;
+   }
+-  if (isStr(value)) {
+-    string trimmed = toStr(value).trim();
++  if (value is string) {
++    string trimmed = value.trim();
+     if (trimmed == "") {
+       return undef();
+     }
+@@ -75,9 +76,8 @@
+ }
+ 
+ export bool isValidSampleRate(JsValue value) {
+-  if (!isNum(value)) {
+-    return false;
++  if (value is float) {
++    return isFiniteNum(value) && value >= 0.0 && value <= 1.0;
+   }
+-  number n = toNum(value);
+-  return isFiniteNum(n) && n >= 0.0 && n <= 1.0;
++  return false;
+ }
+
+--- a/src/queue.lil
++++ b/src/queue.lil
+@@ -14,17 +14,16 @@
+ number defaultFlush = 3000.0;
+ 
+ export number clampFlushInterval(JsValue value) {
+-  if (!isNum(value) || !isFiniteNum(toNum(value))) {
+-    return defaultFlush;
+-  }
+-  number ms = toNum(value);
+-  if (ms > 5000.0) {
+-    return 5000.0;
+-  }
+-  if (ms < 250.0) {
+-    return 250.0;
++  if (value is float && isFiniteNum(value)) {
++    if (value > 5000.0) {
++      return 5000.0;
++    }
++    if (value < 250.0) {
++      return 250.0;
++    }
++    return value;
+   }
+-  return ms;
++  return defaultFlush;
+ }
+ 
+ export JsValue formatQueue(JsValue items) {
+@@ -58,8 +57,8 @@
+   while (i < n) {
+     JsValue next = copyObj(data[i]);
+     JsValue timestamp = next["timestamp"];
+-    if (isNum(timestamp)) {
+-      next["offset"] = absNum(toNum(timestamp) - now);
++    if (timestamp is float) {
++      next["offset"] = absNum(timestamp - now);
+       deleteKey(next, "timestamp");
+     }
+     JS.invoke(out, "push", next);
+@@ -75,7 +74,7 @@
+   int i = 0;
+   while (i < n) {
+     JsValue req = requests[i];
+-    if (toStr(req["url"]).indexOf("/e") == 0) {
++    if (JS.strictEqual(JS.invoke(req["url"], "indexOf", "/e"), 0)) {
+       JS.invoke(events, "push", req);
+     } else {
+       JS.invoke(other, "push", req);
+
+--- a/src/rate-limit.lil
++++ b/src/rate-limit.lil
+@@ -5,10 +5,10 @@
+     return fallback;
+   }
+   JsValue value = bucket[key];
+-  if (!isNum(value)) {
+-    return fallback;
++  if (value is float) {
++    return value;
+   }
+-  return toNum(value);
++  return fallback;
+ }
+ 
+ export JsValue rateLimitContext(JsValue bucket, number now, number eventsPerSecond, number burstLimit, bool checkOnly) {
+
+--- a/src/router.lil
++++ b/src/router.lil
+@@ -31,8 +31,8 @@
+ 
+ export string flagsApiHostFromConfig(JsValue config) {
+   JsValue custom = config["flags_api_host"];
+-  if (isStr(custom) && custom.truthy()) {
+-    return trimSlash(toStr(custom));
++  if (custom.truthy() && custom is string) {
++    return trimSlash(custom);
+   }
+   return apiHostFromConfig(toStr(config["api_host"]));
+ }
+@@ -40,8 +40,8 @@
+ export string uiHostFromConfig(JsValue config) {
+   JsValue custom = config["ui_host"];
+   string host = "";
+-  if (isStr(custom) && custom.truthy()) {
+-    host = trimSlash(toStr(custom));
++  if (custom.truthy() && custom is string) {
++    host = trimSlash(custom);
+   } else {
+     host = replaceIngestion(apiHostFromConfig(toStr(config["api_host"])));
+   }
+@@ -82,8 +82,8 @@
+   }
+   if (target == "assets" && resolved.startsWith("/static/")) {
+     JsValue override = config["asset_host"];
+-    if (isStr(override) && override.truthy()) {
+-      string host = trimSlash(toStr(override));
++    if (override.truthy() && override is string) {
++      string host = trimSlash(override);
+       if (host != "") {
+         return host + resolved;
+       }
+
+--- a/src/string.lil
++++ b/src/string.lil
+@@ -1,7 +1,7 @@
+ import { isArr, jsonStringify, len, objectKeys, toStr, undef } from "./host.lil";
+ 
+ export bool includes(JsValue haystack, JsValue needle) {
+-  return JS.number(JS.invoke(haystack, "indexOf", needle)).toInt() != -1;
++  return !JS.strictEqual(JS.invoke(haystack, "indexOf", needle), -1);
+ }
+ 
+ export string trim(string str) {
+@@ -11,7 +11,7 @@
+ Regex leadingDollar = new Regex("^\\$", "");
+ 
+ export string stripLeadingDollar(string s) {
+-  return JS.string(JS.invoke(s, "replace", leadingDollar, ""));
++  return s.replace(leadingDollar, "");
+ }
+ 
+ export bool isDistinctIdStringLike(string value) {
+@@ -39,7 +39,7 @@
+   int n = len(keys);
+   int i = 0;
+   while (i < n) {
+-    string key = toStr(keys[i]);
++    JsValue key = keys[i];
+     acc[key] = deepSortKeys(value[key]);
+     i = i + 1;
+   }
+
+--- a/src/types.lil
++++ b/src/types.lil
+@@ -32,7 +32,7 @@
+   if (!isStringValue(x)) {
+     return false;
+   }
+-  return JS.string(x).trim().length == 0;
++  return JS.invoke(x, "trim").length == 0.0;
+ }
+ 
+ export bool isPositiveNumber(JsValue value) {
+@@ -47,7 +47,7 @@
+   return objectTag(candidate) == "[object " + className + "]";
+ }
+ 
+-string[] unsafeEvents = [
++export string[] knownUnsafeEditableEvent = [
+   "$snapshot",
+   "$pageview",
+   "$pageleave",
+@@ -64,41 +64,19 @@
+   "$feature_flag_called"
+ ];
+ 
+-string[] unsafeEventProperties = ["token"];
++export string[] knownUnsafeEditableEventProperty = ["token"];
+ 
+-export JsValue knownUnsafeEditableEvent = unsafeEvents;
+-export JsValue knownUnsafeEditableEventProperty = unsafeEventProperties;
+ 
+ export bool isKnownUnsafeEditableEvent(JsValue x) {
+-  return includes(unsafeEvents, x);
++  return includes(knownUnsafeEditableEvent, x);
+ }
+ 
+ export bool isKnownUnsafeEditableEventProperty(JsValue x) {
+-  return includes(unsafeEventProperties, x);
++  return includes(knownUnsafeEditableEventProperty, x);
+ }
+ 
+-JsValue makeYesLike() {
+-  JsValue list = JS.array();
+-  JS.invoke(list, "push", true);
+-  JS.invoke(list, "push", "true");
+-  JS.invoke(list, "push", 1);
+-  JS.invoke(list, "push", "1");
+-  JS.invoke(list, "push", "yes");
+-  return list;
+-}
+-
+-JsValue makeNoLike() {
+-  JsValue list = JS.array();
+-  JS.invoke(list, "push", false);
+-  JS.invoke(list, "push", "false");
+-  JS.invoke(list, "push", 0);
+-  JS.invoke(list, "push", "0");
+-  JS.invoke(list, "push", "no");
+-  return list;
+-}
+-
+-export JsValue yesLikeValues = makeYesLike();
+-export JsValue noLikeValues = makeNoLike();
++export JsValue[] yesLikeValues = [true, "true", 1, "1", "yes"];
++export JsValue[] noLikeValues = [false, "false", 0, "0", "no"];
+ 
+ export bool isYesLike(JsValue val) {
+   return includes(yesLikeValues, val);
+
+--- a/src/uuid.lil
++++ b/src/uuid.lil
+@@ -57,26 +57,8 @@
+   return bytes;
+ }
+ 
+-void writeHexChunk(Uint8Array bytes, int offset, string hex) {
+-  number n = parseIntHex(hex);
+-  bytes[offset] = (n / 16777216.0).toInt();
+-  bytes[offset + 1] = (n / 65536.0).toInt();
+-  bytes[offset + 2] = (n / 256.0).toInt();
+-  bytes[offset + 3] = n.toInt();
+-}
+-
+-Uint8Array hexToBytes(string hex) {
+-  Uint8Array bytes = new Uint8Array(16);
+-  int i = 0;
+-  while (i < bytes.length) {
+-    writeHexChunk(bytes, i, hex.slice(i * 2, i * 2 + 8));
+-    i = i + 4;
+-  }
+-  return bytes;
+-}
+-
+ string joinGroups(JsValue cap) {
+-  return toStr(JS.invoke(JS.invoke(cap, "slice", 1, 6), "join", ""));
++  return toStr(JS.invoke(JS.invoke(cap, "slice", 1, 6), "join", "-"));
+ }
+ 
+ number genTimestamp = 0.0;
+@@ -158,7 +140,7 @@
+   if (n == 32) {
+     JsValue cap = re32.exec(uuid);
+     if (cap.truthy()) {
+-      hex = JS.string(cap[0]);
++      hex = uuid.slice(0, 8) + "-" + uuid.slice(8, 12) + "-" + uuid.slice(12, 16) + "-" + uuid.slice(16, 20) + "-" + uuid.slice(20);
+     }
+   } else if (n == 36) {
+     JsValue cap = re36.exec(uuid);
+@@ -179,7 +161,7 @@
+   if (hex == "") {
+     throw syntaxError("could not parse UUID string");
+   }
+-  return bytesToString(hexToBytes(hex));
++  return hex.toLowerCase();
+ }
+ 
+ export string uuidToHex(string uuid) {
+
 --- a/test/api.test.mjs
 +++ b/test/api.test.mjs
 @@ -85,7 +85,8 @@
@@ -21,14 +562,3 @@ diff -ru a/test/api.test.mjs b/test/api.test.mjs
      }
    })
  
-diff -ru a/lilscript.bytes.toml b/lilscript.bytes.toml
---- a/lilscript.bytes.toml
-+++ b/lilscript.bytes.toml
-@@ -1,4 +1,7 @@
- [javascript]
-+# The raw artifact publishes its names, not `fn.name`: its bars mangle every
-+# published function, and reflecting the source name costs about 1,000 bytes.
-+keep_published_function_names = false
- priority = "size-first"
- optimization_level = 15
- cost_model = "raw"

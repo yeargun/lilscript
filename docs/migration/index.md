@@ -2046,6 +2046,26 @@ Raw falls everywhere. The Brotli movements outside jquerylil are within the code
 
 **Verification.** 3,063 unit tests pass, including `an_inert_value_is_created_in_the_branch_that_reads_it` and `a_tested_value_returned_by_one_arm_is_the_logical_operator`. `selected_inline_writer_refreshes_static_path_support_without_target_rewrites` now requires declared path slots only in the uncompacted target, where no rewrite runs. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 19: posthoglil's source rewritten where the census found it verbose (2026-09-23)
+
+The owner asked whether the ports' LilScript, not only the compiler, is where bytes go (2026-09-23). A census of posthoglil's kernel found no class machinery to speak of (about 140 bytes) and every module but `uuid` larger than Oxc's. The rewrites below are in [posthoglil.patch](../../finer/port-migrations/posthoglil.patch):
+- `CookieStore` becomes a closure instead of a record with a `this` adapter;
+- constant arrays become array literals instead of push loops;
+- `x is string` / `is float` / `is bool` narrowing replaces the `isStr()`+`toStr()` helpers;
+- exports are declared under their own names instead of through aliases;
+- `parseUuid` returns the validated groups instead of round-tripping through bytes;
+- the flags response is built in one loop.
+
+The loop fixes a port bug. `key in seen` also matched inherited `Object.prototype` names, so a payload-only key named "constructor" was dropped; the output now matches upstream on the differential cases. Declaring the exports as arrows, as upstream does, measured −214 raw but +24 Brotli and is left out.
+
+| posthoglil | Brotli objective (`posthog.raw.js`) | Raw objective (`posthog.bytes.js`) |
+|---|---|---|
+| Batch 18 | 5,574 | 16,311 |
+| **Rewritten port** | **5,393** | **15,678** |
+| Bar (Oxc) | 5,622 | 16,123 |
+
+posthoglil now wins both objectives. Its tests pass on both (21/21).
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

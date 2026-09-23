@@ -23,7 +23,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 |---|---|---|---|---|
 | katexlil (complete `katex.esm.js`; without our 76-byte banner, which the bar lacks: 63,143) | 65,727 | 63,158 | 63,044 | +114 (like for like +99) |
 | markedlil (`marked.raw.js`) | 9,397 | 9,258 | 10,092 | **win −834** |
-| posthoglil (`posthog.raw.js`) | 5,952 | 5,574 | 5,622 | **win −48** |
+| posthoglil (`posthog.raw.js`) | 5,952 | 5,393 | 5,622 | **win −229** |
 | jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,048 | 27,445 | +1,603 |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 46,030 (41,845 whitespace-minified) | 29,634 | +16,396 (+12,211) |
 | motionlil (`full.js`) | does not build | 51,349 | 41,032 | +10,317 |
@@ -32,7 +32,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 |---|---|---|---|---|
 | katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 251,753 | 267,050 | **win −15,297** |
 | markedlil (`marked.bytes.js`) | 39,687 | 35,377 | 37,022 | **win −1,645** |
-| posthoglil (`posthog.bytes.js`) | 19,750 | 16,328 | 16,123 | +205 |
+| posthoglil (`posthog.bytes.js`) | 19,750 | 15,678 | 16,123 | **win −445** |
 | jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 85,713 | 87,151 | **win −1,438** |
 | zodlil (complete package, built with the raw objective) | open | 246,267 (180,944 whitespace-minified) | 130,463 | +115,804 (+50,481) |
 | motionlil | no raw configuration yet | | | |
@@ -54,7 +54,7 @@ The default route, for reference with the same binary: posthoglil 5,602 (it also
   - The 65 single-use struct encoders are gone in batch 7 (−794).
 - **motionlil:** feature by feature against upstream bundles with the same exports, the small entries carry large fixed costs: viewport 717 against 345, mini 10,980 against 4,446. Classes are constructed as a null-filled literal plus an `init` call, so every value type is a module-level effect nothing can prune, and it keeps color parsing and the frame loop in every entry (batch 8 in the plan). Duplicate module variants are only 4.5 KB raw of a 230 KB core. The port's `full.js` is esbuild plus Terser over our output, and that reprint costs about 1.1 KB Brotli over our own core (51,757 against 52,893).
 - **katexlil:** the port is an untyped transliteration (3,990 `JsValue`, 394 `toNum`, no `pure`). Terser still finds 1.7% in our output, mostly single-use functions.
-- **posthoglil:** string arrays are not packed, small `JsValue` wrappers are not inlined, and the port declares builtins through `JsValue` (`JS.number(JS.invoke(Math,"trunc",x))`).
+- **posthoglil:** fixed in the port source on 2026-09-23 ([posthoglil.patch](../../../finer/port-migrations/posthoglil.patch)), from the class-lowering census. `CookieStore` becomes a closure, constant arrays become literals, `is` narrowing replaces `isStr()`/`toStr()`, export aliases go, `parseUuid` drops its byte round trip, and the flags response is one loop. That loop also fixes an inherited-key bug: `key in seen` matched `Object.prototype` names, so a payload key named "constructor" was dropped. Declaring the exports as arrows was measured at −214 raw but +24 Brotli, and is left out. Before the fix: string arrays are not packed, small `JsValue` wrappers are not inlined, and the port declares builtins through `JsValue` (`JS.number(JS.invoke(Math,"trunc",x))`).
 
 ## zodlil's boundary (013-T5)
 
