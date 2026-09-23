@@ -2066,6 +2066,26 @@ The loop fixes a port bug. `key in seen` also matched inherited `Object.prototyp
 
 posthoglil now wins both objectives. Its tests pass on both (21/21).
 
+### 013 batch 20: katexlil's callbacks are plain functions (2026-09-23)
+
+The class-lowering census of katexlil measured its JsValue class emulation. Rewriting the classes as ES `class` syntax was neutral, and converting only some classes cost +18 to +117 Brotli, so the choice is program-wide. What does cost bytes is the adapter around callbacks that never read `this`. katex's `defineFunction` specs give each function a `handler`, an `htmlBuilder` and a `mathmlBuilder`. The port wrote all of them as `JS.methodN((JsValue self, …) => …)`, which prints a `this` adapter around each one. Upstream writes them as method shorthand, which is no more constructible than an arrow. katex calls them as `JS.invoke(spec, "handler", …)`, so a plain lambda receives the same arguments.
+
+[katexlil-unwrap-callbacks.py](../../finer/port-migrations/katexlil-unwrap-callbacks.py) rewrites the 97 such stores whose body never names `self`, and [katexlil.patch](../../finer/port-migrations/katexlil.patch) now carries the result. A compiler cannot make this rewrite itself: nothing proves that a `JsValue` is never constructed and its `.prototype` never read. It is the port's declaration of what it means.
+
+| katexlil | Brotli (`esm`) | Without banner | Raw objective |
+|---|---|---|---|
+| Batch 18 | 63,174 | about 63,160 | 251,753 |
+| **Plain callbacks** | **62,934** | **62,907** | **251,216** |
+| Bar | 63,044 | 63,044 | 267,050 |
+
+katexlil now wins both objectives. katex's suites pass on both: 21/21 and 1,230/1,230.
+
+The census lists further katex levers, each measured on the output text (mean over four naming schemes):
+- import the MathML node classes and `buildCommon` functions directly instead of through late-assigned namespace objects: −116;
+- the 194 unary `+` of `toNum()` arithmetic: −92;
+- `Style` ids as constants and its export object read directly: −71;
+- `.push` on local arrays instead of `Array.prototype.push.call`: −49.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

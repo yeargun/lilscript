@@ -1,3 +1,4 @@
+
 --- a/src/Settings.lil
 +++ b/src/Settings.lil
 @@ -1,3 +1,5 @@
@@ -6,3 +7,1449 @@
  import { undef, isUndef, isNullish, isFn, isStr, isNum, isArr, toStr, toNum, toInt, len, hasOwn, inOp, deleteKey, instanceOf, push, newArray, emptyObject, warn, getDocument, getConsole, globalDefined, globalGet, mathMin, mathMax, constructN, apply, objectAssign, objectKeys, makeError, makeTypeError, throwErr, hostParseInt, hostParseFloat, fromCharCode, Error, TypeError, Object, Array, Function, String, Number, Math, RegExp, JSON, Infinity, NaN } from "./host.lil";
  
  import { utils } from "./utils.lil";
+
+--- a/src/defineFunction.lil
++++ b/src/defineFunction.lil
+@@ -64,10 +64,10 @@
+   o14["names"] = a15;
+   JsValue o16 = JS.object("numArgs", 0);
+   o14["props"] = o16;
+-  o14["handler"] = JS.method0((JsValue self) => {
++  o14["handler"] = () => {
+   throw makeError(toStr("Should never be called."));
+   return undef();
+-  });
++  };
+   o14["htmlBuilder"] = htmlBuilder;
+   o14["mathmlBuilder"] = mathmlBuilder;
+   JS.call(defineFunction, undef(), o14);
+
+--- a/src/environments/array.lil
++++ b/src/environments/array.lil
+@@ -617,7 +617,7 @@
+   return res;
+ }
+ JsValue arrayEnvironment = JS.object("type", "array", "names", JS.array("array", "darray"), "props", JS.object("numArgs", 1));
+-arrayEnvironment["handler"] = JS.method2((JsValue self, JsValue context, JsValue args) => {
++arrayEnvironment["handler"] = (JsValue context, JsValue args) => {
+   JsValue symNode = JS.call(checkSymbolNodeType, undef(), args[0]);
+   JsValue colalign = undef();
+   if (symNode.truthy()) {
+@@ -639,13 +639,13 @@
+   JsValue payload = JS.object("cols", cols, "hskipBeforeAndAfter", true, "maxNumCols", len(cols));
+   return parseArray(context["parser"], payload, dCellStyle(toStr(context["envName"])));
+   return undef();
+-});
++};
+ arrayEnvironment["htmlBuilder"] = htmlBuilder;
+ arrayEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), arrayEnvironment);
+ 
+ JsValue matrixEnvironment = JS.object("type", "array", "names", JS.array("matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "matrix*", "pmatrix*", "bmatrix*", "Bmatrix*", "vmatrix*", "Vmatrix*"), "props", JS.object("numArgs", 0));
+-matrixEnvironment["handler"] = JS.method1((JsValue self, JsValue context) => {
++matrixEnvironment["handler"] = (JsValue context) => {
+   JsValue delimitersByName = JS.object("matrix", null, "pmatrix", JS.array("(", ")"), "bmatrix", JS.array("[", "]"), "Bmatrix", JS.array("\\{", "\\}"), "vmatrix", JS.array("|", "|"), "Vmatrix", JS.array("\\Vert", "\\Vert"));
+   string envName = toStr(context["envName"]);
+   JsValue delimiters = delimitersByName[JS.invoke(envName, "replace", "*", "")];
+@@ -678,24 +678,24 @@
+   }
+   return res;
+   return undef();
+-});
++};
+ matrixEnvironment["htmlBuilder"] = htmlBuilder;
+ matrixEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), matrixEnvironment);
+ 
+ JsValue smallMatrixEnvironment = JS.object("type", "array", "names", JS.array("smallmatrix"), "props", JS.object("numArgs", 0));
+-smallMatrixEnvironment["handler"] = JS.method1((JsValue self, JsValue context) => {
++smallMatrixEnvironment["handler"] = (JsValue context) => {
+   JsValue res = parseArray(context["parser"], JS.object("arraystretch", 0.5), "script");
+   res["colSeparationType"] = "small";
+   return res;
+   return undef();
+-});
++};
+ smallMatrixEnvironment["htmlBuilder"] = htmlBuilder;
+ smallMatrixEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), smallMatrixEnvironment);
+ 
+ JsValue subarrayEnvironment = JS.object("type", "array", "names", JS.array("subarray"), "props", JS.object("numArgs", 1));
+-subarrayEnvironment["handler"] = JS.method2((JsValue self, JsValue context, JsValue args) => {
++subarrayEnvironment["handler"] = (JsValue context, JsValue args) => {
+   JsValue symNode = JS.call(checkSymbolNodeType, undef(), args[0]);
+   JsValue colalign = undef();
+   if (symNode.truthy()) {
+@@ -722,13 +722,13 @@
+   }
+   return res;
+   return undef();
+-});
++};
+ subarrayEnvironment["htmlBuilder"] = htmlBuilder;
+ subarrayEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), subarrayEnvironment);
+ 
+ JsValue casesEnvironment = JS.object("type", "array", "names", JS.array("cases", "dcases", "rcases", "drcases"), "props", JS.object("numArgs", 0));
+-casesEnvironment["handler"] = JS.method1((JsValue self, JsValue context) => {
++casesEnvironment["handler"] = (JsValue context) => {
+   JsValue payload = JS.object("arraystretch", 1.2, "cols", JS.array(JS.object("type", "align", "align", "l", "pregap", 0, "postgap", 1), JS.object("type", "align", "align", "l", "pregap", 0, "postgap", 0)));
+   JsValue res = parseArray(context["parser"], payload, dCellStyle(toStr(context["envName"])));
+   string left = "\\{";
+@@ -739,7 +739,7 @@
+   }
+   return JS.object("type", "leftright", "mode", context["mode"], "body", JS.array(res), "left", left, "right", right, "rightColor", undef());
+   return undef();
+-});
++};
+ casesEnvironment["htmlBuilder"] = htmlBuilder;
+ casesEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), casesEnvironment);
+@@ -748,14 +748,14 @@
+ JS.call(defineEnvironment, undef(), alignEnvironment);
+ 
+ JsValue gatherEnvironment = JS.object("type", "array", "names", JS.array("gathered", "gather", "gather*"), "props", JS.object("numArgs", 0));
+-gatherEnvironment["handler"] = JS.method1((JsValue self, JsValue context) => {
++gatherEnvironment["handler"] = (JsValue context) => {
+   if (JS.invoke(utils, "contains", JS.array("gather", "gather*"), context["envName"]).truthy()) {
+     validateAmsEnvironmentContext(context);
+   }
+   JsValue payload = JS.object("cols", JS.array(JS.object("type", "align", "align", "c")), "addJot", true, "colSeparationType", "gather", "autoTag", getAutoTag(toStr(context["envName"])), "emptySingleRow", true, "leqno", context["parser"]["settings"]["leqno"]);
+   return parseArray(context["parser"], payload, "display");
+   return undef();
+-});
++};
+ gatherEnvironment["htmlBuilder"] = htmlBuilder;
+ gatherEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), gatherEnvironment);
+@@ -764,22 +764,22 @@
+ JS.call(defineEnvironment, undef(), alignatEnvironment);
+ 
+ JsValue equationEnvironment = JS.object("type", "array", "names", JS.array("equation", "equation*"), "props", JS.object("numArgs", 0));
+-equationEnvironment["handler"] = JS.method1((JsValue self, JsValue context) => {
++equationEnvironment["handler"] = (JsValue context) => {
+   validateAmsEnvironmentContext(context);
+   JsValue payload = JS.object("autoTag", getAutoTag(toStr(context["envName"])), "emptySingleRow", true, "singleRow", true, "maxNumCols", 1, "leqno", context["parser"]["settings"]["leqno"]);
+   return parseArray(context["parser"], payload, "display");
+   return undef();
+-});
++};
+ equationEnvironment["htmlBuilder"] = htmlBuilder;
+ equationEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), equationEnvironment);
+ 
+ JsValue cdEnvironment = JS.object("type", "array", "names", JS.array("CD"), "props", JS.object("numArgs", 0));
+-cdEnvironment["handler"] = JS.method1((JsValue self, JsValue context) => {
++cdEnvironment["handler"] = (JsValue context) => {
+   validateAmsEnvironmentContext(context);
+   return JS.call(parseCD, undef(), context["parser"]);
+   return undef();
+-});
++};
+ cdEnvironment["htmlBuilder"] = htmlBuilder;
+ cdEnvironment["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineEnvironment, undef(), cdEnvironment);
+@@ -787,10 +787,10 @@
+ JS.call(defineMacro, undef(), "\\nonumber", "\\gdef\\@eqnsw{0}");
+ JS.call(defineMacro, undef(), "\\notag", "\\nonumber");
+ JsValue hlineFunction = JS.object("type", "text", "names", JS.array("\\hline", "\\hdashline"), "props", JS.object("numArgs", 0, "allowedInText", true, "allowedInMath", true));
+-hlineFunction["handler"] = JS.method2((JsValue self, JsValue context, JsValue args) => {
++hlineFunction["handler"] = (JsValue context, JsValue args) => {
+   throw JS.construct(ParseError, toStr(context["funcName"]) + " valid only within array environment");
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), hlineFunction);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/environments/cd.lil
++++ b/src/environments/cd.lil
+@@ -209,7 +209,7 @@
+ JsValue o45 = JS.object("type", "cdlabel", "names", JS.array("\\\\cdleft", "\\\\cdright"));
+ JsValue o47 = JS.object("numArgs", 1);
+ o45["props"] = o47;
+-o45["handler"] = JS.method2((JsValue self, JsValue p48, JsValue args) => {
++o45["handler"] = (JsValue p48, JsValue args) => {
+   JsValue op49 = p48;
+   JsValue parser = op49["parser"];
+   JsValue funcName = op49["funcName"];
+@@ -220,8 +220,8 @@
+   o50["label"] = args[0];
+   return o50;
+   return undef();
+-});
+-o45["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o45["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue newOptions = JS.invoke(options, "havingStyle", JS.invoke(options["style"], "sup"));
+   JsValue label = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["label"], newOptions, options), options);
+   JS.invoke(label["classes"], "push", JS.add("cd-label-", group["side"]));
+@@ -230,8 +230,8 @@
+   label["depth"] = 0;
+   return label;
+   return undef();
+-});
+-o45["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o45["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a51 = JS.array(JS.invoke(mml, "buildGroup", group["label"], options));
+   JsValue label = JS.construct(mathMLTree["MathNode"], "mrow", a51);
+   JsValue a52 = JS.array(label);
+@@ -247,12 +247,12 @@
+   JS.invoke(label, "setAttribute", "scriptlevel", "1");
+   return label;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o45);
+ JsValue o54 = JS.object("type", "cdlabelparent", "names", JS.array("\\\\cdparent"));
+ JsValue o56 = JS.object("numArgs", 1);
+ o54["props"] = o56;
+-o54["handler"] = JS.method2((JsValue self, JsValue p57, JsValue args) => {
++o54["handler"] = (JsValue p57, JsValue args) => {
+   JsValue op58 = p57;
+   JsValue parser = op58["parser"];
+   JsValue o59 = emptyObject();
+@@ -261,18 +261,18 @@
+   o59["fragment"] = args[0];
+   return o59;
+   return undef();
+-});
+-o54["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o54["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue parent = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["fragment"], options), options);
+   JS.invoke(parent["classes"], "push", "cd-vert-arrow");
+   return parent;
+   return undef();
+-});
+-o54["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o54["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a60 = JS.array(JS.invoke(mml, "buildGroup", group["fragment"], options));
+   return JS.construct(mathMLTree["MathNode"], "mrow", a60);
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o54);
+ JsValue __star = JS.object("parseCD", parseCD);
+ 
+
+--- a/src/functions/arrow.lil
++++ b/src/functions/arrow.lil
+@@ -27,7 +27,7 @@
+ JsValue o4 = JS.object("type", "xArrow", "names", JS.array("\\xleftarrow", "\\xrightarrow", "\\xLeftarrow", "\\xRightarrow", "\\xleftrightarrow", "\\xLeftrightarrow", "\\xhookleftarrow", "\\xhookrightarrow", "\\xmapsto", "\\xrightharpoondown", "\\xrightharpoonup", "\\xleftharpoondown", "\\xleftharpoonup", "\\xrightleftharpoons", "\\xleftrightharpoons", "\\xlongequal", "\\xtwoheadrightarrow", "\\xtwoheadleftarrow", "\\xtofrom", "\\xrightleftarrows", "\\xrightequilibrium", "\\xleftequilibrium", "\\\\cdrightarrow", "\\\\cdleftarrow", "\\\\cdlongequal"));
+ JsValue o6 = JS.object("numArgs", 1, "numOptionalArgs", 1);
+ o4["props"] = o6;
+-o4["handler"] = JS.method3((JsValue self, JsValue p7, JsValue args, JsValue optArgs) => {
++o4["handler"] = (JsValue p7, JsValue args, JsValue optArgs) => {
+   JsValue op8 = p7;
+   JsValue parser = op8["parser"];
+   JsValue funcName = op8["funcName"];
+@@ -39,8 +39,8 @@
+   o9["below"] = optArgs[0];
+   return o9;
+   return undef();
+-});
+-o4["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o4["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue style = options["style"];
+   JsValue newOptions = JS.invoke(options, "havingStyle", JS.invoke(style, "sup"));
+   JsValue upperGroup = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["body"], newOptions, options), options);
+@@ -104,8 +104,8 @@
+   JsValue a21 = JS.array(vlist);
+   return JS.invoke(buildCommon, "makeSpan", a20, a21, options);
+   return undef();
+-});
+-o4["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o4["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue arrowNode = JS.invoke(stretchy, "mathMLnode", group["label"]);
+   JsValue c22 = undef();
+   if (JS.strictEqual(JS.invoke(group["label"], "charAt", 0), "x")) {
+@@ -138,7 +138,7 @@
+   }
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o4);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/char.lil
++++ b/src/functions/char.lil
+@@ -7,7 +7,7 @@
+ JsValue o1 = JS.object("type", "textord", "names", JS.array("\\@char"));
+ JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p4, JsValue args) => {
++o1["handler"] = (JsValue p4, JsValue args) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue arg = JS.call(assertNodeType, undef(), args[0], "ordgroup");
+@@ -42,7 +42,7 @@
+   o7["text"] = text;
+   return o7;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/color.lil
++++ b/src/functions/color.lil
+@@ -25,7 +25,7 @@
+ JsValue o1 = JS.object("type", "color", "names", JS.array("\\textcolor"));
+ JsValue o3 = JS.object("numArgs", 2, "allowedInText", true, "argTypes", JS.array("color", "original"));
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o1["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue color = JS.call(assertNodeType, undef(), args[0], "color-token")["color"];
+@@ -37,14 +37,14 @@
+   o7["body"] = JS.call(ordargument, undef(), body);
+   return o7;
+   return undef();
+-});
++};
+ o1["htmlBuilder"] = htmlBuilder;
+ o1["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o1);
+ JsValue o8 = JS.object("type", "color", "names", JS.array("\\color"));
+ JsValue o10 = JS.object("numArgs", 1, "allowedInText", true, "argTypes", JS.array("color"));
+ o8["props"] = o10;
+-o8["handler"] = JS.method2((JsValue self, JsValue p12, JsValue args) => {
++o8["handler"] = (JsValue p12, JsValue args) => {
+   JsValue op13 = p12;
+   JsValue parser = op13["parser"];
+   JsValue breakOnTokenText = op13["breakOnTokenText"];
+@@ -58,7 +58,7 @@
+   o14["body"] = body;
+   return o14;
+   return undef();
+-});
++};
+ o8["htmlBuilder"] = htmlBuilder;
+ o8["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o8);
+
+--- a/src/functions/cr.lil
++++ b/src/functions/cr.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "cr", "names", JS.array("\\\\"));
+ JsValue o3 = JS.object("numArgs", 0, "numOptionalArgs", 0, "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method3((JsValue self, JsValue p4, JsValue args, JsValue optArgs) => {
++o1["handler"] = (JsValue p4, JsValue args, JsValue optArgs) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue c6 = undef();
+@@ -35,8 +35,8 @@
+   o8["size"] = and9;
+   return o8;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a10 = JS.array("mspace");
+   JsValue a11 = JS.array();
+   JsValue span = JS.invoke(buildCommon, "makeSpan", a10, a11, options);
+@@ -48,8 +48,8 @@
+   }
+   return span;
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue node = JS.construct(mathMLTree["MathNode"], "mspace");
+   if (group["newLine"].truthy()) {
+     JS.invoke(node, "setAttribute", "linebreak", "newline");
+@@ -59,7 +59,7 @@
+   }
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/def.lil
++++ b/src/functions/def.lil
+@@ -43,7 +43,7 @@
+ JsValue o4 = JS.object("type", "internal", "names", JS.array("\\global", "\\long", "\\\\globallong"));
+ JsValue o6 = JS.object("numArgs", 0, "allowedInText", true);
+ o4["props"] = o6;
+-o4["handler"] = JS.method1((JsValue self, JsValue p7) => {
++o4["handler"] = (JsValue p7) => {
+   JsValue op8 = p7;
+   JsValue parser = op8["parser"];
+   JsValue funcName = op8["funcName"];
+@@ -57,12 +57,12 @@
+   }
+   throw JS.construct(ParseError, "Invalid token after macro prefix", token);
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o4);
+ JsValue o9 = JS.object("type", "internal", "names", JS.array("\\def", "\\gdef", "\\edef", "\\xdef"));
+ JsValue o11 = JS.object("numArgs", 0, "allowedInText", true, "primitive", true);
+ o9["props"] = o11;
+-o9["handler"] = JS.method1((JsValue self, JsValue p12) => {
++o9["handler"] = (JsValue p12) => {
+   JsValue op13 = p12;
+   JsValue parser = op13["parser"];
+   JsValue funcName = op13["funcName"];
+@@ -123,12 +123,12 @@
+   o20["mode"] = parser["mode"];
+   return o20;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o9);
+ JsValue o21 = JS.object("type", "internal", "names", JS.array("\\let", "\\\\globallet"));
+ JsValue o23 = JS.object("numArgs", 0, "allowedInText", true, "primitive", true);
+ o21["props"] = o23;
+-o21["handler"] = JS.method1((JsValue self, JsValue p24) => {
++o21["handler"] = (JsValue p24) => {
+   JsValue op25 = p24;
+   JsValue parser = op25["parser"];
+   JsValue funcName = op25["funcName"];
+@@ -141,12 +141,12 @@
+   o26["mode"] = parser["mode"];
+   return o26;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o21);
+ JsValue o27 = JS.object("type", "internal", "names", JS.array("\\futurelet", "\\\\globalfuture"));
+ JsValue o29 = JS.object("numArgs", 0, "allowedInText", true, "primitive", true);
+ o27["props"] = o29;
+-o27["handler"] = JS.method1((JsValue self, JsValue p30) => {
++o27["handler"] = (JsValue p30) => {
+   JsValue op31 = p30;
+   JsValue parser = op31["parser"];
+   JsValue funcName = op31["funcName"];
+@@ -161,7 +161,7 @@
+   o32["mode"] = parser["mode"];
+   return o32;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o27);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/enclose.lil
++++ b/src/functions/enclose.lil
+@@ -193,7 +193,7 @@
+ JsValue o28 = JS.object("type", "enclose", "names", JS.array("\\colorbox"));
+ JsValue o30 = JS.object("numArgs", 2, "allowedInText", true, "argTypes", JS.array("color", "text"));
+ o28["props"] = o30;
+-o28["handler"] = JS.method3((JsValue self, JsValue p32, JsValue args, JsValue optArgs) => {
++o28["handler"] = (JsValue p32, JsValue args, JsValue optArgs) => {
+   JsValue op33 = p32;
+   JsValue parser = op33["parser"];
+   JsValue funcName = op33["funcName"];
+@@ -207,14 +207,14 @@
+   o34["body"] = body;
+   return o34;
+   return undef();
+-});
++};
+ o28["htmlBuilder"] = htmlBuilder;
+ o28["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o28);
+ JsValue o35 = JS.object("type", "enclose", "names", JS.array("\\fcolorbox"));
+ JsValue o37 = JS.object("numArgs", 3, "allowedInText", true, "argTypes", JS.array("color", "color", "text"));
+ o35["props"] = o37;
+-o35["handler"] = JS.method3((JsValue self, JsValue p39, JsValue args, JsValue optArgs) => {
++o35["handler"] = (JsValue p39, JsValue args, JsValue optArgs) => {
+   JsValue op40 = p39;
+   JsValue parser = op40["parser"];
+   JsValue funcName = op40["funcName"];
+@@ -230,14 +230,14 @@
+   o41["body"] = body;
+   return o41;
+   return undef();
+-});
++};
+ o35["htmlBuilder"] = htmlBuilder;
+ o35["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o35);
+ JsValue o42 = JS.object("type", "enclose", "names", JS.array("\\fbox"));
+ JsValue o44 = JS.object("numArgs", 1, "argTypes", JS.array("hbox"), "allowedInText", true);
+ o42["props"] = o44;
+-o42["handler"] = JS.method2((JsValue self, JsValue p46, JsValue args) => {
++o42["handler"] = (JsValue p46, JsValue args) => {
+   JsValue op47 = p46;
+   JsValue parser = op47["parser"];
+   JsValue o48 = emptyObject();
+@@ -247,12 +247,12 @@
+   o48["body"] = args[0];
+   return o48;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o42);
+ JsValue o49 = JS.object("type", "enclose", "names", JS.array("\\cancel", "\\bcancel", "\\xcancel", "\\sout", "\\phase"));
+ JsValue o51 = JS.object("numArgs", 1);
+ o49["props"] = o51;
+-o49["handler"] = JS.method2((JsValue self, JsValue p52, JsValue args) => {
++o49["handler"] = (JsValue p52, JsValue args) => {
+   JsValue op53 = p52;
+   JsValue parser = op53["parser"];
+   JsValue funcName = op53["funcName"];
+@@ -264,14 +264,14 @@
+   o54["body"] = body;
+   return o54;
+   return undef();
+-});
++};
+ o49["htmlBuilder"] = htmlBuilder;
+ o49["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o49);
+ JsValue o55 = JS.object("type", "enclose", "names", JS.array("\\angl"));
+ JsValue o57 = JS.object("numArgs", 1, "argTypes", JS.array("hbox"), "allowedInText", false);
+ o55["props"] = o57;
+-o55["handler"] = JS.method2((JsValue self, JsValue p59, JsValue args) => {
++o55["handler"] = (JsValue p59, JsValue args) => {
+   JsValue op60 = p59;
+   JsValue parser = op60["parser"];
+   JsValue o61 = emptyObject();
+@@ -281,7 +281,7 @@
+   o61["body"] = args[0];
+   return o61;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o55);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/environment.lil
++++ b/src/functions/environment.lil
+@@ -8,7 +8,7 @@
+ JsValue o1 = JS.object("type", "environment", "names", JS.array("\\begin", "\\end"));
+ JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("text"));
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o1["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue funcName = op6["funcName"];
+@@ -51,7 +51,7 @@
+   o10["nameGroup"] = nameGroup;
+   return o10;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/genfrac.lil
++++ b/src/functions/genfrac.lil
+@@ -262,7 +262,7 @@
+ JsValue o46 = JS.object("type", "infix", "names", JS.array("\\over", "\\choose", "\\atop", "\\brace", "\\brack"));
+ JsValue o48 = JS.object("numArgs", 0, "infix", true);
+ o46["props"] = o48;
+-o46["handler"] = JS.method1((JsValue self, JsValue p49) => {
++o46["handler"] = (JsValue p49) => {
+   JsValue op50 = p49;
+   JsValue parser = op50["parser"];
+   JsValue funcName = op50["funcName"];
+@@ -294,7 +294,7 @@
+   o52["token"] = token;
+   return o52;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o46);
+ JsValue a53 = JS.array("display", "text", "script", "scriptscript");
+ stylArray = a53;
+@@ -316,7 +316,7 @@
+ JsValue o55 = JS.object("type", "genfrac", "names", JS.array("\\genfrac"));
+ JsValue o57 = JS.object("numArgs", 6, "allowedInArgument", true, "argTypes", JS.array("math", "math", "size", "text", "math", "math"));
+ o55["props"] = o57;
+-o55["handler"] = JS.method2((JsValue self, JsValue p59, JsValue args) => {
++o55["handler"] = (JsValue p59, JsValue args) => {
+   JsValue op60 = p59;
+   JsValue parser = op60["parser"];
+   JsValue numer = args[4];
+@@ -370,14 +370,14 @@
+   o63["size"] = size;
+   return o63;
+   return undef();
+-});
++};
+ o55["htmlBuilder"] = htmlBuilder;
+ o55["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o55);
+ JsValue o64 = JS.object("type", "infix", "names", JS.array("\\above"));
+ JsValue o66 = JS.object("numArgs", 1, "argTypes", JS.array("size"), "infix", true);
+ o64["props"] = o66;
+-o64["handler"] = JS.method2((JsValue self, JsValue p68, JsValue args) => {
++o64["handler"] = (JsValue p68, JsValue args) => {
+   JsValue op69 = p68;
+   JsValue parser = op69["parser"];
+   JsValue funcName = op69["funcName"];
+@@ -390,7 +390,7 @@
+   o70["token"] = token;
+   return o70;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o64);
+ JsValue o71 = JS.object("type", "genfrac", "names", JS.array("\\\\abovefrac"));
+ JsValue o73 = JS.object("numArgs", 3, "argTypes", JS.array("math", "size", "math"));
+
+--- a/src/functions/hbox.lil
++++ b/src/functions/hbox.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "hbox", "names", JS.array("\\hbox"));
+ JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("text"), "allowedInText", true, "primitive", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o1["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue o7 = emptyObject();
+@@ -18,16 +18,16 @@
+   o7["body"] = JS.call(ordargument, undef(), args[0]);
+   return o7;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue elements = JS.invoke(html, "buildExpression", group["body"], options, false);
+   return JS.invoke(buildCommon, "makeFragment", elements);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   return JS.construct(mathMLTree["MathNode"], "mrow", JS.invoke(mml, "buildExpression", group["body"], options));
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/horizBrace.lil
++++ b/src/functions/horizBrace.lil
+@@ -86,7 +86,7 @@
+ JsValue o30 = JS.object("type", "horizBrace", "names", JS.array("\\overbrace", "\\underbrace"));
+ JsValue o32 = JS.object("numArgs", 1);
+ o30["props"] = o32;
+-o30["handler"] = JS.method2((JsValue self, JsValue p33, JsValue args) => {
++o30["handler"] = (JsValue p33, JsValue args) => {
+   JsValue op34 = p33;
+   JsValue parser = op34["parser"];
+   JsValue funcName = op34["funcName"];
+@@ -98,7 +98,7 @@
+   o35["base"] = args[0];
+   return o35;
+   return undef();
+-});
++};
+ o30["htmlBuilder"] = htmlBuilder;
+ o30["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o30);
+
+--- a/src/functions/kern.lil
++++ b/src/functions/kern.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "kern", "names", JS.array("\\kern", "\\mkern", "\\hskip", "\\mskip"));
+ JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("size"), "primitive", true, "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o1["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue funcName = op6["funcName"];
+@@ -36,16 +36,16 @@
+   o7["dimension"] = size["value"];
+   return o7;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   return JS.invoke(buildCommon, "makeGlue", group["dimension"], options);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue dimension = JS.call(calculateSize, undef(), group["dimension"], options);
+   return JS.construct(mathMLTree["SpaceNode"], dimension);
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/math.lil
++++ b/src/functions/math.lil
+@@ -6,7 +6,7 @@
+ JsValue o1 = JS.object("type", "styling", "names", JS.array("\\(", "$"));
+ JsValue o3 = JS.object("numArgs", 0, "allowedInText", true, "allowedInMath", false);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p4, JsValue args) => {
++o1["handler"] = (JsValue p4, JsValue args) => {
+   JsValue op5 = p4;
+   JsValue funcName = op5["funcName"];
+   JsValue parser = op5["parser"];
+@@ -29,15 +29,15 @@
+   o7["body"] = body;
+   return o7;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue o8 = JS.object("type", "text", "names", JS.array("\\)", "\\]"));
+ JsValue o10 = JS.object("numArgs", 0, "allowedInText", true, "allowedInMath", false);
+ o8["props"] = o10;
+-o8["handler"] = JS.method2((JsValue self, JsValue context, JsValue args) => {
++o8["handler"] = (JsValue context, JsValue args) => {
+   throw JS.construct(ParseError, "Mismatched " + toStr(context["funcName"]));
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o8);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/mclass.lil
++++ b/src/functions/mclass.lil
+@@ -66,7 +66,7 @@
+ JsValue o2 = JS.object("type", "mclass", "names", JS.array("\\mathord", "\\mathbin", "\\mathrel", "\\mathopen", "\\mathclose", "\\mathpunct", "\\mathinner"));
+ JsValue o4 = JS.object("numArgs", 1, "primitive", true);
+ o2["props"] = o4;
+-o2["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o2["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue funcName = op6["funcName"];
+@@ -79,7 +79,7 @@
+   o7["isCharacterBox"] = JS.invoke(utils, "isCharacterBox", body);
+   return o7;
+   return undef();
+-});
++};
+ o2["htmlBuilder"] = htmlBuilder;
+ o2["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o2);
+@@ -101,7 +101,7 @@
+ JsValue o9 = JS.object("type", "mclass", "names", JS.array("\\@binrel"));
+ JsValue o11 = JS.object("numArgs", 2);
+ o9["props"] = o11;
+-o9["handler"] = JS.method2((JsValue self, JsValue p12, JsValue args) => {
++o9["handler"] = (JsValue p12, JsValue args) => {
+   JsValue op13 = p12;
+   JsValue parser = op13["parser"];
+   JsValue o14 = emptyObject();
+@@ -112,12 +112,12 @@
+   o14["isCharacterBox"] = JS.invoke(utils, "isCharacterBox", args[1]);
+   return o14;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o9);
+ JsValue o15 = JS.object("type", "mclass", "names", JS.array("\\stackrel", "\\overset", "\\underset"));
+ JsValue o17 = JS.object("numArgs", 2);
+ o15["props"] = o17;
+-o15["handler"] = JS.method2((JsValue self, JsValue p18, JsValue args) => {
++o15["handler"] = (JsValue p18, JsValue args) => {
+   JsValue op19 = p18;
+   JsValue parser = op19["parser"];
+   JsValue funcName = op19["funcName"];
+@@ -167,7 +167,7 @@
+   o24["isCharacterBox"] = JS.invoke(utils, "isCharacterBox", supsub);
+   return o24;
+   return undef();
+-});
++};
+ o15["htmlBuilder"] = htmlBuilder;
+ o15["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o15);
+
+--- a/src/functions/op.lil
++++ b/src/functions/op.lil
+@@ -204,7 +204,7 @@
+ JsValue o36 = JS.object("type", "op", "names", JS.array("\\arcsin", "\\arccos", "\\arctan", "\\arctg", "\\arcctg", "\\arg", "\\ch", "\\cos", "\\cosec", "\\cosh", "\\cot", "\\cotg", "\\coth", "\\csc", "\\ctg", "\\cth", "\\deg", "\\dim", "\\exp", "\\hom", "\\ker", "\\lg", "\\ln", "\\log", "\\sec", "\\sin", "\\sinh", "\\sh", "\\tan", "\\tanh", "\\tg", "\\th"));
+ JsValue o38 = JS.object("numArgs", 0);
+ o36["props"] = o38;
+-o36["handler"] = JS.method1((JsValue self, JsValue p39) => {
++o36["handler"] = (JsValue p39) => {
+   JsValue op40 = p39;
+   JsValue parser = op40["parser"];
+   JsValue funcName = op40["funcName"];
+@@ -217,14 +217,14 @@
+   o41["name"] = funcName;
+   return o41;
+   return undef();
+-});
++};
+ o36["htmlBuilder"] = htmlBuilder;
+ o36["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o36);
+ JsValue o42 = JS.object("type", "op", "names", JS.array("\\det", "\\gcd", "\\inf", "\\lim", "\\max", "\\min", "\\Pr", "\\sup"));
+ JsValue o44 = JS.object("numArgs", 0);
+ o42["props"] = o44;
+-o42["handler"] = JS.method1((JsValue self, JsValue p45) => {
++o42["handler"] = (JsValue p45) => {
+   JsValue op46 = p45;
+   JsValue parser = op46["parser"];
+   JsValue funcName = op46["funcName"];
+@@ -237,14 +237,14 @@
+   o47["name"] = funcName;
+   return o47;
+   return undef();
+-});
++};
+ o42["htmlBuilder"] = htmlBuilder;
+ o42["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o42);
+ JsValue o48 = JS.object("type", "op", "names", JS.array("\\int", "\\iint", "\\iiint", "\\oint", "\\oiint", "\\oiiint", "∫", "∬", "∭", "∮", "∯", "∰"));
+ JsValue o50 = JS.object("numArgs", 0);
+ o48["props"] = o50;
+-o48["handler"] = JS.method1((JsValue self, JsValue p51) => {
++o48["handler"] = (JsValue p51) => {
+   JsValue op52 = p51;
+   JsValue parser = op52["parser"];
+   JsValue funcName = op52["funcName"];
+@@ -261,7 +261,7 @@
+   o53["name"] = fName;
+   return o53;
+   return undef();
+-});
++};
+ o48["htmlBuilder"] = htmlBuilder;
+ o48["mathmlBuilder"] = mathmlBuilder;
+ JS.call(defineFunction, undef(), o48);
+
+--- a/src/functions/ordgroup.lil
++++ b/src/functions/ordgroup.lil
+@@ -6,18 +6,18 @@
+ import { __star as mml } from "../buildMathML.lil";
+ 
+ JsValue o1 = JS.object("type", "ordgroup");
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   if (group["semisimple"].truthy()) {
+     return JS.invoke(buildCommon, "makeFragment", JS.invoke(html, "buildExpression", group["body"], options, false));
+   }
+   JsValue a2 = JS.array("mord");
+   return JS.invoke(buildCommon, "makeSpan", a2, JS.invoke(html, "buildExpression", group["body"], options, true), options);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   return JS.invoke(mml, "buildExpressionRow", group["body"], options, true);
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/overline.lil
++++ b/src/functions/overline.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "overline", "names", JS.array("\\overline"));
+ JsValue o3 = JS.object("numArgs", 1);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p4, JsValue args) => {
++o1["handler"] = (JsValue p4, JsValue args) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue body = args[0];
+@@ -19,8 +19,8 @@
+   o6["body"] = body;
+   return o6;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue innerGroup = JS.invoke(html, "buildGroup", group["body"], JS.invoke(options, "havingCrampedStyle"));
+   JsValue line = JS.invoke(buildCommon, "makeLineSpan", "overline-line", options);
+   JsValue defaultRuleThickness = JS.invoke(options, "fontMetrics")["defaultRuleThickness"];
+@@ -45,8 +45,8 @@
+   JsValue a14 = JS.array(vlist);
+   return JS.invoke(buildCommon, "makeSpan", a13, a14, options);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a15 = JS.array(JS.construct(mathMLTree["TextNode"], "‾"));
+   JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a15);
+   JS.invoke(operator, "setAttribute", "stretchy", "true");
+@@ -55,7 +55,7 @@
+   JS.invoke(node, "setAttribute", "accent", "true");
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/pmb.lil
++++ b/src/functions/pmb.lil
+@@ -10,7 +10,7 @@
+ JsValue o1 = JS.object("type", "pmb", "names", JS.array("\\pmb"));
+ JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p4, JsValue args) => {
++o1["handler"] = (JsValue p4, JsValue args) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue o6 = emptyObject();
+@@ -20,22 +20,22 @@
+   o6["body"] = JS.call(ordargument, undef(), args[0]);
+   return o6;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue elements = JS.invoke(html, "buildExpression", group["body"], options, true);
+   JsValue a7 = JS.array(group["mclass"]);
+   JsValue node = JS.invoke(buildCommon, "makeSpan", a7, elements, options);
+   node["style"]["textShadow"] = "0.02em 0.01em 0.04px";
+   return node;
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue style) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue style) => {
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], style);
+   JsValue node = JS.construct(mathMLTree["MathNode"], "mstyle", inner);
+   JS.invoke(node, "setAttribute", "style", "text-shadow: 0.02em 0.01em 0.04px");
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/raisebox.lil
++++ b/src/functions/raisebox.lil
+@@ -11,7 +11,7 @@
+ JsValue o1 = JS.object("type", "raisebox", "names", JS.array("\\raisebox"));
+ JsValue o3 = JS.object("numArgs", 2, "argTypes", JS.array("size", "hbox"), "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o1["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue amount = JS.call(assertNodeType, undef(), args[0], "size")["value"];
+@@ -23,8 +23,8 @@
+   o7["body"] = body;
+   return o7;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue body = JS.invoke(html, "buildGroup", group["body"], options);
+   JsValue dy = JS.call(calculateSize, undef(), group["dy"], options);
+   JsValue o8 = emptyObject();
+@@ -38,15 +38,15 @@
+   o8["children"] = a9;
+   return JS.invoke(buildCommon, "makeVList", o8, options);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a11 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
+   JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a11);
+   JsValue dy = JS.add(group["dy"]["number"], group["dy"]["unit"]);
+   JS.invoke(node, "setAttribute", "voffset", dy);
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/relax.lil
++++ b/src/functions/relax.lil
+@@ -5,7 +5,7 @@
+ JsValue o1 = JS.object("type", "internal", "names", JS.array("\\relax"));
+ JsValue o3 = JS.object("numArgs", 0, "allowedInText", true, "allowedInArgument", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method1((JsValue self, JsValue p4) => {
++o1["handler"] = (JsValue p4) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue o6 = emptyObject();
+@@ -13,7 +13,7 @@
+   o6["mode"] = parser["mode"];
+   return o6;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/rule.lil
++++ b/src/functions/rule.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "rule", "names", JS.array("\\rule"));
+ JsValue o3 = JS.object("numArgs", 2, "numOptionalArgs", 1, "allowedInText", true, "allowedInMath", true, "argTypes", JS.array("size", "size", "size"));
+ o1["props"] = o3;
+-o1["handler"] = JS.method3((JsValue self, JsValue p5, JsValue args, JsValue optArgs) => {
++o1["handler"] = (JsValue p5, JsValue args, JsValue optArgs) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue shift = optArgs[0];
+@@ -27,8 +27,8 @@
+   o7["height"] = height["value"];
+   return o7;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a9 = JS.array("mord", "rule");
+   JsValue a10 = JS.array();
+   JsValue rule = JS.invoke(buildCommon, "makeSpan", a9, a10, options);
+@@ -50,8 +50,8 @@
+   rule["maxFontSize"] = (toNum((toNum(height) * toNum(1.125))) * toNum(options["sizeMultiplier"]));
+   return rule;
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   number width = toNum(JS.call(calculateSize, undef(), group["width"], options));
+   number height = toNum(JS.call(calculateSize, undef(), group["height"], options));
+   number shift = 0;
+@@ -78,7 +78,7 @@
+   }
+   JS.invoke(wrapper, "setAttribute", "voffset", JS.call(makeEm, undef(), shift));
+   return wrapper;
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/sqrt.lil
++++ b/src/functions/sqrt.lil
+@@ -12,7 +12,7 @@
+ JsValue o1 = JS.object("type", "sqrt", "names", JS.array("\\sqrt"));
+ JsValue o3 = JS.object("numArgs", 1, "numOptionalArgs", 1);
+ o1["props"] = o3;
+-o1["handler"] = JS.method3((JsValue self, JsValue p4, JsValue args, JsValue optArgs) => {
++o1["handler"] = (JsValue p4, JsValue args, JsValue optArgs) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue index = optArgs[0];
+@@ -24,8 +24,8 @@
+   o6["index"] = index;
+   return o6;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue inner = JS.invoke(html, "buildGroup", group["body"], JS.invoke(options, "havingCrampedStyle"));
+   if (JS.strictEqual(inner["height"], 0)) {
+     inner["height"] = JS.invoke(options, "fontMetrics")["xHeight"];
+@@ -61,8 +61,8 @@
+     JsValue rootVListWrap = JS.invoke(buildCommon, "makeSpan", JS.array("root"), JS.array(rootVList));
+     return JS.invoke(buildCommon, "makeSpan", JS.array("mord", "sqrt"), JS.array(rootVListWrap, body), options);
+   }
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue op24 = group;
+   JsValue body = op24["body"];
+   JsValue index = op24["index"];
+@@ -76,7 +76,7 @@
+   }
+   return c25;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/styling.lil
++++ b/src/functions/styling.lil
+@@ -13,7 +13,7 @@
+ JsValue o2 = JS.object("type", "styling", "names", JS.array("\\displaystyle", "\\textstyle", "\\scriptstyle", "\\scriptscriptstyle"));
+ JsValue o4 = JS.object("numArgs", 0, "allowedInText", true, "primitive", true);
+ o2["props"] = o4;
+-o2["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o2["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue breakOnTokenText = op6["breakOnTokenText"];
+   JsValue funcName = op6["funcName"];
+@@ -27,14 +27,14 @@
+   o7["body"] = body;
+   return o7;
+   return undef();
+-});
+-o2["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o2["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue newStyle = styleMap[group["style"]];
+   JsValue newOptions = JS.invoke(JS.invoke(options, "havingStyle", newStyle), "withFont", "");
+   return JS.call(sizingGroup, undef(), group["body"], newOptions, options);
+   return undef();
+-});
+-o2["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o2["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue newStyle = styleMap[group["style"]];
+   JsValue newOptions = JS.invoke(options, "havingStyle", newStyle);
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], newOptions);
+@@ -54,7 +54,7 @@
+   JS.invoke(node, "setAttribute", "displaystyle", attr[1]);
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o2);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/supsub.lil
++++ b/src/functions/supsub.lil
+@@ -85,7 +85,7 @@
+   return undef();
+ };
+ JsValue o9 = JS.object("type", "supsub");
+-o9["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o9["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue builderDelegate = JS.call(htmlBuilderDelegate, undef(), group, options);
+   if (builderDelegate.truthy()) {
+     return JS.call(builderDelegate, undef(), group, options);
+@@ -160,8 +160,8 @@
+     mclass = "mord";
+   }
+   return JS.invoke(buildCommon, "makeSpan", JS.array(mclass), JS.array(base, JS.invoke(buildCommon, "makeSpan", JS.array("msupsub"), JS.array(supsub))), options);
+-});
+-o9["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o9["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue isBrace = false;
+   JsValue isOver = undef();
+   JsValue isSup = undef();
+@@ -232,7 +232,7 @@
+   }
+   return JS.construct(mathMLTree["MathNode"], nodeType, children);
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o9);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/symbolsOp.lil
++++ b/src/functions/symbolsOp.lil
+@@ -6,12 +6,12 @@
+ import { __star as mml } from "../buildMathML.lil";
+ 
+ JsValue o1 = JS.object("type", "atom");
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a2 = JS.array(JS.add("m", group["family"]));
+   return JS.invoke(buildCommon, "mathsym", group["text"], group["mode"], options, a2);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a3 = JS.array(JS.invoke(mml, "makeText", group["text"], group["mode"]));
+   JsValue node = JS.construct(mathMLTree["MathNode"], "mo", a3);
+   if (JS.strictEqual(group["family"], "bin")) {
+@@ -30,7 +30,7 @@
+   }
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/symbolsOrd.lil
++++ b/src/functions/symbolsOrd.lil
+@@ -10,11 +10,11 @@
+ JsValue o1 = JS.object("mi", "italic", "mn", "normal", "mtext", "normal");
+ defaultVariant = o1;
+ JsValue o2 = JS.object("type", "mathord");
+-o2["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o2["htmlBuilder"] = (JsValue group, JsValue options) => {
+   return JS.invoke(buildCommon, "makeOrd", group, options, "mathord");
+   return undef();
+-});
+-o2["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o2["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a3 = JS.array(JS.invoke(mml, "makeText", group["text"], group["mode"], options));
+   JsValue node = JS.construct(mathMLTree["MathNode"], "mi", a3);
+   JsValue or4 = JS.invoke(mml, "getVariant", group, options);
+@@ -27,14 +27,14 @@
+   }
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o2);
+ JsValue o5 = JS.object("type", "textord");
+-o5["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o5["htmlBuilder"] = (JsValue group, JsValue options) => {
+   return JS.invoke(buildCommon, "makeOrd", group, options, "textord");
+   return undef();
+-});
+-o5["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o5["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue text = JS.invoke(mml, "makeText", group["text"], group["mode"], options);
+   JsValue or6 = JS.invoke(mml, "getVariant", group, options);
+   if (!(or6.truthy())) {
+@@ -64,7 +64,7 @@
+   }
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o5);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/symbolsSpacing.lil
++++ b/src/functions/symbolsSpacing.lil
+@@ -23,7 +23,7 @@
+ o2["\\nobreakspace"] = o7;
+ regularSpace = o2;
+ JsValue o8 = JS.object("type", "spacing");
+-o8["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o8["htmlBuilder"] = (JsValue group, JsValue options) => {
+   if (hasOwn(regularSpace, group["text"])) {
+     JsValue or9 = regularSpace[group["text"]]["className"];
+     if (!(or9.truthy())) {
+@@ -49,8 +49,8 @@
+     }
+   }
+   return undef();
+-});
+-o8["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o8["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue node = undef();
+   if (hasOwn(regularSpace, group["text"])) {
+     JsValue a14 = JS.array(JS.construct(mathMLTree["TextNode"], " "));
+@@ -64,7 +64,7 @@
+   }
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o8);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/tag.lil
++++ b/src/functions/tag.lil
+@@ -14,7 +14,7 @@
+   return undef();
+ };
+ JsValue o2 = JS.object("type", "tag");
+-o2["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++o2["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a3 = newArray();
+   JsValue a4 = JS.array(JS.call(pad, undef()));
+   JsValue a5 = JS.array(JS.invoke(mml, "buildExpressionRow", group["body"], options));
+@@ -27,7 +27,7 @@
+   JS.invoke(table, "setAttribute", "width", "100%");
+   return table;
+   return undef();
+-});
++};
+ JS.call(defineFunctionBuilders, undef(), o2);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/text.lil
++++ b/src/functions/text.lil
+@@ -45,7 +45,7 @@
+ JsValue o5 = JS.object("type", "text", "names", JS.array("\\text", "\\textrm", "\\textsf", "\\texttt", "\\textnormal", "\\textbf", "\\textmd", "\\textit", "\\textup", "\\emph"));
+ JsValue o7 = JS.object("numArgs", 1, "argTypes", JS.array("text"), "allowedInArgument", true, "allowedInText", true);
+ o5["props"] = o7;
+-o5["handler"] = JS.method2((JsValue self, JsValue p9, JsValue args) => {
++o5["handler"] = (JsValue p9, JsValue args) => {
+   JsValue op10 = p9;
+   JsValue parser = op10["parser"];
+   JsValue funcName = op10["funcName"];
+@@ -57,19 +57,19 @@
+   o11["font"] = funcName;
+   return o11;
+   return undef();
+-});
+-o5["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o5["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue newOptions = JS.call(optionsWithFont, undef(), group, options);
+   JsValue inner = JS.invoke(html, "buildExpression", group["body"], newOptions, true);
+   JsValue a12 = JS.array("mord", "text");
+   return JS.invoke(buildCommon, "makeSpan", a12, inner, newOptions);
+   return undef();
+-});
+-o5["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o5["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue newOptions = JS.call(optionsWithFont, undef(), group, options);
+   return JS.invoke(mml, "buildExpressionRow", group["body"], newOptions);
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o5);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/underline.lil
++++ b/src/functions/underline.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "underline", "names", JS.array("\\underline"));
+ JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p4, JsValue args) => {
++o1["handler"] = (JsValue p4, JsValue args) => {
+   JsValue op5 = p4;
+   JsValue parser = op5["parser"];
+   JsValue o6 = emptyObject();
+@@ -18,8 +18,8 @@
+   o6["body"] = args[0];
+   return o6;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue innerGroup = JS.invoke(html, "buildGroup", group["body"], options);
+   JsValue line = JS.invoke(buildCommon, "makeLineSpan", "underline-line", options);
+   JsValue defaultRuleThickness = JS.invoke(options, "fontMetrics")["defaultRuleThickness"];
+@@ -45,8 +45,8 @@
+   JsValue a14 = JS.array(vlist);
+   return JS.invoke(buildCommon, "makeSpan", a13, a14, options);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a15 = JS.array(JS.construct(mathMLTree["TextNode"], "‾"));
+   JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a15);
+   JS.invoke(operator, "setAttribute", "stretchy", "true");
+@@ -55,7 +55,7 @@
+   JS.invoke(node, "setAttribute", "accentunder", "true");
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/vcenter.lil
++++ b/src/functions/vcenter.lil
+@@ -9,7 +9,7 @@
+ JsValue o1 = JS.object("type", "vcenter", "names", JS.array("\\vcenter"));
+ JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("original"), "allowedInText", false);
+ o1["props"] = o3;
+-o1["handler"] = JS.method2((JsValue self, JsValue p5, JsValue args) => {
++o1["handler"] = (JsValue p5, JsValue args) => {
+   JsValue op6 = p5;
+   JsValue parser = op6["parser"];
+   JsValue o7 = emptyObject();
+@@ -18,8 +18,8 @@
+   o7["body"] = args[0];
+   return o7;
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue body = JS.invoke(html, "buildGroup", group["body"], options);
+   JsValue axisHeight = JS.invoke(options, "fontMetrics")["axisHeight"];
+   JsValue dy = (toNum(0.5) * toNum((toNum((toNum(body["height"]) - toNum(axisHeight))) - toNum(JS.add(body["depth"], axisHeight)))));
+@@ -34,13 +34,13 @@
+   o8["children"] = a9;
+   return JS.invoke(buildCommon, "makeVList", o8, options);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a11 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
+   JsValue a12 = JS.array("vcenter");
+   return JS.construct(mathMLTree["MathNode"], "mpadded", a11, a12);
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ JsValue __star = emptyObject();
+ 
+
+--- a/src/functions/verb.lil
++++ b/src/functions/verb.lil
+@@ -10,11 +10,11 @@
+ JsValue o1 = JS.object("type", "verb", "names", JS.array("\\verb"));
+ JsValue o3 = JS.object("numArgs", 0, "allowedInText", true);
+ o1["props"] = o3;
+-o1["handler"] = JS.method3((JsValue self, JsValue context, JsValue args, JsValue optArgs) => {
++o1["handler"] = (JsValue context, JsValue args, JsValue optArgs) => {
+   throw JS.construct(ParseError, "\\verb ended by end of line instead of matching delimiter");
+   return undef();
+-});
+-o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue text = JS.call(makeVerb, undef(), group);
+   JsValue a4 = JS.array();
+   JsValue body = a4;
+@@ -33,15 +33,15 @@
+   JsValue a7 = JS.array("mord", "text");
+   return JS.invoke(buildCommon, "makeSpan", JS.invoke(a7, "concat", JS.invoke(newOptions, "sizingClasses", options)), JS.invoke(buildCommon, "tryCombineChars", body), newOptions);
+   return undef();
+-});
+-o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++};
++o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue text = JS.construct(mathMLTree["TextNode"], JS.call(makeVerb, undef(), group));
+   JsValue a8 = JS.array(text);
+   JsValue node = JS.construct(mathMLTree["MathNode"], "mtext", a8);
+   JS.invoke(node, "setAttribute", "mathvariant", "monospace");
+   return node;
+   return undef();
+-});
++};
+ JS.call(defineFunction, undef(), o1);
+ makeVerb = (JsValue group) => {
+   JsValue c9 = undef();
