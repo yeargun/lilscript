@@ -12,7 +12,7 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 | markedlil | 10,092 | 37,022 | marked@18.0.10 parse-only sources (the port's surface), Vite 8 Oxc mangle |
 | posthoglil | 5,622 | 16,123 | posthog-js@1.418.10 kernel modules, Vite 8 Oxc mangle |
 | jquerylil | 27,445 | 87,151 | official `jquery.min.js` 3.7.1 for Brotli; Oxc on the ESM for raw (Terser 27,613 / 87,239; Oxc 27,751 / 87,151) |
-| zodlil | 51,948 | 274,999 | zod@4 restricted to the 181 `z` members the port shares ([entry](zodlil/restricted-entry.mjs): each imported by name, so the bundler keeps only what they reach), esbuild bundle, Terser mangle. Unrestricted: 52,440 |
+| zodlil | 29,634 | 130,463 | zod@4 restricted to the 181 `z` members the port shares, English locale only ([entry](zodlil/restricted-entry-english.mjs)), esbuild bundle, Terser mangle. Until 2026-09-23 the bar also carried the 50 other locales, which the port does not ship: 51,948 / 274,999 |
 | motionlil | 41,032 | 137,455 | `motion` npm, esbuild bundle: Terser for Brotli, Oxc for raw (Oxc 41,246 Brotli). Surface 326 names against 312: to be matched |
 
 ## Standing (semantic route)
@@ -25,7 +25,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 | markedlil (`marked.raw.js`) | 9,397 | 9,258 | 10,092 | **win −834** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,574 | 5,622 | **win −48** |
 | jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,048 | 27,445 | +1,603 |
-| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 46,030 | 51,948 | **win −5,918** |
+| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 46,030 (41,845 whitespace-minified) | 29,634 | +16,396 (+12,211) |
 | motionlil (`full.js`) | does not build | 51,349 | 41,032 | +10,317 |
 
 | Raw objective | Start | Now (batch 17) | Bar | Gap |
@@ -34,7 +34,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 | markedlil (`marked.bytes.js`) | 39,687 | 35,377 | 37,022 | **win −1,645** |
 | posthoglil (`posthog.bytes.js`) | 19,750 | 16,328 | 16,123 | +205 |
 | jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 85,713 | 87,151 | **win −1,438** |
-| zodlil (complete package, built with the raw objective) | open | 246,267 | 274,999 | **win −28,732** |
+| zodlil (complete package, built with the raw objective) | open | 246,267 (180,944 whitespace-minified) | 130,463 | +115,804 (+50,481) |
 | motionlil | no raw configuration yet | | | |
 
 katexlil and jquerylil have no raw configuration of their own. Their rows build the port with `cost_model = "raw"` in every configuration, which is how the raw-objective suites run too.
@@ -58,4 +58,6 @@ The default route, for reference with the same binary: posthoglil 5,602 (it also
 
 ## zodlil's boundary (013-T5)
 
-The port's `z` has 191 members, against zod@4's 238, with the same 52 locales. It lacks the string-format classes (`ZodEmail`, `ZodURL` and the rest) and the check helpers (`gt`, `lte`, `length`, `includes`), and adds 10 of its own. The bar is therefore upstream restricted to the 181 shared members. Our side is everything `import { z } from "@itslil/zod"` loads, bundled by esbuild with nothing minified: the compiled `zod.core.js` plus the port's hand-written JavaScript (`compat.js`, `visit.js`, `async-api.js`, `official-json-schema.js`, `regexes.js`), and upstream's `zod/v4/locales`, which `compat.js` requires. Counting unminified hand-written code against us makes this bound conservative.
+The port's `z` has 191 members, against zod@4's 238. It lacks the string-format classes (`ZodEmail`, `ZodURL` and the rest) and the check helpers (`gt`, `lte`, `length`, `includes`), and adds 10 of its own. The bar is therefore upstream restricted to the 181 shared members. Our side is everything `import { z } from "@itslil/zod"` loads, bundled by esbuild with nothing minified: the compiled `zod.core.js` plus the port's hand-written JavaScript (`compat.js`, `visit.js`, `async-api.js`, `official-json-schema.js`, `regexes.js`). Counting unminified hand-written code against us makes this bound conservative.
+
+**Correction, 2026-09-23: the port ships the English locale only.** `compat.js` loads `zod/v4/locales` at run time through `require` inside a `try`. Nothing bundles it, and `zod` is only a devDependency of the port, so a consumer gets `z.locales.en` alone. The earlier bar bundled all 51 locales, about 22.3K Brotli the port does not ship, and the "win" of −5,918 came from them. Against the English-only bar the package loses by 12,211 Brotli (whitespace-minified). Run through Terser as a whole it is still 38,289, a loss of 8,655. `zod.core.js` alone (27,880) is about 1.7K Brotli above the upstream code it replaces: the English-only bar without its JSON-schema modules is about 26.2K. The class-lowering census (2026-09-23) lists where the rest goes: the fastpass layer (about 2.2K Brotli), a kind enum mapped by three 40-arm chains (−466 measured), derived state computed twice, and duplicated `inline for` specializations.
