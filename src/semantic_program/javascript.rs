@@ -758,8 +758,14 @@ fn form_with_demand(
                 formation.module.elide_undefined(formation.budget)?;
                 // `let o;o={…}` must meet as `let o={…}` before stores fold.
                 formation.module.merge_declarations(prunes, formation.budget)?;
-                // `let t=a;if(!t)t=b` is `let t=a||b`, as the source wrote it.
-                formation.module.fold_logical_assignments(year >= 2020, formation.budget)?;
+                // `let t=a;if(!t)t=b` is `let t=a||b`, as the source wrote it,
+                // and `if(t)return t;return b` is `return t||b`; the tested
+                // value then often has one read left, where it moves once
+                // namespaces have flattened (below).
+                let logical = formation
+                    .module
+                    .fold_logical_assignments(year >= 2020, formation.budget)?
+                    + formation.module.fold_logical_returns(year >= 2020, formation.budget)?;
                 // `let N;N=M` merged into `let N=M` is an alias to remove before
                 // namespace objects flatten; flattening can leave functions
                 // only called, whose names nothing reads any more.
@@ -779,6 +785,11 @@ fn form_with_demand(
                     )?;
                 }
                 formation.module.drop_double_negations(formation.budget)?;
+                if logical != 0 {
+                    if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
+                        remap_alternatives(&mut formation.literal_alternatives, &map);
+                    }
+                }
                 // Forwarding and folds bring operators next to each other.
                 let protected: Vec<js::ExprId> = formation
                     .literal_alternatives

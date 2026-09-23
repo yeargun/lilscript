@@ -2126,10 +2126,10 @@ impl Module {
         for export in &self.exports {
             references[export.binding.index()] = u32::MAX;
         }
-        let depths = self.region_depths(budget)?;
-        let captured = self.reach(budget)?.captured;
-        let frames = self.frames(budget)?;
-        let order = self.order(&frames, budget)?;
+        let mut depths = self.region_depths(budget)?;
+        let mut captured = self.reach(budget)?.captured;
+        let mut frames = self.frames(budget)?;
+        let mut order = self.order(&frames, budget)?;
         let mut forwarded = 0;
         let mut disordered = false;
         for region in 0..self.regions.len() {
@@ -2218,6 +2218,9 @@ impl Module {
                         settled = holds.then_some(reads);
                     }
                 }
+                // The region the value lands in, when it is a branch of the
+                // statement that mentions it rather than that statement.
+                let mut nested: Option<RegionId> = None;
                 let leaf = match leaf {
                     Some(leaf) => Some(leaf),
                     None if movable && (settled.is_some() || self.inert_value(value, budget)?) => {
@@ -2250,6 +2253,19 @@ impl Module {
                                         !creates || !self.calls_reference(*leaf, binding)
                                     })
                                     .map(|leaf| (leaf, later));
+                                // An inert value may also be created in the
+                                // branch that reads it: an `if` arm, a block or
+                                // a `try` part runs at most once when its
+                                // statement does, and creating the value there
+                                // instead runs nothing either way.
+                                if found.is_none() && settled.is_none() {
+                                    if let Some((inner, at, leaf)) =
+                                        self.branch_reference(statement, binding, creates)
+                                    {
+                                        nested = Some(inner);
+                                        found = Some((leaf, at));
+                                    }
+                                }
                             }
                             break;
                         }
@@ -2259,16 +2275,23 @@ impl Module {
                 };
                 // The moved value's deepest point must stay within the nesting
                 // limit.
+                let base = match nested {
+                    Some(inner) => depths[inner.index()],
+                    None => Some(region_depth),
+                };
                 let fits = leaf.is_some_and(|((_, path), _)| {
-                    region_depth + 1 + path + self.subtree_depth(value) <= verify::MAX_NESTING
+                    base.is_some_and(|base| {
+                        base + 1 + path + self.subtree_depth(value) <= verify::MAX_NESTING
+                    })
                 });
                 budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                 let Some(((leaf, _), target_statement)) = leaf.filter(|_| fits) else {
                     index += 1;
                     continue;
                 };
+                let target_region = nested.map_or(region, |inner| inner.index());
                 match leaf {
-                    Leaf::Root => self.regions[region].statements[target_statement]
+                    Leaf::Root => self.regions[target_region].statements[target_statement]
                         .replace_root(value),
                     Leaf::Child(parent) => {
                         let target = binding;
@@ -2296,12 +2319,40 @@ impl Module {
                             .remap_children(|child| if child == slot { value } else { child });
                     }
                 }
+                // Functions the value creates now open in the branch's scope.
+                if let Some(inner) = nested {
+                    let scope = self.regions[inner.index()].scope;
+                    let mut pending = vec![value];
+                    let mut bodies = Vec::new();
+                    while let Some(id) = pending.pop() {
+                        budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                        let expression = &self.expressions[id.index()];
+                        if let Some(function) = expression.created_function() {
+                            bodies.push(self.functions[function.index()].body);
+                        }
+                        let _ = expression.visit_children(|child| {
+                            pending.push(child);
+                            Ok::<_, ()>(())
+                        });
+                    }
+                    for body in bodies {
+                        self.rescope(body, scope, budget)?;
+                    }
+                }
                 self.regions[region].statements.remove(index);
                 if root && index < self.root_modules.len() {
                     self.root_modules.remove(index);
                 }
                 references[binding.index()] = 0;
                 forwarded += 1;
+                if nested.is_some() {
+                    // The moved functions' bodies stand deeper, under another
+                    // statement: the region facts are found again.
+                    depths = self.region_depths(budget)?;
+                    captured = self.reach(budget)?.captured;
+                    frames = self.frames(budget)?;
+                    order = self.order(&frames, budget)?;
+                }
             }
         }
         let map = if disordered {
@@ -2477,6 +2528,59 @@ impl Module {
                 }
             }
         }
+    }
+
+    /// Where `binding` is read once in a branch of `statement` that runs at
+    /// most once each time the statement does: an `if` arm (its test not
+    /// mentioning the binding), a block, or a `try` part. The branch's first
+    /// statement that mentions it must read it in expressions it evaluates
+    /// once, or hold such a branch itself. A value creating a function keeps
+    /// out of a `for…in`/`for…of` head and off a callee. Returns the branch,
+    /// the statement's index there and the reading node.
+    fn branch_reference(
+        &self,
+        statement: &Statement,
+        binding: BindingId,
+        creates: bool,
+    ) -> Option<(RegionId, usize, (Leaf, usize))> {
+        let mut branches = Vec::new();
+        match statement {
+            Statement::If { condition, yes, no } => {
+                if self.mentions(&[], &[*condition], binding, false) {
+                    return None;
+                }
+                branches.push(*yes);
+                branches.extend(*no);
+            }
+            Statement::Block(body) => branches.push(*body),
+            Statement::Try {
+                body,
+                catch,
+                finally,
+            } => {
+                branches.push(*body);
+                branches.extend(catch.as_ref().map(|catch| catch.body));
+                branches.extend(*finally);
+            }
+            _ => return None,
+        }
+        for branch in branches {
+            for (index, inner) in self.regions[branch.index()].statements.iter().enumerate() {
+                if !self.statement_mentions(inner, binding) {
+                    continue;
+                }
+                let head = matches!(inner, Statement::ForIn { .. } | Statement::ForOf { .. });
+                if creates && head {
+                    return None;
+                }
+                return match self.single_evaluation_reference(inner, binding) {
+                    Some((leaf, path)) => (!creates || !self.calls_reference(leaf, binding))
+                        .then_some((branch, index, (leaf, path))),
+                    None => self.branch_reference(inner, binding, creates),
+                };
+            }
+        }
+        None
     }
 
     /// Where `binding` is read in the expressions `statement` evaluates

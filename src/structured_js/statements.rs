@@ -856,6 +856,129 @@ impl Module {
 
     /// The operator a test of `binding` alone stands for: `t` (or `!!t`) is
     /// `&&`, `!t` is `||`, `t==null` (or `null==t`, `t==void 0`) is `??`.
+    /// `if(t)return t;return B` is `return t||B`, and likewise with the arms
+    /// or the test the other way round, `&&` for the dual, and `??` for a
+    /// loose test against `null` (with `nullish`, an ES2020 target): each
+    /// operator returns the operand that decides it, which is what the arm
+    /// taken returns. `t` is a binding, read once or twice alike; the other
+    /// value runs exactly when its return would. The second return may be
+    /// the `if`'s `else` or the statement after it. Returns how many.
+    pub(crate) fn fold_logical_returns(
+        &mut self,
+        nullish: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut folded = 0;
+        for region in 0..self.regions.len() {
+            if region == self.root.index() {
+                continue;
+            }
+            let mut index = 0;
+            while index < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                let Statement::If { condition, yes, no } = self.regions[region].statements[index] else {
+                    index += 1;
+                    continue;
+                };
+                let returned = |module: &Self, arm: RegionId| match module.regions[arm.index()].statements[..] {
+                    [Statement::Return(Some(value))] => Some(value),
+                    _ => None,
+                };
+                let taken = returned(self, yes);
+                let other = match no {
+                    Some(no) => returned(self, no).map(|value| (value, false)),
+                    None => match self.regions[region].statements.get(index + 1) {
+                        Some(Statement::Return(Some(value))) => Some((*value, true)),
+                        _ => None,
+                    },
+                };
+                let (Some(a), Some((b, next))) = (taken, other) else {
+                    index += 1;
+                    continue;
+                };
+                let binding_of = |id: ExprId| match self.expressions[id.index()] {
+                    Expr::Binding(binding) => Some(binding),
+                    _ => None,
+                };
+                let mut fold = None;
+                for tested in [binding_of(a), binding_of(b)].into_iter().flatten() {
+                    let Some((truthiness, positive)) = self.test_polarity(condition, tested, nullish) else {
+                        continue;
+                    };
+                    let first = binding_of(a) == Some(tested);
+                    // `positive`: the `if` arm runs when `t` is truthy (or
+                    // not nullish).
+                    fold = match (truthiness, positive, first) {
+                        (true, true, true) => Some((Binary::Or, a, b)),
+                        (true, true, false) => Some((Binary::And, b, a)),
+                        (true, false, true) => Some((Binary::And, a, b)),
+                        (true, false, false) => Some((Binary::Or, b, a)),
+                        (false, true, true) => Some((Binary::Nullish, a, b)),
+                        (false, false, false) => Some((Binary::Nullish, b, a)),
+                        _ => None,
+                    };
+                    if fold.is_some() {
+                        break;
+                    }
+                }
+                let Some((op, left, right)) = fold else {
+                    index += 1;
+                    continue;
+                };
+                let combined = self.expression_in(Expr::Binary { op, left, right }, None, budget)?;
+                // The arms' scopes (functions their values create) nest here.
+                self.adopt(yes, RegionId::new(region), budget)?;
+                if let Some(no) = no {
+                    self.adopt(no, RegionId::new(region), budget)?;
+                }
+                self.regions[region].statements[index] = Statement::Return(Some(combined));
+                if next {
+                    self.regions[region].statements.remove(index + 1);
+                }
+                folded += 1;
+                index += 1;
+            }
+        }
+        Ok(folded)
+    }
+
+    /// How a condition tests `binding`: `(true, positive)` for its
+    /// truthiness, `(false, positive)` for a loose comparison with `null`
+    /// (with `nullish`), where `positive` means the condition holds when the
+    /// binding is truthy (or not nullish). Each `!` flips it.
+    fn test_polarity(&self, condition: ExprId, binding: BindingId, nullish: bool) -> Option<(bool, bool)> {
+        let is_binding = |id: ExprId| matches!(self.expressions[id.index()], Expr::Binding(found) if found == binding);
+        let mut positive = true;
+        let mut tested = condition;
+        while let Expr::Unary {
+            op: Unary::Not,
+            value,
+        } = self.expressions[tested.index()]
+        {
+            positive = !positive;
+            tested = value;
+        }
+        if is_binding(tested) {
+            return Some((true, positive));
+        }
+        let Expr::Binary { op, left, right } = &self.expressions[tested.index()] else {
+            return None;
+        };
+        let loose = match op {
+            Binary::Equal => false,
+            Binary::NotEqual => true,
+            _ => return None,
+        };
+        let nothing = |id: ExprId| {
+            matches!(
+                self.expressions[id.index()],
+                Expr::Literal(Literal::Null | Literal::Undefined)
+            )
+        };
+        (nullish && ((is_binding(*left) && nothing(*right)) || (nothing(*left) && is_binding(*right))))
+            .then_some((false, positive == loose))
+    }
+
     fn logical_test(&self, condition: ExprId, binding: BindingId, nullish: bool) -> Option<Binary> {
         let is_binding = |id: ExprId| matches!(self.expressions[id.index()], Expr::Binding(found) if found == binding);
         // A test reads truthiness: each `!` flips it.

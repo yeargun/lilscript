@@ -1167,3 +1167,57 @@ fn defaults_of_a_function_only_ever_called_print_natively() {
     assert!(javascript.contains("=2,") && !javascript.contains("===void 0"), "{javascript}");
     assert_eq!(run(&javascript, &format!("globalThis.seed=()=>0;{SHOW}")), "7\n13\n17\n");
 }
+
+#[test]
+fn an_inert_value_is_created_in_the_branch_that_reads_it() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern bool enabled();
+        extern JsValue hooks;
+        JsValue getter(JsValue element) { return element["selected"]; }
+        JsValue setter(JsValue element, JsValue value) { element["selected"] = value; return value; }
+        if (!enabled()) {
+            hooks["selected"] = JS.object("get", getter, "set", setter);
+        }
+        show(hooks["selected"]["get"](JS.object("selected", 7)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // Neither function is read anywhere else: each is created in the arm
+    // that stores it, and its binding goes.
+    assert!(javascript.contains("{get:") && !javascript.contains("let "), "{javascript}");
+    assert_eq!(
+        run(&javascript, "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.enabled=()=>false;globalThis.hooks={};"),
+        "7\n"
+    );
+}
+
+#[test]
+fn a_tested_value_returned_by_one_arm_is_the_logical_operator() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue kind(JsValue table, JsValue key) {
+            JsValue found = table[key];
+            if (found.truthy()) {
+                return found;
+            }
+            return "object";
+        }
+        export JsValue first(JsValue list) {
+            JsValue head = list[0];
+            if (!(head.truthy())) {
+                return head;
+            }
+            return head["name"];
+        }
+        show(kind(JS.object("a", "array"), "a"));
+        show(kind(JS.object(), "b"));
+        show(first(JS.array(JS.object("name", "x"))));
+        show(first(JS.array(0)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // `return a[b]||"object"` and `return c&&c.name`: no test, no temporary
+    // for the first.
+    assert!(!javascript.contains("if("), "{javascript}");
+    assert!(javascript.contains("||\"object\""), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "\"array\"\n\"object\"\n\"x\"\n0\n");
+}

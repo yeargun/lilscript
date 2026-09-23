@@ -2017,6 +2017,35 @@ Without its banner, katexlil is 63,143, +99 over the bar.
 
 **Verification.** 3,061 unit tests pass. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9. Two unit failures on the way were real: one placement made a function inside a `for…of` head, which closed over the loop's binding in its TDZ; another made one in a sloppy script, whose frame a coercion hook can see. Both are now refused.
 
+### 013 batch 18: branch forwarding and logical returns (2026-09-23)
+
+Terser's `unused` and `collapse_vars` over batch 17's output still find single-use values we keep. Two of those shapes are generic:
+- **An inert value is created in the branch that reads it** (`branch_reference`, [mod.rs](../../src/structured_js/mod.rs)). When the first later statement that mentions a literal, a function, or an array or object of them is an `if` (whose test does not mention it), a block or a `try`, forwarding descends into the branch that reads it. Such a branch runs at most once when its statement does, and creating the value there runs nothing. The functions the value creates are rescoped under the branch, and the forwarding pass re-derives its region facts after each such move. jquerylil's `if(!d.optSelected)Ud.selected={get:Md,set:Nd}` now creates both functions in the arm.
+- **A tested value returned by one arm is the logical operator** (`fold_logical_returns`, [statements.rs](../../src/structured_js/statements.rs)). The rewrites:
+  - `if(t)return t;return B` becomes `return t||B`;
+  - `if(t)return A;return t` becomes `return t&&A`;
+  - the negated tests give the dual operators;
+  - a loose test against `null` gives `??` on ES2020 targets.
+
+  The second return may be the `else` or the statement after the `if`. Forwarding runs again once namespaces have flattened, so the tested value, now read once, moves into the operator: `let b=e[k];if(b)return b;return"object"` prints `return e[k]||"object"`. Run before alias elimination, the same forwarding undid part of batch 15's namespace flattening on katexlil (+1,525 raw, +72 Brotli). It now runs after.
+
+| Brotli objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core | motionlil |
+|---|---|---|---|---|---|---|
+| Batch 17 | 63,158 | 9,258 | 5,574 | 29,048 | 27,880 | 51,349 |
+| Branch forwarding (b54) | 63,158 | 9,258 | 5,574 | 29,025 | 27,880 | 51,349 |
+| **Both (b56)** | **63,174** | **9,261** | **5,574** | **28,995** | **27,869** | **51,413** |
+
+| Raw objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core |
+|---|---|---|---|---|---|
+| Batch 17 | 251,753 | 35,377 | 16,328 | 85,713 | 110,461 |
+| **Batch 18** | **251,753** | **35,371** | **16,311** | **85,498** | **110,444** |
+
+Raw falls everywhere. The Brotli movements outside jquerylil are within the codec's noise for a change this small.
+
+**The zodlil package no longer counts as a win.** Its bar bundled 51 locales the port does not ship ([scoreboard](../../benchmarks/migration-results/2026-09-22-six-ports/README.md), corrected in 0ae84f4c). Against the English-only bar the package loses by 12,211 Brotli, and `zod.core.js` alone by about 1.7K.
+
+**Verification.** 3,063 unit tests pass, including `an_inert_value_is_created_in_the_branch_that_reads_it` and `a_tested_value_returned_by_one_arm_is_the_logical_operator`. `selected_inline_writer_refreshes_static_path_support_without_target_rewrites` now requires declared path slots only in the uncompacted target, where no rewrite runs. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.
