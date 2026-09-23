@@ -22,6 +22,7 @@ pub mod analysis;
 mod compact;
 mod constants;
 mod declarations;
+mod scalar_objects;
 pub(crate) mod delivery;
 pub mod extract;
 mod literal_output;
@@ -983,6 +984,11 @@ pub struct Module {
     /// The contract assumes member reads run no code (Terser's
     /// `pure_getters`): reads commute with reads.
     pub pure_property_reads: bool,
+    /// Parameters whose type excludes `undefined` (numbers, strings,
+    /// booleans, enums, collections, class and struct instances, functions):
+    /// a typed caller always passes a value, so only a host or erased caller
+    /// could leave one to its default.
+    pub defined_parameters: Vec<BindingId>,
     /// The source module of each root statement, in order, when the producer
     /// records it; multi-file delivery groups statements by it.
     pub root_modules: Vec<u32>,
@@ -1241,6 +1247,12 @@ impl Module {
                 }
                 inert
             }
+            // An empty Map or Set: under pristine builtins its construction
+            // runs no code and yields a fresh object, like a literal.
+            Expr::ConstructIntrinsic {
+                operation: crate::primitive::Intrinsic::MapNew | crate::primitive::Intrinsic::SetNew,
+                arguments,
+            } => self.pristine_builtins && arguments.is_empty(),
             _ => false,
         })
     }
@@ -1725,6 +1737,98 @@ impl Module {
             });
         }
         false
+    }
+
+    /// A function whose every use is a direct call is called only by typed
+    /// code, and typed code always passes a value for a parameter whose type
+    /// excludes `undefined` (`defined_parameters`): the body's opening
+    /// default for such a parameter never applies, so `(a,b=0)=>…` is
+    /// `(a,b)=>…`. A function created at its one call counts too. Returns
+    /// how many defaults went.
+    pub(crate) fn drop_typed_default_checks(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        if self.defined_parameters.is_empty() {
+            return Ok(0);
+        }
+        let mut defined = vec![false; self.bindings.len()];
+        for binding in &self.defined_parameters {
+            if let Some(slot) = defined.get_mut(binding.index()) {
+                *slot = true;
+            }
+        }
+        let reach = self.reach(budget)?;
+        let mut uses = vec![0usize; self.bindings.len()];
+        let mut calls = vec![0usize; self.bindings.len()];
+        let mut created_at_call = Vec::new();
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            match &self.expressions[id.index()] {
+                Expr::Binding(binding) => uses[binding.index()] += 1,
+                Expr::Call {
+                    callee,
+                    invocation: Invocation::Value | Invocation::Reference,
+                    ..
+                } => match self.expressions[callee.index()] {
+                    Expr::Binding(binding) => calls[binding.index()] += 1,
+                    Expr::Function(function) => created_at_call.push(function),
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+        for export in &self.exports {
+            uses[export.binding.index()] += 1;
+        }
+        let mut functions = created_at_call;
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                let (binding, function) = match *statement {
+                    Statement::Function { binding, function } => (binding, function),
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => match self.expressions[value.index()] {
+                        Expr::Function(function) => (binding, function),
+                        _ => continue,
+                    },
+                    _ => continue,
+                };
+                if calls[binding.index()] != 0
+                    && uses[binding.index()] == calls[binding.index()]
+                    && !self.bindings[binding.index()].pinned
+                {
+                    functions.push(function);
+                }
+            }
+        }
+        // Calls passing the default literal keep it as an argument (the
+        // check no longer lets `drop_default_arguments` drop it): measured
+        // better than keeping the check for them (motionlil −159).
+        let mut dropped = 0;
+        for function in functions {
+            let body = self.functions[function.index()].body;
+            let mut index = 0;
+            while index < self.regions[body.index()].statements.len() {
+                budget.work(Analysis, 1)?;
+                let Some((parameter, _)) = self.default_check(&self.regions[body.index()].statements[index])
+                else {
+                    break;
+                };
+                if defined.get(parameter.index()).copied().unwrap_or(false)
+                    && self.functions[function.index()].parameters.contains(&parameter)
+                {
+                    self.regions[body.index()].statements.remove(index);
+                    dropped += 1;
+                } else {
+                    index += 1;
+                }
+            }
+        }
+        Ok(dropped)
     }
 
     /// A function nothing reads but its direct calls has an unobservable
@@ -2893,6 +2997,7 @@ impl Module {
             root: RegionId::new(0),
             pristine_builtins: false,
             pure_property_reads: false,
+            defined_parameters: Vec::new(),
             root_modules: vec![],
             reserved: vec![],
             carried: vec![],

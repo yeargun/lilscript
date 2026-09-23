@@ -773,6 +773,9 @@ fn form_with_demand(
                 if formation.module.flatten_constant_objects(formation.budget)? != 0 {
                     formation.module.unobserve_called_names(formation.budget)?;
                 }
+                // Typed callers pass every typed argument: their callees'
+                // defaults for those never apply.
+                formation.module.drop_typed_default_checks(formation.budget)?;
                 // Field initializers become their stores, for the fold to take.
                 if pristine {
                     formation.module.inline_initializers(formation.budget)?;
@@ -865,6 +868,11 @@ fn form_with_demand(
             if let (_, Some(map)) = formation.module.place_single_calls(strict, formation.budget)? {
                 remap_alternatives(&mut formation.literal_alternatives, &map);
             }
+            // Initializer stores the construction literal already holds.
+            formation.module.drop_redundant_init_stores(formation.budget)?;
+            // Objects only read and written through their fields are those
+            // fields.
+            formation.module.scalarize_member_objects(formation.budget)?;
             if prunes {
                 formation.module.drop_unreferenced_functions(formation.budget)?;
             }

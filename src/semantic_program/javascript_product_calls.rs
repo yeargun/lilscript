@@ -305,6 +305,32 @@ impl Formation<'_, '_, '_, '_, '_> {
             } else {
                 let binding = self.cell_binding(context, cell)?;
                 self.append(&mut parameters, binding)?;
+                // A typed caller always passes a value of this type.
+                let defined = matches!(
+                    self.program.types[self.program.cells[cell.index()].ty.index()],
+                    Type::Int
+                        | Type::Float
+                        | Type::Bool
+                        | Type::String
+                        | Type::Enum(_)
+                        | Type::Array(_)
+                        | Type::Record(_)
+                        | Type::Map(_, _)
+                        | Type::Set(_)
+                        | Type::Regex
+                        | Type::Struct(_)
+                        | Type::Class(_)
+                        | Type::StructInstance { .. }
+                        | Type::ClassInstance { .. }
+                        | Type::Function(_)
+                ) && !references::is_reference(self.program, cell);
+                if defined {
+                    self.budget.push(
+                        AllocationClass::Retained,
+                        &mut self.module.defined_parameters,
+                        binding,
+                    )?;
+                }
                 if references::is_reference(self.program, cell) {
                     let path = self.reference_parameter_path(context, cell)?;
                     self.append(&mut parameters, path)?;

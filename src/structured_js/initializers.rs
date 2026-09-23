@@ -17,8 +17,9 @@
 //! * A parameter the body defaults (`if(a===void 0)a=D`) receives a literal
 //!   at the call, so the default is decided here: `D` for `void 0`, else the
 //!   literal itself. Any other argument keeps the call.
-//! * The body reads no frame of its own, suspends nothing, and every use of
-//!   the function is such a call statement, so nothing else can see it.
+//! * The body reads no frame of its own and suspends nothing. Each such
+//!   call is rewritten on its own; other uses keep calling the function,
+//!   which its binding (never assigned) always holds.
 //!
 //! The store fold needs pristine builtins (a literal key defines a property
 //! where a store could run an inherited setter), so the caller applies this
@@ -91,10 +92,12 @@ impl Module {
                 let Expr::Function(function) = self.expressions[value.index()] else {
                     continue;
                 };
+                // Each qualifying construction is rewritten on its own: other
+                // uses keep calling the function, which the binding always
+                // holds.
                 if written[binding.index()]
                     || self.bindings[binding.index()].pinned
                     || call_statements[binding.index()] == 0
-                    || uses[binding.index()] != call_statements[binding.index()]
                 {
                     continue;
                 }
@@ -185,6 +188,311 @@ impl Module {
             }
         }
         Ok(count)
+    }
+
+    /// An initializer's store that writes, before anything can see the
+    /// object, the value every construction's fresh literal already holds
+    /// is no store at all: `let o={a:null,m:new Map};init(o,x)` with
+    /// `init=(p,x)=>{p.a=null;p.m=new Map;…}` keeps the literal and loses
+    /// both stores. The literal's key order and layout stay as they are.
+    ///
+    /// A construction is `let o={…};init(o,…)` or `(o={…},init(o,…),o)`, the
+    /// arguments not mentioning `o`; every use of `init` must be one (or the
+    /// initializer is created at its one construction). In the body, a
+    /// statement that does not mention the receiver cannot see the fresh
+    /// object, so the walk passes it; it stops at the first other statement
+    /// that mentions the receiver. Values are inert (literals, functions
+    /// excepted, arrays and objects of them, empty Maps and Sets), so a
+    /// fresh one equal in shape is as good as the literal's. Returns how
+    /// many stores went.
+    pub(crate) fn drop_redundant_init_stores(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let reach = self.reach(budget)?;
+        let mut uses = vec![0usize; self.bindings.len()];
+        let mut written = vec![false; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            match &self.expressions[id.index()] {
+                Expr::Binding(binding) => uses[binding.index()] += 1,
+                Expr::Assign { target, .. } => {
+                    if let Expr::Binding(binding) = self.expressions[target.index()] {
+                        written[binding.index()] = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for export in &self.exports {
+            written[export.binding.index()] = true;
+        }
+        // Every construction: its initializer, its literal, and where its
+        // call stands.
+        let mut constructions: Vec<(Initialized, ExprId, Site)> = Vec::new();
+        let mut callee_sites = vec![0usize; self.bindings.len()];
+        let mut declared: Vec<Option<FunctionId>> = vec![None; self.bindings.len()];
+        for &region in &reach.regions {
+            let statements = &self.regions[region.index()].statements;
+            for (index, statement) in statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                if let Statement::Let {
+                    binding,
+                    value: Some(value),
+                } = *statement
+                {
+                    if let Expr::Function(function) = self.expressions[value.index()] {
+                        declared[binding.index()] = Some(function);
+                    }
+                }
+                // `let o={…};init(o,…)`
+                if index > 0 {
+                    if let (
+                        Statement::Let {
+                            binding: object,
+                            value: Some(literal),
+                        },
+                        Statement::Evaluate(call),
+                    ) = (&statements[index - 1], statement)
+                    {
+                        if let Some(site) = self.construction(*call, *object, *literal, budget)? {
+                            if let Initialized::Named(callee) = site {
+                                callee_sites[callee.index()] += 1;
+                            }
+                            constructions.push((site, *literal, Site::Statement(region, index, *call)));
+                        }
+                    }
+                }
+            }
+        }
+        // `(o={…},init(o,…),o)`
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            let Expr::Sequence(items) = &self.expressions[id.index()] else {
+                continue;
+            };
+            for (at, pair) in items.windows(2).enumerate() {
+                let Expr::Assign { target, value } = self.expressions[pair[0].index()] else {
+                    continue;
+                };
+                let Expr::Binding(object) = self.expressions[target.index()] else {
+                    continue;
+                };
+                if let Some(site) = self.construction(pair[1], object, value, budget)? {
+                    if let Initialized::Named(callee) = site {
+                        callee_sites[callee.index()] += 1;
+                    }
+                    constructions.push((site, value, Site::Item(id, at + 1, pair[1])));
+                }
+            }
+        }
+        // An initializer qualifies when all its uses are constructions: a
+        // named one by count, one created at its call by being there.
+        let mut sites: Vec<(FunctionId, Vec<ExprId>, Vec<Site>)> = Vec::new();
+        for &(initialized, literal, site) in &constructions {
+            budget.work(Analysis, 1)?;
+            let function = match initialized {
+                Initialized::Created(function) => function,
+                Initialized::Named(binding) => {
+                    let Some(function) = declared[binding.index()] else {
+                        continue;
+                    };
+                    if written[binding.index()]
+                        || self.bindings[binding.index()].pinned
+                        || uses[binding.index()] != callee_sites[binding.index()]
+                    {
+                        continue;
+                    }
+                    function
+                }
+            };
+            match sites.iter_mut().find(|(found, _, _)| *found == function) {
+                Some((_, literals, calls)) => {
+                    literals.push(literal);
+                    calls.push(site);
+                }
+                None => sites.push((function, vec![literal], vec![site])),
+            }
+        }
+        let mut dropped = 0;
+        // Calls of initializers left with nothing to do.
+        let mut emptied: Vec<Site> = Vec::new();
+        for (function, literals, calls) in sites {
+            budget.work(Analysis, 1)?;
+            let Some(&receiver) = self.functions[function.index()].parameters.first() else {
+                continue;
+            };
+            let body = self.functions[function.index()].body;
+            let mut seen: Vec<String> = Vec::new();
+            let mut redundant = Vec::new();
+            for (at, statement) in self.regions[body.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                if !self.statement_mentions(statement, receiver) {
+                    continue;
+                }
+                let Statement::Evaluate(store) = *statement else {
+                    break;
+                };
+                let Some((Property::Named(key), value)) = self.object_store(store, receiver) else {
+                    break;
+                };
+                if self.mentions_within(value, receiver, budget)? {
+                    break;
+                }
+                if seen.contains(&key) {
+                    continue;
+                }
+                seen.push(key.clone());
+                if !self.inert_value(value, budget)?
+                    || matches!(self.expressions[value.index()], Expr::Function(_))
+                {
+                    continue;
+                }
+                let mut everywhere = true;
+                for &literal in &literals {
+                    let Expr::Object(entries) = &self.expressions[literal.index()] else {
+                        everywhere = false;
+                        break;
+                    };
+                    let held = entries
+                        .iter()
+                        .rev()
+                        .find(|(entry, _)| matches!(entry, Property::Named(name) if *name == key));
+                    everywhere &= held.is_some_and(|&(_, held)| self.same_inert(held, value));
+                }
+                if everywhere {
+                    redundant.push(at);
+                }
+            }
+            for &at in redundant.iter().rev() {
+                self.regions[body.index()].statements.remove(at);
+            }
+            dropped += redundant.len();
+            if self.regions[body.index()].statements.is_empty()
+                && !self.functions[function.index()]
+                    .parameters
+                    .iter()
+                    .any(|parameter| self.bindings[parameter.index()].pinned)
+            {
+                for &site in &calls {
+                    let call = match site {
+                        Site::Statement(_, _, call) | Site::Item(_, _, call) => call,
+                    };
+                    let Expr::Call { arguments, .. } = &self.expressions[call.index()] else {
+                        continue;
+                    };
+                    let mut inert = true;
+                    for &argument in &arguments[1..] {
+                        inert = inert && self.inert_value(argument, budget)?;
+                    }
+                    if inert {
+                        emptied.push(site);
+                    }
+                }
+            }
+        }
+        // Remove those calls: statements from the last, items likewise.
+        emptied.sort_unstable_by_key(|site| match *site {
+            Site::Statement(region, index, _) => std::cmp::Reverse((0, region.index(), index)),
+            Site::Item(sequence, at, _) => std::cmp::Reverse((1, sequence.index(), at)),
+        });
+        for site in emptied {
+            match site {
+                Site::Statement(region, _, call) => {
+                    // Found again: an emptied body may have shifted it.
+                    let Some(index) = self.regions[region.index()]
+                        .statements
+                        .iter()
+                        .position(|statement| matches!(statement, Statement::Evaluate(found) if *found == call))
+                    else {
+                        continue;
+                    };
+                    self.regions[region.index()].statements.remove(index);
+                    if region == self.root && index < self.root_modules.len() {
+                        self.root_modules.remove(index);
+                    }
+                }
+                Site::Item(sequence, _, call) => {
+                    if let Expr::Sequence(items) = &mut self.expressions[sequence.index()] {
+                        if let Some(at) = items.iter().position(|&item| item == call) {
+                            if items.len() > 2 {
+                                items.remove(at);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(dropped)
+    }
+
+    /// A construction: `init(o,…)` right after `o` receives the literal,
+    /// with the other arguments not mentioning `o`: the initializer, created
+    /// at the call or named by a binding.
+    fn construction(
+        &self,
+        call: ExprId,
+        object: BindingId,
+        literal: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<Initialized>, AllocationError> {
+        if !matches!(self.expressions[literal.index()], Expr::Object(_)) {
+            return Ok(None);
+        }
+        let Expr::Call {
+            callee,
+            arguments,
+            invocation: Invocation::Value | Invocation::Reference,
+        } = &self.expressions[call.index()]
+        else {
+            return Ok(None);
+        };
+        if !arguments
+            .first()
+            .is_some_and(|first| matches!(self.expressions[first.index()], Expr::Binding(found) if found == object))
+        {
+            return Ok(None);
+        }
+        for &argument in &arguments[1..] {
+            if self.mentions_within(argument, object, budget)? {
+                return Ok(None);
+            }
+        }
+        Ok(match self.expressions[callee.index()] {
+            Expr::Function(function) => Some(Initialized::Created(function)),
+            Expr::Binding(binding) => Some(Initialized::Named(binding)),
+            _ => None,
+        })
+    }
+
+    /// Two inert values of the same shape: equal literals (numbers by bits),
+    /// arrays and objects of such, or empty Maps or Sets of one kind.
+    fn same_inert(&self, left: ExprId, right: ExprId) -> bool {
+        match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+            (Expr::Literal(Literal::Number(a)), Expr::Literal(Literal::Number(b))) => a.to_bits() == b.to_bits(),
+            (Expr::Literal(a), Expr::Literal(b)) => a == b,
+            (Expr::Array(a), Expr::Array(b)) => {
+                a.len() == b.len() && a.iter().zip(b).all(|(x, y)| self.same_inert(*x, *y))
+            }
+            (Expr::Object(a), Expr::Object(b)) => {
+                a.len() == b.len()
+                    && a.iter().zip(b).all(|((kx, x), (ky, y))| match (kx, ky) {
+                        (Property::Named(kx), Property::Named(ky)) => kx == ky && self.same_inert(*x, *y),
+                        _ => false,
+                    })
+            }
+            (
+                Expr::ConstructIntrinsic {
+                    operation: a,
+                    arguments: x,
+                },
+                Expr::ConstructIntrinsic {
+                    operation: b,
+                    arguments: y,
+                },
+            ) => a == b && x.is_empty() && y.is_empty(),
+            _ => false,
+        }
     }
 
     /// `f(…);` with a binding callee: the callee and the call.
@@ -388,7 +696,13 @@ impl Module {
                         (Some(default), Expr::Literal(Literal::Undefined)) => {
                             Value::Literal(default.clone())
                         }
-                        (Some(_), _) if self.never_undefined(argument) => Value::Moved(argument),
+                        // A typed argument is never `undefined`.
+                        (Some(_), _)
+                            if self.never_undefined(argument)
+                                || self.defined_parameters.contains(&parameters[*index]) =>
+                        {
+                            Value::Moved(argument)
+                        }
                         (Some(_), _) => return Ok(None),
                     }
                 }
@@ -421,6 +735,23 @@ impl Module {
             _ => self.known(id).is_some(),
         }
     }
+}
+
+/// Where a construction's call stands: a call statement (region, index), or
+/// an item of a sequence expression (sequence, position).
+#[derive(Clone, Copy)]
+enum Site {
+    Statement(RegionId, usize, ExprId),
+    Item(ExprId, usize, ExprId),
+}
+
+/// The initializer of a construction.
+#[derive(Clone, Copy)]
+enum Initialized {
+    /// Created at the call: its one use.
+    Created(FunctionId),
+    /// A binding's function; every use must be a construction.
+    Named(BindingId),
 }
 
 /// A store's value at a site: an argument moved in, or a literal.

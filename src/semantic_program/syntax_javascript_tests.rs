@@ -1152,18 +1152,19 @@ fn defaults_of_a_function_only_ever_called_print_natively() {
         r#"
         extern void show(JsValue value);
         extern int seed();
-        int scaled(int x, int factor = 2, int offset = 1) {
-            int y = x * factor;
-            return y + offset + seed();
+        float scaled(float x, JsValue factor = 2, JsValue offset = 1) {
+            float y = x * JS.number(factor);
+            return y + JS.number(offset) + seed();
         }
-        show(JS.box(scaled(3)));
-        show(JS.box(scaled(3, 4)));
-        show(JS.box(scaled(3, 4, 5)));
+        show(JS.box(scaled(3.0)));
+        show(JS.box(scaled(3.0, 4)));
+        show(JS.box(scaled(3.0, 4, 5)));
         "#,
         PRISTINE,
     );
     // Nothing reads `scaled` but its calls, so its `length` is free and the
-    // body's default checks become `(a,b=2,c=1)`.
+    // body's default checks become `(a,b=2,c=1)`. (A default of a typed
+    // parameter no typed caller can omit goes altogether.)
     assert!(javascript.contains("=2,") && !javascript.contains("===void 0"), "{javascript}");
     assert_eq!(run(&javascript, &format!("globalThis.seed=()=>0;{SHOW}")), "7\n13\n17\n");
 }
@@ -1220,4 +1221,96 @@ fn a_tested_value_returned_by_one_arm_is_the_logical_operator() {
     assert!(!javascript.contains("if("), "{javascript}");
     assert!(javascript.contains("||\"object\""), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "\"array\"\n\"object\"\n\"x\"\n0\n");
+}
+
+#[test]
+fn an_initializer_store_the_literal_already_holds_goes() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern JsValue seed();
+        class Counter {
+            int count;
+            JsValue label;
+            int[] items;
+            init(JsValue label) {
+                this.count = 0;
+                this.items = [];
+                show(seed());
+                this.label = label;
+            }
+        }
+        export JsValue make(JsValue l) {
+            Counter c = new Counter(l);
+            c.count = c.count + 1;
+            c.items.push(c.count);
+            show(JS.box(c.items.length));
+            return c.label;
+        }
+        export JsValue other(JsValue l) {
+            Counter c = new Counter(l);
+            show(JS.box(c.count));
+            return c.label;
+        }
+        show(make("a"));
+        show(other("b"));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // Every construction's literal already holds `count:0` and `items:[]`,
+    // and `show(seed())` cannot see the object: those stores go.
+    assert!(!javascript.contains(".count=0") && !javascript.contains(".items=[]"), "{javascript}");
+    assert_eq!(
+        run(&javascript, "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.seed=()=>\"s\";"),
+        "\"s\"\n1\n\"a\"\n\"s\"\n0\n\"b\"\n"
+    );
+}
+
+#[test]
+fn a_default_only_erased_callers_could_use_is_no_check() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern float noise();
+        float scaled(float x, float factor = 2.0) {
+            float y = x * factor;
+            show(JS.box(y));
+            return y + noise();
+        }
+        show(JS.box(scaled(3.0, noise())));
+        show(JS.box(scaled(1.0, noise() + 1.0)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // Typed callers always pass `factor`, and none passes the default: the
+    // function opens without it.
+    assert!(!javascript.contains("=2"), "{javascript}");
+    assert_eq!(
+        run(&javascript, "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.noise=()=>1;"),
+        "3\n4\n2\n3\n"
+    );
+}
+
+#[test]
+fn an_object_only_read_through_its_fields_is_its_fields() {
+    let source = r#"
+        extern void show(JsValue value);
+        class Cell {
+            bool on;
+            int n;
+        }
+        export func()->int counter(int start) {
+            Cell c = new Cell();
+            c.n = start;
+            return () => {
+                c.on = !c.on;
+                c.n = c.n + 1;
+                if (c.on) { return c.n * 2; }
+                return c.n;
+            };
+        }
+        func()->int k = counter(5);
+        show(JS.box(k()));
+        show(JS.box(k()));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // The cell never leaves its fields: the closure shares two locals.
+    assert!(!javascript.contains(".on") && !javascript.contains(".n="), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "12\n7\n");
 }

@@ -60,7 +60,8 @@ fn module_storage(module: &js::Module) -> u64 {
         + bytes(&module.exports)
         + bytes(&module.scopes)
         + bytes(&module.regions)
-        + bytes(&module.root_modules);
+        + bytes(&module.root_modules)
+        + bytes(&module.defined_parameters);
     for expression in &module.expressions {
         total += match expression {
             js::Expr::Literal(js::Literal::String(value)) => value.capacity_bytes() as u64,

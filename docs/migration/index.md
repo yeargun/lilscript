@@ -2125,6 +2125,38 @@ motionlil's tests pass (9/9). It still loses by 9,597. The census puts the rest 
 
 Two language limits force verbose port code here: `%` on floats and a non-null assertion.
 
+### 013 batch 23: construction as one literal, typed defaults, member-only objects (2026-09-23)
+
+These are the first flattening passes of the class-lowering census (013-T3), each learned from how Closure and Terser treat constructed objects. A class instance is still one object literal plus an initializer call. These passes remove what that doubles:
+- **Initializer stores the literal already holds go** (`drop_redundant_init_stores`, [initializers.rs](../../src/structured_js/initializers.rs)).
+  - The case: motion's MotionValue initializer re-stored all 18 field defaults its construction literal had just written (`a.owner=null;…a.events=new Map;a.eventKeys=[]`).
+  - The rule: a store of an inert value (literals, arrays and objects of them, and now empty Maps and Sets under pristine builtins) is dropped when every construction's fresh literal holds the same value and nothing before the store can see the object.
+  - Where it applies: constructions as statements `let o={…};init(o,…)` and in the comma form `(o={…},init(o,…),o)`, for a named initializer every use of which is a construction, or one created at its call.
+  - An initializer left with nothing to do loses its calls.
+  - The literal keeps every key, so key order and V8's in-object layout stay as they were. The census measured that dropping literal defaults instead reorders keys of exported objects.
+- **A default only an erased caller could use is no check** (`drop_typed_default_checks`, [mod.rs](../../src/structured_js/mod.rs)). Typed callers always pass a value for a parameter whose type excludes `undefined`. Formation records such parameters (`Module.defined_parameters`), the first type fact crossing into the tree. A function whose every use is a direct call loses those opening checks. Keeping a check when some call passes the default literal (so that call could drop the argument) measured worse on motionlil (+159), so the checks go.
+- **Initializer folding is per site** ([initializers.rs](../../src/structured_js/initializers.rs)). One construction in an expression position no longer disables folding for every construction of the class, and an argument for a typed parameter counts as defined. motion's color constructions now print as literals, `a=>({red:fc(a,"red",0),…})`.
+- **An object only read through its fields is its fields** (`scalarize_member_objects`, [scalar_objects.rs](../../src/structured_js/scalar_objects.rs)).
+  - The rule: a function-local object whose every reference is `o.k` for a key its literal defines becomes one `let` per field. Excluded: any method call through it (its `this`), any `delete`, any reassignment.
+  - Closures that captured the object capture the fields instead: `let c={on:!1,n:a};…()=>c.on` becomes `let c=!1,d=a;…()=>c`.
+  - motion's closure cells are the case (Closure's and the legacy route's scalar replacement).
+
+| Brotli objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|
+| Batch 22 (b56) | 62,665 | 9,261 | 5,393 | 28,995 | 27,869 | 50,629 |
+| Redundant init stores (b57) | 62,665 | 9,244 | 5,393 | 28,995 | 27,869 | 50,360 |
+| Typed defaults, per-site folds (b63) | 62,665 | 9,221 | 5,393 | 28,994 | 27,869 | 50,070 |
+| **Member-only objects (b64)** | **62,665** | **9,221** | **5,393** | **28,994** | **27,869** | **49,846** |
+
+| Raw objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core |
+|---|---|---|---|---|---|
+| Batch 22 | 248,553 | 35,371 | 15,678 | 85,498 | 110,444 |
+| **Batch 23** | **248,553** | **35,289** | **15,678** | **85,501** | **110,444** |
+
+motionlil's `full.js` falls by 783 Brotli and about 4,600 raw.
+
+**Verification.** 3,066 unit tests pass, including `an_initializer_store_the_literal_already_holds_goes`, `a_default_only_erased_callers_could_use_is_no_check` and `an_object_only_read_through_its_fields_is_its_fields`. `defaults_of_a_function_only_ever_called_print_natively` now exercises `JsValue` parameters, whose defaults stay. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.
