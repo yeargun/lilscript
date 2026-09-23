@@ -19,27 +19,27 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now (batch 11) | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 12) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`) | 65,727 | 64,884 | 63,044 | +1,840 |
+| katexlil (complete `katex.esm.js`) | 65,727 | 64,517 | 63,044 | +1,473 |
 | markedlil (`marked.raw.js`) | 9,397 | 9,266 | 10,092 | **win −826** |
-| posthoglil (`posthog.raw.js`) | 5,952 | 5,631 | 5,622 | +9 (a tie within Brotli's noise) |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,571 | 27,445 | +2,126 |
-| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,720 | 51,948 | **win −6,228** |
-| motionlil (`full.js`) | does not build | 51,573 | 41,032 | +10,541 |
+| posthoglil (`posthog.raw.js`) | 5,952 | 5,618 | 5,622 | −4 (a tie within Brotli's noise) |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,566 | 27,445 | +2,121 |
+| zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,700 | 51,948 | **win −6,248** |
+| motionlil (`full.js`) | does not build | 51,562 | 41,032 | +10,530 |
 
-| Raw objective | Start | Now (batch 11) | Bar | Gap |
+| Raw objective | Start | Now (batch 12) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 260,420 | 267,050 | **win −6,630** |
-| markedlil (`marked.bytes.js`) | 39,687 | 35,512 | 37,022 | **win −1,510** |
-| posthoglil (`posthog.bytes.js`) | 19,750 | 16,606 | 16,123 | +483 |
-| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 87,870 | 87,151 | +719 |
-| zodlil (complete package, built with the raw objective) | open | 249,604 | 274,999 | **win −25,395** |
+| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 259,264 | 267,050 | **win −7,786** |
+| markedlil (`marked.bytes.js`) | 39,687 | 35,451 | 37,022 | **win −1,571** |
+| posthoglil (`posthog.bytes.js`) | 19,750 | 16,426 | 16,123 | +303 |
+| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 87,625 | 87,151 | +474 |
+| zodlil (complete package, built with the raw objective) | open | 243,385 | 274,999 | **win −31,614** |
 | motionlil | no raw configuration yet | | | |
 
 katexlil and jquerylil have no raw configuration of their own. Their rows build the port with `cost_model = "raw"` in every configuration, which is how the raw-objective suites run too.
 
-**zodlil's package, measured two ways.** The package is esbuild's bundle of `dist/index.js`, which reprints every file. Without minification it also pretty-prints our minified core. That is the conservative figure in both tables (45,720 Brotli, 249,604 raw). With `--minify-whitespace`, our core keeps its spelling and the hand-written glue only loses its whitespace: 41,806 Brotli (Brotli objective) and 184,204 raw (raw objective).
+**zodlil's package, measured two ways.** The package is esbuild's bundle of `dist/index.js`, which reprints every file. Without minification it also pretty-prints our minified core. That is the conservative figure in both tables (45,700 Brotli, 243,385 raw). With `--minify-whitespace`, our core keeps its spelling and the hand-written glue only loses its whitespace: 41,730 Brotli (Brotli objective) and 182,362 raw (raw objective).
 
 Until batch 7 the zodlil raw row showed 252,517, which was the raw size of the Brotli-objective package. The row now uses a raw-objective build.
 

@@ -865,6 +865,56 @@ fn a_raw_objective_writes_statements_as_expressions() {
 }
 
 #[test]
+fn a_raw_objective_stores_a_conditional_and_moves_a_loop_increment_into_its_update() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue fill(JsValue source, JsValue flag) {
+            JsValue out = JS.object();
+            if (flag.truthy()) { out["payload"] = JS.add("p", source); } else { out["payload"] = null; }
+            JsValue items = JS.array();
+            int i = 0;
+            int n = 3;
+            while (i < n) {
+                JS.invoke(items, "push", i);
+                i = i + 1;
+            }
+            int j = 0;
+            while (j < n) {
+                j = j + 1;
+                if (j == 2) { continue; }
+                JS.invoke(items, "push", j * 10);
+            }
+            int k = 0;
+            while (k < n) {
+                JsValue kept = JS.array(k);
+                k = k + 1;
+                JS.invoke(items, "push", kept);
+            }
+            out["items"] = items;
+            return out;
+            return source;
+        }
+        show(fill("x", true));
+        show(fill("y", false));
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let coded = compile_with(source, PRISTINE);
+    // One store of a conditional, which then folds into the literal; the
+    // first loop's increment is its update.
+    assert_eq!(raw.matches("payload").count(), 1, "{raw}");
+    assert!(raw.contains("{payload:b?"), "{raw}");
+    assert_eq!(raw.matches("for(;").count(), 1, "{raw}");
+    // A `continue` would skip a moved increment, and `kept` is the body's.
+    assert!(raw.contains("continue"), "{raw}");
+    assert_eq!(raw.matches("while(").count(), 2, "{raw}");
+    // Nothing runs after the first return.
+    assert_eq!(raw.matches("return").count(), 1, "{raw}");
+    let expected = "{\"payload\":\"px\",\"items\":[0,1,2,10,30,[0],[1],[2]]}\n{\"payload\":null,\"items\":[0,1,2,10,30,[0],[1],[2]]}\n";
+    assert_eq!(run(&raw, SHOW), expected);
+    assert_eq!(run(&coded, SHOW), expected);
+}
+
+#[test]
 fn defaults_of_a_function_only_ever_called_print_natively() {
     let javascript = compile_with(
         r#"

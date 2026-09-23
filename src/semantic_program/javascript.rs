@@ -750,7 +750,10 @@ fn form_with_demand(
         let edited = formation
             .module
             .forward_single_uses(formation.budget)
-            .and_then(|_| {
+            .and_then(|(_, map)| {
+                if let Some(map) = map {
+                    remap_alternatives(&mut formation.literal_alternatives, &map);
+                }
                 formation.module.elide_undefined(formation.budget)?;
                 // `let o;o={…}` must meet as `let o={…}` before stores fold.
                 formation.module.merge_declarations(prunes, formation.budget)?;
@@ -765,12 +768,20 @@ fn form_with_demand(
                 if pristine {
                     formation.module.inline_initializers(formation.budget)?;
                 }
-                // A literal that took its stores often has one reader left.
-                if pristine && formation.module.fold_object_stores(formation.budget)? != 0 {
-                    formation.module.forward_single_uses(formation.budget)?;
+                if pristine {
+                    fold_stores(
+                        &mut formation.module,
+                        &mut formation.literal_alternatives,
+                        formation.budget,
+                    )?;
                 }
                 formation.module.drop_double_negations(formation.budget)?;
                 // Forwarding and folds bring operators next to each other.
+                let protected: Vec<js::ExprId> = formation
+                    .literal_alternatives
+                    .iter()
+                    .map(|alternative| alternative.expression())
+                    .collect();
                 formation
                     .module
                     .simplify_operators(numeric_lengths, es2018, &protected, formation.budget)?;
@@ -807,14 +818,24 @@ fn form_with_demand(
                 // their parameters are then copies to forward.
                 if formation.module.inline_single_calls(strict, formation.budget)? != 0 {
                     formation.module.eliminate_aliases(formation.budget)?;
-                    formation.module.forward_single_uses(formation.budget)?;
+                    if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
+                        remap_alternatives(&mut formation.literal_alternatives, &map);
+                    }
                 }
                 formation.module.flatten_blocks(formation.budget)?;
-                formation.module.compress_statements(formation.budget)?;
+                // A store of a conditional is a store the fold can take.
+                if formation.module.compress_statements(formation.budget)? != 0 && pristine {
+                    fold_stores(
+                        &mut formation.module,
+                        &mut formation.literal_alternatives,
+                        formation.budget,
+                    )?;
+                }
             }
             if prunes {
                 formation.module.drop_unreferenced_functions(formation.budget)?;
             }
+            formation.module.drop_unreachable(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
         });
@@ -866,6 +887,41 @@ fn form_with_demand(
     drop(reference_plan);
     phase.finish_retained()?;
     Ok((module, literal_alternatives))
+}
+
+/// Stores into a fresh literal fold into it (`fold_object_stores`), and a
+/// literal that took its stores often has one reader left. Forwarded there,
+/// as the value of its parent's store, it leaves that store next to the
+/// parent's others: a few rounds fold a tree of objects built by stores into
+/// one literal.
+fn fold_stores(
+    module: &mut js::Module,
+    alternatives: &mut Vec<js::LiteralAlternative>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(), AllocationError> {
+    for _ in 0..4 {
+        if module.fold_object_stores(budget)? == 0 {
+            break;
+        }
+        let (forwarded, map) = module.forward_single_uses(budget)?;
+        if let Some(map) = map {
+            remap_alternatives(alternatives, &map);
+        }
+        if forwarded == 0 {
+            break;
+        }
+    }
+    Ok(())
+}
+
+/// Point literal alternatives at their renumbered nodes, ascending for
+/// lookups; those whose node is gone go too.
+fn remap_alternatives(
+    alternatives: &mut Vec<js::LiteralAlternative>,
+    map: &[Option<js::ExprId>],
+) {
+    alternatives.retain_mut(|alternative| alternative.remap(map));
+    alternatives.sort_unstable_by_key(|alternative| alternative.expression());
 }
 
 struct FormationContext {

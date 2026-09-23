@@ -9,6 +9,9 @@
 //! * `if(c)x=a;else x=b` is `x=c?a:b` for one binding.
 //! * `if(c)return a;e;return b` is `return c?a:(e,b)`, and so is an `if`
 //!   whose branches both return: the same evaluations, then the same return.
+//! * `if(c)o.k=a;else o.k=b` is `o.k=c?a:b` where reading `o` (and a key)
+//!   before the condition changes nothing (`same_store`).
+//! * `while(c){…;u}` is `for(;c;u){…}` when no `continue` skips `u`.
 //!
 //! A codec matches the statement forms' repeated shapes nearly for free
 //! (Terser's compression over our Brotli output made it larger), so only a
@@ -29,6 +32,7 @@ impl Module {
         for _ in 0..8 {
             let reach = self.reach(budget)?;
             let depths = self.region_depths(budget)?;
+            let frames = self.frames(budget)?;
             let mut changed = 0;
             for &region in reach.regions.iter().rev() {
                 budget.work(Analysis, 1)?;
@@ -37,7 +41,7 @@ impl Module {
                 if depths[region.index()].is_none_or(|depth| depth + 64 > verify::MAX_NESTING) {
                     continue;
                 }
-                changed += self.compress_region(region, budget)?;
+                changed += self.compress_region(region, &frames, &reach.captured, budget)?;
             }
             total += changed;
             if changed == 0 {
@@ -50,6 +54,8 @@ impl Module {
     fn compress_region(
         &mut self,
         region: RegionId,
+        frames: &Frames,
+        captured: &[bool],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let mut changed = 0;
@@ -57,6 +63,28 @@ impl Module {
         while index < self.regions[region.index()].statements.len() {
             budget.work(Analysis, 1)?;
             let statement = self.regions[region.index()].statements[index].clone();
+            // `while(c){…;u}` is `for(;c;u){…}` when nothing continues the
+            // loop: the update runs where the body's last statement did.
+            if let Statement::Loop {
+                condition,
+                update: None,
+                body,
+            } = statement
+            {
+                if let Some(&Statement::Evaluate(last)) = self.regions[body.index()].statements.last() {
+                    if !self.continues(body, budget)? && self.outside_body(last, body, budget)? {
+                        self.regions[body.index()].statements.pop();
+                        self.regions[region.index()].statements[index] = Statement::Loop {
+                            condition,
+                            update: Some(last),
+                            body,
+                        };
+                        changed += 1;
+                    }
+                }
+                index += 1;
+                continue;
+            }
             let Statement::If { condition, yes, no } = statement else {
                 index += 1;
                 continue;
@@ -162,21 +190,24 @@ impl Module {
                     })
                 }
                 (false, Some(no_values)) => {
-                    // `x=c?a:b` when each branch assigns one binding.
+                    // `x=c?a:b` when each branch assigns one binding, and
+                    // `o.k=c?a:b` when each stores to the same property.
                     let assigned = |values: &[ExprId]| match values {
                         [value] => match &self.expressions[value.index()] {
-                            Expr::Assign { target, value } => {
-                                match self.expressions[target.index()] {
-                                    Expr::Binding(binding) => Some((binding, *target, *value)),
-                                    _ => None,
-                                }
-                            }
+                            Expr::Assign { target, value } => Some((*target, *value)),
                             _ => None,
                         },
                         _ => None,
                     };
-                    match (assigned(&yes_values), assigned(&no_values)) {
-                        (Some((left, target, a)), Some((right, _, b))) if left == right => {
+                    let same = match (assigned(&yes_values), assigned(&no_values)) {
+                        (Some((left, a)), Some((right, b))) => {
+                            self.same_store(left, right, condition, region, index, frames, captured, budget)?
+                                .then_some((left, a, b))
+                        }
+                        _ => None,
+                    };
+                    match same {
+                        Some((target, a, b)) => {
                             let value = self.expression_in(
                                 Expr::Conditional {
                                     condition,
@@ -212,6 +243,146 @@ impl Module {
             index += 1;
         }
         Ok(changed)
+    }
+
+    /// Whether a `continue` in `body` (not in a loop or function inside it)
+    /// continues the loop owning it.
+    fn continues(
+        &self,
+        body: RegionId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let mut regions = vec![body];
+        while let Some(region) = regions.pop() {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                match statement {
+                    Statement::Continue => return Ok(true),
+                    Statement::Loop { .. }
+                    | Statement::ForIn { .. }
+                    | Statement::ForOf { .. }
+                    | Statement::Function { .. } => {}
+                    _ => statement.visit_regions(|child| regions.push(child)),
+                }
+            }
+        }
+        Ok(false)
+    }
+
+    /// Whether `value` can move from `body`'s end into its loop's update,
+    /// which runs in the loop's enclosing scope: it reads no binding the
+    /// body declares, and creates no function (whose scope would move).
+    fn outside_body(
+        &self,
+        value: ExprId,
+        body: RegionId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let scope = self.regions[body.index()].scope;
+        let mut pending = vec![value];
+        while let Some(id) = pending.pop() {
+            budget.work(Analysis, 1)?;
+            let expression = &self.expressions[id.index()];
+            match expression {
+                Expr::Binding(binding) if self.bindings[binding.index()].scope == scope => {
+                    return Ok(false)
+                }
+                _ if expression.created_function().is_some() => return Ok(false),
+                _ => {}
+            }
+            let _ = expression.visit_children(|child| {
+                pending.push(child);
+                Ok::<_, ()>(())
+            });
+        }
+        Ok(true)
+    }
+
+    /// Whether two assignment targets name the same place, so one store of
+    /// a conditional replaces a store in each branch of `condition`. That
+    /// store reads the target's object binding (and a key binding) before
+    /// the condition instead of after it, which changes nothing when the
+    /// binding is initialized there and only this code can assign it: no
+    /// closure reaches it and the condition does not. A key converts at the
+    /// store in current engines, but earlier ones converted it at the read,
+    /// so a key binding also needs a condition that runs no code.
+    #[allow(clippy::too_many_arguments)]
+    fn same_store(
+        &self,
+        left: ExprId,
+        right: ExprId,
+        condition: ExprId,
+        region: RegionId,
+        index: usize,
+        frames: &Frames,
+        captured: &[bool],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let expressions = &self.expressions;
+        let (object, key) = match (&expressions[left.index()], &expressions[right.index()]) {
+            (Expr::Binding(a), Expr::Binding(b)) => return Ok(a == b),
+            (
+                Expr::Member {
+                    object: left_object,
+                    property: left_property,
+                },
+                Expr::Member {
+                    object: right_object,
+                    property: right_property,
+                },
+            ) => {
+                let (Expr::Binding(object), Expr::Binding(other)) = (
+                    &expressions[left_object.index()],
+                    &expressions[right_object.index()],
+                ) else {
+                    return Ok(false);
+                };
+                if object != other {
+                    return Ok(false);
+                }
+                let key = match (left_property, right_property) {
+                    (Property::Named(a), Property::Named(b)) if a == b => None,
+                    (Property::Computed(a), Property::Computed(b)) => {
+                        match (&expressions[a.index()], &expressions[b.index()]) {
+                            (Expr::Literal(a), Expr::Literal(b))
+                                if matches!(a, Literal::String(_) | Literal::Number(_))
+                                    && a == b =>
+                            {
+                                None
+                            }
+                            (Expr::Binding(a), Expr::Binding(b)) if a == b => {
+                                let quiet = match &expressions[condition.index()] {
+                                    Expr::Binding(_) | Expr::Literal(_) => true,
+                                    Expr::Unary {
+                                        op: Unary::Not,
+                                        value,
+                                    } => matches!(expressions[value.index()], Expr::Binding(_)),
+                                    _ => false,
+                                };
+                                if !quiet {
+                                    return Ok(false);
+                                }
+                                Some(*a)
+                            }
+                            _ => return Ok(false),
+                        }
+                    }
+                    _ => return Ok(false),
+                };
+                (*object, key)
+            }
+            _ => return Ok(false),
+        };
+        let read = [Some(object), key];
+        let reads: Vec<BindingId> = read.into_iter().flatten().collect();
+        for &binding in &reads {
+            if captured[binding.index()]
+                || !self.initialized_at(binding, region, index, frames, budget)?
+            {
+                return Ok(false);
+            }
+        }
+        Ok(!self.statement_assigns(&Statement::Evaluate(condition), &reads))
     }
 
     /// Scopes nested in `inner`'s now nest in `outer`'s: its expressions

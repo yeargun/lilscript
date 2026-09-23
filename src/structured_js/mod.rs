@@ -1011,6 +1011,16 @@ enum Leaf {
     Child(ExprId),
 }
 
+/// Where each region sits, for asking what has run before a statement.
+struct Frames {
+    /// The statement holding each region, as `region_parents` found it.
+    parents: Vec<Option<(RegionId, usize)>>,
+    /// The function each region is the body of.
+    bodies: Vec<Option<FunctionId>>,
+    /// Functions reading their own `arguments` object.
+    arguments: Vec<bool>,
+}
+
 impl Module {
     /// `let x=void 0` is `let x` and `return void 0` is `return`: a `let`
     /// without a value still initializes to undefined each time it runs. A
@@ -1053,6 +1063,52 @@ impl Module {
             }
         }
         Ok(elided)
+    }
+
+    /// Statements after a region's first `return`, `throw`, `break` or
+    /// `continue` never run, and go; declarations stay, since a closure
+    /// created earlier may name them and a function declaration is hoisted.
+    /// Then `elide_undefined` drops a body's final `return;` that this left.
+    /// Returns the number of dropped statements.
+    pub(crate) fn drop_unreachable(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut dropped = 0;
+        for region in 0..self.regions.len() {
+            budget.work(
+                crate::compilation_policy::WorkKind::Analysis,
+                1 + self.regions[region].statements.len() as u64,
+            )?;
+            let Some(exit) = self.regions[region].statements.iter().position(|statement| {
+                matches!(
+                    statement,
+                    Statement::Return(_)
+                        | Statement::Throw(_)
+                        | Statement::Break
+                        | Statement::Continue
+                )
+            }) else {
+                continue;
+            };
+            let root = region == self.root.index();
+            let mut index = exit + 1;
+            while index < self.regions[region].statements.len() {
+                if matches!(
+                    self.regions[region].statements[index],
+                    Statement::Let { .. } | Statement::Function { .. }
+                ) {
+                    index += 1;
+                    continue;
+                }
+                self.regions[region].statements.remove(index);
+                if root && index < self.root_modules.len() {
+                    self.root_modules.remove(index);
+                }
+                dropped += 1;
+            }
+        }
+        Ok(dropped + self.elide_undefined(budget)?)
     }
 
     /// `let x;…;x=v` becomes `…;let x=v` when that assignment is the first
@@ -1797,6 +1853,26 @@ impl Module {
     /// `arguments`, `super` or direct `eval`, in it or in the arrows it
     /// creates, which share its frame. Called, such a function is its body.
     pub(crate) fn frame_free(&self, function: FunctionId) -> bool {
+        !self.frame_reads(function, |expression| match expression {
+            Expr::This | Expr::SuperCall { .. } => true,
+            Expr::Host(name) => name == "arguments" || name == "eval",
+            Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
+            _ => false,
+        })
+    }
+
+    /// Whether `function` reads its own `arguments` object, in it or in the
+    /// arrows it creates. In a sloppy frame that object aliases the
+    /// parameters: writing `arguments[0]` assigns the first.
+    fn reads_arguments(&self, function: FunctionId) -> bool {
+        self.frame_reads(function, |expression| {
+            matches!(expression, Expr::Host(name) if name == "arguments")
+        })
+    }
+
+    /// Whether an expression of `function`'s frame (its body and the arrows
+    /// it creates, not the functions they declare) satisfies `found`.
+    fn frame_reads(&self, function: FunctionId, found: impl Fn(&Expr) -> bool) -> bool {
         let mut expressions = Vec::new();
         let mut regions = vec![self.functions[function.index()].body];
         while let Some(region) = regions.pop() {
@@ -1807,25 +1883,22 @@ impl Module {
                 }
             }
             while let Some(id) = expressions.pop() {
-                match &self.expressions[id.index()] {
-                    Expr::This | Expr::SuperCall { .. } => return false,
-                    Expr::Host(name) if name == "arguments" || name == "eval" => return false,
-                    Expr::Call {
-                        invocation: Invocation::DirectEval,
-                        ..
-                    } => return false,
-                    Expr::Function(inner) if self.functions[inner.index()].arrow => {
-                        regions.push(self.functions[inner.index()].body)
-                    }
-                    _ => {}
+                let expression = &self.expressions[id.index()];
+                if found(expression) {
+                    return true;
                 }
-                let _ = self.expressions[id.index()].visit_children(|child| {
+                if let Expr::Function(inner) = expression {
+                    if self.functions[inner.index()].arrow {
+                        regions.push(self.functions[inner.index()].body);
+                    }
+                }
+                let _ = expression.visit_children(|child| {
                     expressions.push(child);
                     Ok::<_, ()>(())
                 });
             }
         }
-        true
+        false
     }
 
     /// Whether the reference to `binding` under `leaf` is a callee.
@@ -1913,11 +1986,12 @@ impl Module {
     /// in the same order, one binding fewer. A function or class value keeps
     /// its binding, which names it; a loop test repeats, so it never takes one.
     /// Root statements merge only within one source module. Returns the
-    /// number of forwarded bindings.
+    /// number of forwarded bindings, and the renumbering map when a value
+    /// moved under a parent created before it.
     pub(crate) fn forward_single_uses(
         &mut self,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<usize, AllocationError> {
+    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
         let mut references =
             budget.filled(AllocationClass::Scratch, self.bindings.len(), 0u32)?;
         budget.work(
@@ -1932,7 +2006,10 @@ impl Module {
             references[export.binding.index()] = u32::MAX;
         }
         let depths = self.region_depths(budget)?;
+        let captured = self.reach(budget)?.captured;
+        let frames = self.frames(budget)?;
         let mut forwarded = 0;
+        let mut disordered = false;
         for region in 0..self.regions.len() {
             let Some(region_depth) = depths[region] else {
                 continue;
@@ -1978,13 +2055,41 @@ impl Module {
                 // statement that mentions it, where that statement evaluates
                 // it once (not a loop's test or update, nor a nested function:
                 // those would create it again).
+                // So can a value of literals, functions and reads of bindings
+                // (an object or array of them): reading an initialized binding
+                // runs nothing, cannot throw, and yields the same value while
+                // nothing assigns it. No closure may reach one, so only this
+                // code could: no statement up to the reference assigns it.
+                let mut settled = None;
+                if leaf.is_none() && movable && !self.inert_value(value, budget)? {
+                    if let Some(reads) = self.settled_reads(value) {
+                        let mut holds = true;
+                        for &read in &reads {
+                            holds = holds
+                                && !captured[read.index()]
+                                && self.initialized_at(
+                                    read,
+                                    RegionId::new(region),
+                                    index,
+                                    &frames,
+                                    budget,
+                                )?;
+                        }
+                        settled = holds.then_some(reads);
+                    }
+                }
                 let leaf = match leaf {
                     Some(leaf) => Some(leaf),
-                    None if movable && self.inert_value(value, budget)? => {
+                    None if movable && (settled.is_some() || self.inert_value(value, budget)?) => {
                         let mut found = None;
                         for later in index + 1..self.regions[region].statements.len() {
                             budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                             let statement = &self.regions[region].statements[later];
+                            if let Some(reads) = &settled {
+                                if self.statement_assigns(statement, reads) {
+                                    break;
+                                }
+                            }
                             if !self.statement_mentions(statement, binding) {
                                 continue;
                             }
@@ -2012,16 +2117,10 @@ impl Module {
                     }
                     None => None,
                 };
-                // Children precede their parents in the arena, and the moved
-                // value's deepest point must stay within the nesting limit.
-                let fits = leaf.is_some_and(|((leaf, path), _)| {
-                    let ordered = match leaf {
-                        Leaf::Root => true,
-                        Leaf::Child(parent) => value.index() < parent.index(),
-                    };
-                    ordered
-                        && region_depth + 1 + path + self.subtree_depth(value)
-                            <= verify::MAX_NESTING
+                // The moved value's deepest point must stay within the nesting
+                // limit.
+                let fits = leaf.is_some_and(|((_, path), _)| {
+                    region_depth + 1 + path + self.subtree_depth(value) <= verify::MAX_NESTING
                 });
                 budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                 let Some(((leaf, _), target_statement)) = leaf.filter(|_| fits) else {
@@ -2049,6 +2148,10 @@ impl Module {
                             index += 1;
                             continue;
                         };
+                        // Children precede their parents in the arena: a value
+                        // created after its new parent (a literal a store fold
+                        // rebuilt) waits for the renumbering below.
+                        disordered |= value.index() > parent.index();
                         self.expressions[parent.index()]
                             .remap_children(|child| if child == slot { value } else { child });
                     }
@@ -2061,7 +2164,174 @@ impl Module {
                 forwarded += 1;
             }
         }
-        Ok(forwarded)
+        let map = if disordered {
+            Some(self.renumber(budget)?)
+        } else {
+            None
+        };
+        Ok((forwarded, map))
+    }
+
+    fn frames(&self, budget: &mut AllocationBudget<'_>) -> Result<Frames, AllocationError> {
+        let parents = self.region_parents(budget)?;
+        let mut bodies = budget.filled(AllocationClass::Scratch, self.regions.len(), None)?;
+        let mut arguments = budget.filled(AllocationClass::Scratch, self.functions.len(), false)?;
+        // Each expression is in the frame of one function, its nearest that
+        // is not an arrow, so the frames are walked once in all.
+        budget.work(
+            crate::compilation_policy::WorkKind::Analysis,
+            (self.expressions.len() + self.functions.len()) as u64,
+        )?;
+        for (id, function) in self.functions.iter().enumerate() {
+            bodies[function.body.index()] = Some(FunctionId::new(id));
+            arguments[id] = !function.arrow && self.reads_arguments(FunctionId::new(id));
+        }
+        Ok(Frames {
+            parents,
+            bodies,
+            arguments,
+        })
+    }
+
+    /// Whether `binding` holds its value when statement `index` of `region`
+    /// runs: a statement before it in the region declared it, or one before
+    /// the statement holding the region, and so on up to the function body;
+    /// or it is that function's parameter (which no `arguments` object
+    /// aliases), or the binding of a `for…in`, `for…of` or `catch` around it.
+    fn initialized_at(
+        &self,
+        binding: BindingId,
+        mut region: RegionId,
+        mut index: usize,
+        frames: &Frames,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        loop {
+            budget.work(Analysis, 1 + index as u64)?;
+            let declares = |statement: &Statement| {
+                matches!(
+                    statement,
+                    Statement::Let { binding: declared, .. }
+                        | Statement::Function { binding: declared, .. }
+                        if *declared == binding
+                )
+            };
+            if self.regions[region.index()].statements[..index].iter().any(declares) {
+                return Ok(true);
+            }
+            if let Some(function) = frames.bodies[region.index()] {
+                return Ok(!frames.arguments[function.index()]
+                    && self.functions[function.index()].parameters.contains(&binding));
+            }
+            let Some((parent, _)) = frames.parents[region.index()] else {
+                return Ok(false);
+            };
+            // Where the holding statement is now: forwarding may have removed
+            // declarations before it since the parents were found.
+            let statements = &self.regions[parent.index()].statements;
+            budget.work(Analysis, statements.len() as u64)?;
+            let Some(at) = statements.iter().position(|statement| {
+                let mut holds = false;
+                statement.visit_regions(|child| holds |= child == region);
+                holds
+            }) else {
+                return Ok(false);
+            };
+            match &statements[at] {
+                Statement::ForIn { binding: declared, .. }
+                | Statement::ForOf { binding: declared, .. }
+                    if *declared == binding =>
+                {
+                    return Ok(true)
+                }
+                Statement::Try {
+                    catch:
+                        Some(Catch {
+                            binding: Some(declared),
+                            body,
+                        }),
+                    ..
+                } if *declared == binding && *body == region => return Ok(true),
+                _ => {}
+            }
+            region = parent;
+            index = at;
+        }
+    }
+
+    /// The bindings a value reads, when it is only literals, functions and
+    /// reads of bindings, or arrays and objects (with literal keys) of them.
+    fn settled_reads(&self, value: ExprId) -> Option<Vec<BindingId>> {
+        let mut reads = Vec::new();
+        let mut pending = vec![value];
+        while let Some(id) = pending.pop() {
+            match &self.expressions[id.index()] {
+                Expr::Literal(_) | Expr::Function(_) => {}
+                Expr::Binding(binding) => reads.push(*binding),
+                Expr::Array(items) => {
+                    for item in items {
+                        if matches!(self.expressions[item.index()], Expr::Spread(_)) {
+                            return None;
+                        }
+                        pending.push(*item);
+                    }
+                }
+                Expr::Object(entries) => {
+                    for (key, item) in entries {
+                        match key {
+                            Property::Named(name) if name != "__proto__" => {}
+                            Property::Computed(key)
+                                if matches!(
+                                    self.expressions[key.index()],
+                                    Expr::Literal(Literal::String(_) | Literal::Number(_))
+                                ) => {}
+                            _ => return None,
+                        }
+                        pending.push(*item);
+                    }
+                }
+                _ => return None,
+            }
+        }
+        Some(reads)
+    }
+
+    /// Whether `statement` (its nested regions included; no closure reaches
+    /// the bindings) assigns one of `bindings`.
+    fn statement_assigns(&self, statement: &Statement, bindings: &[BindingId]) -> bool {
+        let mut expressions = Vec::new();
+        statement.visit_expressions(|root| expressions.push(root));
+        let mut regions = Vec::new();
+        statement.visit_regions(|child| regions.push(child));
+        loop {
+            if let Some(id) = expressions.pop() {
+                if let Expr::Assign { target, .. } = &self.expressions[id.index()] {
+                    if matches!(self.expressions[target.index()], Expr::Binding(b) if bindings.contains(&b)) {
+                        return true;
+                    }
+                }
+                let _ = self.expressions[id.index()].visit_children(|child| {
+                    expressions.push(child);
+                    Ok::<_, ()>(())
+                });
+                continue;
+            }
+            let Some(region) = regions.pop() else {
+                return false;
+            };
+            for statement in &self.regions[region.index()].statements {
+                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
+                    if bindings.contains(binding) {
+                        return true;
+                    }
+                }
+                statement.visit_expressions(|root| expressions.push(root));
+                if !matches!(statement, Statement::Function { .. }) {
+                    statement.visit_regions(|child| regions.push(child));
+                }
+            }
+        }
     }
 
     /// Where `binding` is read in the expressions `statement` evaluates

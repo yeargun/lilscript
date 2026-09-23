@@ -1782,6 +1782,56 @@ Under the Brotli objective, statement compression does not run, and native defau
 
 **What remains on jquerylil's raw build** (Terser's leave-one-out, −1,179 in all): `unused` +370, `conditionals` +302, `if_return` +246, `collapse_vars` +226, `reduce_vars` +199. The `unused` share is what the other options leave dead. One example is a module alias `let Pe=Si` of a lowered host function: alias elimination rightly keeps it, because a function earlier in root order reads `Pe`, and only an initialization-order fact (013-T1) proves that function is not called before `Pe` exists.
 
+### 013 batch 12: values that read settled bindings take their one use; a raw objective's loops and stores (2026-09-23)
+
+A census of katexlil's single-use `let`s found 695 left, 169 of them objects. Two causes kept objects from forwarding. The inert rule admits only literals and functions, so it refused `{tokens:f,last:g}`. And a literal the store fold had just rebuilt was a new node, created after the statement that reads it, so forwarding refused to place it under an older parent.
+- **Settled reads** ([mod.rs](../../src/structured_js/mod.rs) `forward_single_uses`). A value of literals, functions and binding reads, or arrays and objects of them, moves to the first later statement that mentions its binding, as inert values already did. That needs three conditions:
+  - no closure mentions a read binding, so only this code can write it;
+  - no statement up to the use assigns one, nested regions included;
+  - each read binding is initialized where the value stood. `initialized_at` accepts a binding that is:
+    - declared before the value, in its region or before the statement holding it, up to the function body;
+    - a parameter of that function, provided no `arguments` object of the function can alias it;
+    - the binding of a `for…in`, `for…of` or `catch` around the region.
+
+  So a read in its TDZ still throws before the statements between. In a sloppy frame, `arguments[0]=v` assigns the first parameter, so a function reading `arguments` keeps its parameters out of this.
+- **Out-of-order moves renumber.** Forwarding now places a value under a parent created before it, and renumbers the arena once at the end. The callers remap literal alternatives, as the inliners' callers do. The store fold and forwarding then alternate for up to four rounds (`fold_stores`). The forwarded literal becomes the value of its parent's store, next to the parent's other stores, so a tree of objects built by stores becomes one literal. katexlil's `SETTINGS_SCHEMA` now folds up to its `macros` entry. It stops at the next one, whose value reads the host global `parseFloat`, which the settled rule does not admit yet.
+- **Raw objective**, in [statements.rs](../../src/structured_js/statements.rs):
+  - `if(c)o.k=a;else o.k=b` becomes `o.k=c?a:b`. The store now reads `o` before the condition instead of after, which changes nothing when `o` is initialized there, no closure reaches it, and the condition does not assign it. A computed key converts at the store in current engines but converted at the read in earlier ones. So a key binding also needs a condition that runs no code (a binding or its negation).
+  - `while(c){…;u}` becomes `for(;c;u){…}` when no `continue` of the loop would skip `u`. `u` must also read no binding the body declares, since the update runs outside the body's scope, and create no function.
+  - A store of a conditional is a store the fold can take, so the fold rounds run again after compression: `let c={};c.payload=b?…:null` becomes `let c={payload:b?…:null}`.
+- **Unreachable tails.** Statements after a region's first `return`, `throw`, `break` or `continue` go, except declarations, and a body's final `return;` goes with them. They came from `return x;return undef();` in ported code (jquerylil raw had 7).
+
+| Brotli objective | katexlil (`esm`) | posthoglil (`raw.js`) | markedlil | jquerylil (`esm`) | zodlil (package) | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|
+| Batch 11 | 64,884 | 5,631 | 9,266 | 29,571 | 45,720 | 51,573 |
+| Settled reads | 64,627 | 5,605 | 9,266 | 29,565 | | |
+| **Out-of-order moves, fold rounds** | **64,517** | **5,618** | **9,266** | **29,566** | **45,700** | **51,562** |
+| Bar | 63,044 | 5,622 | 10,092 | 27,445 | 51,948 | 41,032 |
+
+| Raw objective | posthoglil | markedlil | zodlil (`zod.core.js`) | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Batch 11 | 16,606 | 35,512 | 111,927 | 260,420 | 87,870 |
+| Settled reads | 16,582 | 35,512 | 111,874 | 259,416 | 87,743 |
+| Out-of-order moves, fold rounds | 16,582 | 35,512 | 111,886 | 259,422 | 87,760 |
+| **Stores, loop updates, tails** | **16,426** | **35,451** | **111,607** | **259,264** | **87,625** |
+| Bar | 16,123 | 37,022 | | 267,050 | 87,151 |
+
+posthoglil's Brotli margin is 4 bytes, inside the search's noise: the same source moves ±30 with any edit that shifts a naming basin.
+
+**Measured and not taken:**
+- **Raw structure under the Brotli objective.** It is port-dependent, with no rule that wins everywhere. Statement compression gives posthoglil −31, katexlil −81, markedlil +37, zodlil core +245 and jquerylil +70. Block inlining gives −14, +11, +125, −32 and −97 on the same ports. A per-artifact choice would recover at most about 100 per port, at twice the compile time.
+- **posthoglil's exports as upstream spells them.** Upstream defines 19 of the kernel's exports as arrows, and the port declares them as functions, which D2 keeps constructible. The port can declare them as arrow bindings, which print as arrows. That is −213 raw, but +30 Brotli, and each conversion alone moves Brotli by −35 to +26: basin noise. Choosing a subset by it would fit the noise, so the port is unchanged. Dropping published names under the Brotli objective is again +220.
+- **katexlil's `this` adapters.** 97 of 218 `JS.methodN` handlers never read `self`. Rewriting them in the output as plain arrows saves 625 raw but only 22 Brotli, because repetition absorbs the pattern.
+- **The legacy route on jquerylil** (same binary) is 28,153 Brotli and 81,495 raw against 29,566 and 93,371. Much of that difference is not ours to copy. Legacy spells jQuery's constructible methods as arrows and drops the `null` default checks that host callers need.
+
+**What remains on jquerylil's raw build.** Terser over it still finds −1,169, which would be under the bar. Its variable passes (`reduce_vars`, `collapse_vars`, `unused`, −590 together) point at four generic gaps:
+- Closures keep unused trailing parameters that the typed port must declare, as in `(a,b)=>!yb(a,e)`, even where nothing can read their `length`.
+- A single-use value stops behind a callee that is a constant binding, as in `o=(c||"")+"",p=De(o)`.
+- Single-use functions never move across source modules. The same-module rule exists for chunked delivery only, and a single-file build does not need it.
+- An inert value never moves into a conditionally evaluated position, although creating it zero times is unobservable.
+
+**Verification.** 3,054 unit tests pass, including `a_value_of_settled_reads_is_created_at_its_one_use` (mutation-checked: without the TDZ rule or the `arguments` rule it fails) and `a_raw_objective_stores_a_conditional_and_moves_a_loop_increment_into_its_update`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

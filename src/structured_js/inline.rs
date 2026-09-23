@@ -72,7 +72,7 @@ pub(super) struct Reach {
     pub(super) regions: Vec<RegionId>,
     /// Bindings mentioned by a function other than the one declaring them:
     /// a call can reach such a binding, and may write it.
-    captured: Vec<bool>,
+    pub(super) captured: Vec<bool>,
     /// Function parameters: initialized before any code reads them.
     parameters: Vec<bool>,
 }

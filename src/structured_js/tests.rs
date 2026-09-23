@@ -5424,3 +5424,129 @@ fn a_function_called_once_becomes_a_block_at_its_call() {
     assert_eq!(execute(&module, "const flag=0;", PrintPolicy { mangle_bindings: false }), before[0]);
     assert_eq!(execute(&module, "const flag=1;", PrintPolicy { mangle_bindings: false }), before[1]);
 }
+
+/// `let j={k:x};capture(0);capture(j)` creates the object at its one use:
+/// reading `x` there runs nothing and yields the same value. An assignment
+/// to `x` in between keeps it; so does a read of `x` in its TDZ, which throws
+/// before `capture(0)` runs; and so does a parameter that `arguments` aliases.
+#[test]
+fn a_value_of_settled_reads_is_created_at_its_one_use() {
+    // `let x=1;[before]let j={k:x};[between]capture(0);capture(j);capture(x)`.
+    let build = |assigned: bool| {
+        let mut module = Module::default();
+        let root = RegionId::new(0);
+        let x = binding(&mut module, root, 1, "x");
+        let j = binding(&mut module, root, 2, "j");
+        let one = number(&mut module, 1.0);
+        let read = expr(&mut module, Expr::Binding(x));
+        let object = expr(&mut module, Expr::Object(vec![(Property::Named("k".into()), read)]));
+        let zero = number(&mut module, 0.0);
+        let output = host(&mut module, "capture");
+        let first = call(&mut module, output, vec![zero], Invocation::Value);
+        let used = expr(&mut module, Expr::Binding(j));
+        let output = host(&mut module, "capture");
+        let second = call(&mut module, output, vec![used], Invocation::Value);
+        let later = expr(&mut module, Expr::Binding(x));
+        let output = host(&mut module, "capture");
+        let third = call(&mut module, output, vec![later], Invocation::Value);
+        let mut statements = vec![
+            Statement::Let { binding: x, value: Some(one) },
+            Statement::Let { binding: j, value: Some(object) },
+        ];
+        if assigned {
+            let target = expr(&mut module, Expr::Binding(x));
+            let two = number(&mut module, 2.0);
+            let assign = expr(&mut module, Expr::Assign { target, value: two });
+            statements.push(Statement::Evaluate(assign));
+        }
+        statements.extend([
+            Statement::Evaluate(first),
+            Statement::Evaluate(second),
+            Statement::Evaluate(third),
+        ]);
+        module.root_modules = vec![0; statements.len()];
+        module.regions[root.index()].statements = statements;
+        module.verify().unwrap();
+        module
+    };
+    let policy = PrintPolicy { mangle_bindings: false };
+    let mut budget = AllocationBudget::new(None);
+    let mut moved = build(false);
+    assert_eq!(moved.forward_single_uses(&mut budget).unwrap().0, 1);
+    moved.verify().unwrap();
+    assert_eq!(moved.render(policy).unwrap(), "let x=1;capture(0);capture({k:x});capture(x);");
+    assert_eq!(execute(&moved, "", policy), "[0,{\"k\":1},1]");
+    let mut kept = build(true);
+    assert_eq!(kept.forward_single_uses(&mut budget).unwrap().0, 0);
+    assert_eq!(execute(&kept, "", policy), "[0,{\"k\":1},2]");
+
+    // `{let j={k:x};capture(0);capture(j)}let x=1;`: the read throws first.
+    let mut module = Module::default();
+    let root = RegionId::new(0);
+    let root_scope = module.regions[root.index()].scope;
+    let x = binding(&mut module, root, 1, "x");
+    let block = module.region(root_scope);
+    let j = binding(&mut module, block, 2, "j");
+    let read = expr(&mut module, Expr::Binding(x));
+    let object = expr(&mut module, Expr::Object(vec![(Property::Named("k".into()), read)]));
+    let zero = number(&mut module, 0.0);
+    let output = host(&mut module, "capture");
+    let first = call(&mut module, output, vec![zero], Invocation::Value);
+    let used = expr(&mut module, Expr::Binding(j));
+    let output = host(&mut module, "capture");
+    let second = call(&mut module, output, vec![used], Invocation::Value);
+    module.regions[block.index()].statements = vec![
+        Statement::Let { binding: j, value: Some(object) },
+        Statement::Evaluate(first),
+        Statement::Evaluate(second),
+    ];
+    let one = number(&mut module, 1.0);
+    module.regions[root.index()].statements =
+        vec![Statement::Block(block), Statement::Let { binding: x, value: Some(one) }];
+    module.root_modules = vec![0; 2];
+    module.verify().unwrap();
+    assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
+
+    // `function(p){let j={k:p};arguments[0]=2;capture(j)}`: in a sloppy frame
+    // the store assigns `p`.
+    let mut module = Module::default();
+    let root = RegionId::new(0);
+    let root_scope = module.regions[root.index()].scope;
+    let f = binding(&mut module, root, 1, "f");
+    let body = module.region(root_scope);
+    let p = binding(&mut module, body, 2, "p");
+    let j = binding(&mut module, body, 3, "j");
+    let read = expr(&mut module, Expr::Binding(p));
+    let object = expr(&mut module, Expr::Object(vec![(Property::Named("k".into()), read)]));
+    let arguments = host(&mut module, "arguments");
+    let key = number(&mut module, 0.0);
+    let target = expr(
+        &mut module,
+        Expr::Member { object: arguments, property: Property::Computed(key) },
+    );
+    let two = number(&mut module, 2.0);
+    let store = expr(&mut module, Expr::Assign { target, value: two });
+    let used = expr(&mut module, Expr::Binding(j));
+    let output = host(&mut module, "capture");
+    let captured = call(&mut module, output, vec![used], Invocation::Value);
+    module.regions[body.index()].statements = vec![
+        Statement::Let { binding: j, value: Some(object) },
+        Statement::Evaluate(store),
+        Statement::Evaluate(captured),
+    ];
+    let function = FunctionId::new(module.functions.len());
+    module.functions.push(Function {
+        parameters: vec![p],
+        body,
+        arrow: false,
+        name: FunctionName::Unobserved,
+        strict: false,
+        length: None,
+        suspension: Suspension::None,
+    });
+    module.regions[root.index()].statements = vec![Statement::Function { binding: f, function }];
+    module.exports.push(Export { binding: f, name: "f".into() });
+    module.root_modules = vec![0];
+    module.verify().unwrap();
+    assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
+}
