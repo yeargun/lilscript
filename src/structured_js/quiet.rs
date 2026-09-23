@@ -47,6 +47,14 @@ pub(super) struct Order {
     owner: Vec<Option<Option<FunctionId>>>,
 }
 
+/// The code an expression belongs to: a root statement's own evaluation,
+/// or a function's body (the innermost function around it).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Owner {
+    Root(usize),
+    Function(FunctionId),
+}
+
 /// Where the reference was found.
 enum Walk {
     /// Everything evaluated so far is quiet and holds no reference.
@@ -168,6 +176,64 @@ impl Module {
             created,
             owner,
         })
+    }
+
+    /// Whether code of `owner` runs only after root statement `index` has
+    /// run: a later root statement, or a function created by one.
+    pub(super) fn runs_after_root(&self, owner: Owner, index: usize, order: &Order) -> bool {
+        match owner {
+            Owner::Root(at) => at > index,
+            Owner::Function(function) => {
+                matches!(order.created[function.index()], Some(Moment::At(created)) if created > index)
+            }
+        }
+    }
+
+    /// Each reachable expression's owner.
+    pub(super) fn expression_owners(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<Option<Owner>>, AllocationError> {
+        let mut owners = budget.filled(AllocationClass::Scratch, self.expressions.len(), None)?;
+        let mut regions: Vec<(RegionId, Option<FunctionId>, usize)> = Vec::new();
+        for (index, statement) in self.regions[self.root.index()].statements.iter().enumerate() {
+            let mut expressions = Vec::new();
+            statement.visit_expressions(|root| expressions.push((root, None)));
+            statement.visit_regions(|child| regions.push((child, None, index)));
+            if let Statement::Function { function, .. } = statement {
+                regions.push((self.functions[function.index()].body, Some(*function), index));
+            }
+            loop {
+                if let Some((id, function)) = expressions.pop() {
+                    budget.work(Analysis, 1)?;
+                    owners[id.index()] = Some(match function {
+                        Some(function) => Owner::Function(function),
+                        None => Owner::Root(index),
+                    });
+                    let expression = &self.expressions[id.index()];
+                    if let Some(created) = expression.created_function() {
+                        regions.push((self.functions[created.index()].body, Some(created), index));
+                    }
+                    let _ = expression.visit_children(|child| {
+                        expressions.push((child, function));
+                        Ok::<_, ()>(())
+                    });
+                    continue;
+                }
+                let Some((region, function, _)) = regions.pop() else {
+                    break;
+                };
+                for statement in &self.regions[region.index()].statements {
+                    budget.work(Analysis, 1)?;
+                    statement.visit_expressions(|root| expressions.push((root, function)));
+                    statement.visit_regions(|child| regions.push((child, function, index)));
+                    if let Statement::Function { function, .. } = statement {
+                        regions.push((self.functions[function.index()].body, Some(*function), index));
+                    }
+                }
+            }
+        }
+        Ok(owners)
     }
 
     /// Where the one read of `binding` sits in statement `index + 1` of

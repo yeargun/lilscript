@@ -1340,6 +1340,7 @@ impl Module {
         // Statement roots and loop heads also use bindings.
         let mut root_use = vec![false; self.bindings.len()];
         let mut literals: Vec<(RegionId, usize, BindingId, ExprId)> = Vec::new();
+        let mut assigned_literals: Vec<(usize, BindingId, ExprId, ExprId)> = Vec::new();
         for &region in &reach.regions {
             for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
                 budget.work(Analysis, 1)?;
@@ -1349,9 +1350,16 @@ impl Module {
                     }
                 });
                 if let Statement::Evaluate(root) = *statement {
-                    if let Expr::Assign { target, .. } = self.expressions[root.index()] {
+                    if let Expr::Assign { target, value } = self.expressions[root.index()] {
                         if let Expr::Binding(binding) = self.expressions[target.index()] {
                             writes[binding.index()].push(Some((region, index)));
+                            // `M={…}` in the root, for `M` declared without a
+                            // value: a literal from this statement on.
+                            if region == self.root
+                                && matches!(self.expressions[value.index()], Expr::Object(_))
+                            {
+                                assigned_literals.push((index, binding, value, target));
+                            }
                         }
                     }
                 }
@@ -1397,6 +1405,25 @@ impl Module {
                 }
             }
         }
+        // An assigned literal counts when it is its binding's only write and
+        // the binding is declared without a value: before the statement it
+        // is `undefined`, so every flattened read must run after it.
+        // The target of the literal's own assignment is no read of it.
+        let mut assigned: Vec<bool> = vec![false; self.bindings.len()];
+        let mut own_targets: Vec<ExprId> = Vec::new();
+        for (index, binding, value, target) in assigned_literals {
+            let declared_empty = self.regions[self.root.index()].statements.iter().any(|statement| {
+                matches!(statement, Statement::Let { binding: found, value: None } if *found == binding)
+            });
+            if all_writes[binding.index()] == 1
+                && declared_empty
+                && !self.exports.iter().any(|export| export.binding == binding)
+            {
+                assigned[binding.index()] = true;
+                own_targets.push(target);
+                literals.push((self.root, index, binding, value));
+            }
+        }
         let settled_at = |binding: BindingId, region: RegionId, index: usize| {
             !written[binding.index()]
                 || assignments(binding) == all_writes[binding.index()]
@@ -1422,14 +1449,22 @@ impl Module {
                 }
             }
         }
+        // A root literal may be flattened where its reads cannot meet its
+        // TDZ even when earlier code mentions it: reads in later root
+        // statements, and in functions a later root statement creates (they
+        // cannot run before they exist). Earlier ones stay reads of `M`.
+        let frames = self.frames(budget)?;
+        let order = self.order(&frames, budget)?;
+        let owners = self.expression_owners(budget)?;
         let mut replaced = 0;
         let mut removals: Vec<(RegionId, usize)> = Vec::new();
         for (region, index, object, value) in literals {
             budget.work(Analysis, 1)?;
-            if written[object.index()]
+            let early = assigned[object.index()] || first[object.index()].is_some_and(|at| at <= index);
+            if written[object.index()] && !assigned[object.index()]
                 || root_use[object.index()]
                 || self.bindings[object.index()].pinned
-                || first[object.index()].is_some_and(|at| at <= index)
+                || early && region != self.root
             {
                 continue;
             }
@@ -1460,37 +1495,96 @@ impl Module {
             if !plain {
                 continue;
             }
-            // Every use reads a literal key and stores nothing.
-            let mut sites = Vec::new();
-            let mut all_reads = true;
-            for &site in &uses[object.index()] {
-                let Some((member, Role::Object)) = parent[site.index()] else {
-                    all_reads = false;
-                    break;
+            // Every use reads a literal key and stores nothing, or is an alias
+            // `A=M`: a root statement after the literal, the only write of an
+            // `A` declared without a value, which holds `M` from then on. Each
+            // site records the root statement its code must run after.
+            let member_site = |site: ExprId| {
+                let (member, Role::Object) = parent[site.index()]? else {
+                    return None;
                 };
                 let Expr::Member { property, .. } = &self.expressions[member.index()] else {
-                    all_reads = false;
-                    break;
+                    return None;
                 };
                 let key = match property {
-                    Property::Named(name) => Some(StringValue::from(name.as_str())),
+                    Property::Named(name) => StringValue::from(name.as_str()),
                     Property::Computed(key) => match &self.expressions[key.index()] {
-                        Expr::Literal(Literal::String(name)) => Some(name.clone()),
-                        _ => None,
+                        Expr::Literal(Literal::String(name)) => name.clone(),
+                        _ => return None,
                     },
                 };
                 let role = parent[member.index()].map(|(_, role)| role);
-                if key.is_none() || role == Some(Role::Target) {
+                (role != Some(Role::Target)).then_some((member, key, role == Some(Role::Callee)))
+            };
+            let mut sites = Vec::new();
+            let mut all_reads = true;
+            let mut aliased = false;
+            for &site in &uses[object.index()] {
+                if own_targets.contains(&site) {
+                    continue;
+                }
+                if let Some((member, key, callee)) = member_site(site) {
+                    sites.push((member, key, callee, early.then_some(index)));
+                    continue;
+                }
+                let alias = match parent[site.index()] {
+                    Some((assign, Role::Other)) if region == self.root => {
+                        match self.expressions[assign.index()] {
+                            Expr::Assign { target, value } if value == site => {
+                                match self.expressions[target.index()] {
+                                    Expr::Binding(alias)
+                                        if all_writes[alias.index()] == 1
+                                            && !root_use[alias.index()]
+                                            && !self.bindings[alias.index()].pinned
+                                            && !self.exports.iter().any(|export| export.binding == alias) =>
+                                    {
+                                        match writes[alias.index()][..] {
+                                            [Some((found, at))] if found == self.root && at > index => {
+                                                Some((alias, at, target))
+                                            }
+                                            _ => None,
+                                        }
+                                    }
+                                    _ => None,
+                                }
+                            }
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                let Some((alias, at, assigned)) = alias else {
                     all_reads = false;
                     break;
+                };
+                aliased = true;
+                for &alias_site in &uses[alias.index()] {
+                    if alias_site == assigned {
+                        continue;
+                    }
+                    let Some((member, key, callee)) = member_site(alias_site) else {
+                        all_reads = false;
+                        break;
+                    };
+                    sites.push((member, key, callee, Some(at)));
                 }
-                sites.push((member, key.unwrap(), role == Some(Role::Callee)));
+                if !all_reads {
+                    break;
+                }
             }
             if !all_reads {
                 continue;
             }
-            let mut every = true;
-            for (member, key, callee) in sites {
+            let mut every = !aliased;
+            for (member, key, callee, after) in sites {
+                if let Some(after) = after {
+                    if !owners[member.index()]
+                        .is_some_and(|owner| self.runs_after_root(owner, after, &order))
+                    {
+                        every = false;
+                        continue;
+                    }
+                }
                 let Some(&(_, item)) = members.iter().find(|(known, _)| *known == key) else {
                     every = false;
                     continue;
@@ -1518,7 +1612,7 @@ impl Module {
             }
             // The literal goes when nothing reads it and evaluating it could
             // not throw: it reads only bindings declared before it here.
-            if every {
+            if every && !assigned[object.index()] {
                 let earlier = &self.regions[region.index()].statements[..index];
                 let settled = members.iter().all(|&(_, item)| match self.expressions[item.index()] {
                     Expr::Literal(_) | Expr::Function(_) => true,

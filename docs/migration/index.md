@@ -1910,6 +1910,28 @@ katexlil, markedlil and posthoglil's Brotli builds are unchanged.
 
 **Verification.** 3,058 unit tests pass, including `a_function_of_one_statement_is_inlined_where_its_value_is_discarded`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 15: namespaces flatten where their reads run after them (2026-09-23)
+
+katexlil calls its module namespaces through JsValue objects: 325 source sites such as `JS.invoke(buildCommon, "makeSpan", …)`, printed `_c.makeSpan(…)`. `flatten_constant_objects` (batch 1) did not apply to them, for two reasons:
+- It refused a whole namespace once any earlier code mentioned it, because a function created before the literal might read it in its TDZ.
+- The port declares the namespace empty and assigns it later (`let _c;…;_c=$c`), so it is written, and the literal's only use is that alias.
+
+The rule is now per site ([inline.rs](../../src/structured_js/inline.rs), with `expression_owners` and `runs_after_root` in [quiet.rs](../../src/structured_js/quiet.rs)):
+- **A read flattens when its code runs after the literal**: a later root statement, or a function a later root statement creates (the creation order of batch 13). Earlier reads stay `M.k`, and so does `M`.
+- **Aliases.** A root statement `A=M` that is `A`'s only write, for an `A` declared without a value and neither exported nor pinned, makes `A` hold `M` from that statement on. `A`'s reads flatten under the same rule, measured from that statement.
+- **Assigned literals.** A root statement `M={…}` that is `M`'s only write, for an `M` declared without a value, is a literal from that statement on. Before it, `M` is `undefined`, so every flattened read must run after it. The assignment's own target is not a read.
+
+| katexlil | Brotli (`esm`) | Raw objective (`esm`) | `.makeSpan(` calls |
+|---|---|---|---|
+| Batch 14 | 63,926 | 257,593 | 76 |
+| Per-site flattening | 63,823 | 256,181 | 76 |
+| **Aliases and assigned literals** | **63,727** | **254,126** | **12** |
+| Bar | 63,044 | 267,050 | |
+
+The other ports have no such namespaces, and their outputs are unchanged. katexlil's Brotli gap is now +683.
+
+**Verification.** 3,059 unit tests pass, including `a_namespace_is_flattened_where_its_reads_run_after_it`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

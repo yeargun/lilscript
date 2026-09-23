@@ -1067,6 +1067,31 @@ fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
 }
 
 #[test]
+fn a_namespace_is_flattened_where_its_reads_run_after_it() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        JsValue ns = JS.undefined();
+        JsValue early = JS.undefined();
+        early = (JsValue x) => JS.invoke(ns, "twice", x);
+        JsValue twice = JS.undefined();
+        twice = (JsValue x) => JS.add(JS.add(x, x), JS.array(x)["length"]);
+        JsValue lit = JS.object("twice", twice, "name", "ns");
+        ns = lit;
+        JsValue late = JS.undefined();
+        late = (JsValue x) => JS.array(JS.invoke(ns, "twice", x), JS.invoke(ns, "twice", JS.add(x, 1)));
+        show(JS.call(early, JS.undefined(), 1));
+        show(JS.call(late, JS.undefined(), 2));
+        "#,
+        PRISTINE,
+    );
+    // `late` is created after `ns` holds the literal: its reads are the
+    // member itself. `early` exists before then, so its read stays.
+    assert_eq!(javascript.matches(".twice(").count(), 1, "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "3\n[5,7]\n");
+}
+
+#[test]
 fn defaults_of_a_function_only_ever_called_print_natively() {
     let javascript = compile_with(
         r#"
