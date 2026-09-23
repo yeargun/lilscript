@@ -109,10 +109,10 @@ Each phase lists its tasks, what it depends on, and its exit criteria.
 |---|---|
 | The `pure` contract check | M4.3 |
 | Removal of discarded pure calls | M5.2 |
-| Unrolling of `inline for` | M8.9 |
-| `@pool` | M8.9 |
+| Unrolling of `inline for` | M8.11 |
+| `@pool` | M8.11 |
 | Same-named private classes in two modules | M8.1 |
-| `object` singletons and `export constructor` | M8.2 |
+| `export constructor` (and `object` singletons, unless deleted) | M8.1, M8.12 |
 | Native `Record`/JSON | M9.4 |
 | The C extern ABI | M9.3 |
 
@@ -227,18 +227,23 @@ Facts on the Program IR, each with one owner. **Each task deletes the re-derivat
 
 ### M8 Language for size
 
-| Task | Content |
-|---|---|
-| M8.1 Nominal identity per module | Classes and enums scoped per module like structs; the 16 port renames reverted |
-| M8.2 One checker entry | A single file is a one-module graph; explicit phase products. `object` singletons and `export constructor` work |
-| M8.3 Node ids | Ids on identifiers, declarations and statements; span-keyed fact maps deleted |
-| M8.4 Operation catalog | `BuiltinCall` and `Intrinsic` merged into one declarative catalog: signature, defaults, effect class, fold, JS and C spelling, target capability. The "never rename" host surface is derived from `extern` declarations |
-| M8.5 Checked `pure` and declared logging | `pure` validated (with M4.3); a `debug` effect class; `print` as a program effect |
-| M8.6 Defines | Build-time constants from `[target.javascript.effects] define` |
-| M8.7 Visibility and reflection | Per member, sealed by default, feeding field facts |
-| M8.8 Types ports need | Unions and intersections, float `%`, non-null assertion, typed host shapes for `JS.assume`, TS-checked externs |
-| M8.9 Directives as choices | `inline for`, `@pool`, region-scoped policy |
-| M8.10 Ports use the language | Each port's `JsValue` transliteration is replaced where a typed construct now exists. The language analysis (`~/lilscript-work/out/arch/language.md`) ranks the targets |
+The language law (architecture §12, L13): a typed form must never cost more than its untyped equivalent. Tasks are ordered so that each one turns a port workaround into a declared fact, and each lands with the ports rewritten to use it.
+
+| Task | Content | Evidence (language report) |
+|---|---|---|
+| M8.1 Identities in the checker | `NominalId` for classes and enums (per-module scopes; the 16 port renames reverted); one module-graph checker entry with explicit phase products; `export constructor` in module mode; node ids on identifiers, declarations and statements (span-keyed maps deleted); `Type::Dynamic` replaces `TypeParameter("$js")`; `EscapeState` deleted | Prerequisite for L1, L4 and field identity |
+| M8.2 Operation catalog and capabilities | `BuiltinCall` and `Intrinsic` merged into one declarative catalog: signature, defaults, effect class, fold, JS and C spelling, target capability. The checker diagnoses non-portable use against the requested targets, with spans. The "never rename" host surface is derived from `extern` declarations | Replaces native back-end deny-lists and `js_externs.rs` |
+| M8.3 L1 declared object shapes | Reference shapes with `data`/`accessor` fields, optional fields, a construction literal, nesting at boundaries. micromark's 11 views are migrated first; `assume_pure_property_reads`, `public_aggregate_abi` and `preserve_properties` retire for declared values | −6,359 Brotli on the markdown stack as a global flag; 50 views added by the rewrites |
+| M8.4 L2 const data and tables | Deep-immutable `const` data; exported const objects with exact keys; hex, exponent and leading-dot literals; bounded `const` evaluation; katex's font metrics move into LilScript | katex −2,529, micromark −1,054 Brotli |
+| M8.5 L3 receivers, constructibility, rest | `fn(this: T, …)`, `fn` against `function`, methods in literals, `T... rest`; `JS.method0..10`, `methodRest`, `staticRest` and `extern JsValue this/arguments` retire; `assume_unconstructed_callbacks` becomes a type fact | katex −240 from 97 callbacks; 487 zod / 378 micromark adapters |
+| M8.6 L4 sealed virtuals, interfaces, sum types | A static call, tag switch or prototype method chosen per call site | motion ≈ −700 (15 hooks, 56 nullable callable fields) |
+| M8.7 L5 enums with ABI values | `enum T: string`, explicit values, `ordinal`/`from`, flag sets | micromark's 104 string types; zod's 41 int kinds |
+| M8.8 L6 and L7: value and absence contract (**owner ruling first**) | Immutable value structs with functional update (revises D1); nullish `T?` on JS; a non-overflowing index/count type; `charCodeAt` without normalization | `ref` used 0 times; lens runtime 737 bytes for 20 lines; `??null`, `\|0` costs |
+| M8.9 L8 dynamic type | Member, call, `new` and operator syntax on the dynamic type; the 63 `JS.*` builtins collapse into it and a typed host catalog; equality defined. The recovery folds (`self_method_calls`, `array_receiver_calls`, `dissolve_receiver_adapters`) are deleted in the same batch | Deletes port-idiom glue |
+| M8.10 L9 casts and operators | `as?`, unsafe views, non-null assertion, float `%`, `is` on classes and shapes | motion's identity-cast externs |
+| M8.11 L10 pins and defines | `inline for`, `@pool` and region-scoped policy as pinned choices; `define` build constants; `pure` checked with termination (with M4.3); a `debug` effect class; `print` never stripped | Owner, 2026-09-04 (regions) |
+| M8.12 `object` singletons | Deleted in favour of module namespaces and L2 const records (0 uses), unless the owner keeps them | — |
+| M8.13 Ports use the language | Each port's `JsValue` transliteration is replaced where a typed construct now exists. The rewrite is gated on the port's suites and no Brotli degradation | — |
 
 ### M9 Native and cross-target
 

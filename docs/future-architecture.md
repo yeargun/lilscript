@@ -67,6 +67,7 @@ Each law exists because the codebase's history measured what happens without it.
 | L10 | **One meaning, several targets** | The same checked program feeds JavaScript and C. Target plans choose representation, never semantics |
 | L11 | **Verification is part of the pipeline** | Structural verification after every edit batch, an independent parse of every delivered file, and stdout/trace oracles that never come from the compiler under test |
 | L12 | **Per-library configuration is contract, objective, effort and permission, nothing else** | Per-port strategy flags turned fleet noise into configuration (react-markdownlil gained −2,287 Brotli by flipping an unexplained flag). A legal strategy is the codec's per-artifact choice |
+| L13 | **A typed form never costs more than its untyped equivalent** | The ports' winning rewrites deleted 98 structs and added 50 untyped "views" because typed forms cost bytes (`\|0`, decode copies, `??null`, double initialization). Types are how authors hand the compiler facts |
 
 ---
 
@@ -360,33 +361,67 @@ It gains **annotation columns** that formation writes and the arena moves on ren
 
 ## 12. The language, designed for size
 
-The language already has what lets a compiler beat Closure on typed code:
-- a closed world with explicit `extern` boundaries;
+**What the language already gets right.** It has the skeleton a compiler needs to beat Closure on typed code:
+- a closed world with explicit `extern` and `export` edges;
 - static dispatch (no overriding), so devirtualization is free;
-- value structs with explicit `ref`, so aliasing is known;
+- integer enums with no metadata object;
+- erased unions and nullables;
+- value structs;
 - declared public boundaries (D2);
-- typed dynamic imports.
+- one table of primitive semantics (`primitive.rs`) shared by both targets and the reference interpreter.
 
-What it lacks falls into two groups: facts the compiler must otherwise guess, and features whose absence pushes ports into untyped `JsValue` transliteration. Untyped code loses because nothing can be proved about it. Language work is therefore size work.
+**What the ports actually do.** They do not use that skeleton:
+- The 27 ports hold 42,936 `JsValue` mentions and 38,354 `JS.*` calls in 339K lines, and use `ref`, `object`, `export constructor` and `@pool` 0 times.
+- The rewrites that made katex, jquery, posthog and the markdown family win *removed* typed forms: they deleted 98 structs and added 50 `extern class` "views" of objects the program itself creates.
+- The authors were rational. On today's compiler each typed form costs bytes:
+  - `|0` on every `int` read;
+  - struct decode copies;
+  - `??null` normalization;
+  - named objects initialized twice.
 
-| Priority | Addition | Size effect |
-|---|---|---|
-| 1 | **Nominal identity per module** for classes and enums (like structs today) | Ends the port renames; prerequisite for field identity |
-| 1 | **Checked `pure`**, with termination as part of the declaration; `pure extern` trusted | Removal of discarded calls (motionlil −529 to −639); 133 port declarations start counting |
-| 1 | **`object` singletons and `export constructor`** working in the module checker | Typed namespaces instead of `JsValue` objects; collapse and devirtualization become typed |
-| 1 | **A first-class `JsValue` type** and a typed host catalog | Typed receivers never need `pure_getters`-style global assumptions |
-| 2 | **Build-time defines** (`[target.javascript.effects] define`), resolved by the checker into constants | Dead development branches; replaces `debugLog` name matching |
-| 2 | **Declared logging** (a `debug` effect class on declarations) and `print` as a program effect | `strip_console` stops removing the language's own output |
-| 2 | **Per-member visibility and reflection** on nominal types (sealed by default; `reflective` and `enumerable` declared) | Field facts, property renaming and dead fields without whole-program guesswork |
-| 2 | **Const data and table literals** | The data-encoding choices (tables beat Closure: katex −2,529, micromark −1,054) apply to declared data, not recognized shapes |
-| 3 | **Unions and intersections, float `%`, non-null assertion** | Fewer ports fall back to `JsValue` |
-| 3 | **Typed host shapes for `JS.assume`** (decode or view) and TS-checked `extern` declarations | Safe in-place reads of host objects |
-| 3 | **Region-scoped policy** (owner, 2026-09-04): effort, objective or permissions per region | Keep hot code fast and cold code small inside one library |
-| 3 | **`inline for` and `@pool` as author-pinned choices** | Honored by the choice system instead of ignored |
+  A typed micromark helper is 378 bytes against 304 for its `JsValue` form.
 
-The full language analysis, with port evidence, is `~/lilscript-work/out/arch/language.md`. The plan's language track takes its ranked list.
+**Hence the language law: a typed form must never cost more than its untyped equivalent.**
+- Typing is how the author gives the compiler facts. A language whose typed idioms lose bytes teaches authors to hide facts.
+- Every addition below is judged by two questions. Does it state a fact the compiler otherwise guesses? Is its JavaScript lowering the bare JS operation?
+- Native emulates JS-cheap semantics, not the other way round; native size is secondary.
 
----
+**Additions, ranked by measured or estimated effect × generality.** The full evidence is in `~/lilscript-work/out/arch/language.md`.
+
+| Rank | Addition | Evidence | What the compiler gains |
+|---|---|---|---|
+| L1 | **Declared object shapes.** A reference type with a known property set:<ul><li>fields marked `data` (reads are pure) or `accessor`;</li><li>optional fields (absent = `undefined`);</li><li>a construction literal;</li><li>legal nesting in arrays, maps and nullables at boundaries;</li><li>names that are ABI only where the shape reaches a declared boundary.</li></ul>`extern class` stays for host-constructed objects | The pure-reads assumption as a *global flag* is worth −6,359 Brotli on the markdown stack. 4 of 7 reference ports set it; zod cannot, because a few of its objects have getters. The rewrites added 50 views | Pure reads, forwarding and CSE on data; dead fields and renaming on known property sets; layout choice when a shape does not escape. `assume_pure_property_reads`, `public_aggregate_abi` and `preserve_properties` become type facts |
+| L2 | **Const data and tables with bounded compile-time evaluation.**<ul><li>Deep-immutable `const` arrays, records and struct arrays;</li><li>exported const objects with exact keys;</li><li>hex, exponent and leading-dot numeric literals;</li><li>`const` functions evaluated under a configured bound (D3.6).</li></ul> | Table re-encoding measured katex −2,529 and micromark −1,054 Brotli. katex's 57,656-byte font metrics are foreign JS today. micromark builds its public tables with 372 `JS.set` statements | The data-encoding choices (front-coded, columnar, delta) become legal on declared data, not recognized shapes. Constant forwarding needs no store folds |
+| L3 | **Receiver-typed functions, constructibility and rest parameters.**<ul><li>`fn(this: T, …)`;</li><li>`fn` (never constructible) against `function`;</li><li>methods in shape and object literals;</li><li>`T... rest`.</li></ul> | katex −240 Brotli from 97 unwrapped callbacks. Adapter counts: zod 487, micromark 378, katex 142. jquery has 22 files of `extern JsValue this` | No adapter factories; arrows where legal. `assume_unconstructed_callbacks` becomes a type fact |
+| L4 | **Sealed hierarchies with virtual methods, interfaces and sum types** (enum variants with payloads). Per call the compiler picks a static call, a tag switch, or a prototype method only when identity escapes | motion emulates overriding with 15 hook fields and 56 nullable callable fields, estimated at ≈ −700. marked allocates all 26 fields for 22 token kinds | Per-variant layouts, no per-instance closures, exhaustive-match DCE over classes |
+| L5 | **Enums with ABI values and ordinals** (`enum T: string {…}`, explicit int values, `ordinal`/`from`, flag sets). Ints internally, ABI values at boundaries | micromark keeps 104 string constants plus a duplicate public table; zod uses 41 int constants and 170 compares | Closure `@enum` parity, with int layout beyond it |
+| L6 | **Immutable value structs with functional update** (`p with {column: c}`); shared mutable state is a class or shape. **This revises D1 and needs an owner ruling** | `ref` is used 0 times. A field write through a struct rebuilds the tuple and ships a lens runtime (737 bytes for 20 lines). The rewrites deleted 98 structs | Sharing equals copying, so every layout (scalars, positional, shared, hash-consed constant) is legal with no copy analysis |
+| L7 | **A JS-cheap contract for absence, numbers and strings.**<ul><li>`T?` is nullish on JS (null or undefined), normalized only at declared boundaries;</li><li>`charCodeAt` returns `number` or a range-proven index;</li><li>an index/count type that cannot overflow;</li><li>native emulates.</li></ul>**Needs an owner ruling** | `??null` on every `Map.get`; `(s.charCodeAt(i)\|0)`; `c=c+1\|0` counters; micromark moved its counters off `int`. Removing every `\|0` measured only −4 to −79 Brotli, so this ranks higher for raw than for Brotli | Normalization text disappears; typed numbers stop costing |
+| L8 | **A first-class dynamic type** with JS member, call, `new` and operator syntax. The 63 `JS.*` builtins collapse into it plus a typed host catalog; equality is defined (strict against primitive literals, explicit `looseEquals` otherwise) | Output-neutral alone. It deletes the recovery folds (`self_method_calls`, `array_receiver_calls`, `dissolve_receiver_adapters`) and fixes today's route divergence on `JsValue == "x"` | Per-operation facts instead of name-matched builtins |
+| L9 | **Checked downcasts and views** (`as?` with a brand test only where identity is kept; an explicit unsafe view), a **non-null assertion**, **float `%`**, `is` on classes and shapes | motion imports TypeScript identity functions as casts (11 externs); the missing operators force verbose motion code | Removes identity hacks that pin classes as host-observable |
+| L10 | **Author pins and build-time defines.** `inline for`, `@pool` and region-scoped policy (owner, 2026-09-04) become pinned choices; `[target.javascript.effects] define` gives build constants | Ignored by the compiler today | Honored instead of dropped; dead development branches |
+
+**Identity repairs the checker needs first** (prerequisites for L1, L4 and field identity):
+- `NominalId` for classes and enums (today name-keyed, so two modules' private `class Node` collide);
+- one module-graph checker entry;
+- `export constructor` in module mode;
+- node ids on identifiers;
+- one operation catalog;
+- target capabilities checked in the checker, with spans.
+
+**`object` singletons.** The feature has 0 uses and does not compile on the current compiler. The recommendation is to delete it in favour of module namespaces plus L2 const records. The owner can instead keep it and have the checker implement it.
+
+**`pure` and logging.**
+- `pure` is checked by the effect engine (§7), and a declared `pure` includes termination. `pure extern` is trusted.
+- Logging that `strip_console` may remove is declared as a `debug` effect class; `print` is a program effect and is never stripped.
+
+**What the language avoids.**
+- JS lowerings that need runtime normalization on every use: wrap-by-default arithmetic without range proof, sentinel-normalizing string APIs, null-only absence, null-prototype-by-default records, mutable value semantics.
+- Facts about values asserted program-wide in configuration.
+- Meaning keyed on names or spellings.
+- Features implemented for one target without a checker capability.
+- Implicit reflection: `name`, `length` and enumeration order are ABI only where declared.
+- Two spellings of "plain object" that differ in hidden prototype semantics.
 
 ## 13. Correctness by design
 
@@ -485,7 +520,7 @@ lilscript <input> [--target js|js-module|c|native|all] [--objective raw,gzip,bro
 
 ## 17. Decisions taken in this design
 
-The owner can revise any of these; each has a recommended default.
+The owner can revise any of these; each has a recommended default. Rows marked **needs an owner ruling** change language semantics and wait for the owner.
 
 | Question | Decision |
 |---|---|
@@ -503,6 +538,11 @@ The owner can revise any of these; each has a recommended default.
 | Reference interpreter | Kept independent of the compiler; extended to the typed language over time |
 | Old route | Deleted from the product. One frozen reference binary remains for measurement |
 | Effort numbering | Levels 0–16 kept (ports use 13 and 15); each maps to a published schedule |
+| `object` singletons | Recommended: delete (0 uses; module namespaces and const records cover them). Owner may keep them instead |
+| **Needs an owner ruling:** D1 value structs | Recommended: immutable value structs with functional update (L6); `ref` removed or limited to local places |
+| **Needs an owner ruling:** absence on JS | Recommended: `T?` is nullish on JS and normalized only at declared boundaries (L7) |
+| **Needs an owner ruling:** the `int` contract | Recommended: keep wrapping `int` for exactness and add a non-overflowing index/count type (L7) |
+| Equality on the dynamic type | Strict against primitive literals; explicit `looseEquals` otherwise (L8) |
 
 ---
 
