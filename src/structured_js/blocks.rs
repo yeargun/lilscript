@@ -586,7 +586,7 @@ impl Module {
 
     /// Give every region under `top` a fresh scope in preorder, `top`'s
     /// parented to `parent`, and move each binding to its region's new scope.
-    fn rescope(
+    pub(super) fn rescope(
         &mut self,
         top: RegionId,
         parent: ScopeId,

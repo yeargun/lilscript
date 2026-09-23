@@ -1832,6 +1832,50 @@ posthoglil's Brotli margin is 4 bytes, inside the search's noise: the same sourc
 
 **Verification.** 3,054 unit tests pass, including `a_value_of_settled_reads_is_created_at_its_one_use` (mutation-checked: without the TDZ rule or the `arguments` rule it fails) and `a_raw_objective_stores_a_conditional_and_moves_a_loop_increment_into_its_update`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 13: values move past a quiet start; a raw objective's exits and conditionals (2026-09-23)
+
+After batch 12, katexlil still carried 103 single-use objects whose value calls something. Most were registrations like `let Bh={…,handler:nl(…)};nh(Bh)`, and Terser writes `Pr({…})`. The one-use rule could not move them, because the statement's first evaluation is the callee `nh`, not `Bh`.
+- **A quiet start** ([quiet.rs](../../src/structured_js/quiet.rs)). A value may now move to its read in the next statement when everything evaluated before that read is quiet. A quiet evaluation runs no code, cannot throw, and yields a value the moved value cannot change. Quiet evaluations are:
+  - a literal, a regular expression, a created function, or an array or object of quiet values;
+  - a standard global, or a named path into one, under pristine builtins;
+  - a read of an initialized binding the value cannot assign.
+
+  Assigning a binding that no closure reaches is visible in the value itself. Any other binding must never be assigned at all. The read of the binding must be evaluated exactly once, so not in a branch of `&&`, `||`, `??` or `?:`.
+- **Initialization by creation order (013-T1, first part).** A root binding read inside a function is initialized there when the root statement declaring it precedes the one creating the function, since the function cannot run before it exists. `Order` records each root declaration and the root statement that first creates each function. Nested functions inherit their creator's, and a hoisted declaration counts as before any statement. The same fact lets a settled value (batch 12) read root constants, and standard globals now count as settled reads too.
+- **Reads commute with reads.** katexlil and jquerylil declare `assume_pure_property_reads`, which the target tree now carries (`Module::pure_property_reads`). Under it, a value that only reads also moves past member reads, and past reads of bindings other code assigns (they need only be initialized): neither side changes what the other reads. Reading only means literals, bindings, member reads, functions created, and operators that convert nothing. Only which of two reads throws first could differ, and the assumption sets that aside, as Terser's `pure_getters` does. zodlil declares the assumption unsound for itself, and nothing changes there.
+- **Raw objective** ([statements.rs](../../src/structured_js/statements.rs)):
+  - `if(c){A;return}R`, where the `if` ends a function body's statements, becomes `if(c){A}else{R}`. So does `if(c){A;continue}R` ending a loop body, since both branches end where the body does. An empty `A` gives `if(!c){R}`. The tail moves into a new block only when none of it is a function declaration and no earlier code names a binding it declares. `rescope` (from the block inliner) then gives the block and everything under it fresh scopes in order.
+  - `if(a){if(b)S}` becomes `if(a&&b)S`.
+  - `x?x:y` becomes `x||y`, and `x?y:x` becomes `x&&y`, for a binding `x`.
+  - A boolean condition turns `c?y:!1` into `c&&y` and `c?!0:y` into `c||y`. With a negated condition, `c?!1:y` becomes `c'&&y` and `c?y:!0` becomes `c'||y`. The negation flips an equality in place or drops a `!`; it never flips an ordering, because `NaN` makes both `a<b` and `a>=b` false.
+- **Native defaults need only a frame without `arguments`.** A parameter list with defaults changes nothing a body can see except a sloppy frame's `arguments` mapping. The printer and `native_default_lengths` required a frame-free body, which also refused `this`. They now require only no `arguments` and no direct `eval`. This changes nothing in the six ports: jquerylil's 36 remaining checks belong to published methods whose `length` (4, as upstream's) is observable.
+
+| Brotli objective | katexlil (`esm`) | posthoglil (`raw.js`) | markedlil | jquerylil (`esm`) | zodlil (`zod.core.js`) |
+|---|---|---|---|---|---|
+| Batch 12 | 64,517 | 5,618 | 9,266 | 29,566 | 28,003 |
+| Quiet start | 64,071 | 5,592 | 9,260 | 29,424 | 27,997 |
+| Settled constants, raw rewrites | 64,071 | 5,592 | 9,260 | 29,414 | 28,012 |
+| **Reads commute with reads** | **63,926** | **5,592** | **9,260** | **29,414** | **28,012** |
+| Bar | 63,044 | 5,622 | 10,092 | 27,445 | |
+
+| Raw objective | posthoglil | markedlil | zodlil (`zod.core.js`) | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Batch 12 | 16,426 | 35,451 | 111,607 | 259,264 | 87,625 |
+| Quiet start | 16,399 | 35,433 | 111,471 | 258,158 | 87,279 |
+| Settled constants, conditionals, nested `if`s | 16,389 | 35,433 | 111,364 | 258,154 | 87,145 |
+| Exits become `else` | 16,376 | 35,400 | 111,204 | 258,144 | 86,971 |
+| **Reads commute with reads** | **16,376** | **35,400** | **111,204** | **257,593** | **86,971** |
+| Bar | 16,123 | 37,022 | | 267,050 | 87,151 |
+
+jquerylil's raw build now beats Oxc's (−180). motionlil's `full.js` is 51,434 (−128). zodlil's package is 45,622 Brotli (41,687 with `--minify-whitespace`). Its raw-objective package, pretty-printed by esbuild, grows to 245,010, because the tails now nest one level deeper and every line of them gains indentation. Minified, it is 181,818 (−544).
+
+**Measured and not taken:**
+- **Merging root statements across source modules** in a single-file build. The same-module rule serves chunked delivery only, but lifting it moves jquerylil −69 and zodlil +22 Brotli, and raw by under 20.
+- **Unused trailing parameters** of closures whose `length` nothing reads: 128 raw bytes on jquerylil and 224 on zodlil, all callbacks whose escape would need proving first.
+- **posthoglil's raw gap (+253)** is the port's idiom, not the compiler's shape. Upstream writes `[...new Set([...Object.keys(e??{}),…])].filter(…).reduce(…)` where the port spells a loop, and `n?.opt_out_capturing_by_default??!1` where it spells a conditional.
+
+**Verification.** 3,057 unit tests pass, including `a_value_moves_past_a_quiet_start_of_its_statement`, `a_value_that_only_reads_moves_past_member_reads_under_pure_property_reads` and `a_raw_objective_ends_a_body_with_an_else_instead_of_an_exit`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

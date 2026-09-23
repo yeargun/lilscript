@@ -499,6 +499,7 @@ fn form_with_demand(
     }
     let mut module = js::Module::new_in(&mut phase)?;
     module.pristine_builtins = contract.assumptions.pristine_builtins;
+    module.pure_property_reads = contract.assumptions.pure_property_reads;
     // `for(let i=0;…)`: never larger in Brotli on the reference ports
     // (katexlil −33). `&&`/`||` statements stay off: they lost on three.
     module.loop_head_declarations = compact;

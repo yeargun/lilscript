@@ -48,6 +48,7 @@ mod blocks;
 mod host_lowering;
 mod initializers;
 mod pooling;
+mod quiet;
 mod statements;
 pub(crate) use rewrite::literal_array_projection;
 #[cfg(test)]
@@ -978,6 +979,9 @@ pub struct Module {
     /// The artifact's contract assumes unpatched builtins: an intrinsic whose
     /// specified result is always an int32 needs no `|0`.
     pub pristine_builtins: bool,
+    /// The contract assumes member reads run no code (Terser's
+    /// `pure_getters`): reads commute with reads.
+    pub pure_property_reads: bool,
     /// The source module of each root statement, in order, when the producer
     /// records it; multi-file delivery groups statements by it.
     pub root_modules: Vec<u32>,
@@ -1774,7 +1778,7 @@ impl Module {
                     || self.bindings[binding.index()].pinned
                     || declared.length.is_some()
                     || declared.strict
-                    || !self.frame_free(function)
+                    || !self.arguments_free(function)
                 {
                     continue;
                 }
@@ -1867,6 +1871,17 @@ impl Module {
     fn reads_arguments(&self, function: FunctionId) -> bool {
         self.frame_reads(function, |expression| {
             matches!(expression, Expr::Host(name) if name == "arguments")
+        })
+    }
+
+    /// Whether `function`'s frame reads no `arguments` object and calls no
+    /// direct `eval`: a parameter list with defaults then changes nothing
+    /// the body can see (it would unmap a sloppy frame's `arguments`).
+    pub(crate) fn arguments_free(&self, function: FunctionId) -> bool {
+        !self.frame_reads(function, |expression| match expression {
+            Expr::Host(name) => name == "arguments" || name == "eval",
+            Expr::Call { invocation, .. } => *invocation == Invocation::DirectEval,
+            _ => false,
         })
     }
 
@@ -2008,6 +2023,7 @@ impl Module {
         let depths = self.region_depths(budget)?;
         let captured = self.reach(budget)?.captured;
         let frames = self.frames(budget)?;
+        let order = self.order(&frames, budget)?;
         let mut forwarded = 0;
         let mut disordered = false;
         for region in 0..self.regions.len() {
@@ -2043,8 +2059,27 @@ impl Module {
                     !root || self.root_modules.get(index) == self.root_modules.get(at)
                 };
                 let leaf = if movable && function.is_none() && same_module(index + 1) {
-                    self.first_leaf(&self.regions[region].statements[index + 1], binding)
-                        .map(|leaf| (leaf, index + 1))
+                    let next = &self.regions[region].statements[index + 1];
+                    // A function created in a `for…in`/`for…of` head closes
+                    // over the loop's binding (see the inert rule below).
+                    let head = matches!(next, Statement::ForIn { .. } | Statement::ForOf { .. });
+                    match self.first_leaf(next, binding) {
+                        Some(leaf) => Some((leaf, index + 1)),
+                        None if head && self.creates_function(value) => None,
+                        // Past a quiet start of the statement (quiet.rs).
+                        None => self
+                            .quiet_leaf(
+                                RegionId::new(region),
+                                index,
+                                binding,
+                                value,
+                                &order,
+                                &frames,
+                                &captured,
+                                budget,
+                            )?
+                            .map(|leaf| (leaf, index + 1)),
+                    }
                 } else {
                     None
                 };
@@ -2058,22 +2093,21 @@ impl Module {
                 // So can a value of literals, functions and reads of bindings
                 // (an object or array of them): reading an initialized binding
                 // runs nothing, cannot throw, and yields the same value while
-                // nothing assigns it. No closure may reach one, so only this
-                // code could: no statement up to the reference assigns it.
+                // nothing assigns it. Either no closure reaches the binding,
+                // so only this code could and no statement up to the reference
+                // does, or nothing assigns it at all (a root constant).
                 let mut settled = None;
                 if leaf.is_none() && movable && !self.inert_value(value, budget)? {
                     if let Some(reads) = self.settled_reads(value) {
                         let mut holds = true;
+                        let at = RegionId::new(region);
                         for &read in &reads {
                             holds = holds
-                                && !captured[read.index()]
-                                && self.initialized_at(
-                                    read,
-                                    RegionId::new(region),
-                                    index,
-                                    &frames,
-                                    budget,
-                                )?;
+                                && if captured[read.index()] {
+                                    self.constant_at(read, at, index, &order, &frames, budget)?
+                                } else {
+                                    self.initialized_at(read, at, index, &frames, budget)?
+                                };
                         }
                         settled = holds.then_some(reads);
                     }
@@ -2261,13 +2295,18 @@ impl Module {
     }
 
     /// The bindings a value reads, when it is only literals, functions and
-    /// reads of bindings, or arrays and objects (with literal keys) of them.
+    /// reads of bindings (and, under pristine builtins, of standard globals),
+    /// or arrays and objects (with literal keys) of them.
     fn settled_reads(&self, value: ExprId) -> Option<Vec<BindingId>> {
         let mut reads = Vec::new();
         let mut pending = vec![value];
         while let Some(id) = pending.pop() {
             match &self.expressions[id.index()] {
-                Expr::Literal(_) | Expr::Function(_) => {}
+                Expr::Literal(_) | Expr::Function(_) | Expr::Regex(_) => {}
+                Expr::Binding(binding)
+                    if self.pristine_builtins && self.standard_global(*binding) => {}
+                Expr::Host(_) | Expr::Member { .. }
+                    if self.pristine_builtins && self.standard_member(id) => {}
                 Expr::Binding(binding) => reads.push(*binding),
                 Expr::Array(items) => {
                     for item in items {
@@ -2643,6 +2682,7 @@ impl Module {
             regions,
             root: RegionId::new(0),
             pristine_builtins: false,
+            pure_property_reads: false,
             root_modules: vec![],
             reserved: vec![],
             carried: vec![],

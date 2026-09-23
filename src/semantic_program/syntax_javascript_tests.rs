@@ -881,8 +881,11 @@ fn a_raw_objective_stores_a_conditional_and_moves_a_loop_increment_into_its_upda
             int j = 0;
             while (j < n) {
                 j = j + 1;
-                if (j == 2) { continue; }
-                JS.invoke(items, "push", j * 10);
+                if (j > 1) {
+                    if (j == 2) { continue; }
+                    JS.invoke(items, "push", j * 10);
+                }
+                JS.invoke(items, "push", j);
             }
             int k = 0;
             while (k < n) {
@@ -909,9 +912,127 @@ fn a_raw_objective_stores_a_conditional_and_moves_a_loop_increment_into_its_upda
     assert_eq!(raw.matches("while(").count(), 2, "{raw}");
     // Nothing runs after the first return.
     assert_eq!(raw.matches("return").count(), 1, "{raw}");
-    let expected = "{\"payload\":\"px\",\"items\":[0,1,2,10,30,[0],[1],[2]]}\n{\"payload\":null,\"items\":[0,1,2,10,30,[0],[1],[2]]}\n";
+    let expected = "{\"payload\":\"px\",\"items\":[0,1,2,1,30,3,[0],[1],[2]]}\n{\"payload\":null,\"items\":[0,1,2,1,30,3,[0],[1],[2]]}\n";
     assert_eq!(run(&raw, SHOW), expected);
     assert_eq!(run(&coded, SHOW), expected);
+}
+
+#[test]
+fn a_value_moves_past_a_quiet_start_of_its_statement() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern JsValue seed();
+        JsValue registry = JS.array();
+        JsValue early(JsValue p) {
+            JsValue b = JS.object("type", "early", "handler", wrap(p));
+            return register(b);
+        }
+        JsValue register(JsValue spec) {
+            JS.invoke(registry, "push", spec);
+            float n = JS.number(registry["length"]);
+            if (n > 3.0) { show("many"); }
+            return spec;
+        }
+        JsValue wrap(JsValue f) {
+            JsValue out = JS.array(f, seed());
+            JS.invoke(out, "push", f);
+            return out;
+        }
+        export JsValue later(JsValue p) {
+            JsValue b = JS.object("type", "later", "handler", wrap(p));
+            return register(b);
+        }
+        export bool maybe(bool flag, JsValue p) {
+            JsValue b = JS.object("type", "maybe", "handler", wrap(p));
+            return flag && register(b).truthy();
+        }
+        show(early(0));
+        show(later(1));
+        show(maybe(false, 2));
+        show(maybe(true, 3));
+        show(JS.number(registry["length"]));
+        "#,
+        PRISTINE,
+    );
+    // `register` is declared before `later` is created, so reading it there
+    // is quiet and the literal is created in the call.
+    assert!(javascript.contains("({type:\"later\""), "{javascript}");
+    // `early` exists before `register` does: the read might meet its TDZ.
+    assert!(javascript.contains("={type:\"early\""), "{javascript}");
+    // Behind `&&`, the call and the literal might not run.
+    assert!(javascript.contains("={type:\"maybe\""), "{javascript}");
+    assert_eq!(
+        run(&javascript, "globalThis.seed=()=>7;globalThis.show=v=>console.log(JSON.stringify(v));"),
+        "{\"type\":\"early\",\"handler\":[0,7,0]}\n{\"type\":\"later\",\"handler\":[1,7,1]}\nfalse\ntrue\n3\n"
+    );
+}
+
+#[test]
+fn a_raw_objective_ends_a_body_with_an_else_instead_of_an_exit() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern void note(JsValue value);
+        export void visit(JsValue[] items, bool quiet) {
+            if (quiet) {
+                note("quiet");
+                return;
+            }
+            JsValue seen = JS.array();
+            int i = 0;
+            int n = items.length;
+            while (i < n) {
+                JsValue item = items[i];
+                i = i + 1;
+                if (i == 2) {
+                    note(item);
+                    continue;
+                }
+                JsValue doubled = JS.array(item, item);
+                JS.invoke(seen, "push", doubled);
+            }
+            show(seen);
+        }
+        visit([JS.box(1.0), JS.box("a"), JS.box(2.0)], false);
+        visit([JS.box(3.0)], true);
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let coded = compile_with(source, PRISTINE);
+    // Neither the early `return;` nor the `continue` is spelled.
+    assert!(!raw.contains("return") && !raw.contains("continue"), "{raw}");
+    assert!(coded.contains("continue"), "{coded}");
+    let host = "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.note=v=>console.log('note',v);";
+    let expected = "note [String: 'a']\n[[1,1],[2,2]]\nnote quiet\n";
+    assert_eq!(run(&raw, host), expected);
+    assert_eq!(run(&coded, host), expected);
+}
+
+#[test]
+fn a_value_that_only_reads_moves_past_member_reads_under_pure_property_reads() {
+    let source = r#"
+        extern void show(JsValue value);
+        JsValue log = JS.array();
+        JsValue track(JsValue parser, JsValue options, string mode) {
+            JS.invoke(log, "push", mode);
+            float n = JS.number(log["length"]);
+            if (n > 5.0) { show("many"); }
+            return JS.array(parser["name"], options, mode);
+        }
+        export JsValue describe(JsValue context) {
+            JsValue options = JS.object("cols", context["cols"], "leqno", context["parser"]["settings"]["leqno"]);
+            return track(context["parser"], options, "display");
+        }
+        show(describe(JS.object("cols", 2, "parser", JS.object("name", "p", "settings", JS.object("leqno", true)))));
+    "#;
+    let pure = compile_with(source, &format!("{PRISTINE}assume_pure_property_reads=true\n"));
+    let plain = compile_with(source, PRISTINE);
+    // Reads commute with reads: the literal is created in the call.
+    assert!(pure.contains(",{cols:"), "{pure}");
+    // A read might run a getter that the other reads would observe.
+    assert!(plain.contains("={cols:"), "{plain}");
+    let expected = "[\"p\",{\"cols\":2,\"leqno\":true},\"display\"]\n";
+    assert_eq!(run(&pure, SHOW), expected);
+    assert_eq!(run(&plain, SHOW), expected);
 }
 
 #[test]

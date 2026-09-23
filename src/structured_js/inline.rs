@@ -49,6 +49,11 @@ const STANDARD_GLOBALS: &[&str] = &[
     "parseInt",
 ];
 
+/// Whether `name` is a standard global that pristine builtins fix.
+pub(super) fn is_standard_global(name: &str) -> bool {
+    STANDARD_GLOBALS.contains(&name)
+}
+
 /// Call sites deeper than this keep their call, so no chain of inlined
 /// bodies approaches the verifier's nesting limit.
 const SITE_DEPTH: usize = verify::MAX_NESTING / 2;
@@ -538,7 +543,7 @@ impl Module {
 
     /// A declared extern naming a standard global: pinned to its spelling,
     /// never assigned, and not an import.
-    fn standard_global(&self, binding: BindingId) -> bool {
+    pub(super) fn standard_global(&self, binding: BindingId) -> bool {
         let declared = &self.bindings[binding.index()];
         declared.pinned
             && STANDARD_GLOBALS.contains(&declared.spelling.as_str())

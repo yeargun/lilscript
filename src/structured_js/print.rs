@@ -1472,7 +1472,7 @@ impl<'a> Printer<'a, '_, '_> {
         let Some(length) = function.length else {
             return (Vec::new(), 0);
         };
-        if function.strict || !self.module.frame_free(id) {
+        if function.strict || !self.module.arguments_free(id) {
             return (Vec::new(), 0);
         }
         let mut defaults = vec![None; function.parameters.len()];

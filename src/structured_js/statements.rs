@@ -12,6 +12,11 @@
 //! * `if(c)o.k=a;else o.k=b` is `o.k=c?a:b` where reading `o` (and a key)
 //!   before the condition changes nothing (`same_store`).
 //! * `while(c){…;u}` is `for(;c;u){…}` when no `continue` skips `u`.
+//! * `if(c){A;return}R` ending a function body, or `if(c){A;continue}R`
+//!   ending a loop body, is `if(c){A}else{R}` (`if(!c){R}` for an empty `A`).
+//! * `if(a){if(b)S}` is `if(a&&b)S`, and conditionals with a repeated
+//!   binding or a boolean condition and branch are `&&`/`||`
+//!   (`compress_conditionals`).
 //!
 //! A codec matches the statement forms' repeated shapes nearly for free
 //! (Terser's compression over our Brotli output made it larger), so only a
@@ -43,6 +48,7 @@ impl Module {
                 }
                 changed += self.compress_region(region, &frames, &reach.captured, budget)?;
             }
+            changed += self.compress_conditionals(&reach, budget)?;
             total += changed;
             if changed == 0 {
                 break;
@@ -90,6 +96,72 @@ impl Module {
                 continue;
             };
             let root = region == self.root;
+            // `if(c){A;return}R` ending a function body is `if(c){A}else{R}`,
+            // as is `if(c){A;continue}R` ending a loop body: both branches end
+            // where the body does.
+            if no.is_none()
+                && index + 1 < self.regions[region.index()].statements.len()
+                && self.exits_at_end(region, yes, frames)
+                && self.tail_movable(region, index, budget)?
+            {
+                self.regions[yes.index()].statements.pop();
+                let rest = self.tail_region(region, index, budget)?;
+                let statement = if self.regions[yes.index()].statements.is_empty() {
+                    let negated = match self.negated(condition, budget)? {
+                        Some(negated) => negated,
+                        None => self.expression_in(
+                            Expr::Unary {
+                                op: Unary::Not,
+                                value: condition,
+                            },
+                            None,
+                            budget,
+                        )?,
+                    };
+                    Statement::If {
+                        condition: negated,
+                        yes: rest,
+                        no: None,
+                    }
+                } else {
+                    Statement::If {
+                        condition,
+                        yes,
+                        no: Some(rest),
+                    }
+                };
+                self.regions[region.index()].statements[index] = statement;
+                changed += 1;
+                continue;
+            }
+            // `if(a){if(b)S}` is `if(a&&b)S`: `b` runs exactly when `a` holds.
+            if no.is_none() {
+                if let Some(&[Statement::If {
+                    condition: inner,
+                    yes: inner_yes,
+                    no: None,
+                }]) = self.only(yes, 1)
+                {
+                    self.adopt(yes, region, budget)?;
+                    let both = self.expression_in(
+                        Expr::Binary {
+                            op: Binary::And,
+                            left: condition,
+                            right: inner,
+                        },
+                        None,
+                        budget,
+                    )?;
+                    self.regions[region.index()].statements[index] = Statement::If {
+                        condition: both,
+                        yes: inner_yes,
+                        no: None,
+                    };
+                    changed += 1;
+                    // The merged `if` may compress further.
+                    continue;
+                }
+            }
             // Both branches return: one return of a conditional.
             if let (Some([Statement::Return(Some(a))]), Some([Statement::Return(Some(b))])) =
                 (self.only(yes, 1), no.and_then(|no| self.only(no, 1)))
@@ -243,6 +315,237 @@ impl Module {
             index += 1;
         }
         Ok(changed)
+    }
+
+    /// Conditionals that say less: `x?x:y` is `x||y` and `x?y:x` is `x&&y`
+    /// for a binding `x`. With a boolean condition `c`, `c?y:!1` is `c&&y`
+    /// and `c?!0:y` is `c||y`; `c?!1:y` and `c?y:!0` negate `c` in place
+    /// (an equality flips, `!d` drops its `!` when `d` is boolean) and are
+    /// `c'&&y` and `c'||y`. Each keeps the conditional's node, so its parent
+    /// still follows its children.
+    fn compress_conditionals(
+        &mut self,
+        reach: &super::inline::Reach,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut changed = 0;
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            let Expr::Conditional { condition, yes, no } = self.expressions[id.index()] else {
+                continue;
+            };
+            let same = |a: ExprId, b: ExprId| {
+                matches!(
+                    (&self.expressions[a.index()], &self.expressions[b.index()]),
+                    (Expr::Binding(x), Expr::Binding(y)) if x == y
+                )
+            };
+            let flag = |value: ExprId| match self.expressions[value.index()] {
+                Expr::Literal(Literal::Bool(flag)) => Some(flag),
+                _ => None,
+            };
+            let (op, left, right) = if same(condition, yes) {
+                (Binary::Or, condition, no)
+            } else if same(condition, no) {
+                (Binary::And, condition, yes)
+            } else if !self.boolean_valued(condition, budget)? {
+                continue;
+            } else {
+                match (flag(yes), flag(no)) {
+                    (_, Some(false)) => (Binary::And, condition, yes),
+                    (Some(true), _) => (Binary::Or, condition, no),
+                    (Some(false), _) => match self.negated(condition, budget)? {
+                        Some(negated) => (Binary::And, negated, no),
+                        None => continue,
+                    },
+                    (_, Some(true)) => match self.negated(condition, budget)? {
+                        Some(negated) => (Binary::Or, negated, yes),
+                        None => continue,
+                    },
+                    _ => continue,
+                }
+            };
+            self.expressions[id.index()] = Expr::Binary { op, left, right };
+            changed += 1;
+        }
+        Ok(changed)
+    }
+
+    /// Whether `value` is always `true` or `false`.
+    fn boolean_valued(
+        &self,
+        value: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        budget.work(Analysis, 1)?;
+        Ok(match &self.expressions[value.index()] {
+            Expr::Literal(Literal::Bool(_)) => true,
+            Expr::Unary { op: Unary::Not, .. } => true,
+            Expr::Binary { op, left, right } => match op {
+                Binary::Equal
+                | Binary::NotEqual
+                | Binary::StrictEqual
+                | Binary::StrictNotEqual
+                | Binary::Less
+                | Binary::LessEqual
+                | Binary::Greater
+                | Binary::GreaterEqual
+                | Binary::In
+                | Binary::InstanceOf => true,
+                Binary::And | Binary::Or => {
+                    self.boolean_valued(*left, budget)? && self.boolean_valued(*right, budget)?
+                }
+                _ => false,
+            },
+            Expr::Conditional { yes, no, .. } => {
+                self.boolean_valued(*yes, budget)? && self.boolean_valued(*no, budget)?
+            }
+            _ => false,
+        })
+    }
+
+    /// The boolean `condition` negated without a new node: an equality flips
+    /// in place, and `!d` is `d` when `d` is boolean. An ordering does not
+    /// flip, since `NaN` makes both `a<b` and `a>=b` false.
+    fn negated(
+        &mut self,
+        condition: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Option<ExprId>, AllocationError> {
+        let flipped = match &self.expressions[condition.index()] {
+            Expr::Unary {
+                op: Unary::Not,
+                value,
+            } => {
+                let value = *value;
+                return Ok(self.boolean_valued(value, budget)?.then_some(value));
+            }
+            Expr::Literal(Literal::Bool(flag)) => Expr::Literal(Literal::Bool(!flag)),
+            Expr::Binary { op, left, right } => {
+                let op = match op {
+                    Binary::Equal => Binary::NotEqual,
+                    Binary::NotEqual => Binary::Equal,
+                    Binary::StrictEqual => Binary::StrictNotEqual,
+                    Binary::StrictNotEqual => Binary::StrictEqual,
+                    _ => return Ok(None),
+                };
+                Expr::Binary {
+                    op,
+                    left: *left,
+                    right: *right,
+                }
+            }
+            _ => return Ok(None),
+        };
+        self.expressions[condition.index()] = flipped;
+        Ok(Some(condition))
+    }
+
+    /// Whether `yes` ends by leaving `region` the way `region`'s own end
+    /// would: `return;` in a function body, `continue` in a loop body.
+    fn exits_at_end(&self, region: RegionId, yes: RegionId, frames: &Frames) -> bool {
+        match self.regions[yes.index()].statements.last() {
+            Some(Statement::Return(None)) => frames.bodies[region.index()].is_some(),
+            Some(Statement::Continue) => {
+                let Some((parent, _)) = frames.parents[region.index()] else {
+                    return false;
+                };
+                self.regions[parent.index()].statements.iter().any(|statement| match statement {
+                    Statement::Loop { body, .. }
+                    | Statement::ForIn { body, .. }
+                    | Statement::ForOf { body, .. } => *body == region,
+                    _ => false,
+                })
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether the statements after `index` can move into a block of their
+    /// own: none is a function declaration (whose hoisting a block would
+    /// change), and no code up to `index` names a binding they declare.
+    fn tail_movable(
+        &self,
+        region: RegionId,
+        index: usize,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let statements = &self.regions[region.index()].statements;
+        let mut declared = Vec::new();
+        for statement in &statements[index + 1..] {
+            match statement {
+                Statement::Function { .. } => return Ok(false),
+                Statement::Let { binding, .. } => declared.push(*binding),
+                _ => {}
+            }
+        }
+        if declared.is_empty() {
+            return Ok(true);
+        }
+        let mut expressions = Vec::new();
+        let mut regions = Vec::new();
+        for statement in &statements[..=index] {
+            statement.visit_expressions(|root| expressions.push(root));
+            statement.visit_regions(|child| regions.push(child));
+            if let Statement::Function { function, .. } = statement {
+                regions.push(self.functions[function.index()].body);
+            }
+        }
+        loop {
+            if let Some(id) = expressions.pop() {
+                budget.work(Analysis, 1)?;
+                let expression = &self.expressions[id.index()];
+                if let Expr::Binding(binding) = expression {
+                    if declared.contains(binding) {
+                        return Ok(false);
+                    }
+                }
+                if let Some(function) = expression.created_function() {
+                    regions.push(self.functions[function.index()].body);
+                }
+                let _ = expression.visit_children(|child| {
+                    expressions.push(child);
+                    Ok::<_, ()>(())
+                });
+                continue;
+            }
+            let Some(inner) = regions.pop() else {
+                return Ok(true);
+            };
+            for statement in &self.regions[inner.index()].statements {
+                budget.work(Analysis, 1)?;
+                statement.visit_expressions(|root| expressions.push(root));
+                statement.visit_regions(|child| regions.push(child));
+                if let Statement::Function { function, .. } = statement {
+                    regions.push(self.functions[function.index()].body);
+                }
+            }
+        }
+    }
+
+    /// Move the statements after `index` into a new region nested in
+    /// `region`'s scope. Its declarations move with it, and `rescope` gives
+    /// the region and all it holds fresh scopes, so each parent still
+    /// precedes its children.
+    fn tail_region(
+        &mut self,
+        region: RegionId,
+        index: usize,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<RegionId, AllocationError> {
+        let rest: Vec<Statement> = self.regions[region.index()].statements.drain(index + 1..).collect();
+        let parent = self.regions[region.index()].scope;
+        let tail = self.region_in(parent, budget)?;
+        let scope = self.regions[tail.index()].scope;
+        for statement in &rest {
+            budget.work(Analysis, 1)?;
+            if let Statement::Let { binding, .. } = statement {
+                self.bindings[binding.index()].scope = scope;
+            }
+        }
+        self.regions[tail.index()].statements = rest;
+        self.rescope(tail, parent, budget)?;
+        Ok(tail)
     }
 
     /// Whether a `continue` in `body` (not in a loop or function inside it)
