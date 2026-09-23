@@ -2086,6 +2086,23 @@ The census lists further katex levers, each measured on the output text (mean ov
 - `Style` ids as constants and its export object read directly: −71;
 - `.push` on local arrays instead of `Array.prototype.push.call`: −49.
 
+### 013 batch 21: katexlil imports what it reads (2026-09-23)
+
+These are the verified source versions of the census's remaining katexlil levers, applied by [katexlil-direct-imports.py](../../finer/port-migrations/katexlil-direct-imports.py) and carried in [katexlil.patch](../../finer/port-migrations/katexlil.patch):
+- **Direct imports.** The MathML node classes and the `buildCommon` functions come in by name, not through the late-assigned namespace objects `mathMLTree` and `buildCommon`. That removes 96 `new ee.X` and 18 `_c.X` reads.
+- **`Style` ids are literals,** with DISPLAY, TEXT, SCRIPT and SCRIPTSCRIPT as their own bindings.
+- **Local arrays call `.push`.** The 55 `JS.push` on arrays that are only ever literals become `JS.invoke(x, "push", …)`, which is upstream's own call.
+
+An independent verifier confirmed semantics with a smoke differential (2,076 expressions × 4 option sets plus DOM trees, identical hashes), katex's jest suite and the port's node tests. The census's fifth lever, dropping the 194 unary `+` of `toNum()` arithmetic, splits badly at source level: it pays only when every site goes, and it is exact only for primitive operands. It is left out.
+
+| katexlil | Brotli (`esm`) | Without banner | Raw objective |
+|---|---|---|---|
+| Batch 20 | 62,934 | 62,907 | 251,216 |
+| **Direct imports, Style ids, push** | **62,665** | **62,680** | **248,553** |
+| Bar | 63,044 | 63,044 | 267,050 |
+
+Suites pass on both objectives: 21/21 and 1,230/1,230.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

@@ -21,7 +21,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 
 | Port | Start (`577d472d`) | Now (batch 17) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`; without our 76-byte banner, which the bar lacks: 62,907) | 65,727 | 62,934 | 63,044 | **win −110** (like for like −137) |
+| katexlil (complete `katex.esm.js`; without our 76-byte banner, which the bar lacks: 62,680) | 65,727 | 62,665 | 63,044 | **win −379** (like for like −364) |
 | markedlil (`marked.raw.js`) | 9,397 | 9,258 | 10,092 | **win −834** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,393 | 5,622 | **win −229** |
 | jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,048 | 27,445 | +1,603 |
@@ -30,7 +30,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 
 | Raw objective | Start | Now (batch 17) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 251,216 | 267,050 | **win −15,834** |
+| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 248,553 | 267,050 | **win −18,497** |
 | markedlil (`marked.bytes.js`) | 39,687 | 35,377 | 37,022 | **win −1,645** |
 | posthoglil (`posthog.bytes.js`) | 19,750 | 15,678 | 16,123 | **win −445** |
 | jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 85,713 | 87,151 | **win −1,438** |

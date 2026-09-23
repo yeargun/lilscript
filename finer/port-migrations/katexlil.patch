@@ -1,4 +1,52 @@
 
+--- a/src/Parser.lil
++++ b/src/Parser.lil
+@@ -105,7 +105,7 @@
+     } else if (JS.strictEqual(atom["type"], "internal")) {
+       continue;
+     }
+-    JS.push(body, atom);
++    JS.invoke(body, "push", atom);
+   }
+   if (JS.strictEqual(self["mode"], "text")) {
+     JS.invoke(self, "formLigatures", body);
+@@ -176,7 +176,7 @@
+   JsValue textordArray = JS.array();
+   {
+     for (int i = 0; i < len(text); i++) {
+-      JS.push(textordArray, JS.object("type", "textord", "mode", "text", "text", text[i]));
++      JS.invoke(textordArray, "push", JS.object("type", "textord", "mode", "text", "text", text[i]));
+     }
+   }
+   JsValue textNode = JS.object("type", "text", "mode", self["mode"], "body", textordArray);
+@@ -227,11 +227,11 @@
+           JsValue primes = JS.array(prime);
+           JS.invoke(self, "consume");
+           while (JS.strictEqual(JS.invoke(self, "fetch")["text"], "'")) {
+-            JS.push(primes, prime);
++            JS.invoke(primes, "push", prime);
+             JS.invoke(self, "consume");
+           }
+           if (JS.strictEqual(JS.invoke(self, "fetch")["text"], "^")) {
+-            JS.push(primes, JS.invoke(self, "handleSupSubscript", "superscript"));
++            JS.invoke(primes, "push", JS.invoke(self, "handleSupSubscript", "superscript"));
+           }
+           superscript = JS.object("type", "ordgroup", "mode", self["mode"], "body", primes);
+         } else if (uSubsAndSups[lex["text"]].truthy()) {
+@@ -327,10 +327,10 @@
+       }
+       JsValue arg = JS.invoke(self, "parseGroupOfType", "argument to '" + toStr(funcVal) + "'", argType, isOptional);
+       if (isOptional) {
+-        JS.push(optArgs, arg);
++        JS.invoke(optArgs, "push", arg);
+       } else {
+         if (!isNullish(arg)) {
+-          JS.push(args, arg);
++          JS.invoke(args, "push", arg);
+         } else {
+           throw JS.construct(ParseError, "Null argument, please report this as a bug");
+         }
+
 --- a/src/Settings.lil
 +++ b/src/Settings.lil
 @@ -1,3 +1,5 @@
@@ -7,6 +55,310 @@
  import { undef, isUndef, isNullish, isFn, isStr, isNum, isArr, toStr, toNum, toInt, len, hasOwn, inOp, deleteKey, instanceOf, push, newArray, emptyObject, warn, getDocument, getConsole, globalDefined, globalGet, mathMin, mathMax, constructN, apply, objectAssign, objectKeys, makeError, makeTypeError, throwErr, hostParseInt, hostParseFloat, fromCharCode, Error, TypeError, Object, Array, Function, String, Number, Math, RegExp, JSON, Infinity, NaN } from "./host.lil";
  
  import { utils } from "./utils.lil";
+
+--- a/src/Style.lil
++++ b/src/Style.lil
+@@ -1,14 +1,6 @@
+ import { undef, isUndef, isNullish, isFn, isStr, isNum, isArr, toStr, toNum, toInt, len, hasOwn, inOp, deleteKey, instanceOf, push, newArray, emptyObject, warn, getDocument, getConsole, globalDefined, globalGet, mathMin, mathMax, constructN, apply, objectAssign, objectKeys, makeError, makeTypeError, throwErr, hostParseInt, hostParseFloat, fromCharCode, Error, TypeError, Object, Array, Function, String, Number, Math, RegExp, JSON, Infinity, NaN } from "./host.lil";
+ 
+ JsValue Style = undef();
+-JsValue D = undef();
+-JsValue Dc = undef();
+-JsValue T = undef();
+-JsValue Tc = undef();
+-JsValue S = undef();
+-JsValue Sc = undef();
+-JsValue SS = undef();
+-JsValue SSc = undef();
+ JsValue styles = undef();
+ JsValue sup = undef();
+ JsValue sub = undef();
+@@ -54,30 +46,26 @@
+   return JS.greaterThanOrEqual(self["size"], 2);
+   return undef();
+ });
+-D = 0;
+-Dc = 1;
+-T = 2;
+-Tc = 3;
+-S = 4;
+-Sc = 5;
+-SS = 6;
+-SSc = 7;
+-JsValue a1 = JS.array(JS.construct(Style, D, 0, false), JS.construct(Style, Dc, 0, true), JS.construct(Style, T, 1, false), JS.construct(Style, Tc, 1, true), JS.construct(Style, S, 2, false), JS.construct(Style, Sc, 2, true), JS.construct(Style, SS, 3, false), JS.construct(Style, SSc, 3, true));
++JsValue a1 = JS.array(JS.construct(Style, 0, 0, false), JS.construct(Style, 1, 0, true), JS.construct(Style, 2, 1, false), JS.construct(Style, 3, 1, true), JS.construct(Style, 4, 2, false), JS.construct(Style, 5, 2, true), JS.construct(Style, 6, 3, false), JS.construct(Style, 7, 3, true));
+ styles = a1;
+-JsValue a2 = JS.array(S, Sc, S, Sc, SS, SSc, SS, SSc);
++JsValue a2 = JS.array(4, 5, 4, 5, 6, 7, 6, 7);
+ sup = a2;
+-JsValue a3 = JS.array(Sc, Sc, Sc, Sc, SSc, SSc, SSc, SSc);
++JsValue a3 = JS.array(5, 5, 5, 5, 7, 7, 7, 7);
+ sub = a3;
+-JsValue a4 = JS.array(T, Tc, S, Sc, SS, SSc, SS, SSc);
++JsValue a4 = JS.array(2, 3, 4, 5, 6, 7, 6, 7);
+ fracNum = a4;
+-JsValue a5 = JS.array(Tc, Tc, Sc, Sc, SSc, SSc, SSc, SSc);
++JsValue a5 = JS.array(3, 3, 5, 5, 7, 7, 7, 7);
+ fracDen = a5;
+-JsValue a6 = JS.array(Dc, Dc, Tc, Tc, Sc, Sc, SSc, SSc);
++JsValue a6 = JS.array(1, 1, 3, 3, 5, 5, 7, 7);
+ cramp = a6;
+-JsValue a7 = JS.array(D, Dc, T, Tc, T, Tc, T, Tc);
++JsValue a7 = JS.array(0, 1, 2, 3, 2, 3, 2, 3);
+ text = a7;
+-JsValue o8 = JS.object("DISPLAY", styles[D], "TEXT", styles[T], "SCRIPT", styles[S], "SCRIPTSCRIPT", styles[SS]);
++JsValue o8 = JS.object("DISPLAY", styles[0], "TEXT", styles[2], "SCRIPT", styles[4], "SCRIPTSCRIPT", styles[6]);
+ Style = o8;
++JsValue DISPLAY = styles[0];
++JsValue TEXT = styles[2];
++JsValue SCRIPT = styles[4];
++JsValue SCRIPTSCRIPT = styles[6];
+ JsValue __star = JS.object("default", Style, "Style", Style);
+ 
+-export { __star, Style as Style };
++export { __star, Style as Style, DISPLAY, TEXT, SCRIPT, SCRIPTSCRIPT };
+
+--- a/src/buildCommon.lil
++++ b/src/buildCommon.lil
+@@ -463,7 +463,7 @@
+     JsValue a69 = newArray();
+     JsValue a70 = JS.array("vlist-r");
+     JsValue a71 = JS.array(vlist);
+-    JS.push(a69, JS.call(makeSpan, undef(), a70, a71));
++    JS.invoke(a69, "push", JS.call(makeSpan, undef(), a70, a71));
+     rows = a69;
+   }
+   JsValue a72 = JS.array("vlist-t");
+@@ -557,4 +557,4 @@
+ buildCommon = o100;
+ JsValue __star = JS.object("default", buildCommon, "buildCommon", buildCommon);
+ 
+-export { __star, buildCommon as buildCommon };
++export { __star, buildCommon as buildCommon, fontMap, makeAnchor, makeFragment, makeGlue, makeLineSpan, makeOrd, makeSpan, makeSvgSpan, makeSymbol, makeVList, mathsym, staticSvg, svgData, tryCombineChars, wrapFragment };
+
+--- a/src/buildHTML.lil
++++ b/src/buildHTML.lil
+@@ -9,6 +9,8 @@
+ import { spacings, tightSpacings } from "./spacingData.lil";
+ import { _htmlGroupBuilders as groupBuilders } from "./defineFunction.lil";
+ import { DocumentFragment } from "./tree.lil";
++import { makeGlue, tryCombineChars } from "./buildCommon.lil";
++import { DISPLAY, TEXT, SCRIPT, SCRIPTSCRIPT } from "./Style.lil";
+ 
+ JsValue makeSpan = undef();
+ JsValue binLeftCanceller = undef();
+@@ -30,7 +32,7 @@
+ binLeftCanceller = a1;
+ JsValue a2 = JS.array("rightmost", "mrel", "mclose", "mpunct");
+ binRightCanceller = a2;
+-JsValue o3 = JS.object("display", Style["DISPLAY"], "text", Style["TEXT"], "script", Style["SCRIPT"], "scriptscript", Style["SCRIPTSCRIPT"]);
++JsValue o3 = JS.object("display", DISPLAY, "text", TEXT, "script", SCRIPT, "scriptscript", SCRIPTSCRIPT);
+ styleMap = o3;
+ JsValue o4 = JS.object("mord", "mord", "mop", "mop", "mbin", "mbin", "mrel", "mrel", "mopen", "mopen", "mclose", "mclose", "mpunct", "mpunct", "minner", "minner");
+ DomEnum = o4;
+@@ -53,7 +55,7 @@
+       JsValue u7 = i;
+     }
+   }
+-  JS.invoke(buildCommon, "tryCombineChars", groups);
++  JS.call(tryCombineChars, undef(), groups);
+   if (!(isRealGroup.truthy())) {
+     return groups;
+   }
+@@ -73,7 +75,7 @@
+   if (!(or9.truthy())) {
+     or9 = "leftmost";
+   }
+-  JS.push(a8, or9);
++  JS.invoke(a8, "push", or9);
+   JsValue a10 = JS.array();
+   JsValue dummyPrev = JS.call(makeSpan, undef(), a8, a10, options);
+   JsValue a11 = newArray();
+@@ -81,7 +83,7 @@
+   if (!(or12.truthy())) {
+     or12 = "rightmost";
+   }
+-  JS.push(a11, or12);
++  JS.invoke(a11, "push", or12);
+   JsValue a13 = JS.array();
+   JsValue dummyNext = JS.call(makeSpan, undef(), a11, a13, options);
+   JsValue isRoot = JS.strictEqual(isRealGroup, "root");
+@@ -116,7 +118,7 @@
+   }
+   JsValue space = c15;
+   if (space.truthy()) {
+-    return JS.invoke(buildCommon, "makeGlue", space, glueOptions);
++    return JS.call(makeGlue, undef(), space, glueOptions);
+   }
+   return undef();
+   }, o17, dummyNext, isRoot);
+
+--- a/src/buildMathML.lil
++++ b/src/buildMathML.lil
+@@ -8,6 +8,7 @@
+ import { utils } from "./utils.lil";
+ import { _mathmlGroupBuilders as groupBuilders } from "./defineFunction.lil";
+ import { MathNode, TextNode } from "./mathMLTree.lil";
++import { fontMap, makeSpan } from "./buildCommon.lil";
+ 
+ JsValue makeText = undef();
+ JsValue makeRow = undef();
+@@ -22,14 +23,14 @@
+   if ((((symbols[mode][text].truthy()) && (symbols[mode][text]["replace"].truthy())) && (JS.strictNotEqual(JS.invoke(text, "charCodeAt", 0), 55349))) && (!(((hasOwn(ligatures, text)) && (options.truthy())) && (((options["fontFamily"].truthy()) && (JS.strictEqual(JS.invoke(options["fontFamily"], "slice", 4, 6), "tt"))) || ((options["font"].truthy()) && (JS.strictEqual(JS.invoke(options["font"], "slice", 4, 6), "tt"))))))) {
+     text = symbols[mode][text]["replace"];
+   }
+-  return JS.construct(mathMLTree["TextNode"], text);
++  return JS.construct(TextNode, text);
+   return undef();
+ };
+ makeRow = (JsValue body) => {
+   if (JS.strictEqual(body["length"], 1)) {
+     return body[0];
+   } else {
+-    return JS.construct(mathMLTree["MathNode"], "mrow", body);
++    return JS.construct(MathNode, "mrow", body);
+   }
+   return undef();
+ };
+@@ -119,9 +120,9 @@
+   if ((symbols[mode][text].truthy()) && (symbols[mode][text]["replace"].truthy())) {
+     text = symbols[mode][text]["replace"];
+   }
+-  JsValue fontName = buildCommon["fontMap"][font]["fontName"];
++  JsValue fontName = fontMap[font]["fontName"];
+   if (JS.call(getCharacterMetrics, undef(), text, fontName, mode).truthy()) {
+-    return buildCommon["fontMap"][font]["variant"];
++    return fontMap[font]["variant"];
+   }
+   return null;
+   return undef();
+@@ -189,12 +190,12 @@
+                 JsValue ss10 = lastGroup["children"];
+                 int sn9 = len(ss10);
+                 for (int si8 = 0; si8 < sn9; si8++) {
+-                  JS.push(a7, ss10[si8]);
++                  JS.invoke(a7, "push", ss10[si8]);
+                 }
+                 JsValue ss13 = group["children"];
+                 int sn12 = len(ss13);
+                 for (int si11 = 0; si11 < sn12; si11++) {
+-                  JS.push(a7, ss13[si11]);
++                  JS.invoke(a7, "push", ss13[si11]);
+                 }
+                 group["children"] = a7;
+                 JS.invoke(groups, "pop");
+@@ -206,12 +207,12 @@
+                     JsValue ss17 = lastGroup["children"];
+                     int sn16 = len(ss17);
+                     for (int si15 = 0; si15 < sn16; si15++) {
+-                      JS.push(a14, ss17[si15]);
++                      JS.invoke(a14, "push", ss17[si15]);
+                     }
+                     JsValue ss20 = base["children"];
+                     int sn19 = len(ss20);
+                     for (int si18 = 0; si18 < sn19; si18++) {
+-                      JS.push(a14, ss20[si18]);
++                      JS.invoke(a14, "push", ss20[si18]);
+                     }
+                     base["children"] = a14;
+                     JS.invoke(groups, "pop");
+@@ -248,7 +249,7 @@
+ };
+ buildGroup = (JsValue group, JsValue options) => {
+   if (!(group.truthy())) {
+-    return JS.construct(mathMLTree["MathNode"], "mrow");
++    return JS.construct(MathNode, "mrow");
+   }
+   if (groupBuilders[group["type"]].truthy()) {
+     JsValue result = JS.call(groupBuilders[group["type"]], groupBuilders, group, options);
+@@ -265,15 +266,15 @@
+   if (((JS.strictEqual(expression["length"], 1)) && (instanceOf(expression[0], MathNode))) && (JS.invoke(utils, "contains", a22, expression[0]["type"]).truthy())) {
+     wrapper = expression[0];
+   } else {
+-    wrapper = JS.construct(mathMLTree["MathNode"], "mrow", expression);
++    wrapper = JS.construct(MathNode, "mrow", expression);
+   }
+-  JsValue a23 = JS.array(JS.construct(mathMLTree["TextNode"], texExpression));
+-  JsValue annotation = JS.construct(mathMLTree["MathNode"], "annotation", a23);
++  JsValue a23 = JS.array(JS.construct(TextNode, texExpression));
++  JsValue annotation = JS.construct(MathNode, "annotation", a23);
+   JS.invoke(annotation, "setAttribute", "encoding", "application/x-tex");
+   JsValue a24 = JS.array(wrapper, annotation);
+-  JsValue semantics = JS.construct(mathMLTree["MathNode"], "semantics", a24);
++  JsValue semantics = JS.construct(MathNode, "semantics", a24);
+   JsValue a25 = JS.array(semantics);
+-  JsValue math = JS.construct(mathMLTree["MathNode"], "math", a25);
++  JsValue math = JS.construct(MathNode, "math", a25);
+   JS.invoke(math, "setAttribute", "xmlns", "http://www.w3.org/1998/Math/MathML");
+   if (isDisplayMode.truthy()) {
+     JS.invoke(math, "setAttribute", "display", "block");
+@@ -287,7 +288,7 @@
+   JsValue wrapperClass = c26;
+   JsValue a27 = JS.array(wrapperClass);
+   JsValue a28 = JS.array(math);
+-  return JS.invoke(buildCommon, "makeSpan", a27, a28);
++  return JS.call(makeSpan, undef(), a27, a28);
+   return undef();
+ };
+ JsValue __star = JS.object("makeText", makeText, "makeRow", makeRow, "getVariant", getVariant, "buildExpression", buildExpression, "buildExpressionRow", buildExpressionRow, "buildGroup", buildGroup, "default", buildMathML, "buildMathML", buildMathML);
+
+--- a/src/buildTree.lil
++++ b/src/buildTree.lil
+@@ -6,6 +6,8 @@
+ import { Options } from "./Options.lil";
+ import { Settings } from "./Settings.lil";
+ import { Style } from "./Style.lil";
++import { makeSpan } from "./buildCommon.lil";
++import { DISPLAY, TEXT } from "./Style.lil";
+ 
+ JsValue optionsFromSettings = undef();
+ JsValue displayWrap = undef();
+@@ -16,9 +18,9 @@
+   JsValue o1 = emptyObject();
+   JsValue c2 = undef();
+   if (settings["displayMode"].truthy()) {
+-    c2 = Style["DISPLAY"];
++    c2 = DISPLAY;
+   } else {
+-    c2 = Style["TEXT"];
++    c2 = TEXT;
+   }
+   o1["style"] = c2;
+   o1["maxSize"] = settings["maxSize"];
+@@ -37,7 +39,7 @@
+       JS.invoke(classes, "push", "fleqn");
+     }
+     JsValue a4 = JS.array(node);
+-    node = JS.invoke(buildCommon, "makeSpan", classes, a4);
++    node = JS.call(makeSpan, undef(), classes, a4);
+   }
+   return node;
+   return undef();
+@@ -52,13 +54,13 @@
+       JsValue htmlNode = JS.call(buildHTML, undef(), tree, options);
+       JsValue a5 = JS.array("katex");
+       JsValue a6 = JS.array(htmlNode);
+-      katexNode = JS.invoke(buildCommon, "makeSpan", a5, a6);
++      katexNode = JS.call(makeSpan, undef(), a5, a6);
+     } else {
+       JsValue mathMLNode = JS.call(buildMathML, undef(), tree, expression, options, settings["displayMode"], false);
+       JsValue htmlNode = JS.call(buildHTML, undef(), tree, options);
+       JsValue a7 = JS.array("katex");
+       JsValue a8 = JS.array(mathMLNode, htmlNode);
+-      katexNode = JS.invoke(buildCommon, "makeSpan", a7, a8);
++      katexNode = JS.call(makeSpan, undef(), a7, a8);
+     }
+   }
+   return JS.call(displayWrap, undef(), katexNode, settings);
+@@ -69,7 +71,7 @@
+   JsValue htmlNode = JS.call(buildHTML, undef(), tree, options);
+   JsValue a9 = JS.array("katex");
+   JsValue a10 = JS.array(htmlNode);
+-  JsValue katexNode = JS.invoke(buildCommon, "makeSpan", a9, a10);
++  JsValue katexNode = JS.call(makeSpan, undef(), a9, a10);
+   return JS.call(displayWrap, undef(), katexNode, settings);
+   return undef();
+ };
 
 --- a/src/defineFunction.lil
 +++ b/src/defineFunction.lil
@@ -24,9 +376,420 @@
    o14["mathmlBuilder"] = mathmlBuilder;
    JS.call(defineFunction, undef(), o14);
 
+--- a/src/delimiter.lil
++++ b/src/delimiter.lil
+@@ -10,6 +10,8 @@
+ import { utils } from "./utils.lil";
+ import { makeEm } from "./units.lil";
+ import { fontMetricsData } from "./data.lil";
++import { makeSpan, makeSvgSpan, makeSymbol, makeVList } from "./buildCommon.lil";
++import { TEXT, SCRIPT, SCRIPTSCRIPT } from "./Style.lil";
+ 
+ JsValue getMetrics = undef();
+ JsValue styleWrap = undef();
+@@ -61,7 +63,7 @@
+ styleWrap = (JsValue delim, JsValue toStyle, JsValue options, JsValue classes) => {
+   JsValue newOptions = JS.invoke(options, "havingBaseStyle", toStyle);
+   JsValue a3 = JS.array(delim);
+-  JsValue span = JS.invoke(buildCommon, "makeSpan", JS.invoke(classes, "concat", JS.invoke(newOptions, "sizingClasses", options)), a3, options);
++  JsValue span = JS.call(makeSpan, undef(), JS.invoke(classes, "concat", JS.invoke(newOptions, "sizingClasses", options)), a3, options);
+   JsValue delimSizeMultiplier = (toNum(newOptions["sizeMultiplier"]) / toNum(options["sizeMultiplier"]));
+   JsValue as4 = span["height"];
+   span["height"] = (toNum(as4) * toNum(delimSizeMultiplier));
+@@ -83,7 +85,7 @@
+   return undef();
+ };
+ makeSmallDelim = (JsValue delim, JsValue style, JsValue center, JsValue options, JsValue mode, JsValue classes) => {
+-  JsValue text = JS.invoke(buildCommon, "makeSymbol", delim, "Main-Regular", mode, options);
++  JsValue text = JS.call(makeSymbol, undef(), delim, "Main-Regular", mode, options);
+   JsValue span = JS.call(styleWrap, undef(), text, style, options, classes);
+   if (center.truthy()) {
+     JS.call(centerSpan, undef(), span, options, style);
+@@ -92,16 +94,16 @@
+   return undef();
+ };
+ mathrmSize = (JsValue value, JsValue size, JsValue mode, JsValue options) => {
+-  return JS.invoke(buildCommon, "makeSymbol", value, JS.add(JS.add("Size", size), "-Regular"), mode, options);
++  return JS.call(makeSymbol, undef(), value, JS.add(JS.add("Size", size), "-Regular"), mode, options);
+   return undef();
+ };
+ makeLargeDelim = (JsValue delim, JsValue size, JsValue center, JsValue options, JsValue mode, JsValue classes) => {
+   JsValue inner = JS.call(mathrmSize, undef(), delim, size, mode, options);
+   JsValue a8 = JS.array("delimsizing", JS.add("size", size));
+   JsValue a9 = JS.array(inner);
+-  JsValue span = JS.call(styleWrap, undef(), JS.invoke(buildCommon, "makeSpan", a8, a9, options), Style["TEXT"], options, classes);
++  JsValue span = JS.call(styleWrap, undef(), JS.call(makeSpan, undef(), a8, a9, options), TEXT, options, classes);
+   if (center.truthy()) {
+-    JS.call(centerSpan, undef(), span, options, Style["TEXT"]);
++    JS.call(centerSpan, undef(), span, options, TEXT);
+   }
+   return span;
+   return undef();
+@@ -116,9 +118,9 @@
+   JsValue a10 = JS.array("delimsizinginner", sizeClass);
+   JsValue a11 = newArray();
+   JsValue a12 = JS.array();
+-  JsValue a13 = JS.array(JS.invoke(buildCommon, "makeSymbol", symbol, font, mode));
+-  JS.push(a11, JS.invoke(buildCommon, "makeSpan", a12, a13));
+-  JsValue corner = JS.invoke(buildCommon, "makeSpan", a10, a11);
++  JsValue a13 = JS.array(JS.call(makeSymbol, undef(), symbol, font, mode));
++  JS.invoke(a11, "push", JS.call(makeSpan, undef(), a12, a13));
++  JsValue corner = JS.call(makeSpan, undef(), a10, a11);
+   JsValue o14 = JS.object("type", "elem", "elem", corner);
+   return o14;
+   return undef();
+@@ -137,7 +139,7 @@
+   JsValue svgNode = JS.construct(SvgNode, a16, o17);
+   JsValue a18 = JS.array();
+   JsValue a19 = JS.array(svgNode);
+-  JsValue span = JS.invoke(buildCommon, "makeSvgSpan", a18, a19, options);
++  JsValue span = JS.call(makeSvgSpan, undef(), a18, a19, options);
+   span["height"] = height;
+   span["style"]["height"] = JS.call(makeEm, undef(), height);
+   span["style"]["width"] = JS.call(makeEm, undef(), width);
+@@ -353,7 +355,7 @@
+     JsValue width = JS.add(JS.invoke(toNum(viewBoxWidth) / 1000, "toFixed", 3), "em");
+     JsValue height = JS.add(JS.invoke(viewBoxHeight / 1000, "toFixed", 3), "em");
+     JsValue svg = JS.construct(SvgNode, JS.array(path), JS.object("width", width, "height", height, "viewBox", "0 0 " + toStr(viewBoxWidth) + " " + toStr(viewBoxHeight)));
+-    JsValue wrapper = JS.invoke(buildCommon, "makeSvgSpan", JS.array(), JS.array(svg), options);
++    JsValue wrapper = JS.call(makeSvgSpan, undef(), JS.array(), JS.array(svg), options);
+     wrapper["height"] = viewBoxHeight / 1000;
+     wrapper["style"]["width"] = width;
+     wrapper["style"]["height"] = height;
+@@ -375,9 +377,9 @@
+     JS.invoke(stack, "push", lap);
+     JS.invoke(stack, "push", JS.call(makeGlyphSpan, undef(), top, font, mode));
+   }
+-  JsValue newOptions = JS.invoke(options, "havingBaseStyle", Style["TEXT"]);
+-  JsValue inner = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "bottom", "positionData", depth, "children", stack), newOptions);
+-  return JS.call(styleWrap, undef(), JS.invoke(buildCommon, "makeSpan", JS.array("delimsizing", "mult"), JS.array(inner), newOptions), Style["TEXT"], options, classes);
++  JsValue newOptions = JS.invoke(options, "havingBaseStyle", TEXT);
++  JsValue inner = JS.call(makeVList, undef(), JS.object("positionType", "bottom", "positionData", depth, "children", stack), newOptions);
++  return JS.call(styleWrap, undef(), JS.call(makeSpan, undef(), JS.array("delimsizing", "mult"), JS.array(inner), newOptions), TEXT, options, classes);
+   return undef();
+ };
+ vbPad = 80;
+@@ -390,7 +392,7 @@
+   JsValue svg = JS.construct(SvgNode, a33, o34);
+   JsValue a35 = JS.array("hide-tail");
+   JsValue a36 = JS.array(svg);
+-  return JS.invoke(buildCommon, "makeSvgSpan", a35, a36, options);
++  return JS.call(makeSvgSpan, undef(), a35, a36, options);
+   return undef();
+ };
+ makeSqrtImage = (JsValue height, JsValue options) => {
+@@ -465,11 +467,11 @@
+   }
+   return undef();
+ };
+-JsValue a44 = JS.array(JS.object("type", "small", "style", Style["SCRIPTSCRIPT"]), JS.object("type", "small", "style", Style["SCRIPT"]), JS.object("type", "small", "style", Style["TEXT"]), JS.object("type", "large", "size", 1), JS.object("type", "large", "size", 2), JS.object("type", "large", "size", 3), JS.object("type", "large", "size", 4));
++JsValue a44 = JS.array(JS.object("type", "small", "style", SCRIPTSCRIPT), JS.object("type", "small", "style", SCRIPT), JS.object("type", "small", "style", TEXT), JS.object("type", "large", "size", 1), JS.object("type", "large", "size", 2), JS.object("type", "large", "size", 3), JS.object("type", "large", "size", 4));
+ stackNeverDelimiterSequence = a44;
+-JsValue a52 = JS.array(JS.object("type", "small", "style", Style["SCRIPTSCRIPT"]), JS.object("type", "small", "style", Style["SCRIPT"]), JS.object("type", "small", "style", Style["TEXT"]), JS.object("type", "stack"));
++JsValue a52 = JS.array(JS.object("type", "small", "style", SCRIPTSCRIPT), JS.object("type", "small", "style", SCRIPT), JS.object("type", "small", "style", TEXT), JS.object("type", "stack"));
+ stackAlwaysDelimiterSequence = a52;
+-JsValue a57 = JS.array(JS.object("type", "small", "style", Style["SCRIPTSCRIPT"]), JS.object("type", "small", "style", Style["SCRIPT"]), JS.object("type", "small", "style", Style["TEXT"]), JS.object("type", "large", "size", 1), JS.object("type", "large", "size", 2), JS.object("type", "large", "size", 3), JS.object("type", "large", "size", 4), JS.object("type", "stack"));
++JsValue a57 = JS.array(JS.object("type", "small", "style", SCRIPTSCRIPT), JS.object("type", "small", "style", SCRIPT), JS.object("type", "small", "style", TEXT), JS.object("type", "large", "size", 1), JS.object("type", "large", "size", 2), JS.object("type", "large", "size", 3), JS.object("type", "large", "size", 4), JS.object("type", "stack"));
+ stackLargeDelimiterSequence = a57;
+ delimTypeToFont = (JsValue type) => {
+   if (JS.strictEqual(type["type"], "small")) {
+
+--- a/src/entry.lil
++++ b/src/entry.lil
+@@ -18,6 +18,8 @@
+ import "./environments.lil";
+ 
+ import { emptyObject, getDocument, isUndef, instanceOf, isNullish } from "./host.lil";
++import { makeSpan } from "./buildCommon.lil";
++import { undef } from "./host.lil";
+ 
+ string katexVersion = "0.16.22";
+ 
+@@ -46,10 +48,10 @@
+     throw error;
+   }
+   JsValue kids = JS.array();
+-  JS.push(kids, JS.construct(SymbolNode, expression));
++  JS.invoke(kids, "push", JS.construct(SymbolNode, expression));
+   JsValue classes = JS.array();
+-  JS.push(classes, "katex-error");
+-  JsValue node = JS.invoke(buildCommon, "makeSpan", classes, kids);
++  JS.invoke(classes, "push", "katex-error");
++  JsValue node = JS.call(makeSpan, undef(), classes, kids);
+   JS.invoke(node, "setAttribute", "title", JS.invoke(error, "toString"));
+   JS.invoke(node, "setAttribute", "style", JS.add("color:", options["errorColor"]));
+   return node;
+
 --- a/src/environments/array.lil
 +++ b/src/environments/array.lil
-@@ -617,7 +617,7 @@
+@@ -15,6 +15,9 @@
+ import { utils } from "../utils.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeFragment, makeLineSpan, makeSpan, makeVList } from "../buildCommon.lil";
++import { SCRIPT } from "../Style.lil";
+ 
+ JsValue alignMap = undef();
+ 
+@@ -29,7 +32,7 @@
+   }
+   while (nxt == "\\hline" || nxt == "\\hdashline") {
+     JS.invoke(parser, "consume");
+-    JS.push(hlineInfo, nxt == "\\hdashline");
++    JS.invoke(hlineInfo, "push", nxt == "\\hdashline");
+     JS.invoke(parser, "consumeSpaces");
+     nxt = toStr(JS.invoke(parser, "fetch")["text"]);
+   }
+@@ -92,20 +95,20 @@
+   JsValue endRow = () => {
+   if (tags.truthy()) {
+     if (JS.invoke(parser["gullet"]["macros"], "get", "\\df@tag").truthy()) {
+-      JS.push(tags, JS.invoke(parser, "subparse", JS.array(JS.construct(Token, "\\df@tag"))));
++      JS.invoke(tags, "push", JS.invoke(parser, "subparse", JS.array(JS.construct(Token, "\\df@tag"))));
+       JS.invoke(parser["gullet"]["macros"], "set", "\\df@tag", undef(), true);
+     } else {
+       bool tag = false;
+       if (autoTag.truthy()) {
+         tag = JS.strictEqual(JS.invoke(parser["gullet"]["macros"], "get", "\\@eqnsw"), "1");
+       }
+-      JS.push(tags, tag);
++      JS.invoke(tags, "push", tag);
+     }
+   }
+   return undef();
+   };
+   JS.call(beginRow, undef());
+-  JS.push(hLinesBeforeRow, getHLines(parser));
++  JS.invoke(hLinesBeforeRow, "push", getHLines(parser));
+   while (true) {
+     string endToken = "\\\\";
+     if (singleRow.truthy()) {
+@@ -118,7 +121,7 @@
+     if (style.truthy()) {
+       cell = JS.object("type", "styling", "mode", parser["mode"], "style", style, "body", JS.array(cell));
+     }
+-    JS.push(row, cell);
++    JS.invoke(row, "push", cell);
+     string next = toStr(JS.invoke(parser, "fetch")["text"]);
+     if (next == "&") {
+       if (maxNumCols.truthy() && JS.strictEqual(row["length"], maxNumCols)) {
+@@ -135,7 +138,7 @@
+         JS.invoke(body, "pop");
+       }
+       if (len(hLinesBeforeRow) < len(body) + 1) {
+-        JS.push(hLinesBeforeRow, JS.array());
++        JS.invoke(hLinesBeforeRow, "push", JS.array());
+       }
+       break;
+     } else if (next == "\\\\") {
+@@ -145,14 +148,14 @@
+         size = JS.invoke(parser, "parseSizeGroup", true);
+       }
+       if (size.truthy()) {
+-        JS.push(rowGaps, size["value"]);
++        JS.invoke(rowGaps, "push", size["value"]);
+       } else {
+-        JS.push(rowGaps, null);
++        JS.invoke(rowGaps, "push", null);
+       }
+       JS.call(endRow, undef());
+-      JS.push(hLinesBeforeRow, getHLines(parser));
++      JS.invoke(hLinesBeforeRow, "push", getHLines(parser));
+       row = JS.array();
+-      JS.push(body, row);
++      JS.invoke(body, "push", row);
+       JS.call(beginRow, undef());
+     } else {
+       throw JS.construct(ParseError, "Expected & or \\\\ or \\cr or \\end", parser["nextToken"]);
+@@ -178,7 +181,7 @@
+   number pt = 1.0 / toNum(JS.invoke(options, "fontMetrics")["ptPerEm"]);
+   number arraycolsep = 5.0 * pt;
+   if ((group["colSeparationType"].truthy()) && (JS.strictEqual(group["colSeparationType"], "small"))) {
+-    number localMultiplier = toNum(JS.invoke(options, "havingStyle", Style["SCRIPT"])["sizeMultiplier"]);
++    number localMultiplier = toNum(JS.invoke(options, "havingStyle", SCRIPT)["sizeMultiplier"]);
+     arraycolsep = 0.2778 * localMultiplier / toNum(options["sizeMultiplier"]);
+   }
+   number baselineskip = 12.0 * pt;
+@@ -196,7 +199,7 @@
+       if (i > 0) {
+         totalHeight = totalHeight + 0.25;
+       }
+-      JS.push(hlines, JS.object("pos", totalHeight, "isDashed", hlinesInGap[i]));
++      JS.invoke(hlines, "push", JS.object("pos", totalHeight, "isDashed", hlinesInGap[i]));
+     }
+   }
+   return undef();
+@@ -267,15 +270,15 @@
+         JsValue tag = group["tags"][r];
+         JsValue tagSpan = undef();
+         if (JS.strictEqual(tag, true)) {
+-          tagSpan = JS.invoke(buildCommon, "makeSpan", JS.array("eqn-num"), JS.array(), options);
++          tagSpan = JS.call(makeSpan, undef(), JS.array("eqn-num"), JS.array(), options);
+         } else if (JS.strictEqual(tag, false)) {
+-          tagSpan = JS.invoke(buildCommon, "makeSpan", JS.array(), JS.array(), options);
++          tagSpan = JS.call(makeSpan, undef(), JS.array(), JS.array(), options);
+         } else {
+-          tagSpan = JS.invoke(buildCommon, "makeSpan", JS.array(), JS.invoke(html, "buildExpression", tag, options, true), options);
++          tagSpan = JS.call(makeSpan, undef(), JS.array(), JS.invoke(html, "buildExpression", tag, options, true), options);
+         }
+         tagSpan["depth"] = rw["depth"];
+         tagSpan["height"] = rw["height"];
+-        JS.push(tagSpans, JS.object("type", "elem", "elem", tagSpan, "shift", shift));
++        JS.invoke(tagSpans, "push", JS.object("type", "elem", "elem", tagSpan, "shift", shift));
+       }
+     }
+   }
+@@ -290,16 +293,16 @@
+       bool firstSeparator = true;
+       while (JS.strictEqual(colDescr["type"], "separator")) {
+         if (!firstSeparator) {
+-          colSep = JS.invoke(buildCommon, "makeSpan", JS.array("arraycolsep"), JS.array());
++          colSep = JS.call(makeSpan, undef(), JS.array("arraycolsep"), JS.array());
+           colSep["style"]["width"] = JS.call(makeEm, undef(), JS.invoke(options, "fontMetrics")["doubleRuleSep"]);
+-          JS.push(cols, colSep);
++          JS.invoke(cols, "push", colSep);
+         }
+         if ((JS.strictEqual(colDescr["separator"], "|")) || (JS.strictEqual(colDescr["separator"], ":"))) {
+           string lineType = "dashed";
+           if (JS.strictEqual(colDescr["separator"], "|")) {
+             lineType = "solid";
+           }
+-          JsValue separator = JS.invoke(buildCommon, "makeSpan", JS.array("vertical-separator"), JS.array(), options);
++          JsValue separator = JS.call(makeSpan, undef(), JS.array("vertical-separator"), JS.array(), options);
+           separator["style"]["height"] = JS.call(makeEm, undef(), totalHeight);
+           separator["style"]["borderRightWidth"] = JS.call(makeEm, undef(), ruleThickness);
+           separator["style"]["borderRightStyle"] = lineType;
+@@ -308,7 +311,7 @@
+           if (shift != 0.0) {
+             separator["style"]["verticalAlign"] = JS.call(makeEm, undef(), 0.0 - shift);
+           }
+-          JS.push(cols, separator);
++          JS.invoke(cols, "push", separator);
+         } else {
+           throw JS.construct(ParseError, "Invalid separator type: " + toStr(colDescr["separator"]));
+         }
+@@ -328,9 +331,9 @@
+       if (c > 0 || group["hskipBeforeAndAfter"].truthy()) {
+         sepwidth = JS.invoke(utils, "deflt", colDescr["pregap"], arraycolsep);
+         if (JS.strictNotEqual(sepwidth, 0)) {
+-          colSep = JS.invoke(buildCommon, "makeSpan", JS.array("arraycolsep"), JS.array());
++          colSep = JS.call(makeSpan, undef(), JS.array("arraycolsep"), JS.array());
+           colSep["style"]["width"] = JS.call(makeEm, undef(), sepwidth);
+-          JS.push(cols, colSep);
++          JS.invoke(cols, "push", colSep);
+         }
+       }
+       JsValue col = JS.array();
+@@ -350,54 +353,54 @@
+           r = r + 1;
+         }
+       }
+-      col = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "individualShift", "children", col), options);
++      col = JS.call(makeVList, undef(), JS.object("positionType", "individualShift", "children", col), options);
+       JsValue colAlign = colDescr["align"];
+       if (!(colAlign.truthy())) {
+         colAlign = "c";
+       }
+-      col = JS.invoke(buildCommon, "makeSpan", JS.array("col-align-" + toStr(colAlign)), JS.array(col));
+-      JS.push(cols, col);
++      col = JS.call(makeSpan, undef(), JS.array("col-align-" + toStr(colAlign)), JS.array(col));
++      JS.invoke(cols, "push", col);
+       if (c < nc - 1 || group["hskipBeforeAndAfter"].truthy()) {
+         sepwidth = JS.invoke(utils, "deflt", colDescr["postgap"], arraycolsep);
+         if (JS.strictNotEqual(sepwidth, 0)) {
+-          colSep = JS.invoke(buildCommon, "makeSpan", JS.array("arraycolsep"), JS.array());
++          colSep = JS.call(makeSpan, undef(), JS.array("arraycolsep"), JS.array());
+           colSep["style"]["width"] = JS.call(makeEm, undef(), sepwidth);
+-          JS.push(cols, colSep);
++          JS.invoke(cols, "push", colSep);
+         }
+       }
+       c = c + 1;
+       colDescrNum = colDescrNum + 1;
+     }
+   }
+-  body = JS.invoke(buildCommon, "makeSpan", JS.array("mtable"), cols);
++  body = JS.call(makeSpan, undef(), JS.array("mtable"), cols);
+   if (len(hlines) > 0) {
+-    JsValue line = JS.invoke(buildCommon, "makeLineSpan", "hline", options, ruleThickness);
+-    JsValue dashes = JS.invoke(buildCommon, "makeLineSpan", "hdashline", options, ruleThickness);
++    JsValue line = JS.call(makeLineSpan, undef(), "hline", options, ruleThickness);
++    JsValue dashes = JS.call(makeLineSpan, undef(), "hdashline", options, ruleThickness);
+     JsValue vListElems = JS.array(JS.object("type", "elem", "elem", body, "shift", 0));
+     while (len(hlines) > 0) {
+       JsValue hline = JS.invoke(hlines, "pop");
+       number lineShift = toNum(hline["pos"]) - offset;
+       if (hline["isDashed"].truthy()) {
+-        JS.push(vListElems, JS.object("type", "elem", "elem", dashes, "shift", lineShift));
++        JS.invoke(vListElems, "push", JS.object("type", "elem", "elem", dashes, "shift", lineShift));
+       } else {
+-        JS.push(vListElems, JS.object("type", "elem", "elem", line, "shift", lineShift));
++        JS.invoke(vListElems, "push", JS.object("type", "elem", "elem", line, "shift", lineShift));
+       }
+     }
+-    body = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "individualShift", "children", vListElems), options);
++    body = JS.call(makeVList, undef(), JS.object("positionType", "individualShift", "children", vListElems), options);
+   }
+   if (len(tagSpans) == 0) {
+-    return JS.invoke(buildCommon, "makeSpan", JS.array("mord"), JS.array(body), options);
++    return JS.call(makeSpan, undef(), JS.array("mord"), JS.array(body), options);
+   } else {
+-    JsValue eqnNumCol = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "individualShift", "children", tagSpans), options);
+-    eqnNumCol = JS.invoke(buildCommon, "makeSpan", JS.array("tag"), JS.array(eqnNumCol));
+-    return JS.invoke(buildCommon, "makeFragment", JS.array(body, eqnNumCol));
++    JsValue eqnNumCol = JS.call(makeVList, undef(), JS.object("positionType", "individualShift", "children", tagSpans), options);
++    eqnNumCol = JS.call(makeSpan, undef(), JS.array("tag"), JS.array(eqnNumCol));
++    return JS.call(makeFragment, undef(), JS.array(body, eqnNumCol));
+   }
+ }
+ alignMap = JS.object("c", "center ", "l", "left ", "r", "right ");
+ JsValue mathmlBuilder(JsValue group, JsValue options) {
+   JsValue tbl = JS.array();
+-  JsValue glue = JS.construct(mathMLTree["MathNode"], "mtd", JS.array(), JS.array("mtr-glue"));
+-  JsValue tag = JS.construct(mathMLTree["MathNode"], "mtd", JS.array(), JS.array("mml-eqn-num"));
++  JsValue glue = JS.construct(MathNode, "mtd", JS.array(), JS.array("mtr-glue"));
++  JsValue tag = JS.construct(MathNode, "mtd", JS.array(), JS.array("mml-eqn-num"));
+   {
+     for (int i = 0; i < len(group["body"]); i++) {
+       JsValue rw = group["body"][i];
+@@ -405,7 +408,7 @@
+       {
+         int j = 0;
+         while (j < len(rw)) {
+-          JS.push(row, JS.construct(mathMLTree["MathNode"], "mtd", JS.array(JS.invoke(mml, "buildGroup", rw[j], options))));
++          JS.invoke(row, "push", JS.construct(MathNode, "mtd", JS.array(JS.invoke(mml, "buildGroup", rw[j], options))));
+           j = j + 1;
+         }
+       }
+@@ -418,10 +421,10 @@
+           JS.invoke(row, "push", tag);
+         }
+       }
+-      JS.push(tbl, JS.construct(mathMLTree["MathNode"], "mtr", row));
++      JS.invoke(tbl, "push", JS.construct(MathNode, "mtr", row));
+     }
+   }
+-  JsValue table = JS.construct(mathMLTree["MathNode"], "mtable", tbl);
++  JsValue table = JS.construct(MathNode, "mtable", tbl);
+   number gap = 0.0;
+   if (JS.strictEqual(group["arraystretch"], 0.5)) {
+     gap = 0.1;
+@@ -530,11 +533,11 @@
+     JS.invoke(table, "setAttribute", "rowlines", rowLines.trim());
+   }
+   if (menclose != "") {
+-    table = JS.construct(mathMLTree["MathNode"], "menclose", JS.array(table));
++    table = JS.construct(MathNode, "menclose", JS.array(table));
+     JS.invoke(table, "setAttribute", "notation", menclose.trim());
+   }
+   if ((group["arraystretch"].truthy()) && (JS.lessThan(group["arraystretch"], 1))) {
+-    table = JS.construct(mathMLTree["MathNode"], "mstyle", JS.array(table));
++    table = JS.construct(MathNode, "mstyle", JS.array(table));
+     JS.invoke(table, "setAttribute", "scriptlevel", "1");
+   }
+   return table;
+@@ -617,7 +620,7 @@
    return res;
  }
  JsValue arrayEnvironment = JS.object("type", "array", "names", JS.array("array", "darray"), "props", JS.object("numArgs", 1));
@@ -35,7 +798,7 @@
    JsValue symNode = JS.call(checkSymbolNodeType, undef(), args[0]);
    JsValue colalign = undef();
    if (symNode.truthy()) {
-@@ -639,13 +639,13 @@
+@@ -639,13 +642,13 @@
    JsValue payload = JS.object("cols", cols, "hskipBeforeAndAfter", true, "maxNumCols", len(cols));
    return parseArray(context["parser"], payload, dCellStyle(toStr(context["envName"])));
    return undef();
@@ -51,7 +814,7 @@
    JsValue delimitersByName = JS.object("matrix", null, "pmatrix", JS.array("(", ")"), "bmatrix", JS.array("[", "]"), "Bmatrix", JS.array("\\{", "\\}"), "vmatrix", JS.array("|", "|"), "Vmatrix", JS.array("\\Vert", "\\Vert"));
    string envName = toStr(context["envName"]);
    JsValue delimiters = delimitersByName[JS.invoke(envName, "replace", "*", "")];
-@@ -678,24 +678,24 @@
+@@ -678,24 +681,24 @@
    }
    return res;
    return undef();
@@ -80,7 +843,7 @@
    JsValue symNode = JS.call(checkSymbolNodeType, undef(), args[0]);
    JsValue colalign = undef();
    if (symNode.truthy()) {
-@@ -722,13 +722,13 @@
+@@ -722,13 +725,13 @@
    }
    return res;
    return undef();
@@ -96,7 +859,7 @@
    JsValue payload = JS.object("arraystretch", 1.2, "cols", JS.array(JS.object("type", "align", "align", "l", "pregap", 0, "postgap", 1), JS.object("type", "align", "align", "l", "pregap", 0, "postgap", 0)));
    JsValue res = parseArray(context["parser"], payload, dCellStyle(toStr(context["envName"])));
    string left = "\\{";
-@@ -739,7 +739,7 @@
+@@ -739,7 +742,7 @@
    }
    return JS.object("type", "leftright", "mode", context["mode"], "body", JS.array(res), "left", left, "right", right, "rightColor", undef());
    return undef();
@@ -105,7 +868,7 @@
  casesEnvironment["htmlBuilder"] = htmlBuilder;
  casesEnvironment["mathmlBuilder"] = mathmlBuilder;
  JS.call(defineEnvironment, undef(), casesEnvironment);
-@@ -748,14 +748,14 @@
+@@ -748,14 +751,14 @@
  JS.call(defineEnvironment, undef(), alignEnvironment);
  
  JsValue gatherEnvironment = JS.object("type", "array", "names", JS.array("gathered", "gather", "gather*"), "props", JS.object("numArgs", 0));
@@ -122,7 +885,7 @@
  gatherEnvironment["htmlBuilder"] = htmlBuilder;
  gatherEnvironment["mathmlBuilder"] = mathmlBuilder;
  JS.call(defineEnvironment, undef(), gatherEnvironment);
-@@ -764,22 +764,22 @@
+@@ -764,22 +767,22 @@
  JS.call(defineEnvironment, undef(), alignatEnvironment);
  
  JsValue equationEnvironment = JS.object("type", "array", "names", JS.array("equation", "equation*"), "props", JS.object("numArgs", 0));
@@ -149,7 +912,7 @@
  cdEnvironment["htmlBuilder"] = htmlBuilder;
  cdEnvironment["mathmlBuilder"] = mathmlBuilder;
  JS.call(defineEnvironment, undef(), cdEnvironment);
-@@ -787,10 +787,10 @@
+@@ -787,10 +790,10 @@
  JS.call(defineMacro, undef(), "\\nonumber", "\\gdef\\@eqnsw{0}");
  JS.call(defineMacro, undef(), "\\notag", "\\nonumber");
  JsValue hlineFunction = JS.object("type", "text", "names", JS.array("\\hline", "\\hdashline"), "props", JS.object("numArgs", 0, "allowedInText", true, "allowedInMath", true));
@@ -165,7 +928,16 @@
 
 --- a/src/environments/cd.lil
 +++ b/src/environments/cd.lil
-@@ -209,7 +209,7 @@
+@@ -8,6 +8,8 @@
+ import { makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { wrapFragment } from "../buildCommon.lil";
+ 
+ JsValue cdArrowFunctionName = undef();
+ JsValue newCell = undef();
+@@ -209,7 +211,7 @@
  JsValue o45 = JS.object("type", "cdlabel", "names", JS.array("\\\\cdleft", "\\\\cdright"));
  JsValue o47 = JS.object("numArgs", 1);
  o45["props"] = o47;
@@ -174,7 +946,7 @@
    JsValue op49 = p48;
    JsValue parser = op49["parser"];
    JsValue funcName = op49["funcName"];
-@@ -220,8 +220,8 @@
+@@ -220,39 +222,39 @@
    o50["label"] = args[0];
    return o50;
    return undef();
@@ -183,9 +955,11 @@
 +};
 +o45["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue newOptions = JS.invoke(options, "havingStyle", JS.invoke(options["style"], "sup"));
-   JsValue label = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["label"], newOptions, options), options);
+-  JsValue label = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["label"], newOptions, options), options);
++  JsValue label = JS.call(wrapFragment, undef(), JS.invoke(html, "buildGroup", group["label"], newOptions, options), options);
    JS.invoke(label["classes"], "push", JS.add("cd-label-", group["side"]));
-@@ -230,8 +230,8 @@
+   label["style"]["bottom"] = JS.call(makeEm, undef(), (toNum(0.8) - toNum(label["depth"])));
+   label["height"] = 0;
    label["depth"] = 0;
    return label;
    return undef();
@@ -194,9 +968,20 @@
 +};
 +o45["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a51 = JS.array(JS.invoke(mml, "buildGroup", group["label"], options));
-   JsValue label = JS.construct(mathMLTree["MathNode"], "mrow", a51);
+-  JsValue label = JS.construct(mathMLTree["MathNode"], "mrow", a51);
++  JsValue label = JS.construct(MathNode, "mrow", a51);
    JsValue a52 = JS.array(label);
-@@ -247,12 +247,12 @@
+-  label = JS.construct(mathMLTree["MathNode"], "mpadded", a52);
++  label = JS.construct(MathNode, "mpadded", a52);
+   JS.invoke(label, "setAttribute", "width", "0");
+   if (JS.strictEqual(group["side"], "left")) {
+     JS.invoke(label, "setAttribute", "lspace", "-1width");
+   }
+   JS.invoke(label, "setAttribute", "voffset", "0.7em");
+   JsValue a53 = JS.array(label);
+-  label = JS.construct(mathMLTree["MathNode"], "mstyle", a53);
++  label = JS.construct(MathNode, "mstyle", a53);
+   JS.invoke(label, "setAttribute", "displaystyle", "false");
    JS.invoke(label, "setAttribute", "scriptlevel", "1");
    return label;
    return undef();
@@ -211,15 +996,16 @@
    JsValue op58 = p57;
    JsValue parser = op58["parser"];
    JsValue o59 = emptyObject();
-@@ -261,18 +261,18 @@
+@@ -261,18 +263,18 @@
    o59["fragment"] = args[0];
    return o59;
    return undef();
 -});
 -o54["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  JsValue parent = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["fragment"], options), options);
 +};
 +o54["htmlBuilder"] = (JsValue group, JsValue options) => {
-   JsValue parent = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["fragment"], options), options);
++  JsValue parent = JS.call(wrapFragment, undef(), JS.invoke(html, "buildGroup", group["fragment"], options), options);
    JS.invoke(parent["classes"], "push", "cd-vert-arrow");
    return parent;
    return undef();
@@ -228,7 +1014,8 @@
 +};
 +o54["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a60 = JS.array(JS.invoke(mml, "buildGroup", group["fragment"], options));
-   return JS.construct(mathMLTree["MathNode"], "mrow", a60);
+-  return JS.construct(mathMLTree["MathNode"], "mrow", a60);
++  return JS.construct(MathNode, "mrow", a60);
    return undef();
 -});
 +};
@@ -236,9 +1023,142 @@
  JsValue __star = JS.object("parseCD", parseCD);
  
 
+--- a/src/functions/accent.lil
++++ b/src/functions/accent.lil
+@@ -10,6 +10,8 @@
+ import { makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeOrd, makeSpan, makeVList, staticSvg, svgData } from "../buildCommon.lil";
+ 
+ JsValue htmlBuilder = undef();
+ JsValue mathmlBuilder = undef();
+@@ -54,11 +56,11 @@
+     JsValue accent = undef();
+     JsValue width = undef();
+     if (JS.strictEqual(group["label"], "\\vec")) {
+-      accent = JS.invoke(buildCommon, "staticSvg", "vec", options);
+-      width = buildCommon["svgData"]["vec"][1];
++      accent = JS.call(staticSvg, undef(), "vec", options);
++      width = svgData["vec"][1];
+     } else {
+       JsValue o3 = JS.object("mode", group["mode"], "text", group["label"]);
+-      accent = JS.invoke(buildCommon, "makeOrd", o3, options, "textord");
++      accent = JS.call(makeOrd, undef(), o3, options, "textord");
+       accent = JS.call(assertSymbolDomNode, undef(), accent);
+       accent["italic"] = 0;
+       width = accent["width"];
+@@ -68,7 +70,7 @@
+     }
+     JsValue a4 = JS.array("accent-body");
+     JsValue a5 = JS.array(accent);
+-    accentBody = JS.invoke(buildCommon, "makeSpan", a4, a5);
++    accentBody = JS.call(makeSpan, undef(), a4, a5);
+     JsValue accentFull = JS.strictEqual(group["label"], "\\textcircled");
+     if (accentFull.truthy()) {
+       JS.invoke(accentBody["classes"], "push", "accent-full");
+@@ -83,13 +85,13 @@
+       accentBody["style"]["top"] = ".2em";
+     }
+     JsValue o6 = JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", body), JS.object("type", "kern", "size", JS.number(0) - toNum(clearance)), JS.object("type", "elem", "elem", accentBody)));
+-    accentBody = JS.invoke(buildCommon, "makeVList", o6, options);
++    accentBody = JS.call(makeVList, undef(), o6, options);
+   } else {
+     accentBody = JS.invoke(stretchy, "svgSpan", group, options);
+     JsValue o11 = JS.object("positionType", "firstBaseline");
+     JsValue a12 = newArray();
+     JsValue o13 = JS.object("type", "elem", "elem", body);
+-    JS.push(a12, o13);
++    JS.invoke(a12, "push", o13);
+     JsValue o14 = JS.object("type", "elem", "elem", accentBody, "wrapperClasses", JS.array("svg-align"));
+     JsValue c16 = undef();
+     if (JS.greaterThan(skew, 0)) {
+@@ -99,13 +101,13 @@
+       c16 = undef();
+     }
+     o14["wrapperStyle"] = c16;
+-    JS.push(a12, o14);
++    JS.invoke(a12, "push", o14);
+     o11["children"] = a12;
+-    accentBody = JS.invoke(buildCommon, "makeVList", o11, options);
++    accentBody = JS.call(makeVList, undef(), o11, options);
+   }
+   JsValue a18 = JS.array("mord", "accent");
+   JsValue a19 = JS.array(accentBody);
+-  JsValue accentWrap = JS.invoke(buildCommon, "makeSpan", a18, a19, options);
++  JsValue accentWrap = JS.call(makeSpan, undef(), a18, a19, options);
+   if (supSubGroup.truthy()) {
+     supSubGroup["children"][0] = accentWrap;
+     supSubGroup["height"] = JS.invoke(Math, "max", accentWrap["height"], supSubGroup["height"]);
+@@ -122,11 +124,11 @@
+     c20 = JS.invoke(stretchy, "mathMLnode", group["label"]);
+   } else {
+     JsValue a21 = JS.array(JS.invoke(mml, "makeText", group["label"], group["mode"]));
+-    c20 = JS.construct(mathMLTree["MathNode"], "mo", a21);
++    c20 = JS.construct(MathNode, "mo", a21);
+   }
+   JsValue accentNode = c20;
+   JsValue a22 = JS.array(JS.invoke(mml, "buildGroup", group["base"], options), accentNode);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mover", a22);
++  JsValue node = JS.construct(MathNode, "mover", a22);
+   JS.invoke(node, "setAttribute", "accent", "true");
+   return node;
+   return undef();
+
+--- a/src/functions/accentunder.lil
++++ b/src/functions/accentunder.lil
+@@ -6,6 +6,8 @@
+ import { stretchy } from "../stretchy.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeVList } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "accentUnder", "names", JS.array("\\underleftarrow", "\\underrightarrow", "\\underleftrightarrow", "\\undergroup", "\\underlinesegment", "\\utilde"));
+ JsValue o3 = JS.object("numArgs", 1);
+@@ -32,16 +34,16 @@
+   JsValue o8 = JS.object("positionType", "top", "positionData", innerGroup["height"]);
+   JsValue a9 = JS.array(JS.object("type", "elem", "elem", accentBody, "wrapperClasses", JS.array("svg-align")), JS.object("type", "kern", "size", kern), JS.object("type", "elem", "elem", innerGroup));
+   o8["children"] = a9;
+-  JsValue vlist = JS.invoke(buildCommon, "makeVList", o8, options);
++  JsValue vlist = JS.call(makeVList, undef(), o8, options);
+   JsValue a14 = JS.array("mord", "accentunder");
+   JsValue a15 = JS.array(vlist);
+-  return JS.invoke(buildCommon, "makeSpan", a14, a15, options);
++  return JS.call(makeSpan, undef(), a14, a15, options);
+   return undef();
+ };
+ o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue accentNode = JS.invoke(stretchy, "mathMLnode", group["label"]);
+   JsValue a16 = JS.array(JS.invoke(mml, "buildGroup", group["base"], options), accentNode);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "munder", a16);
++  JsValue node = JS.construct(MathNode, "munder", a16);
+   JS.invoke(node, "setAttribute", "accentunder", "true");
+   return node;
+   return undef();
+
 --- a/src/functions/arrow.lil
 +++ b/src/functions/arrow.lil
-@@ -27,7 +27,7 @@
+@@ -6,6 +6,8 @@
+ import { stretchy } from "../stretchy.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeVList, wrapFragment } from "../buildCommon.lil";
+ 
+ JsValue paddedNode = undef();
+ 
+@@ -18,7 +20,7 @@
+     JsValue a3 = JS.array();
+     c1 = a3;
+   }
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", c1);
++  JsValue node = JS.construct(MathNode, "mpadded", c1);
+   JS.invoke(node, "setAttribute", "width", "+0.6em");
+   JS.invoke(node, "setAttribute", "lspace", "0.3em");
+   return node;
+@@ -27,7 +29,7 @@
  JsValue o4 = JS.object("type", "xArrow", "names", JS.array("\\xleftarrow", "\\xrightarrow", "\\xLeftarrow", "\\xRightarrow", "\\xleftrightarrow", "\\xLeftrightarrow", "\\xhookleftarrow", "\\xhookrightarrow", "\\xmapsto", "\\xrightharpoondown", "\\xrightharpoonup", "\\xleftharpoondown", "\\xleftharpoonup", "\\xrightleftharpoons", "\\xleftrightharpoons", "\\xlongequal", "\\xtwoheadrightarrow", "\\xtwoheadleftarrow", "\\xtofrom", "\\xrightleftarrows", "\\xrightequilibrium", "\\xleftequilibrium", "\\\\cdrightarrow", "\\\\cdleftarrow", "\\\\cdlongequal"));
  JsValue o6 = JS.object("numArgs", 1, "numOptionalArgs", 1);
  o4["props"] = o6;
@@ -247,7 +1167,7 @@
    JsValue op8 = p7;
    JsValue parser = op8["parser"];
    JsValue funcName = op8["funcName"];
-@@ -39,8 +39,8 @@
+@@ -39,11 +41,11 @@
    o9["below"] = optArgs[0];
    return o9;
    return undef();
@@ -257,10 +1177,41 @@
 +o4["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue style = options["style"];
    JsValue newOptions = JS.invoke(options, "havingStyle", JS.invoke(style, "sup"));
-   JsValue upperGroup = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["body"], newOptions, options), options);
-@@ -104,8 +104,8 @@
+-  JsValue upperGroup = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["body"], newOptions, options), options);
++  JsValue upperGroup = JS.call(wrapFragment, undef(), JS.invoke(html, "buildGroup", group["body"], newOptions, options), options);
+   JsValue c10 = undef();
+   if (JS.strictEqual(JS.invoke(group["label"], "slice", 0, 2), "\\x")) {
+     c10 = "x";
+@@ -55,7 +57,7 @@
+   JsValue lowerGroup = undef();
+   if (group["below"].truthy()) {
+     newOptions = JS.invoke(options, "havingStyle", JS.invoke(style, "sub"));
+-    lowerGroup = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["below"], newOptions, options), options);
++    lowerGroup = JS.call(wrapFragment, undef(), JS.invoke(html, "buildGroup", group["below"], newOptions, options), options);
+     JS.invoke(lowerGroup["classes"], "push", JS.add(arrowPrefix, "-arrow-pad"));
+   }
+   JsValue arrowBody = JS.invoke(stretchy, "svgSpan", group, options);
+@@ -83,7 +85,7 @@
+     o15["shift"] = lowerShift;
+     JsValue a12 = JS.array(o13, o14, o15);
+     o11["children"] = a12;
+-    vlist = JS.invoke(buildCommon, "makeVList", o11, options);
++    vlist = JS.call(makeVList, undef(), o11, options);
+   } else {
+     JsValue o16 = emptyObject();
+     o16["positionType"] = "individualShift";
+@@ -97,15 +99,15 @@
+     o19["shift"] = arrowShift;
+     JsValue a17 = JS.array(o18, o19);
+     o16["children"] = a17;
+-    vlist = JS.invoke(buildCommon, "makeVList", o16, options);
++    vlist = JS.call(makeVList, undef(), o16, options);
+   }
+   JS.invoke(vlist["children"][0]["children"][0]["children"][1]["classes"], "push", "svg-align");
+   JsValue a20 = JS.array("mrel", "x-arrow");
    JsValue a21 = JS.array(vlist);
-   return JS.invoke(buildCommon, "makeSpan", a20, a21, options);
+-  return JS.invoke(buildCommon, "makeSpan", a20, a21, options);
++  return JS.call(makeSpan, undef(), a20, a21, options);
    return undef();
 -});
 -o4["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
@@ -269,7 +1220,29 @@
    JsValue arrowNode = JS.invoke(stretchy, "mathMLnode", group["label"]);
    JsValue c22 = undef();
    if (JS.strictEqual(JS.invoke(group["label"], "charAt", 0), "x")) {
-@@ -138,7 +138,7 @@
+@@ -120,25 +122,25 @@
+     if (group["below"].truthy()) {
+       JsValue lowerNode = JS.call(paddedNode, undef(), JS.invoke(mml, "buildGroup", group["below"], options));
+       JsValue a23 = JS.array(arrowNode, lowerNode, upperNode);
+-      node = JS.construct(mathMLTree["MathNode"], "munderover", a23);
++      node = JS.construct(MathNode, "munderover", a23);
+     } else {
+       JsValue a24 = JS.array(arrowNode, upperNode);
+-      node = JS.construct(mathMLTree["MathNode"], "mover", a24);
++      node = JS.construct(MathNode, "mover", a24);
+     }
+   } else {
+     if (group["below"].truthy()) {
+       JsValue lowerNode = JS.call(paddedNode, undef(), JS.invoke(mml, "buildGroup", group["below"], options));
+       JsValue a25 = JS.array(arrowNode, lowerNode);
+-      node = JS.construct(mathMLTree["MathNode"], "munder", a25);
++      node = JS.construct(MathNode, "munder", a25);
+     } else {
+       node = JS.call(paddedNode, undef());
+       JsValue a26 = JS.array(arrowNode, node);
+-      node = JS.construct(mathMLTree["MathNode"], "mover", a26);
++      node = JS.construct(MathNode, "mover", a26);
+     }
    }
    return node;
    return undef();
@@ -302,7 +1275,30 @@
 
 --- a/src/functions/color.lil
 +++ b/src/functions/color.lil
-@@ -25,7 +25,7 @@
+@@ -6,18 +6,20 @@
+ import { assertNodeType } from "../parseNode.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeFragment } from "../buildCommon.lil";
+ 
+ JsValue htmlBuilder = undef();
+ JsValue mathmlBuilder = undef();
+ 
+ htmlBuilder = (JsValue group, JsValue options) => {
+   JsValue elements = JS.invoke(html, "buildExpression", group["body"], JS.invoke(options, "withColor", group["color"]), false);
+-  return JS.invoke(buildCommon, "makeFragment", elements);
++  return JS.call(makeFragment, undef(), elements);
+   return undef();
+ };
+ mathmlBuilder = (JsValue group, JsValue options) => {
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], JS.invoke(options, "withColor", group["color"]));
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mstyle", inner);
++  JsValue node = JS.construct(MathNode, "mstyle", inner);
+   JS.invoke(node, "setAttribute", "mathcolor", group["color"]);
+   return node;
+   return undef();
+@@ -25,7 +27,7 @@
  JsValue o1 = JS.object("type", "color", "names", JS.array("\\textcolor"));
  JsValue o3 = JS.object("numArgs", 2, "allowedInText", true, "argTypes", JS.array("color", "original"));
  o1["props"] = o3;
@@ -311,7 +1307,7 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue color = JS.call(assertNodeType, undef(), args[0], "color-token")["color"];
-@@ -37,14 +37,14 @@
+@@ -37,14 +39,14 @@
    o7["body"] = JS.call(ordargument, undef(), body);
    return o7;
    return undef();
@@ -328,7 +1324,7 @@
    JsValue op13 = p12;
    JsValue parser = op13["parser"];
    JsValue breakOnTokenText = op13["breakOnTokenText"];
-@@ -58,7 +58,7 @@
+@@ -58,7 +60,7 @@
    o14["body"] = body;
    return o14;
    return undef();
@@ -340,7 +1336,13 @@
 
 --- a/src/functions/cr.lil
 +++ b/src/functions/cr.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { calculateSize, makeEm } from "../units.lil";
+ import { assertNodeType } from "../parseNode.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "cr", "names", JS.array("\\\\"));
  JsValue o3 = JS.object("numArgs", 0, "numOptionalArgs", 0, "allowedInText", true);
  o1["props"] = o3;
@@ -349,7 +1351,7 @@
    JsValue op5 = p4;
    JsValue parser = op5["parser"];
    JsValue c6 = undef();
-@@ -35,8 +35,8 @@
+@@ -35,11 +37,11 @@
    o8["size"] = and9;
    return o8;
    return undef();
@@ -359,19 +1361,25 @@
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a10 = JS.array("mspace");
    JsValue a11 = JS.array();
-   JsValue span = JS.invoke(buildCommon, "makeSpan", a10, a11, options);
-@@ -48,8 +48,8 @@
+-  JsValue span = JS.invoke(buildCommon, "makeSpan", a10, a11, options);
++  JsValue span = JS.call(makeSpan, undef(), a10, a11, options);
+   if (group["newLine"].truthy()) {
+     JS.invoke(span["classes"], "push", "newline");
+     if (group["size"].truthy()) {
+@@ -48,9 +50,9 @@
    }
    return span;
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mspace");
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
-   JsValue node = JS.construct(mathMLTree["MathNode"], "mspace");
++  JsValue node = JS.construct(MathNode, "mspace");
    if (group["newLine"].truthy()) {
      JS.invoke(node, "setAttribute", "linebreak", "newline");
-@@ -59,7 +59,7 @@
+     if (group["size"].truthy()) {
+@@ -59,7 +61,7 @@
    }
    return node;
    return undef();
@@ -407,6 +1415,15 @@
    JsValue op13 = p12;
    JsValue parser = op13["parser"];
    JsValue funcName = op13["funcName"];
+@@ -75,7 +75,7 @@
+   JsValue insert = undef();
+   JsValue a14 = newArray();
+   JsValue a15 = JS.array();
+-  JS.push(a14, a15);
++  JS.invoke(a14, "push", a15);
+   JsValue delimiters = a14;
+   while (JS.strictNotEqual(JS.invoke(parser["gullet"], "future")["text"], "{")) {
+     tok = JS.invoke(parser["gullet"], "popToken");
 @@ -123,12 +123,12 @@
    o20["mode"] = parser["mode"];
    return o20;
@@ -447,9 +1464,148 @@
  JsValue __star = emptyObject();
  
 
+--- a/src/functions/delimsizing.lil
++++ b/src/functions/delimsizing.lil
+@@ -10,6 +10,8 @@
+ import { makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
+ JsValue delimiterSizes = undef();
+ JsValue delimiters = undef();
+@@ -75,7 +77,7 @@
+ o19["htmlBuilder"] = (JsValue group, JsValue options) => {
+   if (JS.strictEqual(group["delim"], ".")) {
+     JsValue a24 = JS.array(group["mclass"]);
+-    return JS.invoke(buildCommon, "makeSpan", a24);
++    return JS.call(makeSpan, undef(), a24);
+   }
+   JsValue a25 = JS.array(group["mclass"]);
+   return JS.invoke(delimiter, "sizedDelim", group["delim"], group["size"], options, group["mode"], a25);
+@@ -87,7 +89,7 @@
+   if (JS.strictNotEqual(group["delim"], ".")) {
+     JS.invoke(children, "push", JS.invoke(mml, "makeText", group["delim"], group["mode"]));
+   }
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mo", children);
++  JsValue node = JS.construct(MathNode, "mo", children);
+   if ((JS.strictEqual(group["mclass"], "mopen")) || (JS.strictEqual(group["mclass"], "mclose"))) {
+     JS.invoke(node, "setAttribute", "fence", "true");
+   } else {
+@@ -201,7 +203,7 @@
+   }
+   JS.invoke(inner, "push", rightDelim);
+   JsValue a49 = JS.array("minner");
+-  return JS.invoke(buildCommon, "makeSpan", a49, inner, options);
++  return JS.call(makeSpan, undef(), a49, inner, options);
+   return undef();
+ };
+ o31["mathmlBuilder"] = (JsValue group, JsValue options) => {
+@@ -209,13 +211,13 @@
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], options);
+   if (JS.strictNotEqual(group["left"], ".")) {
+     JsValue a50 = JS.array(JS.invoke(mml, "makeText", group["left"], group["mode"]));
+-    JsValue leftNode = JS.construct(mathMLTree["MathNode"], "mo", a50);
++    JsValue leftNode = JS.construct(MathNode, "mo", a50);
+     JS.invoke(leftNode, "setAttribute", "fence", "true");
+     JS.invoke(inner, "unshift", leftNode);
+   }
+   if (JS.strictNotEqual(group["right"], ".")) {
+     JsValue a51 = JS.array(JS.invoke(mml, "makeText", group["right"], group["mode"]));
+-    JsValue rightNode = JS.construct(mathMLTree["MathNode"], "mo", a51);
++    JsValue rightNode = JS.construct(MathNode, "mo", a51);
+     JS.invoke(rightNode, "setAttribute", "fence", "true");
+     if (group["rightColor"].truthy()) {
+       JS.invoke(rightNode, "setAttribute", "mathcolor", group["rightColor"]);
+@@ -262,7 +264,7 @@
+   }
+   JsValue textNode = c59;
+   JsValue a60 = JS.array(textNode);
+-  JsValue middleNode = JS.construct(mathMLTree["MathNode"], "mo", a60);
++  JsValue middleNode = JS.construct(MathNode, "mo", a60);
+   JS.invoke(middleNode, "setAttribute", "fence", "true");
+   JS.invoke(middleNode, "setAttribute", "lspace", "0.05em");
+   JS.invoke(middleNode, "setAttribute", "rspace", "0.05em");
+
 --- a/src/functions/enclose.lil
 +++ b/src/functions/enclose.lil
-@@ -193,7 +193,7 @@
+@@ -11,12 +11,14 @@
+ import { assertNodeType } from "../parseNode.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeSvgSpan, makeVList, wrapFragment } from "../buildCommon.lil";
+ 
+ JsValue htmlBuilder = undef();
+ JsValue mathmlBuilder = undef();
+ 
+ htmlBuilder = (JsValue group, JsValue options) => {
+-  JsValue inner = JS.invoke(buildCommon, "wrapFragment", JS.invoke(html, "buildGroup", group["body"], options), options);
++  JsValue inner = JS.call(wrapFragment, undef(), JS.invoke(html, "buildGroup", group["body"], options), options);
+   JsValue label = JS.invoke(group["label"], "slice", 1);
+   JsValue scale = options["sizeMultiplier"];
+   JsValue img = undef();
+@@ -24,7 +26,7 @@
+   JsValue isSingleChar = JS.invoke(utils, "isCharacterBox", group["body"]);
+   if (JS.strictEqual(label, "sout")) {
+     JsValue a1 = JS.array("stretchy", "sout");
+-    img = JS.invoke(buildCommon, "makeSpan", a1);
++    img = JS.call(makeSpan, undef(), a1);
+     img["height"] = (toNum(JS.invoke(options, "fontMetrics")["defaultRuleThickness"]) / toNum(scale));
+     imgShift = (toNum(JS.number(0) - toNum(0.5)) * toNum(JS.invoke(options, "fontMetrics")["xHeight"]));
+   } else {
+@@ -44,7 +46,7 @@
+       JsValue svgNode = JS.construct(SvgNode, a4, o5);
+       JsValue a6 = JS.array("hide-tail");
+       JsValue a7 = JS.array(svgNode);
+-      img = JS.invoke(buildCommon, "makeSvgSpan", a6, a7, options);
++      img = JS.call(makeSvgSpan, undef(), a6, a7, options);
+       img["style"]["height"] = JS.call(makeEm, undef(), angleHeight);
+       imgShift = JS.add(JS.add(inner["depth"], lineWeight), clearance);
+     } else {
+@@ -110,7 +112,7 @@
+   JsValue vlist = undef();
+   if (group["backgroundColor"].truthy()) {
+     JsValue o10 = JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", img, "shift", imgShift), JS.object("type", "elem", "elem", inner, "shift", 0)));
+-    vlist = JS.invoke(buildCommon, "makeVList", o10, options);
++    vlist = JS.call(makeVList, undef(), o10, options);
+   } else {
+     JsValue c14 = undef();
+     if (JS.invoke(JS.construct(RegExp, "cancel|phase", ""), "test", label).truthy()) {
+@@ -124,7 +126,7 @@
+     JsValue o17 = JS.object("positionType", "individualShift");
+     JsValue a18 = JS.array(JS.object("type", "elem", "elem", inner, "shift", 0), JS.object("type", "elem", "elem", img, "shift", imgShift, "wrapperClasses", classes));
+     o17["children"] = a18;
+-    vlist = JS.invoke(buildCommon, "makeVList", o17, options);
++    vlist = JS.call(makeVList, undef(), o17, options);
+   }
+   if (JS.invoke(JS.construct(RegExp, "cancel", ""), "test", label).truthy()) {
+     vlist["height"] = inner["height"];
+@@ -133,11 +135,11 @@
+   if ((JS.invoke(JS.construct(RegExp, "cancel", ""), "test", label).truthy()) && (!(isSingleChar.truthy()))) {
+     JsValue a21 = JS.array("mord", "cancel-lap");
+     JsValue a22 = JS.array(vlist);
+-    return JS.invoke(buildCommon, "makeSpan", a21, a22, options);
++    return JS.call(makeSpan, undef(), a21, a22, options);
+   } else {
+     JsValue a23 = JS.array("mord");
+     JsValue a24 = JS.array(vlist);
+-    return JS.invoke(buildCommon, "makeSpan", a23, a24, options);
++    return JS.call(makeSpan, undef(), a23, a24, options);
+   }
+   return undef();
+ };
+@@ -150,7 +152,7 @@
+     c25 = "menclose";
+   }
+   JsValue a26 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
+-  JsValue node = JS.construct(mathMLTree["MathNode"], c25, a26);
++  JsValue node = JS.construct(MathNode, c25, a26);
+   JsValue sw27 = group["label"];
+   if (JS.strictEqual(sw27, "\\cancel")) {
+     JS.invoke(node, "setAttribute", "notation", "updiagonalstrike");
+@@ -193,7 +195,7 @@
  JsValue o28 = JS.object("type", "enclose", "names", JS.array("\\colorbox"));
  JsValue o30 = JS.object("numArgs", 2, "allowedInText", true, "argTypes", JS.array("color", "text"));
  o28["props"] = o30;
@@ -458,7 +1614,7 @@
    JsValue op33 = p32;
    JsValue parser = op33["parser"];
    JsValue funcName = op33["funcName"];
-@@ -207,14 +207,14 @@
+@@ -207,14 +209,14 @@
    o34["body"] = body;
    return o34;
    return undef();
@@ -475,7 +1631,7 @@
    JsValue op40 = p39;
    JsValue parser = op40["parser"];
    JsValue funcName = op40["funcName"];
-@@ -230,14 +230,14 @@
+@@ -230,14 +232,14 @@
    o41["body"] = body;
    return o41;
    return undef();
@@ -492,7 +1648,7 @@
    JsValue op47 = p46;
    JsValue parser = op47["parser"];
    JsValue o48 = emptyObject();
-@@ -247,12 +247,12 @@
+@@ -247,12 +249,12 @@
    o48["body"] = args[0];
    return o48;
    return undef();
@@ -507,7 +1663,7 @@
    JsValue op53 = p52;
    JsValue parser = op53["parser"];
    JsValue funcName = op53["funcName"];
-@@ -264,14 +264,14 @@
+@@ -264,14 +266,14 @@
    o54["body"] = body;
    return o54;
    return undef();
@@ -524,7 +1680,7 @@
    JsValue op60 = p59;
    JsValue parser = op60["parser"];
    JsValue o61 = emptyObject();
-@@ -281,7 +281,7 @@
+@@ -281,7 +283,7 @@
    o61["body"] = args[0];
    return o61;
    return undef();
@@ -557,7 +1713,153 @@
 
 --- a/src/functions/genfrac.lil
 +++ b/src/functions/genfrac.lil
-@@ -262,7 +262,7 @@
+@@ -10,6 +10,9 @@
+ import { calculateSize, makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode, TextNode } from "../mathMLTree.lil";
++import { makeLineSpan, makeSpan, makeVList } from "../buildCommon.lil";
++import { DISPLAY, TEXT, SCRIPT, SCRIPTSCRIPT } from "../Style.lil";
+ 
+ JsValue adjustStyle = undef();
+ JsValue htmlBuilder = undef();
+@@ -21,21 +24,21 @@
+   JsValue style = originalStyle;
+   if (JS.strictEqual(size, "display")) {
+     JsValue c1 = undef();
+-    if (JS.greaterThanOrEqual(style["id"], Style["SCRIPT"]["id"])) {
++    if (JS.greaterThanOrEqual(style["id"], SCRIPT["id"])) {
+       c1 = JS.invoke(style, "text");
+     } else {
+-      c1 = Style["DISPLAY"];
++      c1 = DISPLAY;
+     }
+     style = c1;
+   } else {
+-    if ((JS.strictEqual(size, "text")) && (JS.strictEqual(style["size"], Style["DISPLAY"]["size"]))) {
+-      style = Style["TEXT"];
++    if ((JS.strictEqual(size, "text")) && (JS.strictEqual(style["size"], DISPLAY["size"]))) {
++      style = TEXT;
+     } else {
+       if (JS.strictEqual(size, "script")) {
+-        style = Style["SCRIPT"];
++        style = SCRIPT;
+       } else {
+         if (JS.strictEqual(size, "scriptscript")) {
+-          style = Style["SCRIPTSCRIPT"];
++          style = SCRIPTSCRIPT;
+         }
+       }
+     }
+@@ -66,9 +69,9 @@
+   number ruleSpacing = 0;
+   if (group["hasBarLine"].truthy()) {
+     if (group["barSize"].truthy()) {
+-      rule = JS.invoke(buildCommon, "makeLineSpan", "frac-line", options, JS.call(calculateSize, undef(), group["barSize"], options));
++      rule = JS.call(makeLineSpan, undef(), "frac-line", options, JS.call(calculateSize, undef(), group["barSize"], options));
+     } else {
+-      rule = JS.invoke(buildCommon, "makeLineSpan", "frac-line", options);
++      rule = JS.call(makeLineSpan, undef(), "frac-line", options);
+     }
+     ruleWidth = toNum(rule["height"]);
+     ruleSpacing = ruleWidth;
+@@ -78,7 +81,7 @@
+   number numShift = 0;
+   number clearance = 0;
+   number denomShift = 0;
+-  if ((JS.strictEqual(style["size"], Style["DISPLAY"]["size"])) || (JS.strictEqual(group["size"], "display"))) {
++  if ((JS.strictEqual(style["size"], DISPLAY["size"])) || (JS.strictEqual(group["size"], "display"))) {
+     numShift = toNum(JS.invoke(options, "fontMetrics")["num1"]);
+     if (ruleWidth > 0) {
+       clearance = 3 * ruleSpacing;
+@@ -103,7 +106,7 @@
+       numShift = numShift + 0.5 * (clearance - candidateClearance);
+       denomShift = denomShift + 0.5 * (clearance - candidateClearance);
+     }
+-    frac = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", denomm, "shift", denomShift), JS.object("type", "elem", "elem", numerm, "shift", 0 - numShift))), options);
++    frac = JS.call(makeVList, undef(), JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", denomm, "shift", denomShift), JS.object("type", "elem", "elem", numerm, "shift", 0 - numShift))), options);
+   } else {
+     number axisHeight = toNum(JS.invoke(options, "fontMetrics")["axisHeight"]);
+     if ((numShift - toNum(numerm["depth"])) - (axisHeight + 0.5 * ruleWidth) < clearance) {
+@@ -113,18 +116,18 @@
+       denomShift = denomShift + (clearance - ((axisHeight - 0.5 * ruleWidth) - (toNum(denomm["height"]) - denomShift)));
+     }
+     number midShift = 0 - (axisHeight - 0.5 * ruleWidth);
+-    frac = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", denomm, "shift", denomShift), JS.object("type", "elem", "elem", rule, "shift", midShift), JS.object("type", "elem", "elem", numerm, "shift", 0 - numShift))), options);
++    frac = JS.call(makeVList, undef(), JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", denomm, "shift", denomShift), JS.object("type", "elem", "elem", rule, "shift", midShift), JS.object("type", "elem", "elem", numerm, "shift", 0 - numShift))), options);
+   }
+   newOptions = JS.invoke(options, "havingStyle", style);
+   number sizeRatio = toNum(newOptions["sizeMultiplier"]) / toNum(options["sizeMultiplier"]);
+   frac["height"] = toNum(frac["height"]) * sizeRatio;
+   frac["depth"] = toNum(frac["depth"]) * sizeRatio;
+   JsValue delimSize = undef();
+-  if (JS.strictEqual(style["size"], Style["DISPLAY"]["size"])) {
++  if (JS.strictEqual(style["size"], DISPLAY["size"])) {
+     delimSize = JS.invoke(options, "fontMetrics")["delim1"];
+   } else {
+-    if (JS.strictEqual(style["size"], Style["SCRIPTSCRIPT"]["size"])) {
+-      delimSize = JS.invoke(JS.invoke(options, "havingStyle", Style["SCRIPT"]), "fontMetrics")["delim2"];
++    if (JS.strictEqual(style["size"], SCRIPTSCRIPT["size"])) {
++      delimSize = JS.invoke(JS.invoke(options, "havingStyle", SCRIPT), "fontMetrics")["delim2"];
+     } else {
+       delimSize = JS.invoke(options, "fontMetrics")["delim2"];
+     }
+@@ -137,7 +140,7 @@
+     leftDelim = apply(delimiter["customSizedDelim"], delimiter, JS.array(group["leftDelim"], delimSize, true, JS.invoke(options, "havingStyle", style), group["mode"], JS.array("mopen")));
+   }
+   if (group["continued"].truthy()) {
+-    rightDelim = JS.invoke(buildCommon, "makeSpan", JS.array());
++    rightDelim = JS.call(makeSpan, undef(), JS.array());
+   } else {
+     if (isNullish(group["rightDelim"])) {
+       rightDelim = JS.invoke(html, "makeNullDelimiter", options, JS.array("mclose"));
+@@ -145,11 +148,11 @@
+       rightDelim = apply(delimiter["customSizedDelim"], delimiter, JS.array(group["rightDelim"], delimSize, true, JS.invoke(options, "havingStyle", style), group["mode"], JS.array("mclose")));
+     }
+   }
+-  return JS.invoke(buildCommon, "makeSpan", JS.invoke(JS.array("mord"), "concat", JS.invoke(newOptions, "sizingClasses", options)), JS.array(leftDelim, JS.invoke(buildCommon, "makeSpan", JS.array("mfrac"), JS.array(frac)), rightDelim), options);
++  return JS.call(makeSpan, undef(), JS.invoke(JS.array("mord"), "concat", JS.invoke(newOptions, "sizingClasses", options)), JS.array(leftDelim, JS.call(makeSpan, undef(), JS.array("mfrac"), JS.array(frac)), rightDelim), options);
+ };
+ mathmlBuilder = (JsValue group, JsValue options) => {
+   JsValue a26 = JS.array(JS.invoke(mml, "buildGroup", group["numer"], options), JS.invoke(mml, "buildGroup", group["denom"], options));
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mfrac", a26);
++  JsValue node = JS.construct(MathNode, "mfrac", a26);
+   if (!(group["hasBarLine"].truthy())) {
+     JS.invoke(node, "setAttribute", "linethickness", "0px");
+   } else {
+@@ -161,9 +164,9 @@
+   JsValue style = JS.call(adjustStyle, undef(), group["size"], options["style"]);
+   if (JS.strictNotEqual(style["size"], options["style"]["size"])) {
+     JsValue a27 = JS.array(node);
+-    node = JS.construct(mathMLTree["MathNode"], "mstyle", a27);
++    node = JS.construct(MathNode, "mstyle", a27);
+     JsValue c28 = undef();
+-    if (JS.strictEqual(style["size"], Style["DISPLAY"]["size"])) {
++    if (JS.strictEqual(style["size"], DISPLAY["size"])) {
+       c28 = "true";
+     } else {
+       c28 = "false";
+@@ -176,15 +179,15 @@
+     JsValue a29 = JS.array();
+     JsValue withDelims = a29;
+     if (!isNullish(group["leftDelim"])) {
+-      JsValue a30 = JS.array(JS.construct(mathMLTree["TextNode"], JS.invoke(group["leftDelim"], "replace", "\\", "")));
+-      JsValue leftOp = JS.construct(mathMLTree["MathNode"], "mo", a30);
++      JsValue a30 = JS.array(JS.construct(TextNode, JS.invoke(group["leftDelim"], "replace", "\\", "")));
++      JsValue leftOp = JS.construct(MathNode, "mo", a30);
+       JS.invoke(leftOp, "setAttribute", "fence", "true");
+       JS.invoke(withDelims, "push", leftOp);
+     }
+     JS.invoke(withDelims, "push", node);
+     if (!isNullish(group["rightDelim"])) {
+-      JsValue a31 = JS.array(JS.construct(mathMLTree["TextNode"], JS.invoke(group["rightDelim"], "replace", "\\", "")));
+-      JsValue rightOp = JS.construct(mathMLTree["MathNode"], "mo", a31);
++      JsValue a31 = JS.array(JS.construct(TextNode, JS.invoke(group["rightDelim"], "replace", "\\", "")));
++      JsValue rightOp = JS.construct(MathNode, "mo", a31);
+       JS.invoke(rightOp, "setAttribute", "fence", "true");
+       JS.invoke(withDelims, "push", rightOp);
+     }
+@@ -262,7 +265,7 @@
  JsValue o46 = JS.object("type", "infix", "names", JS.array("\\over", "\\choose", "\\atop", "\\brace", "\\brack"));
  JsValue o48 = JS.object("numArgs", 0, "infix", true);
  o46["props"] = o48;
@@ -566,7 +1868,7 @@
    JsValue op50 = p49;
    JsValue parser = op50["parser"];
    JsValue funcName = op50["funcName"];
-@@ -294,7 +294,7 @@
+@@ -294,7 +297,7 @@
    o52["token"] = token;
    return o52;
    return undef();
@@ -575,7 +1877,7 @@
  JS.call(defineFunction, undef(), o46);
  JsValue a53 = JS.array("display", "text", "script", "scriptscript");
  stylArray = a53;
-@@ -316,7 +316,7 @@
+@@ -316,7 +319,7 @@
  JsValue o55 = JS.object("type", "genfrac", "names", JS.array("\\genfrac"));
  JsValue o57 = JS.object("numArgs", 6, "allowedInArgument", true, "argTypes", JS.array("math", "math", "size", "text", "math", "math"));
  o55["props"] = o57;
@@ -584,7 +1886,7 @@
    JsValue op60 = p59;
    JsValue parser = op60["parser"];
    JsValue numer = args[4];
-@@ -370,14 +370,14 @@
+@@ -370,14 +373,14 @@
    o63["size"] = size;
    return o63;
    return undef();
@@ -601,7 +1903,7 @@
    JsValue op69 = p68;
    JsValue parser = op69["parser"];
    JsValue funcName = op69["funcName"];
-@@ -390,7 +390,7 @@
+@@ -390,7 +393,7 @@
    o70["token"] = token;
    return o70;
    return undef();
@@ -613,7 +1915,13 @@
 
 --- a/src/functions/hbox.lil
 +++ b/src/functions/hbox.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeFragment } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "hbox", "names", JS.array("\\hbox"));
  JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("text"), "allowedInText", true, "primitive", true);
  o1["props"] = o3;
@@ -622,7 +1930,7 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue o7 = emptyObject();
-@@ -18,16 +18,16 @@
+@@ -18,16 +20,16 @@
    o7["body"] = JS.call(ordargument, undef(), args[0]);
    return o7;
    return undef();
@@ -631,13 +1939,15 @@
 +};
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue elements = JS.invoke(html, "buildExpression", group["body"], options, false);
-   return JS.invoke(buildCommon, "makeFragment", elements);
+-  return JS.invoke(buildCommon, "makeFragment", elements);
++  return JS.call(makeFragment, undef(), elements);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  return JS.construct(mathMLTree["MathNode"], "mrow", JS.invoke(mml, "buildExpression", group["body"], options));
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
-   return JS.construct(mathMLTree["MathNode"], "mrow", JS.invoke(mml, "buildExpression", group["body"], options));
++  return JS.construct(MathNode, "mrow", JS.invoke(mml, "buildExpression", group["body"], options));
    return undef();
 -});
 +};
@@ -647,7 +1957,76 @@
 
 --- a/src/functions/horizBrace.lil
 +++ b/src/functions/horizBrace.lil
-@@ -86,7 +86,7 @@
+@@ -8,6 +8,9 @@
+ import { assertNodeType } from "../parseNode.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeVList } from "../buildCommon.lil";
++import { DISPLAY } from "../Style.lil";
+ 
+ JsValue htmlBuilder = undef();
+ JsValue mathmlBuilder = undef();
+@@ -28,16 +31,16 @@
+   } else {
+     group = JS.call(assertNodeType, undef(), grp, "horizBrace");
+   }
+-  JsValue body = JS.invoke(html, "buildGroup", group["base"], JS.invoke(options, "havingBaseStyle", Style["DISPLAY"]));
++  JsValue body = JS.invoke(html, "buildGroup", group["base"], JS.invoke(options, "havingBaseStyle", DISPLAY));
+   JsValue braceBody = JS.invoke(stretchy, "svgSpan", group, options);
+   JsValue vlist = undef();
+   if (group["isOver"].truthy()) {
+     JsValue o2 = JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", body), JS.object("type", "kern", "size", 0.1), JS.object("type", "elem", "elem", braceBody)));
+-    vlist = JS.invoke(buildCommon, "makeVList", o2, options);
++    vlist = JS.call(makeVList, undef(), o2, options);
+     JS.invoke(vlist["children"][0]["children"][0]["children"][1]["classes"], "push", "svg-align");
+   } else {
+     JsValue o7 = JS.object("positionType", "bottom", "positionData", JS.add(JS.add(body["depth"], 0.1), braceBody["height"]), "children", JS.array(JS.object("type", "elem", "elem", braceBody), JS.object("type", "kern", "size", 0.1), JS.object("type", "elem", "elem", body)));
+-    vlist = JS.invoke(buildCommon, "makeVList", o7, options);
++    vlist = JS.call(makeVList, undef(), o7, options);
+     JS.invoke(vlist["children"][0]["children"][0]["children"][0]["classes"], "push", "svg-align");
+   }
+   if (supSubGroup.truthy()) {
+@@ -48,15 +51,15 @@
+     } else {
+       c13 = "munder";
+     }
+-    JS.push(a12, c13);
++    JS.invoke(a12, "push", c13);
+     JsValue a14 = JS.array(vlist);
+-    JsValue vSpan = JS.invoke(buildCommon, "makeSpan", a12, a14, options);
++    JsValue vSpan = JS.call(makeSpan, undef(), a12, a14, options);
+     if (group["isOver"].truthy()) {
+       JsValue o15 = JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", vSpan), JS.object("type", "kern", "size", 0.2), JS.object("type", "elem", "elem", supSubGroup)));
+-      vlist = JS.invoke(buildCommon, "makeVList", o15, options);
++      vlist = JS.call(makeVList, undef(), o15, options);
+     } else {
+       JsValue o20 = JS.object("positionType", "bottom", "positionData", JS.add(JS.add(JS.add(vSpan["depth"], 0.2), supSubGroup["height"]), supSubGroup["depth"]), "children", JS.array(JS.object("type", "elem", "elem", supSubGroup), JS.object("type", "kern", "size", 0.2), JS.object("type", "elem", "elem", vSpan)));
+-      vlist = JS.invoke(buildCommon, "makeVList", o20, options);
++      vlist = JS.call(makeVList, undef(), o20, options);
+     }
+   }
+   JsValue a25 = JS.array("mord");
+@@ -66,9 +69,9 @@
+   } else {
+     c26 = "munder";
+   }
+-  JS.push(a25, c26);
++  JS.invoke(a25, "push", c26);
+   JsValue a27 = JS.array(vlist);
+-  return JS.invoke(buildCommon, "makeSpan", a25, a27, options);
++  return JS.call(makeSpan, undef(), a25, a27, options);
+   return undef();
+ };
+ mathmlBuilder = (JsValue group, JsValue options) => {
+@@ -80,13 +83,13 @@
+     c28 = "munder";
+   }
+   JsValue a29 = JS.array(JS.invoke(mml, "buildGroup", group["base"], options), accentNode);
+-  return JS.construct(mathMLTree["MathNode"], c28, a29);
++  return JS.construct(MathNode, c28, a29);
+   return undef();
+ };
  JsValue o30 = JS.object("type", "horizBrace", "names", JS.array("\\overbrace", "\\underbrace"));
  JsValue o32 = JS.object("numArgs", 1);
  o30["props"] = o32;
@@ -656,7 +2035,7 @@
    JsValue op34 = p33;
    JsValue parser = op34["parser"];
    JsValue funcName = op34["funcName"];
-@@ -98,7 +98,7 @@
+@@ -98,7 +101,7 @@
    o35["base"] = args[0];
    return o35;
    return undef();
@@ -666,9 +2045,95 @@
  o30["mathmlBuilder"] = mathmlBuilder;
  JS.call(defineFunction, undef(), o30);
 
+--- a/src/functions/href.lil
++++ b/src/functions/href.lil
+@@ -6,6 +6,7 @@
+ import { MathNode } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { makeAnchor } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "href", "names", JS.array("\\href"));
+ JsValue o3 = JS.object("numArgs", 2, "argTypes", JS.array("url", "original"), "allowedInText", true);
+@@ -26,7 +27,7 @@
+ o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue elements = JS.invoke(html, "buildExpression", group["body"], options, false);
+   JsValue a9 = JS.array();
+-  return JS.invoke(buildCommon, "makeAnchor", group["href"], a9, elements, options);
++  return JS.call(makeAnchor, undef(), group["href"], a9, elements, options);
+   return undef();
+ };
+ o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+
+--- a/src/functions/html.lil
++++ b/src/functions/html.lil
+@@ -6,6 +6,7 @@
+ import { ParseError } from "../ParseError.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "html", "names", JS.array("\\htmlClass", "\\htmlId", "\\htmlStyle", "\\htmlData"));
+ JsValue o3 = JS.object("numArgs", 2, "argTypes", JS.array("raw", "original"), "allowedInText", true);
+@@ -71,7 +72,7 @@
+   if (group["attributes"]["class"].truthy()) {
+     pushAll(classes, JS.invoke(JS.invoke(group["attributes"]["class"], "trim"), "split", JS.construct(RegExp, "\\s+", "")));
+   }
+-  JsValue span = JS.invoke(buildCommon, "makeSpan", classes, elements, options);
++  JsValue span = JS.call(makeSpan, undef(), classes, elements, options);
+   for (string attr in group["attributes"]) {
+     if ((JS.strictNotEqual(attr, "class")) && (hasOwn(group["attributes"], attr))) {
+       JS.invoke(span, "setAttribute", attr, group["attributes"][attr]);
+
+--- a/src/functions/htmlmathml.lil
++++ b/src/functions/htmlmathml.lil
+@@ -4,6 +4,7 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { makeFragment } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "htmlmathml", "names", JS.array("\\html@mathml"));
+ JsValue o3 = JS.object("numArgs", 2, "allowedInText", true);
+@@ -17,7 +18,7 @@
+ };
+ o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue elements = JS.invoke(html, "buildExpression", group["html"], options, false);
+-  return JS.invoke(buildCommon, "makeFragment", elements);
++  return JS.call(makeFragment, undef(), elements);
+   return undef();
+ };
+ o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+
+--- a/src/functions/includegraphics.lil
++++ b/src/functions/includegraphics.lil
+@@ -6,6 +6,7 @@
+ import { Img } from "../domTree.lil";
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { assertNodeType } from "../parseNode.lil";
++import { MathNode } from "../mathMLTree.lil";
+ 
+ JsValue sizeData = undef();
+ 
+@@ -109,7 +110,7 @@
+ };
+ o3["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a17 = JS.array();
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mglyph", a17);
++  JsValue node = JS.construct(MathNode, "mglyph", a17);
+   JS.invoke(node, "setAttribute", "alt", group["alt"]);
+   JsValue height = JS.call(calculateSize, undef(), group["height"], options);
+   JsValue depth = 0;
+
 --- a/src/functions/kern.lil
 +++ b/src/functions/kern.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { calculateSize } from "../units.lil";
+ import { assertNodeType } from "../parseNode.lil";
++import { SpaceNode } from "../mathMLTree.lil";
++import { makeGlue } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "kern", "names", JS.array("\\kern", "\\mkern", "\\hskip", "\\mskip"));
  JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("size"), "primitive", true, "allowedInText", true);
  o1["props"] = o3;
@@ -677,28 +2142,91 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue funcName = op6["funcName"];
-@@ -36,16 +36,16 @@
+@@ -36,16 +38,16 @@
    o7["dimension"] = size["value"];
    return o7;
    return undef();
 -});
 -o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  return JS.invoke(buildCommon, "makeGlue", group["dimension"], options);
 +};
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
-   return JS.invoke(buildCommon, "makeGlue", group["dimension"], options);
++  return JS.call(makeGlue, undef(), group["dimension"], options);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue dimension = JS.call(calculateSize, undef(), group["dimension"], options);
-   return JS.construct(mathMLTree["SpaceNode"], dimension);
+-  return JS.construct(mathMLTree["SpaceNode"], dimension);
++  return JS.construct(SpaceNode, dimension);
    return undef();
 -});
 +};
  JS.call(defineFunction, undef(), o1);
  JsValue __star = emptyObject();
  
+
+--- a/src/functions/lap.lil
++++ b/src/functions/lap.lil
+@@ -6,6 +6,8 @@
+ import { makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "lap", "names", JS.array("\\mathllap", "\\mathrlap", "\\mathclap"));
+ JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
+@@ -24,23 +26,23 @@
+   if (JS.strictEqual(group["alignment"], "clap")) {
+     JsValue a7 = JS.array();
+     JsValue a8 = JS.array(JS.invoke(html, "buildGroup", group["body"], options));
+-    inner = JS.invoke(buildCommon, "makeSpan", a7, a8);
++    inner = JS.call(makeSpan, undef(), a7, a8);
+     JsValue a9 = JS.array("inner");
+     JsValue a10 = JS.array(inner);
+-    inner = JS.invoke(buildCommon, "makeSpan", a9, a10, options);
++    inner = JS.call(makeSpan, undef(), a9, a10, options);
+   } else {
+     JsValue a11 = JS.array("inner");
+     JsValue a12 = JS.array(JS.invoke(html, "buildGroup", group["body"], options));
+-    inner = JS.invoke(buildCommon, "makeSpan", a11, a12);
++    inner = JS.call(makeSpan, undef(), a11, a12);
+   }
+   JsValue a13 = JS.array("fix");
+   JsValue a14 = JS.array();
+-  JsValue fix = JS.invoke(buildCommon, "makeSpan", a13, a14);
++  JsValue fix = JS.call(makeSpan, undef(), a13, a14);
+   JsValue a15 = JS.array(group["alignment"]);
+   JsValue a16 = JS.array(inner, fix);
+-  JsValue node = JS.invoke(buildCommon, "makeSpan", a15, a16, options);
++  JsValue node = JS.call(makeSpan, undef(), a15, a16, options);
+   JsValue a17 = JS.array("strut");
+-  JsValue strut = JS.invoke(buildCommon, "makeSpan", a17);
++  JsValue strut = JS.call(makeSpan, undef(), a17);
+   strut["style"]["height"] = JS.call(makeEm, undef(), JS.add(node["height"], node["depth"]));
+   if (node["depth"].truthy()) {
+     strut["style"]["verticalAlign"] = JS.call(makeEm, undef(), JS.number(0) - toNum(node["depth"]));
+@@ -48,15 +50,15 @@
+   JS.invoke(node["children"], "unshift", strut);
+   JsValue a18 = JS.array("thinbox");
+   JsValue a19 = JS.array(node);
+-  node = JS.invoke(buildCommon, "makeSpan", a18, a19, options);
++  node = JS.call(makeSpan, undef(), a18, a19, options);
+   JsValue a20 = JS.array("mord", "vbox");
+   JsValue a21 = JS.array(node);
+-  return JS.invoke(buildCommon, "makeSpan", a20, a21, options);
++  return JS.call(makeSpan, undef(), a20, a21, options);
+   return undef();
+ };
+ o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a22 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a22);
++  JsValue node = JS.construct(MathNode, "mpadded", a22);
+   if (JS.strictNotEqual(group["alignment"], "rlap")) {
+     JsValue c23 = undef();
+     if (JS.strictEqual(group["alignment"], "llap")) {
 
 --- a/src/functions/math.lil
 +++ b/src/functions/math.lil
@@ -731,9 +2259,82 @@
  JsValue __star = emptyObject();
  
 
+--- a/src/functions/mathchoice.lil
++++ b/src/functions/mathchoice.lil
+@@ -5,21 +5,23 @@
+ import { Style } from "../Style.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { makeFragment } from "../buildCommon.lil";
++import { DISPLAY, TEXT, SCRIPT, SCRIPTSCRIPT } from "../Style.lil";
+ 
+ JsValue chooseMathStyle = undef();
+ 
+ chooseMathStyle = (JsValue group, JsValue options) => {
+   JsValue sw1 = options["style"]["size"];
+-  if (JS.strictEqual(sw1, Style["DISPLAY"]["size"])) {
++  if (JS.strictEqual(sw1, DISPLAY["size"])) {
+     return group["display"];
+   }
+-  else if (JS.strictEqual(sw1, Style["TEXT"]["size"])) {
++  else if (JS.strictEqual(sw1, TEXT["size"])) {
+     return group["text"];
+   }
+-  else if (JS.strictEqual(sw1, Style["SCRIPT"]["size"])) {
++  else if (JS.strictEqual(sw1, SCRIPT["size"])) {
+     return group["script"];
+   }
+-  else if (JS.strictEqual(sw1, Style["SCRIPTSCRIPT"]["size"])) {
++  else if (JS.strictEqual(sw1, SCRIPTSCRIPT["size"])) {
+     return group["scriptscript"];
+   }
+   else {
+@@ -40,7 +42,7 @@
+ o2["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue body = JS.call(chooseMathStyle, undef(), group, options);
+   JsValue elements = JS.invoke(html, "buildExpression", body, options, false);
+-  return JS.invoke(buildCommon, "makeFragment", elements);
++  return JS.call(makeFragment, undef(), elements);
+   return undef();
+ };
+ o2["mathmlBuilder"] = (JsValue group, JsValue options) => {
+
 --- a/src/functions/mclass.lil
 +++ b/src/functions/mclass.lil
-@@ -66,7 +66,7 @@
+@@ -6,6 +6,7 @@
+ import { utils } from "../utils.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
+ 
+ JsValue makeSpan = undef();
+ JsValue htmlBuilder = undef();
+@@ -23,21 +24,21 @@
+   JsValue node = undef();
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], options);
+   if (JS.strictEqual(group["mclass"], "minner")) {
+-    node = JS.construct(mathMLTree["MathNode"], "mpadded", inner);
++    node = JS.construct(MathNode, "mpadded", inner);
+   } else {
+     if (JS.strictEqual(group["mclass"], "mord")) {
+       if (group["isCharacterBox"].truthy()) {
+         node = inner[0];
+         node["type"] = "mi";
+       } else {
+-        node = JS.construct(mathMLTree["MathNode"], "mi", inner);
++        node = JS.construct(MathNode, "mi", inner);
+       }
+     } else {
+       if (group["isCharacterBox"].truthy()) {
+         node = inner[0];
+         node["type"] = "mo";
+       } else {
+-        node = JS.construct(mathMLTree["MathNode"], "mo", inner);
++        node = JS.construct(MathNode, "mo", inner);
+       }
+       if (JS.strictEqual(group["mclass"], "mbin")) {
+         node["attributes"]["lspace"] = "0.22em";
+@@ -66,7 +67,7 @@
  JsValue o2 = JS.object("type", "mclass", "names", JS.array("\\mathord", "\\mathbin", "\\mathrel", "\\mathopen", "\\mathclose", "\\mathpunct", "\\mathinner"));
  JsValue o4 = JS.object("numArgs", 1, "primitive", true);
  o2["props"] = o4;
@@ -742,7 +2343,7 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue funcName = op6["funcName"];
-@@ -79,7 +79,7 @@
+@@ -79,7 +80,7 @@
    o7["isCharacterBox"] = JS.invoke(utils, "isCharacterBox", body);
    return o7;
    return undef();
@@ -751,7 +2352,7 @@
  o2["htmlBuilder"] = htmlBuilder;
  o2["mathmlBuilder"] = mathmlBuilder;
  JS.call(defineFunction, undef(), o2);
-@@ -101,7 +101,7 @@
+@@ -101,7 +102,7 @@
  JsValue o9 = JS.object("type", "mclass", "names", JS.array("\\@binrel"));
  JsValue o11 = JS.object("numArgs", 2);
  o9["props"] = o11;
@@ -760,7 +2361,7 @@
    JsValue op13 = p12;
    JsValue parser = op13["parser"];
    JsValue o14 = emptyObject();
-@@ -112,12 +112,12 @@
+@@ -112,12 +113,12 @@
    o14["isCharacterBox"] = JS.invoke(utils, "isCharacterBox", args[1]);
    return o14;
    return undef();
@@ -775,7 +2376,7 @@
    JsValue op19 = p18;
    JsValue parser = op19["parser"];
    JsValue funcName = op19["funcName"];
-@@ -167,7 +167,7 @@
+@@ -167,7 +168,7 @@
    o24["isCharacterBox"] = JS.invoke(utils, "isCharacterBox", supsub);
    return o24;
    return undef();
@@ -787,7 +2388,120 @@
 
 --- a/src/functions/op.lil
 +++ b/src/functions/op.lil
-@@ -204,7 +204,7 @@
+@@ -11,6 +11,9 @@
+ import { __star as mathMLTree } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode, TextNode, newDocumentFragment } from "../mathMLTree.lil";
++import { makeSpan, makeSymbol, makeVList, mathsym, staticSvg } from "../buildCommon.lil";
++import { DISPLAY } from "../Style.lil";
+ 
+ JsValue noSuccessor = undef();
+ JsValue htmlBuilder = undef();
+@@ -35,7 +38,7 @@
+   }
+   JsValue style = options["style"];
+   JsValue large = false;
+-  if (((JS.strictEqual(style["size"], Style["DISPLAY"]["size"])) && (group["symbol"].truthy())) && (!(JS.invoke(utils, "contains", noSuccessor, group["name"]).truthy()))) {
++  if (((JS.strictEqual(style["size"], DISPLAY["size"])) && (group["symbol"].truthy())) && (!(JS.invoke(utils, "contains", noSuccessor, group["name"]).truthy()))) {
+     large = true;
+   }
+   JsValue base = undef();
+@@ -65,8 +68,8 @@
+     } else {
+       c5 = "small-op";
+     }
+-    JS.push(a4, c5);
+-    base = JS.invoke(buildCommon, "makeSymbol", group["name"], fontName, "math", options, a4);
++    JS.invoke(a4, "push", c5);
++    base = JS.call(makeSymbol, undef(), group["name"], fontName, "math", options, a4);
+     if (JS.greaterThan(stash["length"], 0)) {
+       JsValue italic = base["italic"];
+       JsValue c6 = undef();
+@@ -75,11 +78,11 @@
+       } else {
+         c6 = "1";
+       }
+-      JsValue oval = JS.invoke(buildCommon, "staticSvg", JS.add(JS.add(stash, "Size"), c6), options);
++      JsValue oval = JS.call(staticSvg, undef(), JS.add(JS.add(stash, "Size"), c6), options);
+       JsValue o7 = JS.object("positionType", "individualShift");
+       JsValue a8 = newArray();
+       JsValue o9 = JS.object("type", "elem", "elem", base, "shift", 0);
+-      JS.push(a8, o9);
++      JS.invoke(a8, "push", o9);
+       JsValue o10 = JS.object("type", "elem", "elem", oval);
+       JsValue c11 = undef();
+       if (large.truthy()) {
+@@ -88,9 +91,9 @@
+         c11 = 0;
+       }
+       o10["shift"] = c11;
+-      JS.push(a8, o10);
++      JS.invoke(a8, "push", o10);
+       o7["children"] = a8;
+-      base = JS.invoke(buildCommon, "makeVList", o7, options);
++      base = JS.call(makeVList, undef(), o7, options);
+       group["name"] = JS.add("\\", stash);
+       JS.invoke(base["classes"], "unshift", "mop");
+       base["italic"] = italic;
+@@ -103,7 +106,7 @@
+         base["classes"][0] = "mop";
+       } else {
+         JsValue a12 = JS.array("mop");
+-        base = JS.invoke(buildCommon, "makeSpan", a12, inner, options);
++        base = JS.call(makeSpan, undef(), a12, inner, options);
+       }
+     } else {
+       JsValue a13 = JS.array();
+@@ -111,13 +114,13 @@
+       {
+         JsValue i = 1;
+         while (JS.lessThan(i, group["name"]["length"])) {
+-          JS.invoke(output, "push", JS.invoke(buildCommon, "mathsym", group["name"][i], group["mode"], options));
++          JS.invoke(output, "push", JS.call(mathsym, undef(), group["name"][i], group["mode"], options));
+           JsValue u14 = i;
+           i = JS.add(i, 1);
+         }
+       }
+       JsValue a15 = JS.array("mop");
+-      base = JS.invoke(buildCommon, "makeSpan", a15, output, options);
++      base = JS.call(makeSpan, undef(), a15, output, options);
+     }
+   }
+   JsValue baseShift = 0;
+@@ -141,24 +144,24 @@
+   JsValue node = undef();
+   if (group["symbol"].truthy()) {
+     JsValue a17 = JS.array(JS.invoke(mml, "makeText", group["name"], group["mode"]));
+-    node = JS.construct(mathMLTree["MathNode"], "mo", a17);
++    node = JS.construct(MathNode, "mo", a17);
+     if (JS.invoke(utils, "contains", noSuccessor, group["name"]).truthy()) {
+       JS.invoke(node, "setAttribute", "largeop", "false");
+     }
+   } else {
+     if (group["body"].truthy()) {
+-      node = JS.construct(mathMLTree["MathNode"], "mo", JS.invoke(mml, "buildExpression", group["body"], options));
++      node = JS.construct(MathNode, "mo", JS.invoke(mml, "buildExpression", group["body"], options));
+     } else {
+-      JsValue a18 = JS.array(JS.construct(mathMLTree["TextNode"], JS.invoke(group["name"], "slice", 1)));
+-      node = JS.construct(mathMLTree["MathNode"], "mi", a18);
++      JsValue a18 = JS.array(JS.construct(TextNode, JS.invoke(group["name"], "slice", 1)));
++      node = JS.construct(MathNode, "mi", a18);
+       JsValue a19 = JS.array(JS.invoke(mml, "makeText", "⁡", "text"));
+-      JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a19);
++      JsValue operator = JS.construct(MathNode, "mo", a19);
+       if (group["parentIsSupSub"].truthy()) {
+         JsValue a20 = JS.array(node, operator);
+-        node = JS.construct(mathMLTree["MathNode"], "mrow", a20);
++        node = JS.construct(MathNode, "mrow", a20);
+       } else {
+         JsValue a21 = JS.array(node, operator);
+-        node = JS.invoke(mathMLTree, "newDocumentFragment", a21);
++        node = JS.call(newDocumentFragment, undef(), a21);
+       }
+     }
+   }
+@@ -204,7 +207,7 @@
  JsValue o36 = JS.object("type", "op", "names", JS.array("\\arcsin", "\\arccos", "\\arctan", "\\arctg", "\\arcctg", "\\arg", "\\ch", "\\cos", "\\cosec", "\\cosh", "\\cot", "\\cotg", "\\coth", "\\csc", "\\ctg", "\\cth", "\\deg", "\\dim", "\\exp", "\\hom", "\\ker", "\\lg", "\\ln", "\\log", "\\sec", "\\sin", "\\sinh", "\\sh", "\\tan", "\\tanh", "\\tg", "\\th"));
  JsValue o38 = JS.object("numArgs", 0);
  o36["props"] = o38;
@@ -796,7 +2510,7 @@
    JsValue op40 = p39;
    JsValue parser = op40["parser"];
    JsValue funcName = op40["funcName"];
-@@ -217,14 +217,14 @@
+@@ -217,14 +220,14 @@
    o41["name"] = funcName;
    return o41;
    return undef();
@@ -813,7 +2527,7 @@
    JsValue op46 = p45;
    JsValue parser = op46["parser"];
    JsValue funcName = op46["funcName"];
-@@ -237,14 +237,14 @@
+@@ -237,14 +240,14 @@
    o47["name"] = funcName;
    return o47;
    return undef();
@@ -830,7 +2544,7 @@
    JsValue op52 = p51;
    JsValue parser = op52["parser"];
    JsValue funcName = op52["funcName"];
-@@ -261,7 +261,7 @@
+@@ -261,7 +264,7 @@
    o53["name"] = fName;
    return o53;
    return undef();
@@ -840,19 +2554,94 @@
  o48["mathmlBuilder"] = mathmlBuilder;
  JS.call(defineFunction, undef(), o48);
 
+--- a/src/functions/operatorname.lil
++++ b/src/functions/operatorname.lil
+@@ -9,6 +9,8 @@
+ import { assertNodeType } from "../parseNode.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode, TextNode, SpaceNode, newDocumentFragment } from "../mathMLTree.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
+ JsValue htmlBuilder = undef();
+ JsValue mathmlBuilder = undef();
+@@ -52,11 +54,11 @@
+       }
+     }
+     JsValue a3 = JS.array("mop");
+-    base = JS.invoke(buildCommon, "makeSpan", a3, expression, options);
++    base = JS.call(makeSpan, undef(), a3, expression, options);
+   } else {
+     JsValue a4 = JS.array("mop");
+     JsValue a5 = JS.array();
+-    base = JS.invoke(buildCommon, "makeSpan", a4, a5, options);
++    base = JS.call(makeSpan, undef(), a4, a5, options);
+   }
+   if (hasLimits.truthy()) {
+     return JS.call(assembleSupSub, undef(), base, supGroup, subGroup, options, options["style"], 0, 0);
+@@ -71,15 +73,15 @@
+   {
+     for (int i = 0; i < len(expression); i++) {
+       JsValue node = expression[i];
+-      if (instanceOf(node, mathMLTree["SpaceNode"])) {
++      if (instanceOf(node, SpaceNode)) {
+       } else {
+-        if (instanceOf(node, mathMLTree["MathNode"])) {
++        if (instanceOf(node, MathNode)) {
+           JsValue sw7 = node["type"];
+           if (JS.strictEqual(sw7, "mi") || JS.strictEqual(sw7, "mn") || JS.strictEqual(sw7, "ms") || JS.strictEqual(sw7, "mspace") || JS.strictEqual(sw7, "mtext")) {
+           }
+           else if (JS.strictEqual(sw7, "mo")) {
+             JsValue child = node["children"][0];
+-            if ((JS.strictEqual(node["children"]["length"], 1)) && (instanceOf(child, mathMLTree["TextNode"]))) {
++            if ((JS.strictEqual(node["children"]["length"], 1)) && (instanceOf(child, TextNode))) {
+               child["text"] = JS.invoke(JS.invoke(child["text"], "replace", JS.construct(RegExp, "\\u2212", ""), "-"), "replace", JS.construct(RegExp, "\\u2217", ""), "*");
+             } else {
+               isAllString = false;
+@@ -99,19 +101,19 @@
+     JsValue word = JS.invoke(JS.invoke(expression, "map", (JsValue node) => {
+   return JS.invoke(node, "toText");
+     }), "join", "");
+-    JsValue a9 = JS.array(JS.construct(mathMLTree["TextNode"], word));
++    JsValue a9 = JS.array(JS.construct(TextNode, word));
+     expression = a9;
+   }
+-  JsValue identifier = JS.construct(mathMLTree["MathNode"], "mi", expression);
++  JsValue identifier = JS.construct(MathNode, "mi", expression);
+   JS.invoke(identifier, "setAttribute", "mathvariant", "normal");
+   JsValue a10 = JS.array(JS.invoke(mml, "makeText", "⁡", "text"));
+-  JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a10);
++  JsValue operator = JS.construct(MathNode, "mo", a10);
+   if (group["parentIsSupSub"].truthy()) {
+     JsValue a11 = JS.array(identifier, operator);
+-    return JS.construct(mathMLTree["MathNode"], "mrow", a11);
++    return JS.construct(MathNode, "mrow", a11);
+   } else {
+     JsValue a12 = JS.array(identifier, operator);
+-    return JS.invoke(mathMLTree, "newDocumentFragment", a12);
++    return JS.call(newDocumentFragment, undef(), a12);
+   }
+   return undef();
+ };
+
 --- a/src/functions/ordgroup.lil
 +++ b/src/functions/ordgroup.lil
-@@ -6,18 +6,18 @@
+@@ -4,20 +4,21 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { __star as html } from "../buildHTML.lil";
  import { __star as mml } from "../buildMathML.lil";
++import { makeFragment, makeSpan } from "../buildCommon.lil";
  
  JsValue o1 = JS.object("type", "ordgroup");
 -o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    if (group["semisimple"].truthy()) {
-     return JS.invoke(buildCommon, "makeFragment", JS.invoke(html, "buildExpression", group["body"], options, false));
+-    return JS.invoke(buildCommon, "makeFragment", JS.invoke(html, "buildExpression", group["body"], options, false));
++    return JS.call(makeFragment, undef(), JS.invoke(html, "buildExpression", group["body"], options, false));
    }
    JsValue a2 = JS.array("mord");
-   return JS.invoke(buildCommon, "makeSpan", a2, JS.invoke(html, "buildExpression", group["body"], options, true), options);
+-  return JS.invoke(buildCommon, "makeSpan", a2, JS.invoke(html, "buildExpression", group["body"], options, true), options);
++  return JS.call(makeSpan, undef(), a2, JS.invoke(html, "buildExpression", group["body"], options, true), options);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
@@ -868,7 +2657,13 @@
 
 --- a/src/functions/overline.lil
 +++ b/src/functions/overline.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode, TextNode } from "../mathMLTree.lil";
++import { makeLineSpan, makeSpan, makeVList } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "overline", "names", JS.array("\\overline"));
  JsValue o3 = JS.object("numArgs", 1);
  o1["props"] = o3;
@@ -877,7 +2672,7 @@
    JsValue op5 = p4;
    JsValue parser = op5["parser"];
    JsValue body = args[0];
-@@ -19,8 +19,8 @@
+@@ -19,10 +21,10 @@
    o6["body"] = body;
    return o6;
    return undef();
@@ -886,20 +2681,34 @@
 +};
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue innerGroup = JS.invoke(html, "buildGroup", group["body"], JS.invoke(options, "havingCrampedStyle"));
-   JsValue line = JS.invoke(buildCommon, "makeLineSpan", "overline-line", options);
+-  JsValue line = JS.invoke(buildCommon, "makeLineSpan", "overline-line", options);
++  JsValue line = JS.call(makeLineSpan, undef(), "overline-line", options);
    JsValue defaultRuleThickness = JS.invoke(options, "fontMetrics")["defaultRuleThickness"];
-@@ -45,8 +45,8 @@
+   JsValue o7 = emptyObject();
+   o7["positionType"] = "firstBaseline";
+@@ -40,22 +42,22 @@
+   o12["size"] = defaultRuleThickness;
+   JsValue a8 = JS.array(o9, o10, o11, o12);
+   o7["children"] = a8;
+-  JsValue vlist = JS.invoke(buildCommon, "makeVList", o7, options);
++  JsValue vlist = JS.call(makeVList, undef(), o7, options);
+   JsValue a13 = JS.array("mord", "overline");
    JsValue a14 = JS.array(vlist);
-   return JS.invoke(buildCommon, "makeSpan", a13, a14, options);
+-  return JS.invoke(buildCommon, "makeSpan", a13, a14, options);
++  return JS.call(makeSpan, undef(), a13, a14, options);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  JsValue a15 = JS.array(JS.construct(mathMLTree["TextNode"], "‾"));
+-  JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a15);
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
-   JsValue a15 = JS.array(JS.construct(mathMLTree["TextNode"], "‾"));
-   JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a15);
++  JsValue a15 = JS.array(JS.construct(TextNode, "‾"));
++  JsValue operator = JS.construct(MathNode, "mo", a15);
    JS.invoke(operator, "setAttribute", "stretchy", "true");
-@@ -55,7 +55,7 @@
+   JsValue a16 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options), operator);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mover", a16);
++  JsValue node = JS.construct(MathNode, "mover", a16);
    JS.invoke(node, "setAttribute", "accent", "true");
    return node;
    return undef();
@@ -909,9 +2718,99 @@
  JsValue __star = emptyObject();
  
 
+--- a/src/functions/phantom.lil
++++ b/src/functions/phantom.lil
+@@ -5,6 +5,8 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeFragment, makeSpan, makeVList } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "phantom", "names", JS.array("\\phantom"));
+ JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
+@@ -19,12 +21,12 @@
+ };
+ o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue elements = JS.invoke(html, "buildExpression", group["body"], JS.invoke(options, "withPhantom"), false);
+-  return JS.invoke(buildCommon, "makeFragment", elements);
++  return JS.call(makeFragment, undef(), elements);
+   return undef();
+ };
+ o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], options);
+-  return JS.construct(mathMLTree["MathNode"], "mphantom", inner);
++  return JS.construct(MathNode, "mphantom", inner);
+   return undef();
+ };
+ JS.call(defineFunction, undef(), o1);
+@@ -42,7 +44,7 @@
+ o7["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a13 = JS.array();
+   JsValue a14 = JS.array(JS.invoke(html, "buildGroup", group["body"], JS.invoke(options, "withPhantom")));
+-  JsValue node = JS.invoke(buildCommon, "makeSpan", a13, a14);
++  JsValue node = JS.call(makeSpan, undef(), a13, a14);
+   node["height"] = 0;
+   node["depth"] = 0;
+   if (node["children"].truthy()) {
+@@ -55,17 +57,17 @@
+     }
+   }
+   JsValue o16 = JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", node)));
+-  node = JS.invoke(buildCommon, "makeVList", o16, options);
++  node = JS.call(makeVList, undef(), o16, options);
+   JsValue a19 = JS.array("mord");
+   JsValue a20 = JS.array(node);
+-  return JS.invoke(buildCommon, "makeSpan", a19, a20, options);
++  return JS.call(makeSpan, undef(), a19, a20, options);
+   return undef();
+ };
+ o7["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue inner = JS.invoke(mml, "buildExpression", JS.call(ordargument, undef(), group["body"]), options);
+-  JsValue phantom = JS.construct(mathMLTree["MathNode"], "mphantom", inner);
++  JsValue phantom = JS.construct(MathNode, "mphantom", inner);
+   JsValue a21 = JS.array(phantom);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a21);
++  JsValue node = JS.construct(MathNode, "mpadded", a21);
+   JS.invoke(node, "setAttribute", "height", "0px");
+   JS.invoke(node, "setAttribute", "depth", "0px");
+   return node;
+@@ -86,20 +88,20 @@
+ o22["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a28 = JS.array("inner");
+   JsValue a29 = JS.array(JS.invoke(html, "buildGroup", group["body"], JS.invoke(options, "withPhantom")));
+-  JsValue inner = JS.invoke(buildCommon, "makeSpan", a28, a29);
++  JsValue inner = JS.call(makeSpan, undef(), a28, a29);
+   JsValue a30 = JS.array("fix");
+   JsValue a31 = JS.array();
+-  JsValue fix = JS.invoke(buildCommon, "makeSpan", a30, a31);
++  JsValue fix = JS.call(makeSpan, undef(), a30, a31);
+   JsValue a32 = JS.array("mord", "rlap");
+   JsValue a33 = JS.array(inner, fix);
+-  return JS.invoke(buildCommon, "makeSpan", a32, a33, options);
++  return JS.call(makeSpan, undef(), a32, a33, options);
+   return undef();
+ };
+ o22["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue inner = JS.invoke(mml, "buildExpression", JS.call(ordargument, undef(), group["body"]), options);
+-  JsValue phantom = JS.construct(mathMLTree["MathNode"], "mphantom", inner);
++  JsValue phantom = JS.construct(MathNode, "mphantom", inner);
+   JsValue a34 = JS.array(phantom);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a34);
++  JsValue node = JS.construct(MathNode, "mpadded", a34);
+   JS.invoke(node, "setAttribute", "width", "0px");
+   return node;
+   return undef();
+
 --- a/src/functions/pmb.lil
 +++ b/src/functions/pmb.lil
-@@ -10,7 +10,7 @@
+@@ -6,11 +6,13 @@
+ import { binrelClass } from "./mclass.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "pmb", "names", JS.array("\\pmb"));
  JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
  o1["props"] = o3;
@@ -920,7 +2819,7 @@
    JsValue op5 = p4;
    JsValue parser = op5["parser"];
    JsValue o6 = emptyObject();
-@@ -20,22 +20,22 @@
+@@ -20,22 +22,22 @@
    o6["body"] = JS.call(ordargument, undef(), args[0]);
    return o6;
    return undef();
@@ -930,7 +2829,8 @@
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue elements = JS.invoke(html, "buildExpression", group["body"], options, true);
    JsValue a7 = JS.array(group["mclass"]);
-   JsValue node = JS.invoke(buildCommon, "makeSpan", a7, elements, options);
+-  JsValue node = JS.invoke(buildCommon, "makeSpan", a7, elements, options);
++  JsValue node = JS.call(makeSpan, undef(), a7, elements, options);
    node["style"]["textShadow"] = "0.02em 0.01em 0.04px";
    return node;
    return undef();
@@ -939,7 +2839,8 @@
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue style) => {
    JsValue inner = JS.invoke(mml, "buildExpression", group["body"], style);
-   JsValue node = JS.construct(mathMLTree["MathNode"], "mstyle", inner);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mstyle", inner);
++  JsValue node = JS.construct(MathNode, "mstyle", inner);
    JS.invoke(node, "setAttribute", "style", "text-shadow: 0.02em 0.01em 0.04px");
    return node;
    return undef();
@@ -951,7 +2852,13 @@
 
 --- a/src/functions/raisebox.lil
 +++ b/src/functions/raisebox.lil
-@@ -11,7 +11,7 @@
+@@ -7,11 +7,13 @@
+ import { calculateSize } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeVList } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "raisebox", "names", JS.array("\\raisebox"));
  JsValue o3 = JS.object("numArgs", 2, "argTypes", JS.array("size", "hbox"), "allowedInText", true);
  o1["props"] = o3;
@@ -960,7 +2867,7 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue amount = JS.call(assertNodeType, undef(), args[0], "size")["value"];
-@@ -23,8 +23,8 @@
+@@ -23,8 +25,8 @@
    o7["body"] = body;
    return o7;
    return undef();
@@ -971,16 +2878,23 @@
    JsValue body = JS.invoke(html, "buildGroup", group["body"], options);
    JsValue dy = JS.call(calculateSize, undef(), group["dy"], options);
    JsValue o8 = emptyObject();
-@@ -38,15 +38,15 @@
+@@ -34,19 +36,19 @@
+   JsValue o10 = emptyObject();
+   o10["type"] = "elem";
+   o10["elem"] = body;
+-  JS.push(a9, o10);
++  JS.invoke(a9, "push", o10);
    o8["children"] = a9;
-   return JS.invoke(buildCommon, "makeVList", o8, options);
+-  return JS.invoke(buildCommon, "makeVList", o8, options);
++  return JS.call(makeVList, undef(), o8, options);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a11 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
-   JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a11);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a11);
++  JsValue node = JS.construct(MathNode, "mpadded", a11);
    JsValue dy = JS.add(group["dy"]["number"], group["dy"]["unit"]);
    JS.invoke(node, "setAttribute", "voffset", dy);
    return node;
@@ -1014,7 +2928,13 @@
 
 --- a/src/functions/rule.lil
 +++ b/src/functions/rule.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { assertNodeType } from "../parseNode.lil";
+ import { calculateSize, makeEm } from "../units.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "rule", "names", JS.array("\\rule"));
  JsValue o3 = JS.object("numArgs", 2, "numOptionalArgs", 1, "allowedInText", true, "allowedInMath", true, "argTypes", JS.array("size", "size", "size"));
  o1["props"] = o3;
@@ -1023,7 +2943,7 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue shift = optArgs[0];
-@@ -27,8 +27,8 @@
+@@ -27,11 +29,11 @@
    o7["height"] = height["value"];
    return o7;
    return undef();
@@ -1033,8 +2953,12 @@
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a9 = JS.array("mord", "rule");
    JsValue a10 = JS.array();
-   JsValue rule = JS.invoke(buildCommon, "makeSpan", a9, a10, options);
-@@ -50,8 +50,8 @@
+-  JsValue rule = JS.invoke(buildCommon, "makeSpan", a9, a10, options);
++  JsValue rule = JS.call(makeSpan, undef(), a9, a10, options);
+   JsValue width = JS.call(calculateSize, undef(), group["width"], options);
+   JsValue height = JS.call(calculateSize, undef(), group["height"], options);
+   JsValue c11 = undef();
+@@ -50,8 +52,8 @@
    rule["maxFontSize"] = (toNum((toNum(height) * toNum(1.125))) * toNum(options["sizeMultiplier"]));
    return rule;
    return undef();
@@ -1045,7 +2969,21 @@
    number width = toNum(JS.call(calculateSize, undef(), group["width"], options));
    number height = toNum(JS.call(calculateSize, undef(), group["height"], options));
    number shift = 0;
-@@ -78,7 +78,7 @@
+@@ -65,11 +67,11 @@
+   if (!(color.truthy())) {
+     color = "black";
+   }
+-  JsValue rule = JS.construct(mathMLTree["MathNode"], "mspace");
++  JsValue rule = JS.construct(MathNode, "mspace");
+   JS.invoke(rule, "setAttribute", "mathbackground", color);
+   JS.invoke(rule, "setAttribute", "width", JS.call(makeEm, undef(), width));
+   JS.invoke(rule, "setAttribute", "height", JS.call(makeEm, undef(), height));
+-  JsValue wrapper = JS.construct(mathMLTree["MathNode"], "mpadded", JS.array(rule));
++  JsValue wrapper = JS.construct(MathNode, "mpadded", JS.array(rule));
+   if (shift >= 0) {
+     JS.invoke(wrapper, "setAttribute", "height", JS.call(makeEm, undef(), shift));
+   } else {
+@@ -78,7 +80,7 @@
    }
    JS.invoke(wrapper, "setAttribute", "voffset", JS.call(makeEm, undef(), shift));
    return wrapper;
@@ -1055,9 +2993,86 @@
  JsValue __star = emptyObject();
  
 
+--- a/src/functions/sizing.lil
++++ b/src/functions/sizing.lil
+@@ -6,6 +6,8 @@
+ import { makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeFragment } from "../buildCommon.lil";
+ 
+ JsValue sizingGroup = undef();
+ JsValue sizeFuncs = undef();
+@@ -25,7 +27,7 @@
+     inner[i]["height"] = toNum(inner[i]["height"]) * multiplier;
+     inner[i]["depth"] = toNum(inner[i]["depth"]) * multiplier;
+   }
+-  return JS.invoke(buildCommon, "makeFragment", inner);
++  return JS.call(makeFragment, undef(), inner);
+ };
+ JsValue a4 = JS.array("\\tiny", "\\sixptsize", "\\scriptsize", "\\footnotesize", "\\small", "\\normalsize", "\\large", "\\Large", "\\LARGE", "\\huge", "\\Huge");
+ sizeFuncs = a4;
+@@ -51,7 +53,7 @@
+ o5["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue newOptions = JS.invoke(options, "havingSize", group["size"]);
+   JsValue inner = JS.invoke(mml, "buildExpression", group["body"], newOptions);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mstyle", inner);
++  JsValue node = JS.construct(MathNode, "mstyle", inner);
+   JS.invoke(node, "setAttribute", "mathsize", JS.call(makeEm, undef(), newOptions["sizeMultiplier"]));
+   return node;
+   return undef();
+
+--- a/src/functions/smash.lil
++++ b/src/functions/smash.lil
+@@ -6,6 +6,8 @@
+ import { assertNodeType } from "../parseNode.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeVList } from "../buildCommon.lil";
+ 
+ JsValue o1 = JS.object("type", "smash", "names", JS.array("\\smash"));
+ JsValue o3 = JS.object("numArgs", 1, "numOptionalArgs", 1, "allowedInText", true);
+@@ -51,7 +53,7 @@
+ o1["htmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a9 = JS.array();
+   JsValue a10 = JS.array(JS.invoke(html, "buildGroup", group["body"], options));
+-  JsValue node = JS.invoke(buildCommon, "makeSpan", a9, a10);
++  JsValue node = JS.call(makeSpan, undef(), a9, a10);
+   if ((!(group["smashHeight"].truthy())) && (!(group["smashDepth"].truthy()))) {
+     return node;
+   }
+@@ -78,15 +80,15 @@
+     }
+   }
+   JsValue o13 = JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", node)));
+-  JsValue smashedNode = JS.invoke(buildCommon, "makeVList", o13, options);
++  JsValue smashedNode = JS.call(makeVList, undef(), o13, options);
+   JsValue a16 = JS.array("mord");
+   JsValue a17 = JS.array(smashedNode);
+-  return JS.invoke(buildCommon, "makeSpan", a16, a17, options);
++  return JS.call(makeSpan, undef(), a16, a17, options);
+   return undef();
+ };
+ o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
+   JsValue a18 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mpadded", a18);
++  JsValue node = JS.construct(MathNode, "mpadded", a18);
+   if (group["smashHeight"].truthy()) {
+     JS.invoke(node, "setAttribute", "height", "0px");
+   }
+
 --- a/src/functions/sqrt.lil
 +++ b/src/functions/sqrt.lil
-@@ -12,7 +12,7 @@
+@@ -8,11 +8,14 @@
+ import { makeEm } from "../units.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeVList, wrapFragment } from "../buildCommon.lil";
++import { TEXT, SCRIPTSCRIPT } from "../Style.lil";
+ 
  JsValue o1 = JS.object("type", "sqrt", "names", JS.array("\\sqrt"));
  JsValue o3 = JS.object("numArgs", 1, "numOptionalArgs", 1);
  o1["props"] = o3;
@@ -1066,7 +3081,7 @@
    JsValue op5 = p4;
    JsValue parser = op5["parser"];
    JsValue index = optArgs[0];
-@@ -24,8 +24,8 @@
+@@ -24,16 +27,16 @@
    o6["index"] = index;
    return o6;
    return undef();
@@ -1077,9 +3092,36 @@
    JsValue inner = JS.invoke(html, "buildGroup", group["body"], JS.invoke(options, "havingCrampedStyle"));
    if (JS.strictEqual(inner["height"], 0)) {
      inner["height"] = JS.invoke(options, "fontMetrics")["xHeight"];
-@@ -61,8 +61,8 @@
-     JsValue rootVListWrap = JS.invoke(buildCommon, "makeSpan", JS.array("root"), JS.array(rootVList));
-     return JS.invoke(buildCommon, "makeSpan", JS.array("mord", "sqrt"), JS.array(rootVListWrap, body), options);
+   }
+-  inner = JS.invoke(buildCommon, "wrapFragment", inner, options);
++  inner = JS.call(wrapFragment, undef(), inner, options);
+   number theta = toNum(JS.invoke(options, "fontMetrics")["defaultRuleThickness"]);
+   number phi = theta;
+-  if (JS.lessThan(options["style"]["id"], Style["TEXT"]["id"])) {
++  if (JS.lessThan(options["style"]["id"], TEXT["id"])) {
+     phi = toNum(JS.invoke(options, "fontMetrics")["xHeight"]);
+   }
+   number lineClearance = theta + phi / 4;
+@@ -50,33 +53,33 @@
+   }
+   number imgShift = toNum(img["height"]) - innerHeight - lineClearance - ruleWidth;
+   inner["style"]["paddingLeft"] = JS.call(makeEm, undef(), advanceWidth);
+-  JsValue body = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", inner, "wrapperClasses", JS.array("svg-align")), JS.object("type", "kern", "size", 0 - (innerHeight + imgShift)), JS.object("type", "elem", "elem", img), JS.object("type", "kern", "size", ruleWidth))), options);
++  JsValue body = JS.call(makeVList, undef(), JS.object("positionType", "firstBaseline", "children", JS.array(JS.object("type", "elem", "elem", inner, "wrapperClasses", JS.array("svg-align")), JS.object("type", "kern", "size", 0 - (innerHeight + imgShift)), JS.object("type", "elem", "elem", img), JS.object("type", "kern", "size", ruleWidth))), options);
+   if (!(group["index"].truthy())) {
+-    return JS.invoke(buildCommon, "makeSpan", JS.array("mord", "sqrt"), JS.array(body), options);
++    return JS.call(makeSpan, undef(), JS.array("mord", "sqrt"), JS.array(body), options);
+   } else {
+-    JsValue newOptions = JS.invoke(options, "havingStyle", Style["SCRIPTSCRIPT"]);
++    JsValue newOptions = JS.invoke(options, "havingStyle", SCRIPTSCRIPT);
+     JsValue rootm = JS.invoke(html, "buildGroup", group["index"], newOptions, options);
+     number toShift = 0.6 * (toNum(body["height"]) - toNum(body["depth"]));
+-    JsValue rootVList = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "shift", "positionData", 0 - toShift, "children", JS.array(JS.object("type", "elem", "elem", rootm))), options);
+-    JsValue rootVListWrap = JS.invoke(buildCommon, "makeSpan", JS.array("root"), JS.array(rootVList));
+-    return JS.invoke(buildCommon, "makeSpan", JS.array("mord", "sqrt"), JS.array(rootVListWrap, body), options);
++    JsValue rootVList = JS.call(makeVList, undef(), JS.object("positionType", "shift", "positionData", 0 - toShift, "children", JS.array(JS.object("type", "elem", "elem", rootm))), options);
++    JsValue rootVListWrap = JS.call(makeSpan, undef(), JS.array("root"), JS.array(rootVList));
++    return JS.call(makeSpan, undef(), JS.array("mord", "sqrt"), JS.array(rootVListWrap, body), options);
    }
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
@@ -1088,7 +3130,15 @@
    JsValue op24 = group;
    JsValue body = op24["body"];
    JsValue index = op24["index"];
-@@ -76,7 +76,7 @@
+   JsValue c25 = undef();
+   if (index.truthy()) {
+     JsValue a26 = JS.array(JS.invoke(mml, "buildGroup", body, options), JS.invoke(mml, "buildGroup", index, options));
+-    c25 = JS.construct(mathMLTree["MathNode"], "mroot", a26);
++    c25 = JS.construct(MathNode, "mroot", a26);
+   } else {
+     JsValue a27 = JS.array(JS.invoke(mml, "buildGroup", body, options));
+-    c25 = JS.construct(mathMLTree["MathNode"], "msqrt", a27);
++    c25 = JS.construct(MathNode, "msqrt", a27);
    }
    return c25;
    return undef();
@@ -1100,7 +3150,18 @@
 
 --- a/src/functions/styling.lil
 +++ b/src/functions/styling.lil
-@@ -13,7 +13,7 @@
+@@ -5,15 +5,17 @@
+ import { Style } from "../Style.lil";
+ import { sizingGroup } from "./sizing.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { DISPLAY, TEXT, SCRIPT, SCRIPTSCRIPT } from "../Style.lil";
+ 
+ JsValue styleMap = undef();
+ 
+-JsValue o1 = JS.object("display", Style["DISPLAY"], "text", Style["TEXT"], "script", Style["SCRIPT"], "scriptscript", Style["SCRIPTSCRIPT"]);
++JsValue o1 = JS.object("display", DISPLAY, "text", TEXT, "script", SCRIPT, "scriptscript", SCRIPTSCRIPT);
+ styleMap = o1;
  JsValue o2 = JS.object("type", "styling", "names", JS.array("\\displaystyle", "\\textstyle", "\\scriptstyle", "\\scriptscriptstyle"));
  JsValue o4 = JS.object("numArgs", 0, "allowedInText", true, "primitive", true);
  o2["props"] = o4;
@@ -1109,7 +3170,7 @@
    JsValue op6 = p5;
    JsValue breakOnTokenText = op6["breakOnTokenText"];
    JsValue funcName = op6["funcName"];
-@@ -27,14 +27,14 @@
+@@ -27,18 +29,18 @@
    o7["body"] = body;
    return o7;
    return undef();
@@ -1128,7 +3189,12 @@
    JsValue newStyle = styleMap[group["style"]];
    JsValue newOptions = JS.invoke(options, "havingStyle", newStyle);
    JsValue inner = JS.invoke(mml, "buildExpression", group["body"], newOptions);
-@@ -54,7 +54,7 @@
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mstyle", inner);
++  JsValue node = JS.construct(MathNode, "mstyle", inner);
+   JsValue o8 = emptyObject();
+   JsValue a9 = JS.array("0", "true");
+   o8["display"] = a9;
+@@ -54,7 +56,7 @@
    JS.invoke(node, "setAttribute", "displaystyle", attr[1]);
    return node;
    return undef();
@@ -1140,7 +3206,35 @@
 
 --- a/src/functions/supsub.lil
 +++ b/src/functions/supsub.lil
-@@ -85,7 +85,7 @@
+@@ -13,6 +13,9 @@
+ import { __star as horizBrace } from "./horizBrace.lil";
+ import { __star as op } from "./op.lil";
+ import { __star as operatorname } from "./operatorname.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeSpan, makeVList } from "../buildCommon.lil";
++import { DISPLAY } from "../Style.lil";
+ 
+ JsValue htmlBuilderDelegate = undef();
+ 
+@@ -24,7 +27,7 @@
+     if (JS.strictEqual(base["type"], "op")) {
+       JsValue and1 = base["limits"];
+       if (and1.truthy()) {
+-        JsValue or2 = JS.strictEqual(options["style"]["size"], Style["DISPLAY"]["size"]);
++        JsValue or2 = JS.strictEqual(options["style"]["size"], DISPLAY["size"]);
+         if (!(or2.truthy())) {
+           or2 = base["alwaysHandleSupSub"];
+         }
+@@ -42,7 +45,7 @@
+       if (JS.strictEqual(base["type"], "operatorname")) {
+         JsValue and4 = base["alwaysHandleSupSub"];
+         if (and4.truthy()) {
+-          JsValue or5 = JS.strictEqual(options["style"]["size"], Style["DISPLAY"]["size"]);
++          JsValue or5 = JS.strictEqual(options["style"]["size"], DISPLAY["size"]);
+           if (!(or5.truthy())) {
+             or5 = base["limits"];
+           }
+@@ -85,7 +88,7 @@
    return undef();
  };
  JsValue o9 = JS.object("type", "supsub");
@@ -1149,20 +3243,90 @@
    JsValue builderDelegate = JS.call(htmlBuilderDelegate, undef(), group, options);
    if (builderDelegate.truthy()) {
      return JS.call(builderDelegate, undef(), group, options);
-@@ -160,8 +160,8 @@
+@@ -115,7 +118,7 @@
+     }
+   }
+   number minSupShift = 0;
+-  if (JS.strictEqual(options["style"], Style["DISPLAY"])) {
++  if (JS.strictEqual(options["style"], DISPLAY)) {
+     minSupShift = toNum(metrics["sup1"]);
+   } else if (options["style"]["cramped"].truthy()) {
+     minSupShift = toNum(metrics["sup3"]);
+@@ -145,13 +148,13 @@
+         subShift = subShift - psi;
+       }
+     }
+-    supsub = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", subm, "shift", subShift, "marginRight", marginRight, "marginLeft", marginLeft), JS.object("type", "elem", "elem", supm, "shift", 0 - supShift, "marginRight", marginRight))), options);
++    supsub = JS.call(makeVList, undef(), JS.object("positionType", "individualShift", "children", JS.array(JS.object("type", "elem", "elem", subm, "shift", subShift, "marginRight", marginRight, "marginLeft", marginLeft), JS.object("type", "elem", "elem", supm, "shift", 0 - supShift, "marginRight", marginRight))), options);
+   } else if (subm.truthy()) {
+     subShift = toNum(JS.invoke(Math, "max", subShift, metrics["sub1"], toNum(subm["height"]) - 0.8 * toNum(metrics["xHeight"])));
+-    supsub = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "shift", "positionData", subShift, "children", JS.array(JS.object("type", "elem", "elem", subm, "marginLeft", marginLeft, "marginRight", marginRight))), options);
++    supsub = JS.call(makeVList, undef(), JS.object("positionType", "shift", "positionData", subShift, "children", JS.array(JS.object("type", "elem", "elem", subm, "marginLeft", marginLeft, "marginRight", marginRight))), options);
+   } else if (supm.truthy()) {
+     supShift = toNum(JS.invoke(Math, "max", supShift, minSupShift, toNum(supm["depth"]) + 0.25 * toNum(metrics["xHeight"])));
+-    supsub = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "shift", "positionData", 0 - supShift, "children", JS.array(JS.object("type", "elem", "elem", supm, "marginRight", marginRight))), options);
++    supsub = JS.call(makeVList, undef(), JS.object("positionType", "shift", "positionData", 0 - supShift, "children", JS.array(JS.object("type", "elem", "elem", supm, "marginRight", marginRight))), options);
+   } else {
+     throw makeError(toStr("supsub must have either sup or sub."));
+   }
+@@ -159,9 +162,9 @@
+   if (!(mclass.truthy())) {
      mclass = "mord";
    }
-   return JS.invoke(buildCommon, "makeSpan", JS.array(mclass), JS.array(base, JS.invoke(buildCommon, "makeSpan", JS.array("msupsub"), JS.array(supsub))), options);
+-  return JS.invoke(buildCommon, "makeSpan", JS.array(mclass), JS.array(base, JS.invoke(buildCommon, "makeSpan", JS.array("msupsub"), JS.array(supsub))), options);
 -});
 -o9["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
++  return JS.call(makeSpan, undef(), JS.array(mclass), JS.array(base, JS.call(makeSpan, undef(), JS.array("msupsub"), JS.array(supsub))), options);
 +};
 +o9["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue isBrace = false;
    JsValue isOver = undef();
    JsValue isSup = undef();
-@@ -232,7 +232,7 @@
+@@ -195,10 +198,10 @@
+   } else {
+     if (!(group["sub"].truthy())) {
+       JsValue base = group["base"];
+-      if ((((base.truthy()) && (JS.strictEqual(base["type"], "op"))) && (base["limits"].truthy())) && ((JS.strictEqual(options["style"], Style["DISPLAY"])) || (base["alwaysHandleSupSub"].truthy()))) {
++      if ((((base.truthy()) && (JS.strictEqual(base["type"], "op"))) && (base["limits"].truthy())) && ((JS.strictEqual(options["style"], DISPLAY)) || (base["alwaysHandleSupSub"].truthy()))) {
+         nodeType = "mover";
+       } else {
+-        if ((((base.truthy()) && (JS.strictEqual(base["type"], "operatorname"))) && (base["alwaysHandleSupSub"].truthy())) && ((base["limits"].truthy()) || (JS.strictEqual(options["style"], Style["DISPLAY"])))) {
++        if ((((base.truthy()) && (JS.strictEqual(base["type"], "operatorname"))) && (base["alwaysHandleSupSub"].truthy())) && ((base["limits"].truthy()) || (JS.strictEqual(options["style"], DISPLAY)))) {
+           nodeType = "mover";
+         } else {
+           nodeType = "msup";
+@@ -207,10 +210,10 @@
+     } else {
+       if (!(group["sup"].truthy())) {
+         JsValue base = group["base"];
+-        if ((((base.truthy()) && (JS.strictEqual(base["type"], "op"))) && (base["limits"].truthy())) && ((JS.strictEqual(options["style"], Style["DISPLAY"])) || (base["alwaysHandleSupSub"].truthy()))) {
++        if ((((base.truthy()) && (JS.strictEqual(base["type"], "op"))) && (base["limits"].truthy())) && ((JS.strictEqual(options["style"], DISPLAY)) || (base["alwaysHandleSupSub"].truthy()))) {
+           nodeType = "munder";
+         } else {
+-          if ((((base.truthy()) && (JS.strictEqual(base["type"], "operatorname"))) && (base["alwaysHandleSupSub"].truthy())) && ((base["limits"].truthy()) || (JS.strictEqual(options["style"], Style["DISPLAY"])))) {
++          if ((((base.truthy()) && (JS.strictEqual(base["type"], "operatorname"))) && (base["alwaysHandleSupSub"].truthy())) && ((base["limits"].truthy()) || (JS.strictEqual(options["style"], DISPLAY)))) {
+             nodeType = "munder";
+           } else {
+             nodeType = "msub";
+@@ -218,10 +221,10 @@
+         }
+       } else {
+         JsValue base = group["base"];
+-        if ((((base.truthy()) && (JS.strictEqual(base["type"], "op"))) && (base["limits"].truthy())) && (JS.strictEqual(options["style"], Style["DISPLAY"]))) {
++        if ((((base.truthy()) && (JS.strictEqual(base["type"], "op"))) && (base["limits"].truthy())) && (JS.strictEqual(options["style"], DISPLAY))) {
+           nodeType = "munderover";
+         } else {
+-          if ((((base.truthy()) && (JS.strictEqual(base["type"], "operatorname"))) && (base["alwaysHandleSupSub"].truthy())) && ((JS.strictEqual(options["style"], Style["DISPLAY"])) || (base["limits"].truthy()))) {
++          if ((((base.truthy()) && (JS.strictEqual(base["type"], "operatorname"))) && (base["alwaysHandleSupSub"].truthy())) && ((JS.strictEqual(options["style"], DISPLAY)) || (base["limits"].truthy()))) {
+             nodeType = "munderover";
+           } else {
+             nodeType = "msubsup";
+@@ -230,9 +233,9 @@
+       }
+     }
    }
-   return JS.construct(mathMLTree["MathNode"], nodeType, children);
+-  return JS.construct(mathMLTree["MathNode"], nodeType, children);
++  return JS.construct(MathNode, nodeType, children);
    return undef();
 -});
 +};
@@ -1172,23 +3336,31 @@
 
 --- a/src/functions/symbolsOp.lil
 +++ b/src/functions/symbolsOp.lil
-@@ -6,12 +6,12 @@
+@@ -4,16 +4,18 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { mathMLTree } from "../mathMLTree.lil";
  import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { mathsym } from "../buildCommon.lil";
  
  JsValue o1 = JS.object("type", "atom");
 -o1["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a2 = JS.array(JS.add("m", group["family"]));
-   return JS.invoke(buildCommon, "mathsym", group["text"], group["mode"], options, a2);
+-  return JS.invoke(buildCommon, "mathsym", group["text"], group["mode"], options, a2);
++  return JS.call(mathsym, undef(), group["text"], group["mode"], options, a2);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a3 = JS.array(JS.invoke(mml, "makeText", group["text"], group["mode"]));
-   JsValue node = JS.construct(mathMLTree["MathNode"], "mo", a3);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mo", a3);
++  JsValue node = JS.construct(MathNode, "mo", a3);
    if (JS.strictEqual(group["family"], "bin")) {
-@@ -30,7 +30,7 @@
+     JsValue variant = JS.invoke(mml, "getVariant", group, options);
+     if (JS.strictEqual(variant, "bold-italic")) {
+@@ -30,7 +32,7 @@
    }
    return node;
    return undef();
@@ -1200,22 +3372,34 @@
 
 --- a/src/functions/symbolsOrd.lil
 +++ b/src/functions/symbolsOrd.lil
-@@ -10,11 +10,11 @@
+@@ -4,19 +4,21 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeOrd } from "../buildCommon.lil";
+ 
+ JsValue defaultVariant = undef();
+ 
  JsValue o1 = JS.object("mi", "italic", "mn", "normal", "mtext", "normal");
  defaultVariant = o1;
  JsValue o2 = JS.object("type", "mathord");
 -o2["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  return JS.invoke(buildCommon, "makeOrd", group, options, "mathord");
 +o2["htmlBuilder"] = (JsValue group, JsValue options) => {
-   return JS.invoke(buildCommon, "makeOrd", group, options, "mathord");
++  return JS.call(makeOrd, undef(), group, options, "mathord");
    return undef();
 -});
 -o2["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
 +};
 +o2["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a3 = JS.array(JS.invoke(mml, "makeText", group["text"], group["mode"], options));
-   JsValue node = JS.construct(mathMLTree["MathNode"], "mi", a3);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mi", a3);
++  JsValue node = JS.construct(MathNode, "mi", a3);
    JsValue or4 = JS.invoke(mml, "getVariant", group, options);
-@@ -27,14 +27,14 @@
+   if (!(or4.truthy())) {
+     or4 = "italic";
+@@ -27,14 +29,14 @@
    }
    return node;
    return undef();
@@ -1224,8 +3408,9 @@
  JS.call(defineFunctionBuilders, undef(), o2);
  JsValue o5 = JS.object("type", "textord");
 -o5["htmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  return JS.invoke(buildCommon, "makeOrd", group, options, "textord");
 +o5["htmlBuilder"] = (JsValue group, JsValue options) => {
-   return JS.invoke(buildCommon, "makeOrd", group, options, "textord");
++  return JS.call(makeOrd, undef(), group, options, "textord");
    return undef();
 -});
 -o5["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
@@ -1234,7 +3419,30 @@
    JsValue text = JS.invoke(mml, "makeText", group["text"], group["mode"], options);
    JsValue or6 = JS.invoke(mml, "getVariant", group, options);
    if (!(or6.truthy())) {
-@@ -64,7 +64,7 @@
+@@ -44,18 +46,18 @@
+   JsValue node = undef();
+   if (JS.strictEqual(group["mode"], "text")) {
+     JsValue a7 = JS.array(text);
+-    node = JS.construct(mathMLTree["MathNode"], "mtext", a7);
++    node = JS.construct(MathNode, "mtext", a7);
+   } else {
+     if (JS.invoke(JS.construct(RegExp, "[0-9]", ""), "test", group["text"]).truthy()) {
+       JsValue a8 = JS.array(text);
+-      node = JS.construct(mathMLTree["MathNode"], "mn", a8);
++      node = JS.construct(MathNode, "mn", a8);
+     } else {
+       if (JS.strictEqual(group["text"], "\\prime")) {
+         JsValue a9 = JS.array(text);
+-        node = JS.construct(mathMLTree["MathNode"], "mo", a9);
++        node = JS.construct(MathNode, "mo", a9);
+       } else {
+         JsValue a10 = JS.array(text);
+-        node = JS.construct(mathMLTree["MathNode"], "mi", a10);
++        node = JS.construct(MathNode, "mi", a10);
+       }
+     }
+   }
+@@ -64,7 +66,7 @@
    }
    return node;
    return undef();
@@ -1246,7 +3454,16 @@
 
 --- a/src/functions/symbolsSpacing.lil
 +++ b/src/functions/symbolsSpacing.lil
-@@ -23,7 +23,7 @@
+@@ -4,6 +4,8 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { ParseError } from "../ParseError.lil";
++import { MathNode, TextNode } from "../mathMLTree.lil";
++import { makeOrd, makeSpan, mathsym } from "../buildCommon.lil";
+ 
+ JsValue cssSpace = undef();
+ JsValue regularSpace = undef();
+@@ -23,7 +25,7 @@
  o2["\\nobreakspace"] = o7;
  regularSpace = o2;
  JsValue o8 = JS.object("type", "spacing");
@@ -1255,7 +3472,29 @@
    if (hasOwn(regularSpace, group["text"])) {
      JsValue or9 = regularSpace[group["text"]]["className"];
      if (!(or9.truthy())) {
-@@ -49,8 +49,8 @@
+@@ -31,40 +33,40 @@
+     }
+     JsValue className = or9;
+     if (JS.strictEqual(group["mode"], "text")) {
+-      JsValue ord = JS.invoke(buildCommon, "makeOrd", group, options, "textord");
++      JsValue ord = JS.call(makeOrd, undef(), group, options, "textord");
+       JS.invoke(ord["classes"], "push", className);
+       return ord;
+     } else {
+       JsValue a10 = JS.array("mspace", className);
+-      JsValue a11 = JS.array(JS.invoke(buildCommon, "mathsym", group["text"], group["mode"], options));
+-      return JS.invoke(buildCommon, "makeSpan", a10, a11, options);
++      JsValue a11 = JS.array(JS.call(mathsym, undef(), group["text"], group["mode"], options));
++      return JS.call(makeSpan, undef(), a10, a11, options);
+     }
+   } else {
+     if (hasOwn(cssSpace, group["text"])) {
+       JsValue a12 = JS.array("mspace", cssSpace[group["text"]]);
+       JsValue a13 = JS.array();
+-      return JS.invoke(buildCommon, "makeSpan", a12, a13, options);
++      return JS.call(makeSpan, undef(), a12, a13, options);
+     } else {
+       throw JS.construct(ParseError, "Unknown type of space \"" + toStr(group["text"]) + "\"");
      }
    }
    return undef();
@@ -1265,8 +3504,17 @@
 +o8["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue node = undef();
    if (hasOwn(regularSpace, group["text"])) {
-     JsValue a14 = JS.array(JS.construct(mathMLTree["TextNode"], " "));
-@@ -64,7 +64,7 @@
+-    JsValue a14 = JS.array(JS.construct(mathMLTree["TextNode"], " "));
+-    node = JS.construct(mathMLTree["MathNode"], "mtext", a14);
++    JsValue a14 = JS.array(JS.construct(TextNode, " "));
++    node = JS.construct(MathNode, "mtext", a14);
+   } else {
+     if (hasOwn(cssSpace, group["text"])) {
+-      return JS.construct(mathMLTree["MathNode"], "mspace");
++      return JS.construct(MathNode, "mspace");
+     } else {
+       throw JS.construct(ParseError, "Unknown type of space \"" + toStr(group["text"]) + "\"");
+     }
    }
    return node;
    return undef();
@@ -1278,7 +3526,20 @@
 
 --- a/src/functions/tag.lil
 +++ b/src/functions/tag.lil
-@@ -14,7 +14,7 @@
+@@ -3,31 +3,32 @@
+ import { defineFunctionBuilders } from "../defineFunction.lil";
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
+ 
+ JsValue pad = undef();
+ 
+ pad = () => {
+   JsValue a1 = JS.array();
+-  JsValue padNode = JS.construct(mathMLTree["MathNode"], "mtd", a1);
++  JsValue padNode = JS.construct(MathNode, "mtd", a1);
+   JS.invoke(padNode, "setAttribute", "width", "50%");
+   return padNode;
    return undef();
  };
  JsValue o2 = JS.object("type", "tag");
@@ -1287,7 +3548,17 @@
    JsValue a3 = newArray();
    JsValue a4 = JS.array(JS.call(pad, undef()));
    JsValue a5 = JS.array(JS.invoke(mml, "buildExpressionRow", group["body"], options));
-@@ -27,7 +27,7 @@
+-  JS.push(a4, JS.construct(mathMLTree["MathNode"], "mtd", a5));
+-  JS.push(a4, JS.call(pad, undef()));
++  JS.invoke(a4, "push", JS.construct(MathNode, "mtd", a5));
++  JS.invoke(a4, "push", JS.call(pad, undef()));
+   JsValue a6 = JS.array(JS.invoke(mml, "buildExpressionRow", group["tag"], options));
+-  JS.push(a4, JS.construct(mathMLTree["MathNode"], "mtd", a6));
+-  JS.push(a3, JS.construct(mathMLTree["MathNode"], "mtr", a4));
+-  JsValue table = JS.construct(mathMLTree["MathNode"], "mtable", a3);
++  JS.invoke(a4, "push", JS.construct(MathNode, "mtd", a6));
++  JS.invoke(a3, "push", JS.construct(MathNode, "mtr", a4));
++  JsValue table = JS.construct(MathNode, "mtable", a3);
    JS.invoke(table, "setAttribute", "width", "100%");
    return table;
    return undef();
@@ -1299,7 +3570,15 @@
 
 --- a/src/functions/text.lil
 +++ b/src/functions/text.lil
-@@ -45,7 +45,7 @@
+@@ -4,6 +4,7 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { makeSpan } from "../buildCommon.lil";
+ 
+ JsValue textFontFamilies = undef();
+ JsValue textFontWeights = undef();
+@@ -45,7 +46,7 @@
  JsValue o5 = JS.object("type", "text", "names", JS.array("\\text", "\\textrm", "\\textsf", "\\texttt", "\\textnormal", "\\textbf", "\\textmd", "\\textit", "\\textup", "\\emph"));
  JsValue o7 = JS.object("numArgs", 1, "argTypes", JS.array("text"), "allowedInArgument", true, "allowedInText", true);
  o5["props"] = o7;
@@ -1308,7 +3587,7 @@
    JsValue op10 = p9;
    JsValue parser = op10["parser"];
    JsValue funcName = op10["funcName"];
-@@ -57,19 +57,19 @@
+@@ -57,19 +58,19 @@
    o11["font"] = funcName;
    return o11;
    return undef();
@@ -1319,7 +3598,8 @@
    JsValue newOptions = JS.call(optionsWithFont, undef(), group, options);
    JsValue inner = JS.invoke(html, "buildExpression", group["body"], newOptions, true);
    JsValue a12 = JS.array("mord", "text");
-   return JS.invoke(buildCommon, "makeSpan", a12, inner, newOptions);
+-  return JS.invoke(buildCommon, "makeSpan", a12, inner, newOptions);
++  return JS.call(makeSpan, undef(), a12, inner, newOptions);
    return undef();
 -});
 -o5["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
@@ -1336,7 +3616,13 @@
 
 --- a/src/functions/underline.lil
 +++ b/src/functions/underline.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode, TextNode } from "../mathMLTree.lil";
++import { makeLineSpan, makeSpan, makeVList } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "underline", "names", JS.array("\\underline"));
  JsValue o3 = JS.object("numArgs", 1, "allowedInText", true);
  o1["props"] = o3;
@@ -1345,7 +3631,7 @@
    JsValue op5 = p4;
    JsValue parser = op5["parser"];
    JsValue o6 = emptyObject();
-@@ -18,8 +18,8 @@
+@@ -18,10 +20,10 @@
    o6["body"] = args[0];
    return o6;
    return undef();
@@ -1354,20 +3640,34 @@
 +};
 +o1["htmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue innerGroup = JS.invoke(html, "buildGroup", group["body"], options);
-   JsValue line = JS.invoke(buildCommon, "makeLineSpan", "underline-line", options);
+-  JsValue line = JS.invoke(buildCommon, "makeLineSpan", "underline-line", options);
++  JsValue line = JS.call(makeLineSpan, undef(), "underline-line", options);
    JsValue defaultRuleThickness = JS.invoke(options, "fontMetrics")["defaultRuleThickness"];
-@@ -45,8 +45,8 @@
+   JsValue o7 = emptyObject();
+   o7["positionType"] = "top";
+@@ -40,22 +42,22 @@
+   o12["elem"] = innerGroup;
+   JsValue a8 = JS.array(o9, o10, o11, o12);
+   o7["children"] = a8;
+-  JsValue vlist = JS.invoke(buildCommon, "makeVList", o7, options);
++  JsValue vlist = JS.call(makeVList, undef(), o7, options);
+   JsValue a13 = JS.array("mord", "underline");
    JsValue a14 = JS.array(vlist);
-   return JS.invoke(buildCommon, "makeSpan", a13, a14, options);
+-  return JS.invoke(buildCommon, "makeSpan", a13, a14, options);
++  return JS.call(makeSpan, undef(), a13, a14, options);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  JsValue a15 = JS.array(JS.construct(mathMLTree["TextNode"], "‾"));
+-  JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a15);
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
-   JsValue a15 = JS.array(JS.construct(mathMLTree["TextNode"], "‾"));
-   JsValue operator = JS.construct(mathMLTree["MathNode"], "mo", a15);
++  JsValue a15 = JS.array(JS.construct(TextNode, "‾"));
++  JsValue operator = JS.construct(MathNode, "mo", a15);
    JS.invoke(operator, "setAttribute", "stretchy", "true");
-@@ -55,7 +55,7 @@
+   JsValue a16 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options), operator);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "munder", a16);
++  JsValue node = JS.construct(MathNode, "munder", a16);
    JS.invoke(node, "setAttribute", "accentunder", "true");
    return node;
    return undef();
@@ -1377,9 +3677,61 @@
  JsValue __star = emptyObject();
  
 
+--- a/src/functions/utils/assembleSupSub.lil
++++ b/src/functions/utils/assembleSupSub.lil
+@@ -4,11 +4,12 @@
+ import { utils } from "../../utils.lil";
+ import { makeEm } from "../../units.lil";
+ import { __star as html } from "../../buildHTML.lil";
++import { makeSpan, makeVList } from "../../buildCommon.lil";
+ 
+ JsValue assembleSupSub = undef();
+ 
+ assembleSupSub = (JsValue base, JsValue supGroup, JsValue subGroup, JsValue options, JsValue style, JsValue slant, JsValue baseShift) => {
+-  base = JS.invoke(buildCommon, "makeSpan", JS.array(), JS.array(base));
++  base = JS.call(makeSpan, undef(), JS.array(), JS.array(base));
+   bool subIsSingleCharacter = subGroup.truthy() && JS.invoke(utils, "isCharacterBox", subGroup).truthy();
+   JsValue sub = undef();
+   JsValue sup = undef();
+@@ -25,23 +26,23 @@
+   JsValue finalGroup = undef();
+   if ((sup.truthy()) && (sub.truthy())) {
+     number bottom = spacing5 + toNum(sub["elem"]["height"]) + toNum(sub["elem"]["depth"]) + toNum(sub["kern"]) + toNum(base["depth"]) + shift;
+-    finalGroup = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "bottom", "positionData", bottom, "children", JS.array(JS.object("type", "kern", "size", spacing5), JS.object("type", "elem", "elem", sub["elem"], "marginLeft", JS.call(makeEm, undef(), 0 - toNum(slant))), JS.object("type", "kern", "size", sub["kern"]), JS.object("type", "elem", "elem", base), JS.object("type", "kern", "size", sup["kern"]), JS.object("type", "elem", "elem", sup["elem"], "marginLeft", JS.call(makeEm, undef(), slant)), JS.object("type", "kern", "size", spacing5))), options);
++    finalGroup = JS.call(makeVList, undef(), JS.object("positionType", "bottom", "positionData", bottom, "children", JS.array(JS.object("type", "kern", "size", spacing5), JS.object("type", "elem", "elem", sub["elem"], "marginLeft", JS.call(makeEm, undef(), 0 - toNum(slant))), JS.object("type", "kern", "size", sub["kern"]), JS.object("type", "elem", "elem", base), JS.object("type", "kern", "size", sup["kern"]), JS.object("type", "elem", "elem", sup["elem"], "marginLeft", JS.call(makeEm, undef(), slant)), JS.object("type", "kern", "size", spacing5))), options);
+   } else if (sub.truthy()) {
+     number top = toNum(base["height"]) - shift;
+-    finalGroup = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "top", "positionData", top, "children", JS.array(JS.object("type", "kern", "size", spacing5), JS.object("type", "elem", "elem", sub["elem"], "marginLeft", JS.call(makeEm, undef(), 0 - toNum(slant))), JS.object("type", "kern", "size", sub["kern"]), JS.object("type", "elem", "elem", base))), options);
++    finalGroup = JS.call(makeVList, undef(), JS.object("positionType", "top", "positionData", top, "children", JS.array(JS.object("type", "kern", "size", spacing5), JS.object("type", "elem", "elem", sub["elem"], "marginLeft", JS.call(makeEm, undef(), 0 - toNum(slant))), JS.object("type", "kern", "size", sub["kern"]), JS.object("type", "elem", "elem", base))), options);
+   } else if (sup.truthy()) {
+     number bottom = toNum(base["depth"]) + shift;
+-    finalGroup = JS.invoke(buildCommon, "makeVList", JS.object("positionType", "bottom", "positionData", bottom, "children", JS.array(JS.object("type", "elem", "elem", base), JS.object("type", "kern", "size", sup["kern"]), JS.object("type", "elem", "elem", sup["elem"], "marginLeft", JS.call(makeEm, undef(), slant)), JS.object("type", "kern", "size", spacing5))), options);
++    finalGroup = JS.call(makeVList, undef(), JS.object("positionType", "bottom", "positionData", bottom, "children", JS.array(JS.object("type", "elem", "elem", base), JS.object("type", "kern", "size", sup["kern"]), JS.object("type", "elem", "elem", sup["elem"], "marginLeft", JS.call(makeEm, undef(), slant)), JS.object("type", "kern", "size", spacing5))), options);
+   } else {
+     return base;
+   }
+   JsValue parts = JS.array(finalGroup);
+   if (((sub.truthy()) && (JS.strictNotEqual(slant, 0))) && (!subIsSingleCharacter)) {
+-    JsValue spacer = JS.invoke(buildCommon, "makeSpan", JS.array("mspace"), JS.array(), options);
++    JsValue spacer = JS.call(makeSpan, undef(), JS.array("mspace"), JS.array(), options);
+     spacer["style"]["marginRight"] = JS.call(makeEm, undef(), slant);
+     JS.invoke(parts, "unshift", spacer);
+   }
+-  return JS.invoke(buildCommon, "makeSpan", JS.array("mop", "op-limits"), parts, options);
++  return JS.call(makeSpan, undef(), JS.array("mop", "op-limits"), parts, options);
+ };
+ JsValue __star = JS.object("assembleSupSub", assembleSupSub);
+ 
+
 --- a/src/functions/vcenter.lil
 +++ b/src/functions/vcenter.lil
-@@ -9,7 +9,7 @@
+@@ -5,11 +5,13 @@
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { __star as html } from "../buildHTML.lil";
+ import { __star as mml } from "../buildMathML.lil";
++import { MathNode } from "../mathMLTree.lil";
++import { makeVList } from "../buildCommon.lil";
+ 
  JsValue o1 = JS.object("type", "vcenter", "names", JS.array("\\vcenter"));
  JsValue o3 = JS.object("numArgs", 1, "argTypes", JS.array("original"), "allowedInText", false);
  o1["props"] = o3;
@@ -1388,7 +3740,7 @@
    JsValue op6 = p5;
    JsValue parser = op6["parser"];
    JsValue o7 = emptyObject();
-@@ -18,8 +18,8 @@
+@@ -18,8 +20,8 @@
    o7["body"] = args[0];
    return o7;
    return undef();
@@ -1399,9 +3751,15 @@
    JsValue body = JS.invoke(html, "buildGroup", group["body"], options);
    JsValue axisHeight = JS.invoke(options, "fontMetrics")["axisHeight"];
    JsValue dy = (toNum(0.5) * toNum((toNum((toNum(body["height"]) - toNum(axisHeight))) - toNum(JS.add(body["depth"], axisHeight)))));
-@@ -34,13 +34,13 @@
+@@ -30,17 +32,17 @@
+   JsValue o10 = emptyObject();
+   o10["type"] = "elem";
+   o10["elem"] = body;
+-  JS.push(a9, o10);
++  JS.invoke(a9, "push", o10);
    o8["children"] = a9;
-   return JS.invoke(buildCommon, "makeVList", o8, options);
+-  return JS.invoke(buildCommon, "makeVList", o8, options);
++  return JS.call(makeVList, undef(), o8, options);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
@@ -1409,7 +3767,8 @@
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
    JsValue a11 = JS.array(JS.invoke(mml, "buildGroup", group["body"], options));
    JsValue a12 = JS.array("vcenter");
-   return JS.construct(mathMLTree["MathNode"], "mpadded", a11, a12);
+-  return JS.construct(mathMLTree["MathNode"], "mpadded", a11, a12);
++  return JS.construct(MathNode, "mpadded", a11, a12);
    return undef();
 -});
 +};
@@ -1419,7 +3778,15 @@
 
 --- a/src/functions/verb.lil
 +++ b/src/functions/verb.lil
-@@ -10,11 +10,11 @@
+@@ -4,17 +4,19 @@
+ import { buildCommon } from "../buildCommon.lil";
+ import { mathMLTree } from "../mathMLTree.lil";
+ import { ParseError } from "../ParseError.lil";
++import { MathNode, TextNode } from "../mathMLTree.lil";
++import { makeSpan, makeSymbol, tryCombineChars } from "../buildCommon.lil";
+ 
+ JsValue makeVerb = undef();
+ 
  JsValue o1 = JS.object("type", "verb", "names", JS.array("\\verb"));
  JsValue o3 = JS.object("numArgs", 0, "allowedInText", true);
  o1["props"] = o3;
@@ -1434,17 +3801,28 @@
    JsValue text = JS.call(makeVerb, undef(), group);
    JsValue a4 = JS.array();
    JsValue body = a4;
-@@ -33,15 +33,15 @@
+@@ -26,22 +28,22 @@
+         c = "\\textasciitilde";
+       }
+       JsValue a5 = JS.array("mord", "texttt");
+-      JS.invoke(body, "push", JS.invoke(buildCommon, "makeSymbol", c, "Typewriter-Regular", group["mode"], newOptions, a5));
++      JS.invoke(body, "push", JS.call(makeSymbol, undef(), c, "Typewriter-Regular", group["mode"], newOptions, a5));
+       JsValue u6 = i;
+     }
+   }
    JsValue a7 = JS.array("mord", "text");
-   return JS.invoke(buildCommon, "makeSpan", JS.invoke(a7, "concat", JS.invoke(newOptions, "sizingClasses", options)), JS.invoke(buildCommon, "tryCombineChars", body), newOptions);
+-  return JS.invoke(buildCommon, "makeSpan", JS.invoke(a7, "concat", JS.invoke(newOptions, "sizingClasses", options)), JS.invoke(buildCommon, "tryCombineChars", body), newOptions);
++  return JS.call(makeSpan, undef(), JS.invoke(a7, "concat", JS.invoke(newOptions, "sizingClasses", options)), JS.call(tryCombineChars, undef(), body), newOptions);
    return undef();
 -});
 -o1["mathmlBuilder"] = JS.method2((JsValue self, JsValue group, JsValue options) => {
+-  JsValue text = JS.construct(mathMLTree["TextNode"], JS.call(makeVerb, undef(), group));
 +};
 +o1["mathmlBuilder"] = (JsValue group, JsValue options) => {
-   JsValue text = JS.construct(mathMLTree["TextNode"], JS.call(makeVerb, undef(), group));
++  JsValue text = JS.construct(TextNode, JS.call(makeVerb, undef(), group));
    JsValue a8 = JS.array(text);
-   JsValue node = JS.construct(mathMLTree["MathNode"], "mtext", a8);
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mtext", a8);
++  JsValue node = JS.construct(MathNode, "mtext", a8);
    JS.invoke(node, "setAttribute", "mathvariant", "monospace");
    return node;
    return undef();
@@ -1453,3 +3831,116 @@
  JS.call(defineFunction, undef(), o1);
  makeVerb = (JsValue group) => {
    JsValue c9 = undef();
+
+--- a/src/macros.lil
++++ b/src/macros.lil
+@@ -564,17 +564,17 @@
+   JsValue ss21 = right;
+   int sn20 = len(ss21);
+   for (int si19 = 0; si19 < sn20; si19++) {
+-    JS.push(a18, ss21[si19]);
++    JS.invoke(a18, "push", ss21[si19]);
+   }
+   JsValue ss24 = arg;
+   int sn23 = len(ss24);
+   for (int si22 = 0; si22 < sn23; si22++) {
+-    JS.push(a18, ss24[si22]);
++    JS.invoke(a18, "push", ss24[si22]);
+   }
+   JsValue ss27 = left;
+   int sn26 = len(ss27);
+   for (int si25 = 0; si25 < sn26; si25++) {
+-    JS.push(a18, ss27[si25]);
++    JS.invoke(a18, "push", ss27[si25]);
+   }
+   JsValue expanded = JS.invoke(context, "expandTokens", a18);
+   JS.invoke(context["macros"], "endGroup");
+
+--- a/src/mathMLTree.lil
++++ b/src/mathMLTree.lil
+@@ -187,4 +187,4 @@
+ mathMLTree = o19;
+ JsValue __star = JS.object("newDocumentFragment", newDocumentFragment, "MathNode", MathNode, "TextNode", TextNode, "default", mathMLTree, "mathMLTree", mathMLTree);
+ 
+-export { __star, newDocumentFragment, MathNode, TextNode, mathMLTree as mathMLTree };
++export { __star, newDocumentFragment, MathNode, TextNode, SpaceNode, mathMLTree as mathMLTree };
+
+--- a/src/parseTree.lil
++++ b/src/parseTree.lil
+@@ -29,7 +29,7 @@
+     o2["body"] = tree;
+     JsValue a3 = JS.array(JS.construct(Token, "\\df@tag"));
+     o2["tag"] = JS.invoke(parser, "subparse", a3);
+-    JS.push(a1, o2);
++    JS.invoke(a1, "push", o2);
+     tree = a1;
+   }
+   return tree;
+
+--- a/src/stretchy.lil
++++ b/src/stretchy.lil
+@@ -5,6 +5,8 @@
+ import { mathMLTree } from "./mathMLTree.lil";
+ import { utils } from "./utils.lil";
+ import { makeEm } from "./units.lil";
++import { MathNode, TextNode } from "./mathMLTree.lil";
++import { makeSpan, makeSvgSpan } from "./buildCommon.lil";
+ 
+ JsValue stretchyCodePoint = undef();
+ JsValue mathMLnode = undef();
+@@ -16,8 +18,8 @@
+ JsValue o1 = JS.object("widehat", "^", "widecheck", "ˇ", "widetilde", "~", "utilde", "~", "overleftarrow", "←", "underleftarrow", "←", "xleftarrow", "←", "overrightarrow", "→", "underrightarrow", "→", "xrightarrow", "→", "underbrace", "⏟", "overbrace", "⏞", "overgroup", "⏠", "undergroup", "⏡", "overleftrightarrow", "↔", "underleftrightarrow", "↔", "xleftrightarrow", "↔", "Overrightarrow", "⇒", "xRightarrow", "⇒", "overleftharpoon", "↼", "xleftharpoonup", "↼", "overrightharpoon", "⇀", "xrightharpoonup", "⇀", "xLeftarrow", "⇐", "xLeftrightarrow", "⇔", "xhookleftarrow", "↩", "xhookrightarrow", "↪", "xmapsto", "↦", "xrightharpoondown", "⇁", "xleftharpoondown", "↽", "xrightleftharpoons", "⇌", "xleftrightharpoons", "⇋", "xtwoheadleftarrow", "↞", "xtwoheadrightarrow", "↠", "xlongequal", "=", "xtofrom", "⇄", "xrightleftarrows", "⇄", "xrightequilibrium", "⇌", "xleftequilibrium", "⇋", "\\cdrightarrow", "→", "\\cdleftarrow", "←", "\\cdlongequal", "=");
+ stretchyCodePoint = o1;
+ mathMLnode = (JsValue label) => {
+-  JsValue a2 = JS.array(JS.construct(mathMLTree["TextNode"], stretchyCodePoint[JS.invoke(label, "replace", JS.construct(RegExp, "^\\\\", ""), "")]));
+-  JsValue node = JS.construct(mathMLTree["MathNode"], "mo", a2);
++  JsValue a2 = JS.array(JS.construct(TextNode, stretchyCodePoint[JS.invoke(label, "replace", JS.construct(RegExp, "^\\\\", ""), "")]));
++  JsValue node = JS.construct(MathNode, "mo", a2);
+   JS.invoke(node, "setAttribute", "stretchy", "true");
+   return node;
+   return undef();
+@@ -84,7 +86,7 @@
+     JsValue o94 = emptyObject();
+     JsValue a95 = JS.array();
+     JsValue a96 = JS.array(svgNode);
+-    o94["span"] = JS.invoke(buildCommon, "makeSvgSpan", a95, a96, options);
++    o94["span"] = JS.call(makeSvgSpan, undef(), a95, a96, options);
+     o94["minWidth"] = 0;
+     o94["height"] = height;
+     return o94;
+@@ -131,7 +133,7 @@
+         JsValue svgNode = JS.construct(SvgNode, a105, o106);
+         JsValue a107 = JS.array(widthClasses[i]);
+         JsValue a108 = JS.array(svgNode);
+-        JsValue span = JS.invoke(buildCommon, "makeSvgSpan", a107, a108, options);
++        JsValue span = JS.call(makeSvgSpan, undef(), a107, a108, options);
+         if (JS.strictEqual(numSvgChildren, 1)) {
+           JsValue o109 = JS.object("span", span, "minWidth", minWidth, "height", height);
+           return o109;
+@@ -144,7 +146,7 @@
+     }
+     JsValue o111 = emptyObject();
+     JsValue a112 = JS.array("stretchy");
+-    o111["span"] = JS.invoke(buildCommon, "makeSpan", a112, spans, options);
++    o111["span"] = JS.call(makeSpan, undef(), a112, spans, options);
+     o111["minWidth"] = minWidth;
+     o111["height"] = height;
+     return o111;
+@@ -169,7 +171,7 @@
+   if (JS.invoke(JS.construct(RegExp, "fbox|color|angl", ""), "test", label).truthy()) {
+     JsValue a114 = JS.array("stretchy", label);
+     JsValue a115 = JS.array();
+-    img = JS.invoke(buildCommon, "makeSpan", a114, a115, options);
++    img = JS.call(makeSpan, undef(), a114, a115, options);
+     if (JS.strictEqual(label, "fbox")) {
+       JsValue and116 = options["color"];
+       if (and116.truthy()) {
+@@ -195,7 +197,7 @@
+     JsValue svgNode = JS.construct(SvgNode, lines, o120);
+     JsValue a121 = JS.array();
+     JsValue a122 = JS.array(svgNode);
+-    img = JS.invoke(buildCommon, "makeSvgSpan", a121, a122, options);
++    img = JS.call(makeSvgSpan, undef(), a121, a122, options);
+   }
+   img["height"] = totalHeight;
+   img["style"]["height"] = JS.call(makeEm, undef(), totalHeight);
