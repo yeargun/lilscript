@@ -12133,28 +12133,6 @@ fn dynamic_observable_values(function: &ControlFlowFunction<'_>) -> AHashSet<Val
         .collect()
 }
 
-pub fn summarize_module_effects(
-    module: &ControlFlowModule<'_>,
-) -> crate::package::PackageEffectSummary {
-    let summaries = analyze_function_effects(module);
-    let mut functions = std::collections::BTreeMap::new();
-    for (function, summary) in module.functions.iter().zip(summaries) {
-        let Some(name) = function.name else {
-            continue;
-        };
-        let mut mutated_parameters = summary.mutated_parameters.into_iter().collect::<Vec<_>>();
-        mutated_parameters.sort_unstable();
-        functions.insert(
-            name.to_string(),
-            crate::package::FunctionEffectMeta {
-                pure: !summary.inherent && mutated_parameters.is_empty(),
-                mutated_parameters,
-            },
-        );
-    }
-    crate::package::PackageEffectSummary { functions }
-}
-
 fn analyze_function_effects(module: &ControlFlowModule<'_>) -> Vec<FunctionEffectSummary> {
     let mut summaries = vec![FunctionEffectSummary::default(); module.functions.len()];
     for function in &module.functions {

@@ -1,19 +1,17 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bumpalo::Bump;
 use clap::Parser;
 use lilscript::ast::{ClassMember, ExternClassMember, Item, Stmt};
-use lilscript::config::load_project_config;
+use lilscript::config::{load_project_config, ProjectConfig};
 use lilscript::formatter::format_source;
 use lilscript::lexer::{lex, lex_lossless, SyntaxElement, TokenKind, TriviaKind};
-use lilscript::lint::{lint_path_with_source, DiagnosticSeverity};
+use lilscript::lint::{lint_checked, DiagnosticSeverity, LintDiagnostic};
 use lilscript::semantic::analyze;
 use lilscript::span::Span;
-use lilscript::{
-    compile_path_with_source, compile_path_with_source_configured, compile_source, parse_source,
-};
+use lilscript::{check_source, parse_source, with_checked_program, ServiceError};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
 use serde_json::{json, Value};
 
@@ -214,63 +212,73 @@ fn send_notification(
     Ok(())
 }
 
+/// The compiler's own diagnostics for the open document: one check of its
+/// module graph (or of the lone buffer), then the linter over the same graph.
 fn diagnostics(uri: Option<&str>, source: &str) -> Vec<Value> {
     if let Some(path) = uri.and_then(file_uri_path) {
         if path.is_file() {
-            let compilation = load_project_config(&path, None).map_or_else(
-                |_| compile_path_with_source(&path, source),
-                |loaded| compile_path_with_source_configured(&path, source, &loaded.config),
-            );
-            return match compilation {
-                Ok(_) => lint_diagnostics(&path, source),
-                Err(error) => {
-                    let current = path.canonicalize().ok();
-                    let is_current = current.as_ref().is_some_and(|path| *path == error.path);
-                    let span = if is_current {
-                        error.span
-                    } else {
-                        Span::empty(0)
-                    };
-                    let message = if is_current {
-                        error.message
-                    } else {
-                        format!("{}: {}", error.path.display(), error.message)
-                    };
-                    vec![json!({
-                        "range": span_range(source, span),
-                        "severity": 1,
-                        "source": "lilscript",
-                        "message": message
-                    })]
-                }
-            };
+            return file_diagnostics(&path, source);
         }
     }
-
-    match compile_source(source) {
-        Ok(_) => Vec::new(),
-        Err(error) => vec![json!({
-            "range": span_range(source, error.span()),
-            "severity": 1,
-            "source": "lilscript",
-            "message": error.to_string()
-        })],
+    match check_source(source, &ProjectConfig::default()) {
+        Ok(()) => Vec::new(),
+        Err(error) => vec![compiler_diagnostic(None, source, &error)],
     }
 }
 
-fn lint_diagnostics(path: &std::path::Path, source: &str) -> Vec<Value> {
-    let Ok(loaded) = load_project_config(path, None) else {
-        return Vec::new();
+/// A saved file is checked with the buffer as its text, under its project's
+/// configuration, exactly as a build of that file would check it.
+fn file_diagnostics(path: &Path, source: &str) -> Vec<Value> {
+    let config = match load_project_config(path, None) {
+        Ok(loaded) => loaded.config,
+        Err(error) => return vec![error_diagnostic(source, Span::empty(0), error.to_string())],
     };
-    let Ok(diagnostics) = lint_path_with_source(path, source, &loaded.config) else {
-        return Vec::new();
+    match with_checked_program(path, Some(source), &config, |checked| {
+        lint_checked(checked, &config)
+    }) {
+        Err(error) => vec![compiler_diagnostic(Some(path), source, &error)],
+        Ok(Ok(findings)) => lint_diagnostics(path, source, findings),
+        Ok(Err(_)) => Vec::new(),
+    }
+}
+
+/// A refusal in this document keeps its span; one in another module is
+/// reported at the start of this document, naming that module.
+fn compiler_diagnostic(path: Option<&Path>, source: &str, error: &ServiceError) -> Value {
+    let Some(diagnostic) = &error.diagnostic else {
+        return error_diagnostic(source, Span::empty(0), error.to_string());
     };
-    diagnostics
+    let in_document = path.is_none_or(|path| {
+        path.canonicalize()
+            .is_ok_and(|current| current == diagnostic.path)
+    });
+    if in_document {
+        error_diagnostic(source, diagnostic.span, diagnostic.message.clone())
+    } else {
+        error_diagnostic(
+            source,
+            Span::empty(0),
+            format!("{}: {}", diagnostic.path.display(), diagnostic.message),
+        )
+    }
+}
+
+fn error_diagnostic(source: &str, span: Span, message: String) -> Value {
+    json!({
+        "range": span_range(source, span),
+        "severity": 1,
+        "source": "lilscript",
+        "message": message
+    })
+}
+
+fn lint_diagnostics(path: &Path, source: &str, findings: Vec<LintDiagnostic>) -> Vec<Value> {
+    let current = path.canonicalize().ok();
+    findings
         .into_iter()
         .filter(|diagnostic| {
             diagnostic.path == path
-                || diagnostic.path.canonicalize().ok().as_deref()
-                    == path.canonicalize().ok().as_deref()
+                || diagnostic.path.canonicalize().ok().as_deref() == current.as_deref()
         })
         .map(|diagnostic| {
             let severity = match diagnostic.severity {
@@ -1370,5 +1378,111 @@ mod tests {
             .iter()
             .any(|item| item["label"] == "sq"));
         std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    /// A saved file in its own directory, removed when the test ends.
+    struct SavedFile {
+        directory: PathBuf,
+        uri: String,
+    }
+
+    impl SavedFile {
+        fn new(name: &str, source: &str) -> Self {
+            let directory =
+                std::env::temp_dir().join(format!("lilscript-lsp-{name}-{}", std::process::id()));
+            std::fs::create_dir_all(&directory).unwrap();
+            let path = directory.join("main.lil");
+            std::fs::write(&path, source).unwrap();
+            let uri = format!("file://{}", path.display());
+            Self { directory, uri }
+        }
+    }
+
+    impl Drop for SavedFile {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.directory);
+        }
+    }
+
+    fn range_text<'a>(source: &'a str, diagnostic: &Value) -> &'a str {
+        let offset = |position: &Value| {
+            byte_offset(
+                source,
+                position["line"].as_u64().unwrap() as u32,
+                position["character"].as_u64().unwrap() as u32,
+            )
+            .unwrap()
+        };
+        &source[offset(&diagnostic["range"]["start"])..offset(&diagnostic["range"]["end"])]
+    }
+
+    #[test]
+    fn reports_the_compilers_unsupported_refusals_with_spans() {
+        let source = "class Loader{async int load(){return 1;}}print(1);";
+        let saved = SavedFile::new("unsupported", source);
+        for result in [
+            diagnostics(Some(&saved.uri), source),
+            diagnostics(None, source),
+        ] {
+            assert_eq!(result.len(), 1, "{result:?}");
+            assert_eq!(result[0]["source"], "lilscript");
+            assert_eq!(
+                result[0]["message"],
+                "unsupported semantic source: suspending method conversion"
+            );
+            assert_eq!(range_text(source, &result[0]), "int load(){return 1;}");
+        }
+    }
+
+    #[test]
+    fn checks_the_open_buffer_rather_than_the_saved_file() {
+        let saved = SavedFile::new("buffer", "int broken=\"wrong\";");
+        assert!(diagnostics(Some(&saved.uri), "int fixed=1;print(fixed);").is_empty());
+
+        let source = "print(1);int broken=\"wrong\";";
+        let result = diagnostics(Some(&saved.uri), source);
+        assert_eq!(result.len(), 1, "{result:?}");
+        assert!(result[0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("expected `int`"));
+        assert_eq!(range_text(source, &result[0]), "\"wrong\"");
+    }
+
+    #[test]
+    fn a_refusal_in_an_imported_module_names_that_module() {
+        let saved = SavedFile::new("imported", "");
+        std::fs::write(
+            saved.directory.join("math.lil"),
+            "export int half=\"wrong\";",
+        )
+        .unwrap();
+        let source = "import {half} from \"./math\";print(half);";
+        let result = diagnostics(Some(&saved.uri), source);
+        assert_eq!(result.len(), 1, "{result:?}");
+        let message = result[0]["message"].as_str().unwrap();
+        assert!(message.contains("math.lil: "), "{message}");
+        assert!(message.contains("expected `int`"), "{message}");
+        assert_eq!(
+            result[0]["range"]["start"],
+            json!({ "line": 0, "character": 0 })
+        );
+    }
+
+    #[test]
+    fn publishes_lint_findings_from_the_same_check() {
+        let source = "int example(){return 1;print(2);}print(example());";
+        let saved = SavedFile::new("lint", source);
+        let result = diagnostics(Some(&saved.uri), source);
+        let unreachable = result
+            .iter()
+            .find(|diagnostic| diagnostic["code"] == "correctness/unreachable-code")
+            .unwrap();
+        assert_eq!(unreachable["source"], "lilscript-lint");
+        assert_eq!(range_text(source, unreachable), "print(2)");
+        assert_eq!(
+            unreachable["data"]["fix"]["applicability"],
+            "machine-applicable"
+        );
     }
 }

@@ -7,7 +7,10 @@ use std::sync::Arc;
 use std::thread;
 
 use clap::Parser;
-use lilscript::{compile_source, render_diagnostic};
+use lilscript::config::ProjectConfig;
+use lilscript::{
+    compile_source_semantic, render_module_diagnostic, ServiceError, ServiceOptions, ServiceTarget,
+};
 
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 
@@ -170,17 +173,43 @@ fn content_type(path: &Path) -> &'static str {
 fn compile(body: &[u8], stream: &mut TcpStream) -> Result<(), String> {
     let source = std::str::from_utf8(body)
         .map_err(|_| "LilScript source must be valid UTF-8".to_string())?;
-    let response = match compile_source(source) {
+    let response = match compile_playground(source) {
         Ok(js) => format!("{{\"ok\":true,\"js\":\"{}\"}}", json_escape(&js)),
-        Err(error) => {
-            let diagnostic = render_diagnostic(Path::new("playground.lil"), source, &error);
-            format!(
-                "{{\"ok\":false,\"error\":\"{}\"}}",
-                json_escape(&diagnostic)
-            )
-        }
+        Err(diagnostic) => format!(
+            "{{\"ok\":false,\"error\":\"{}\"}}",
+            json_escape(&diagnostic)
+        ),
     };
     respond(stream, 200, "application/json; charset=utf-8", &response)
+}
+
+/// The compiler's JavaScript for the page, or its rendered diagnostic. The page
+/// evaluates the output as a classic script and shows what it prints, so the
+/// program keeps `print` and executes as a script.
+fn compile_playground(source: &str) -> Result<String, String> {
+    let mut config = ProjectConfig::default();
+    config.javascript.strip_console = false;
+    let options = ServiceOptions {
+        target: ServiceTarget::JavaScript,
+        preserve_root_exports: false,
+        ..ServiceOptions::default()
+    };
+    let compilation = compile_source_semantic(source, &config, options).map_err(render_error)?;
+    compilation
+        .javascript(config.javascript.cost_model)
+        .map(|artifact| artifact.javascript().to_string())
+        .ok_or_else(|| "the compiler selected no JavaScript artifact".to_string())
+}
+
+/// A source diagnostic renders against the playground's file name, with its span.
+fn render_error(error: ServiceError) -> String {
+    match error.diagnostic {
+        Some(mut diagnostic) => {
+            diagnostic.path = PathBuf::from("playground.lil");
+            render_module_diagnostic(&diagnostic)
+        }
+        None => error.to_string(),
+    }
 }
 
 fn respond(
@@ -237,4 +266,54 @@ fn json_escape(value: &str) -> String {
         }
     }
     escaped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::{Command, Stdio};
+
+    /// Evaluate `js` as the page does: a classic script whose `console.log`
+    /// lines are the program's output.
+    fn run_like_the_page(js: &str) -> String {
+        let runner = "const lines=[];console.log=(...values)=>lines.push(values.map(String).join(' '));\
+            (0,eval)(require('fs').readFileSync(0,'utf8'));process.stdout.write(lines.join('\\n'));";
+        let mut child = Command::new("node")
+            .args(["-e", runner])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("node is on PATH");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(js.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{js}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    #[test]
+    fn printed_output_reaches_the_page() {
+        let js = compile_playground(
+            "string greeting=\"hello playground\";int[] values=[1,2,3];print(greeting);print(values.length*14);",
+        )
+        .unwrap();
+        assert_eq!(run_like_the_page(&js), "hello playground\n42");
+    }
+
+    #[test]
+    fn renders_source_diagnostics_against_the_playground_file() {
+        let diagnostic = compile_playground("int value=\"wrong\";print(value);").unwrap_err();
+        assert!(diagnostic.contains("playground.lil"), "{diagnostic}");
+        assert!(diagnostic.contains("expected `int`"), "{diagnostic}");
+        assert!(diagnostic.contains('^'), "{diagnostic}");
+    }
 }

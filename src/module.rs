@@ -295,15 +295,18 @@ fn discover_modules_configured_inner(
 
 /// The factory owns both arenas. Original discovery ASTs are retained in
 /// canonical module order; no source or syntax storage lives inside the graph.
+/// `root_source`, when given, replaces the entry file's text (an editor's
+/// unsaved buffer); every other module is read from disk.
 pub(crate) fn discover_parsed_modules_admitted<'ast, 'src>(
     root: &Path,
+    root_source: Option<&str>,
     config: &ProjectConfig,
     sources: &'src StableSourceArena,
     syntax: &'ast AdmittedArena<'_>,
 ) -> Result<(ModuleSet<&'src str>, ParsedSources<'ast, 'src>), ModuleDiscoveryError> {
     discover_configured_with_storage(
         root,
-        None,
+        root_source,
         config,
         RetainedSources {
             sources,

@@ -12,12 +12,15 @@ use crate::compilation_policy::{
 };
 use crate::config::ProjectConfig;
 use crate::module::{
-    ModuleDiscoveryError, ModuleError, StableSourceArena, discover_parsed_modules_admitted,
+    ModuleDiscoveryError, ModuleError, ModuleSet, StableSourceArena,
+    discover_parsed_modules_admitted,
 };
 use crate::output_budget::AllocationBudget;
 pub use crate::output_budget::AllocationError as ServiceResourceError;
 use crate::parser::{AdmittedArena, AdmittedParseError};
-use crate::semantic::{AdmittedSemanticError, with_analyzed_modules, with_analyzed_source};
+use crate::semantic::{
+    AdmittedSemanticError, CheckedModules, with_analyzed_modules, with_analyzed_source,
+};
 use crate::semantic_program::facts::CacheLimits;
 use crate::semantic_program::publication::*;
 use crate::semantic_program::{
@@ -887,15 +890,25 @@ fn search_request_report(request: SearchRequest) -> Value {
     })
 }
 
-/// Check source once, borrow the same compilation owner, and finalize it before
-/// returning the client's value and receipt. Caller-owned source text is not freed.
-pub fn with_checked_source<R>(
-    source: &str,
-    config: &ProjectConfig,
-    options: ServiceOptions,
-    client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
-) -> Result<(R, FinishedSourceSession), ServiceError> {
-    let mut frontend = Frontend::new(config, options)?;
+/// A checked module graph and the program it elaborates to, as every build
+/// sees them before search. Tools read them; nothing here searches or delivers.
+pub struct CheckedProgram<'a, 'ast, 'src> {
+    /// Discovery's modules by id: canonical paths, sources and edges.
+    pub modules: &'a ModuleSet<&'src str>,
+    /// Each module's original syntax, by module id.
+    pub syntax: &'a [crate::ast::Program<'ast, 'src>],
+    /// The module-graph checker's results.
+    pub semantics: &'a CheckedModules<'ast, 'src>,
+    /// The elaborated program. Operation spans are local to their unit's module.
+    pub program: &'a crate::semantic_program::Program<'src>,
+}
+
+/// The single-source frontend: parsing, checking and conversion under the
+/// frontend's ledger. Syntax and checker storage are gone when it returns.
+fn check_source_frontend<'src>(
+    frontend: &mut Frontend,
+    source: &'src str,
+) -> Result<PreparedProgram<'src>, ServiceError> {
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let phase = Instant::now();
     let syntax = arena.parse(source).map_err(|error| match error {
@@ -955,11 +968,188 @@ pub fn with_checked_source<R>(
     drop(syntax);
     drop(arena);
     frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
+    Ok(program)
+}
+
+/// Check source once, borrow the same compilation owner, and finalize it before
+/// returning the client's value and receipt. Caller-owned source text is not freed.
+pub fn with_checked_source<R>(
+    source: &str,
+    config: &ProjectConfig,
+    options: ServiceOptions,
+    client: impl for<'src> FnOnce(&mut CheckedSourceSession<'src>) -> R,
+) -> Result<(R, FinishedSourceSession), ServiceError> {
+    let mut frontend = Frontend::new(config, options)?;
+    let program = check_source_frontend(&mut frontend, source)?;
     let started = frontend.started;
     let session = frontend.adopt(program, json!({"root": 0, "modules": [{"path": "<source>", "bytes": source.len(), "sha256": digest(source.as_bytes())}]}))
         .map_err(|(error, _ledger)| error)?;
     let (outcome, finished) = run_client(session, client);
     Ok(finish_factory(outcome, finished, started, None))
+}
+
+/// The path frontend: discovery, parsing, checking and conversion under the
+/// frontend's ledger. `inspect` sees the checked graph and its program while
+/// both are alive. A build also takes the relative host modules its output
+/// carries; a check does not deliver.
+fn check_path_frontend<'src, T>(
+    frontend: &mut Frontend,
+    path: &Path,
+    root_source: Option<&str>,
+    config: &ProjectConfig,
+    sources: &'src StableSourceArena,
+    build: bool,
+    inspect: impl for<'a, 'ast> FnOnce(&CheckedProgram<'a, 'ast, 'src>) -> T,
+) -> Result<(PreparedProgram<'src>, Value, T), ServiceError> {
+    let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
+    let phase = Instant::now();
+    let (modules, syntax) =
+        discover_parsed_modules_admitted(path, root_source, config, sources, &arena).map_err(
+            |error| match error {
+                ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
+                ModuleDiscoveryError::Resources(error) => {
+                    ServiceError::resources("discovery resources", error)
+                }
+            },
+        )?;
+    frontend.source_buffer_bytes = Some(sources.allocated_bytes() as u64);
+    frontend.phases["discovery_parse_ns"] = json!(nanos(phase));
+    let bytes = modules
+        .modules
+        .iter()
+        .try_fold(0u64, |total, module| {
+            total.checked_add(module.source.len() as u64)
+        })
+        .ok_or_else(|| ServiceError::new("discovery", "source capacity"))?;
+    arena
+        .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
+        .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
+    // Refusal spans are module-local; name each module index once.
+    if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
+        for (index, module) in modules.modules.iter().enumerate() {
+            eprintln!("module {index}: {}", module.path.display());
+        }
+    }
+    // Relative host modules travel with the output (008-D3).
+    if build
+        && config.bundle.host_modules != crate::config::HostModules::External
+        && frontend.javascript.is_some()
+    {
+        let root_directory = modules.modules[modules.root]
+            .path
+            .parent()
+            .unwrap_or_else(|| Path::new("."));
+        let mut requests: Vec<std::path::PathBuf> = Vec::new();
+        for module in &modules.modules {
+            for dependency in &module.foreign_dependencies {
+                if let Some(path) = &dependency.path {
+                    if !requests.contains(path) {
+                        requests.push(path.clone());
+                    }
+                }
+            }
+        }
+        if !requests.is_empty() {
+            let edition = frontend
+                .javascript
+                .as_ref()
+                .and_then(ResolvedPolicy::javascript_contract)
+                .map(|contract| contract.ecmascript)
+                .unwrap_or_default();
+            match crate::host_modules::deliver(root_directory, &requests, edition) {
+                Ok(delivery) => {
+                    arena
+                        .with_ledger(|ledger, domain| {
+                            ledger.charge(domain, WorkKind::Analysis, delivery.retained_bytes())
+                        })
+                        .map_err(|error| {
+                            ServiceError::resources("frontend resources", error.into())
+                        })?;
+                    frontend.hosts = delivery;
+                }
+                Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+                    return Err(ServiceError::new("host modules", reason));
+                }
+                Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
+            }
+        }
+    }
+    let inputs = json!({"root": modules.root, "modules": modules.modules.iter().map(|module| json!({
+        "path": module.path, "bytes": module.source.len(), "sha256": digest(module.source.as_bytes()),
+        "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
+    })).collect::<Vec<_>>(), "host_modules": frontend.hosts.modules.iter().map(|module| json!({
+        "specifier": module.specifier, "delivered_bytes": module.delivered_bytes(),
+    })).collect::<Vec<_>>()});
+    arena
+        .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
+        .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
+    let phase = Instant::now();
+    let (program, inspected, release_started) = arena
+        .with_ledger(|ledger, domain| {
+            with_analyzed_modules(
+                &syntax,
+                &modules,
+                &mut AllocationBudget::new(Some((ledger, domain))),
+                |semantics, budget| -> Result<_, ServiceError> {
+                    frontend.phases["check_ns"] = json!(nanos(phase));
+                    budget
+                        .work(WorkKind::Analysis, bytes)
+                        .map_err(|error| ServiceError::resources("frontend resources", error))?;
+                    let phase = Instant::now();
+                    let program = from_checked_modules_admitted(&syntax, semantics, budget)
+                        .map_err(|error| match error.error {
+                            ConversionError::Unsupported(unsupported) => {
+                                let module = &modules.modules[error.module];
+                                ServiceError::module(
+                                    "conversion",
+                                    ModuleError::new(
+                                        &module.path,
+                                        module.source,
+                                        unsupported.span,
+                                        format!(
+                                            "unsupported semantic source: {}",
+                                            unsupported.feature
+                                        ),
+                                    ),
+                                )
+                            }
+                            ConversionError::Resources(error) => {
+                                ServiceError::resources("conversion resources", error)
+                            }
+                        })?;
+                    frontend.phases["convert_ns"] = json!(nanos(phase));
+                    let inspected = inspect(&CheckedProgram {
+                        modules: &modules,
+                        syntax: &syntax,
+                        semantics,
+                        program: program.program(),
+                    });
+                    Ok((program, inspected, Instant::now()))
+                },
+            )
+        })
+        .map_err(|error| match error.error {
+            AdmittedSemanticError::Semantic(error_message) => {
+                let module = &modules.modules[error.module];
+                ServiceError::module(
+                    "check",
+                    ModuleError::new(
+                        &module.path,
+                        module.source,
+                        error_message.span,
+                        error_message.message,
+                    ),
+                )
+            }
+            AdmittedSemanticError::Resources(error) => {
+                ServiceError::resources("check resources", error)
+            }
+        })??;
+    drop(syntax);
+    drop(arena);
+    drop(modules);
+    frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
+    Ok((program, inputs, inspected))
 }
 
 /// The factory owns source storage and finalization. Source text cannot escape
@@ -972,151 +1162,8 @@ pub fn with_checked_path<R>(
 ) -> Result<(R, FinishedSourceSession), ServiceError> {
     let mut frontend = Frontend::new(config, options)?;
     let sources = StableSourceArena::new(WorkDomain::Baseline);
-    let prepared = (|| {
-        let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-        let phase = Instant::now();
-        let (modules, syntax) = discover_parsed_modules_admitted(path, config, &sources, &arena)
-            .map_err(|error| match error {
-                ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
-                ModuleDiscoveryError::Resources(error) => {
-                    ServiceError::resources("discovery resources", error)
-                }
-            })?;
-        frontend.source_buffer_bytes = Some(sources.allocated_bytes() as u64);
-        frontend.phases["discovery_parse_ns"] = json!(nanos(phase));
-        let bytes = modules
-            .modules
-            .iter()
-            .try_fold(0u64, |total, module| {
-                total.checked_add(module.source.len() as u64)
-            })
-            .ok_or_else(|| ServiceError::new("discovery", "source capacity"))?;
-        arena
-            .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
-            .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
-        // Refusal spans are module-local; name each module index once.
-        if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
-            for (index, module) in modules.modules.iter().enumerate() {
-                eprintln!("module {index}: {}", module.path.display());
-            }
-        }
-        // Relative host modules travel with the output (008-D3).
-        if config.bundle.host_modules != crate::config::HostModules::External
-            && frontend.javascript.is_some()
-        {
-            let root_directory = modules.modules[modules.root]
-                .path
-                .parent()
-                .unwrap_or_else(|| Path::new("."));
-            let mut requests: Vec<std::path::PathBuf> = Vec::new();
-            for module in &modules.modules {
-                for dependency in &module.foreign_dependencies {
-                    if let Some(path) = &dependency.path {
-                        if !requests.contains(path) {
-                            requests.push(path.clone());
-                        }
-                    }
-                }
-            }
-            if !requests.is_empty() {
-                let edition = frontend
-                    .javascript
-                    .as_ref()
-                    .and_then(ResolvedPolicy::javascript_contract)
-                    .map(|contract| contract.ecmascript)
-                    .unwrap_or_default();
-                match crate::host_modules::deliver(root_directory, &requests, edition) {
-                    Ok(delivery) => {
-                        arena
-                            .with_ledger(|ledger, domain| {
-                                ledger.charge(domain, WorkKind::Analysis, delivery.retained_bytes())
-                            })
-                            .map_err(|error| {
-                                ServiceError::resources("frontend resources", error.into())
-                            })?;
-                        frontend.hosts = delivery;
-                    }
-                    Err(reason)
-                        if config.bundle.host_modules == crate::config::HostModules::Embed =>
-                    {
-                        return Err(ServiceError::new("host modules", reason));
-                    }
-                    Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
-                }
-            }
-        }
-        let inputs = json!({"root": modules.root, "modules": modules.modules.iter().map(|module| json!({
-            "path": module.path, "bytes": module.source.len(), "sha256": digest(module.source.as_bytes()),
-            "dependencies": module.dependencies, "dynamic_dependencies": module.dynamic_dependencies,
-        })).collect::<Vec<_>>(), "host_modules": frontend.hosts.modules.iter().map(|module| json!({
-            "specifier": module.specifier, "delivered_bytes": module.delivered_bytes(),
-        })).collect::<Vec<_>>()});
-        arena
-            .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
-            .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
-        let phase = Instant::now();
-        let (program, release_started) = arena
-            .with_ledger(|ledger, domain| {
-                with_analyzed_modules(
-                    &syntax,
-                    &modules,
-                    &mut AllocationBudget::new(Some((ledger, domain))),
-                    |semantics, budget| -> Result<_, ServiceError> {
-                        frontend.phases["check_ns"] = json!(nanos(phase));
-                        budget.work(WorkKind::Analysis, bytes).map_err(|error| {
-                            ServiceError::resources("frontend resources", error)
-                        })?;
-                        let phase = Instant::now();
-                        let program = from_checked_modules_admitted(&syntax, semantics, budget)
-                            .map_err(|error| match error.error {
-                                ConversionError::Unsupported(unsupported) => {
-                                    let module = &modules.modules[error.module];
-                                    ServiceError::module(
-                                        "conversion",
-                                        ModuleError::new(
-                                            &module.path,
-                                            module.source,
-                                            unsupported.span,
-                                            format!(
-                                                "unsupported semantic source: {}",
-                                                unsupported.feature
-                                            ),
-                                        ),
-                                    )
-                                }
-                                ConversionError::Resources(error) => {
-                                    ServiceError::resources("conversion resources", error)
-                                }
-                            })?;
-                        frontend.phases["convert_ns"] = json!(nanos(phase));
-                        Ok((program, Instant::now()))
-                    },
-                )
-            })
-            .map_err(|error| match error.error {
-                AdmittedSemanticError::Semantic(error_message) => {
-                    let module = &modules.modules[error.module];
-                    ServiceError::module(
-                        "check",
-                        ModuleError::new(
-                            &module.path,
-                            module.source,
-                            error_message.span,
-                            error_message.message,
-                        ),
-                    )
-                }
-                AdmittedSemanticError::Resources(error) => {
-                    ServiceError::resources("check resources", error)
-                }
-            })??;
-        drop(syntax);
-        drop(arena);
-        drop(modules);
-        frontend.phases["frontend_release_ns"] = json!(nanos(release_started));
-        Ok((program, inputs))
-    })();
-    let (program, inputs) = match prepared {
+    let prepared = check_path_frontend(&mut frontend, path, None, config, &sources, true, |_| ());
+    let (program, inputs, ()) = match prepared {
         Ok(prepared) => prepared,
         Err(error) => {
             release_source_buffers(sources, &mut frontend.ledger);
@@ -1134,6 +1181,55 @@ pub fn with_checked_path<R>(
     let (outcome, mut finished) = run_client(session, client);
     let release_ns = release_source_buffers(sources, &mut finished.ledger);
     Ok(finish_factory(outcome, finished, started, Some(release_ns)))
+}
+
+/// Checking runs no search and delivers nothing, so it takes no service
+/// ceiling: only the policy's declared resources bound it.
+fn check_options() -> ServiceOptions {
+    ServiceOptions {
+        logical_work: u64::MAX,
+        retained_bytes: u64::MAX,
+        ..ServiceOptions::default()
+    }
+}
+
+/// Check a path's module graph exactly as a build does (discovery, parsing,
+/// checking and conversion) without searching or delivering, and hand `client`
+/// the checked graph and its program. `source` replaces the entry file's text,
+/// as an editor's unsaved buffer does. Every refusal a build would report for
+/// this source is returned here, with its module and span.
+pub fn with_checked_program<R>(
+    path: &Path,
+    source: Option<&str>,
+    config: &ProjectConfig,
+    client: impl for<'a, 'ast, 'src> FnOnce(&CheckedProgram<'a, 'ast, 'src>) -> R,
+) -> Result<R, ServiceError> {
+    let mut frontend = Frontend::new(config, check_options())?;
+    let sources = StableSourceArena::new(WorkDomain::Baseline);
+    let checked = check_path_frontend(&mut frontend, path, source, config, &sources, false, client)
+        .map(|(program, _inputs, inspected)| {
+            program.discard(&mut frontend.ledger);
+            inspected
+        });
+    release_source_buffers(sources, &mut frontend.ledger);
+    checked
+}
+
+/// The diagnostics a build of this path would report, without the build.
+pub fn check_path(
+    path: &Path,
+    source: Option<&str>,
+    config: &ProjectConfig,
+) -> Result<(), ServiceError> {
+    with_checked_program(path, source, config, |_| ())
+}
+
+/// The diagnostics a build of this single source would report, without the build.
+pub fn check_source(source: &str, config: &ProjectConfig) -> Result<(), ServiceError> {
+    let mut frontend = Frontend::new(config, check_options())?;
+    let program = check_source_frontend(&mut frontend, source)?;
+    program.discard(&mut frontend.ledger);
+    Ok(())
 }
 
 fn release_source_buffers(sources: StableSourceArena, ledger: &mut BudgetLedger) -> u64 {

@@ -71,13 +71,12 @@ fn discover_and_discard(
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let result = {
         let syntax = AdmittedArena::new(ledger, WorkDomain::Baseline);
-        discover_parsed_modules_admitted(root, &ProjectConfig::default(), &sources, &syntax).map(
-            |(modules, programs)| {
+        discover_parsed_modules_admitted(root, None, &ProjectConfig::default(), &sources, &syntax)
+            .map(|(modules, programs)| {
                 assert_eq!(modules.modules.len(), programs.len());
                 drop(programs);
                 drop(modules);
-            },
-        )
+            })
     };
     sources.discard(ledger).unwrap();
     result
@@ -93,7 +92,7 @@ fn retained_discovery_parses_each_canonical_source_once_and_preserves_checked_id
     let before = admitted_arena_activity_for_test();
     let syntax = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
     let (modules, programs) =
-        discover_parsed_modules_admitted(&root, &ProjectConfig::default(), &sources, &syntax)
+        discover_parsed_modules_admitted(&root, None, &ProjectConfig::default(), &sources, &syntax)
             .unwrap();
     assert_same_graph(&modules, &expected);
     assert_eq!(programs.len(), modules.modules.len());
@@ -159,9 +158,14 @@ fn cycle_and_repeated_canonical_edges_keep_one_program_per_module() {
     let before = admitted_arena_activity_for_test();
     {
         let syntax = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
-        let (modules, programs) =
-            discover_parsed_modules_admitted(&root, &ProjectConfig::default(), &sources, &syntax)
-                .unwrap();
+        let (modules, programs) = discover_parsed_modules_admitted(
+            &root,
+            None,
+            &ProjectConfig::default(),
+            &sources,
+            &syntax,
+        )
+        .unwrap();
         assert_same_graph(&modules, &expected);
         assert_eq!(programs.len(), 2);
         assert_eq!(modules.modules[0].dependencies, [1, 1]);
@@ -199,9 +203,14 @@ fn static_foreign_and_nested_dynamic_imports_share_the_original_collector() {
     let before = admitted_arena_activity_for_test();
     {
         let syntax = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
-        let (modules, programs) =
-            discover_parsed_modules_admitted(&root, &ProjectConfig::default(), &sources, &syntax)
-                .unwrap();
+        let (modules, programs) = discover_parsed_modules_admitted(
+            &root,
+            None,
+            &ProjectConfig::default(),
+            &sources,
+            &syntax,
+        )
+        .unwrap();
         assert_same_graph(&modules, &expected);
         assert_eq!(programs.len(), 3);
         assert_eq!(modules.eager, [true, true, false]);
