@@ -2194,6 +2194,25 @@ Every remaining mismatch already existed before the rewrite. Some examples:
 
 jquerylil now wins both objectives. Its tests pass on both (7/7).
 
+### 013 batch 25: the type of what a binding holds reaches the tree (2026-09-23)
+
+013-T1's second fact. Formation records what each source cell holds (`Module.binding_classes`: int, number, string, boolean, object, nullable object). Three consumers use it, each as Closure's type-based peepholes do:
+- **A null test of an object is its truthiness** (`truthy_null_tests`, [typed.rs](../../src/structured_js/typed.rs)). An object is never falsy. For a binding that holds an object or null, `x!=null` in a test position (an `if` or loop condition, a conditional's test, a `!` operand, and through `&&`/`||` there) is `x`, and `x==null` is `!x`.
+- **An array the program created takes its own methods** (`array_receiver_calls`, [typed.rs](../../src/structured_js/typed.rs)). `JS.push(a, v)` lowers to `Array.prototype.push.call(a,v)`, since a `JsValue` may be anything. When every value a local binding ever receives is an array literal, and builtins are pristine, the call is `a.push(v)`. The same holds for `pop`, `slice`, `indexOf`, `sort`, `splice`, `join`, `shift` and `unshift`.
+- **A number counts with `++`** ([print.rs](../../src/structured_js/print.rs)). `x=x+1` of a binding that always holds a number prints `++x`: the same store and the same value. An int's wrapping `x=x+1|0` is another expression and keeps its spelling.
+
+| Brotli objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|
+| Batch 24 (b64) | 62,665 | 9,221 | 5,393 | 25,527 | 27,869 | 49,846 |
+| **Batch 25 (b65)** | **62,624** | **9,206** | **5,350** | **25,513** | **27,873** | **49,709** |
+
+| Raw objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core |
+|---|---|---|---|---|---|
+| Batch 24 | 248,553 | 35,289 | 15,678 | 72,406 | 110,444 |
+| **Batch 25** | **248,507** | **35,097** | **15,670** | **72,324** | **110,257** |
+
+**Verification.** 3,069 unit tests pass, including `a_null_test_of_an_object_is_its_truthiness`, `an_array_the_program_created_takes_its_own_methods` and `a_number_counts_up_with_the_increment`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

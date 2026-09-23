@@ -23,6 +23,7 @@ mod compact;
 mod constants;
 mod declarations;
 mod scalar_objects;
+mod typed;
 pub(crate) mod delivery;
 pub mod extract;
 mod literal_output;
@@ -948,6 +949,36 @@ pub struct Binding {
     pub pinned: bool,
 }
 
+/// A binding's value class, from the source type of what it holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValueClass {
+    /// A number in the int32 range (`int`).
+    Int,
+    /// A number (`float`).
+    Number,
+    String,
+    Boolean,
+    /// Always an object, never `null` or `undefined` once assigned: class
+    /// and struct instances, arrays, maps, sets, records, functions, regexes.
+    Object,
+    /// An object or `null` (a nullable object type): truthy exactly when it
+    /// is not `null` (or not yet assigned).
+    NullableObject,
+}
+
+impl Module {
+    /// The class of every binding, `None` where unknown.
+    pub(crate) fn value_classes(&self) -> Vec<Option<ValueClass>> {
+        let mut classes = vec![None; self.bindings.len()];
+        for &(binding, class) in &self.binding_classes {
+            if let Some(slot) = classes.get_mut(binding.index()) {
+                *slot = Some(class);
+            }
+        }
+        classes
+    }
+}
+
 /// One authored named ESM import. Rows retain module-request order even when
 /// the local binding is unused: linking and module initialization are effects.
 /// The imported spelling is an IdentifierName, like the existing Export name;
@@ -989,6 +1020,10 @@ pub struct Module {
     /// a typed caller always passes a value, so only a host or erased caller
     /// could leave one to its default.
     pub defined_parameters: Vec<BindingId>,
+    /// What formation knows a binding always holds, from its source type
+    /// (013-T1): sparse, in formation order. A binding absent here (every
+    /// binding a pass creates, every `JsValue`) is unknown.
+    pub binding_classes: Vec<(BindingId, ValueClass)>,
     /// The source module of each root statement, in order, when the producer
     /// records it; multi-file delivery groups statements by it.
     pub root_modules: Vec<u32>,
@@ -2998,6 +3033,7 @@ impl Module {
             pristine_builtins: false,
             pure_property_reads: false,
             defined_parameters: Vec::new(),
+            binding_classes: Vec::new(),
             root_modules: vec![],
             reserved: vec![],
             carried: vec![],

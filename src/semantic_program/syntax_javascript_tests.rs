@@ -1314,3 +1314,61 @@ fn an_object_only_read_through_its_fields_is_its_fields() {
     assert!(!javascript.contains(".on") && !javascript.contains(".n="), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "12\n7\n");
 }
+
+#[test]
+fn a_null_test_of_an_object_is_its_truthiness() {
+    let source = r#"
+        extern void show(JsValue value);
+        class Node { int v; Node? next; init(int v, Node? next) { this.v = v; this.next = next; } }
+        export int total(Node? head) {
+            int sum = 0;
+            Node? at = head;
+            while (at != null) { sum = sum + at.v; at = at.next; }
+            return sum;
+        }
+        show(JS.box(total(new Node(2, new Node(3, null)))));
+        show(JS.box(total(null)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // An object is never falsy, so `at!=null` is `at`.
+    assert!(!javascript.contains("=null)"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "5\n0\n");
+}
+
+#[test]
+fn an_array_the_program_created_takes_its_own_methods() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue collect(int n) {
+            JsValue items = JS.array();
+            int i = 0;
+            while (i < n) { JS.push(items, JS.box(i * 2)); i = i + 1; }
+            JS.pop(items);
+            return items;
+        }
+        show(collect(4));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // Every value `items` holds is an array literal: its own `push` is
+    // `Array.prototype.push` under pristine builtins.
+    assert!(!javascript.contains("prototype") && javascript.contains(".push("), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "[0,2,4]\n");
+}
+
+#[test]
+fn a_number_counts_up_with_the_increment() {
+    let source = r#"
+        extern void show(JsValue value);
+        export float halves(int n) {
+            float x = 0.5;
+            int i = 0;
+            while (i < n) { x = x + 1; i = i + 1; }
+            return x;
+        }
+        show(JS.box(halves(3)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // A float's `x=x+1` is `++x`; the int counter keeps its wrap.
+    assert!(javascript.contains("++") && javascript.contains("+1|0"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "3.5\n");
+}

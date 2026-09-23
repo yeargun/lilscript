@@ -151,6 +151,7 @@ pub(super) fn render_with_literals_admitted(
         choices,
         literal_alternatives,
         literals,
+        numeric: numeric_bindings(module),
         output: Buffer {
             text: String::new(),
             budget: &mut phase,
@@ -261,6 +262,7 @@ pub(super) fn render_file_admitted(
         choices,
         literal_alternatives,
         literals,
+        numeric: numeric_bindings(module),
         output: Buffer {
             text: String::new(),
             budget: &mut phase,
@@ -488,6 +490,17 @@ impl std::fmt::Write for Buffer<'_, '_> {
     }
 }
 
+/// Which bindings always hold a number.
+fn numeric_bindings(module: &Module) -> Vec<bool> {
+    let mut numeric = vec![false; module.bindings.len()];
+    for &(binding, class) in &module.binding_classes {
+        if let Some(slot) = numeric.get_mut(binding.index()) {
+            *slot = matches!(class, ValueClass::Int | ValueClass::Number);
+        }
+    }
+    numeric
+}
+
 struct Printer<'a, 'budget, 'ledger> {
     module: &'a Module,
     names: &'a Names,
@@ -499,6 +512,8 @@ struct Printer<'a, 'budget, 'ledger> {
     discarded_root: Option<ExprId>,
     /// The delivered files, when this prints one of several.
     files: Option<&'a [delivery::DeliveryFile]>,
+    /// Bindings that always hold a number (`Module::binding_classes`).
+    numeric: Vec<bool>,
 }
 
 /// The surrounding JavaScript syntax's named-evaluation behavior. A computed
@@ -1174,6 +1189,12 @@ impl<'a> Printer<'a, '_, '_> {
                 self.text(":");
                 self.expression(*no, 2);
             }
+            // `x=x+1` of a number is `++x` (its value is the new one too).
+            Expr::Assign { target, value } if self.increment(*target, *value).is_some() => {
+                let op = self.increment(*target, *value).unwrap();
+                self.text(op);
+                self.expression(*target, 18);
+            }
             Expr::Assign { target, value } if self.compound(*target, *value).is_some() => {
                 let (op, right) = self.compound(*target, *value).unwrap();
                 self.expression(*target, 18);
@@ -1604,6 +1625,28 @@ impl<'a> Printer<'a, '_, '_> {
     /// arithmetic and bitwise operators) when evaluating the target twice is
     /// the same as once: a binding, or a named property of a binding or
     /// `this`. Returns the operator and its right operand.
+    /// `++`/`--` for `x=x+1`/`x=x-1` when `x` always holds a number: the
+    /// same value, stored and yielded. (`x+1|0`, a wrapping int add, is
+    /// another expression and keeps its spelling.)
+    fn increment(&self, target: ExprId, value: ExprId) -> Option<&'static str> {
+        let Expr::Binding(binding) = self.module.expressions[target.index()] else {
+            return None;
+        };
+        if !self.numeric.get(binding.index()).copied().unwrap_or(false) {
+            return None;
+        }
+        let Expr::Binary { op, left, right } = &self.module.expressions[value.index()] else {
+            return None;
+        };
+        let one = matches!(self.module.expressions[right.index()], Expr::Literal(Literal::Number(n)) if n == 1.0);
+        let same = matches!(self.module.expressions[left.index()], Expr::Binding(found) if found == binding);
+        match op {
+            Binary::Add if one && same => Some("++"),
+            Binary::Subtract if one && same => Some("--"),
+            _ => None,
+        }
+    }
+
     fn compound(&self, target: ExprId, value: ExprId) -> Option<(Binary, ExprId)> {
         if !self.names.raw() {
             return None;

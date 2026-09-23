@@ -882,6 +882,12 @@ fn form_with_demand(
             formation.module.group_prototype_stores(formation.budget)?;
             formation.module.join_empty_declarations(formation.budget)?;
             formation.module.drop_bare_blocks(formation.budget)?;
+            // What the source types allow: truthiness for nullable objects,
+            // array methods on bindings that only hold arrays.
+            formation.module.truthy_null_tests(formation.budget)?;
+            if let (_, Some(map)) = formation.module.array_receiver_calls(formation.budget)? {
+                remap_alternatives(&mut formation.literal_alternatives, &map);
+            }
             formation.module.drop_default_arguments(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
@@ -934,6 +940,34 @@ fn form_with_demand(
     drop(reference_plan);
     phase.finish_retained()?;
     Ok((module, literal_alternatives))
+}
+
+/// The value class a cell of this source type always holds, if any.
+fn value_class(ty: &Type<'_>) -> Option<js::ValueClass> {
+    let object = |ty: &Type<'_>| {
+        matches!(
+            ty,
+            Type::Array(_)
+                | Type::Record(_)
+                | Type::Map(_, _)
+                | Type::Set(_)
+                | Type::Regex
+                | Type::Struct(_)
+                | Type::Class(_)
+                | Type::StructInstance { .. }
+                | Type::ClassInstance { .. }
+                | Type::Function(_)
+        )
+    };
+    match ty {
+        Type::Int => Some(js::ValueClass::Int),
+        Type::Float => Some(js::ValueClass::Number),
+        Type::String => Some(js::ValueClass::String),
+        Type::Bool => Some(js::ValueClass::Boolean),
+        Type::Nullable(inner) if object(inner) => Some(js::ValueClass::NullableObject),
+        other if object(other) => Some(js::ValueClass::Object),
+        _ => None,
+    }
 }
 
 /// Stores into a fresh literal fold into it (`fold_object_stores`), and a
@@ -1810,6 +1844,14 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     };
                     self.module.binding_in(binding, self.budget)?
                 };
+                // What the cell holds, for the tree's type-directed edits.
+                if let Some(class) = value_class(&self.program.types[cell.ty.index()]) {
+                    self.budget.push(
+                        AllocationClass::Retained,
+                        &mut self.module.binding_classes,
+                        (binding, class),
+                    )?;
+                }
                 cells[self.demand.cell_ordinal(cell_id)] = Some(binding);
                 if inline {
                     // Each occurrence has private scalar cells in the caller
