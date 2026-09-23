@@ -1137,7 +1137,15 @@ impl<'a> Printer<'a, '_, '_> {
                 } else if function_literal {
                     self.text("(");
                 }
-                self.expression(*callee, if unbind { 2 } else { 17 });
+                // Inside its own parentheses a function literal needs none.
+                let minimum = if unbind {
+                    2
+                } else if function_literal {
+                    0
+                } else {
+                    17
+                };
+                self.expression(*callee, minimum);
                 if unbind || function_literal {
                     self.text(")");
                 }

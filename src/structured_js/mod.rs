@@ -1806,6 +1806,111 @@ impl Module {
         Ok(changed)
     }
 
+    /// A call's trailing argument that repeats its callee's default goes:
+    /// `f(a,null)` is `f(a)` when `f`'s body opens with `if(b===void 0)b=null`
+    /// (formation passes a source call's omitted defaults explicitly). So
+    /// does a trailing `undefined`. The callee is the function its binding
+    /// holds from declaration on, never assigned, and reads no `arguments`
+    /// object: only the parameter could tell the calls apart, and the opening
+    /// checks give it the same value before anything reads it. Returns how
+    /// many arguments went.
+    pub(crate) fn drop_default_arguments(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        budget.work(Analysis, self.expressions.len() as u64)?;
+        let mut assigned = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
+        for expression in &self.expressions {
+            if let Expr::Assign { target, .. } = expression {
+                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    assigned[binding.index()] = true;
+                }
+            }
+        }
+        // Each callee's parameter count and its literal defaults by position.
+        let mut defaults: Vec<Option<(usize, Vec<Option<ExprId>>)>> = vec![None; self.bindings.len()];
+        let reach = self.reach(budget)?;
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                let (binding, function) = match *statement {
+                    Statement::Function { binding, function } => (binding, function),
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => match self.expressions[value.index()] {
+                        Expr::Function(function) => (binding, function),
+                        _ => continue,
+                    },
+                    _ => continue,
+                };
+                if assigned[binding.index()] || !self.arguments_free(function) {
+                    continue;
+                }
+                let declared = &self.functions[function.index()];
+                let mut literal = vec![None; declared.parameters.len()];
+                for statement in &self.regions[declared.body.index()].statements {
+                    let Some((parameter, value)) = self.default_check(statement) else {
+                        break;
+                    };
+                    match declared.parameters.iter().position(|&p| p == parameter) {
+                        Some(position) => literal[position] = Some(value),
+                        None => break,
+                    }
+                }
+                defaults[binding.index()] = Some((declared.parameters.len(), literal));
+            }
+        }
+        let same = |module: &Self, argument: ExprId, default: Option<ExprId>| {
+            match &module.expressions[argument.index()] {
+                Expr::Literal(Literal::Undefined) => true,
+                Expr::Literal(passed) => default.is_some_and(|default| {
+                    match (passed, &module.expressions[default.index()]) {
+                        (Literal::Number(a), Expr::Literal(Literal::Number(b))) => a.to_bits() == b.to_bits(),
+                        (a, Expr::Literal(b)) => a == b,
+                        _ => false,
+                    }
+                }),
+                _ => false,
+            }
+        };
+        let mut dropped = 0;
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            let Expr::Call {
+                callee,
+                arguments,
+                invocation: Invocation::Value | Invocation::Reference,
+            } = &self.expressions[id.index()]
+            else {
+                continue;
+            };
+            let Expr::Binding(binding) = self.expressions[callee.index()] else {
+                continue;
+            };
+            let Some((parameters, literal)) = &defaults[binding.index()] else {
+                continue;
+            };
+            let mut keep = arguments.len();
+            while keep > 0 {
+                let position = keep - 1;
+                let default = if position < *parameters { literal[position] } else { None };
+                if position >= *parameters || !same(self, arguments[position], default) {
+                    break;
+                }
+                keep = position;
+            }
+            if keep < arguments.len() {
+                dropped += arguments.len() - keep;
+                if let Expr::Call { arguments, .. } = &mut self.expressions[id.index()] {
+                    arguments.truncate(keep);
+                }
+            }
+        }
+        Ok(dropped)
+    }
+
     /// `if(p===void 0)p=D`, or its expression form `p===void 0&&(p=D)`, for
     /// a literal `D`: the parameter and its default.
     pub(crate) fn default_check(&self, statement: &Statement) -> Option<(BindingId, ExprId)> {

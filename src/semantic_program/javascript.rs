@@ -850,6 +850,10 @@ fn form_with_demand(
                     )?;
                 }
             }
+            // A function left with one call is created there.
+            if let (_, Some(map)) = formation.module.place_single_calls(strict, formation.budget)? {
+                remap_alternatives(&mut formation.literal_alternatives, &map);
+            }
             if prunes {
                 formation.module.drop_unreferenced_functions(formation.budget)?;
             }
@@ -858,6 +862,8 @@ fn form_with_demand(
             // one prototype, uninitialized declarations into the one before.
             formation.module.group_prototype_stores(formation.budget)?;
             formation.module.join_empty_declarations(formation.budget)?;
+            formation.module.drop_bare_blocks(formation.budget)?;
+            formation.module.drop_default_arguments(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
         });

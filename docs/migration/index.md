@@ -1966,6 +1966,57 @@ Three rewrites, each learned from what Terser prints where we do not:
 
 **Verification.** 3,061 unit tests pass, including `method_stores_into_one_prototype_become_one_assign` and `a_temporary_and_its_test_are_the_logical_operator`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 17: once-called functions made at their call, bare blocks, default arguments (2026-09-23)
+
+Terser's full compression over our jquerylil output finds −448 Brotli without renaming. Its options, removed one at a time from the full set, attribute the gain as follows:
+
+| Option removed | Brotli given up |
+|---|---|
+| `unused` | 302 |
+| `reduce_vars` | 216 |
+| `reduce_funcs` | 164 |
+| `if_return` | 146 |
+| `collapse_vars` | 139 |
+| `sequences` | 123 |
+
+Much of `unused`, `reduce_vars` and `reduce_funcs` is one rule: a lambda referenced once moves to its reference. Every port has root functions called exactly once: jquerylil 72, katexlil 35, zodlil 119, markedlil 56, posthoglil 15 and motionlil 57.
+
+Three changes:
+- **A function with one call is created at it** (`place_single_calls`, [blocks.rs](../../src/structured_js/blocks.rs)). `let f=(p)=>{…};…f(a)` becomes `…((p)=>{…})(a)`. Creating a function runs no code, so it may happen where the call is, under these conditions:
+  - the call follows the declaration;
+  - the function has its own frame or reads none, since an arrow reading `this`, `arguments` or `super` would read the caller's;
+  - nothing observes its name;
+  - no loop of the caller's own frame holds the call. This is Terser's `dont_inline_lambda_in_loop`: a function created in a loop is a frame of its own, as Terser counts it;
+  - no `for…in` or `for…of` head holds the call, because its loop binding is in scope there;
+  - execution is strict, because a sloppy frame shows its function to what it calls;
+  - a root declaration and its call come from one source module.
+
+  The body's scopes are renewed under the call. Without the module rule (b52), zodlil gained −269 but motionlil lost +271, and module chunks lost their functions to the entry. A text simulation of the rule measured the same direction: −427 over the six ports.
+- **A block that declares nothing is its statements** (`drop_bare_blocks`). A `for(;…)` with no declaration in its head still had a block scope, which printed as `{for(…)}`: 51 on katexlil and 55 on jquerylil. Unlike `flatten_blocks`, no declaration moves between scopes, so it runs under both objectives.
+- **A trailing argument that repeats the callee's default goes** (`drop_default_arguments`, [mod.rs](../../src/structured_js/mod.rs)). Formation passes a source call's omitted defaults explicitly: `buildFragment(elems, ctx, scripts)` printed as `zb(k,f,j,null,null)`. When the callee is never reassigned, reads no `arguments` object, and its body opens with `if(p===void 0)p=D` for that literal, the argument goes. So does a trailing `undefined`.
+
+A function literal as a callee now prints inside a single pair of parentheses.
+
+| Brotli objective | katexlil (`esm`) | markedlil | posthoglil | jquerylil (`esm`) | zodlil core | zodlil package | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|---|
+| Batch 16 | 63,239 | 9,258 | 5,593 | 29,340 | 27,977 | 45,639 | 51,321 |
+| **Batch 17** | **63,158** | **9,258** | **5,574** | **29,048** | **27,880** | **46,030** | **51,349** |
+| Bar | 63,044 | 10,092 | 5,622 | 27,445 | | 51,948 | 41,032 |
+
+| Raw objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core | zodlil package |
+|---|---|---|---|---|---|---|
+| Batch 16 | 251,769 | 35,393 | 16,351 | 86,618 | 110,926 | 244,615 |
+| **Batch 17** | **251,753** | **35,377** | **16,328** | **85,713** | **110,461** | **246,267** |
+| Bar | 267,050 | 37,022 | 16,123 | 87,151 | | 274,999 |
+
+Without its banner, katexlil is 63,143, +99 over the bar.
+
+**The zodlil package moves against its core.** The core gains −97, but the package loses +391 (+174 with `--minify-whitespace`). The package is esbuild's bundle of our output. Without minification, esbuild renames every nested declaration that reuses a name from an enclosing scope (`e` becomes `e2`). A function made at its call now sits inside its caller and reuses the caller's short names. esbuild renamed 2,810 identifiers of our core before this batch and renames 3,739 after it. That is a cost of re-bundling without minification: esbuild's minifying renamer, Rollup and Terser do not add it. The package still wins by 5,918.
+
+**The staged-search fixture was re-tuned.** `Keys` relied on a byte-level crossover: a split string literal won Brotli while the folded one won raw. Creating `createLabel` at its call removed the crossover. In the new fixture the label's call stands in a one-iteration loop, and its parts are split differently. The observations are unchanged.
+
+**Verification.** 3,061 unit tests pass. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9. Two unit failures on the way were real: one placement made a function inside a `for…of` head, which closed over the loop's binding in its TDZ; another made one in a sloppy script, whose frame a coercion hook can see. Both are now refused.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

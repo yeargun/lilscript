@@ -17,10 +17,12 @@ const CODECS: [Objective; 3] = [Objective::Raw, Objective::Gzip, Objective::Brot
 // `+2-1` rather than `+1`: this spelling keeps a real codec crossover (the
 // scoped naming wins gzip, the global one Brotli), which these tests need.
 const BYTE: &str = "export int byte(int value){return(value&255)+1;}";
-// The Factory program with a long private record key used four times:
-// pooling the key string is the raw winner, while Brotli prefers the repeated
-// literal spelling it compresses for free. Observations are unchanged.
-const KEYS: &str = "extern int argument();extern string observe(int value,string label);\nexport func()->string make(int seed){Record<int> state=record{theNumberOfEventsObservedForThisParticularLabel:seed};auto createLabel=(int unused)=>\"place/\"+\"ready\";return ()=>{int before=state.theNumberOfEventsObservedForThisParticularLabel??0;state.theNumberOfEventsObservedForThisParticularLabel=before+1;return observe(state.theNumberOfEventsObservedForThisParticularLabel??0,createLabel(argument()));};}\n";
+// The Factory program with a long private record key and a label written in
+// parts: the codecs disagree about one literal choice, a byte-level crossover
+// re-tuned when formation changes. Observations are unchanged. The label's
+// one call stands in a loop, so `createLabel` keeps its binding rather than
+// being created at the call.
+const KEYS: &str = "extern int argument();extern string observe(int value,string label);\nexport func()->string make(int seed){Record<int> state=record{theNumberOfEventsObservedForThisParticularLabel:seed};auto createLabel=(int unused)=>\"pl\"+\"ace/\"+\"ready\";return ()=>{int before=state.theNumberOfEventsObservedForThisParticularLabel??0;state.theNumberOfEventsObservedForThisParticularLabel=before+1;string label=\"\";for(int k=0;k<1;k++){label=createLabel(argument());}return observe(state.theNumberOfEventsObservedForThisParticularLabel??0,label);};}\n";
 const FACTORY: &str = include_str!("fixtures/value-placement/representation-composition.lil");
 const FACTORY_SETUP: &str =
     include_str!("fixtures/value-placement/representation-composition.setup.js");

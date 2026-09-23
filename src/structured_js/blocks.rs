@@ -59,6 +59,61 @@ impl Module {
         Ok(flattened)
     }
 
+    /// A nested block that declares nothing is its statements: `{for(…)…}`
+    /// is `for(…)…`. It holds no binding, so its child scopes take the
+    /// enclosing scope as parent and naming sees the same bindings in the
+    /// same places. Unlike `flatten_blocks`, no declaration moves between
+    /// scopes. Returns how many blocks went.
+    pub(crate) fn drop_bare_blocks(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        budget.work(Analysis, (self.bindings.len() + self.scopes.len()) as u64)?;
+        let mut declares = vec![false; self.scopes.len()];
+        for binding in &self.bindings {
+            if let Some(declared) = declares.get_mut(binding.scope.index()) {
+                *declared = true;
+            }
+        }
+        let mut dropped = 0;
+        for region in 0..self.regions.len() {
+            if region == self.root.index() {
+                continue;
+            }
+            let mut index = 0;
+            while index < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                let Statement::Block(inner) = self.regions[region].statements[index] else {
+                    index += 1;
+                    continue;
+                };
+                let inner_scope = self.regions[inner.index()].scope;
+                let bare = inner.index() != region
+                    && !declares.get(inner_scope.index()).copied().unwrap_or(true)
+                    && !self.regions[inner.index()].statements.iter().any(|statement| {
+                        matches!(statement, Statement::Let { .. } | Statement::Function { .. })
+                    });
+                if !bare {
+                    index += 1;
+                    continue;
+                }
+                let outer_scope = self.regions[region].scope;
+                budget.work(Analysis, self.scopes.len() as u64)?;
+                for parent in self.scopes.iter_mut().flatten() {
+                    if *parent == inner_scope {
+                        *parent = outer_scope;
+                    }
+                }
+                let moved = std::mem::take(&mut self.regions[inner.index()].statements);
+                self.regions[region].statements.splice(index..=index, moved);
+                dropped += 1;
+                // The spliced statements may be bare blocks themselves.
+            }
+        }
+        Ok(dropped)
+    }
+
     fn flattenable(&self, inner: RegionId) -> bool {
         // `{let i=v;for(;c;u)b}` prints as `for(let i=v;c;u)b`: keep it.
         if matches!(
@@ -79,6 +134,18 @@ impl Module {
                 _ => true,
             })
     }
+}
+
+/// A function `place_single_calls` creates at its one call: its
+/// declaration (region and index), its value and function, and the call and
+/// the call's region.
+struct Placement {
+    declaring: RegionId,
+    at: usize,
+    value: ExprId,
+    function: FunctionId,
+    call: ExprId,
+    region: RegionId,
 }
 
 /// Where a single-use call stands, and what its result feeds.
@@ -264,6 +331,248 @@ impl Module {
             }
         }
         Ok(None)
+    }
+
+    /// A function with one call is created at it: `let f=(p)=>{…};…f(a)`
+    /// becomes `…((p)=>{…})(a)` and the binding goes, as Terser places a
+    /// single-use lambda (`reduce_funcs`). Creating a function runs no code
+    /// and cannot throw, so it may happen where the call is, when:
+    /// - the call runs only after the declaration: the declaring region's
+    ///   statement holding it follows the declaration and hoists nothing;
+    /// - the function has its own frame, or reads none: an arrow reading
+    ///   `this`, `arguments` or `super` would read the caller's;
+    /// - nothing observes its name;
+    /// - no loop of the caller's own frame holds the call, which would
+    ///   create the function each iteration (Terser's
+    ///   `dont_inline_lambda_in_loop`): a function created in a loop is a
+    ///   frame of its own;
+    /// - the call is in no `for…in` or `for…of` head, whose loop binding a
+    ///   function created there would see;
+    /// - a root declaration and the root statement holding the call come
+    ///   from one source module, which multi-file delivery keeps together;
+    /// - execution is strict: a sloppy frame shows its function to the code
+    ///   it calls;
+    /// - the moved body fits within the nesting limit.
+    ///
+    /// The body's scopes are renewed under the call's region. Returns how
+    /// many functions moved, and each old node's new id when the arena was
+    /// renumbered.
+    pub(crate) fn place_single_calls(
+        &mut self,
+        strict: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
+        // A sloppy frame is visible to the code it calls, and with it the
+        // function's identity: only strict execution hides where it was made.
+        if !strict {
+            return Ok((0, None));
+        }
+        let mut placed = 0;
+        let mut disordered = false;
+        // A round moves functions whose calls stand outside the bodies of
+        // the others it moves; a function moved into another's body is taken
+        // with that body in a later round.
+        for _ in 0..8 {
+            let mut moves = self.single_call_placements(budget)?;
+            if moves.is_empty() {
+                break;
+            }
+            // Later declarations first, so earlier indices hold.
+            moves.sort_unstable_by_key(|placement| {
+                std::cmp::Reverse((placement.declaring.index(), placement.at))
+            });
+            for placement in &moves {
+                budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                // A function literal is a value, not a reference with a base.
+                if let Expr::Call {
+                    callee, invocation, ..
+                } = &mut self.expressions[placement.call.index()]
+                {
+                    *callee = placement.value;
+                    *invocation = Invocation::Value;
+                }
+                disordered |= placement.value.index() > placement.call.index();
+                let declaring = placement.declaring.index();
+                self.regions[declaring].statements.remove(placement.at);
+                if placement.declaring == self.root && placement.at < self.root_modules.len() {
+                    self.root_modules.remove(placement.at);
+                }
+                let scope = self.regions[placement.region.index()].scope;
+                let body = self.functions[placement.function.index()].body;
+                self.rescope(body, scope, budget)?;
+            }
+            placed += moves.len();
+        }
+        let map = if disordered {
+            Some(self.renumber(budget)?)
+        } else {
+            None
+        };
+        Ok((placed, map))
+    }
+
+    /// The functions `place_single_calls` moves in one round.
+    fn single_call_placements(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Vec<Placement>, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let reach = self.reach(budget)?;
+        let mut uses = vec![0usize; self.bindings.len()];
+        let mut calls: Vec<Option<(ExprId, usize)>> = vec![None; self.bindings.len()];
+        for &(id, depth) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            match &self.expressions[id.index()] {
+                Expr::Binding(binding) => uses[binding.index()] += 1,
+                Expr::Call {
+                    callee,
+                    invocation: Invocation::Value | Invocation::Reference,
+                    ..
+                } => {
+                    if let Expr::Binding(binding) = self.expressions[callee.index()] {
+                        calls[binding.index()] = Some((id, depth));
+                    }
+                }
+                _ => {}
+            }
+        }
+        for export in &self.exports {
+            uses[export.binding.index()] += 1;
+        }
+        // Each single call's statement, and whether it is a loop's, whose
+        // test and update repeat.
+        let wanted = |binding: BindingId| uses[binding.index()] == 1;
+        let mut sites: Vec<Option<(RegionId, usize, bool)>> = vec![None; self.bindings.len()];
+        for &region in &reach.regions {
+            for (index, statement) in self.regions[region.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let mut pending = Vec::new();
+                statement.visit_expressions(|root| pending.push(root));
+                while let Some(id) = pending.pop() {
+                    budget.work(Analysis, 1)?;
+                    let expression = &self.expressions[id.index()];
+                    if let Expr::Call { callee, .. } = expression {
+                        if let Expr::Binding(binding) = self.expressions[callee.index()] {
+                            if wanted(binding) && calls[binding.index()].is_some_and(|(call, _)| call == id) {
+                                // A loop's test and update repeat; a `for…in`
+                                // or `for…of` head runs with the loop's binding
+                                // in scope (and in its TDZ), which a function
+                                // created there would close over.
+                                let head = matches!(
+                                    statement,
+                                    Statement::Loop { .. }
+                                        | Statement::ForIn { .. }
+                                        | Statement::ForOf { .. }
+                                );
+                                sites[binding.index()] = Some((region, index, head));
+                            }
+                        }
+                    }
+                    // A created function's body is a region of its own.
+                    if expression.created_function().is_none() {
+                        let _ = expression.visit_children(|child| {
+                            pending.push(child);
+                            Ok::<_, ()>(())
+                        });
+                    }
+                }
+            }
+        }
+        let parents = self.region_parents(budget)?;
+        let mut bodies = vec![false; self.regions.len()];
+        for function in &self.functions {
+            bodies[function.body.index()] = true;
+        }
+        let mut placements: Vec<Placement> = Vec::new();
+        // Regions on the paths of this round's calls, and the bodies moving.
+        let mut on_paths = vec![false; self.regions.len()];
+        let mut moving = vec![false; self.regions.len()];
+        for &declaring in &reach.regions {
+            for (at, statement) in self.regions[declaring.index()].statements.iter().enumerate() {
+                budget.work(Analysis, 1)?;
+                let Statement::Let {
+                    binding,
+                    value: Some(value),
+                } = *statement
+                else {
+                    continue;
+                };
+                let Expr::Function(function) = self.expressions[value.index()] else {
+                    continue;
+                };
+                let (Some((call, depth)), Some((region, index, head))) =
+                    (calls[binding.index()], sites[binding.index()])
+                else {
+                    continue;
+                };
+                let declared = &self.functions[function.index()];
+                if uses[binding.index()] != 1
+                    || head
+                    || self.bindings[binding.index()].pinned
+                    || !matches!(declared.name, FunctionName::Unobserved)
+                    || (declared.arrow && !self.frame_free(function))
+                {
+                    continue;
+                }
+                // Up from the call to the declaration: no loop body of the
+                // call's own frame, no body moving this round.
+                let own = declared.body;
+                let mut path = (region, index);
+                let mut frame = true;
+                let mut regions = Vec::new();
+                let mut encloses = false;
+                for _ in 0..verify::MAX_NESTING * 4 {
+                    budget.work(Analysis, 1)?;
+                    if path.0 == own || moving[path.0.index()] {
+                        break;
+                    }
+                    regions.push(path.0);
+                    if path.0 == declaring {
+                        encloses = path.1 > at
+                            && !matches!(
+                                self.regions[declaring.index()].statements[path.1],
+                                Statement::Function { .. }
+                            )
+                            && (declaring != self.root
+                                || self.root_modules.get(at) == self.root_modules.get(path.1));
+                        break;
+                    }
+                    let Some(parent) = parents[path.0.index()] else {
+                        break;
+                    };
+                    if bodies[path.0.index()] {
+                        frame = false;
+                    } else if frame
+                        && matches!(
+                            self.regions[parent.0.index()].statements[parent.1],
+                            Statement::Loop { .. } | Statement::ForIn { .. } | Statement::ForOf { .. }
+                        )
+                    {
+                        break;
+                    }
+                    path = parent;
+                }
+                if !encloses || on_paths[own.index()] {
+                    continue;
+                }
+                if depth + 3 + self.region_subtree_depth(own) > verify::MAX_NESTING {
+                    continue;
+                }
+                for &on in &regions {
+                    on_paths[on.index()] = true;
+                }
+                moving[own.index()] = true;
+                placements.push(Placement {
+                    declaring,
+                    at,
+                    value,
+                    function,
+                    call,
+                    region,
+                });
+            }
+        }
+        Ok(placements)
     }
 
     /// A function whose body may stand in its caller's place: it keeps no
