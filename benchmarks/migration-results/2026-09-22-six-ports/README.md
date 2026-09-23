@@ -26,7 +26,7 @@ Brotli of the compiler output with the Brotli objective, raw bytes of the raw-ob
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,393 | 5,622 | **win −229** |
 | jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,048 | 27,445 | +1,603 |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 46,030 (41,845 whitespace-minified) | 29,634 | +16,396 (+12,211) |
-| motionlil (`full.js`) | does not build | 51,349 | 41,032 | +10,317 |
+| motionlil (`full.js`) | does not build | 50,629 | 41,032 | +9,597 |
 
 | Raw objective | Start | Now (batch 17) | Bar | Gap |
 |---|---|---|---|---|

@@ -2103,6 +2103,28 @@ An independent verifier confirmed semantics with a smoke differential (2,076 exp
 
 Suites pass on both objectives: 21/21 and 1,230/1,230.
 
+### 013 batch 22: motionlil's source, first rewrites from the census (2026-09-23)
+
+The census asked why motionlil loses +10.3K. It found construction shapes, missing scalar replacement and the absence of boundary classes in the compiler, and a JsValue transliteration in the port. These are the verified port rewrites ([motionlil.patch](../../finer/port-migrations/motionlil.patch)), each checked by a jsdom differential harness with fake frames and microtasks:
+- **One JSAnimation.** `follow-value` uses the full animation, as upstream does. The lite copy mapped spring, inertia and decay to a 300 ms tween. `springValue(0)` now produces upstream's curve exactly (1.21, 4.58, 9.7…), where the port produced a tween (0.56, 2.24…).
+- **The frameloop builds its 8 steps in a loop in `stepsOrder`,** instead of unrolled three times. The classes stay typed.
+- **A five-way `typeof` presence test becomes a loose `!= null` helper** at 31 sites. A uniform `!== undefined` was measured unsound: it diverged from upstream on `fillWildcards`, `canAnimate`, animation state and rendering.
+- **`record{}` becomes `object{}`** where the value mirrors an upstream `{}` (216 literals). Inherited names such as `toString` become visible to `in`, as they are upstream.
+
+| motionlil | `full.js` raw | `full.js` Brotli |
+|---|---|---|
+| Batch 18 | 204,122 | 51,413 |
+| **Port rewrites** | **194,367** | **50,629** |
+| Bar | 137,455 | 41,032 |
+
+motionlil's tests pass (9/9). It still loses by 9,597. The census puts the rest in compiler work and JsValue typing:
+- construction folded into one literal (013-T3): −470 to −894;
+- scalar replacement of member-only objects: −460;
+- boundary classes with dynamic dispatch: about −700;
+- typed option bags instead of 139 `typeof`-guarded reads: about −300.
+
+Two language limits force verbose port code here: `%` on floats and a non-null assertion.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

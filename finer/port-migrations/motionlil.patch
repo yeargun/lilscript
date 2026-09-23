@@ -1,4 +1,4 @@
-diff -ru a/src/framer-motion/animation/animate/consumer.lil b/src/framer-motion/animation/animate/consumer.lil
+
 --- a/src/framer-motion/animation/animate/consumer.lil
 +++ b/src/framer-motion/animation/animate/consumer.lil
 @@ -40,7 +40,7 @@
@@ -19,7 +19,34 @@ diff -ru a/src/framer-motion/animation/animate/consumer.lil b/src/framer-motion/
  ) {
    AnimationScope? scope = null;
    bool? reduceMotion = null;
-diff -ru a/src/framer-motion/animation/animate/element-spring.lil b/src/framer-motion/animation/animate/element-spring.lil
+@@ -72,7 +72,7 @@
+     JsValue[] animations = [];
+     (func()->void)? animationOnComplete = null;
+ 
+-    JsValue inherited = record{};
++    JsValue inherited = object{};
+     if (reduceMotion != null) {
+       inherited["reduceMotion"] = reduceMotion;
+     }
+@@ -81,7 +81,7 @@
+     }
+ 
+     if (isSequence(subjectOrSequence)) {
+-      JsValue sequenceOptions = record{};
++      JsValue sequenceOptions = object{};
+       assignObject(sequenceOptions, inherited);
+       assignObject(sequenceOptions, optionsOrKeyframes);
+       (func()->void)? complete = takeOnComplete(sequenceOptions);
+@@ -90,7 +90,7 @@
+       }
+       animations = animateSequence(subjectOrSequence, sequenceOptions, scope);
+     } else {
+-      JsValue rest = record{};
++      JsValue rest = object{};
+       assignObject(rest, inherited);
+       assignObject(rest, opts);
+       (func()->void)? complete = takeOnComplete(rest);
+
 --- a/src/framer-motion/animation/animate/element-spring.lil
 +++ b/src/framer-motion/animation/animate/element-spring.lil
 @@ -26,7 +26,7 @@
@@ -40,7 +67,16 @@ diff -ru a/src/framer-motion/animation/animate/element-spring.lil b/src/framer-m
  ) {
    AnimationScope? scope = null;
    bool? reduceMotion = null;
-diff -ru a/src/framer-motion/animation/animate/element.lil b/src/framer-motion/animation/animate/element.lil
+@@ -58,7 +58,7 @@
+     JsValue[] animations = [];
+     (func()->void)? animationOnComplete = null;
+ 
+-    JsValue rest = record{};
++    JsValue rest = object{};
+     if (reduceMotion != null) {
+       rest["reduceMotion"] = reduceMotion;
+     }
+
 --- a/src/framer-motion/animation/animate/element.lil
 +++ b/src/framer-motion/animation/animate/element.lil
 @@ -26,7 +26,7 @@
@@ -61,7 +97,145 @@ diff -ru a/src/framer-motion/animation/animate/element.lil b/src/framer-motion/a
  ) {
    AnimationScope? scope = null;
    bool? reduceMotion = null;
-diff -ru a/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil b/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil
+@@ -58,7 +58,7 @@
+     JsValue[] animations = [];
+     (func()->void)? animationOnComplete = null;
+ 
+-    JsValue rest = record{};
++    JsValue rest = object{};
+     if (reduceMotion != null) {
+       rest["reduceMotion"] = reduceMotion;
+     }
+
+--- a/src/framer-motion/animation/animate/index.lil
++++ b/src/framer-motion/animation/animate/index.lil
+@@ -72,7 +72,7 @@
+     JsValue[] animations = [];
+     (func()->void)? animationOnComplete = null;
+ 
+-    JsValue inherited = record{};
++    JsValue inherited = object{};
+     if (reduceMotion != null) {
+       inherited["reduceMotion"] = reduceMotion;
+     }
+@@ -81,7 +81,7 @@
+     }
+ 
+     if (isSequence(subjectOrSequence)) {
+-      JsValue sequenceOptions = record{};
++      JsValue sequenceOptions = object{};
+       assignObject(sequenceOptions, inherited);
+       assignObject(sequenceOptions, optionsOrKeyframes);
+       (func()->void)? complete = takeOnComplete(sequenceOptions);
+@@ -90,7 +90,7 @@
+       }
+       animations = animateSequence(subjectOrSequence, sequenceOptions, scope);
+     } else {
+-      JsValue rest = record{};
++      JsValue rest = object{};
+       assignObject(rest, inherited);
+       assignObject(rest, opts);
+       (func()->void)? complete = takeOnComplete(rest);
+
+--- a/src/framer-motion/animation/animate/sequence-entry.lil
++++ b/src/framer-motion/animation/animate/sequence-entry.lil
+@@ -46,7 +46,7 @@
+     (func()->void)? animationOnComplete = null;
+ 
+     if (isSequence(subjectOrSequence)) {
+-      JsValue sequenceOptions = record{};
++      JsValue sequenceOptions = object{};
+       assignObject(sequenceOptions, optionsOrKeyframes);
+       (func()->void)? complete = takeOnComplete(sequenceOptions);
+       if (complete != null) {
+@@ -54,7 +54,7 @@
+       }
+       animations = animateSequence(subjectOrSequence, sequenceOptions, null);
+     } else {
+-      JsValue rest = record{};
++      JsValue rest = object{};
+       assignObject(rest, opts);
+       (func()->void)? complete = takeOnComplete(rest);
+       if (complete != null) {
+
+--- a/src/framer-motion/animation/animate/subject-dom-spring.lil
++++ b/src/framer-motion/animation/animate/subject-dom-spring.lil
+@@ -90,7 +90,7 @@
+       continue;
+     }
+ 
+-    JsValue transition = record{};
++    JsValue transition = object{};
+     copyRecord(transition, options);
+ 
+     JsValue delayVal = transition["delay"];
+@@ -98,11 +98,11 @@
+       transition["delay"] = callFn2(delayVal, i, numSubjects);
+     }
+ 
+-    JsValue definition = record{};
++    JsValue definition = object{};
+     copyRecord(definition, keyframes);
+     definition["transition"] = transition;
+ 
+-    JsValue targetOpts = record{};
++    JsValue targetOpts = object{};
+     JsValue resolvedDelay = transition["delay"];
+     if (resolvedDelay is float) {
+       targetOpts["delay"] = resolvedDelay;
+
+--- a/src/framer-motion/animation/animate/subject-dom.lil
++++ b/src/framer-motion/animation/animate/subject-dom.lil
+@@ -111,7 +111,7 @@
+       continue;
+     }
+ 
+-    JsValue transition = record{};
++    JsValue transition = object{};
+     copyRecord(transition, options);
+ 
+     JsValue delayVal = transition["delay"];
+@@ -119,11 +119,11 @@
+       transition["delay"] = callFn2(delayVal, i, numSubjects);
+     }
+ 
+-    JsValue definition = record{};
++    JsValue definition = object{};
+     copyRecord(definition, keyframes);
+     definition["transition"] = transition;
+ 
+-    JsValue targetOpts = record{};
++    JsValue targetOpts = object{};
+     JsValue resolvedDelay = transition["delay"];
+     if (resolvedDelay is float) {
+       targetOpts["delay"] = resolvedDelay;
+
+--- a/src/framer-motion/animation/animate/subject.lil
++++ b/src/framer-motion/animation/animate/subject.lil
+@@ -117,7 +117,7 @@
+       continue;
+     }
+ 
+-    JsValue transition = record{};
++    JsValue transition = object{};
+     copyRecord(transition, options);
+ 
+     JsValue delayVal = transition["delay"];
+@@ -125,11 +125,11 @@
+       transition["delay"] = callFn2(delayVal, i, numSubjects);
+     }
+ 
+-    JsValue definition = record{};
++    JsValue definition = object{};
+     copyRecord(definition, keyframes);
+     definition["transition"] = transition;
+ 
+-    JsValue targetOpts = record{};
++    JsValue targetOpts = object{};
+     JsValue resolvedDelay = transition["delay"];
+     if (resolvedDelay is float) {
+       targetOpts["delay"] = resolvedDelay;
+
 --- a/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil
 +++ b/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil
 @@ -6,8 +6,8 @@
@@ -101,7 +275,7 @@ diff -ru a/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil
  ) {
    if (elementOrSelector == null) {
      return [];
-@@ -56,7 +56,7 @@
+@@ -56,11 +56,11 @@
      return [];
    }
  
@@ -110,6 +284,20 @@ diff -ru a/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil
  
    for (int i = 0; i < numElements; i++) {
      JsValue element = elements[i];
+-    JsValue elementTransition = record{};
++    JsValue elementTransition = object{};
+     if (options != null && options.isObject()) {
+       for (string optionKey in options) {
+         elementTransition[optionKey] = options[optionKey];
+@@ -84,7 +84,7 @@
+         }
+ 
+         JsValue sharedOptions = getValueTransition(elementTransition, valueName);
+-        JsValue valueOptions = record{};
++        JsValue valueOptions = object{};
+         if (sharedOptions != null && sharedOptions.isObject()) {
+           for (string k in sharedOptions) {
+             valueOptions[k] = sharedOptions[k];
 @@ -118,14 +118,14 @@
            elementTransition["type"] == null && elementTransition["ease"] == null;
  
@@ -141,7 +329,37 @@ diff -ru a/src/framer-motion/animation/animators/waapi/animate-elements-mini.lil
      def.map.set(def.key, animation);
      animations.push(animation);
    }
-diff -ru a/src/framer-motion/animation/animators/waapi/animate-style-mini.lil b/src/framer-motion/animation/animators/waapi/animate-style-mini.lil
+
+--- a/src/framer-motion/animation/animators/waapi/animate-elements.lil
++++ b/src/framer-motion/animation/animators/waapi/animate-elements.lil
+@@ -56,7 +56,7 @@
+ 
+   for (int i = 0; i < numElements; i++) {
+     JsValue element = elements[i];
+-    JsValue elementTransition = record{};
++    JsValue elementTransition = object{};
+     if (options != null && options.isObject()) {
+       callMethod2(windowGet("Object"), "assign", elementTransition, options);
+     }
+@@ -80,7 +80,7 @@
+         }
+ 
+         JsValue sharedOptions = getValueTransition(elementTransition, valueName);
+-        JsValue valueOptions = record{};
++        JsValue valueOptions = object{};
+         if (sharedOptions != null && sharedOptions.isObject()) {
+           for (string k in sharedOptions) {
+             valueOptions[k] = sharedOptions[k];
+@@ -111,7 +111,7 @@
+           }
+         }
+ 
+-        JsValue animOptions = record{};
++        JsValue animOptions = object{};
+         for (string k in valueOptions) {
+           animOptions[k] = valueOptions[k];
+         }
+
 --- a/src/framer-motion/animation/animators/waapi/animate-style-mini.lil
 +++ b/src/framer-motion/animation/animators/waapi/animate-style-mini.lil
 @@ -1,16 +1,16 @@
@@ -167,7 +385,7 @@ diff -ru a/src/framer-motion/animation/animators/waapi/animate-style-mini.lil b/
 -export func(JsValue, JsValue, JsValue?)->GroupAnimationWithThen animateMini =
 +export func(JsValue, JsValue, JsValue?)->GroupAnimationWithThenMini animateMini =
    createScopedWaapiAnimate();
-diff -ru a/src/framer-motion/animation/sequence/create-full.lil b/src/framer-motion/animation/sequence/create-full.lil
+
 --- a/src/framer-motion/animation/sequence/create-full.lil
 +++ b/src/framer-motion/animation/sequence/create-full.lil
 @@ -35,7 +35,7 @@
@@ -197,7 +415,116 @@ diff -ru a/src/framer-motion/animation/sequence/create-full.lil b/src/framer-mot
      segmentAccum.totalDuration = accum.totalDuration;
  
      if (isMotionValue(subject)) {
-diff -ru a/src/framer-motion/render/dom/scroll/offsets/presets.lil b/src/framer-motion/render/dom/scroll/offsets/presets.lil
+
+--- a/src/framer-motion/animation/utils/create-html-visual-element.lil
++++ b/src/framer-motion/animation/utils/create-html-visual-element.lil
+@@ -5,18 +5,18 @@
+ extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+ 
+ JsValue visualOptions() {
+-  JsValue options = record{};
++  JsValue options = object{};
+   options["presenceContext"] = null;
+-  options["props"] = record{};
+-  JsValue visualState = record{};
+-  JsValue renderState = record{};
+-  renderState["transform"] = record{};
+-  renderState["transformOrigin"] = record{};
+-  renderState["style"] = record{};
+-  renderState["vars"] = record{};
+-  renderState["attrs"] = record{};
++  options["props"] = object{};
++  JsValue visualState = object{};
++  JsValue renderState = object{};
++  renderState["transform"] = object{};
++  renderState["transformOrigin"] = object{};
++  renderState["style"] = object{};
++  renderState["vars"] = object{};
++  renderState["attrs"] = object{};
+   visualState["renderState"] = renderState;
+-  visualState["latestValues"] = record{};
++  visualState["latestValues"] = object{};
+   options["visualState"] = visualState;
+   return options;
+ }
+
+--- a/src/framer-motion/animation/utils/create-visual-element.lil
++++ b/src/framer-motion/animation/utils/create-visual-element.lil
+@@ -10,18 +10,18 @@
+ extern void weakMapSet(JsValue map, JsValue key, JsValue value);
+ 
+ JsValue visualOptions() {
+-  JsValue options = record{};
++  JsValue options = object{};
+   options["presenceContext"] = null;
+-  options["props"] = record{};
+-  JsValue visualState = record{};
+-  JsValue renderState = record{};
+-  renderState["transform"] = record{};
+-  renderState["transformOrigin"] = record{};
+-  renderState["style"] = record{};
+-  renderState["vars"] = record{};
+-  renderState["attrs"] = record{};
++  options["props"] = object{};
++  JsValue visualState = object{};
++  JsValue renderState = object{};
++  renderState["transform"] = object{};
++  renderState["transformOrigin"] = object{};
++  renderState["style"] = object{};
++  renderState["vars"] = object{};
++  renderState["attrs"] = object{};
+   visualState["renderState"] = renderState;
+-  visualState["latestValues"] = record{};
++  visualState["latestValues"] = object{};
+   options["visualState"] = visualState;
+   return options;
+ }
+@@ -40,14 +40,14 @@
+ }
+ 
+ export void createObjectVisualElement(JsValue subject) {
+-  JsValue options = record{};
++  JsValue options = object{};
+   options["presenceContext"] = null;
+-  options["props"] = record{};
+-  JsValue visualState = record{};
+-  JsValue renderState = record{};
+-  renderState["output"] = record{};
++  options["props"] = object{};
++  JsValue visualState = object{};
++  JsValue renderState = object{};
++  renderState["output"] = object{};
+   visualState["renderState"] = renderState;
+-  visualState["latestValues"] = record{};
++  visualState["latestValues"] = object{};
+   options["visualState"] = visualState;
+ 
+   ObjectVisualElement node = new ObjectVisualElement(options);
+
+--- a/src/framer-motion/render/dom/scroll/attach-animation.lil
++++ b/src/framer-motion/render/dom/scroll/attach-animation.lil
+@@ -26,7 +26,7 @@
+     useNative = canUseNativeTimeline();
+   }
+ 
+-  JsValue timelineOptions = record{};
++  JsValue timelineOptions = object{};
+   if (useNative) {
+     timelineOptions["timeline"] = timeline;
+     if (range != null) {
+
+--- a/src/framer-motion/render/dom/scroll/index.lil
++++ b/src/framer-motion/render/dom/scroll/index.lil
+@@ -5,7 +5,7 @@
+ export func()->void scroll(JsValue onScroll, JsValue? options = null) {
+   string axis = "y";
+   JsValue container = documentScrollingElement();
+-  JsValue resolved = record{};
++  JsValue resolved = object{};
+ 
+   if (options != null && options.isObject()) {
+     for (string k in options) {
+
 --- a/src/framer-motion/render/dom/scroll/offsets/presets.lil
 +++ b/src/framer-motion/render/dom/scroll/offsets/presets.lil
 @@ -3,7 +3,7 @@
@@ -215,7 +542,109 @@ diff -ru a/src/framer-motion/render/dom/scroll/offsets/presets.lil b/src/framer-
  
 -export ScrollOffset ScrollOffsetValues = new ScrollOffset();
 +export ScrollOffsetPresets ScrollOffsetValues = new ScrollOffsetPresets();
-diff -ru a/src/motion-dom/animation/AsyncMotionValueAnimationJs.lil b/src/motion-dom/animation/AsyncMotionValueAnimationJs.lil
+
+--- a/src/framer-motion/render/dom/scroll/track.lil
++++ b/src/framer-motion/render/dom/scroll/track.lil
+@@ -59,7 +59,7 @@
+ export func()->void scrollInfo(func(ScrollInfo)->void onScroll, JsValue? options = null) {
+   JsValue container = documentScrollingElement();
+   bool trackContentSize = false;
+-  JsValue resolvedOptions = record{};
++  JsValue resolvedOptions = object{};
+ 
+   if (options != null && options.isObject()) {
+     for (string k in options) {
+@@ -134,7 +134,7 @@
+   if (trackContentSize && !weakMapHas(dimensionCheckProcesses, container)) {
+     (func()->void)? listener = weakMapGetListener(scrollListeners, container);
+     if (listener != null) {
+-      JsValue size = record{};
++      JsValue size = object{};
+       JsValue sw = container["scrollWidth"];
+       JsValue sh = container["scrollHeight"];
+       size["width"] = sw;
+
+--- a/src/framer-motion/render/dom/scroll/utils/get-timeline.lil
++++ b/src/framer-motion/render/dom/scroll/utils/get-timeline.lil
+@@ -47,7 +47,7 @@
+ }
+ 
+ JsValue scrollTimelineFallback(JsValue options) {
+-  JsValue currentTime = record{};
++  JsValue currentTime = object{};
+   currentTime["value"] = 0.0;
+ 
+   string axis = "y";
+@@ -67,7 +67,7 @@
+     currentTime["value"] = progressValue * 100.0;
+   }, options);
+ 
+-  JsValue timeline = record{};
++  JsValue timeline = object{};
+   timeline["currentTime"] = currentTime;
+   timeline["cancel"] = cancel;
+   return timeline;
+@@ -83,7 +83,7 @@
+   if (target.truthy() && canUseNativeTimeline(target)) {
+     ViewTimelineRange? range = offsetToViewTimelineRange(offset);
+     if (range != null) {
+-      JsValue viewOpts = record{};
++      JsValue viewOpts = object{};
+       viewOpts["subject"] = target;
+       viewOpts["axis"] = axis;
+       return constructConfigured(windowGet("ViewTimeline"), viewOpts);
+@@ -91,7 +91,7 @@
+     return scrollTimelineFallback(options);
+   }
+   if (canUseNativeTimeline()) {
+-    JsValue scrollOpts = record{};
++    JsValue scrollOpts = object{};
+     scrollOpts["source"] = container;
+     scrollOpts["axis"] = axis;
+     return constructConfigured(windowGet("ScrollTimeline"), scrollOpts);
+
+--- a/src/framer-motion/render/dom/viewport/index.lil
++++ b/src/framer-motion/render/dom/viewport/index.lil
+@@ -63,14 +63,14 @@
+     }
+   }
+ 
+-  JsValue observerOptions = record{};
++  JsValue observerOptions = object{};
+   observerOptions["root"] = root;
+   if (rootMargin != null) {
+     observerOptions["rootMargin"] = rootMargin;
+   }
+   observerOptions["threshold"] = threshold;
+ 
+-  JsValue observerHolder = record{};
++  JsValue observerHolder = object{};
+ 
+   func(JsValue)->void onIntersectionChange = (JsValue entries) => {
+     JsValue observer = observerHolder["observer"];
+
+--- a/src/lilscript.toml
++++ b/src/lilscript.toml
+@@ -13,6 +13,9 @@
+ optimization_level = 15
+ cost_model = "brotli"
+ function_spelling = "arrow"
++# Motion runs against the platform's own builtins, as every other port here
++# declares: a class construction is then its literal (the store fold).
++assume_pristine_builtins = true
+ local_name_reserve = 48
+ 
+ [mangle]
+@@ -20,3 +23,8 @@
+ properties = true
+ exports = false
+ pool_strings = true
++
++[bundle]
++# The semantic route lowers these host modules into the program, where
++# pruning, inlining and naming reach them.
++host_modules = "embed"
+
 --- a/src/motion-dom/animation/AsyncMotionValueAnimationJs.lil
 +++ b/src/motion-dom/animation/AsyncMotionValueAnimationJs.lil
 @@ -1,5 +1,5 @@
@@ -286,7 +715,7 @@ diff -ru a/src/motion-dom/animation/AsyncMotionValueAnimationJs.lil b/src/motion
      return () => {
        self.stop();
      };
-diff -ru a/src/motion-dom/animation/AsyncMotionValueAnimationSpring.lil b/src/motion-dom/animation/AsyncMotionValueAnimationSpring.lil
+
 --- a/src/motion-dom/animation/AsyncMotionValueAnimationSpring.lil
 +++ b/src/motion-dom/animation/AsyncMotionValueAnimationSpring.lil
 @@ -1,5 +1,5 @@
@@ -358,7 +787,7 @@ diff -ru a/src/motion-dom/animation/AsyncMotionValueAnimationSpring.lil b/src/mo
      return () => {
        self.stop();
      };
-diff -ru a/src/motion-dom/animation/AsyncMotionValueAnimationSpringJs.lil b/src/motion-dom/animation/AsyncMotionValueAnimationSpringJs.lil
+
 --- a/src/motion-dom/animation/AsyncMotionValueAnimationSpringJs.lil
 +++ b/src/motion-dom/animation/AsyncMotionValueAnimationSpringJs.lil
 @@ -1,5 +1,5 @@
@@ -429,7 +858,7 @@ diff -ru a/src/motion-dom/animation/AsyncMotionValueAnimationSpringJs.lil b/src/
      return () => {
        self.stop();
      };
-diff -ru a/src/motion-dom/animation/GroupAnimationMini.lil b/src/motion-dom/animation/GroupAnimationMini.lil
+
 --- a/src/motion-dom/animation/GroupAnimationMini.lil
 +++ b/src/motion-dom/animation/GroupAnimationMini.lil
 @@ -1,15 +1,15 @@
@@ -453,7 +882,7 @@ diff -ru a/src/motion-dom/animation/GroupAnimationMini.lil b/src/motion-dom/anim
      setProp(this, "attachTimeline", (JsValue timeline) => {
        return self.attachTimeline(timeline);
      });
-diff -ru a/src/motion-dom/animation/GroupAnimationWithThenMini.lil b/src/motion-dom/animation/GroupAnimationWithThenMini.lil
+
 --- a/src/motion-dom/animation/GroupAnimationWithThenMini.lil
 +++ b/src/motion-dom/animation/GroupAnimationWithThenMini.lil
 @@ -1,8 +1,8 @@
@@ -469,7 +898,7 @@ diff -ru a/src/motion-dom/animation/GroupAnimationWithThenMini.lil b/src/motion-
      super(input);
    }
  
-diff -ru a/src/motion-dom/animation/JSAnimationFull.lil b/src/motion-dom/animation/JSAnimationFull.lil
+
 --- a/src/motion-dom/animation/JSAnimationFull.lil
 +++ b/src/motion-dom/animation/JSAnimationFull.lil
 @@ -31,7 +31,7 @@
@@ -519,6 +948,15 @@ diff -ru a/src/motion-dom/animation/JSAnimationFull.lil b/src/motion-dom/animati
      setProp(this, "attachTimeline", (JsValue timeline) => {
        return self.attachTimeline(timeline);
      });
+@@ -160,7 +160,7 @@
+       }
+     }
+     if (type == "spring") {
+-      JsValue springOpts = record{};
++      JsValue springOpts = object{};
+       if (extra.truthy() && extra.isObject()) {
+         callMethod2(windowGet("Object"), "assign", springOpts, extra);
+       }
 @@ -266,7 +266,7 @@
      }
    }
@@ -572,7 +1010,19 @@ diff -ru a/src/motion-dom/animation/JSAnimationFull.lil b/src/motion-dom/animati
      this.driver = frameloopDriver((float timestamp) => {
        self.tick(timestamp);
      });
-diff -ru a/src/motion-dom/animation/NativeAnimationMini.lil b/src/motion-dom/animation/NativeAnimationMini.lil
+
+--- a/src/motion-dom/animation/NativeAnimation.lil
++++ b/src/motion-dom/animation/NativeAnimation.lil
+@@ -359,7 +359,7 @@
+     if (this.allowFlatten && anim.truthy()) {
+       JsValue effect = anim["effect"];
+       if (effect.truthy() && hasFunctionNamed(effect, "updateTiming")) {
+-        callMethod1(effect, "updateTiming", record{ easing: "linear" });
++        callMethod1(effect, "updateTiming", object{ easing: "linear" });
+       }
+     }
+     if (anim.truthy()) {
+
 --- a/src/motion-dom/animation/NativeAnimationMini.lil
 +++ b/src/motion-dom/animation/NativeAnimationMini.lil
 @@ -10,7 +10,7 @@
@@ -593,16 +1043,39 @@ diff -ru a/src/motion-dom/animation/NativeAnimationMini.lil b/src/motion-dom/ani
        setProp(this.animation, "onfinish", () => {
          selfFinish.onAnimationFinish();
        });
-@@ -191,7 +191,7 @@
+@@ -164,7 +164,7 @@
+     if (this.allowFlatten && anim.truthy()) {
+       JsValue effect = anim["effect"];
+       if (effect.truthy() && isFunction(getProp(effect, "updateTiming"))) {
+-        callMethod1(effect, "updateTiming", record{ easing: "linear" });
++        callMethod1(effect, "updateTiming", object{ easing: "linear" });
+       }
+     }
+     if (anim.truthy()) {
+@@ -191,8 +191,8 @@
            iterationDuration = iterationDuration + delay / 1000.0;
          }
        }
 -      NativeAnimation selfTimeline = this;
+-      JsValue valueAnimation = record{ iterationDuration: iterationDuration };
 +      NativeAnimationMini selfTimeline = this;
-       JsValue valueAnimation = record{ iterationDuration: iterationDuration };
++      JsValue valueAnimation = object{ iterationDuration: iterationDuration };
        setProp(valueAnimation, "pause", () => {
          selfTimeline.pause();
-diff -ru a/src/motion-dom/animation/interfaces/motion-value-spring.lil b/src/motion-dom/animation/interfaces/motion-value-spring.lil
+       });
+
+--- a/src/motion-dom/animation/animate/single-value.lil
++++ b/src/motion-dom/animation/animate/single-value.lil
+@@ -22,7 +22,7 @@
+   if (animation != null) {
+     return animation;
+   }
+-  return record{
++  return object{
+     time: 0.0,
+     speed: 1.0,
+     state: "idle",
+
 --- a/src/motion-dom/animation/interfaces/motion-value-spring.lil
 +++ b/src/motion-dom/animation/interfaces/motion-value-spring.lil
 @@ -1,6 +1,6 @@
@@ -613,7 +1086,80 @@ diff -ru a/src/motion-dom/animation/interfaces/motion-value-spring.lil b/src/mot
  import { makeAnimationInstant } from "../utils/make-animation-instant";
  import { getValueTransition } from "../utils/get-value-transition";
  import { getDefaultTransition } from "../utils/default-transitions";
-@@ -203,6 +203,6 @@
+@@ -18,6 +18,11 @@
+   windowGet
+ } from "../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ void assignRecord(JsValue target, JsValue source) {
+   if (source.isObject()) {
+     callMethod2(windowGet("Object"), "assign", target, source);
+@@ -42,13 +47,13 @@
+ ) {
+   JsValue transitionObj = transition;
+   if (transitionObj == null) {
+-    transitionObj = record{};
++    transitionObj = object{};
+   }
+   MotionValue motion = motionValueOf(value);
+   return (func()->void onComplete) => {
+     JsValue valueTransition = getValueTransition(transitionObj, name);
+     if (valueTransition == null) {
+-      valueTransition = record{};
++      valueTransition = object{};
+     }
+     float delay = 0.0;
+     JsValue delayValue = valueTransition["delay"];
+@@ -76,7 +81,7 @@
+       keyframes.push(null);
+       keyframes.push(target);
+     }
+-    JsValue options = record{
++    JsValue options = object{
+       keyframes: keyframes,
+       ease: "easeOut",
+       velocity: motion.getVelocity(),
+@@ -124,11 +129,7 @@
+       }
+       for (string key in defaults) {
+         bool missing = !(
+-          (options[key] is float) ||
+-          (options[key] is string) ||
+-          (options[key] is bool) ||
+-          options[key].isArray() ||
+-          (options[key].isObject() && options[key].truthy())
++          present(options[key])
+         );
+         if (missing) {
+           options[key] = defaults[key];
+@@ -174,20 +175,12 @@
+       JsValue? current = motion.current;
+       bool hasCurrent =
+         current != null && (
+-          (current is float) ||
+-          (current is string) ||
+-          (current is bool) ||
+-          current.isArray() ||
+-          (current.isObject() && current.truthy())
++          present(current)
+         );
+       if (hasCurrent) {
+         JsValue finalKeyframe = getFinalKeyframe(options["keyframes"], valueTransition);
+         bool hasFinal =
+-          (finalKeyframe is float) ||
+-          (finalKeyframe is string) ||
+-          (finalKeyframe is bool) ||
+-          finalKeyframe.isArray() ||
+-          (finalKeyframe.isObject() && finalKeyframe.truthy());
++          present(finalKeyframe);
+         if (hasFinal) {
+           frame.update((FrameData _d) => {
+             JsValue onUpdate = options["onUpdate"];
+@@ -203,6 +196,6 @@
          }
        }
      }
@@ -621,7 +1167,7 @@ diff -ru a/src/motion-dom/animation/interfaces/motion-value-spring.lil b/src/mot
 +    return new AsyncMotionValueAnimationSpringjs(options);
    };
  }
-diff -ru a/src/motion-dom/animation/interfaces/motion-value.lil b/src/motion-dom/animation/interfaces/motion-value.lil
+
 --- a/src/motion-dom/animation/interfaces/motion-value.lil
 +++ b/src/motion-dom/animation/interfaces/motion-value.lil
 @@ -1,6 +1,6 @@
@@ -632,7 +1178,80 @@ diff -ru a/src/motion-dom/animation/interfaces/motion-value.lil b/src/motion-dom
  import { makeAnimationInstant } from "../utils/make-animation-instant";
  import { getValueTransition } from "../utils/get-value-transition";
  import { getDefaultTransition } from "../utils/default-transitions";
-@@ -203,6 +203,6 @@
+@@ -18,6 +18,11 @@
+   windowGet
+ } from "../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ void assignRecord(JsValue target, JsValue source) {
+   if (source.isObject()) {
+     callMethod2(windowGet("Object"), "assign", target, source);
+@@ -42,13 +47,13 @@
+ ) {
+   JsValue transitionObj = transition;
+   if (transitionObj == null) {
+-    transitionObj = record{};
++    transitionObj = object{};
+   }
+   MotionValue motion = motionValueOf(value);
+   return (func()->void onComplete) => {
+     JsValue valueTransition = getValueTransition(transitionObj, name);
+     if (valueTransition == null) {
+-      valueTransition = record{};
++      valueTransition = object{};
+     }
+     float delay = 0.0;
+     JsValue delayValue = valueTransition["delay"];
+@@ -76,7 +81,7 @@
+       keyframes.push(null);
+       keyframes.push(target);
+     }
+-    JsValue options = record{
++    JsValue options = object{
+       keyframes: keyframes,
+       ease: "easeOut",
+       velocity: motion.getVelocity(),
+@@ -124,11 +129,7 @@
+       }
+       for (string key in defaults) {
+         bool missing = !(
+-          (options[key] is float) ||
+-          (options[key] is string) ||
+-          (options[key] is bool) ||
+-          options[key].isArray() ||
+-          (options[key].isObject() && options[key].truthy())
++          present(options[key])
+         );
+         if (missing) {
+           options[key] = defaults[key];
+@@ -174,20 +175,12 @@
+       JsValue? current = motion.current;
+       bool hasCurrent =
+         current != null && (
+-          (current is float) ||
+-          (current is string) ||
+-          (current is bool) ||
+-          current.isArray() ||
+-          (current.isObject() && current.truthy())
++          present(current)
+         );
+       if (hasCurrent) {
+         JsValue finalKeyframe = getFinalKeyframe(options["keyframes"], valueTransition);
+         bool hasFinal =
+-          (finalKeyframe is float) ||
+-          (finalKeyframe is string) ||
+-          (finalKeyframe is bool) ||
+-          finalKeyframe.isArray() ||
+-          (finalKeyframe.isObject() && finalKeyframe.truthy());
++          present(finalKeyframe);
+         if (hasFinal) {
+           frame.update((FrameData _d) => {
+             JsValue onUpdate = options["onUpdate"];
+@@ -203,6 +196,6 @@
          }
        }
      }
@@ -640,7 +1259,377 @@ diff -ru a/src/motion-dom/animation/interfaces/motion-value.lil b/src/motion-dom
 +    return new AsyncMotionValueAnimationJs(options);
    };
  }
-diff -ru a/src/motion-dom/animation/utils/arc.lil b/src/motion-dom/animation/utils/arc.lil
+
+--- a/src/motion-dom/animation/interfaces/visual-element-target-spring.lil
++++ b/src/motion-dom/animation/interfaces/visual-element-target-spring.lil
+@@ -20,6 +20,11 @@
+   windowGet
+ } from "../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ bool shouldBlockAnimation(JsValue state, string key) {
+   JsValue protectedKeys = state["protectedKeys"];
+   JsValue needsAnimating = state["needsAnimating"];
+@@ -41,7 +46,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{};
++    opts = object{};
+   }
+ 
+   VisualElement element = visualElementOf(visualElement);
+@@ -56,7 +61,7 @@
+ 
+   JsValue transition = definition["transition"];
+   JsValue transitionEnd = definition["transitionEnd"];
+-  JsValue target = record{};
++  JsValue target = object{};
+   for (string key in definition) {
+     if (key != "transition" && key != "transitionEnd") {
+       target[key] = definition[key];
+@@ -89,7 +94,7 @@
+     transition = transitionOverride;
+   }
+   if (transition == null || !transition.isObject()) {
+-    transition = record{};
++    transition = object{};
+   }
+ 
+   JsValue[] animations = [];
+@@ -121,11 +126,7 @@
+     JsValue valueTarget = target[key];
+ 
+     if (!(
+-      (valueTarget is float) ||
+-      (valueTarget is string) ||
+-      (valueTarget is bool) ||
+-      valueTarget.isArray() ||
+-      (valueTarget.isObject() && valueTarget.truthy())
++      present(valueTarget)
+     )) {
+       continue;
+     }
+@@ -134,7 +135,7 @@
+       continue;
+     }
+ 
+-    JsValue valueTransition = record{ delay: delayAmt };
++    JsValue valueTransition = object{ delay: delayAmt };
+     JsValue keyTransition = getValueTransition(transition, key);
+     assignObject(valueTransition, keyTransition);
+     if (delayOpt is float) {
+@@ -198,7 +199,7 @@
+ 
+     JsValue motionTransition = valueTransition;
+     if (shouldReduce && positionalKeys.has(key)) {
+-      motionTransition = record{};
++      motionTransition = object{};
+       for (string tKey in valueTransition) {
+         motionTransition[tKey] = valueTransition[tKey];
+       }
+
+--- a/src/motion-dom/animation/interfaces/visual-element-target.lil
++++ b/src/motion-dom/animation/interfaces/visual-element-target.lil
+@@ -20,6 +20,11 @@
+   windowGet
+ } from "../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ bool shouldBlockAnimation(JsValue state, string key) {
+   JsValue protectedKeys = state["protectedKeys"];
+   JsValue needsAnimating = state["needsAnimating"];
+@@ -41,7 +46,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{};
++    opts = object{};
+   }
+ 
+   VisualElement element = visualElementOf(visualElement);
+@@ -56,7 +61,7 @@
+ 
+   JsValue transition = definition["transition"];
+   JsValue transitionEnd = definition["transitionEnd"];
+-  JsValue target = record{};
++  JsValue target = object{};
+   for (string key in definition) {
+     if (key != "transition" && key != "transitionEnd") {
+       target[key] = definition[key];
+@@ -89,7 +94,7 @@
+     transition = transitionOverride;
+   }
+   if (transition == null || !transition.isObject()) {
+-    transition = record{};
++    transition = object{};
+   }
+ 
+   JsValue[] animations = [];
+@@ -121,11 +126,7 @@
+     JsValue valueTarget = target[key];
+ 
+     if (!(
+-      (valueTarget is float) ||
+-      (valueTarget is string) ||
+-      (valueTarget is bool) ||
+-      valueTarget.isArray() ||
+-      (valueTarget.isObject() && valueTarget.truthy())
++      present(valueTarget)
+     )) {
+       continue;
+     }
+@@ -134,7 +135,7 @@
+       continue;
+     }
+ 
+-    JsValue valueTransition = record{ delay: delayAmt };
++    JsValue valueTransition = object{ delay: delayAmt };
+     JsValue keyTransition = getValueTransition(transition, key);
+     assignObject(valueTransition, keyTransition);
+     if (delayOpt is float) {
+@@ -198,7 +199,7 @@
+ 
+     JsValue motionTransition = valueTransition;
+     if (shouldReduce && positionalKeys.has(key)) {
+-      motionTransition = record{};
++      motionTransition = object{};
+       for (string tKey in valueTransition) {
+         motionTransition[tKey] = valueTransition[tKey];
+       }
+
+--- a/src/motion-dom/animation/interfaces/visual-element-variant.lil
++++ b/src/motion-dom/animation/interfaces/visual-element-variant.lil
+@@ -30,7 +30,7 @@
+         staggerChildren,
+         staggerDirection
+       );
+-      JsValue childOptions = record{};
++      JsValue childOptions = object{};
+       for (string key in options) {
+         childOptions[key] = options[key];
+       }
+@@ -53,7 +53,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{};
++    opts = object{};
+   }
+   JsValue? custom = null;
+   if (opts["type"] == "exit") {
+@@ -63,7 +63,7 @@
+     }
+   }
+   JsValue? resolved = resolveVariant(visualElement, variant, custom);
+-  JsValue transition = record{};
++  JsValue transition = object{};
+   if (resolved != null && resolved.isObject()) {
+     JsValue t = resolved["transition"];
+     if (t.isObject()) {
+
+--- a/src/motion-dom/animation/interfaces/visual-element.lil
++++ b/src/motion-dom/animation/interfaces/visual-element.lil
+@@ -12,7 +12,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{};
++    opts = object{};
+   }
+   VisualElement element = visualElementOf(visualElement);
+   element.notify("AnimationStart", definition);
+
+--- a/src/motion-dom/animation/keyframes/DOMKeyframesResolver.lil
++++ b/src/motion-dom/animation/keyframes/DOMKeyframesResolver.lil
+@@ -13,6 +13,11 @@
+ import { VisualElement } from "../../render/VisualElement";
+ import { MotionValue } from "../../value/index";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ extern float parseFloat(string v);
+ 
+ JsValue? visualElementCurrent(JsValue element) {
+@@ -96,11 +101,7 @@
+     for (int i = 0; i < unresolvedKeyframes.length; i++) {
+       JsValue kf = unresolvedKeyframes[i];
+       bool isNull = !(
+-        (kf is float) ||
+-        (kf is string) ||
+-        (kf is bool) ||
+-        kf.isArray() ||
+-        (kf.isObject() && kf.truthy())
++        present(kf)
+       );
+       if (isNull || isNone(kf)) {
+         noneKeyframeIndexes.push(i);
+@@ -139,11 +140,7 @@
+     this.unresolvedKeyframes[0] = this.measuredOrigin;
+     JsValue measureKeyframe = this.unresolvedKeyframes[this.unresolvedKeyframes.length - 1];
+     bool defined =
+-      (measureKeyframe is float) ||
+-      (measureKeyframe is string) ||
+-      (measureKeyframe is bool) ||
+-      measureKeyframe.isArray() ||
+-      (measureKeyframe.isObject() && measureKeyframe.truthy());
++      present(measureKeyframe);
+     if (defined) {
+       JsValue? mv = typed.getValue(name, measureKeyframe, true);
+       if (mv != null) {
+@@ -180,11 +177,7 @@
+       );
+     }
+     bool finalDefined =
+-      (finalKeyframe is float) ||
+-      (finalKeyframe is string) ||
+-      (finalKeyframe is bool) ||
+-      finalKeyframe.isArray() ||
+-      (finalKeyframe.isObject() && finalKeyframe.truthy());
++      present(finalKeyframe);
+     if (finalDefined && this.finalKeyframe == null) {
+       this.finalKeyframe = finalKeyframe;
+     }
+
+--- a/src/motion-dom/animation/keyframes/KeyframesResolver.lil
++++ b/src/motion-dom/animation/keyframes/KeyframesResolver.lil
+@@ -7,6 +7,11 @@
+ import { VisualElement } from "../../render/VisualElement";
+ import { MotionValue } from "../../value/index";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ KeyframeResolver[] toResolve = [];
+ bool isScheduled = false;
+ bool anyNeedsMeasurement = false;
+@@ -232,11 +237,7 @@
+     if (unresolvedKeyframes.length > 0) {
+       JsValue first = unresolvedKeyframes[0];
+       bool isNull = !(
+-        (first is float) ||
+-        (first is string) ||
+-        (first is bool) ||
+-        first.isArray() ||
+-        (first.isObject() && first.truthy())
++        present(first)
+       );
+       if (isNull) {
+         JsValue? currentValue = null;
+@@ -250,22 +251,14 @@
+           JsValue? valueAsRead = visualElementOf(element).readValue(name, finalKeyframe);
+           bool defined =
+             valueAsRead != null && (
+-              (valueAsRead is float) ||
+-              (valueAsRead is string) ||
+-              (valueAsRead is bool) ||
+-              valueAsRead.isArray() ||
+-              (valueAsRead.isObject() && valueAsRead.truthy())
++              present(valueAsRead)
+             );
+           if (defined) {
+             unresolvedKeyframes[0] = valueAsRead;
+           }
+         }
+         bool stillMissing = !(
+-          (unresolvedKeyframes[0] is float) ||
+-          (unresolvedKeyframes[0] is string) ||
+-          (unresolvedKeyframes[0] is bool) ||
+-          unresolvedKeyframes[0].isArray() ||
+-          (unresolvedKeyframes[0].isObject() && unresolvedKeyframes[0].truthy())
++          present(unresolvedKeyframes[0])
+         );
+         if (stillMissing) {
+           unresolvedKeyframes[0] = finalKeyframe;
+
+--- a/src/motion-dom/animation/keyframes/get-final.lil
++++ b/src/motion-dom/animation/keyframes/get-final.lil
+@@ -1,3 +1,8 @@
++
++bool present(JsValue? v) {
++  return v != null;
++}
++
+ export JsValue getFinalKeyframe(
+   JsValue keyframesInput,
+   JsValue options,
+@@ -15,11 +20,7 @@
+   for (int i = 0; i < keyframes.length; i++) {
+     JsValue value = keyframes[i];
+     bool defined =
+-      (value is float) ||
+-      (value is string) ||
+-      (value is bool) ||
+-      value.isArray() ||
+-      (value.isObject() && value.truthy());
++      present(value);
+     if (defined) {
+       resolvedKeyframes.push(value);
+     }
+
+--- a/src/motion-dom/animation/keyframes/utils/fill-wildcards.lil
++++ b/src/motion-dom/animation/keyframes/utils/fill-wildcards.lil
+@@ -1,12 +1,13 @@
++
++bool present(JsValue? v) {
++  return v != null;
++}
++
+ export void fillWildcards(JsValue[] keyframes) {
+   for (int i = 1; i < keyframes.length; i++) {
+     JsValue current = keyframes[i];
+     bool defined =
+-      (current is float) ||
+-      (current is string) ||
+-      (current is bool) ||
+-      current.isArray() ||
+-      (current.isObject() && current.truthy());
++      present(current);
+     if (!defined) {
+       keyframes[i] = keyframes[i - 1];
+     }
+
+--- a/src/motion-dom/animation/keyframes/utils/unit-conversion.lil
++++ b/src/motion-dom/animation/keyframes/utils/unit-conversion.lil
+@@ -7,6 +7,11 @@
+ import { MotionValue } from "../../../value/index";
+ import { visualElementOf, motionValueOf } from "../../../cast";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ extern float parseFloat(string v);
+ 
+ export bool isNumOrPxType(ValueType? v = null) {
+@@ -44,11 +49,7 @@
+     MotionValue mv = motionValueOf(value);
+     JsValue current = mv.get();
+     bool defined =
+-      (current is float) ||
+-      (current is string) ||
+-      (current is bool) ||
+-      current.isArray() ||
+-      (current.isObject() && current.truthy());
++      present(current);
+     if (defined) {
+       removedTransforms.push([key, current]);
+       float reset = 0.0;
+
 --- a/src/motion-dom/animation/utils/arc.lil
 +++ b/src/motion-dom/animation/utils/arc.lil
 @@ -1,3 +1,4 @@
@@ -648,7 +1637,537 @@ diff -ru a/src/motion-dom/animation/utils/arc.lil b/src/motion-dom/animation/uti
  import { wrap } from "../../../motion-utils/wrap";
  import { motionValue } from "../../value/index";
  import { animateMotionValue } from "../interfaces/motion-value";
-diff -ru a/src/motion-dom/projection/geometry/conversion.lil b/src/motion-dom/projection/geometry/conversion.lil
+@@ -157,7 +158,7 @@
+     float t0 = tangent0;
+     float tDelta = tangentDelta;
+     return (float t) => {
+-      JsValue out = record{
++      JsValue out = object{
+         x: bezierPoint(t, fromC.x, controlC.x, toC.x),
+         y: bezierPoint(t, fromC.y, controlC.y, toC.y)
+       };
+@@ -173,7 +174,7 @@
+ 
+ export JsValue arc(ArcOptions? options = null) {
+   func(Point2D, Point2D)->func(float)->JsValue sample = createArcPath(options);
+-  return record{
++  return object{
+     interpolateProjection: (JsValue delta) => {
+       JsValue xAxis = delta["x"];
+       JsValue yAxis = delta["y"];
+@@ -268,7 +269,7 @@
+       }
+       func(float)->JsValue interpolate = sample(new Point2D(xFrom, yFrom), new Point2D(xTo, yTo));
+       JsValue progress = motionValue(0.0);
+-      JsValue pathTransition = record{delay: delay};
++      JsValue pathTransition = object{delay: delay};
+       JsValue vt = getValueTransition(transition, "x");
+       if (vt != null && vt.isObject()) {
+         for (string key in vt) {
+
+--- a/src/motion-dom/animation/utils/can-animate.lil
++++ b/src/motion-dom/animation/utils/can-animate.lil
+@@ -2,6 +2,11 @@
+ import { isGenerator } from "../generators/utils/is-generator";
+ import { isAnimatable } from "./is-animatable";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ bool hasKeyframesChanged(JsValue[] keyframes) {
+   if (keyframes.length == 0) {
+     return false;
+@@ -29,11 +34,7 @@
+   }
+   JsValue originKeyframe = keyframes[0];
+   bool originIsNull = !(
+-    (originKeyframe is float) ||
+-    (originKeyframe is string) ||
+-    (originKeyframe is bool) ||
+-    originKeyframe.isArray() ||
+-    (originKeyframe.isObject() && originKeyframe.truthy())
++    present(originKeyframe)
+   );
+   if (originIsNull) {
+     return false;
+
+--- a/src/motion-dom/animation/utils/default-transitions.lil
++++ b/src/motion-dom/animation/utils/default-transitions.lil
+@@ -1,6 +1,6 @@
+ import { transformProps } from "../../render/utils/keys-transform";
+ 
+-JsValue underDampedSpring = record{
++JsValue underDampedSpring = object{
+   type: "spring",
+   stiffness: 500.0,
+   damping: 25.0,
+@@ -12,7 +12,7 @@
+   if ((target is float) && target == 0.0) {
+     damping = 2.0 * (550.0).sqrt();
+   }
+-  return record{
++  return object{
+     type: "spring",
+     stiffness: 550.0,
+     damping: damping,
+@@ -20,12 +20,12 @@
+   };
+ }
+ 
+-JsValue keyframesTransition = record{
++JsValue keyframesTransition = object{
+   type: "keyframes",
+   duration: 0.8
+ };
+ 
+-JsValue easeTransition = record{
++JsValue easeTransition = object{
+   type: "keyframes",
+   ease: [0.25, 0.1, 0.35, 1.0],
+   duration: 0.3
+
+--- a/src/motion-dom/animation/utils/resolve-transition.lil
++++ b/src/motion-dom/animation/utils/resolve-transition.lil
+@@ -11,7 +11,7 @@
+     shouldInherit = inheritFlag;
+   }
+   if (shouldInherit && parentTransition != null && parentTransition.isObject()) {
+-    JsValue merged = record{};
++    JsValue merged = object{};
+     for (string key in parentTransition) {
+       merged[key] = parentTransition[key];
+     }
+
+--- a/src/motion-dom/effects/attr/index.lil
++++ b/src/motion-dom/effects/attr/index.lil
+@@ -36,11 +36,7 @@
+     render = () => {
+       JsValue v = state.latest[key];
+       bool missing =
+-        !(v is float) &&
+-        !(v is string) &&
+-        !(v is bool) &&
+-        !v.isArray() &&
+-        !(v.isObject() && v.truthy());
++        !present(v);
+       if (missing) {
+         callMethod1(element, "removeAttribute", attrName);
+       } else {
+@@ -53,5 +49,10 @@
+ 
+ import { callMethod1, callMethod2 } from "../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ export func(JsValue, Record<MotionValue>)->func()->void attrEffect =
+   createSelectorEffect(createEffect(addAttrValue));
+
+--- a/src/motion-dom/events/add-dom-event.lil
++++ b/src/motion-dom/events/add-dom-event.lil
+@@ -8,7 +8,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{passive: true};
++    opts = object{passive: true};
+   }
+   addEventListener(target, eventName, handler, opts);
+   return () => {
+
+--- a/src/motion-dom/frameloop/batcher.lil
++++ b/src/motion-dom/frameloop/batcher.lil
+@@ -9,17 +9,13 @@
+   bool runNextFrame;
+   bool useDefaultElapsed;
+   FrameData state;
+-  Steps steps;
+   (func()->void)? processBatch;
+-  (func()->void)? wake;
+ 
+-  init(Steps steps) {
++  init() {
+     this.runNextFrame = false;
+     this.useDefaultElapsed = true;
+     this.state = new FrameData();
+-    this.steps = steps;
+     this.processBatch = null;
+-    this.wake = null;
+   }
+ }
+ 
+@@ -37,46 +33,19 @@
+   }
+ }
+ 
+-func(FrameData)->void bindStep(BatchState cell, Step step, func(FrameData)->void process, bool keepAlive, bool immediate) {
+-  if (!cell.runNextFrame) {
+-    (func()->void)? wake = cell.wake;
+-    if (wake != null) {
+-      wake();
+-    }
+-  }
+-  return step.schedule(process, keepAlive, immediate);
+-}
+-
+ export RenderBatcher createRenderBatcher(
+   func(func()->void)->void scheduleNextBatch,
+   bool allowKeepAlive
+ ) {
+-  Step setup = createRenderStep(() => {});
+-  Step read = createRenderStep(() => {});
+-  Step resolveKeyframes = createRenderStep(() => {});
+-  Step preUpdate = createRenderStep(() => {});
+-  Step update = createRenderStep(() => {});
+-  Step preRender = createRenderStep(() => {});
+-  Step render = createRenderStep(() => {});
+-  Step postRender = createRenderStep(() => {});
+-
++  BatchState cell = new BatchState();
++  func()->void flagRunNextFrame = () => { cell.runNextFrame = true; };
++  Step[] order = [];
++  for (int i = 0; i < 8; i++) {
++    order.push(createRenderStep(flagRunNextFrame));
++  }
+   Steps steps = new Steps(
+-    setup, read, resolveKeyframes, preUpdate, update, preRender, render, postRender
++    order[0], order[1], order[2], order[3], order[4], order[5], order[6], order[7]
+   );
+-  BatchState cell = new BatchState(steps);
+-
+-  setup = createRenderStep(() => { cell.runNextFrame = true; });
+-  read = createRenderStep(() => { cell.runNextFrame = true; });
+-  resolveKeyframes = createRenderStep(() => { cell.runNextFrame = true; });
+-  preUpdate = createRenderStep(() => { cell.runNextFrame = true; });
+-  update = createRenderStep(() => { cell.runNextFrame = true; });
+-  preRender = createRenderStep(() => { cell.runNextFrame = true; });
+-  render = createRenderStep(() => { cell.runNextFrame = true; });
+-  postRender = createRenderStep(() => { cell.runNextFrame = true; });
+-  steps = new Steps(
+-    setup, read, resolveKeyframes, preUpdate, update, preRender, render, postRender
+-  );
+-  cell.steps = steps;
+ 
+   cell.processBatch = () => {
+     bool manual = MotionGlobalConfig.useManualTiming == true;
+@@ -101,14 +70,9 @@
+     }
+     cell.state.timestamp = timestamp;
+     cell.state.isProcessing = true;
+-    cell.steps.setup.process(cell.state);
+-    cell.steps.read.process(cell.state);
+-    cell.steps.resolveKeyframes.process(cell.state);
+-    cell.steps.preUpdate.process(cell.state);
+-    cell.steps.update.process(cell.state);
+-    cell.steps.preRender.process(cell.state);
+-    cell.steps.render.process(cell.state);
+-    cell.steps.postRender.process(cell.state);
++    for (Step step of order) {
++      step.process(cell.state);
++    }
+     cell.state.isProcessing = false;
+     if (cell.runNextFrame && allowKeepAlive) {
+       cell.useDefaultElapsed = false;
+@@ -119,7 +83,7 @@
+     }
+   };
+ 
+-  cell.wake = () => {
++  func()->void wake = () => {
+     cell.runNextFrame = true;
+     cell.useDefaultElapsed = true;
+     if (!cell.state.isProcessing) {
+@@ -130,33 +94,29 @@
+     }
+   };
+ 
+-  Batcher schedule = new Batcher();
+-  schedule.setup = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.setup, process, keepAlive, immediate);
+-  schedule.read = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.read, process, keepAlive, immediate);
+-  schedule.resolveKeyframes = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.resolveKeyframes, process, keepAlive, immediate);
+-  schedule.preUpdate = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.preUpdate, process, keepAlive, immediate);
+-  schedule.update = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.update, process, keepAlive, immediate);
+-  schedule.preRender = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.preRender, process, keepAlive, immediate);
+-  schedule.render = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.render, process, keepAlive, immediate);
+-  schedule.postRender = (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) =>
+-    bindStep(cell, steps.postRender, process, keepAlive, immediate);
++  func(Step)->func(func(FrameData)->void, bool, bool)->func(FrameData)->void bind = (Step step) =>
++    (func(FrameData)->void process, bool keepAlive = false, bool immediate = false) => {
++      if (!cell.runNextFrame) {
++        wake();
++      }
++      return step.schedule(process, keepAlive, immediate);
++    };
++
++  Batcher schedule = new Batcher(
++    bind(order[0]),
++    bind(order[1]),
++    bind(order[2]),
++    bind(order[3]),
++    bind(order[4]),
++    bind(order[5]),
++    bind(order[6]),
++    bind(order[7])
++  );
+ 
+   func(func(FrameData)->void)->void cancel = (func(FrameData)->void process) => {
+-    steps.setup.cancel(process);
+-    steps.read.cancel(process);
+-    steps.resolveKeyframes.cancel(process);
+-    steps.preUpdate.cancel(process);
+-    steps.update.cancel(process);
+-    steps.preRender.cancel(process);
+-    steps.render.cancel(process);
+-    steps.postRender.cancel(process);
++    for (Step step of order) {
++      step.cancel(process);
++    }
+   };
+ 
+   return new RenderBatcher(schedule, cancel, cell.state, steps);
+
+--- a/src/motion-dom/frameloop/types.lil
++++ b/src/motion-dom/frameloop/types.lil
+@@ -36,15 +36,24 @@
+   func(func(FrameData)->void, bool, bool)->func(FrameData)->void render;
+   func(func(FrameData)->void, bool, bool)->func(FrameData)->void postRender;
+ 
+-  init() {
+-    this.setup = (func(FrameData)->void p, bool keepAlive = false, bool immediate = false) => p;
+-    this.read = this.setup;
+-    this.resolveKeyframes = this.setup;
+-    this.preUpdate = this.setup;
+-    this.update = this.setup;
+-    this.preRender = this.setup;
+-    this.render = this.setup;
+-    this.postRender = this.setup;
++  init(
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void setup,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void read,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void resolveKeyframes,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void preUpdate,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void update,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void preRender,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void render,
++    func(func(FrameData)->void, bool, bool)->func(FrameData)->void postRender
++  ) {
++    this.setup = setup;
++    this.read = read;
++    this.resolveKeyframes = resolveKeyframes;
++    this.preUpdate = preUpdate;
++    this.update = update;
++    this.preRender = preRender;
++    this.render = render;
++    this.postRender = postRender;
+   }
+ }
+ 
+
+--- a/src/motion-dom/gestures/hover.lil
++++ b/src/motion-dom/gestures/hover.lil
+@@ -47,7 +47,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{};
++    opts = object{};
+   }
+   GestureSetup setup = setupGesture(elementOrSelector, opts);
+   JsValue[] elements = setup.elements;
+@@ -69,7 +69,7 @@
+         cell.deferredHoverEnd = false;
+         JsValue? cb = cell.hoverEndCallback;
+         if (cb != null && isFunction(cb)) {
+-          invoke1(cb, record{passive: true});
++          invoke1(cb, object{passive: true});
+           cell.hoverEndCallback = null;
+         }
+         (func(JsValue)->void)? leave = cell.pointerLeave;
+
+--- a/src/motion-dom/gestures/press/index.lil
++++ b/src/motion-dom/gestures/press/index.lil
+@@ -53,7 +53,7 @@
+ ) {
+   JsValue opts = options;
+   if (opts == null) {
+-    opts = record{};
++    opts = object{};
+   }
+   GestureSetup setup = setupGesture(targetOrSelector, opts);
+   JsValue[] targets = setup.elements;
+@@ -92,7 +92,7 @@
+       }
+ 
+       cell.pointerUpWindow = () => {
+-        JsValue upEvent = record{target: null};
++        JsValue upEvent = object{target: null};
+         bool success =
+           currentTarget == win ||
+           currentTarget == doc ||
+@@ -112,20 +112,20 @@
+         if (!isValidPressEvent(upEvent)) {
+           JsValue? endCb = cell.onPressEnd;
+           if (endCb != null && isFunction(endCb)) {
+-            callFn2(endCb, upEvent, record{success: success});
++            callFn2(endCb, upEvent, object{success: success});
+           }
+           cell.onPressEnd = null;
+           return;
+         }
+         JsValue? endCb = cell.onPressEnd;
+         if (endCb != null && isFunction(endCb)) {
+-          callFn2(endCb, upEvent, record{success: success});
++          callFn2(endCb, upEvent, object{success: success});
+         }
+         cell.onPressEnd = null;
+       };
+ 
+       cell.pointerCancelWindow = () => {
+-        JsValue cancelEvent = record{};
++        JsValue cancelEvent = object{};
+         (func()->void)? up = cell.pointerUpWindow;
+         (func()->void)? cancel = cell.pointerCancelWindow;
+         if (up != null) {
+@@ -139,7 +139,7 @@
+         }
+         JsValue? endCb = cell.onPressEnd;
+         if (endCb != null && isFunction(endCb) && isValidPressEvent(cancelEvent)) {
+-          callFn2(endCb, cancelEvent, record{success: false});
++          callFn2(endCb, cancelEvent, object{success: false});
+         }
+         cell.onPressEnd = null;
+       };
+
+--- a/src/motion-dom/gestures/press/utils/keyboard.lil
++++ b/src/motion-dom/gestures/press/utils/keyboard.lil
+@@ -21,7 +21,7 @@
+ }
+ 
+ void firePointerEvent(JsValue target, string type) {
+-  JsValue options = record{};
++  JsValue options = object{};
+   options["isPrimary"] = true;
+   options["bubbles"] = true;
+   JsValue event = createPointerEvent("pointer" + type, options);
+
+--- a/src/motion-dom/gestures/utils/setup.lil
++++ b/src/motion-dom/gestures/utils/setup.lil
+@@ -16,9 +16,9 @@
+ export GestureSetup setupGesture(JsValue? elementOrSelector, JsValue options) {
+   JsValue[] elements = resolveElements(elementOrSelector);
+   JsValue AbortController = windowGet("AbortController");
+-  JsValue gestureAbortController = constructConfigured(AbortController, record{});
++  JsValue gestureAbortController = constructConfigured(AbortController, object{});
+ 
+-  JsValue eventOptions = record{};
++  JsValue eventOptions = object{};
+   eventOptions["passive"] = true;
+   for (string key in options) {
+     eventOptions[key] = options[key];
+
+--- a/src/motion-dom/layout/LayoutAnimationBuilder.lil
++++ b/src/motion-dom/layout/LayoutAnimationBuilder.lil
+@@ -80,16 +80,16 @@
+ }
+ 
+ HTMLVisualElement createVisualElement() {
+-  return new HTMLVisualElement(record{
+-    props: record{},
++  return new HTMLVisualElement(object{
++    props: object{},
+     presenceContext: null,
+-    visualState: record{
+-      latestValues: record{},
+-      renderState: record{
+-        transform: record{},
+-        transformOrigin: record{},
+-        style: record{},
+-        vars: record{}
++    visualState: object{
++      latestValues: object{},
++      renderState: object{
++        transform: object{},
++        transformOrigin: object{},
++        style: object{},
++        vars: object{}
+       }
+     }
+   });
+@@ -122,7 +122,7 @@
+   if (layoutAttr != null && layoutAttr != "true") {
+     animationType = layoutAttr;
+   }
+-  return record{
++  return object{
+     layoutId: layoutId,
+     layout: layoutAttr != null,
+     animationType: animationType,
+@@ -146,7 +146,7 @@
+       style["transform"] = "";
+     }
+   }
+-  HTMLProjectionNode node = new HTMLProjectionNode(record{
++  HTMLProjectionNode node = new HTMLProjectionNode(object{
+     visualElement: visualElement,
+     parent: getProjectionParent(element)
+   });
+@@ -159,7 +159,7 @@
+ }
+ 
+ void dropNode(JsValue element, HTMLProjectionNode node) {
+-  node.setOptions(record{onExitComplete: null});
++  node.setOptions(object{onExitComplete: null});
+   node.unmount();
+   weakMapDelete(layoutNodes, element);
+ }
+@@ -353,7 +353,7 @@
+       this.trackedElements.push(element);
+     }
+     this.tracked.set(element, node);
+-    this.restorePoints.set(element, record{
++    this.restorePoints.set(element, object{
+       parent: element["parentElement"],
+       next: element["nextSibling"]
+     });
+@@ -434,7 +434,7 @@
+           box.y.min = parseFloatValue(rect["top"]);
+           box.y.max = parseFloatValue(rect["bottom"]);
+         }
+-        this.snapshots.set(element, record{layoutBox: box});
++        this.snapshots.set(element, object{layoutBox: box});
+         continue;
+       }
+     }
+@@ -452,7 +452,7 @@
+ ) {
+   JsValue documentRef = windowGet("document");
+   if (isFunction(scopeOrUpdateDom)) {
+-    return record{
++    return object{
+       scope: documentRef,
+       updateDom: scopeOrUpdateDom,
+       defaultOptions: updateDomOrOptions
+@@ -467,7 +467,7 @@
+       scope = resolved[0];
+     }
+   }
+-  return record{
++  return object{
+     scope: scope,
+     updateDom: updateDomOrOptions,
+     defaultOptions: options
+
 --- a/src/motion-dom/projection/geometry/conversion.lil
 +++ b/src/motion-dom/projection/geometry/conversion.lil
 @@ -6,11 +6,11 @@
@@ -676,7 +2195,7 @@ diff -ru a/src/motion-dom/projection/geometry/conversion.lil b/src/motion-dom/pr
 +  Point bottomRight = transformPoint(new Point(point.right, point.bottom));
 +  return new BoundingBox(topLeft.y, bottomRight.x, bottomRight.y, topLeft.x);
  }
-diff -ru a/src/motion-dom/projection/geometry/models.lil b/src/motion-dom/projection/geometry/models.lil
+
 --- a/src/motion-dom/projection/geometry/models.lil
 +++ b/src/motion-dom/projection/geometry/models.lil
 @@ -6,17 +6,17 @@
@@ -701,9 +2220,62 @@ diff -ru a/src/motion-dom/projection/geometry/models.lil b/src/motion-dom/projec
 -  return Box{createAxis(), createAxis()};
 +  return new Box(createAxis(), createAxis());
  }
-diff -ru a/src/motion-dom/projection/node/create-projection-node.lil b/src/motion-dom/projection/node/create-projection-node.lil
+
+--- a/src/motion-dom/projection/node/DocumentProjectionNode.lil
++++ b/src/motion-dom/projection/node/DocumentProjectionNode.lil
+@@ -2,7 +2,7 @@
+ import { addDomEvent } from "../../events/add-dom-event";
+ import { createProjectionNode, ProjectionNode } from "./create-projection-node";
+ 
+-JsValue documentProjectionConfig = record{
++JsValue documentProjectionConfig = object{
+   attachResizeListener: (JsValue ref, func()->void notify) => {
+     return addDomEvent(ref, "resize", notify);
+   },
+@@ -19,7 +19,7 @@
+         y = parseFloatValue(body["scrollTop"]);
+       }
+     }
+-    return record{x: x, y: y};
++    return object{x: x, y: y};
+   },
+   checkIsScrollRoot: (JsValue _instance) => true
+ };
+
+--- a/src/motion-dom/projection/node/HTMLProjectionNode.lil
++++ b/src/motion-dom/projection/node/HTMLProjectionNode.lil
+@@ -12,15 +12,15 @@
+ 
+ export RootProjectionNodeRef rootProjectionNode = new RootProjectionNodeRef();
+ 
+-JsValue htmlProjectionConfig = record{
++JsValue htmlProjectionConfig = object{
+   measureScroll: (JsValue instance) => {
+-    return record{x: instance["scrollLeft"], y: instance["scrollTop"]};
++    return object{x: instance["scrollLeft"], y: instance["scrollTop"]};
+   },
+   defaultParent: () => {
+     if (rootProjectionNode.current == null) {
+-      DocumentProjectionNode documentNode = new DocumentProjectionNode(record{});
++      DocumentProjectionNode documentNode = new DocumentProjectionNode(object{});
+       documentNode.mount(windowGet("self"));
+-      documentNode.setOptions(record{layoutScroll: true});
++      documentNode.setOptions(object{layoutScroll: true});
+       rootProjectionNode.current = documentNode.node;
+     }
+     return rootProjectionNode.current;
+
 --- a/src/motion-dom/projection/node/create-projection-node.lil
 +++ b/src/motion-dom/projection/node/create-projection-node.lil
+@@ -124,7 +124,7 @@
+   return animValues["opacityExit"] != null;
+ }
+ 
+-JsValue defaultLayoutTransition = record{duration: 0.45, ease: [0.4, 0.0, 0.1, 1.0]};
++JsValue defaultLayoutTransition = object{duration: 0.45, ease: [0.4, 0.0, 0.1, 1.0]};
+ 
+ bool userAgentContains(string needle) {
+   if (!hasWindow()) {
 @@ -238,7 +238,7 @@
      return null;
    }
@@ -722,7 +2294,79 @@ diff -ru a/src/motion-dom/projection/node/create-projection-node.lil b/src/motio
      this.resumeFrom = null;
      this.resumingFrom = null;
      this.animationValues = null;
-diff -ru a/src/motion-dom/projection/utils/measure.lil b/src/motion-dom/projection/utils/measure.lil
+@@ -635,7 +635,7 @@
+             }
+             JsValue animationOptions = getValueTransition(layoutTransition, "layout");
+             if (animationOptions == null) {
+-              animationOptions = record{};
++              animationOptions = object{};
+             }
+             JsValue props = visualElement["props"];
+             if (props.truthy()) {
+@@ -986,7 +986,7 @@
+       isRoot = callFn2(checkIsScrollRoot, this.instance, null).truthy();
+     }
+     JsValue measureScroll = this.config["measureScroll"];
+-    JsValue offset = record{x: 0.0, y: 0.0};
++    JsValue offset = object{x: 0.0, y: 0.0};
+     if (isFunction(measureScroll)) {
+       offset = callFn2(measureScroll, this.instance, null);
+     }
+@@ -995,7 +995,7 @@
+       JsValue scrollVal = existingScroll;
+       wasRoot = scrollVal["wasRoot"].truthy();
+     }
+-    this.scroll = record{
++    this.scroll = object{
+       animationId: this.root.animationId,
+       phase: phase,
+       isRoot: isRoot,
+@@ -1521,7 +1521,7 @@
+     }
+     stack.add(node);
+     JsValue initialPromotion = node.options["initialPromotionConfig"];
+-    JsValue promotion = record{};
++    JsValue promotion = object{};
+     if (initialPromotion != null && initialPromotion.isObject()) {
+       promotion["transition"] = initialPromotion["transition"];
+       JsValue preserveFn = initialPromotion["shouldPreserveFollowOpacity"];
+@@ -1545,7 +1545,7 @@
+       }
+       JsValue transition = promotionConfig["transition"];
+       if (transition != null) {
+-        this.setOptions(record{transition: transition});
++        this.setOptions(object{transition: transition});
+       }
+     }
+     NodeStack? nodeStack = this.getStack();
+@@ -1721,7 +1721,7 @@
+       }
+       JsValue mv = self.motionValueRef;
+       callMethod2(mv, "jump", 0.0, false);
+-      JsValue animOptions = record{};
++      JsValue animOptions = object{};
+       for (string key in options) {
+         animOptions[key] = options[key];
+       }
+@@ -1874,7 +1874,7 @@
+       }
+       if (this.hasProjected && !hasTransform(this.latestValues)) {
+         if (transformTemplate != null && isFunction(transformTemplate)) {
+-          targetStyle["transform"] = callFn2(transformTemplate, record{}, "");
++          targetStyle["transform"] = callFn2(transformTemplate, object{}, "");
+         } else {
+           targetStyle["transform"] = "none";
+         }
+@@ -2206,7 +2206,7 @@
+         }
+       }
+     }
+-    node.notifyListeners("didUpdate", record{
++    node.notifyListeners("didUpdate", object{
+       layout: layout,
+       snapshot: snapshotMeasurements,
+       delta: visualDelta,
+
 --- a/src/motion-dom/projection/utils/measure.lil
 +++ b/src/motion-dom/projection/utils/measure.lil
 @@ -9,7 +9,7 @@
@@ -758,7 +2402,128 @@ diff -ru a/src/motion-dom/projection/utils/measure.lil b/src/motion-dom/projecti
      };
    }
    return convertBoundingBoxToBox(transformBoxPoints(box, typedTransform));
-diff -ru a/src/motion-dom/render/dom/parse-transform.lil b/src/motion-dom/render/dom/parse-transform.lil
+
+--- a/src/motion-dom/render/VisualElement.lil
++++ b/src/motion-dom/render/VisualElement.lil
+@@ -58,7 +58,7 @@
+ }
+ 
+ export JsValue getFeatureDefinitions() {
+-  JsValue out = record{};
++  JsValue out = object{};
+   for (string key in featureDefinitions) {
+     out[key] = featureDefinitions[key];
+   }
+@@ -126,15 +126,15 @@
+     this.children = new Set<VisualElement>();
+     this.enteringChildren = null;
+     this.depth = 0.0;
+-    this.renderState = record{
+-      style: record{},
+-      vars: record{},
+-      transform: record{},
+-      transformOrigin: record{},
+-      attrs: record{},
+-      output: record{}
++    this.renderState = object{
++      style: object{},
++      vars: object{},
++      transform: object{},
++      transformOrigin: object{},
++      attrs: object{},
++      output: object{}
+     };
+-    this.latestValues = record{};
++    this.latestValues = object{};
+     this.isVariantNode = false;
+     this.isControllingVariants = false;
+     this.variantChildren = null;
+@@ -146,8 +146,8 @@
+     this.values = new Map<string, JsValue>();
+     this.animationState = null;
+     this.KeyframeResolverType = null;
+-    this.options = record{};
+-    this.props = record{};
++    this.options = object{};
++    this.props = object{};
+     this.prevProps = null;
+     this.presenceContext = null;
+     this.prevPresenceContext = null;
+@@ -156,9 +156,9 @@
+     this.reducedMotionConfig = null;
+     this.skipAnimationsConfig = null;
+     this.removeFromVariantTree = null;
+-    this.prevMotionValues = record{};
+-    this.baseTarget = record{};
+-    this.initialValues = record{};
++    this.prevMotionValues = object{};
++    this.baseTarget = object{};
++    this.initialValues = object{};
+     this.hasBeenMounted = false;
+     this.events = new Map<string, SubscriptionManager>();
+     this.propEventSubscriptions = new Map<string, (func()->void)>();
+@@ -181,12 +181,12 @@
+   }
+ 
+   void configure(JsValue visualOptions, JsValue? options = null) {
+-    JsValue resolvedOptions = record{};
++    JsValue resolvedOptions = object{};
+     if (options != null) {
+       resolvedOptions = options;
+     }
+     JsValue visualState = visualOptions["visualState"];
+-    JsValue latestValues = record{};
++    JsValue latestValues = object{};
+     if (visualState.isObject() && visualState["latestValues"].isObject()) {
+       latestValues = visualState["latestValues"];
+     }
+@@ -195,15 +195,15 @@
+       renderState = visualState["renderState"];
+     }
+     this.latestValues = latestValues;
+-    this.baseTarget = record{};
++    this.baseTarget = object{};
+     for (string key in latestValues) {
+       this.baseTarget[key] = latestValues[key];
+     }
+-    JsValue props = record{};
++    JsValue props = object{};
+     if (visualOptions["props"].isObject()) {
+       props = visualOptions["props"];
+     }
+-    this.initialValues = record{};
++    this.initialValues = object{};
+     if (props["initial"].truthy()) {
+       for (string key in latestValues) {
+         this.initialValues[key] = latestValues[key];
+@@ -239,7 +239,7 @@
+       this.variantChildren = new Set<VisualElement>();
+     }
+     this.manuallyAnimateOnMount = parent != null && parent.current != null;
+-    JsValue scraped = this.scrapeMotionValuesFromProps(props, record{}, this);
++    JsValue scraped = this.scrapeMotionValuesFromProps(props, object{}, this);
+     for (string key in scraped) {
+       if (key == "willChange") {
+         continue;
+@@ -256,7 +256,7 @@
+     if (hook != null) {
+       return hook(props, prevProps, element);
+     }
+-    return record{};
++    return object{};
+   }
+ 
+   void build() {
+@@ -705,7 +705,7 @@
+     }
+     JsValue? value = this.values.get(key);
+     if (value == null && hasDefault) {
+-      JsValue created = motionValue(defaultValue, record{owner: this});
++      JsValue created = motionValue(defaultValue, object{owner: this});
+       this.addValue(key, created);
+       return created;
+     }
+
 --- a/src/motion-dom/render/dom/parse-transform.lil
 +++ b/src/motion-dom/render/dom/parse-transform.lil
 @@ -39,13 +39,13 @@
@@ -777,7 +2542,528 @@ diff -ru a/src/motion-dom/render/dom/parse-transform.lil b/src/motion-dom/render
  extern float parseFloat(string value);
  
  float radToDeg(float rad) {
-diff -ru a/src/motion-dom/utils/resolve-elements-mini.lil b/src/motion-dom/utils/resolve-elements-mini.lil
+
+--- a/src/motion-dom/render/html/HTMLVisualElement.lil
++++ b/src/motion-dom/render/html/HTMLVisualElement.lil
+@@ -20,7 +20,7 @@
+     if (htmlOptions != null) {
+       this.options = htmlOptions;
+     } else {
+-      this.options = record{};
++      this.options = object{};
+     }
+     if (htmlParent != null) {
+       this.options["parent"] = htmlParent;
+
+--- a/src/motion-dom/render/html/types.lil
++++ b/src/motion-dom/render/html/types.lil
+@@ -17,9 +17,9 @@
+   Record<JsValue> vars;
+ 
+   init() {
+-    this.transform = record{};
++    this.transform = object{};
+     this.transformOrigin = new TransformOrigin();
+-    this.style = record{};
+-    this.vars = record{};
++    this.style = object{};
++    this.vars = object{};
+   }
+ }
+
+--- a/src/motion-dom/render/html/utils/build-styles.lil
++++ b/src/motion-dom/render/html/utils/build-styles.lil
+@@ -4,6 +4,11 @@
+ import { isCSSVariableName } from "../../../animation/utils/is-css-variable";
+ import { buildTransform } from "./build-transform";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ export void buildHTMLStyles(
+   JsValue state,
+   JsValue latestValues,
+@@ -34,16 +39,12 @@
+   }
+   JsValue existingTransform = latestValues["transform"];
+   bool hasExplicitTransform =
+-    (existingTransform is float) ||
+-    (existingTransform is string) ||
+-    (existingTransform is bool) ||
+-    existingTransform.isArray() ||
+-    (existingTransform.isObject() && existingTransform.truthy());
++    present(existingTransform);
+   if (!hasExplicitTransform) {
+     if (hasTransform || transformTemplate != null) {
+       JsValue transformBag = state["transform"];
+       if (!(transformBag.isObject())) {
+-        transformBag = record{};
++        transformBag = object{};
+         state["transform"] = transformBag;
+       }
+       style["transform"] = buildTransform(latestValues, transformBag, transformTemplate);
+
+--- a/src/motion-dom/render/html/utils/build-transform.lil
++++ b/src/motion-dom/render/html/utils/build-transform.lil
+@@ -4,6 +4,11 @@
+ import { callFn2, isFunction } from "../../../dom-host";
+ import { stringTrim } from "../../../string-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ extern float parseFloat(string v);
+ 
+ Record<string> translateAlias = record{};
+@@ -27,11 +32,7 @@
+     string key = transformPropOrder[i];
+     JsValue value = latestValues[key];
+     bool missing =
+-      !(value is float) &&
+-      !(value is string) &&
+-      !(value is bool) &&
+-      !value.isArray() &&
+-      !(value.isObject() && value.truthy());
++      !present(value);
+     if (missing) {
+       continue;
+     }
+
+--- a/src/motion-dom/render/html/utils/render.lil
++++ b/src/motion-dom/render/html/utils/render.lil
+@@ -1,5 +1,10 @@
+ import { setProp, callMethod2 } from "../../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ export class ProjectionStyles {
+   void applyProjectionStyles(JsValue elementStyle, JsValue? styleProp = null) {}
+ }
+@@ -16,11 +21,7 @@
+     for (string key in style) {
+       JsValue value = style[key];
+       bool missing =
+-        !(value is float) &&
+-        !(value is string) &&
+-        !(value is bool) &&
+-        !value.isArray() &&
+-        !(value.isObject() && value.truthy());
++        !present(value);
+       if (!missing) {
+         if (value is string) {
+           setProp(elementStyle, key, value);
+@@ -40,11 +41,7 @@
+     for (string varKey in vars) {
+       JsValue varValue = vars[varKey];
+       bool missing =
+-        !(varValue is float) &&
+-        !(varValue is string) &&
+-        !(varValue is bool) &&
+-        !varValue.isArray() &&
+-        !(varValue.isObject() && varValue.truthy());
++        !present(varValue);
+       if (!missing) {
+         if (varValue is string) {
+           callMethod2(elementStyle, "setProperty", varKey, varValue);
+
+--- a/src/motion-dom/render/html/utils/scrape-motion-values.lil
++++ b/src/motion-dom/render/html/utils/scrape-motion-values.lil
+@@ -6,7 +6,7 @@
+   JsValue? prevProps = null,
+   JsValue? visualElement = null
+ ) {
+-  JsValue newValues = record{};
++  JsValue newValues = object{};
+   JsValue styleCandidate = props["style"];
+   if (!styleCandidate.isObject()) {
+     return newValues;
+
+--- a/src/motion-dom/render/object/ObjectVisualElement.lil
++++ b/src/motion-dom/render/object/ObjectVisualElement.lil
+@@ -4,7 +4,7 @@
+ export class ObjectVisualElement extends VisualElement {
+   init(JsValue? options = null, JsValue? parent = null) {
+     super();
+-    JsValue resolvedOptions = record{};
++    JsValue resolvedOptions = object{};
+     if (options != null) {
+       resolvedOptions = options;
+     }
+@@ -13,7 +13,7 @@
+     if (parent != null) {
+       this.options["parent"] = parent;
+     }
+-    this.renderState = record{output: record{}};
++    this.renderState = object{output: object{}};
+     ObjectVisualElement self = this;
+     this.readValueFromInstanceHook = (JsValue instance, string key) => {
+       JsValue value = instance[key];
+
+--- a/src/motion-dom/render/svg/SVGVisualElement.lil
++++ b/src/motion-dom/render/svg/SVGVisualElement.lil
+@@ -19,7 +19,7 @@
+ 
+   init(JsValue? options = null, JsValue? parent = null) {
+     super();
+-    JsValue resolvedOptions = record{};
++    JsValue resolvedOptions = object{};
+     if (options != null) {
+       resolvedOptions = options;
+     }
+
+--- a/src/motion-dom/render/svg/utils/build-attrs.lil
++++ b/src/motion-dom/render/svg/utils/build-attrs.lil
+@@ -1,6 +1,11 @@
+ import { buildHTMLStyles } from "../../html/utils/build-styles";
+ import { buildSVGPath } from "./path";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ export string[] cssStyleProperties = [
+   "transform",
+   "opacity",
+@@ -17,7 +22,7 @@
+   JsValue? transformTemplate = null,
+   JsValue? styleProp = null
+ ) {
+-  JsValue latest = record{};
++  JsValue latest = object{};
+   JsValue attrX = null;
+   JsValue attrY = null;
+   JsValue attrScale = null;
+@@ -49,18 +54,14 @@
+     return;
+   }
+   state["attrs"] = state["style"];
+-  state["style"] = record{};
++  state["style"] = object{};
+   JsValue attrs = state["attrs"];
+   JsValue style = state["style"];
+   for (int i = 0; i < cssStyleProperties.length; i++) {
+     string key = cssStyleProperties[i];
+     JsValue val = attrs[key];
+     bool defined =
+-      (val is float) ||
+-      (val is string) ||
+-      (val is bool) ||
+-      val.isArray() ||
+-      (val.isObject() && val.truthy());
++      present(val);
+     if (defined) {
+       style[key] = val;
+       attrs[key] = null;
+
+--- a/src/motion-dom/render/svg/utils/render.lil
++++ b/src/motion-dom/render/svg/utils/render.lil
+@@ -3,6 +3,11 @@
+ import { camelCaseAttributes } from "./camel-case-attrs";
+ import { callMethod2 } from "../../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ export void renderSVG(
+   JsValue element,
+   JsValue renderState,
+@@ -18,11 +23,7 @@
+   for (string key in attrs) {
+     JsValue value = attrs[key];
+     bool missing =
+-      !(value is float) &&
+-      !(value is string) &&
+-      !(value is bool) &&
+-      !value.isArray() &&
+-      !(value.isObject() && value.truthy());
++      !present(value);
+     if (missing) {
+       continue;
+     }
+
+--- a/src/motion-dom/render/svg/utils/scrape-motion-values.lil
++++ b/src/motion-dom/render/svg/utils/scrape-motion-values.lil
+@@ -19,7 +19,7 @@
+   JsValue? prevProps = null,
+   JsValue? visualElement = null
+ ) {
+-  JsValue prev = record{};
++  JsValue prev = object{};
+   if (prevProps != null) {
+     prev = prevProps;
+   }
+
+--- a/src/motion-dom/render/utils/animation-state.lil
++++ b/src/motion-dom/render/utils/animation-state.lil
+@@ -8,6 +8,11 @@
+ import { variantPriorityOrder } from "./variant-props";
+ import { callMethod0, callMethod1, callMethod2, callFn1, hasOwn, hasFunction, isFunction, taskFromCallback } from "../../dom-host";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ string[] reversePriorityOrder = [];
+ int numAnimationTypes = variantPriorityOrder.length;
+ 
+@@ -29,9 +34,9 @@
+ 
+   init(bool isActive = false) {
+     this.isActive = isActive;
+-    this.protectedKeys = record{};
+-    this.needsAnimating = record{};
+-    this.prevResolvedValues = record{};
++    this.protectedKeys = object{};
++    this.needsAnimating = object{};
++    this.prevResolvedValues = object{};
+     this.prevProp = null;
+   }
+ }
+@@ -143,7 +148,7 @@
+     JsValue visualElement = this.visualElement;
+     JsValue props = callMethod0(visualElement, "getProps");
+     JsValue parent = visualElement["parent"];
+-    JsValue context = record{};
++    JsValue context = object{};
+     if (parent.truthy()) {
+       JsValue parentProps = callMethod0(parent, "getProps");
+       if (parentProps.isObject()) {
+@@ -158,7 +163,7 @@
+ 
+     JsValue[] animations = [];
+     string[] removedKeyList = [];
+-    JsValue encounteredKeys = record{};
++    JsValue encounteredKeys = object{};
+     int removedVariantIndex = 2147483647;
+ 
+     for (int i = 0; i < numAnimationTypes; i++) {
+@@ -170,18 +175,10 @@
+         JsValue prop = props[type];
+         JsValue contextProp = context[type];
+         bool propMissing = !(
+-          (prop is float) ||
+-          (prop is string) ||
+-          (prop is bool) ||
+-          prop.isArray() ||
+-          (prop.isObject() && prop.truthy())
++          present(prop)
+         );
+         if (propMissing && (
+-          (contextProp is float) ||
+-          (contextProp is string) ||
+-          (contextProp is bool) ||
+-          contextProp.isArray() ||
+-          (contextProp.isObject() && contextProp.truthy())
++          present(contextProp)
+         )) {
+           prop = contextProp;
+           propMissing = false;
+@@ -208,7 +205,7 @@
+           isInherited = false;
+         }
+ 
+-        typeState.protectedKeys = record{};
++        typeState.protectedKeys = object{};
+         for (string key in encounteredKeys) {
+           typeState.protectedKeys[key] = encounteredKeys[key];
+         }
+@@ -253,17 +250,17 @@
+           definitionList.push(prop);
+         }
+ 
+-        JsValue resolvedValues = record{};
++        JsValue resolvedValues = object{};
+         for (int di = 0; di < definitionList.length; di++) {
+           resolvedValues = this.buildResolvedTypeValues(type, resolvedValues, definitionList[di]);
+         }
+ 
+         if (activeDelta == false) {
+-          resolvedValues = record{};
++          resolvedValues = object{};
+         }
+ 
+         JsValue prevResolvedValues = typeState.prevResolvedValues;
+-        JsValue allKeys = record{};
++        JsValue allKeys = object{};
+         if (prevResolvedValues.isObject()) {
+           for (string key in prevResolvedValues) {
+             allKeys[key] = prevResolvedValues[key];
+@@ -280,11 +277,7 @@
+           JsValue next = resolvedValues[key];
+           JsValue prev = prevResolvedValues[key];
+           bool nextMissing = !(
+-            (next is float) ||
+-            (next is string) ||
+-            (next is bool) ||
+-            next.isArray() ||
+-            (next.isObject() && next.truthy())
++            present(next)
+           );
+           bool valueHasChanged = false;
+           if (isKeyframesTarget(next) && isKeyframesTarget(prev)) {
+@@ -339,7 +332,7 @@
+         if (shouldAnimateType && needsAnimating) {
+           for (int di = 0; di < definitionList.length; di++) {
+             JsValue animation = definitionList[di];
+-            JsValue options = record{type: type};
++            JsValue options = object{type: type};
+             if (
+               (animation is string) &&
+               (this.isInitialRender || this.wasReset) &&
+@@ -362,14 +355,14 @@
+                 );
+               }
+             }
+-            animations.push(record{animation: animation, options: options});
++            animations.push(object{animation: animation, options: options});
+           }
+         }
+       }
+     }
+ 
+     if (removedKeyList.length > 0) {
+-      JsValue fallbackAnimation = record{};
++      JsValue fallbackAnimation = object{};
+       JsValue initial = props["initial"];
+       if (!(initial is bool)) {
+         JsValue initialDef = initial;
+@@ -393,7 +386,7 @@
+         }
+         fallbackAnimation[key] = fallbackTarget;
+       }
+-      animations.push(record{animation: fallbackAnimation});
++      animations.push(object{animation: fallbackAnimation});
+     }
+ 
+     bool shouldAnimate = animations.length > 0;
+@@ -443,7 +436,7 @@
+       AnimationTypeState? typeStateOpt = this.typeStates.get(variantPriorityOrder[i]);
+       if (typeStateOpt != null) {
+         AnimationTypeState typeState = typeStateOpt;
+-        typeState.protectedKeys = record{};
++        typeState.protectedKeys = object{};
+       }
+     }
+     return animations;
+
+--- a/src/motion-dom/render/utils/motion-values.lil
++++ b/src/motion-dom/render/utils/motion-values.lil
+@@ -17,7 +17,7 @@
+         element,
+         "addValue",
+         key,
+-        motionValue(nextValue, record{owner: element})
++        motionValue(nextValue, object{owner: element})
+       );
+     } else if (prevValue != nextValue) {
+       if (callMethod1(element, "hasValue", key).truthy()) {
+@@ -31,11 +31,7 @@
+         JsValue latestValue = callMethod1(element, "getStaticValue", key);
+         JsValue initVal = nextValue;
+         bool hasLatest =
+-          (latestValue is float) ||
+-          (latestValue is string) ||
+-          (latestValue is bool) ||
+-          latestValue.isArray() ||
+-          (latestValue.isObject() && latestValue.truthy());
++          present(latestValue);
+         if (hasLatest) {
+           initVal = latestValue;
+         }
+@@ -43,7 +39,7 @@
+           element,
+           "addValue",
+           key,
+-          motionValue(initVal, record{owner: element})
++          motionValue(initVal, object{owner: element})
+         );
+       }
+     }
+@@ -51,11 +47,7 @@
+   for (string key in prev) {
+     JsValue nextVal = next[key];
+     bool missing =
+-      !(nextVal is float) &&
+-      !(nextVal is string) &&
+-      !(nextVal is bool) &&
+-      !nextVal.isArray() &&
+-      !(nextVal.isObject() && nextVal.truthy());
++      !present(nextVal);
+     if (missing) {
+       callMethod1(element, "removeValue", key);
+     }
+@@ -64,3 +56,8 @@
+ }
+ 
+ import { callMethod2 } from "../../dom-host";
++
++bool present(JsValue? v) {
++  return v != null;
++}
++
+
+--- a/src/motion-dom/render/utils/resolve-variants.lil
++++ b/src/motion-dom/render/utils/resolve-variants.lil
+@@ -1,8 +1,8 @@
+ import { callFn3, callMethod0, isFunction } from "../../dom-host";
+ 
+ JsValue[] getValueState(JsValue? visualElement = null) {
+-  JsValue current = record{};
+-  JsValue velocity = record{};
++  JsValue current = object{};
++  JsValue velocity = object{};
+   if (visualElement != null) {
+     JsValue values = visualElement["values"];
+     if (values.isObject()) {
+
+--- a/src/motion-dom/render/utils/setters.lil
++++ b/src/motion-dom/render/utils/setters.lil
+@@ -4,6 +4,11 @@
+ import { isKeyframesTarget } from "./is-keyframes-target";
+ import { visualElementOf, motionValueOf } from "../../cast";
+ 
++bool present(JsValue? v) {
++  return v != null;
++}
++
++
+ void setMotionValue(JsValue visualElement, string key, JsValue value) {
+   VisualElement element = visualElementOf(visualElement);
+   if (element.hasValue(key)) {
+@@ -21,11 +26,7 @@
+     if (v.isArray() && v.length > 0.0) {
+       JsValue last = v[v.length.toInt() - 1];
+       bool defined =
+-        (last is float) ||
+-        (last is string) ||
+-        (last is bool) ||
+-        last.isArray() ||
+-        (last.isObject() && last.truthy());
++        present(last);
+       if (defined) {
+         return last;
+       }
+@@ -37,7 +38,7 @@
+ 
+ export void setTarget(JsValue visualElement, JsValue definition) {
+   JsValue? resolved = resolveVariant(visualElement, definition);
+-  JsValue target = record{};
++  JsValue target = object{};
+   if (resolved != null && resolved.isObject()) {
+     for (string key in resolved) {
+       if (key != "transition" && key != "transitionEnd") {
+
 --- a/src/motion-dom/utils/resolve-elements-mini.lil
 +++ b/src/motion-dom/utils/resolve-elements-mini.lil
 @@ -4,7 +4,7 @@
@@ -798,7 +3084,275 @@ diff -ru a/src/motion-dom/utils/resolve-elements-mini.lil b/src/motion-dom/utils
  ) {
    if (elementOrSelector == null) {
      return [];
-diff -ru a/src/motion-dom-geometry-smoke.lil b/src/motion-dom-geometry-smoke.lil
+
+--- a/src/motion-dom/value/follow-value.lil
++++ b/src/motion-dom/value/follow-value.lil
+@@ -1,5 +1,5 @@
+ import { SubscriptionManager } from "../../motion-utils/subscription-manager";
+-import { JSAnimation, JSAnimationOptions } from "../animation/JSAnimation";
++import { JSAnimationFull, JSAnimationOptionsFull } from "../animation/JSAnimationFull";
+ import {
+   callMethod0,
+   callMethod2,
+@@ -38,7 +38,7 @@
+ }
+ 
+ class FollowCell {
+-  JSAnimation? activeAnimation;
++  JSAnimationFull? activeAnimation;
+   JsValue latestValue;
+   (func(float)->void)? latestSetter;
+   string? unit;
+@@ -100,7 +100,7 @@
+   }
+ 
+   cell.stopAnimation = () => {
+-    JSAnimation? active = cell.activeAnimation;
++    JSAnimationFull? active = cell.activeAnimation;
+     if (active != null) {
+       active.stop();
+       cell.activeAnimation = null;
+@@ -119,7 +119,7 @@
+       return;
+     }
+     float velocity = value.getVelocity();
+-    JSAnimation? active = cell.activeAnimation;
++    JSAnimationFull? active = cell.activeAnimation;
+     if (active != null) {
+       velocity = active.getGeneratorVelocity();
+     }
+@@ -144,8 +144,8 @@
+         restSpeed = restSpeedOpt;
+       }
+     }
+-    cell.activeAnimation = new JSAnimation(
+-      new JSAnimationOptions(
++    cell.activeAnimation = new JSAnimationFull(
++      new JSAnimationOptionsFull(
+         [currentValue, targetValue],
+         velocity,
+         animType,
+@@ -165,7 +165,7 @@
+     if (startEvt != null) {
+       startEvt.notify();
+     }
+-    JSAnimation? active = cell.activeAnimation;
++    JSAnimationFull? active = cell.activeAnimation;
+     if (active != null) {
+       active.then(() => {
+         value.animation = null;
+
+--- a/src/motion-dom/view/index.lil
++++ b/src/motion-dom/view/index.lil
+@@ -28,7 +28,7 @@
+     this.update = update;
+     this.options = options;
+     if (this.options == null) {
+-      this.options = record{};
++      this.options = object{};
+     }
+     if (!(this.options["interrupt"] is string)) {
+       this.options["interrupt"] = "wait";
+@@ -54,7 +54,7 @@
+       this.pairs.set(subject, newSubject);
+     }
+     if (!this.targets.has(subject)) {
+-      this.targets.set(subject, record{});
++      this.targets.set(subject, object{});
+       this.targetDefs.push(subject);
+     }
+     return this;
+@@ -82,9 +82,9 @@
+   ViewTransitionBuilder layout(JsValue? options = null) {
+     JsValue opts = options;
+     if (opts == null) {
+-      opts = record{};
++      opts = object{};
+     }
+-    this.updateTarget("layout", record{}, opts);
++    this.updateTarget("layout", object{}, opts);
+     return this;
+   }
+ 
+@@ -111,20 +111,20 @@
+   void updateTarget(string target, JsValue keyframes, JsValue? options = null) {
+     JsValue opts = options;
+     if (opts == null) {
+-      opts = record{};
++      opts = object{};
+     }
+     JsValue subject = this.currentSubject;
+     if (!this.targets.has(subject)) {
+-      this.targets.set(subject, record{});
++      this.targets.set(subject, object{});
+     }
+     JsValue? targetDataOpt = this.targets.get(subject);
+-    JsValue targetData = record{};
++    JsValue targetData = object{};
+     if (targetDataOpt != null) {
+       targetData = targetDataOpt;
+     } else {
+       this.targets.set(subject, targetData);
+     }
+-    targetData[target] = record{keyframes: keyframes, options: opts};
++    targetData[target] = object{keyframes: keyframes, options: opts};
+   }
+ 
+   Task<JsValue> then(
+
+--- a/src/motion-dom/view/start.lil
++++ b/src/motion-dom/view/start.lil
+@@ -74,7 +74,7 @@
+ }
+ 
+ JsValue mergeTransition(JsValue base, JsValue override) {
+-  JsValue merged = record{};
++  JsValue merged = object{};
+   if (base.isObject()) {
+     for (string key in base) {
+       merged[key] = base[key];
+@@ -283,7 +283,7 @@
+       JsValue definition = defs[d];
+       JsValue target = callMethod1(this.targetsMap, "get", definition);
+       if (!target.truthy()) {
+-        target = record{};
++        target = object{};
+       }
+       string? className = null;
+       JsValue classNameVal = callMethod1(this.classNamesMap, "get", definition);
+@@ -365,7 +365,7 @@
+         string name = names[n];
+         JsValue? existing = this.layerTargets.get(name);
+         if (existing != null && existing != target) {
+-          JsValue merged = record{};
++          JsValue merged = object{};
+           for (string key in existing) {
+             merged[key] = existing[key];
+           }
+@@ -437,7 +437,7 @@
+     JsValue base = getValueTransition(this.defaultOptions, transitionName);
+     JsValue layerOpts = layerOptions(target, type);
+     if (layerOpts == null) {
+-      layerOpts = record{};
++      layerOpts = object{};
+     }
+     JsValue overlay = getValueTransition(layerOpts, transitionName);
+     JsValue transition = mergeTransition(base, overlay);
+@@ -472,7 +472,7 @@
+     if (appliedDelay != null) {
+       delayMs = secondsToMilliseconds(appliedDelay);
+     }
+-    return record{delay: delayMs, duration: applied.duration, ease: applied.ease};
++    return object{delay: delayMs, duration: applied.duration, ease: applied.ease};
+   }
+ 
+   void measureLayers(string phase) {
+@@ -559,27 +559,27 @@
+ 
+   void commitViewCSS() {
+     if (!hasTarget("root", this.targetsMap)) {
+-      css.set(":root", record{"view-transition-name": "none"});
++      css.set(":root", object{"view-transition-name": "none"});
+     }
+     css.set(
+       "::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*)",
+-      record{"animation-timing-function": "linear !important"}
++      object{"animation-timing-function": "linear !important"}
+     );
+     for (int i = 0; i < this.layerNames.length; i++) {
+       string name = this.layerNames[i];
+       if (!this.croppedNames.has(name)) {
+         continue;
+       }
+-      css.set(`::view-transition-group(${name})`, record{overflow: "clip"});
++      css.set(`::view-transition-group(${name})`, object{overflow: "clip"});
+       css.set(
+         `::view-transition-old(${name}), ::view-transition-new(${name})`,
+-        record{width: "100%", height: "100%", "object-fit": "cover"}
++        object{width: "100%", height: "100%", "object-fit": "cover"}
+       );
+     }
+     JsValue[] clipList = setValues(this.clipChildren);
+     for (int c = 0; c < clipList.length; c++) {
+       string clipName = `${clipList[c]}`;
+-      css.set(`::view-transition-group-children(${clipName})`, record{overflow: "clip"});
++      css.set(`::view-transition-group-children(${clipName})`, object{overflow: "clip"});
+     }
+     css.commit();
+   }
+@@ -625,7 +625,7 @@
+         JsValue keyframes = def["keyframes"];
+         JsValue options = def["options"];
+         if (!options.truthy()) {
+-          options = record{};
++          options = object{};
+         }
+         if (!keyframes.isObject()) {
+           continue;
+@@ -721,7 +721,7 @@
+             valueOptions["delay"] = secondsToMilliseconds(delayNum);
+           }
+ 
+-          JsValue animOpts = record{};
++          JsValue animOpts = object{};
+           for (string optKey in valueOptions) {
+             animOpts[optKey] = valueOptions[optKey];
+           }
+@@ -803,7 +803,7 @@
+         staggerGen.oldPos != null &&
+         staggerGen.newPos != null;
+ 
+-      JsValue timing = record{};
++      JsValue timing = object{};
+       if (info.type.startsWith("group")) {
+         JsValue groupTiming = this.resolveGroupTiming(info.layer);
+         float duration = 0.0;
+@@ -811,7 +811,7 @@
+         if (gDur is float) {
+           duration = gDur;
+         }
+-        timing = record{
++        timing = object{
+           delay: groupTiming["delay"],
+           duration: groupTiming["duration"],
+           easing: easeToNative(groupTiming["ease"], duration)
+@@ -861,7 +861,7 @@
+         if (!isMorphCrossfade) {
+           easing = easeToNative(applied.ease, dur);
+         }
+-        timing = record{delay: delayMs, duration: dur, easing: easing};
++        timing = object{delay: delayMs, duration: dur, easing: easing};
+       }
+ 
+       if (isFunction(effect["updateTiming"])) {
+@@ -932,7 +932,7 @@
+           }
+         }
+         if (!(isSquareRadius(from) && isSquareRadius(to))) {
+-          JsValue radiusAnim = new NativeAnimation(record{
++          JsValue radiusAnim = new NativeAnimation(object{
+             element: documentElement(),
+             name: corner,
+             pseudoElement: `::view-transition-group(${name})`,
+@@ -956,7 +956,7 @@
+   JsValue update = builder["update"];
+   JsValue defaultOptions = builder["options"];
+   if (!defaultOptions.truthy()) {
+-    defaultOptions = record{};
++    defaultOptions = object{};
+   }
+ 
+   if (!documentGet("startViewTransition").truthy()) {
+@@ -970,7 +970,7 @@
+ 
+   ViewRuntime rt = new ViewRuntime(builder, defaultOptions, update);
+   rt.loadFromBuilder();
+-  JsValue resultBox = record{animation: null};
++  JsValue resultBox = object{animation: null};
+ 
+   return taskFromCallback((func()->void resolve) => {
+     try {
+
 --- a/src/motion-dom-geometry-smoke.lil
 +++ b/src/motion-dom-geometry-smoke.lil
 @@ -16,8 +16,8 @@
@@ -821,7 +3375,7 @@ diff -ru a/src/motion-dom-geometry-smoke.lil b/src/motion-dom-geometry-smoke.lil
  applyBoxDelta(b2, delta);
  digest = digest + b2.x.max;
  Record<JsValue> values = record{};
-diff -ru a/src/motion-dom-small-smoke.lil b/src/motion-dom-small-smoke.lil
+
 --- a/src/motion-dom-small-smoke.lil
 +++ b/src/motion-dom-small-smoke.lil
 @@ -46,7 +46,7 @@
@@ -833,7 +3387,7 @@ diff -ru a/src/motion-dom-small-smoke.lil b/src/motion-dom-small-smoke.lil
  string t = buildProjectionTransform(d, tree, null);
  digest = digest + t.length;
  MotionValueStateLatest state = new MotionValueStateLatest();
-diff -ru a/src/motion-utils/types/geometry.lil b/src/motion-utils/types/geometry.lil
+
 --- a/src/motion-utils/types/geometry.lil
 +++ b/src/motion-utils/types/geometry.lil
 @@ -1,33 +1,61 @@
@@ -904,25 +3458,3 @@ diff -ru a/src/motion-utils/types/geometry.lil b/src/motion-utils/types/geometry
 +    this.y = y;
 +  }
  }
-diff -ru a/src/lilscript.toml b/src/lilscript.toml
---- a/src/lilscript.toml
-+++ b/src/lilscript.toml
-@@ -13,6 +13,9 @@
- optimization_level = 15
- cost_model = "brotli"
- function_spelling = "arrow"
-+# Motion runs against the platform's own builtins, as every other port here
-+# declares: a class construction is then its literal (the store fold).
-+assume_pristine_builtins = true
- local_name_reserve = 48
- 
- [mangle]
-@@ -20,3 +23,8 @@
- properties = true
- exports = false
- pool_strings = true
-+
-+[bundle]
-+# The semantic route lowers these host modules into the program, where
-+# pruning, inlining and naming reach them.
-+host_modules = "embed"
