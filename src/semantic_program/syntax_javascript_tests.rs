@@ -837,3 +837,51 @@ fn constructions_through_a_field_initializer_are_their_literals() {
         "[1,2]\n[4,0]\n[5,7]\n"
     );
 }
+
+#[test]
+fn a_raw_objective_writes_statements_as_expressions() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern void note(JsValue value);
+        export JsValue classify(int n) {
+            if (n < 0) { note("negative"); note(n); } else { note("non-negative"); }
+            if (n > 100) { return "big"; }
+            note("small");
+            return "small";
+        }
+        show(classify(-1));
+        show(classify(5));
+        show(classify(500));
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let coded = compile_with(source, PRISTINE);
+    // `n<0?(note(…),note(n)):note(…)` and `return n>100?"big":(note(…),…)`.
+    assert!(!raw.contains("if("), "{raw}");
+    assert!(coded.contains("if("), "{coded}");
+    let host = "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.note=v=>console.log('note',v);";
+    let expected = "note negative\nnote -1\nnote small\n\"small\"\nnote non-negative\nnote small\n\"small\"\nnote non-negative\n\"big\"\n";
+    assert_eq!(run(&raw, host), expected);
+    assert_eq!(run(&coded, host), expected);
+}
+
+#[test]
+fn defaults_of_a_function_only_ever_called_print_natively() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern int seed();
+        int scaled(int x, int factor = 2, int offset = 1) {
+            int y = x * factor;
+            return y + offset + seed();
+        }
+        show(JS.box(scaled(3)));
+        show(JS.box(scaled(3, 4)));
+        show(JS.box(scaled(3, 4, 5)));
+        "#,
+        PRISTINE,
+    );
+    // Nothing reads `scaled` but its calls, so its `length` is free and the
+    // body's default checks become `(a,b=2,c=1)`.
+    assert!(javascript.contains("=2,") && !javascript.contains("===void 0"), "{javascript}");
+    assert_eq!(run(&javascript, &format!("globalThis.seed=()=>0;{SHOW}")), "7\n13\n17\n");
+}

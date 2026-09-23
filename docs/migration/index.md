@@ -1759,6 +1759,29 @@ The other ports have no such constructions (jquerylil two), and their outputs ar
 
 **Verification.** 3,050 unit tests pass, including `constructions_through_a_field_initializer_are_their_literals`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 11: statements as expressions under a raw objective; native defaults (2026-09-23)
+
+Terser's compression over our raw builds still found −2,347 raw on jquerylil, −3,466 on katexlil and −402 on posthoglil. Its leave-one-out on jquerylil ranks `conditionals` (+1,452), `if_return` (+630) and `sequences` (+450) first.
+- **Statements as expressions** ([statements.rs](../../src/structured_js/statements.rs)), in the raw objective's structure, bottom-up until nothing applies:
+  - An `if` whose branches hold only expression statements becomes `c&&(a,b)`, `c?a:b`, or `c||b` for an empty first branch. The branches declare nothing, so the expression runs exactly their evaluations.
+  - Two branches each assigning one binding become `x=c?a:b`.
+  - `if(c)return a;e;…;return b` becomes `return c?a:(e,…,b)`, as does an `if` whose branches both return.
+  - Scopes nested in a branch's scope are re-parented to the enclosing region, whose expressions now hold their functions.
+- **Native defaults.** from_source's callee-side check, `if(p===void 0)p=D`, exists for host or erased callers that omit an argument. A published function already prints `p=void 0` from its reflected `length` on. The printer now absorbs a body's leading literal checks there instead, `(a,b=null)`, in parameter order and in either statement or expression form. A native default applies to exactly the `undefined` the check tests, before the body runs. A strict directive forbids such a parameter list, and one makes `arguments` unmapped, so neither kind of body is touched. A function nothing reads but its direct calls has an unobservable `length`: when its body defaults exactly its trailing parameters, `length` becomes the first of them. motionlil carried 306 checks, and 34 remain.
+
+| Raw objective | posthoglil | markedlil | zodlil (`zod.core.js`) | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Batch 10 | 16,805 | 36,089 | 113,395 | 261,978 | 89,322 |
+| Statements as expressions | 16,629 | 35,544 | 111,927 | 260,535 | 88,135 |
+| **Native defaults** | **16,606** | **35,512** | **111,927** | **260,420** | **87,870** |
+| Bar | 16,123 | 37,022 | | 267,050 | 87,151 |
+
+Under the Brotli objective, statement compression does not run, and native defaults are noise: markedlil −34, katexlil −2, jquerylil +11. posthoglil's `raw.js` goes from 5,620 to 5,631, against Oxc's 5,622. motionlil gains −201 (`full.js` 51,573) and −5 KB raw on its core.
+
+**Verification.** 3,052 unit tests pass, including `a_raw_objective_writes_statements_as_expressions` and `defaults_of_a_function_only_ever_called_print_natively`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
+**What remains on jquerylil's raw build** (Terser's leave-one-out, −1,179 in all): `unused` +370, `conditionals` +302, `if_return` +246, `collapse_vars` +226, `reduce_vars` +199. The `unused` share is what the other options leave dead. One example is a module alias `let Pe=Si` of a lowered host function: alias elimination rightly keeps it, because a function earlier in root order reads `Pe`, and only an initialization-order fact (013-T1) proves that function is not called before `Pe` exists.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

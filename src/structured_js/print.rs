@@ -1393,6 +1393,7 @@ impl<'a> Printer<'a, '_, '_> {
         if !self.output.work(1) {
             return;
         }
+        let (defaults, absorbed) = self.native_defaults(id);
         let function = &self.module.functions[id.index()];
         // `a=>`: one plain parameter needs no parentheses. `async a=>` would
         // need a separating space, so only a plain arrow drops them.
@@ -1412,7 +1413,13 @@ impl<'a> Printer<'a, '_, '_> {
             }
             self.text(self.names.get(*parameter));
             if function.length.is_some_and(|length| index >= length) {
-                self.text("=void 0");
+                match defaults.get(index).copied().flatten() {
+                    Some(default) => {
+                        self.text("=");
+                        self.expression(default, 2);
+                    }
+                    None => self.text("=void 0"),
+                }
             }
         }
         if !bare {
@@ -1423,7 +1430,7 @@ impl<'a> Printer<'a, '_, '_> {
             // `=>value` is `=>{return value}`. Its body cannot begin with `{`.
             if let (false, [Statement::Return(Some(value))]) = (
                 function.strict,
-                self.module.regions[function.body.index()].statements.as_slice(),
+                &self.module.regions[function.body.index()].statements[absorbed..],
             ) {
                 let group = self.leading_object(*value, 2);
                 if group {
@@ -1445,7 +1452,50 @@ impl<'a> Printer<'a, '_, '_> {
             self.text("}");
             return;
         }
-        self.region(function.body, true);
+        if !self.output.work(1) {
+            return;
+        }
+        self.text("{");
+        self.statements_from(function.body, true, absorbed);
+        self.text("}");
+    }
+
+    /// The defaults a function's parameters from its `length` on can print
+    /// natively, `(a,b=null)`, and how many leading statements of its body
+    /// that absorbs: `if(b===void 0)b=null` for literal defaults, in
+    /// parameter order. A native default applies to exactly the `undefined`
+    /// the statement tests, before the body runs, and a literal reads
+    /// nothing. A strict directive forbids such a parameter list, and one
+    /// makes `arguments` unmapped, so neither kind of body is touched.
+    fn native_defaults(&mut self, id: FunctionId) -> (Vec<Option<ExprId>>, usize) {
+        let function = &self.module.functions[id.index()];
+        let Some(length) = function.length else {
+            return (Vec::new(), 0);
+        };
+        if function.strict || !self.module.frame_free(id) {
+            return (Vec::new(), 0);
+        }
+        let mut defaults = vec![None; function.parameters.len()];
+        let mut absorbed = 0;
+        let mut last = None;
+        for statement in &self.module.regions[function.body.index()].statements {
+            if !self.output.work(1) {
+                break;
+            }
+            let Some((parameter, default)) = self.module.default_check(statement) else {
+                break;
+            };
+            let Some(index) = function.parameters.iter().position(|&p| p == parameter) else {
+                break;
+            };
+            if index < length || last.is_some_and(|last| index <= last) {
+                break;
+            }
+            defaults[index] = Some(default);
+            last = Some(index);
+            absorbed += 1;
+        }
+        (defaults, absorbed)
     }
 
     /// Whether printing `id` at `minimum` precedence would begin with an
@@ -1493,9 +1543,14 @@ impl<'a> Printer<'a, '_, '_> {
     /// A region's statements. `closing` says a `}` follows the last one, so
     /// its terminating `;` is implied. Adjacent declarations share one `let`.
     fn statements(&mut self, id: RegionId, closing: bool) {
+        self.statements_from(id, closing, 0);
+    }
+
+    /// The region's statements from `start` on.
+    fn statements_from(&mut self, id: RegionId, closing: bool, start: usize) {
         let statements = &self.module.regions[id.index()].statements;
         let mut declaring = false;
-        let mut skip = 0;
+        let mut skip = start;
         for (index, statement) in statements.iter().enumerate() {
             if !self.output.work(1) {
                 return;

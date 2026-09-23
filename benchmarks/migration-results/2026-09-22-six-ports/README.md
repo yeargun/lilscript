@@ -19,21 +19,21 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now (batch 10) | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 11) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`) | 65,727 | 64,886 | 63,044 | +1,842 |
-| markedlil (`marked.raw.js`) | 9,397 | 9,300 | 10,092 | **win −792** |
-| posthoglil (`posthog.raw.js`) | 5,952 | 5,620 | 5,622 | level (−2) |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,555 | 27,445 | +2,110 |
+| katexlil (complete `katex.esm.js`) | 65,727 | 64,884 | 63,044 | +1,840 |
+| markedlil (`marked.raw.js`) | 9,397 | 9,266 | 10,092 | **win −826** |
+| posthoglil (`posthog.raw.js`) | 5,952 | 5,631 | 5,622 | +9 (a tie within Brotli's noise) |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,571 | 27,445 | +2,126 |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,720 | 51,948 | **win −6,228** |
-| motionlil (`full.js`) | does not build | 51,774 | 41,032 | +10,742 |
+| motionlil (`full.js`) | does not build | 51,573 | 41,032 | +10,541 |
 
-| Raw objective | Start | Now (batch 9) | Bar | Gap |
+| Raw objective | Start | Now (batch 11) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 261,978 | 267,050 | **win −5,072** |
-| markedlil (`marked.bytes.js`) | 39,687 | 36,089 | 37,022 | **win −933** |
-| posthoglil (`posthog.bytes.js`) | 19,750 | 16,805 | 16,123 | +682 |
-| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 89,322 | 87,151 | +2,171 |
+| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 260,420 | 267,050 | **win −6,630** |
+| markedlil (`marked.bytes.js`) | 39,687 | 35,512 | 37,022 | **win −1,510** |
+| posthoglil (`posthog.bytes.js`) | 19,750 | 16,606 | 16,123 | +483 |
+| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 87,870 | 87,151 | +719 |
 | zodlil (complete package, built with the raw objective) | open | 249,604 | 274,999 | **win −25,395** |
 | motionlil | no raw configuration yet | | | |
 

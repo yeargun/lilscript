@@ -48,6 +48,7 @@ mod blocks;
 mod host_lowering;
 mod initializers;
 mod pooling;
+mod statements;
 pub(crate) use rewrite::literal_array_projection;
 #[cfg(test)]
 mod string_recipe_tests;
@@ -1663,6 +1664,133 @@ impl Module {
             });
         }
         false
+    }
+
+    /// A function nothing reads but its direct calls has an unobservable
+    /// `length`. When its body opens by defaulting exactly its trailing
+    /// parameters, in order, to literals, `length` becomes the first of them,
+    /// so they print as native defaults, `(a,b=null)`. Returns how many.
+    pub(crate) fn native_default_lengths(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        let reach = self.reach(budget)?;
+        let mut uses = vec![0usize; self.bindings.len()];
+        let mut calls = vec![0usize; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            budget.work(Analysis, 1)?;
+            match &self.expressions[id.index()] {
+                Expr::Binding(binding) => uses[binding.index()] += 1,
+                Expr::Call {
+                    callee,
+                    invocation: Invocation::Value | Invocation::Reference,
+                    ..
+                } => {
+                    if let Expr::Binding(binding) = self.expressions[callee.index()] {
+                        calls[binding.index()] += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+        for export in &self.exports {
+            uses[export.binding.index()] += 1;
+        }
+        let mut changed = 0;
+        for &region in &reach.regions {
+            for index in 0..self.regions[region.index()].statements.len() {
+                budget.work(Analysis, 1)?;
+                let (binding, function) = match self.regions[region.index()].statements[index] {
+                    Statement::Function { binding, function } => (binding, function),
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => match self.expressions[value.index()] {
+                        Expr::Function(function) => (binding, function),
+                        _ => continue,
+                    },
+                    _ => continue,
+                };
+                let declared = &self.functions[function.index()];
+                if calls[binding.index()] == 0
+                    || uses[binding.index()] != calls[binding.index()]
+                    || self.bindings[binding.index()].pinned
+                    || declared.length.is_some()
+                    || declared.strict
+                    || !self.frame_free(function)
+                {
+                    continue;
+                }
+                let count = declared.parameters.len();
+                let mut checked = Vec::new();
+                for statement in &self.regions[declared.body.index()].statements {
+                    let Some((parameter, _)) = self.default_check(statement) else {
+                        break;
+                    };
+                    match declared.parameters.iter().position(|&p| p == parameter) {
+                        Some(position) => checked.push(position),
+                        None => break,
+                    }
+                }
+                let Some(&first) = checked.first() else {
+                    continue;
+                };
+                if checked.iter().copied().eq(first..count) {
+                    self.functions[function.index()].length = Some(first);
+                    changed += 1;
+                }
+            }
+        }
+        Ok(changed)
+    }
+
+    /// `if(p===void 0)p=D`, or its expression form `p===void 0&&(p=D)`, for
+    /// a literal `D`: the parameter and its default.
+    pub(crate) fn default_check(&self, statement: &Statement) -> Option<(BindingId, ExprId)> {
+        let (condition, assign) = match statement {
+            Statement::If {
+                condition,
+                yes,
+                no: None,
+            } => match self.regions[yes.index()].statements[..] {
+                [Statement::Evaluate(assign)] => (*condition, assign),
+                _ => return None,
+            },
+            Statement::Evaluate(value) => match &self.expressions[value.index()] {
+                Expr::Binary {
+                    op: Binary::And,
+                    left,
+                    right,
+                } => (*left, *right),
+                _ => return None,
+            },
+            _ => return None,
+        };
+        let Expr::Binary {
+            op: Binary::StrictEqual,
+            left,
+            right,
+        } = &self.expressions[condition.index()]
+        else {
+            return None;
+        };
+        let tested = match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+            (Expr::Binding(tested), Expr::Literal(Literal::Undefined))
+            | (Expr::Literal(Literal::Undefined), Expr::Binding(tested)) => *tested,
+            _ => return None,
+        };
+        let Expr::Assign { target, value } = &self.expressions[assign.index()] else {
+            return None;
+        };
+        match (&self.expressions[target.index()], &self.expressions[value.index()]) {
+            (Expr::Binding(target), Expr::Literal(literal))
+                if *target == tested && !matches!(literal, Literal::Undefined) =>
+            {
+                Some((tested, *value))
+            }
+            _ => None,
+        }
     }
 
     /// Whether `function`'s body reads no frame of its own: no `this`,

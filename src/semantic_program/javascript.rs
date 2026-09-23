@@ -810,10 +810,12 @@ fn form_with_demand(
                     formation.module.forward_single_uses(formation.budget)?;
                 }
                 formation.module.flatten_blocks(formation.budget)?;
+                formation.module.compress_statements(formation.budget)?;
             }
             if prunes {
                 formation.module.drop_unreferenced_functions(formation.budget)?;
             }
+            formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
         });
         // Repeated strings last, once no other edit reads a literal: packed
