@@ -2213,6 +2213,483 @@ jquerylil now wins both objectives. Its tests pass on both (7/7).
 
 **Verification.** 3,069 unit tests pass, including `a_null_test_of_an_object_is_its_truthiness`, `an_array_the_program_created_takes_its_own_methods` and `a_number_counts_up_with_the_increment`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 26: calls through the call machinery, root constants by initialization order, literal sharing (2026-09-23)
+
+The owner added the react-markdown family to the goal. Its root port, micromarklil, is a `JsValue` transliteration, and its output showed the host's call machinery in two idioms at nearly every construct. It also showed root constants that were never forwarded. Each fix is generic and learned from prior art:
+- **`x.m.call(x,…)` is `x.m(…)`** (`self_method_calls`, [calls.rs](../../src/structured_js/calls.rs)).
+  - The case: a port reaching a method of a `JsValue` writes `JS.call(obj["m"], obj, …)`, which prints `obj.m.call(obj,…)`. micromark has 485 such calls.
+  - The rule: under pristine builtins, a function's inherited `call` is `Function.prototype.call`. The receiver may be a binding, `this` or a global (read once instead of twice), or a member chain of them when property reads are pure.
+  - When it runs: before the first operator rules, so `+Number.parseInt(s)` loses its `+`, and again after inlining, which exposes the helpers' calls.
+- **A lambda that ignores its receiver needs no receiver adapter** (`dissolve_receiver_adapters`, [calls.rs](../../src/structured_js/calls.rs)).
+  - What the adapter is: `JS.methodN` wraps a lambda in `function(f){return function(a,…){return f(this,a,…)}}`.
+  - The rule: when the arrow never reads its first parameter, the call is the arrow without it. The parameter count, and so `length`, is the same. micromark had 315 such wraps.
+  - Only construction differs: an arrow cannot be `new`ed, and a lambda that ignores its receiver has nothing a construction could give it.
+- **Literal root constants are their literal** (`forward_root_constants`, [root_constants.rs](../../src/structured_js/root_constants.rs); 013-T7.4; Closure's `InlineVariables`).
+  - The rule: every read of a never-assigned root `let c=L` of a literal becomes `L`, wherever `c` is initialized.
+  - Initialization order decides that, and it is now sharper than creation order ([quiet.rs](../../src/structured_js/quiet.rs)): a function created by root statement `c` cannot run before the first root statement from `c` on that may run code. Every quiet-prefix and forwarding rule reads the same fact.
+  - Closure's own test (`isWellDefined`, block dominance) admits a non-hoisted function created before the constant and assumes the TDZ never fires. This one proves it.
+  - Every literal moves, whatever its length and whatever the objective: that is the canonical form.
+- **Sharing a repeated literal is a separate choice** ([pooling.rs](../../src/structured_js/pooling.rs); Closure's `AliasStrings`). It is made once for all literals, by the objective. Under the raw objective the pool names repeated strings and now repeated numbers (`281474976710655` read four times is one name). A codec objective keeps the repeated text it matches.
+- **Nullish narrowing** ([simplify.rs](../../src/structured_js/simplify.rs)). `x==null&&x!==void 0` is `x===null`, and `x!=null||x===void 0` is `x!==null` (and with `null` and `void 0` swapped). This is the port's `isNull`, `JS.isNullish(v) && !JS.isUndefined(v)`, which the inliner could not take while it read its parameter twice.
+- **`Object.prototype.hasOwnProperty.call(o,k)` is a boolean** to the operator rules, so `!!` around it goes.
+- **The quote that escapes least** ([print.rs](../../src/structured_js/print.rs)). A string holding more `"` than `'` prints in single quotes. micromark's entity table, a JSON text, had 8,520 escaped quotes.
+- **A host value assumed to be a struct is decoded by name** (`assumed_product`, [javascript.rs](../../src/semantic_program/javascript.rs)).
+  - The bug: `JS.assume(v)` from a `JsValue` into a value struct was the identity. The struct's private positional storage then read the host object by index (`c[0]`), and a store built a fresh array. micromarklil's `attention.lil` did this, and the port failed 380 of its 1,963 official tests on the semantic route. No verification ran that suite.
+  - The fix: the assumption decodes the value's public shape through the struct's D2 decoder, as an exported function's input is decoded. A struct is a value, so the view is a copy. A host object read and written in place is an `extern class`, and the port now says so.
+  - A type the decoder cannot reach (a nullable struct, a record of structs) is refused rather than read as private storage.
+- **An operator on a primitive literal is inert** ([mod.rs](../../src/structured_js/mod.rs)). `-5`, `!0` and `typeof "a"` run no code. A table of negative codes was kept alive by that one gap: its statement counted as running code, which also blocked every constant declared after it. Root constants are forwarded again after the store folds, once `JS.set` sequences have become literals.
+- **The quote choice is the raw spelling's** ([print.rs](../../src/structured_js/print.rs)). The raw objective prints each string in the quote it escapes least. A codec keeps one delimiter: requoting react-markdown's entity table saved 7,008 raw bytes and cost 53 Brotli, and katexlil's few switched strings cost +80.
+
+Measured and left to 013-T7.2: whether a repeated long literal is better read through a name under a codec. Canonical forwarding costs posthoglil +21 Brotli (detuned; `281474976710655` read three times), while micromark gains −425 and zodlil −156. The codec should decide it per program, not a length rule.
+
+`verify.sh` now also runs the react-markdown family's suites (micromarklil, mdast-util-from-markdownlil, remark-parselil, unifiedlil, mdast-util-to-hastlil, remark-rehypelil). The family's site tests compare committed receipts, so they fail on every rebuild; they check no behaviour.
+
+| Brotli objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|
+| Batch 25 (b65) | 62,624 | 9,206 | 5,350 | 25,513 | 27,873 | 49,709 |
+| **Batch 26 (b73)** | **62,670** | **9,199** | **5,370** | **25,505** | **27,717** | **49,644** |
+
+| Raw objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core |
+|---|---|---|---|---|---|
+| Batch 25 | 248,507 | 35,097 | 15,670 | 72,324 | 110,257 |
+| **Batch 26** | **248,103** | **35,070** | **15,651** | **72,319** | **107,785** |
+
+katexlil's Brotli moves within its detuned noise (b71, with the same forwarding, measured −9 detuned). Its Brotli-objective file is 8K larger raw, because its 607 root `defineSymbol` calls now read `"math"` and `"main"` directly: the canonical form, which the raw objective's pool names again (248,103, −404).
+
+| React-markdown family (Brotli) | micromarklil | mdast-util-from-markdownlil | remark-parselil |
+|---|---|---|---|
+| Batch 25 (b65) | 26,618 | 27,187 | 27,312 |
+| **Batch 26 (b70)**, unchanged source | **25,574** | **26,349** | **26,440** |
+
+**Verification (b73).** 3,075 unit tests pass. The new ones are:
+- `a_method_reached_through_its_receiver_is_a_method_call`
+- `a_literal_root_constant_is_its_literal_where_it_is_initialized`
+- `a_repeated_long_number_is_named_once_for_raw_bytes`
+- `a_loose_null_test_narrowed_by_a_strict_one_is_the_strict_test`
+- `a_string_of_double_quotes_prints_in_single_quotes_for_raw_bytes`
+- `a_host_value_assumed_to_be_a_struct_is_read_by_field_name`
+
+Three older tests now describe the new behaviour:
+- `a_value_moves_past_a_quiet_start_of_its_statement`: initialization order moves `early`'s literal too.
+- `disabled_identifier_mangling_preserves_legal_source_cells_and_rejects_mangled_plans`: its counter is an assigned cell, not a constant.
+- The raw quote test renders the raw-spelled plan.
+
+The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil, zodlil, markedlil, jquerylil and posthoglil pass on both objectives, and motionlil and the family suites pass.
+
+### 013 batch 27: micromarklil rewritten in three groups; the markdown ports carry it (2026-09-23)
+
+micromark is the root of the react-markdown family, and the other markdown ports carry its source (50 of 53 files identical). Three agents each rewrote one disjoint group against upstream micromark@4.0.2:
+- the engine (tokenizer, preprocess/postprocess, subtokenize, initializers, shared helpers);
+- the 22 constructs and 5 factories;
+- the HTML compiler and string utilities.
+
+Each group's gate was micromark's official suite (1,963 tests) on both objectives. Each agent also wrote its own differential harness against upstream, covering the CommonMark spec examples, every input in the official tests and seeded random documents, under several option sets. The harnesses compare HTML, full event streams (every token field and point), streamed input and byte input.
+
+What went:
+- helpers upstream does not have: null-tolerant lengths, key-coercing reads and writes, conversions;
+- `int` counters where upstream counts in JS numbers (`++i` instead of `i=i+1|0`);
+- the tokenizer's position record as a struct copied on every write;
+- builders instead of construct literals;
+- `factorySpace`'s explicit default argument.
+
+The rewrites also fixed about 30 places where the port behaved differently from upstream. Examples: HTML-extension handler contexts, `options || {}`, an empty `encoding`, and evaluation order in `micromark()`.
+
+The entity table is an object literal, which is upstream's own form. The build (`scripts/build.mjs`) ships whichever is smaller under the port's objective: the compiler's printing or esbuild's reprint of it. With batch 26's dead-table fix, the compiler's printing wins under Brotli (23,163 against 23,403), and esbuild's under raw.
+
+| micromarklil (`micromark.esm.js`) | Brotli objective | Raw objective |
+|---|---|---|
+| Before (b65, semantic route) | 26,618 | 88,190 |
+| **Rewrite, b73** | **23,163** | **71,431** |
+| Bar (Terser) | 22,696 | 81,191 |
+
+mdast-util-from-markdownlil and remark-parselil take the same micromark files (`src/micromark/`): 26,349 → 24,155 and 26,440 → 24,199 Brotli (b70 → b73). Their bars are 23,151 and 23,171.
+
+Verification: 1,963/1,963 official tests on both objectives. The three harnesses find 0 mismatches: 29,010 cases, the engine's 6-mode matrix, and 28,813 runs. from-markdown passes 743 of 744 tests and remark-parse 15 of 16; the one failure in each is the site-receipts check. Patches are in [finer/port-migrations](../../finer/port-migrations/).
+
+Next: micromark's remaining +467 Brotli, the from-markdown builder layer (+1,004 over its bar with micromark's gain included), unified (+481), and react-markdown's own layer (its graph now regenerated from these siblings, plus the browser build).
+
+### 013-T7: Closure ADVANCED parity
+
+The owner asked (2026-09-23) that the semantic route have every flattening and whole-program optimization of Closure Compiler's ADVANCED mode, generic and sound. The judges are Brotli under the Brotli objective and raw bytes under the raw objective. This task maps two things onto the semantic route and orders what is missing: Closure's ADVANCED pipeline, and the default route's typed optimizer.
+
+It refines 013-T1–T4 and does not open a parallel queue:
+- T7.1, T7.4, T7.7, T7.8 and T7.11 are T1's facts.
+- T7.5, T7.6 and T7.12 are T2.
+- T7.9, T7.13 and T7.14 are T3.
+- T7.2, T7.3 and T7.10 extend T4 and the target edits.
+
+**Sources and method.**
+- **Closure** at `0da58e1`:
+  - the pass order in `DefaultPassConfig.getOptimizations` and `getFinalizations`;
+  - the options set by `CompilationLevel.applyFullCompilationOptions`;
+  - each pass's source and tests.
+
+  Its heuristics are restated here in our own terms.
+- **The default route:**
+  - `optimizer.rs:optimize_control_flow_inner`, about 20 families over the SSA CFG;
+  - `value_analysis.rs`, `compress_passes.rs` and `codegen_ir_js.rs`.
+- **Measurement.** Opportunities were counted in the six ports' b64 outputs (batch 23's binary) with acorn, babel and Terser-scope scripts. Each lever was applied to the artifact text and measured with Brotli-11. Where the edit reprints, the figure is net of a reprint through the same printer. Behavior was checked where stated. 19 snippets and the probes `t*.lil` and `p1–p5.lil` were compiled on both routes with the same binary.
+- **Caveats.**
+  - jquerylil figures predate batch 24's rewrite (base 28,994, now 25,513) and must be measured again.
+  - motionlil figures are on the shipped `full.js` (49,846 at b64) unless marked as compiler output (48,264).
+  - Counts taken from minified text are upper bounds wherever a type would be needed to confirm them.
+  - Below about 400 bytes the fleet cannot judge a change, so each lever lands per port.
+- **Scripts.** The scripts and splice outputs are kept in `~/lilscript-work/closure/<family>/`, off `/tmp`, which a reboot erases. They move to a receipt directory under `benchmarks/migration-results/` with the first T7 batch.
+
+**The gap.**
+- **Snippets.** On 19 snippets the default route is 4,347 raw / 2,344 Brotli against the semantic route's 5,325 / 2,943. The default route is smaller in Brotli on 17 of 19, and 20% smaller in total.
+- **Probes.** `t` and `t2` compile to 207 and 152 bytes on the default route, against 302 and 214 on the semantic route.
+- **The six ports** hide most of it, because batches 19–24 rewrote their sources around the compiler.
+
+The cause is the one 013-T1 names: nothing interprocedural crosses formation.
+- The semantic route has static method dispatch by construction, positional structs and syntactic tree passes.
+- The default route has escape analysis, effect summaries, parameter and return optimization, specialization, function folding and field value facts.
+
+Closure itself has no object-to-array pass, no function folding and no integer ranges. Those are the default route's own, marked "beyond Closure" below.
+
+#### (a) Status of every family
+
+| Closure family | Semantic route | Evidence on the semantic route | Default route | Task |
+|---|---|---|---|---|
+| **PhaseOptimizer** loops over inlining, variables, dead code and peepholes | **partial** | `semantic_program/javascript.rs` runs a fixed chain (about lines 690–900). The only repeats are local: `inline_statement_functions` ×3, `fold_stores` ×4, `simplify_operators` ×3. `scalarize_member_objects`, `place_single_calls` and `truthy_null_tests` run once, after the last forwarding round | `optimizer.rs:optimize_inlining_fixed_point`, `optimize_scalar_fixed_point` | T7.3 |
+| **PureFunctionIdentifier** and `@nosideeffects` (markPureFunctions) | **missing** | `facts.rs:operation_evaluation_behavior` is `UNKNOWN` for every user call. `analysis.rs` gives every call `WRITE\|THROW\|FOREIGN`, and `quiet.rs` stops at any call. `declared_pure` is read nowhere in `semantic_program` or `structured_js` | `optimizer.rs:analyze_function_effects` (12158), `validate_declared_purity` | T7.1 |
+| **RemoveUnusedCode**: variables and functions | **done**, one gap | Mark and sweep in `demand.rs` ("storage writers wait for observable storage"), plus `mod.rs:drop_unreferenced_functions`. The gap: an unused `let` whose initializer has an effect stays whole (katexlil 5) | `eliminate_dead_functions`, `eliminate_unread_globals` | T7.1 |
+| **PeepholeRemoveDeadCode**: an unused result keeps only its effects | **partial** | `drop_unreachable`; `merge_declarations` prunes bare literals and functions. Regex literals and bare reads in statement position survive: zodlil 6 statements, 468 raw | `js_peephole` `drop_pure_regex_expression_statements` | T7.1 |
+| **ClosureCodeRemoval** (asserts) | covered by effects | The only case, motionlil's empty `warning` and `invariant`, is removal of a pure call. `strip_console` is honoured (`demand.rs`) | `strip_console_output` | T7.1 |
+| **RemoveUnusedCode**: class, prototype and `this` properties | **missing** | Members print as `Member{Property::Named}` with no field identity. Probe `p5` keeps the never-read `hits` and `next` | **partial**: `eliminate_overwritten_field_stores` only; `p5` keeps the dead slots | T7.9 |
+| **DeadPropertyAssignmentElimination** | **partial** | `initializers.rs:drop_redundant_init_stores` and `mod.rs:fold_object_stores`. No removal of overwritten stores on objects that stay objects | `optimizer.rs:eliminate_overwritten_field_stores` (2611) | T7.9 |
+| **DeadAssignmentsElimination** | **done** | Cells are SSA-like: `demand.rs`, `publication_rewrites.rs:cell_is_write_only`. Two straight-line dead stores are left across the six ports (motionlil, 17 raw) | SSA, `eliminate_dead_control_flow_instructions` | — |
+| **OptimizeParameters**: unused, constant and optional arguments | **missing** | `javascript.rs:1790` treats the parameter list as "a callable ABI obligation". Only `drop_default_arguments` and `drop_typed_default_checks` exist | `optimize_unused_parameters` (4634), `specialize_constant_parameters` (4705) | T7.5 |
+| **RemoveUnusedCode**: trailing unused formals | **missing** | `js::Function` has no contract that `.length` is unobserved | `optimize_unused_parameters` | T7.5 |
+| **OptimizeReturns** | **missing** | Formation never drops a unit's result | `optimize_unused_returns` (4860) | T7.5 |
+| **InlineFunctions** (FunctionInjector direct and block modes) | **partial** | `inline.rs:inline_expression_functions`: at most 6 nodes, each parameter read once, after an inert prefix. `inline_statement_functions`. `blocks.rs:inline_single_calls`: raw objective and tail returns only. Anything else goes to `place_single_calls`, which makes an IIFE | `inline_small_functions`, `inline_single_use_control_flow_function`, constructor bodies at `new` | T7.6 |
+| **J2clPass**-style forced inlining of runtime adapters | **missing** | motionlil calls its `JS.invoke` adapters (`p=function(e,l,t){return e[l](t)}`) 87 times | `js_host_always_inline` | T7.6 |
+| **InlineVariables** and **InferConsts** for root constants | **partial** | `forward_single_uses` and `eliminate_aliases`. Batch 13's creation order forwards root constants only into functions created later, so zodlil's 41 enum kinds (`le=0…`), read by earlier functions, stay | `propagate_single_assignment_globals` (3437) | T7.4 |
+| **ProcessDefines** | **missing** | No define table. Root constants behave as in the row above | `propagate_single_assignment_globals` | T7.4 |
+| **AggressiveInlineAliases** and **InlineAliases** | **partial** | `eliminate_aliases` covers an alias of a parameter or of an earlier declaration in the same region. Root aliases read from earlier functions stay | `forward_single_assignment_global_aliases` (off) | T7.4 |
+| **FlowSensitiveInlineVariables** | **missing** | The tree has no reaching definitions. katexlil has 41 sites of the form `x=E;return x` | implicit in SSA | T7.3 |
+| **CollapseProperties** (InlineAndCollapseProperties) | **partial** | `inline.rs:flatten_constant_objects` reads constant literal namespaces. Missing: member splitting, `.apply` and `.call`, later writes, nested names, statics on functions. katexlil's `qg`, `T`, `Wd` and `ge` stay | weak: `lower.rs:lower_object_singletons` keeps the singleton and an unused receiver | T7.12 |
+| **InlineObjectLiterals** | **partial** | `scalar_objects.rs:scalarize_member_objects` (batch 23) is syntactic, needs at least 2 entries, skips the root and runs once | `scalar_replace_linear_classes` (7284), `…_control_flow_aggregates`, `…_loop_carried_structs`, all on `analyze_escapes` (7506) | T7.7 |
+| **PeepholeCollectPropertyAssignments** | **done** for objects | `fold_object_stores` and `inline_initializers`. Arrays are missing: `let e=[];e.push(…)` occurs 10 times in katexlil and 8 in jquerylil | `fold_fresh_empty_array_pushes` | T7.10 |
+| **DisambiguateProperties** | **missing** | `Formation::place` (`javascript.rs:2476`) emits an untyped member. `AllocationKind::Object` carries no `NominalId` | implicit: ops are keyed by owner and slot (`aggregate_field_slot_ids`) | T7.8 |
+| **InlineProperties** | **missing** | Probe `p2` keeps `if(!a.frozen)`, which is always false | `value_analysis.rs:FiniteValueAnalysis::field_constant` | T7.9 |
+| **DevirtualizeMethods** | **done** for typed classes; **missing** for emulated classes | Typed classes are non-virtual, and their methods are functions taking the receiver first. katexlil's `JS.method*` tables print as `Object.assign(X.prototype,{m:jl(…)})` with `x.m()` calls | `devirtualize_methods` (typed classes only) | T7.12 |
+| **InlineSimpleMethods** | n/a | Off in ADVANCED. Classes dissolve, so accessors become expression functions | — | — |
+| **RenameProperties** and **AmbiguateProperties** | **missing** | `naming.rs` names bindings only. `marked.closed.js` is identical to `marked.raw.js` even with `[mangle] properties = true` | opt-in `assign_owned_property_names` (6711); positional classes | T7.13 |
+| **ExtractPrototypeMemberDeclarations** | **done** | `declarations.rs:group_prototype_stores` prints `Object.assign(X.prototype,{…})` | n/a | — |
+| **OptimizeConstructors** and class representation | n/a | Classes dissolve. The construction literal repeats at every site: motionlil has 4 × 1.1 KB | a literal per site; a real class when identity is observed | T7.13 |
+| **MinimizeConditions**, **MinimizeExitPoints**, **StatementFusion** (late) | **partial**, raw objective only | `statements.rs:compress_statements` runs under `raw_structure`, with `print.rs:conditional_statement` and `logical_statement` | `js_peephole` folds, judged by the codec | T7.2 |
+| **SubstituteAlternateSyntax** | **partial** | `!0`, `void 0`, `new RegExp` as a literal, and `++` for number bindings (batch 25). Missing: dropping `new` from `new Error`, and `Boolean(x)` | `canonicalize_leaf_syntax`, `fold_unit_counter_updates` | T7.2 |
+| **PeepholeFoldConstants** | **partial** | `fold_literal_operations` and `simplify.rs:simplified`. Missing: boolean-literal compares (46 syntactic sites in zodlil), `0/0`, and typed string `+` | `members.rs` and `integers.rs` folds | T7.10 |
+| **PeepholeReplaceKnownMethods** | **missing** | The tree has typed `Intrinsic` ops but folds none of them. About 0 candidates today | `fold_pristine_static_method_calls` | T7.10 |
+| **useTypesForLocalOptimization** (typed peepholes, J2clEqualitySame) | **partial** | Batch 25 added `typed.rs:truthy_null_tests`, `array_receiver_calls` and `++`, all from `Module.binding_classes`. Field reads and member paths still carry no type | `codegen_ir_js.rs` `truthy_nullable_checks`, `fold_known_js_type_check` | T7.10 |
+| **CollapseVariableDeclarations**, **Denormalize**, **OptimizeLetAndConst** | **done** | `print.rs:statement_list`, `declarations.rs:join_empty_declarations` and `merge_declarations`. No adjacent declarations are left in any of the six | emitter | — |
+| **ConvertToDottedProperties**, **SubstituteEs6Syntax** | **done** | `simplify.rs`; `print.rs` prints arrow expression bodies and shorthand properties | emitter | — |
+| **ExploitAssigns** | **missing** | About 0 bytes, and it breaks repetition | `copies.rs` folds | — |
+| **CoalesceVariableNames** | **missing** as a merge | `naming.rs` reuses names per scope. The upper bound is 0.2–1.9 KB raw; Brotli is unmeasured | scored `local-name-coalescing` | deferred |
+| **RenameVars** | different | `naming.rs` restarts in each scope. Closure's slot scheme measures +86 to +1,171 Brotli | scored naming families | T7.2 |
+| **AliasStrings**, **ReplaceStrings** | n/a (off in ADVANCED) | `pooling.rs` runs under the raw objective only. katexlil's string constants stay, since inlining them measures +132 | scored pooling | — |
+| **ClosureOptimizePrimitives** | n/a | Formation already builds typed literals. `Object.assign({},…)` occurs at 5 sites | `fold_fresh_empty_object_assign` | — |
+| **CrossChunkCodeMotion** and **CrossChunkMethodMotion** | **missing** | Each of the six measured files is a single compilation | missing | deferred |
+| Polyfill passes (rewrite, remove unused, isolate) | n/a | No polyfills are injected | n/a | — |
+| goog- and J2CL-specific passes (id generators, messages, toggles, `StripCode`, CSS names, clinit passes, `RescopeGlobalSymbols`) | n/a | No such surface exists | n/a | — |
+| *Beyond Closure:* known-closure calls, constant-capture cloning | **missing** | A call through a local or parameter holding a closure is never resolved. Snippet `s11`: the default route is 30% smaller in Brotli | `devirtualize_known_closure_calls` (4165), `clone_constant_capture_signatures` | T7.6 |
+| *Beyond Closure:* phi splitting, struct parameters as fields | **missing** | `function_layout.rs` has `ProductTransport::Fields`, but it is not the default. Snippet `s10` passes arrays on both routes | loop phis only (`scalar_replace_loop_carried_structs`) | T7.7 |
+| *Beyond Closure:* positional internal classes | **partial** | Structs are positional (`javascript_structs.rs`); classes are named literals | `AggregateLayout::Positional`, the default | T7.13 |
+| *Beyond Closure:* interprocedural finite values, int32 ranges, SCCP | **partial** | `facts.rs` and `javascript_int32.rs` work per unit. There are no summaries for parameters, results or fields | `analyze_finite_values`, `analyze_integer_values`, `propagate_path_sensitive_constants` | T7.11 |
+| *Beyond Closure:* identical, permuted and one-constant function folding | **missing** | `implementation_identity.rs` hashes decide artifact reuse, not code folding | `fold_identical_private_functions` (11224) and its merges | T7.14 |
+| *Beyond Closure:* pipeline fusion, allocation sinking | **missing** | None of the six contains `.map(…).map(` | `compress_passes.rs` | deferred |
+
+**Not copied from the default route:**
+- a nullable class compared to `null` counts there as an untyped escape, which forces named layouts (snippets `s2` and `s4`);
+- `absorb_property_writes` prints duplicate-key literals;
+- `object` singletons are passed as unused receivers;
+- empty terminating loops are kept;
+- branch phis are not split;
+- the text-level peephole has a history of miscompiles.
+
+`object` singletons do not compile on the semantic route yet ("unknown identifier", probe `p1`). That is a coverage gap for 007, not a T7 item. posthoglil's current source does not build on the default route (duplicate binding `Number`), so there is no port-level comparison of the two routes.
+
+#### (b) Facts that must cross formation
+
+Each fact is computed once in `SemanticProgram` or at formation. It lives on tree nodes, or in `Module` tables that the renumbering remap keeps valid, never in thread-local policy (live-16). A summary computed at formation stays an upper bound under tree edits that add no effects. A pass that synthesizes a call marks it unknown.
+
+| Fact | Today | Crosses as | Unlocks |
+|---|---|---|---|
+| **Call graph**: complete call set per private unit; value calls resolved to their callee | `callable_inputs.rs` (complete explicit callable uses). The tree re-derives call-only use from syntax (`inline.rs` `calls`/`written`) | a sealed bit and a call-site list per unit; function identity for the tree tables | T7.1 effects, T7.5 parameters and returns, T7.6 inlining, T7.11 value summaries, T7.14 folding |
+| **Effects per function**: reads, writes, throws, may diverge, runs user code; writes only to the activation's own allocations; parameter mutation and retention | none: every call is `UNKNOWN` | `Module.function_effects: Vec<(BindingId, EvaluationBehavior)>`, read by `analysis.rs`, `quiet.rs`, `inert_value` and `inline.rs:inert` | removal of discarded pure calls; forwarding and argument motion past pure calls; call barriers for dead stores; T7.4's may-run-before-initialization |
+| **Types per binding** | batch 25: `Module.binding_classes` (int, number, string, boolean, object, nullable object) for source cells; batch 23: `defined_parameters` | the same classes for parameters, results and field reads; `pure_member_reads` for reads on compiler-owned receivers | truthiness of fields, boolean compares, `++`, forwarding past typed member reads. It replaces the global `pure_property_reads`, which zodlil cannot enable because of its `JsValue` getters |
+| **Field identity and nominal visibility** | the typed program has it; it is erased at `javascript.rs:2476` | `FieldRef{nominal, slot}` on `Member` and on literal keys; `NominalId` on construction literals; `Module.nominals` with `host_reachable`, `reflective` and `exported_shape`; a contract level for fields declared in `.d.ts` | dead and constant fields, typed renaming, ambiguation, layout choice, dead stores |
+| **Escape per allocation** (local only < typed < untyped) | none: `uses.rs` holds "structural uses, not … escape proofs" | a state per allocation site for formation; an "owned local aggregate" bit per binding on the tree | scalar replacement at formation, phi splitting, struct parameters as fields, `scalar_objects` on single-field and root objects, layout choice, `host_reachable` |
+| **Definite assignment and root initialization order** | `defined_parameters`; creation order in `quiet.rs` (batch 13); `demand.rs` proves `initialized(id, cell, op)` | `Module.initialized_constants`; per function, "not invoked before root statement S" (a call-graph closure over the root statements' effects) | root constants and aliases, the namespace TDZ, `scalar_objects` at the root, katexlil's `buildCommon` guard |
+| **Int ranges and finite value sets** for parameters, results and fields | per unit only (`facts.rs`, `javascript_int32.rs`) | ranges on `IntBinary` nodes and value facts per read | `\|0` on field reads, `++` on ints, branches folded on flag parameters and fields, T7.5's constant arguments, T7.9's constant fields |
+
+#### (c) Tasks, in dependency order
+
+Every batch runs the same checks:
+- the unit suite, the census (72/72/72) and probelil's two lanes;
+- the six ports' suites on both objectives: katexlil 21/21 and 1,230/1,230, zodlil, markedlil 29/29, jquerylil 7/7 with its harnesses, posthoglil 21/21, motionlil 9/9.
+
+Every task then has one of two gates:
+- **Exact.** A rule that removes operations must pass the tests and show no Brotli degradation on any of the six ports. Byte identity is evidence, not the gate.
+- **Challenger.** A shape that can raise Brotli ships as a codec-verified terminal challenger, per group and per artifact, so it cannot regress.
+
+Closed-world variants are reported beside the open-world ones (the mangling fairness contract). Each batch holds 4–8 changes per build.
+
+**013-T7.1 Effect summaries and the call graph** (T1). Depends on nothing.
+- **Closure equivalents:** PureFunctionIdentifier and markPureFunctions; the effect half of RemoveUnusedCode and PeepholeRemoveDeadCode; ClosureCodeRemoval's assert case.
+- **Facts:**
+  - a call graph through `CallableInputs`, with value calls resolved to sealed producers;
+  - one `EvaluationBehavior` per unit, with a filter for writes to the activation's own allocations;
+  - seeds from `declared_pure` and `pure extern`;
+  - a termination policy: either a contract assumption that pure calls terminate, as Closure and Terser assume, or proofs for counted loops.
+- **Ports and gain:**
+  - motionlil −529 on the compiler output and −639 on `full.js` (−1,348 raw), from 12 discarded calls to the empty `warning` and `invariant`;
+  - zodlil −16 / −468 raw, from 6 dead regex and name statements;
+  - katexlil about −15 / −40 raw, from unused `let`s with effectful initializers;
+  - forwarding past pure calls afterwards, as upper bounds: katexlil −81, zodlil −57, jquerylil −123 (pre-rewrite).
+- **Gate:** exact.
+- **Negative cases:** a diverging pure call whose result is unused (D3.6); a throw inside `try`/`finally`; a getter or `valueOf` reached through a `JsValue`; an exported function the host still calls.
+- **Cost:** katexlil compile time within 10%.
+- **First step:**
+  1. A new `facts_effects.rs` computes one `UnitEffects` per unit over the SCCs of `callable_inputs`, seeded from `declared_pure`.
+  2. `operation_evaluation_behavior(Op::Call)` returns that summary joined with the arguments' coercions. motionlil's `warningImpl` is the reproduction.
+  3. Two cheap fixes join the same batch: `inline.rs` stops counting an ESM export as a write, and `template_body` accepts an empty body.
+
+**013-T7.2 Late spellings and name seeds judged by the codec** (T4). Depends on nothing.
+- **Closure equivalents:** the late peephole pass (MinimizeConditions, MinimizeExitPoints, StatementFusion, SubstituteAlternateSyntax in late mode); Denormalize's compound assignment and `++`; the frequency order of RenameVars.
+- **Facts:** none beyond the tree. Spellings are recorded as print decisions on the tree.
+- **Ports and gain:**
+  - **The codec-selected subset:** if/else to a conditional (plain and member targets), same-exit merge, exit points, statement fusion, boolean-literal compares, dead expression statements and `++`. It measured −462 Brotli / −6,160 raw, with every port smaller: katexlil −119, markedlil −9, posthoglil −25, zodlil −55, jquerylil −147 (pre-rewrite), motionlil −107.
+  - **Root names in frequency order,** as a seed of their own: katexlil −117 to −172 (−3.7 KB raw), but markedlil +129, zodlil +214 and jquerylil +124.
+  - **A plain declaration-order seed** beat jquerylil's shipped naming by 130 (pre-rewrite).
+- **Gate:** challenger.
+  - Three rules stay off because they measured worse in total over the six: if to `&&` (+1,180), nested if to `&&` (+149) and returns to a conditional (+306).
+  - Boolean-literal compares and dead statements are exact, so they move to T7.10 and T7.1 as rules.
+- **First step:**
+  1. Split `statements.rs:compress_statements` into two sets. The operation-reducing rules (same-exit merge, trailing-statement dedup, exit to `break`) run under both objectives. The spelling rules become terminal challenger groups.
+  2. Separate `by_reads` root ordering from `raw_spelling` into its own plan field.
+
+**013-T7.3 A pass loop** (T1/T2 infrastructure). Depends on nothing; most useful after T7.1.
+- **Closure equivalents:** the PhaseOptimizer loops, with FlowSensitiveInlineVariables as a loop member.
+- **Facts:** a dirty bit per function; the edit counts the passes already return; one place that remaps literal alternatives.
+- **Ports and gain:** an enabler. The residue it would clear:
+  - zodlil's 15 `X!==void 0&&X==null==!1` sites, which reach the nullish-pair rule once the boolean compare folds (about −180 raw);
+  - probe `t3`'s `m="x",n=d,o=e;…let k=m` after scalarization;
+  - probe `t2`'s once-called single-expression function, formed after the last inlining round;
+  - katexlil's 41 `x=E;return x` sites (about −160 raw).
+- **Gate:** exact. A rewrite applied on every emission once moved plan choice by +128 over the fleet. So if any port degrades, the loop's output becomes a terminal challenger against the fixed chain's instead of a rule.
+- **Cost:** a budget of 4 rounds; motionlil's work budget unchanged; katexlil within 10%.
+- **First step:**
+  1. Wrap `simplify_operators`, both inliners, `eliminate_aliases`, `forward_single_uses`, `fold_object_stores`, `scalarize_member_objects` and `truthy_null_tests` in a loop that stops when every pass reports 0 edits.
+  2. `place_single_calls`, pooling and packing stay after it.
+  3. Check plan drift on probelil first.
+
+**013-T7.4 Initialization order and root constants** (T1). Depends on T7.1.
+- **Closure equivalents:** InferConsts, InlineVariables for constants, ProcessDefines, AggressiveInlineAliases.
+- **Facts:** per function, "not invoked before root statement S", a call-graph closure over the effects of the root statements up to S; `Module.initialized_constants`, from `demand.rs`'s initialization proof.
+- **Ports and gain:**
+  - **Root literal constants read by earlier functions:** zodlil −88 to −163 (41 enum kinds, 229 reads; −286 raw), motionlil −124, posthoglil −41 to −55. katexlil's numbers measure between −22 and +69, so they are a choice.
+  - **Kept as they are:** katexlil's string constants, since inlining them measures +132.
+  - **The TDZ guard:** katexlil's `buildCommon` guard is 68 bytes.
+  - **Root aliases as choices:** jquerylil −24, zodlil −30. Forcing them costs katexlil +121 and motionlil +33.
+- **Gate:**
+  - Exact for numbers, booleans, `null` and `undefined` whose spelling is no longer than the name.
+  - Challenger for strings, longer literals and root aliases, per constant.
+- **Negative cases:** reads before initialization (D3.7); an import-order cycle that calls a function during root initialization; exported bindings.
+- **First step:** compute the may-run-before-initialization set from T7.1's call graph over the root statements, publish `Module.initialized_constants`, and let `forward_single_uses` substitute. The reproductions are zodlil's `hb`, which reads `le…Ze`, and katexlil's `Ma`.
+
+**013-T7.5 Parameters and returns** (T2). Depends on T7.1.
+- **Closure equivalents:** OptimizeParameters (unused, constant and optional arguments), OptimizeReturns, and the trailing formals of RemoveUnusedCode.
+- **Facts:** complete call sets (sealed `CallableInputs`); formal uses from `UseIndex`; argument effects from T7.1; `arguments_free`; `.length` unobserved.
+- **Ports and gain:**
+  - **Non-trailing unused formals:** zodlil 11–15 functions (94–118 raw with their arguments), markedlil 5 (20), motionlil 2–3 (8–326; the larger figure includes a closure argument that is never read).
+  - **The same constant at every call:** motionlil 6–7 positions (60–81 raw, plus the flag branches they fold), zodlil 2, jquerylil 3, markedlil 3, katexlil 2. The estimate is −10 to −150 Brotli per port. Snippet `s5` is 256 / 94 on the default route against 343 / 156.
+  - **Returns:** about 0 (at most 42 raw).
+  - **Trailing unused formals:** katexlil +23, zodlil +46, jquerylil −93, motionlil −25.
+  - **zodlil's `this` adapter `Tk`,** which wraps 293 callbacks that never read `this`: −2,120 raw / −40 Brotli.
+- **Gate:**
+  - Exact for unused and constant arguments.
+  - Challenger for trailing formals and for adapter elision. The adapter is a raw-objective lever.
+- **Negative cases:** arguments with effects are evaluated once and in order; bodies using `arguments` or a rest parameter; exported functions; functions handed to the host, where `.length` is observable.
+- **First step:** add `Dropped` and `Constant(Known)` transports in `function_layout.rs`, next to `Packed` and `Fields`. They are available when `callable_inputs` proves the call set complete. A dropped argument's evaluation stays as a statement, in argument order.
+
+**013-T7.6 Inlining on facts** (T2). Depends on T7.1, T7.3 and T7.4.
+- **Closure equivalents:** InlineFunctions (direct and block modes, with FunctionInjector's cost model); J2clPass's forced inlining of runtime adapters. Beyond Closure: the default route's known-closure devirtualization, constant-capture cloning and constructor-chain inlining.
+- **Facts:** effects, so arguments can move past a quiet prefix; initialization order, so a settled root callee is inert; purity of typed member reads; call counts; recursion (SCCs).
+- **Ports and gain:**
+  - **Direct mode with Closure's cost model:** jquerylil −122 (pre-rewrite); the other ports within ±25.
+  - **motionlil's `JS.invoke` adapters** at 86 sites: −155.
+  - **Block mode with labels:** −46 to +123, so a choice.
+  - **IIFEs left by `place_single_calls`:** motionlil 90–143, zodlil 51, jquerylil 48, katexlil 17.
+  - **Constructor chains:** motionlil −50 to −200, estimated over 18 `extends` classes.
+  - **Snippets and probes:** probes `t` and `t2` close most of their gap, and snippet `s11` (closure factories) its 30%.
+- **Gate:**
+  - Exact for direct mode and adapter lowering.
+  - Challenger for block mode and capture cloning, per function.
+- **Negative cases:** recursion (D3.10); bodies using `this` or `arguments`; the TDZ; getters on `JsValue` receivers; closures created in loops.
+- **First step:**
+  1. `inline.rs:inert()` accepts a callee read that `quiet.rs:constant_at` proves settled. That unblocks markedlil's `Vb=a=>Ub(a,0,!1)`.
+  2. Formation lowers `JS.invoke` and `JS.call` with a literal method name to a member call.
+
+**013-T7.7 Escape lattice and scalar replacement at formation** (T1 fact, T3 consumer). Depends on T7.1.
+- **Closure equivalents:** InlineObjectLiterals, typed and across calls. Beyond Closure: the default route's scalar replacement of classes, control-flow aggregates and loop-carried structs. Neither route yet splits branch phis or passes struct parameters as fields.
+- **Facts:** escape per allocation site (local only < typed < untyped), built from `UseIndex`, `callable_inputs`, cells, captures, container stores and host transfers. A compare with `null` is not an escape.
+- **Ports and gain:**
+  - **Snippets:** −20 to −50% Brotli. Snippet `s17` is 101 / 79 on the default route against 218 / 151.
+  - **Ports:** motionlil −100 to −400, estimated (161 classes); markedlil and posthoglil −20 to −100. katexlil, zodlil and jquerylil stay about 0 while their data is `JsValue`.
+  - **Tree residue today:** motionlil −66 to −91, jquerylil −20. zodlil's single-key boxes measure +5.
+  - **Negative:** exploding a parameter object into positional arguments measured +34 on katexlil, so it is raw only.
+- **Gate:** exact, with a codec score per function wherever scalarizing adds parameters.
+- **Negative cases:** identity-observing classes; `try` regions; closures created in loops, which need a cell per iteration.
+- **Cost:** a three-valued lattice, at most 2 × edges.
+- **First step:** compute the lattice on the semantic program and publish the per-allocation and per-nominal states in the `Compilation` ledger. Then give `scalar_objects.rs` an owned-aggregate bit, so it accepts single-field and root objects.
+
+**013-T7.8 Field identity crosses formation** (T1). Depends on T7.7.
+- **Closure equivalents:** DisambiguateProperties, GatherGetterAndSetterProperties.
+- **Facts:**
+  - `FieldRef{nominal, slot}` on `Member` and on literal keys;
+  - a `NominalId` on construction literals;
+  - `Module.nominals`, with `host_reachable`, `reflective` (for-in, `Object.keys`, JSON, spread, `in`) and `exported_shape`;
+  - a contract level for fields declared in `.d.ts`.
+- **Ports and gain:** 0 bytes by itself; it enables T7.9–T7.11 and T7.13. It is also why name-based analysis fails:
+  - 17 of markedlil's 30 typed field names collide with DOM or ES names.
+  - motionlil's `layout` looks constant by name, but 16 of its 17 reads are on another object.
+- **Gate:** printed output unchanged and tests pass. Each tree pass that clones `Member` or `Object` nodes keeps the tag, with a unit test per cloning pass. A missing tag means "unknown".
+- **First step:**
+  1. Set the field in `Formation::place` (`javascript.rs:2476`) when the receiver is a class instance.
+  2. Carry the `NominalId` in `AllocationKind::Object`.
+  3. Compute `host_reachable` with the walk `facts_type_transport::contains_nominal_product` already does for structs.
+
+**013-T7.9 Dead and constant fields** (T3). Depends on T7.8 and T7.1.
+- **Closure equivalents:** RemoveUnusedCode's class, prototype and `this` properties; InlineProperties; DeadPropertyAssignmentElimination.
+- **Facts:** per (nominal, slot), whether any read exists and the join of every value written. A store that runs unconditionally in the initializer replaces the default (Closure's rule). A nominal that is `host_reachable` or `reflective` invalidates both facts. Inherited slots are joined.
+- **Ports and gain:**
+  - **motionlil dead fields:** −193 to −208 open world (12 names absent from every `.d.ts`); −485 to −600 closed world.
+  - **motionlil constant fields:** −45 to −88 open world; −268 to −759 closed world. The upper figure lets Terser remove the folded branches.
+  - **katexlil:** about −10.
+  - **The other ports:** about 0 today.
+- **Gate:** exact, with both contract levels reported.
+- **Negative cases:** a field a host reads (`a_class_instance_reaches_host_code_as_its_data_object`); spreads over the object (motionlil has 24); JSON of a payload.
+- **First step:**
+  1. A semantic pass joins every store and initializer into (nominal, slot), as `value_analysis.rs:FiniteValueAnalysis` does.
+  2. Formation omits unread fields and forms constant reads as literals.
+
+  Probes `p2` and `p5` reproduce both cases.
+
+**013-T7.10 Typed peepholes** (T1 consumer). Depends on batch 25; the field parts depend on T7.8.
+- **Closure equivalents:** useTypesForLocalOptimization, PeepholeFoldConstants, PeepholeReplaceKnownMethods, PeepholeCollectPropertyAssignments for arrays, J2clEqualitySame.
+- **Facts:** `binding_classes`; field and result types from T7.8; purity of plain fields.
+- **Ports and gain:**
+  - **Boolean-literal compares:** zodlil −83 / −184 raw from 46 syntactic sites. With typed operands, −119 / −653 raw across the six; katexlil's share is +49, so it is judged per artifact on katexlil.
+  - **zodlil's nullish pairs:** 15 cascades into the nullish pair and 13 member-path pairs.
+  - **Truthiness on fields and member paths:** the upper bound over the six was −555 at b64. Batch 25 took part of it (motionlil 49,846 to 49,709, all batch-25 changes together).
+  - **`let e=[];e.push(…)` as literals:** katexlil −80 raw, jquerylil −60, markedlil −15.
+  - **`Literal??e`:** a few bytes.
+- **Gate:** exact for the folds. Removing `x+""` is a challenger: it measured katexlil +28 and posthoglil +3, against jquerylil −111 and zodlil −73.
+- **First step:** in `simplify.rs:simplified`, rewrite `B==!0`, `B!=!1` and `B===!0` to `B`, and the negated forms to `!B`, when `known(B)` is Boolean, with `known()` reading `binding_classes`. The reproduction is zodlil's `typeof b.format=="string"==!1`.
+
+**013-T7.11 Values and ranges across functions** (T1). Depends on T7.1, T7.5 and T7.8.
+- **Closure equivalents:** OptimizeParameters' constant propagation, generalized. Beyond Closure: the default route's finite-value and int32-range analyses and SCCP.
+- **Facts:** value sets and ranges for formals, joined over call sites; result sets; write joins per (nominal, slot); widening; loop induction ranges.
+- **Ports and gain:**
+  - **Per port:** −20 to −150 Brotli, with medium-low confidence. zodlil has 38 `(x.k|0)` reads.
+  - **Where the value lies:** removing every `|0` measured only −4 to −79, so the value is in the branches it folds:
+    - snippet `s9`: 151 / 105 on the default route against 198 / 136;
+    - snippet `s12`: 165 / 112 against 245 / 158;
+    - motionlil's option flags.
+- **Gate:** exact.
+- **Cost:** katexlil compile time within 10%.
+- **First step:** extend `facts.rs` with a cross-unit summary for the formals of private units, joined over the call sites in `callable_inputs`. Hand it to formation as number facts, so no `|0` is formed.
+
+**013-T7.12 Namespace collapse and devirtualization of emulated methods** (T2). Depends on T7.4.
+- **Closure equivalents:** CollapseProperties (member splitting, stubs, nested names, statics); DevirtualizeMethods for JS-emulated classes.
+- **Facts:** T7.4's initialization order. Method uniqueness by name needs either a contract assumption, like `pristine_builtins`, or a receiver typed as the class.
+- **Ports and gain:**
+  - **katexlil's four function namespaces** (`qg`, `T` through `U=T`, `Wd`, `ge`): −142 / −635 raw, output identical.
+  - **katexlil's 66 single-definition methods** over 368 calls: −297 / −3,930 raw, with `renderToString` identical on 63 cases.
+  - **katexlil statics:** −20 to −40.
+  - **jquerylil:** −48, only under a stable-public-namespace assumption.
+  - katexlil wins by 329 like for like, so these protect that margin.
+- **Gate:** exact, with katexlil's suites (21/21 and 1,230/1,230).
+- **Negative cases:** `this` in non-arrow members; getters; spreads over the namespace; dynamic-import namespaces; polymorphic names (`toNode` and `toMarkup` stay virtual).
+- **First step:**
+  1. Split the function members of a flattenable literal into `let M_k` bindings, in key order.
+  2. Accept `M.k.apply(M,[…])` and `M.k.call(M,…)` call sites.
+  3. Run the pass before `forward_single_uses` moves once-used functions into the literal.
+
+**013-T7.13 Layouts and property names as choices** (T3). Depends on T7.7 and T7.8.
+- **Closure equivalents:** RenameProperties and AmbiguateProperties, restricted to private typed fields. Beyond Closure: positional layouts, and construction factories in place of OptimizeConstructors.
+- **Facts:** FieldRefs with Private visibility; escape per nominal.
+- **Ports and gain:**
+  - **Typed renaming of private fields:** markedlil −252 / −1,610 raw, with HTML identical on 536 of 536 cases. It also closes markedlil's closed-lane case that expects renamed option keys.
+  - **Name-based approximations:** motionlil −531, zodlil −61.
+  - **Ambiguation:** speculative, about 10–25% on top of the renaming gain.
+  - **A shared construction factory:** motionlil −121 alone, −40 after the dead fields go.
+  - **Positional classes:** raw −1 to −3% on motionlil; Brotli uncertain.
+- **Gate:** challenger per nominal family, with the open and closed lanes reported separately. motionlil's performance harnesses run on layout changes.
+- **First step:** rename Private FieldRefs in `naming.rs` from the identifier alphabet, most frequent first, as a terminal challenger on markedlil's Brotli build.
+
+**013-T7.14 Function folding** (beyond Closure; T3). Depends on T7.1.
+- **Default-route equivalents:** folding identical, permuted and one-constant functions (`fold_identical_private_functions` and its merges).
+- **Facts:** call-only identity for private units; the normalized hashes from `implementation_identity.rs`.
+- **Ports and gain:**
+  - **Upper bounds:** zodlil 17 groups (1,804 raw), motionlil 11 (724), katexlil 2 (97).
+  - **Brotli:** −10 to −100. Snippet `s15` saves 120 raw but only 5 Brotli.
+- **Gate:** challenger, because repetition is load-bearing.
+- **First step:** group the call-only private units by hash, emit each group once, and redirect the calls.
+
+**Deferred, with no task:**
+- CoalesceVariableNames, at most a raw-objective challenger;
+- ExploitAssigns, about 0;
+- cross-chunk motion, not applicable to the six measured files;
+- pipeline fusion and allocation sinking, about 0 on the six;
+- the polyfill passes, since none are injected;
+- AliasStrings, since the current inverse is right.
+
+**Order.**
+1. T7.1 and T7.2 are independent and measured, so they go first: motionlil −529 to −639, and −462 over the six.
+2. Then T7.3 and T7.4, then T7.5 and T7.6.
+3. The typed-layout chain follows: T7.7, then T7.8, then T7.9–T7.11, then T7.13.
+4. T7.12 follows T7.4. T7.14 is last.
+
+The two open Brotli gaps are motionlil (+8,677) and zodlil's package (+12,211). The estimates above add up to roughly −1.3 to −2.5 KB on motionlil in the open world, so port typing (013-T6 and batch 22's census) remains necessary. A task closes on its reproduction and its negative cases, not on a byte target.
+
+#### (d) Measured negatives, and what might still pay
+
+| Lever | Measured | What might still pay |
+|---|---|---|
+| Name-based property mangling, 22 ports (earlier) | best −2,060 Brotli; flips no port; turns posthoglil's win into a loss | — |
+| Name-based RenameProperties, with lib.dom, lib.es, `.d.ts` and string-literal externs (this census) | markedlil −97, zodlil −61, motionlil −531 | the typed variant beats it on typed ports |
+| The same for jquerylil | −534, but unsafe: `guid` and `cssHooks` are plugin API | only with a declared plugin surface |
+| The same for katexlil | −1,623, but unsound (data keys); hypothesis 058's sound rule gives −690 | Map-typed tables (T6) |
+| Type-directed renaming of private fields | markedlil −252, output verified | T7.13, as a challenger |
+| AmbiguateProperties, coloring aligned with the key order of construction literals so literals repeat byte for byte | not measured | measure after T7.13 |
+| Positional classes against a real class | a real class beat the flattened form by 1,768 (motionlil's facade) and 545 (posthoglil's error tracking) | a per-nominal choice (T7.13) |
+
+Other levers that cut raw bytes but not Brotli:
+
+| Lever | Raw | Brotli |
+|---|---|---|
+| All 13 of Closure's late peepholes | −13,197 | +930 |
+| if to `&&` alone | | +1,180 |
+| Closure's RenameVars scheme | | +86 to +1,171 |
+| Prototype alias through a temporary (zodlil) | −1,317 | +25 |
+| Parameter object exploded into positional arguments (katexlil) | −3,211 | +34 |
+| katexlil's string constants inlined | +8,300 | +132 |
+| Root aliases forced out (katexlil) | | +121 |
+| `x+""` removal (katexlil) | | +28 |
+| `new Error` without `new` | −276 | +37 |
+| String arrays split | −1,032 | +93 |
+| Yoda reordering | 0 | +48 |
+| Function-body fusion | −339 | +45 |
+| zodlil's `Tk` adapter elision | −2,120 | −40 |
+| jquerylil's `this` adapters dissolved | | +42 |
+| Block inlining | | −46 to +123 |
+| IIFE splicing | | −80 to +36 |
+
+The pattern: rules that remove operations (calls, fields, branches, arguments) pay under Brotli. Shapes that only shorten repeated text pay under the raw objective, or as terminal challengers.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.
@@ -2251,12 +2728,15 @@ Research, owner briefs, regression fixtures and evidence remain useful in their 
 
 ## Next Action
 
-Updated 2026-09-22. The earlier checkpoint text here described 2026-09-20 frontend-ownership work and predates 008–013; its open items are carried in their own sections (001's inventories, 003's frontend allocation coverage, 012-P1/P2).
+Updated 2026-09-23. The owner's goal: every port below compiles smaller than its original, Brotli under the Brotli objective and raw under raw, by design in the compiler or in the port's LilScript. The scoreboard is `benchmarks/migration-results/2026-09-22-six-ports/README.md`.
+- **The six reference ports.** katexlil, markedlil, posthoglil and jquerylil win both objectives. motionlil (+8.7K) and zodlil (+12K package) are being rewritten module by module, as jquerylil was in batch 24.
+- **The react-markdown family** (owner, 2026-09-23): react-markdownlil and each of its submodule ports (micromarklil, mdast-util-from-markdownlil, remark-parselil, unifiedlil, mdast-util-to-hastlil, remark-rehypelil). All build on the semantic route, and mdast-util-to-hast and remark-rehype win. micromark is the root: the other markdown ports share its source (50 of 53 files are identical), and it carries most of their gap.
+  - react-markdown's bar is upstream's browser graph, which decodes entities through the DOM. The port ships the 2,125-entry table (8.2K Brotli of the 13.5K gap), so it gets a `browser` build, as upstream's `decode-named-character-reference` has.
 
-1. **013-T4, regex slice.** A constant `new RegExp` becomes a regex literal under pristine builtins, as a scored alternative. Then T5's restricted competitor recipes for zodlil and markedlil, so every reference cell has a verdict.
-2. **013-T1.** The whole-program fact summary crosses formation. First consumers: initialization order (katexlil `Ma`, the `buildCommon` guard), typed int producers (field and element reads), and effects for forwarding and inlining.
-3. **013-T2 and T3** on T1's facts: block inlining of once-called functions, constant-argument specialization, scalar and positional class layouts, closed-world field names.
-4. **013-T6** alongside: katexlil retyped one module per batch, with katex's suites as the gate.
-5. **At each milestone's closure:** the fleet's suites and cells on this host, receipts refreshed on that binary, and `migration-progress.mjs` clean.
+Order of work:
+1. **Batch 26 (in progress):** calls through the host's call machinery fold (`x.m.call(x,…)`, receiver adapters); root constants are canonicalized (013-T7.4, Closure's `InlineVariables`), and literal sharing is the objective's separate choice (`pool_strings`, now for numbers too); nullish narrowing; the printer picks the quote that escapes least.
+2. **The micromark port rewrite,** bottom-up per construct against upstream's minified output, with micromark's official suite (CommonMark spec, misc, io) as the gate. Per-construct attribution (`constructs.mjs`) shows a uniform per-construct residue. Fixes go into micromarklil and then into the sibling graphs.
+3. **013-T7** in its dependency order: T7.1 effect summaries and T7.2 codec-judged late spellings first. The first measures are motionlil −529 to −639 for T7.1 and −462 across the six ports for T7.2.
+4. **At each milestone:** the fleet's suites on this host, receipts refreshed on that binary.
 
-Work in batches of four to eight changes per build (owner, 2026-09-06), with one verification pass and one ledger row per batch. The default route stays the default until the semantic route matches or beats it on every reference port, and until 013's cells close.
+Work in batches of four to eight changes per build (owner, 2026-09-06), with one verification pass and one ledger row per batch.

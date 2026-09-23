@@ -19,21 +19,21 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now (batch 25) | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 26) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (complete `katex.esm.js`; without our 76-byte banner, which the bar lacks: 62,715) | 65,727 | 62,624 | 63,044 | **win −420** (like for like −329) |
-| markedlil (`marked.raw.js`) | 9,397 | 9,206 | 10,092 | **win −886** |
-| posthoglil (`posthog.raw.js`) | 5,952 | 5,350 | 5,622 | **win −272** |
-| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 25,513 | 27,445 | **win −1,932** |
+| katexlil (complete `katex.esm.js`; without our 76-byte banner, which the bar lacks: 62,680) | 65,727 | 62,670 | 63,044 | **win −374** (like for like −364) |
+| markedlil (`marked.raw.js`) | 9,397 | 9,199 | 10,092 | **win −893** |
+| posthoglil (`posthog.raw.js`) | 5,952 | 5,370 | 5,622 | **win −252** |
+| jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 25,505 | 27,445 | **win −1,940** |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 46,030 (41,845 whitespace-minified) | 29,634 | +16,396 (+12,211) |
-| motionlil (`full.js`) | does not build | 49,709 | 41,032 | +8,677 |
+| motionlil (`full.js`) | does not build | 49,644 | 41,032 | +8,612 |
 
-| Raw objective | Start | Now (batch 25) | Bar | Gap |
+| Raw objective | Start | Now (batch 26) | Bar | Gap |
 |---|---|---|---|---|
-| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 248,507 | 267,050 | **win −18,543** |
-| markedlil (`marked.bytes.js`) | 39,687 | 35,097 | 37,022 | **win −1,925** |
-| posthoglil (`posthog.bytes.js`) | 19,750 | 15,670 | 16,123 | **win −453** |
-| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 72,324 | 87,151 | **win −14,827** |
+| katexlil (`katex.esm.js`) | first built in batch 9: 272,347 | 248,103 | 267,050 | **win −18,947** |
+| markedlil (`marked.bytes.js`) | 39,687 | 35,070 | 37,022 | **win −1,952** |
+| posthoglil (`posthog.bytes.js`) | 19,750 | 15,651 | 16,123 | **win −472** |
+| jquerylil (`jquery.esm.js`) | first built in batch 9: 91,134 | 72,319 | 87,151 | **win −14,832** |
 | zodlil (complete package, built with the raw objective) | open | 246,267 (180,944 whitespace-minified) | 130,463 | +115,804 (+50,481) |
 | motionlil | no raw configuration yet | | | |
 
@@ -44,6 +44,24 @@ katexlil and jquerylil have no raw configuration of their own. Their rows build 
 Until batch 7 the zodlil raw row showed 252,517, which was the raw size of the Brotli-objective package. The row now uses a raw-objective build.
 
 The default route, for reference with the same binary: posthoglil 5,602 (it also loses once its `esm.js` banner is counted), katexlil 64,620–64,907, jquerylil 28,095 (batch 9 binary; 28,764 with the older binary). motionlil's committed `full.js` is 50,526. Batch-4-era binaries give 53,077 for motionlil's `full.js` with the committed patch; the 52,080 reported at batch 4 was measured differently.
+
+## The react-markdown family (owner, 2026-09-23)
+
+Each port against upstream's minified package (Terser; the bars in each port's `site/results.json`), Brotli objective. Batch 27 rewrote micromarklil, whose source the markdown ports share; see `docs/migration/index.md`.
+
+| Port | Before (b65) | Now | Bar | Gap |
+|---|---|---|---|---|
+| micromarklil (`micromark.esm.js`) | 26,618 | 23,163 (batch 27) | 22,696 | +467 |
+| mdast-util-from-markdownlil | 27,187 | 24,155 (batch 27) | 23,151 | +1,004 |
+| remark-parselil | 27,312 | 24,199 (batch 27) | 23,171 | +1,028 |
+| unifiedlil | 4,923 | 4,914 (batch 26) | 4,425 | +489 |
+| mdast-util-to-hastlil | — | 4,566 (batch 26) | 4,862 | **win −296** |
+| remark-rehypelil | — | 4,650 (batch 26) | 4,910 | **win −260** |
+| react-markdownlil | 44,559 (Node build, entity table) | pending (browser build) | 31,082 (browser graph) | |
+
+Raw objective: micromarklil 71,431 against 81,191, a **win of 9,760**.
+
+react-markdown's bar is upstream's browser graph, which decodes named character references through the DOM (`decode-named-character-reference`'s `index.dom.js`) and ships no entity table. The port gets the same `browser` export. Its Node build keeps the table, which upstream's Node graph ships too.
 
 ## Known causes, by port
 

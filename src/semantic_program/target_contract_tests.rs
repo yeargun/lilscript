@@ -536,8 +536,10 @@ fn a_public_closure_over_module_arguments_stays_an_arrow_whatever_the_private_sp
 
 #[test]
 fn disabled_identifier_mangling_preserves_legal_source_cells_and_rejects_mangled_plans() {
-    // `updatedCounter` is read twice, so no compaction removes it.
-    let source = "int descriptiveCounter=7;export int readCounter(int suppliedIncrement){int updatedCounter=descriptiveCounter+suppliedIncrement;if(updatedCounter<0){return 0;}return updatedCounter;}";
+    // `updatedCounter` is read twice, so no compaction removes it, and
+    // `descriptiveCounter` is assigned, so it is a cell rather than a
+    // constant its reads would take.
+    let source = "int descriptiveCounter=7;export void resetCounter(){descriptiveCounter=0;}export int readCounter(int suppliedIncrement){int updatedCounter=descriptiveCounter+suppliedIncrement;if(updatedCounter<0){return 0;}return updatedCounter;}";
     for search in ["on", "off"] {
         let resolved = policy(&format!("[javascript]\nstrip_console=false\n[policy.tactics]\nidentifier-mangling='off'\nnaming-search='{search}'\n"), true);
         for (_, javascript) in artifacts(source, &resolved, false, Style::Source).unwrap() {

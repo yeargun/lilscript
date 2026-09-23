@@ -778,25 +778,35 @@ impl<'a> Printer<'a, '_, '_> {
             _ => precedence(expression),
         }
     }
+    /// A string in `"`, or for raw bytes in the quote it escapes least
+    /// (`'{"a":1}'`). A codec keeps one delimiter: the escaped `\"` pairs
+    /// of a JSON text compress well, and switching quotes costs more than
+    /// the escapes (react-markdown's entity table: −7,008 raw, +53 Brotli;
+    /// katexlil's `' class="'` strings, +80 Brotli).
     fn string(&mut self, value: &StringValue) {
-        self.text("\"");
-        self.string_content(value, false);
-        self.text("\"");
+        let quote = match value.as_unicode() {
+            Some(text)
+                if self.names.raw() && text.matches('"').count() > text.matches('\'').count() =>
+            {
+                '\''
+            }
+            _ => '"',
+        };
+        let mut delimiter = [0; 4];
+        let delimiter = quote.encode_utf8(&mut delimiter);
+        self.text(delimiter);
+        self.string_content(value, quote);
+        self.text(delimiter);
     }
 
-    fn string_content(&mut self, value: &StringValue, template: bool) {
+    fn string_content(&mut self, value: &StringValue, quote: char) {
         // Charge decoding/escaping before scanning; the writer separately
         // admits each emitted byte and any output-buffer relocation.
         if !self.output.work(value.storage_bytes()) {
             return;
         }
         let after_dollar = self.output.text.ends_with('$');
-        let _ = crate::js_string::contents(
-            &mut self.output,
-            value,
-            if template { '`' } else { '"' },
-            after_dollar,
-        );
+        let _ = crate::js_string::contents(&mut self.output, value, quote, after_dollar);
     }
 
     fn text(&mut self, text: &str) {
@@ -1220,7 +1230,7 @@ impl<'a> Printer<'a, '_, '_> {
                         return;
                     }
                     match part {
-                        TemplatePart::String(value) => self.string_content(value, true),
+                        TemplatePart::String(value) => self.string_content(value, '`'),
                         TemplatePart::Expression(value) => {
                             self.text("${");
                             self.expression(*value, 1);

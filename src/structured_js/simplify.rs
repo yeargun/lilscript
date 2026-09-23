@@ -314,8 +314,14 @@ impl Module {
     }
 
     /// `x===void 0||x==null` → `x==null`, and `x!==void 0&&x!=null` →
-    /// `x!=null`, in either order, for one binding read twice.
+    /// `x!=null`, in either order, for one binding read twice. A loose test
+    /// that the strict one narrows is the strict test of the other nullish
+    /// value: `x==null&&x!==void 0` → `x===null`, `x!=null||x===void 0` →
+    /// `x!==null` (and with `null` and `void 0` swapped).
     fn nullish_pair(&self, op: Binary, left: ExprId, right: ExprId) -> Option<Expr> {
+        if let Some(narrowed) = self.nullish_narrowing(op, left, right) {
+            return Some(narrowed);
+        }
         let (strict, loose) = match op {
             Binary::Or => (Binary::StrictEqual, Binary::Equal),
             _ => (Binary::StrictNotEqual, Binary::NotEqual),
@@ -350,6 +356,49 @@ impl Module {
             return None;
         };
         Some(self.expressions[keep.index()].clone())
+    }
+
+    fn nullish_narrowing(&self, op: Binary, left: ExprId, right: ExprId) -> Option<Expr> {
+        let (loose, strict, result) = match op {
+            Binary::And => (Binary::Equal, Binary::StrictNotEqual, Binary::StrictEqual),
+            Binary::Or => (Binary::NotEqual, Binary::StrictEqual, Binary::StrictNotEqual),
+            _ => return None,
+        };
+        // (operator, operand, literal node) of `binding op literal`.
+        let comparison = |id: ExprId| match &self.expressions[id.index()] {
+            Expr::Binary {
+                op,
+                left: operand,
+                right: literal,
+            } => match (&self.expressions[operand.index()], &self.expressions[literal.index()]) {
+                (Expr::Binding(binding), Expr::Literal(Literal::Null | Literal::Undefined)) => {
+                    Some((*op, *binding, *operand, *literal))
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+        let (a, b) = (comparison(left)?, comparison(right)?);
+        if a.1 != b.1 {
+            return None;
+        }
+        let (wide, narrow) = if a.0 == loose && b.0 == strict {
+            (a, b)
+        } else if b.0 == loose && a.0 == strict {
+            (b, a)
+        } else {
+            return None;
+        };
+        // The loose test's literal must be the other nullish value.
+        let null = |id: ExprId| matches!(self.expressions[id.index()], Expr::Literal(Literal::Null));
+        if null(narrow.3) == null(wide.3) {
+            return None;
+        }
+        Some(Expr::Binary {
+            op: result,
+            left: wide.2,
+            right: wide.3,
+        })
     }
 
     /// The value inside `e+""` when `id` is exactly that conversion.
@@ -525,14 +574,22 @@ impl Module {
                     }
                     return None;
                 }
-                // `Object.prototype.toString.call(v)` is always a string.
+                // `Object.prototype.toString.call(v)` is always a string, and
+                // `Object.prototype.hasOwnProperty.call(o,k)` a boolean.
                 if member == "call" {
                     if let Expr::Member {
                         object: method,
                         property: Property::Named(name),
                     } = &self.expressions[object.index()]
                     {
-                        if name == "toString" {
+                        let known = match name.as_str() {
+                            "toString" => Some(Known::String),
+                            "hasOwnProperty" | "propertyIsEnumerable" | "isPrototypeOf" => {
+                                Some(Known::Boolean)
+                            }
+                            _ => None,
+                        };
+                        if let Some(known) = known {
                             if let Expr::Member {
                                 object: prototype,
                                 property: Property::Named(prototype_key),
@@ -540,7 +597,7 @@ impl Module {
                             {
                                 if prototype_key == "prototype" && host(*prototype) == Some("Object")
                                 {
-                                    return Some(Known::String);
+                                    return Some(known);
                                 }
                             }
                         }

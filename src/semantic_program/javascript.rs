@@ -683,10 +683,18 @@ fn form_with_demand(
             .iter()
             .map(|alternative| alternative.expression())
             .collect();
-        if let Err(error) =
-            formation
-                .module
-                .simplify_operators(numeric_lengths, year, &early, formation.budget)
+        // `x.m.call(x,…)` is `x.m(…)` for the operator rules too
+        // (`+Number.parseInt(s)` needs no `+`), and a lambda that ignores its
+        // receiver is judged for inlining without the adapter around it.
+        if let Err(error) = formation
+            .module
+            .self_method_calls(formation.budget)
+            .and_then(|_| formation.module.dissolve_receiver_adapters(formation.budget))
+            .and_then(|_| {
+                formation
+                    .module
+                    .simplify_operators(numeric_lengths, year, &early, formation.budget)
+            })
         {
             drop(formation);
             return Err(error.into());
@@ -736,6 +744,8 @@ fn form_with_demand(
             .map(|alternative| alternative.expression())
             .collect();
         let inlined = inlined.and_then(|()| {
+            // Inlined host helpers meet their receivers: `call1(o.m,o,x)`.
+            formation.module.self_method_calls(formation.budget)?;
             formation
                 .module
                 .fold_literal_operations(&protected, formation.budget)?;
@@ -748,9 +758,17 @@ fn form_with_demand(
             drop(formation);
             return Err(error.into());
         }
+        // Literal root constants are their literal wherever they are
+        // initialized (by initialization order).
+        let protected: Vec<js::ExprId> = formation
+            .literal_alternatives
+            .iter()
+            .map(|alternative| alternative.expression())
+            .collect();
         let edited = formation
             .module
-            .forward_single_uses(formation.budget)
+            .forward_root_constants(&protected, formation.budget)
+            .and_then(|_| formation.module.forward_single_uses(formation.budget))
             .and_then(|(_, map)| {
                 if let Some(map) = map {
                     remap_alternatives(&mut formation.literal_alternatives, &map);
@@ -787,6 +805,14 @@ fn form_with_demand(
                         formation.budget,
                     )?;
                 }
+                // Stores folded into their literals no longer run before the
+                // constants declared after them.
+                let protected: Vec<js::ExprId> = formation
+                    .literal_alternatives
+                    .iter()
+                    .map(|alternative| alternative.expression())
+                    .collect();
+                formation.module.forward_root_constants(&protected, formation.budget)?;
                 formation.module.drop_double_negations(formation.budget)?;
                 if logical != 0 {
                     if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
@@ -830,6 +856,11 @@ fn form_with_demand(
             }
         }
         let edited = Ok::<_, AllocationError>(()).and_then(|()| {
+            // Calls through the host's call machinery that name plain calls:
+            // `x.m.call(x,…)`, and receiver adapters of lambdas that ignore
+            // their receiver.
+            formation.module.self_method_calls(formation.budget)?;
+            formation.module.dissolve_receiver_adapters(formation.budget)?;
             if raw_structure {
                 // Functions with one call, as statements, take its place;
                 // their parameters are then copies to forward.
@@ -2980,6 +3011,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                                         && arguments
                                             .chunks_exact(2)
                                             .all(|pair| self.string_key(pair[0])))
+                                // A view of a host value as a struct decodes
+                                // it inside the wrapper (`assumed_product`).
+                                && builtin != BuiltinCall::JsAssume
                         })
                     {
                         let expression = self.host_builtin(builtin, arguments, operation.span)?;
@@ -3010,6 +3044,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 }
                 let expression =
                     self.call(unit, call, arguments, operation.span, expanded_products)?;
+                let expression = self.assumed_product(unit, call, &operation, expression)?;
                 // Host calls retain their evaluation/throwing behavior, but
                 // their returned JS value still owes the source operation's
                 // result contract. A replaced logger cannot give Print a
@@ -3169,6 +3204,57 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// body loads each by-value parameter once, in order, passes them to one
     /// builtin and returns that result. The call is that builtin applied to
     /// the same arguments, one frame fewer. `value` is the call's result.
+    /// `JS.assume(v)` of a host value to a type holding a value struct: the
+    /// struct's storage is private, so the view decodes the value's public
+    /// shape, its fields by name, as an exported function's input is decoded
+    /// (the D2 decoder). A struct is a value, so the view is a copy made at
+    /// the assumption; a host object read and written in place is an
+    /// `extern class`. A type the decoder cannot reach (a nullable struct, a
+    /// record of structs) is refused rather than read as private storage.
+    fn assumed_product(
+        &mut self,
+        unit: ContextId,
+        call: CallId,
+        operation: &Operation,
+        expression: js::ExprId,
+    ) -> Result<js::ExprId, FormationError> {
+        let program = self.program;
+        let data = self.data(unit);
+        if !matches!(data.calls[call.index()].target, CallTarget::Builtin(BuiltinCall::JsAssume)) {
+            return Ok(expression);
+        }
+        let Some(result) = operation.result else {
+            return Ok(expression);
+        };
+        let result = &program.types[data.values[result.index()].ty.index()];
+        let arguments = data.arguments(data.calls[call.index()].arguments).unwrap();
+        let [CallArgument::Value(argument)] = arguments[..] else {
+            return Ok(expression);
+        };
+        let argument = &program.types[data.values[argument.index()].ty.index()];
+        if !public_structs::carries_product(result, self.budget)?
+            || public_structs::carries_product(argument, self.budget)?
+        {
+            return Ok(expression);
+        }
+        let decoded = match result {
+            Type::Struct(_) => Some(result),
+            Type::Array(element) if matches!(element.as_ref(), Type::Struct(_)) => Some(element.as_ref()),
+            _ => None,
+        };
+        let decodable = match decoded {
+            Some(structure) => public_structs::adaptable(program, structure, 0, self.budget)?,
+            None => false,
+        };
+        if !decodable {
+            return Err(self.error(
+                operation.span,
+                "JS.assume to a type holding a value struct needs its public decoder",
+            ));
+        }
+        self.public_value(result, expression, true)
+    }
+
     fn forwarding_builtin(&self, unit: ContextId, value: ValueId) -> Option<BuiltinCall> {
         let program = self.program;
         let data = self.data(unit);

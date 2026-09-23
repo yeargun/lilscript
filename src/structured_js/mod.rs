@@ -21,7 +21,9 @@ use std::collections::BTreeSet;
 pub mod analysis;
 mod compact;
 mod constants;
+mod calls;
 mod declarations;
+mod root_constants;
 mod scalar_objects;
 mod typed;
 pub(crate) mod delivery;
@@ -1260,6 +1262,9 @@ impl Module {
         budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
         Ok(match &self.expressions[value.index()] {
             Expr::Literal(_) | Expr::Function(_) => true,
+            // `-5`, `!0`, `typeof "a"`: an operator on a primitive literal
+            // converts nothing that could run code.
+            Expr::Unary { value, .. } => matches!(self.expressions[value.index()], Expr::Literal(_)),
             Expr::Array(items) => {
                 let mut inert = true;
                 for item in items {

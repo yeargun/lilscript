@@ -4,10 +4,13 @@
 //!   shorter, under pristine builtins: every evaluation still creates a fresh
 //!   array of the same strings, and the separator is a character none of
 //!   them contains.
-//! * A string literal repeated often enough is read from a root constant,
-//!   `let s="text"`, declared ahead of every other statement. A string is a
-//!   primitive, so the read yields the literal's value wherever it stood, and
-//!   the constant is initialized before any code runs.
+//! * A string or number literal repeated often enough is read from a root
+//!   constant, `let s="text"`, declared ahead of every other statement
+//!   (Closure's `AliasStrings`, for numbers too). A primitive read yields
+//!   the literal's value wherever it stood, and the constant is initialized
+//!   before any code runs. Root constants were canonicalized into their
+//!   literals first (`forward_root_constants`), so this is the one place a
+//!   repeated literal gets a name.
 //!
 //! A codec already matches repeated text, and a joined string or a name
 //! breaks the match, so a codec objective keeps the literals.
@@ -107,39 +110,38 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let reach = self.reach(budget)?;
-        // Each string's uses, in the order the arena holds them.
-        let mut uses: Vec<(StringValue, Vec<ExprId>)> = Vec::new();
-        let mut index: std::collections::HashMap<StringValue, usize> =
-            std::collections::HashMap::new();
+        // Each literal's uses, in the order the arena holds them.
+        let mut uses: Vec<(Pooled, Vec<ExprId>)> = Vec::new();
+        let mut index: std::collections::HashMap<Pooled, usize> = std::collections::HashMap::new();
         for &(id, _) in &reach.expressions {
             budget.work(Analysis, 1)?;
-            let Expr::Literal(Literal::String(value)) = &self.expressions[id.index()] else {
-                continue;
+            let pooled = match &self.expressions[id.index()] {
+                Expr::Literal(Literal::String(value)) => Pooled::String(value.clone()),
+                Expr::Literal(Literal::Number(value)) => Pooled::Number(value.to_bits()),
+                _ => continue,
             };
             if protected.binary_search(&id).is_ok() {
                 continue;
             }
-            match index.get(value) {
+            match index.get(&pooled) {
                 Some(&at) => uses[at].1.push(id),
                 None => {
-                    index.insert(value.clone(), uses.len());
-                    uses.push((value.clone(), vec![id]));
+                    index.insert(pooled.clone(), uses.len());
+                    uses.push((pooled, vec![id]));
                 }
             }
         }
-        // `k` uses of `L` bytes against `k` names plus `n="…",`.
+        // `k` uses of `L` bytes against `k` names plus `n=…,`.
         uses.retain(|(value, sites)| {
-            let (count, length) = (sites.len(), printed(value));
+            let (count, length) = (sites.len(), value.printed());
             count * length > count * POOLED_NAME + POOLED_NAME + length + 2
         });
         if uses.is_empty() {
             return Ok(0);
         }
-        // Most saved first, then by value, so the order is stable.
+        // Most saved first, then by first use, so the order is stable.
         uses.sort_by(|(a, left), (b, right)| {
-            let saved = |value: &StringValue, sites: &Vec<ExprId>| {
-                sites.len() * (printed(value) - POOLED_NAME)
-            };
+            let saved = |value: &Pooled, sites: &Vec<ExprId>| sites.len() * (value.printed() - POOLED_NAME);
             saved(b, right)
                 .cmp(&saved(a, left))
                 .then_with(|| left[0].cmp(&right[0]))
@@ -161,8 +163,7 @@ impl Module {
             for site in sites {
                 self.expressions[site.index()] = Expr::Binding(binding);
             }
-            let literal =
-                self.expression_in(Expr::Literal(Literal::String(value.clone())), None, budget)?;
+            let literal = self.expression_in(Expr::Literal(value.literal()), None, budget)?;
             statements.push(Statement::Let {
                 binding,
                 value: Some(literal),
@@ -181,6 +182,30 @@ impl Module {
                 .splice(0..0, std::iter::repeat_n(first, count));
         }
         Ok(count)
+    }
+}
+
+/// A literal the pool can share: a string, or a number by its bits.
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum Pooled {
+    String(StringValue),
+    Number(u64),
+}
+
+impl Pooled {
+    /// Printed length, quotes included.
+    fn printed(&self) -> usize {
+        match self {
+            Self::String(value) => printed(value),
+            Self::Number(bits) => super::print::number_spelling(f64::from_bits(*bits)).len(),
+        }
+    }
+
+    fn literal(&self) -> Literal {
+        match self {
+            Self::String(value) => Literal::String(value.clone()),
+            Self::Number(bits) => Literal::Number(f64::from_bits(*bits)),
+        }
     }
 }
 

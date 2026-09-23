@@ -958,8 +958,9 @@ fn a_value_moves_past_a_quiet_start_of_its_statement() {
     // `register` is declared before `later` is created, so reading it there
     // is quiet and the literal is created in the call.
     assert!(javascript.contains("({type:\"later\""), "{javascript}");
-    // `early` exists before `register` does: the read might meet its TDZ.
-    assert!(javascript.contains("={type:\"early\""), "{javascript}");
+    // `early` exists before `register` does, but nothing can call it until
+    // `show(early(0))`, after `register` is declared (initialization order).
+    assert!(javascript.contains("({type:\"early\""), "{javascript}");
     // Behind `&&`, the call and the literal might not run.
     assert!(javascript.contains("={type:\"maybe\""), "{javascript}");
     assert_eq!(
@@ -1353,6 +1354,127 @@ fn an_array_the_program_created_takes_its_own_methods() {
     // `Array.prototype.push` under pristine builtins.
     assert!(!javascript.contains("prototype") && javascript.contains(".push("), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "[0,2,4]\n");
+}
+
+#[test]
+fn a_method_reached_through_its_receiver_is_a_method_call() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue run(JsValue effects) {
+            JsValue step = JS.method1((JsValue _s, JsValue code) => {
+                JS.call(effects["enter"], effects, code);
+                return code;
+            });
+            return step;
+        }
+        JsValue effects = JS.object();
+        JS.set(effects, "seen", 0);
+        JS.set(effects, "enter", JS.method1((JsValue self, JsValue x) => {
+            JS.set(self, "seen", x);
+            return x;
+        }));
+        JS.call(run(effects), JS.undefined(), JS.box(5));
+        show(effects["seen"]);
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // `effects.enter.call(effects,code)` is `effects.enter(code)`, and the
+    // step ignores its receiver, so no adapter wraps it.
+    assert!(!javascript.contains(".call("), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "5\n");
+}
+
+#[test]
+fn a_literal_root_constant_is_its_literal_where_it_is_initialized() {
+    let source = r#"
+        extern void show(JsValue value);
+        string tag = "thematicBreak";
+        int limit = 3;
+        export string label(int n) {
+            if (n >= limit) { return tag + "!"; }
+            return tag;
+        }
+        show(JS.box(label(2)));
+        show(JS.box(label(limit)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // Nothing runs before the constants hold their values: every read is
+    // the literal, and no name is left.
+    assert!(!javascript.contains("=\"thematicBreak\"") && javascript.contains(">=3"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "\"thematicBreak\"\n\"thematicBreak!\"\n");
+}
+
+#[test]
+fn a_repeated_long_number_is_named_once_for_raw_bytes() {
+    let source = r#"
+        extern void show(JsValue value);
+        float big = 281474976710655.0;
+        export float a(float x) { return x + big; }
+        export float b(float x) { return x - big; }
+        export float c(float x) { return x * big; }
+        export float d(float x) { return x / big; }
+        show(JS.box(a(1.0) + b(1.0) + c(0.0) + d(0.0)));
+    "#;
+    let raw = "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let javascript = compile_with(source, raw);
+    // Canonicalized into its reads, then pooled again for the raw objective.
+    assert_eq!(javascript.matches("281474976710655").count(), 1, "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "2\n");
+}
+
+#[test]
+fn a_loose_null_test_narrowed_by_a_strict_one_is_the_strict_test() {
+    let source = r#"
+        extern void show(JsValue value);
+        export bool isNull(JsValue value) {
+            return JS.isNullish(value) && !JS.isUndefined(value);
+        }
+        show(JS.box(isNull(JS.undefined())));
+        show(JS.box(isNull(JS.object())));
+        show(JS.box(isNull(null)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    assert!(javascript.contains("===null") && !javascript.contains("==null&&"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "false\nfalse\ntrue\n");
+}
+
+#[test]
+fn a_string_of_double_quotes_prints_in_single_quotes_for_raw_bytes() {
+    let source = r#"
+        extern void show(JsValue value);
+        extern JsValue JSON;
+        export JsValue table() { return JS.invoke(JSON, "parse", "{\"a\":\"b\"}"); }
+        show(table());
+    "#;
+    let raw = "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let javascript = compile_plan(source, raw, Plan::spelled(Style::Global, true));
+    assert!(javascript.contains(r#"'{"a":"b"}'"#), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "{\"a\":\"b\"}\n");
+    // A codec objective keeps one delimiter.
+    let javascript = compile_with(source, PRISTINE);
+    assert!(javascript.contains(r#""{\"a\":\"b\"}""#), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "{\"a\":\"b\"}\n");
+}
+
+#[test]
+fn a_host_value_assumed_to_be_a_struct_is_read_by_field_name() {
+    let source = r#"
+        extern void show(JsValue value);
+        struct TokenView { string type; bool flag; }
+        export bool marked(JsValue token) {
+            TokenView view = JS.assume(token);
+            view.flag = view.type == "a";
+            return view.flag;
+        }
+        JsValue first = JS.object("type", "a", "flag", false);
+        show(JS.box(marked(first)));
+        show(JS.box(marked(JS.object("type", "b", "flag", true))));
+        show(first["flag"]);
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // A struct's storage is private: the host object is decoded by name,
+    // and the view is a value, so the store stays in it.
+    assert!(javascript.contains(".type,") && javascript.contains(".flag]"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "true\nfalse\nfalse\n");
 }
 
 #[test]

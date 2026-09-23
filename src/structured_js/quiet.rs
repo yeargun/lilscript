@@ -11,8 +11,10 @@
 //!   assign. `V` may run any code, which can assign any binding a closure
 //!   reaches, so such a binding must never be assigned at all. A root
 //!   binding read inside a function is initialized there when the root
-//!   statement declaring it precedes the one creating the function: the
-//!   function cannot run before it exists (013-T1, by creation order).
+//!   statement declaring it precedes the first root statement that may run
+//!   code from the one creating the function on: the function cannot run
+//!   before it exists, nor before code calls it (013-T7.4, by
+//!   initialization order).
 //!
 //! When the contract assumes member reads run no code, a value that only
 //! reads (`read_only`) also moves past member reads and past reads of
@@ -45,6 +47,37 @@ pub(super) struct Order {
     created: Vec<Option<Moment>>,
     /// The function each region belongs to; `Some(None)` for the root's.
     owner: Vec<Option<Option<FunctionId>>>,
+    /// For each root statement, the first one from there on that may run
+    /// program code (the root's length when none does). A function created
+    /// by root statement `c` cannot run before `runs_from[c]`: only running
+    /// code can call it, and importers call exports after the whole root.
+    runs_from: Vec<usize>,
+}
+
+impl Order {
+    /// Whether some code assigns `binding`, a loop head binds it, or an
+    /// import holds it.
+    pub(super) fn written(&self, binding: BindingId) -> bool {
+        self.written[binding.index()]
+    }
+
+    /// The first root statement during which `function` can run.
+    fn first_run(&self, function: FunctionId) -> Option<usize> {
+        match self.created[function.index()]? {
+            Moment::Hoisted => Some(self.runs_from.first().copied().unwrap_or(0)),
+            Moment::At(created) => Some(self.runs_from[created]),
+        }
+    }
+
+    /// Whether a root binding declared by statement `declared` holds its
+    /// value whenever `function` runs.
+    pub(super) fn initialized_in(&self, binding: BindingId, function: FunctionId) -> bool {
+        match (self.declared[binding.index()], self.first_run(function)) {
+            (Some(Moment::Hoisted), _) => true,
+            (Some(Moment::At(declared)), Some(first)) => declared < first,
+            _ => false,
+        }
+    }
 }
 
 /// The code an expression belongs to: a root statement's own evaluation,
@@ -170,11 +203,31 @@ impl Module {
                 }
             };
         }
+        let statements = &self.regions[self.root.index()].statements;
+        let mut runs_from = budget.filled(AllocationClass::Scratch, statements.len(), statements.len())?;
+        let mut next = statements.len();
+        for index in (0..statements.len()).rev() {
+            budget.work(Analysis, 1)?;
+            let quiet = match statements[index] {
+                Statement::Function { .. } | Statement::Let { value: None, .. } => true,
+                Statement::Let { value: Some(value), .. } => {
+                    matches!(self.expressions[value.index()], Expr::Binding(_))
+                        || self.standard_member(value)
+                        || self.inert_value(value, budget)?
+                }
+                _ => false,
+            };
+            if !quiet {
+                next = index;
+            }
+            runs_from[index] = next;
+        }
         Ok(Order {
             written,
             declared,
             created,
             owner,
+            runs_from,
         })
     }
 
@@ -183,9 +236,7 @@ impl Module {
     pub(super) fn runs_after_root(&self, owner: Owner, index: usize, order: &Order) -> bool {
         match owner {
             Owner::Root(at) => at > index,
-            Owner::Function(function) => {
-                matches!(order.created[function.index()], Some(Moment::At(created)) if created > index)
-            }
+            Owner::Function(function) => order.first_run(function).is_some_and(|first| first > index),
         }
     }
 
@@ -545,13 +596,7 @@ impl Module {
         match order.owner[region.index()] {
             None => Ok(false),
             Some(None) => self.initialized_at(binding, region, index, frames, budget),
-            Some(Some(function)) => Ok(
-                match (order.declared[binding.index()], order.created[function.index()]) {
-                    (Some(Moment::Hoisted), _) => true,
-                    (Some(Moment::At(declared)), Some(Moment::At(created))) => declared < created,
-                    _ => false,
-                },
-            ),
+            Some(Some(function)) => Ok(order.initialized_in(binding, function)),
         }
     }
 
@@ -568,16 +613,7 @@ impl Module {
                 self.initialized_at(binding, search.region, search.index, search.frames, budget)
             }
             None => self.initialized_at(binding, search.region, search.index, search.frames, budget),
-            Some(function) => Ok(
-                match (
-                    search.order.declared[binding.index()],
-                    search.order.created[function.index()],
-                ) {
-                    (Some(Moment::Hoisted), _) => true,
-                    (Some(Moment::At(declared)), Some(Moment::At(created))) => declared < created,
-                    _ => false,
-                },
-            ),
+            Some(function) => Ok(search.order.initialized_in(binding, function)),
         }
     }
 
