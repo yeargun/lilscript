@@ -68,6 +68,9 @@ struct Template {
     first: Vec<Option<(usize, bool)>>,
     /// How many leading evaluations are inert.
     prefix: usize,
+    /// The body is `{E}` rather than `(…)=>E`: its call yields `undefined`,
+    /// so only a call whose value is discarded may become `E`.
+    discards: bool,
 }
 
 /// Every expression and region that can run, with each expression's depth as
@@ -85,8 +88,10 @@ pub(super) struct Reach {
 impl Module {
     /// Inline each single-expression arrow whose body has at most `limit`
     /// nodes, or whose only call is inlined, at every call that passes its
-    /// parameters. Returns the number of inlined calls and each old node's
-    /// new id when the arena was renumbered.
+    /// parameters. A body of one expression statement, `{E}`, is inlined
+    /// where the call's value is discarded (a statement, a sequence item
+    /// before the last, a loop's update). Returns the number of inlined calls
+    /// and each old node's new id when the arena was renumbered.
     pub(crate) fn inline_expression_functions(
         &mut self,
         limit: usize,
@@ -148,7 +153,7 @@ impl Module {
                 if written[binding.index()] || self.bindings[binding.index()].pinned {
                     continue;
                 }
-                let Some((body, nodes, reads, first, prefix)) =
+                let Some((body, nodes, reads, first, prefix, discards)) =
                     self.template_body(function, binding, budget)?
                 else {
                     continue;
@@ -171,6 +176,7 @@ impl Module {
                     reads,
                     first,
                     prefix,
+                    discards,
                 });
             }
         }
@@ -178,6 +184,27 @@ impl Module {
             return Ok((0, None));
         }
         let template = |binding: BindingId| templates.get(binding.index()).and_then(Option::as_ref);
+        // Expressions whose value nothing reads.
+        let mut discarded = vec![false; self.expressions.len()];
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                match statement {
+                    Statement::Evaluate(value)
+                    | Statement::Loop {
+                        update: Some(value),
+                        ..
+                    } => discarded[value.index()] = true,
+                    _ => {}
+                }
+            }
+        }
+        for &(id, _) in &reach.expressions {
+            if let Expr::Sequence(items) = &self.expressions[id.index()] {
+                for item in &items[..items.len().saturating_sub(1)] {
+                    discarded[item.index()] = true;
+                }
+            }
+        }
         let mut sites = Vec::new();
         for &(id, depth) in &reach.expressions {
             budget.work(Analysis, 1)?;
@@ -195,6 +222,9 @@ impl Module {
             let Some(found) = template(binding) else {
                 continue;
             };
+            if found.discards && !discarded[id.index()] {
+                continue;
+            }
             if depth > SITE_DEPTH
                 || arguments.len() != found.parameters.len()
                 || arguments
@@ -262,14 +292,18 @@ impl Module {
     }
 
     /// `E` and its node count, when `function` is an arrow `(…)=>E` that a
-    /// call site may take in place.
+    /// call site may take in place, or a body `{E}` (`{E;return}`) that a call
+    /// whose value is discarded may take (the last element says which).
+    #[allow(clippy::type_complexity)]
     fn template_body(
         &self,
         function: FunctionId,
         binding: BindingId,
         budget: &mut AllocationBudget<'_>,
-    ) -> Result<Option<(ExprId, usize, Vec<usize>, Vec<Option<(usize, bool)>>, usize)>, AllocationError>
-    {
+    ) -> Result<
+        Option<(ExprId, usize, Vec<usize>, Vec<Option<(usize, bool)>>, usize, bool)>,
+        AllocationError,
+    > {
         let frame_free = self.frame_free(function);
         let function = &self.functions[function.index()];
         // A strict body keeps strict `delete` and assignment semantics that a
@@ -282,9 +316,12 @@ impl Module {
         {
             return Ok(None);
         }
-        let [Statement::Return(Some(body))] = self.regions[function.body.index()].statements[..]
-        else {
-            return Ok(None);
+        let (body, discards) = match self.regions[function.body.index()].statements[..] {
+            [Statement::Return(Some(body))] => (body, false),
+            [Statement::Evaluate(body)] | [Statement::Evaluate(body), Statement::Return(None)] => {
+                (body, true)
+            }
+            _ => return Ok(None),
         };
         // Evaluation order: each node after its operands, as JavaScript runs them.
         let mut events = Vec::new();
@@ -308,7 +345,7 @@ impl Module {
             .iter()
             .take_while(|&&(id, _)| self.inert(id, &function.parameters))
             .count();
-        Ok(Some((body, events.len(), reads, first, prefix)))
+        Ok(Some((body, events.len(), reads, first, prefix, discards)))
     }
 
     /// Appends `root`'s nodes in evaluation order, with whether each sits in
@@ -434,6 +471,20 @@ impl Module {
                     }
                     operands.push(*value);
                 }
+                return operands_then_self(self, &operands, events, budget);
+            }
+            // `o[k]=v`: the object, the key and the value in order, then the
+            // store. A binding target stays out: a parameter would become
+            // its argument's expression.
+            Expr::Assign { target, value } => {
+                let Expr::Member { object, property } = &self.expressions[target.index()] else {
+                    return Ok(false);
+                };
+                let mut operands = vec![*object];
+                if let Property::Computed(key) = property {
+                    operands.push(*key);
+                }
+                operands.push(*value);
                 return operands_then_self(self, &operands, events, budget);
             }
             _ => return Ok(false),

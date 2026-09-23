@@ -1876,6 +1876,40 @@ jquerylil's raw build now beats Oxc's (−180). motionlil's `full.js` is 51,434 
 
 **Verification.** 3,057 unit tests pass, including `a_value_moves_past_a_quiet_start_of_its_statement`, `a_value_that_only_reads_moves_past_member_reads_under_pure_property_reads` and `a_raw_objective_ends_a_body_with_an_else_instead_of_an_exit`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 14: one-statement functions at discarded calls; nullish conditionals (2026-09-23)
+
+A bottom-up attribution of motionlil's compiled core, per source module against upstream's esbuild bundle (`bytesInOutput`), mirrors upstream module for module (60 animation modules each, 23/22 projection). Ours is 57% larger raw (206,784 against 131,749) and the excess is spread across modules. One visible item was 2.8 KB of lowered host functions (`dom-host.ts`, `weak-host.ts`): about 48 one-line wrappers, called up to 64 times each (`setProp`, `function(a,b,c){a[b]=c}`), and none inlined.
+- **A body of one expression statement** (`{E}` or `{E;return}`) is now a template for the expression inliner, wherever the call's value is discarded: a statement, a sequence item before the last, or a loop's update. `setProp(o,"opacity",v)` becomes `o.opacity=v`. Its arguments keep the order rule every template follows.
+- **Stores in templates.** The inliner's evaluation order now covers `o[k]=v`: the object, the key and the value in order, then the store. A binding target stays refused, since a parameter would become its argument's expression.
+- **Nullish conditionals.** For a binding `x` and an ECMAScript 2020 target:
+  - `x===void 0?null:x` becomes `x??null`;
+  - `x==null?d:x` becomes `x??d`;
+  - `x!=null?x:d` becomes `x??d`.
+
+  Each reads `x` once instead of twice, and `d` runs exactly when `x` is null or undefined. For the first form, a null `x` yields `null` either way. The simplifier now takes the edition year instead of an ES2018 flag. A raw objective runs it again after statement compression, whose conditionals meet the rules for the first time. `weakMapGet`'s `let v=m.get(k);return v===void 0?null:v` now inlines as `m.get(k)??null`.
+
+| | motionlil `full.js` | motionlil `mini.js` | jquerylil (`esm`) | jquerylil raw | zodlil raw (`zod.core.js`) | posthoglil raw |
+|---|---|---|---|---|---|---|
+| Batch 13 | 51,434 | 10,385 | 29,414 | 86,971 | 111,204 | 16,376 |
+| **Batch 14** | **51,276** | **10,319** | **29,330** | **86,922** | **111,050** | **16,362** |
+
+katexlil, markedlil and posthoglil's Brotli builds are unchanged.
+
+**Where motionlil's gap is.** The token census of our core against upstream's minified bundle shows the port's idiom more than the compiler's:
+- 2,423 `null` against 89. Of these, 826 are fields a construction initializes to `null`. Dropping them from the output (a simulation) is −10.3 KB raw but only −849 Brotli.
+- 750 `typeof` against 120, from typed reads of untyped options (`if(typeof c=="number")m.delay=c`), where upstream destructures.
+- Several variants per concept: `JSAnimation`/`JSAnimationFull`, and four `AsyncMotionValueAnimation*`.
+- Struct fields where upstream closes over locals: `view/start` spells `a.cropMeasurements` where upstream reads a one-letter closure variable.
+- `compat.mjs` re-implements the public classes: 8,187 raw and 2,351 Brotli minified on its own.
+
+**Measured and not taken:**
+- **Raw structure under the Brotli objective, again with batch 13's rewrites.** Statement compression gives posthoglil −28, katexlil −21 and motionlil −127, but markedlil +53, zodlil +264 and jquerylil +44. With block inlining too: jquerylil −89 and posthoglil −44, but motionlil +197 and markedlil +166. A per-port knob would recover about 250 in all.
+- **Dropping published names for motionlil**: +32, since its `full.js` is re-mangled by Terser anyway.
+- **Trailing default arguments moved into callees** (jquerylil's 90 `,null` arguments): at most 10 bytes per port. The arguments go to published functions.
+- **posthoglil's arrow exports** with this compiler: raw 16,148 (+25 over Oxc) but Brotli 5,649, which would lose the Brotli win.
+
+**Verification.** 3,058 unit tests pass, including `a_function_of_one_statement_is_inlined_where_its_value_is_discarded`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

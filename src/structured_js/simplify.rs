@@ -87,7 +87,7 @@ impl Module {
     pub(crate) fn simplify_operators(
         &mut self,
         numeric_lengths: bool,
-        es2018: bool,
+        year: u16,
         protected: &[ExprId],
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
@@ -103,7 +103,7 @@ impl Module {
                 if self.holds_protected(ExprId::new(index), protected) {
                     continue;
                 }
-                if let Some(replacement) = self.simplified(ExprId::new(index), numeric_lengths, es2018)
+                if let Some(replacement) = self.simplified(ExprId::new(index), numeric_lengths, year)
                 {
                     self.expressions[index] = replacement;
                     edits += 1;
@@ -134,8 +134,48 @@ impl Module {
         found
     }
 
-    fn simplified(&self, id: ExprId, numeric_lengths: bool, es2018: bool) -> Option<Expr> {
+    fn simplified(&self, id: ExprId, numeric_lengths: bool, year: u16) -> Option<Expr> {
+        let es2018 = year >= 2018;
         let node = |id: ExprId| &self.expressions[id.index()];
+        let same = |a: ExprId, b: ExprId| {
+            matches!((node(a), node(b)), (Expr::Binding(x), Expr::Binding(y)) if x == y)
+        };
+        // `x===void 0?null:x`, `x==null?d:x` and `x!=null?x:d` are `x??…` for
+        // a binding `x`: one read of it instead of two, and `d` runs exactly
+        // when `x` is null or undefined (`null` in the first, whichever `x`
+        // is null or undefined, gives `null`).
+        if year >= 2020 {
+            if let Expr::Conditional { condition, yes, no } = node(id) {
+                if let Expr::Binary { op, left, right } = node(*condition) {
+                    let tested = match (node(*left), node(*right)) {
+                        (Expr::Binding(_), Expr::Literal(literal)) => Some((*left, literal)),
+                        (Expr::Literal(literal), Expr::Binding(_)) => Some((*right, literal)),
+                        _ => None,
+                    };
+                    if let Some((tested, literal)) = tested {
+                        let nullish = matches!(literal, Literal::Null | Literal::Undefined);
+                        let (value, fallback) = match op {
+                            Binary::StrictEqual
+                                if matches!(literal, Literal::Undefined)
+                                    && matches!(node(*yes), Expr::Literal(Literal::Null)) =>
+                            {
+                                (*no, *yes)
+                            }
+                            Binary::Equal if nullish => (*no, *yes),
+                            Binary::NotEqual if nullish => (*yes, *no),
+                            _ => (tested, tested),
+                        };
+                        if value != tested && same(value, tested) {
+                            return Some(Expr::Binary {
+                                op: Binary::Nullish,
+                                left: value,
+                                right: fallback,
+                            });
+                        }
+                    }
+                }
+            }
+        }
         match node(id) {
             Expr::Unary {
                 op: Unary::Not,

@@ -1036,6 +1036,37 @@ fn a_value_that_only_reads_moves_past_member_reads_under_pure_property_reads() {
 }
 
 #[test]
+fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
+    let source = r#"
+        extern void show(JsValue value);
+        void put(JsValue target, string key, JsValue value) { target[key] = value; }
+        JsValue lookup(JsValue table, JsValue key) {
+            JsValue found = table[key];
+            if (JS.strictEqual(found, JS.undefined())) { return null; }
+            return found;
+        }
+        export JsValue fill(JsValue o, JsValue t) {
+            put(o, "opacity", JS.box(1.0));
+            put(o, "scale", lookup(t, "s"));
+            put(o, "x", lookup(t, "x"));
+            return o;
+        }
+        show(fill(JS.object(), JS.object("s", 2)));
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let coded = compile_with(source, PRISTINE);
+    // `put`'s body is its calls' statements; the function is gone.
+    for javascript in [&raw, &coded] {
+        assert!(javascript.contains(".opacity=") && javascript.contains(".scale="), "{javascript}");
+    }
+    // `if(v===void 0)return null;return v` compresses to `return v??null`.
+    assert!(raw.contains("??null"), "{raw}");
+    let expected = "{\"opacity\":1,\"scale\":2,\"x\":null}\n";
+    assert_eq!(run(&raw, SHOW), expected);
+    assert_eq!(run(&coded, SHOW), expected);
+}
+
+#[test]
 fn defaults_of_a_function_only_ever_called_print_natively() {
     let javascript = compile_with(
         r#"

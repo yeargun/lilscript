@@ -677,7 +677,7 @@ fn form_with_demand(
         // Exact folds first: an inlining candidate is judged by its size, so
         // `!!Number.isInteger(v)` should already read `Number.isInteger(v)`.
         let numeric_lengths = formation.contract.assumptions.numeric_lengths;
-        let es2018 = formation.contract.ecmascript.year() >= 2018;
+        let year = formation.contract.ecmascript.year();
         let early: Vec<js::ExprId> = formation
             .literal_alternatives
             .iter()
@@ -686,7 +686,7 @@ fn form_with_demand(
         if let Err(error) =
             formation
                 .module
-                .simplify_operators(numeric_lengths, es2018, &early, formation.budget)
+                .simplify_operators(numeric_lengths, year, &early, formation.budget)
         {
             drop(formation);
             return Err(error.into());
@@ -741,7 +741,7 @@ fn form_with_demand(
                 .fold_literal_operations(&protected, formation.budget)?;
             formation
                 .module
-                .simplify_operators(numeric_lengths, es2018, &protected, formation.budget)
+                .simplify_operators(numeric_lengths, year, &protected, formation.budget)
                 .map(|_| ())
         });
         if let Err(error) = inlined {
@@ -785,7 +785,7 @@ fn form_with_demand(
                     .collect();
                 formation
                     .module
-                    .simplify_operators(numeric_lengths, es2018, &protected, formation.budget)?;
+                    .simplify_operators(numeric_lengths, year, &protected, formation.budget)?;
                 Ok(0)
             });
         if let Err(error) = edited {
@@ -824,11 +824,26 @@ fn form_with_demand(
                     }
                 }
                 formation.module.flatten_blocks(formation.budget)?;
-                // A store of a conditional is a store the fold can take.
-                if formation.module.compress_statements(formation.budget)? != 0 && pristine {
-                    fold_stores(
-                        &mut formation.module,
-                        &mut formation.literal_alternatives,
+                if formation.module.compress_statements(formation.budget)? != 0 {
+                    // A store of a conditional is a store the fold can take.
+                    if pristine {
+                        fold_stores(
+                            &mut formation.module,
+                            &mut formation.literal_alternatives,
+                            formation.budget,
+                        )?;
+                    }
+                    // Conditionals built from statements meet the operator
+                    // rules for the first time (`x===void 0?null:x`).
+                    let protected: Vec<js::ExprId> = formation
+                        .literal_alternatives
+                        .iter()
+                        .map(|alternative| alternative.expression())
+                        .collect();
+                    formation.module.simplify_operators(
+                        numeric_lengths,
+                        year,
+                        &protected,
                         formation.budget,
                     )?;
                 }
