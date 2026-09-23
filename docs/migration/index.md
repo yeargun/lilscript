@@ -2308,6 +2308,33 @@ Verification: 1,963/1,963 official tests on both objectives. The three harnesses
 
 Next: micromark's remaining +467 Brotli, the from-markdown builder layer (+1,004 over its bar with micromark's gain included), unified (+481), and react-markdown's own layer (its graph now regenerated from these siblings, plus the browser build).
 
+### 013 batch 28: react-markdownlil's browser build and its regenerated graph (2026-09-23)
+
+react-markdownlil's bar is upstream's browser graph (esbuild `platform: "browser"`, conditions `browser, import`). There, `decode-named-character-reference` resolves to `index.dom.js`, which decodes a named reference through the document's own HTML parser and ships no entity table. The port shipped the 2,125-entry table in every build: 8.2K of its 13.5K Brotli gap.
+- **A `browser` build, as upstream has one.**
+  - The package gains a `browser` export condition, served by `dist/react-markdown.browser.js`.
+  - `src/browser/decode-named.lil` is `index.dom.js` in LilScript, including its partial-match rule for references that do not need their semicolon (`&notit;`).
+  - The build swaps it for the graph's decoder in a staging copy of the source, so the locked graph is untouched.
+  - The Node and development builds keep the table, as upstream's Node graph does.
+  - `measure-graph.mjs` now compares the browser build with the browser graph.
+- **The graph is regenerated from the rewritten siblings.** The port links unified, remark-parse and remark-rehype sources as one graph, a materializer-transformed copy locked by hash. `source-graph.mjs --write-lock --sync` against remark-parselil with its batch-27 patch rebuilt 47 files and the lock. unified and remark-rehype keep their pinned revisions. remark-parse's revision is empty until its patch is committed in its own repository; the content hashes are checked either way.
+- The materializer's audited transform accepts the entity table as an object literal, which reads no host global.
+
+| react-markdownlil | Brotli | Raw |
+|---|---|---|
+| Node build before (b65, entity table) | 44,559 | 172,301 |
+| Node build (b73, entity table) | 42,217 | 147,894 |
+| **Browser build (b73)** | **32,453** | **119,347** |
+| Bar (browser graph, Terser) | 31,082 | 117,674 |
+
+**Verification.** The port's suite passes 120/120 on the development build. The official suite on the browser build passes all 85 production-behaviour tests. The other six assert development-only throws, which upstream's `devlop` also drops in production; the Node production build fails the same six. `tools/rmbuild.sh` builds the port with its three patched siblings.
+
+What remains, +1,371 Brotli:
+- micromark's +467;
+- from-markdown's builder layer;
+- unified (+489);
+- react-markdown's own layer: `hast-util-to-jsx-runtime`, `property-information`, `style-to-js` and `vfile`.
+
 ### 013-T7: Closure ADVANCED parity
 
 The owner asked (2026-09-23) that the semantic route have every flattening and whole-program optimization of Closure Compiler's ADVANCED mode, generic and sound. The judges are Brotli under the Brotli objective and raw bytes under the raw objective. This task maps two things onto the semantic route and orders what is missing: Closure's ADVANCED pipeline, and the default route's typed optimizer.

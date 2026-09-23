@@ -57,9 +57,9 @@ Each port against upstream's minified package (Terser; the bars in each port's `
 | unifiedlil | 4,923 | 4,914 (batch 26) | 4,425 | +489 |
 | mdast-util-to-hastlil | — | 4,566 (batch 26) | 4,862 | **win −296** |
 | remark-rehypelil | — | 4,650 (batch 26) | 4,910 | **win −260** |
-| react-markdownlil | 44,559 (Node build, entity table) | pending (browser build) | 31,082 (browser graph) | |
+| react-markdownlil (`react-markdown.browser.js`) | 44,559 (Node build, entity table) | 32,453 (batch 28) | 31,082 (browser graph) | +1,371 |
 
-Raw objective: micromarklil 71,431 against 81,191, a **win of 9,760**.
+Raw objective: micromarklil 71,431 against 81,191, a **win of 9,760**. react-markdownlil's browser build is 119,347 raw against 117,674 (+1,673), and its Node build (with the entity table) 42,217 Brotli.
 
 react-markdown's bar is upstream's browser graph, which decodes named character references through the DOM (`decode-named-character-reference`'s `index.dom.js`) and ships no entity table. The port gets the same `browser` export. Its Node build keeps the table, which upstream's Node graph ships too.
 
