@@ -21,6 +21,7 @@ use std::collections::BTreeSet;
 pub mod analysis;
 mod compact;
 mod constants;
+mod declarations;
 pub(crate) mod delivery;
 pub mod extract;
 mod literal_output;

@@ -1092,6 +1092,61 @@ fn a_namespace_is_flattened_where_its_reads_run_after_it() {
 }
 
 #[test]
+fn method_stores_into_one_prototype_become_one_assign() {
+    let source = r#"
+        extern void show(JsValue value);
+        JsValue Point = JS.undefined();
+        Point = JS.methodRest((JsValue self, JsValue argv) => {
+            self["x"] = argv[0];
+            self["y"] = argv[1];
+            return self;
+        });
+        Point["prototype"]["sum"] = JS.method0((JsValue self) => JS.add(self["x"], self["y"]));
+        Point["prototype"]["scaled"] = JS.method1((JsValue self, JsValue k) => JS.construct(Point, JS.add(self["x"], k), JS.add(self["y"], k)));
+        Point["prototype"]["label"] = "point";
+        export JsValue make(JsValue a, JsValue b) {
+            JsValue p = JS.construct(Point, a, b);
+            return JS.array(JS.invoke(p, "sum"), JS.invoke(JS.invoke(p, "scaled", 2), "sum"), p["label"]);
+        }
+        show(make(1, 2));
+    "#;
+    let pure = compile_with(source, &format!("{PRISTINE}assume_pure_property_reads=true\n"));
+    let plain = compile_with(source, PRISTINE);
+    // One read of `Point.prototype` needs member reads that run no code.
+    assert!(pure.contains("Object.assign(") && pure.matches(".prototype").count() == 1, "{pure}");
+    assert!(!plain.contains("Object.assign("), "{plain}");
+    let expected = "[3,7,\"point\"]\n";
+    assert_eq!(run(&pure, SHOW), expected);
+    assert_eq!(run(&plain, SHOW), expected);
+}
+
+#[test]
+fn a_temporary_and_its_test_are_the_logical_operator() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue pick(JsValue options, JsValue fallback) {
+            JsValue and1 = options;
+            if (and1.truthy()) {
+                and1 = options["font"];
+            }
+            JsValue or1 = and1;
+            if (!(or1.truthy())) {
+                or1 = fallback;
+            }
+            return or1;
+        }
+        show(pick(JS.object("font", "bold"), "normal"));
+        show(pick(JS.object(), "normal"));
+        show(pick(null, "none"));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // `options&&options.font||fallback`: no temporary is tested.
+    assert!(!javascript.contains("if("), "{javascript}");
+    assert!(javascript.contains("&&") && javascript.contains("||"), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "\"bold\"\n\"normal\"\n\"none\"\n");
+}
+
+#[test]
 fn defaults_of_a_function_only_ever_called_print_natively() {
     let javascript = compile_with(
         r#"

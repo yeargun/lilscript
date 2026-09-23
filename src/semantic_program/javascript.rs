@@ -758,6 +758,8 @@ fn form_with_demand(
                 formation.module.elide_undefined(formation.budget)?;
                 // `let o;o={…}` must meet as `let o={…}` before stores fold.
                 formation.module.merge_declarations(prunes, formation.budget)?;
+                // `let t=a;if(!t)t=b` is `let t=a||b`, as the source wrote it.
+                formation.module.fold_logical_assignments(year >= 2020, formation.budget)?;
                 // `let N;N=M` merged into `let N=M` is an alias to remove before
                 // namespace objects flatten; flattening can leave functions
                 // only called, whose names nothing reads any more.
@@ -852,6 +854,10 @@ fn form_with_demand(
                 formation.module.drop_unreferenced_functions(formation.budget)?;
             }
             formation.module.drop_unreachable(formation.budget)?;
+            // Regrouped where the printer lists them: method stores into
+            // one prototype, uninitialized declarations into the one before.
+            formation.module.group_prototype_stores(formation.budget)?;
+            formation.module.join_empty_declarations(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
         });

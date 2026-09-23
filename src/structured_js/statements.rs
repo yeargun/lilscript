@@ -739,3 +739,155 @@ impl Module {
         }
     }
 }
+
+impl Module {
+    /// `let t=A;if(t)t=B` is `let t=A&&B`, `if(!t)t=B` makes it `A||B`, and
+    /// `if(t==null)t=B` makes it `A??B` (with `nullish`, an ES2020 target):
+    /// JavaScript's value-returning operators, which a port spells as a
+    /// temporary and a test. `A` still runs once and first, `B` runs exactly
+    /// when the test passes, and `t` ends with the same value. `B` must not
+    /// name `t`: it would read `t` in its TDZ, or its old value. The same
+    /// holds after an assignment `t=A;`. Returns how many.
+    pub(crate) fn fold_logical_assignments(
+        &mut self,
+        nullish: bool,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut folded = 0;
+        for region in 0..self.regions.len() {
+            let root = region == self.root.index();
+            let mut index = 0;
+            while index + 1 < self.regions[region].statements.len() {
+                budget.work(Analysis, 1)?;
+                // The temporary and its first value.
+                let first = match self.regions[region].statements[index] {
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => Some((binding, value, None)),
+                    Statement::Evaluate(root_expression) => {
+                        match self.expressions[root_expression.index()] {
+                            Expr::Assign { target, value } => match self.expressions[target.index()] {
+                                Expr::Binding(binding) => Some((binding, value, Some(root_expression))),
+                                _ => None,
+                            },
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                let Some((binding, first_value, assignment)) = first else {
+                    index += 1;
+                    continue;
+                };
+                let Statement::If {
+                    condition,
+                    yes,
+                    no: None,
+                } = self.regions[region].statements[index + 1]
+                else {
+                    index += 1;
+                    continue;
+                };
+                let op = self.logical_test(condition, binding, nullish);
+                let second = match (op, &self.regions[yes.index()].statements[..]) {
+                    (Some(op), [Statement::Evaluate(value)]) => match self.expressions[value.index()] {
+                        Expr::Assign { target, value } => match self.expressions[target.index()] {
+                            Expr::Binding(assigned) if assigned == binding => Some((op, value)),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let same_module = !root
+                    || self.root_modules.get(index) == self.root_modules.get(index + 1);
+                let Some((op, second_value)) = second.filter(|_| same_module) else {
+                    index += 1;
+                    continue;
+                };
+                budget.work(Analysis, 1)?;
+                if self.mentions(&[], &[second_value], binding, false) {
+                    index += 1;
+                    continue;
+                }
+                let combined = self.expression_in(
+                    Expr::Binary {
+                        op,
+                        left: first_value,
+                        right: second_value,
+                    },
+                    None,
+                    budget,
+                )?;
+                // The branch's scopes (functions `B` creates) nest here now.
+                self.adopt(yes, RegionId::new(region), budget)?;
+                match assignment {
+                    None => {
+                        self.regions[region].statements[index] = Statement::Let {
+                            binding,
+                            value: Some(combined),
+                        };
+                    }
+                    Some(root_expression) => {
+                        let target = self.expression_in(Expr::Binding(binding), None, budget)?;
+                        let assigned = self.expression_in(
+                            Expr::Assign {
+                                target,
+                                value: combined,
+                            },
+                            None,
+                            budget,
+                        )?;
+                        let _ = root_expression;
+                        self.regions[region].statements[index] = Statement::Evaluate(assigned);
+                    }
+                }
+                self.regions[region].statements.remove(index + 1);
+                if root && index + 1 < self.root_modules.len() {
+                    self.root_modules.remove(index + 1);
+                }
+                folded += 1;
+                // The folded statement may meet another test.
+            }
+        }
+        Ok(folded)
+    }
+
+    /// The operator a test of `binding` alone stands for: `t` (or `!!t`) is
+    /// `&&`, `!t` is `||`, `t==null` (or `null==t`, `t==void 0`) is `??`.
+    fn logical_test(&self, condition: ExprId, binding: BindingId, nullish: bool) -> Option<Binary> {
+        let is_binding = |id: ExprId| matches!(self.expressions[id.index()], Expr::Binding(found) if found == binding);
+        // A test reads truthiness: each `!` flips it.
+        let mut negations = 0;
+        let mut tested = condition;
+        while let Expr::Unary {
+            op: Unary::Not,
+            value,
+        } = self.expressions[tested.index()]
+        {
+            negations += 1;
+            tested = value;
+        }
+        if is_binding(tested) {
+            return Some(if negations % 2 == 0 { Binary::And } else { Binary::Or });
+        }
+        match &self.expressions[condition.index()] {
+            Expr::Binary {
+                op: Binary::Equal,
+                left,
+                right,
+            } if nullish => {
+                let nothing = |id: ExprId| {
+                    matches!(
+                        self.expressions[id.index()],
+                        Expr::Literal(Literal::Null | Literal::Undefined)
+                    )
+                };
+                ((is_binding(*left) && nothing(*right)) || (nothing(*left) && is_binding(*right)))
+                    .then_some(Binary::Nullish)
+            }
+            _ => None,
+        }
+    }
+}

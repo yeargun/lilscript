@@ -1932,6 +1932,40 @@ The other ports have no such namespaces, and their outputs are unchanged. katexl
 
 **Verification.** 3,059 unit tests pass, including `a_namespace_is_flattened_where_its_reads_run_after_it`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
 
+### 013 batch 16: logical temporaries, joined declarations and grouped prototype stores (2026-09-23)
+
+Three rewrites, each learned from what Terser prints where we do not:
+- **A temporary tested once is the logical operator.** The ports transliterate `a&&b`, `a||b` and `a??b` as a temporary and a test. katexlil has 24 of the `&&` shape and 64 of `||`, jquerylil 19 of `||` and 7 of `??`, zodlil 14 of `??`. `fold_logical_assignments` ([statements.rs](../../src/structured_js/statements.rs)) prints these as the operator:
+  - `let t=A;if(t)t=B` becomes `let t=A&&B`;
+  - `if(!t)` gives `||`;
+  - `t==null` gives `??` on ES2020 targets.
+  
+  The assignment form `t=A;` folds the same way. `B` must not mention `t`. The test sees through `!!`, since formation leaves double negations for a later pass.
+- **An uninitialized declaration joins the one before it**, as with Terser's `join_vars`: `let a=1;S;let b` becomes `let a=1,b;S` when nothing in `S` names `b`. It looks back at most 16 statements and stays within one source module ([declarations.rs](../../src/structured_js/declarations.rs)).
+- **Method stores into one prototype become one `Object.assign`.** Under pristine builtins and pure member reads, `X.prototype.a=f;X.prototype.b=g` becomes `Object.assign(X.prototype,{a:f,b:g})` when every value only creates something:
+  - a literal, a function or a regex;
+  - a call of an adapter whose body only returns a new function, with literal or function arguments.
+
+  Such a value runs nothing else and cannot throw, so `X` and its prototype hold one value throughout the run, and `Object.assign` stores each key as the assignment would. Function declarations between the stores are hoisted anyway, and move ahead of the call. Only katexlil declares both assumptions and writes prototypes. On a binary that also carried the printed-order candidate below, grouping and joining together measured −262 on katexlil.
+
+| Brotli objective | katexlil (`esm`) | markedlil | posthoglil | jquerylil (`esm`) | zodlil core | zodlil package | motionlil (`full.js`) |
+|---|---|---|---|---|---|---|---|
+| Batch 15 | 63,727 | 9,260 | 5,592 | 29,330 | 28,012 | 45,622 | 51,276 |
+| **Batch 16** | **63,239** | **9,258** | **5,593** | **29,340** | **27,977** | **45,639** | **51,321** |
+| Bar | 63,044 | 10,092 | 5,622 | 27,445 | | 51,948 | 41,032 |
+
+| Raw objective | katexlil | markedlil | posthoglil | jquerylil | zodlil core | zodlil package |
+|---|---|---|---|---|---|---|
+| Batch 15 | 254,126 | 35,400 | 16,362 | 86,922 | 111,050 | 245,010 |
+| **Batch 16** | **251,769** | **35,393** | **16,351** | **86,618** | **110,926** | **244,615** |
+| Bar | 267,050 | 37,022 | 16,123 | 87,151 | | 274,999 |
+
+**katexlil's comparison is now like for like.** Our `katex.esm.js` carries a 76-byte license banner, and the bar (Terser over esbuild's bundle) carries none. Without the banner we are at 63,232, +188 over the bar.
+
+**Measured and reverted: names in printed order.** Terser's mangler assigns names in the order declarations are printed. As a search candidate, that order measured −112 on katexlil and −37 on jquerylil, but +459 on zodlil and +43 on motionlil. It also added a style to the schedule that 16 search tests encode. It would ship as a per-port knob, not a default.
+
+**Verification.** 3,061 unit tests pass, including `method_stores_into_one_prototype_become_one_assign` and `a_temporary_and_its_test_are_the_logical_operator`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.
