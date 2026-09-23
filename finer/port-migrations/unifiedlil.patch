@@ -1,0 +1,2423 @@
+diff -ruN a/scripts/build.mjs b/scripts/build.mjs
+--- a/scripts/build.mjs	2026-09-23 20:40:44.644639380 +0000
++++ b/scripts/build.mjs	2026-09-23 20:40:44.673314899 +0000
+@@ -10,7 +10,8 @@
+ import { dirname, resolve } from "node:path"
+ import { fileURLToPath } from "node:url"
+ import { spawnSync } from "node:child_process"
+-import { build as esbuild } from "esbuild"
++import { brotliCompressSync, constants as zlib, gzipSync } from "node:zlib"
++import { build as esbuild, transform } from "esbuild"
+ 
+ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+ const lilscriptRoot = process.env.LILSCRIPT_ROOT ?? resolve(root, "..", "lilscript")
+@@ -59,8 +60,10 @@
+     throw new Error("LilScript compiler not found. Set LILSCRIPT_COMPILER or build lilscript.")
+   }
+   mkdirSync(dist, { recursive: true })
+-  compileLil(compiler, "entry.lil", "lilscript.toml", `${file}.raw.js`)
+-  compileLil(compiler, "entry.lil", "lilscript.closed.toml", `${file}.closed.js`)
++  // index.lil exports unified's public API only, so the compiler's artifact is the public module;
++  // entry.lil keeps the runtime exports (VFileRuntime, ProcessorRuntime) that other ports link.
++  compileLil(compiler, "index.lil", "lilscript.toml", `${file}.raw.js`)
++  compileLil(compiler, "index.lil", "lilscript.closed.toml", `${file}.closed.js`)
+   compileLil(compiler, "vfile.lil", "lilscript.toml", "vfile.raw.js")
+ }
+ 
+@@ -82,10 +85,41 @@
+   })
+ }
+ 
+-writeFileSync(
+-  resolve(dist, `${file}.esm.js`),
+-  filterExports(`${banner}${readFileSync(rawPath, "utf8").trimEnd()}\n`, ["unified"]),
+-)
++// Two printings of the same compiled program are candidates for each published ESM: the compiler's
++// own artifact, and esbuild's minified reprint of it. The smaller one under this port's `cost_model`
++// ships (the build log says which). Measured on this port: under `brotli` the compiler's printing is
++// ~90 Brotli smaller than the reprint (esbuild's renaming and statement folding break repetition the
++// compiler chose); under `raw` the reprint is ~500 bytes smaller. Picking per objective keeps each
++// build on the better side, and the choice cannot regress when the compiler moves.
++const configText = readFileSync(resolve(root, "lilscript.toml"), "utf8")
++const costModel = /^\s*cost_model\s*=\s*"([a-z]+)"/m.exec(configText)?.[1] ?? "brotli"
++function cost(bytes) {
++  if (costModel === "raw") return bytes.length
++  if (costModel === "gzip") return gzipSync(bytes, { level: 9 }).length
++  return brotliCompressSync(bytes, {
++    params: {
++      [zlib.BROTLI_PARAM_QUALITY]: 11,
++      [zlib.BROTLI_PARAM_LGWIN]: 22,
++      [zlib.BROTLI_PARAM_SIZE_HINT]: bytes.length,
++    },
++  }).length
++}
++async function publish(name, source, publicBanner, keep) {
++  const direct = Buffer.from(filterExports(`${publicBanner}${source.trimEnd()}\n`, keep))
++  const printed = await transform(direct.toString("utf8"), {
++    format: "esm",
++    legalComments: "inline",
++    minify: true,
++    target: "es2022",
++  })
++  const reprint = Buffer.from(printed.code)
++  const directCost = cost(direct)
++  const reprintCost = cost(reprint)
++  writeFileSync(resolve(dist, name), directCost <= reprintCost ? direct : reprint)
++  console.log(`dist/${name}: ${directCost <= reprintCost ? "compiler" : "esbuild reprint"} (${costModel} ${directCost} vs ${reprintCost})`)
++}
++
++await publish(`${file}.esm.js`, readFileSync(rawPath, "utf8"), banner, ["unified"])
+ const closedPath = resolve(dist, `${file}.closed.js`)
+ writeFileSync(
+   closedPath,
+@@ -96,14 +130,11 @@
+ if (!existsSync(vfileRawPath)) {
+   throw new Error("dist/vfile.raw.js is missing. Run with --compile after building LilScript.")
+ }
+-writeFileSync(
+-  resolve(dist, "vfile.esm.js"),
+-  filterExports(`${vfileBanner}${readFileSync(vfileRawPath, "utf8").trimEnd()}\n`, [
+-    "VFile",
+-    "VFileMessage",
+-    "createVFileMessage",
+-  ]),
+-)
++await publish("vfile.esm.js", readFileSync(vfileRawPath, "utf8"), vfileBanner, [
++  "VFile",
++  "VFileMessage",
++  "createVFileMessage",
++])
+ 
+ await esbuild({
+   absWorkingDir: dist,
+diff -ruN a/scripts/check-shared-sources.mjs b/scripts/check-shared-sources.mjs
+--- a/scripts/check-shared-sources.mjs	2026-09-23 20:40:44.643754342 +0000
++++ b/scripts/check-shared-sources.mjs	2026-09-23 20:40:44.671687392 +0000
+@@ -5,12 +5,12 @@
+ 
+ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+ const mappings = [
+-  ["entry.lil", "ccfd14e7bcc6aeca1a01f095e01c23457792ef7ffe2a01d11d3d74349a9620e1"],
+-  ["extend.lil", "5612b854f838998e9a0a78f43ae6bbcbe9e047558611e4f9787075debd4afc64"],
+-  ["host.lil", "a5d9a8b45adedcde57dcfb5fa27105037840c0b7a5c1e33a59f302cc618a914c"],
+-  ["plain.lil", "903533b020487768987eff2dfb90a0593b9c9008b998da6833baae7faa309c58"],
+-  ["trough.lil", "0aca356ccbd1e212aeea1de55a1dde4f5dc6e0bff518f613ae76fa32cea1acf0"],
+-  ["vfile.lil", "8f00dd9d7a32402c6d7611c82456191a446ff2a4257d239307fbe7dd88263797"],
++  ["entry.lil", "baa802c68e7c54ef57c3023187f6a52ef16c186a234314010f4b18f71b263782"],
++  ["extend.lil", "4055d2d1d1a84eb61b897c2f6d706c2c17d283df4d520a0620d18b753f340b12"],
++  ["host.lil", "745c7baa0a9b13001eae15b75a8be9ea063a88a51945e56728522d44a331ee89"],
++  ["plain.lil", "8a52a7e342eebf815c188da089eba5acaad37b604d13111a471f7437ed1d4249"],
++  ["trough.lil", "9759f1e87e4d67fcd65b85963c2cbb6b5b206ac0212d4045bfb2c04125067eff"],
++  ["vfile.lil", "044d55ffc6d6d3506521dfb940667253cd6393add8f77ed689aac98e42271195"],
+ ]
+ 
+ for (const [name, expected] of mappings) {
+diff -ruN a/src/entry.lil b/src/entry.lil
+--- a/src/entry.lil	2026-09-23 20:40:44.563686442 +0000
++++ b/src/entry.lil	2026-09-23 20:40:44.624630651 +0000
+@@ -1,22 +1,25 @@
+ import {
+-  Number,
++  Array,
++  Error,
+   Object,
+   Promise,
+   String,
+   TypeError,
+   bail,
++  defineMembers,
++  finishClass,
+   isFn,
+   looksLikeAValue,
+-  objectHasOwn,
+-  sliceArgs,
+-  throwError,
+-  throwType
++  requireNew
+ } from "./host.lil";
+-import { isPlainObj } from "./plain.lil";
+-import { cloneNamespace, extendWith } from "./extend.lil";
++import { hasOwnProperty, isPlainObj } from "./plain.lil";
++import { extendWith } from "./extend.lil";
+ import { trough } from "./trough.lil";
+-import { VFile, asVFile } from "./vfile.lil";
++import { VFile } from "./vfile.lil";
+ 
++// unified@11 over host objects: `Processor` is a callable instance (`processor()` copies it), its
++// methods live on `Processor.prototype` with class-method attributes, and plugins read and write the
++// members below by name.
+ export extern class ProcessorApi {
+   JsValue copy;
+   JsValue use;
+@@ -33,23 +36,46 @@
+   JsValue compiler;
+   JsValue Parser;
+   JsValue Compiler;
++  JsValue namespace;
++  JsValue frozen;
++  JsValue freezeIndex;
++  JsValue transformers;
++}
++
++extern class UnifiedPresetView {
++  JsValue plugins;
++  JsValue settings;
++}
++
++extern class UnifiedFileView {
++  JsValue value;
++  JsValue result;
++}
++
++bool looksLikeAVFile(JsValue value) {
++  return value.truthy() && JS.typeOf(value) == "object" && JS.in("message", value) && JS.in("messages", value);
++}
++
++JsValue asVFile(JsValue value) {
++  return if (looksLikeAVFile(value)) { value } else { JS.construct(VFile, value) };
+ }
+ 
+ void assertParser(string name, JsValue value) {
+   if (!isFn(value)) {
+-    throwType("Cannot `" + name + "` without `parser`");
++    throw JS.construct(TypeError, "Cannot `" + name + "` without `parser`");
+   }
+ }
+ 
+ void assertCompiler(string name, JsValue value) {
+   if (!isFn(value)) {
+-    throwType("Cannot `" + name + "` without `compiler`");
++    throw JS.construct(TypeError, "Cannot `" + name + "` without `compiler`");
+   }
+ }
+ 
+ void assertUnfrozen(string name, JsValue frozen) {
+   if (frozen.truthy()) {
+-    throwError(
++    throw JS.construct(
++      Error,
+       "Cannot call `" +
+         name +
+         "` on a frozen processor.\nCreate a new processor first, by calling it: use `processor()` instead of `processor`."
+@@ -58,416 +84,271 @@
+ }
+ 
+ void assertNode(JsValue node) {
+-  if (!isPlainObj(node) || JS.typeOf(JS.get(node, "type")) != "string") {
+-    throwType("Expected node, got `" + JS.string(node) + "`");
++  if (!isPlainObj(node) || !(JS.get(node, "type") is string)) {
++    throw JS.construct(TypeError, "Expected node, got `" + node + "`");
+   }
+ }
+ 
+ void assertDone(string name, string asyncName, bool complete) {
+   if (!complete) {
+-    throwError("`" + name + "` finished async. Use `" + asyncName + "` instead");
++    throw JS.construct(Error, "`" + name + "` finished async. Use `" + asyncName + "` instead");
+   }
+ }
+ 
+-JsValue pickParser(JsValue self) {
+-  JsValue parser = JS.get(self, "parser");
+-  if (!parser.truthy()) {
+-    parser = JS.get(self, "Parser");
++// `use(value, ...parameters)` (top) and the per-item `add(value)` of a list share one dispatch:
++// a list at the top level is a list of plugins, inside a list it is `[plugin, ...parameters]`.
++void addValue(JsValue attachers, JsValue namespace, JsValue value, JsValue parameters, bool top) {
++  if (isFn(value)) {
++    addPlugin(attachers, value, parameters);
++  } else if (JS.typeOf(value) == "object") {
++    if (!value.isArray()) {
++      UnifiedPresetView preset = JS.assume(value);
++      if (!JS.in("plugins", value) && !JS.in("settings", value)) {
++        throw JS.construct(
++          Error,
++          "Expected usable value but received an empty preset, which is probably a mistake: presets typically come with `plugins` and sometimes with `settings`, but this has neither"
++        );
++      }
++      addList(attachers, namespace, preset.plugins);
++      if (preset.settings.truthy()) {
++        UnifiedPresetView settings = JS.assume(namespace);
++        settings.settings = extendWith(settings.settings, preset.settings);
++      }
++    } else if (top) {
++      addList(attachers, namespace, value);
++    } else {
++      addPlugin(attachers, value[0], JS.invoke(value, "slice", 1.0));
++    }
++  } else {
++    throw JS.construct(TypeError, "Expected usable value, not `" + value + "`");
+   }
+-  return parser;
+ }
+ 
+-JsValue pickCompiler(JsValue self) {
+-  JsValue compiler = JS.get(self, "compiler");
+-  if (!compiler.truthy()) {
+-    compiler = JS.get(self, "Compiler");
++void addList(JsValue attachers, JsValue namespace, JsValue plugins) {
++  if (!JS.isNullish(plugins)) {
++    if (!plugins.isArray()) {
++      throw JS.construct(TypeError, "Expected a list of plugins, not `" + plugins + "`");
++    }
++    for (float index = 0; index < plugins.length; index++) {
++      addValue(attachers, namespace, plugins[index], JS.array(), false);
++    }
+   }
+-  return compiler;
+ }
+ 
+-void addPlugin(JsValue[] attachers, JsValue plugin, JsValue parameters) {
+-  int index = -1;
+-  int entryIndex = -1;
+-  int n = attachers.length;
+-  while (true) {
+-    index = index + 1;
+-    if (index >= n) {
+-      break;
+-    }
++void addPlugin(JsValue attachers, JsValue plugin, JsValue parameters) {
++  float entryIndex = -1;
++  for (float index = 0; index < attachers.length; index++) {
+     if (JS.strictEqual(attachers[index][0], plugin)) {
+       entryIndex = index;
+       break;
+     }
+   }
+-  if (entryIndex == -1) {
+-    JsValue[] entry = sliceArgs(parameters, 0);
+-    JS.call(JS.get(entry, "unshift"), entry, plugin);
+-    attachers.push(entry);
+-    return;
+-  }
+-  if (parameters.length.toInt() > 0) {
++  if (entryIndex > -1) {
++    if (parameters.length == 0.0) return;
+     JsValue primary = parameters[0];
+-    JsValue[] rest = sliceArgs(parameters, 1);
+     JsValue currentPrimary = attachers[entryIndex][1];
+-    if (isPlainObj(currentPrimary) && isPlainObj(primary)) {
+-      primary = extendWith(currentPrimary, primary);
+-    }
+-    JsValue[] entry = [];
+-    entry.push(plugin);
+-    entry.push(primary);
+-    int r = 0;
+-    int rn = rest.length;
+-    while (r < rn) {
+-      entry.push(rest[r]);
+-      r = r + 1;
+-    }
+-    JS.splice(attachers, entryIndex * 1.0, 1.0, entry);
++    if (isPlainObj(currentPrimary) && isPlainObj(primary)) parameters[0] = extendWith(currentPrimary, primary);
+   }
+-}
+-
+-void addList(JsValue[] attachers, JsValue namespace, JsValue plugins) {
+-  if (JS.isNullish(plugins)) {
+-    return;
++  JsValue entry = JS.invoke(JS.array(plugin), "concat", parameters);
++  if (entryIndex < 0) {
++    JS.invoke(attachers, "push", entry);
++  } else {
++    attachers[entryIndex] = entry;
+   }
+-  if (!plugins.isArray()) {
+-    throwType("Expected a list of plugins, not `" + JS.string(plugins) + "`");
+-  }
+-  int index = -1;
+-  int n = plugins.length.toInt();
+-  while (true) {
+-    index = index + 1;
+-    if (index >= n) {
+-      break;
+-    }
+-    addOne(attachers, namespace, plugins[index]);
+-  }
+-}
+-
+-void addPreset(JsValue[] attachers, JsValue namespace, JsValue result) {
+-  if (!JS.in("plugins", result) && !JS.in("settings", result)) {
+-    throwError(
+-      "Expected usable value but received an empty preset, which is probably a mistake: presets typically come with `plugins` and sometimes with `settings`, but this has neither"
+-    );
+-  }
+-  addList(attachers, namespace, JS.get(result, "plugins"));
+-  JsValue settings = JS.get(result, "settings");
+-  if (settings.truthy()) {
+-    JS.set(namespace, "settings", extendWith(JS.get(namespace, "settings"), settings));
+-  }
+-}
+-
+-void addOne(JsValue[] attachers, JsValue namespace, JsValue value) {
+-  if (isFn(value)) {
+-    addPlugin(attachers, value, JS.array());
+-    return;
+-  }
+-  if (JS.typeOf(value) == "object") {
+-    if (value.isArray()) {
+-      addPlugin(attachers, value[0], sliceArgs(value, 1));
+-      return;
+-    }
+-    addPreset(attachers, namespace, value);
+-    return;
+-  }
+-  throwType("Expected usable value, not `" + JS.string(value) + "`");
+ }
+ 
+-JsValue useCall(JsValue self, JsValue args) {
+-  assertUnfrozen("use", JS.get(self, "frozen"));
+-  JsValue[] attachers = JS.assume(JS.get(self, "attachers"));
+-  JsValue namespace = JS.get(self, "namespace");
+-  int n = args.length.toInt();
+-  JsValue value = JS.undefined();
+-  if (n > 0) {
+-    value = args[0];
+-  }
+-  if (JS.isNullish(value)) {
+-    return self;
+-  }
+-  if (isFn(value)) {
+-    addPlugin(attachers, value, sliceArgs(args, 1));
+-    return self;
+-  }
+-  if (JS.typeOf(value) == "object") {
+-    if (value.isArray()) {
+-      addList(attachers, namespace, value);
+-    } else {
+-      addPreset(attachers, namespace, value);
+-    }
+-    return self;
+-  }
+-  throw JS.construct(TypeError, "Expected usable value, not `" + JS.string(value) + "`");
+-}
++JsValue executeWith(JsValue executor, JsValue done) {
++  return if (done.truthy()) { JS.call(executor, JS.undefined(), JS.undefined(), done) } else { JS.construct(Promise, executor) };
++}
++
++JsValue Processor = JS.method0((JsValue self) => {
++  requireNew(self, "Processor");
++  // CallableInstance: calling the processor applies the prototype's `copy` (as it was at construction).
++  JsValue proto = JS.get(Processor, "prototype");
++  JsValue copy = JS.get(proto, "copy");
++  JsValue processor = JS.undefined();
++  processor = JS.staticRest((JsValue parameters) => JS.apply(copy, processor, parameters));
++  return JS.invoke(Object, "assign", JS.invoke(Object, "setPrototypeOf", processor, proto), JS.object(
++    "Compiler", JS.undefined(),
++    "Parser", JS.undefined(),
++    "attachers", JS.array(),
++    "compiler", JS.undefined(),
++    "freezeIndex", -1.0,
++    "frozen", JS.undefined(),
++    "namespace", JS.object(),
++    "parser", JS.undefined(),
++    "transformers", trough()
++  ));
++});
++finishClass(Processor, "Processor");
+ 
+-JsValue dataCall(JsValue self, JsValue args) {
+-  JsValue namespace = JS.get(self, "namespace");
+-  int n = args.length.toInt();
+-  JsValue key = JS.undefined();
+-  if (n > 0) {
+-    key = args[0];
+-  }
++JsValue dataMethod = JS.methodRest((JsValue self, JsValue parameters) => {
++  ProcessorApi processor = JS.assume(self);
++  JsValue key = parameters[0];
+   if (key is string) {
+-    if (n == 2) {
+-      assertUnfrozen("data", JS.get(self, "frozen"));
+-      JS.set(namespace, key, args[1]);
++    if (parameters.length == 2.0) {
++      assertUnfrozen("data", processor.frozen);
++      JS.set(processor.namespace, key, parameters[1]);
+       return self;
+     }
+-    if (objectHasOwn(namespace, key)) {
+-      JsValue got = JS.get(namespace, key);
+-      if (got.truthy()) {
+-        return got;
+-      }
+-    }
+-    return JS.undefined();
++    return JS.or(JS.and(JS.call(hasOwnProperty, processor.namespace, key), JS.get(processor.namespace, key)), JS.undefined());
+   }
+   if (key.truthy()) {
+-    assertUnfrozen("data", JS.get(self, "frozen"));
+-    JS.set(self, "namespace", key);
++    assertUnfrozen("data", processor.frozen);
++    processor.namespace = key;
+     return self;
+   }
+-  return namespace;
+-}
++  return processor.namespace;
++});
+ 
+-JsValue freezeCall(JsValue self) {
+-  if (JS.get(self, "frozen").truthy()) {
+-    return self;
++JsValue useMethod = JS.methodRest((JsValue self, JsValue parameters) => {
++  ProcessorApi processor = JS.assume(self);
++  JsValue attachers = processor.attachers;
++  JsValue namespace = processor.namespace;
++  assertUnfrozen("use", processor.frozen);
++  JsValue value = parameters[0];
++  if (!JS.isNullish(value)) {
++    addValue(attachers, namespace, value, JS.invoke(JS.invoke(Array, "from", parameters), "slice", 1.0), true);
+   }
+-  JsValue[] attachers = JS.assume(JS.get(self, "attachers"));
+-  JsValue transformers = JS.get(self, "transformers");
+-  while (true) {
+-    float nextIndex = JS.number(JS.get(self, "freezeIndex")) + 1.0;
+-    JS.set(self, "freezeIndex", nextIndex);
+-    if (nextIndex >= attachers.length) {
+-      break;
+-    }
+-    int idx = nextIndex.toInt();
+-    JsValue entry = attachers[idx];
+-    JsValue attacher = entry[0];
+-    JsValue options = sliceArgs(entry, 1);
+-    if (options.length.toInt() > 0 && JS.isFalse(options[0])) {
+-      continue;
+-    }
+-    if (options.length.toInt() > 0 && JS.strictEqual(options[0], true)) {
+-      JS.splice(options, 0.0, 1.0, JS.undefined());
+-    }
+-    JsValue transformer = JS.apply(attacher, self, options);
+-    if (isFn(transformer)) {
+-      JS.call(JS.get(transformers, "use"), transformers, transformer);
+-    }
+-  }
+-  JS.set(self, "frozen", true);
+-  JS.set(self, "freezeIndex", JS.get(Number, "POSITIVE_INFINITY"));
+   return self;
+-}
++});
+ 
+-JsValue parseCall(JsValue self, JsValue file) {
+-  JS.call(JS.get(self, "freeze"), self);
+-  JsValue realFile = asVFile(file);
+-  JsValue parser = pickParser(self);
+-  assertParser("parse", parser);
+-  return JS.call(parser, JS.undefined(), JS.call(String, JS.undefined(), realFile), realFile);
+-}
+-
+-JsValue stringifyCall(JsValue self, JsValue tree, JsValue file) {
+-  JS.call(JS.get(self, "freeze"), self);
+-  JsValue realFile = asVFile(file);
+-  JsValue compiler = pickCompiler(self);
+-  assertCompiler("stringify", compiler);
+-  assertNode(tree);
+-  return JS.call(compiler, JS.undefined(), tree, realFile);
+-}
+-
+-JsValue runCall(JsValue self, JsValue tree, JsValue file, JsValue done) {
+-  assertNode(tree);
+-  JS.call(JS.get(self, "freeze"), self);
+-  if (!done.truthy() && isFn(file)) {
+-    done = file;
+-    file = JS.undefined();
+-  }
+-  JsValue transformers = JS.get(self, "transformers");
+-  JsValue originalTree = tree;
+-  JsValue executor = JS.method2((JsValue _t, JsValue resolve, JsValue reject) => {
++defineMembers(JS.object(
++  "copy", JS.method0((JsValue self) => {
++    ProcessorApi processor = JS.assume(self);
++    JsValue destination = JS.construct(Processor);
++    JsValue attachers = processor.attachers;
++    for (float index = 0; index < attachers.length; index++) {
++      JS.apply(JS.get(destination, "use"), destination, attachers[index]);
++    }
++    JS.invoke(destination, "data", extendWith(JS.object(), processor.namespace));
++    return destination;
++  }),
++  "data", dataMethod,
++  "freeze", JS.method0((JsValue self) => {
++    ProcessorApi processor = JS.assume(self);
++    if (processor.frozen.truthy()) return self;
++    while (true) {
++      float index = JS.number(processor.freezeIndex) + 1;
++      processor.freezeIndex = index;
++      if (!(index < processor.attachers.length)) break;
++      JsValue entry = processor.attachers[index];
++      JsValue options = JS.invoke(entry, "slice", 1.0);
++      if (JS.strictEqual(options[0], false)) continue;
++      if (JS.strictEqual(options[0], true)) options[0] = JS.undefined();
++      JsValue transformer = JS.apply(entry[0], self, options);
++      if (isFn(transformer)) JS.invoke(processor.transformers, "use", transformer);
++    }
++    processor.frozen = true;
++    processor.freezeIndex = 1.0 / 0.0;
++    return self;
++  }),
++  "parse", JS.method1((JsValue self, JsValue file) => {
++    ProcessorApi processor = JS.assume(self);
++    JS.invoke(self, "freeze");
+     JsValue realFile = asVFile(file);
+-    JsValue realDone = JS.method3((JsValue _s, JsValue error, JsValue outputTree, JsValue outFile) => {
+-      JsValue resulting = outputTree;
+-      if (!resulting.truthy()) {
+-        resulting = originalTree;
+-      }
+-      if (error.truthy()) {
+-        JS.call(reject, JS.undefined(), error);
+-        return JS.undefined();
+-      }
+-      if (resolve.truthy()) {
+-        JS.call(resolve, JS.undefined(), resulting);
++    JsValue parser = JS.or(processor.parser, processor.Parser);
++    assertParser("parse", parser);
++    return JS.call(parser, JS.undefined(), JS.call(String, JS.undefined(), realFile), realFile);
++  }),
++  "process", JS.method2((JsValue self, JsValue file, JsValue done) => {
++    ProcessorApi processor = JS.assume(self);
++    JS.invoke(self, "freeze");
++    assertParser("process", JS.or(processor.parser, processor.Parser));
++    assertCompiler("process", JS.or(processor.compiler, processor.Compiler));
++    return executeWith((JsValue resolve, JsValue reject) => {
++      JsValue realFile = asVFile(file);
++      JsValue parseTree = JS.invoke(self, "parse", realFile);
++      JS.invoke(self, "run", parseTree, realFile, (JsValue error, JsValue tree, JsValue outFile) => {
++        if (error.truthy() || !tree.truthy() || !outFile.truthy()) {
++          JS.call(reject, JS.undefined(), error);
++        } else {
++          UnifiedFileView output = JS.assume(outFile);
++          JsValue compileResult = JS.invoke(self, "stringify", tree, outFile);
++          if (looksLikeAValue(compileResult)) {
++            output.value = compileResult;
++          } else {
++            output.result = compileResult;
++          }
++          if (resolve.truthy()) {
++            JS.call(resolve, JS.undefined(), outFile);
++          } else {
++            JS.call(done, JS.undefined(), JS.undefined(), outFile);
++          }
++        }
+         return JS.undefined();
+-      }
+-      JS.call(done, JS.undefined(), JS.undefined(), resulting, outFile);
++      });
++      return JS.undefined();
++    }, done);
++  }),
++  "processSync", JS.method1((JsValue self, JsValue file) => {
++    ProcessorApi processor = JS.assume(self);
++    bool complete = false;
++    JsValue result = JS.undefined();
++    JS.invoke(self, "freeze");
++    assertParser("processSync", JS.or(processor.parser, processor.Parser));
++    assertCompiler("processSync", JS.or(processor.compiler, processor.Compiler));
++    JS.invoke(self, "process", file, (JsValue error, JsValue outFile) => {
++      complete = true;
++      bail(error);
++      result = outFile;
+       return JS.undefined();
+     });
+-    JS.call(JS.get(transformers, "run"), transformers, tree, realFile, realDone);
+-    return JS.undefined();
+-  });
+-  if (done.truthy()) {
+-    JS.call(executor, JS.undefined(), JS.undefined(), done);
+-    return JS.undefined();
+-  }
+-  return JS.construct(Promise, executor);
+-}
+-
+-JsValue runSyncCall(JsValue self, JsValue tree, JsValue file) {
+-  bool complete = false;
+-  JsValue result = JS.undefined();
+-  JsValue realDone = JS.method3((JsValue _s, JsValue error, JsValue outTree, JsValue _f) => {
+-    bail(error);
+-    result = outTree;
+-    complete = true;
+-    return JS.undefined();
+-  });
+-  JS.call(JS.get(self, "run"), self, tree, file, realDone);
+-  assertDone("runSync", "run", complete);
+-  return result;
+-}
+-
+-JsValue processCall(JsValue self, JsValue file, JsValue done) {
+-  JS.call(JS.get(self, "freeze"), self);
+-  assertParser("process", pickParser(self));
+-  assertCompiler("process", pickCompiler(self));
+-  JsValue executor = JS.method2((JsValue _t, JsValue resolve, JsValue reject) => {
+-    JsValue realFile = asVFile(file);
+-    JsValue parseTree = JS.call(JS.get(self, "parse"), self, realFile);
+-    JsValue runDone = JS.method3((JsValue _s, JsValue error, JsValue tree, JsValue outFile) => {
+-      if (error.truthy() || !tree.truthy() || !outFile.truthy()) {
+-        JS.call(reject, JS.undefined(), error);
++    assertDone("processSync", "process", complete);
++    return result;
++  }),
++  "run", JS.method3((JsValue self, JsValue tree, JsValue file, JsValue done) => {
++    ProcessorApi processor = JS.assume(self);
++    assertNode(tree);
++    JS.invoke(self, "freeze");
++    JsValue transformers = processor.transformers;
++    if (!done.truthy() && isFn(file)) {
++      done = file;
++      file = JS.undefined();
++    }
++    return executeWith((JsValue resolve, JsValue reject) => {
++      JS.invoke(transformers, "run", tree, asVFile(file), (JsValue error, JsValue outputTree, JsValue outFile) => {
++        JsValue resultingTree = JS.or(outputTree, tree);
++        if (error.truthy()) {
++          JS.call(reject, JS.undefined(), error);
++        } else if (resolve.truthy()) {
++          JS.call(resolve, JS.undefined(), resultingTree);
++        } else {
++          JS.call(done, JS.undefined(), JS.undefined(), resultingTree, outFile);
++        }
+         return JS.undefined();
+-      }
+-      JsValue compileResult = JS.call(JS.get(self, "stringify"), self, tree, outFile);
+-      if (looksLikeAValue(compileResult)) {
+-        JS.set(outFile, "value", compileResult);
+-      } else {
+-        JS.set(outFile, "result", compileResult);
+-      }
+-      if (resolve.truthy()) {
+-        JS.call(resolve, JS.undefined(), outFile);
+-        return JS.undefined();
+-      }
+-      JS.call(done, JS.undefined(), JS.undefined(), outFile);
++      });
++      return JS.undefined();
++    }, done);
++  }),
++  "runSync", JS.method2((JsValue self, JsValue tree, JsValue file) => {
++    bool complete = false;
++    JsValue result = JS.undefined();
++    JS.invoke(self, "run", tree, file, (JsValue error, JsValue outTree) => {
++      bail(error);
++      result = outTree;
++      complete = true;
+       return JS.undefined();
+     });
+-    JS.call(JS.get(self, "run"), self, parseTree, realFile, runDone);
+-    return JS.undefined();
+-  });
+-  if (done.truthy()) {
+-    JS.call(executor, JS.undefined(), JS.undefined(), done);
+-    return JS.undefined();
+-  }
+-  return JS.construct(Promise, executor);
+-}
+-
+-JsValue processSyncCall(JsValue self, JsValue file) {
+-  JS.call(JS.get(self, "freeze"), self);
+-  assertParser("processSync", pickParser(self));
+-  assertCompiler("processSync", pickCompiler(self));
+-  bool complete = false;
+-  JsValue result = JS.undefined();
+-  JsValue realDone = JS.method2((JsValue _s, JsValue error, JsValue outFile) => {
+-    complete = true;
+-    bail(error);
+-    result = outFile;
+-    return JS.undefined();
+-  });
+-  JS.call(JS.get(self, "process"), self, file, realDone);
+-  assertDone("processSync", "process", complete);
+-  return result;
+-}
+-
+-JsValue ProcessorConstructor = JS.undefined();
+-
+-JsValue copyProcessor(JsValue self) {
+-  JsValue destination = JS.construct(ProcessorConstructor);
+-  JsValue[] attachers = JS.assume(JS.get(self, "attachers"));
+-  int index = -1;
+-  int n = attachers.length;
+-  while (true) {
+-    index = index + 1;
+-    if (index >= n) {
+-      break;
+-    }
+-    JS.apply(JS.get(destination, "use"), destination, attachers[index]);
+-  }
+-  JS.call(JS.get(destination, "data"), destination, cloneNamespace(JS.get(self, "namespace")));
+-  return destination;
+-}
+-
+-JsValue useMethod = JS.methodRest(useCall);
+-JsValue copyMethod = JS.method0((JsValue self) => {
+-  return copyProcessor(self);
+-});
+-JsValue parseMethod = JS.method1(parseCall);
+-JsValue runMethod = JS.method3(runCall);
+-JsValue runSyncMethod = JS.method2(runSyncCall);
+-JsValue stringifyMethod = JS.method2(stringifyCall);
+-JsValue processMethod = JS.method2(processCall);
+-JsValue processSyncMethod = JS.method1(processSyncCall);
+-JsValue dataMethod = JS.methodRest(dataCall);
+-JsValue freezeMethod = JS.method0(freezeCall);
+-ProcessorConstructor = JS.method0((JsValue self) => {
+-  if (JS.isUndefined(self)) {
+-    throw JS.construct(TypeError, "Class constructor Processor cannot be invoked without 'new'");
+-  }
+-  return initializeProcessorValue();
+-});
+-JS.invoke(Object, "defineProperty", ProcessorConstructor, "name", JS.object("configurable", true, "value", "Processor"));
+-JsValue processorPrototype = JS.get(ProcessorConstructor, "prototype");
+-
+-void defineProcessorMethod(string name, JsValue method, int length) {
+-  JS.invoke(Object, "defineProperty", method, "name", JS.object("configurable", true, "value", name));
+-  JS.invoke(Object, "defineProperty", method, "length", JS.object("configurable", true, "value", length * 1.0));
+-  JS.invoke(
+-    Object,
+-    "defineProperty",
+-    processorPrototype,
+-    name,
+-    JS.object("configurable", true, "writable", true, "value", method)
+-  );
+-}
+-
+-void initializeProcessorPrototype() {
+-  defineProcessorMethod("copy", copyMethod, 0);
+-  defineProcessorMethod("data", dataMethod, 2);
+-  defineProcessorMethod("freeze", freezeMethod, 0);
+-  defineProcessorMethod("parse", parseMethod, 1);
+-  defineProcessorMethod("process", processMethod, 2);
+-  defineProcessorMethod("processSync", processSyncMethod, 1);
+-  defineProcessorMethod("run", runMethod, 3);
+-  defineProcessorMethod("runSync", runSyncMethod, 2);
+-  defineProcessorMethod("stringify", stringifyMethod, 2);
+-  defineProcessorMethod("use", useMethod, 1);
+-  JS.invoke(Object, "defineProperty", ProcessorConstructor, "prototype", JS.object("writable", false));
+-}
+-
+-initializeProcessorPrototype();
+-
+-JsValue initializeProcessorValue() {
+-  JsValue proc = JS.undefined();
+-  proc = JS.staticRest((JsValue _args) => {
+-    return copyProcessor(proc);
+-  });
+-  JS.call(JS.get(Object, "setPrototypeOf"), Object, proc, processorPrototype);
+-  JS.set(proc, "Compiler", JS.undefined());
+-  JS.set(proc, "Parser", JS.undefined());
+-  JS.set(proc, "attachers", JS.array());
+-  JS.set(proc, "compiler", JS.undefined());
+-  JS.set(proc, "freezeIndex", -1.0);
+-  JS.set(proc, "frozen", JS.undefined());
+-  JS.set(proc, "namespace", JS.object());
+-  JS.set(proc, "parser", JS.undefined());
+-  JS.set(proc, "transformers", trough());
+-  return proc;
+-}
++    assertDone("runSync", "run", complete);
++    return result;
++  }),
++  "stringify", JS.method2((JsValue self, JsValue tree, JsValue file) => {
++    ProcessorApi processor = JS.assume(self);
++    JS.invoke(self, "freeze");
++    JsValue realFile = asVFile(file);
++    JsValue compiler = JS.or(processor.compiler, processor.Compiler);
++    assertCompiler("stringify", compiler);
++    assertNode(tree);
++    return JS.call(compiler, JS.undefined(), tree, realFile);
++  }),
++  "use", useMethod
++), JS.get(Processor, "prototype"));
++JS.invoke(Object, "defineProperty", dataMethod, "length", JS.object("value", 2.0));
++JS.invoke(Object, "defineProperty", useMethod, "length", JS.object("value", 1.0));
+ 
+-JsValue unifiedValue = JS.construct(ProcessorConstructor);
+-JS.call(JS.get(unifiedValue, "freeze"), unifiedValue);
++JsValue unifiedValue = JS.invoke(JS.construct(Processor), "freeze");
+ 
+ export JsValue unified = unifiedValue;
+ export JsValue VFileRuntime = VFile;
+-export JsValue ProcessorRuntime = ProcessorConstructor;
++export JsValue ProcessorRuntime = Processor;
+diff -ruN a/src/extend.lil b/src/extend.lil
+--- a/src/extend.lil	2026-09-23 20:40:44.573686530 +0000
++++ b/src/extend.lil	2026-09-23 20:40:44.631687041 +0000
+@@ -1,66 +1,40 @@
+-import { Object, objectHasOwn } from "./host.lil";
+-import { isPlainObjectExtend } from "./plain.lil";
+-
+-void setProperty(JsValue target, string name, JsValue newValue) {
+-  if (name == "__proto__") {
+-    JS.invoke(
+-      Object,
+-      "defineProperty",
+-      target,
+-      "__proto__",
+-      JS.object("enumerable", true, "configurable", true, "writable", true, "value", newValue)
+-    );
+-    return;
+-  }
+-  JS.set(target, name, newValue);
+-}
++import { Object } from "./host.lil";
++import { hasOwnProperty, isPlainObjectExtend } from "./plain.lil";
+ 
+ JsValue getProperty(JsValue obj, string name) {
+   if (name == "__proto__") {
+-    if (!objectHasOwn(obj, name)) {
+-      return JS.undefined();
+-    }
+-    JsValue desc = JS.invoke(Object, "getOwnPropertyDescriptor", obj, name);
+-    return JS.get(desc, "value");
++    if (!JS.call(hasOwnProperty, obj, name).truthy()) return JS.undefined();
++    return JS.get(JS.invoke(Object, "getOwnPropertyDescriptor", obj, name), "value");
+   }
+   return JS.get(obj, name);
+ }
+ 
++// extend@3 with `deep = true` and one source: `extend(true, target, source)`.
+ export JsValue extendWith(JsValue target, JsValue source) {
+-  if (JS.isNullish(target) || (JS.typeOf(target) != "object" && JS.typeOf(target) != "function")) {
+-    target = JS.object();
+-  }
+-  if (JS.isNullish(source)) {
+-    return target;
+-  }
+-  for (string name in source) {
+-    JsValue src = getProperty(target, name);
+-    JsValue copy = getProperty(source, name);
+-    if (!JS.strictEqual(target, copy)) {
+-      if (copy.truthy() && (isPlainObjectExtend(copy) || copy.isArray())) {
+-        JsValue clone = JS.undefined();
+-        if (copy.isArray()) {
+-          if (src.truthy() && src.isArray()) {
+-            clone = src;
++  if (JS.isNullish(target) || JS.typeOf(target) != "object" && JS.typeOf(target) != "function") target = JS.object();
++  if (!JS.isNullish(source)) {
++    for (string name in source) {
++      JsValue src = getProperty(target, name);
++      JsValue copy = getProperty(source, name);
++      if (!JS.strictEqual(target, copy)) {
++        JsValue value = copy;
++        if (copy.truthy() && (isPlainObjectExtend(copy) || copy.isArray())) {
++          JsValue clone = if (copy.isArray()) {
++            if (src.truthy() && src.isArray()) { src } else { JS.array() }
+           } else {
+-            clone = JS.array();
+-          }
++            if (src.truthy() && isPlainObjectExtend(src)) { src } else { JS.object() }
++          };
++          value = extendWith(clone, copy);
++        } else if (JS.isUndefined(copy)) {
++          continue;
++        }
++        if (name == "__proto__") {
++          JS.invoke(Object, "defineProperty", target, name, JS.object("enumerable", true, "configurable", true, "value", value, "writable", true));
+         } else {
+-          if (src.truthy() && isPlainObjectExtend(src)) {
+-            clone = src;
+-          } else {
+-            clone = JS.object();
+-          }
++          JS.set(target, name, value);
+         }
+-        setProperty(target, name, extendWith(clone, copy));
+-      } else if (JS.typeOf(copy) != "undefined") {
+-        setProperty(target, name, copy);
+       }
+     }
+   }
+   return target;
+ }
+-
+-export JsValue cloneNamespace(JsValue namespace) {
+-  return extendWith(JS.object(), namespace);
+-}
+diff -ruN a/src/host.lil b/src/host.lil
+--- a/src/host.lil	2026-09-23 20:40:44.583686618 +0000
++++ b/src/host.lil	2026-09-23 20:40:44.632588391 +0000
+@@ -14,93 +14,57 @@
+ export extern JsValue TextDecoder;
+ export extern JsValue globalThis;
+ 
+-export JsValue NULL = JS.invoke(JSON, "parse", "null");
+-export JsValue HAS_OWN = JS.get(JS.get(Object, "prototype"), "hasOwnProperty");
+-export JsValue TO_STRING = JS.get(JS.get(Object, "prototype"), "toString");
+-export JsValue ARRAY_SLICE = JS.get(JS.get(Array, "prototype"), "slice");
+-
+-export JsValue undef() {
+-  return JS.undefined();
+-}
+-
+-export bool isUndef(JsValue value) {
+-  return JS.isUndefined(value);
+-}
+-
+-export bool isNullish(JsValue value) {
+-  return JS.isNullish(value);
+-}
+-
+ export bool isFn(JsValue value) {
+   return JS.typeOf(value) == "function";
+ }
+ 
+-export bool isStr(JsValue value) {
+-  return JS.typeOf(value) == "string";
+-}
+-
+-export bool isObj(JsValue value) {
+-  return !JS.isNullish(value) && JS.typeOf(value) == "object";
+-}
+-
+-export int len(JsValue value) {
+-  return value.length.toInt();
+-}
+-
+-export JsValue[] copyArray(JsValue list) {
+-  return JS.assume(JS.call(ARRAY_SLICE, list));
+-}
+-
+-export JsValue[] sliceArgs(JsValue list, int start) {
+-  return JS.assume(JS.call(ARRAY_SLICE, list, start));
+-}
+-
+-export bool objectHasOwn(JsValue obj, string key) {
+-  return JS.call(HAS_OWN, obj, key).truthy();
+-}
+-
+-export bool isErrorInstance(JsValue value) {
+-  if (JS.isNullish(value)) {
+-    return false;
+-  }
+-  string t = JS.typeOf(value);
+-  if (t != "object" && t != "function") {
+-    return false;
+-  }
+-  return JS.invoke(JS.get(Error, "prototype"), "isPrototypeOf", value).truthy();
++export bool isUint8Array(JsValue value) {
++  return value.truthy() && JS.typeOf(value) == "object" && JS.in("byteLength", value) && JS.in("byteOffset", value);
+ }
+ 
+ export bool looksLikeAValue(JsValue value) {
+-  if (JS.typeOf(value) == "string") {
+-    return true;
+-  }
+-  return isUint8Array(value);
++  return value is string || isUint8Array(value);
+ }
+ 
+-export bool isUint8Array(JsValue value) {
+-  if (!value.truthy()) {
+-    return false;
+-  }
+-  if (JS.typeOf(value) != "object") {
+-    return false;
++export void bail(JsValue error) {
++  if (error.truthy()) {
++    throw error;
+   }
+-  return JS.in("byteLength", value) && JS.in("byteOffset", value);
+-}
+-
+-export void throwError(string message) {
+-  throw JS.construct(Error, message);
+ }
+ 
+-export void throwType(string message) {
+-  throw JS.construct(TypeError, message);
++// `class X` refuses a call without `new`; the host-callable constructors here do the same.
++export void requireNew(JsValue self, string name) {
++  if (JS.isUndefined(self)) {
++    throw JS.construct(TypeError, "Class constructor " + name + " cannot be invoked without 'new'");
++  }
+ }
+ 
+-export void bail(JsValue error) {
+-  if (error.truthy()) {
+-    throw error;
++// A function's own `name` is configurable; redefining only its value keeps the other attributes.
++export void nameFunction(JsValue fn, JsValue name) {
++  JS.invoke(Object, "defineProperty", fn, "name", JS.object("value", name));
++}
++
++// Class-member semantics on `proto`, in table order: a function becomes a method named after its key
++// (non-enumerable, writable, configurable); a `{get, set}` pair becomes an accessor whose functions are
++// named `get key` / `set key`.
++export void defineMembers(JsValue members, JsValue proto) {
++  for (string key in members) {
++    JsValue member = JS.get(members, key);
++    JsValue descriptor = member;
++    if (isFn(member)) {
++      nameFunction(member, key);
++      descriptor = JS.object("writable", true, "value", member);
++    } else {
++      nameFunction(JS.get(member, "get"), "get " + key);
++      nameFunction(JS.get(member, "set"), "set " + key);
++    }
++    JS.set(descriptor, "configurable", true);
++    JS.invoke(Object, "defineProperty", proto, key, descriptor);
+   }
+ }
+ 
+-export JsValue protoOf(JsValue value) {
+-  return JS.invoke(Object, "getPrototypeOf", value);
++// What `class Name` gives its constructor: the name, and a non-writable `prototype`.
++export void finishClass(JsValue ctor, string name) {
++  nameFunction(ctor, name);
++  JS.invoke(Object, "defineProperty", ctor, "prototype", JS.object("writable", false));
+ }
+diff -ruN a/src/index.lil b/src/index.lil
+--- a/src/index.lil	1970-01-01 00:00:00.000000000 +0000
++++ b/src/index.lil	2026-09-23 20:40:44.632687049 +0000
+@@ -0,0 +1,4 @@
++// The published ESM: unified's public API only. entry.lil keeps the runtime exports other ports link.
++import { unified } from "./entry.lil";
++
++export { unified };
+diff -ruN a/src/plain.lil b/src/plain.lil
+--- a/src/plain.lil	2026-09-23 20:40:44.593686706 +0000
++++ b/src/plain.lil	2026-09-23 20:40:44.633595929 +0000
+@@ -1,54 +1,26 @@
+-import { HAS_OWN, Object, Symbol, TO_STRING, protoOf } from "./host.lil";
++import { Object, Symbol } from "./host.lil";
+ 
++export JsValue hasOwnProperty = JS.get(JS.object(), "hasOwnProperty");
++
++// is-plain-obj@4
+ export bool isPlainObj(JsValue value) {
+-  if (JS.typeOf(value) != "object" || JS.isNullish(value)) {
+-    return false;
+-  }
+-  JsValue prototype = protoOf(value);
+-  bool protoOk = JS.isNullish(prototype) || JS.strictEqual(prototype, JS.get(Object, "prototype"));
+-  if (!protoOk) {
+-    protoOk = JS.isNullish(protoOf(prototype));
+-  }
+-  if (!protoOk) {
+-    return false;
+-  }
+-  if (JS.in(JS.get(Symbol, "toStringTag"), value)) {
+-    return false;
+-  }
+-  if (JS.in(JS.get(Symbol, "iterator"), value)) {
+-    return false;
+-  }
+-  return true;
++  if (JS.typeOf(value) != "object" || JS.isNullish(value)) return false;
++  JsValue prototype = JS.invoke(Object, "getPrototypeOf", value);
++  return (JS.isNullish(prototype) || JS.strictEqual(prototype, JS.get(Object, "prototype")) || JS.isNullish(JS.invoke(Object, "getPrototypeOf", prototype))) &&
++    !JS.in(JS.get(Symbol, "toStringTag"), value) && !JS.in(JS.get(Symbol, "iterator"), value);
+ }
+ 
++// extend@3's own check: a `[object Object]` whose constructor is Object-like and whose last key is own.
+ export bool isPlainObjectExtend(JsValue obj) {
+-  if (!obj.truthy()) {
+-    return false;
+-  }
+-  JsValue tag = JS.call(TO_STRING, obj);
+-  if (JS.string(tag) != "[object Object]") {
+-    return false;
+-  }
+-  bool hasOwnConstructor = JS.call(HAS_OWN, obj, "constructor").truthy();
++  if (!obj.truthy() || JS.call(JS.get(JS.get(Object, "prototype"), "toString"), obj) != "[object Object]") return false;
+   JsValue ctor = JS.get(obj, "constructor");
+-  bool hasIsPrototypeOf = false;
+-  if (ctor.truthy()) {
+-    JsValue constructorPrototype = JS.get(ctor, "prototype");
+-    if (constructorPrototype.truthy()) {
+-      hasIsPrototypeOf = JS.call(HAS_OWN, JS.get(ctor, "prototype"), "isPrototypeOf").truthy();
+-    }
++  if (ctor.truthy() && !JS.call(hasOwnProperty, obj, "constructor").truthy()) {
++    JsValue ctorPrototype = JS.get(ctor, "prototype");
++    if (!ctorPrototype.truthy() || !JS.call(hasOwnProperty, ctorPrototype, "isPrototypeOf").truthy()) return false;
+   }
+-  if (ctor.truthy() && !hasOwnConstructor && !hasIsPrototypeOf) {
+-    return false;
+-  }
+-  string last = "";
+-  bool saw = false;
++  JsValue last = JS.undefined();
+   for (string key in obj) {
+     last = key;
+-    saw = true;
+-  }
+-  if (!saw) {
+-    return true;
+   }
+-  return JS.call(HAS_OWN, obj, last).truthy();
++  return JS.isUndefined(last) || JS.call(hasOwnProperty, obj, last).truthy();
+ }
+diff -ruN a/src/trough.lil b/src/trough.lil
+--- a/src/trough.lil	2026-09-23 20:40:44.603686794 +0000
++++ b/src/trough.lil	2026-09-23 20:40:44.633243348 +0000
+@@ -1,136 +1,93 @@
+-import {
+-  NULL,
+-  copyArray,
+-  isErrorInstance,
+-  isFn,
+-  sliceArgs,
+-  throwType
+-} from "./host.lil";
++import { Array, Error, TypeError, isFn } from "./host.lil";
+ 
+-JsValue wrapMiddleware(JsValue middleware, JsValue callback) {
+-  bool called = false;
++// trough@2: `run` feeds values through the middleware in order; `wrap` adapts one middleware
++// (sync return, returned promise, or a `done` callback) to a node-style callback.
+ 
+-  JsValue doneFn = JS.methodRest((JsValue _s, JsValue outArgs) => {
+-    if (called) {
+-      return JS.undefined();
++JsValue wrap(JsValue middleware, JsValue callback) {
++  bool called = false;
++  JsValue done = JS.staticRest((JsValue output) => {
++    if (!called) {
++      called = true;
++      JS.apply(callback, JS.undefined(), output);
+     }
+-    called = true;
+-    JS.apply(callback, JS.undefined(), outArgs);
+     return JS.undefined();
+   });
+-
+-  JsValue thenFn = JS.method1((JsValue _s, JsValue value) => {
+-    JS.call(doneFn, JS.undefined(), NULL, value);
+-    return JS.undefined();
+-  });
+-
+-  return JS.methodRest((JsValue self, JsValue parameters) => {
+-    JsValue[] params = copyArray(parameters);
+-    bool fnExpectsCallback = JS.number(middleware["length"]) > params.length;
+-    if (fnExpectsCallback) {
+-      params.push(doneFn);
+-    }
++  JsValue then = (JsValue value) => {
++    JsValue? nothing = null;
++    return JS.call(done, JS.undefined(), nothing, value);
++  };
++  return JS.staticRest((JsValue args) => {
++    JsValue parameters = JS.invoke(Array, "from", args);
++    bool fnExpectsCallback = JS.number(JS.get(middleware, "length")) > parameters.length;
++    if (fnExpectsCallback) JS.invoke(parameters, "push", done);
+     JsValue result = JS.undefined();
+     try {
+-      result = JS.apply(middleware, self, params);
++      result = JS.apply(middleware, JS.undefined(), parameters);
+     } catch (JsValue exception) {
+-      if (fnExpectsCallback && called) {
+-        throw exception;
+-      }
+-      JS.call(doneFn, JS.undefined(), exception);
+-      return JS.undefined();
++      if (fnExpectsCallback && called) throw exception;
++      return JS.call(done, JS.undefined(), exception);
+     }
+     if (!fnExpectsCallback) {
+-      if (result.truthy() && JS.get(result, "then").truthy() && isFn(JS.get(result, "then"))) {
+-        JS.invoke(result, "then", thenFn, doneFn);
+-      } else if (isErrorInstance(result)) {
+-        JS.call(doneFn, JS.undefined(), result);
++      JsValue resultThen = JS.and(result, JS.get(result, "then"));
++      if (resultThen.truthy() && isFn(JS.get(result, "then"))) {
++        JS.invoke(result, "then", then, done);
++      } else if (JS.invoke(JS.get(Error, "prototype"), "isPrototypeOf", result).truthy()) {
++        JS.call(done, JS.undefined(), result);
+       } else {
+-        JS.call(thenFn, JS.undefined(), result);
++        JS.call(then, JS.undefined(), result);
+       }
+     }
+     return JS.undefined();
+   });
+ }
+ 
+-JsValue troughRun(JsValue self, JsValue args) {
+-  JsValue[] values = copyArray(args);
+-  JsValue callback = values.pop();
+-  if (!isFn(callback)) {
+-    throwType("Expected function as last argument, not " + JS.string(callback));
+-  }
+-  int middlewareIndex = -1;
+-  JsValue[] middleware = JS.assume(JS.get(self, "fns"));
++// `[null, ...list]`
++JsValue withNull(JsValue list) {
++  JsValue? nothing = null;
++  return JS.invoke(JS.array(nothing), "concat", list);
++}
+ 
+-  JsValue nextFn = JS.undefined();
+-  nextFn = JS.methodRest((JsValue _s, JsValue nextArgs) => {
+-    middlewareIndex = middlewareIndex + 1;
+-    JsValue fn = JS.undefined();
+-    if (middlewareIndex < middleware.length) {
+-      fn = middleware[middlewareIndex];
+-    }
+-    JsValue error = JS.undefined();
+-    JsValue[] output = [];
+-    int na = nextArgs.length.toInt();
+-    if (na > 0) {
+-      error = nextArgs[0];
+-      output = sliceArgs(nextArgs, 1);
+-    }
+-    if (error.truthy()) {
+-      JS.call(callback, JS.undefined(), error);
+-      return JS.undefined();
+-    }
+-    JsValue[] currentValues = values;
+-    int index = -1;
+-    int vlen = currentValues.length;
+-    while (true) {
+-      index = index + 1;
+-      if (index >= vlen) {
+-        break;
+-      }
+-      JsValue slot = JS.undefined();
+-      if (index < output.length) {
+-        slot = output[index];
++export JsValue trough() {
++  JsValue fns = JS.array();
++  JsValue pipeline = JS.undefined();
++  pipeline = JS.object(
++    "run", JS.staticRest((JsValue args) => {
++      JsValue values = JS.invoke(Array, "from", args);
++      float middlewareIndex = -1;
++      JsValue callback = JS.invoke(values, "pop");
++      if (!isFn(callback)) {
++        throw JS.construct(TypeError, "Expected function as last argument, not " + callback);
+       }
+-      if (JS.isNullish(slot)) {
+-        output[index] = currentValues[index];
++      JsValue next = JS.undefined();
++      next = JS.staticRest((JsValue nextArgs) => {
++        middlewareIndex++;
++        JsValue fn = fns[middlewareIndex];
++        JsValue error = nextArgs[0];
++        if (error.truthy()) {
++          return JS.call(callback, JS.undefined(), error);
++        }
++        JsValue output = JS.invoke(JS.invoke(Array, "from", nextArgs), "slice", 1.0);
++        for (float index = 0; index < values.length; index++) {
++          if (JS.isNullish(output[index])) output[index] = values[index];
++        }
++        values = output;
++        if (fn.truthy()) {
++          JS.apply(wrap(fn, next), JS.undefined(), output);
++        } else {
++          JS.apply(callback, JS.undefined(), withNull(output));
++        }
++        return JS.undefined();
++      });
++      JS.apply(next, JS.undefined(), withNull(values));
++      return JS.undefined();
++    }),
++    "use", (JsValue middelware) => {
++      if (!isFn(middelware)) {
++        throw JS.construct(TypeError, "Expected `middelware` to be a function, not " + middelware);
+       }
++      JS.invoke(fns, "push", middelware);
++      return pipeline;
+     }
+-    values = output;
+-    if (isFn(fn)) {
+-      JsValue wrapped = wrapMiddleware(fn, nextFn);
+-      JS.apply(wrapped, JS.undefined(), output);
+-    } else {
+-      JsValue[] packed = copyArray(output);
+-      JS.call(JS.get(packed, "unshift"), packed, NULL);
+-      JS.apply(callback, JS.undefined(), packed);
+-    }
+-    return JS.undefined();
+-  });
+-
+-  JsValue[] start = copyArray(values);
+-  JS.call(JS.get(start, "unshift"), start, NULL);
+-  JS.apply(nextFn, JS.undefined(), start);
+-  return JS.undefined();
+-}
+-
+-JsValue troughUse(JsValue self, JsValue middleware) {
+-  if (!isFn(middleware)) {
+-    throwType("Expected `middelware` to be a function, not " + JS.string(middleware));
+-  }
+-  JsValue[] functions = JS.assume(JS.get(self, "fns"));
+-  functions.push(middleware);
+-  return self;
+-}
+-
+-JsValue troughRunMethod = JS.methodRest(troughRun);
+-JsValue troughUseMethod = JS.method1(troughUse);
+-
+-export JsValue trough() {
+-  JsValue pipeline = JS.object();
+-  JsValue[] middleware = [];
+-  JS.set(pipeline, "fns", middleware);
+-  JS.set(pipeline, "run", troughRunMethod);
+-  JS.set(pipeline, "use", troughUseMethod);
++  );
+   return pipeline;
+ }
+diff -ruN a/src/vfile.lil b/src/vfile.lil
+--- a/src/vfile.lil	2026-09-23 20:40:44.556511650 +0000
++++ b/src/vfile.lil	2026-09-23 20:40:44.633309652 +0000
+@@ -1,35 +1,81 @@
+-import { Error, JSON, Object, TextDecoder, TypeError, globalThis, isUint8Array } from "./host.lil";
+-
+-string[] pathFields = "history path basename stem extname dirname".split(" ");
+-JsValue messagePrototype = JS.object();
+-
+-bool includesField(string field) {
+-  return pathFields.includes(field);
+-}
+-
+-bool isUrl(JsValue value) {
+-  return !JS.isNullish(value) && JS.typeOf(value) == "object" && JS.in("href", value) &&
+-    JS.get(value, "href").truthy() && JS.in("protocol", value) && JS.get(value, "protocol").truthy() &&
+-    JS.isUndefined(JS.get(value, "auth"));
+-}
+-
+-string cwd() {
+-  JsValue processValue = JS.get(globalThis, "process");
+-  if (processValue.truthy() && JS.typeOf(JS.get(processValue, "cwd")) == "function") {
+-    return JS.string(JS.call(JS.get(processValue, "cwd"), processValue));
+-  }
+-  return "/";
+-}
+-
+-string pathBasename(string path, string extension) {
+-  int start = 0;
+-  int end = -1;
+-  int index = path.length;
++import {
++  Error,
++  JSON,
++  Object,
++  TextDecoder,
++  TypeError,
++  globalThis,
++  defineMembers,
++  finishClass,
++  isFn,
++  isUint8Array,
++  requireNew
++} from "./host.lil";
++
++// vfile@6 (browser minpath / minurl, Node-aware minproc) and vfile-message@4 over host objects.
++
++extern class VFileView {
++  JsValue cwd;
++  JsValue data;
++  JsValue history;
++  JsValue messages;
++  JsValue value;
++  JsValue path;
++  JsValue basename;
++  JsValue dirname;
++  JsValue extname;
++  JsValue stem;
++}
++
++extern class VFileMessageView {
++  JsValue ancestors;
++  JsValue cause;
++  JsValue place;
++  JsValue position;
++  JsValue ruleId;
++  JsValue source;
++  JsValue start;
++  JsValue end;
++  JsValue line;
++  JsValue column;
++  JsValue message;
++  JsValue stack;
++  JsValue name;
++  JsValue file;
++  JsValue fatal;
++}
++
++extern class VFileUrlView {
++  JsValue href;
++  JsValue protocol;
++  JsValue auth;
++  JsValue hostname;
++  JsValue pathname;
++}
++
++JsValue order = JS.array("history", "path", "basename", "stem", "extname", "dirname");
++
++// ---------------------------------------------------------------- minpath (browser)
++
++bool isSlash(JsValue path, float index) {
++  return JS.strictEqual(JS.invoke(path, "codePointAt", index), 47.0);
++}
++
++void assertPath(JsValue path) {
++  if (!(path is string)) {
++    throw JS.construct(TypeError, "Path must be a string. Received " + JS.invoke(JSON, "stringify", path));
++  }
++}
++
++JsValue basename(JsValue path, JsValue extname) {
++  float start = 0;
++  float end = -1;
++  float index = path.length;
+   bool seenNonSlash = false;
+-  if (extension.length == 0 || extension.length > path.length) {
++  if (JS.isUndefined(extname) || extname.length == 0.0 || extname.length > path.length) {
+     while (index > 0) {
+-      index = index - 1;
+-      if (path.charAt(index) == "/") {
++      index--;
++      if (isSlash(path, index)) {
+         if (seenNonSlash) {
+           start = index + 1;
+           break;
+@@ -39,15 +85,14 @@
+         end = index + 1;
+       }
+     }
+-    if (end < 0) return "";
+-    return path.slice(start, end);
++    return if (end < 0) { "" } else { JS.invoke(path, "slice", start, end) };
+   }
+-  if (extension == path) return "";
+-  int firstNonSlashEnd = -1;
+-  int extensionIndex = extension.length - 1;
++  if (JS.strictEqual(extname, path)) return "";
++  float firstNonSlashEnd = -1;
++  float extnameIndex = extname.length - 1;
+   while (index > 0) {
+-    index = index - 1;
+-    if (path.charAt(index) == "/") {
++    index--;
++    if (isSlash(path, index)) {
+       if (seenNonSlash) {
+         start = index + 1;
+         break;
+@@ -57,12 +102,12 @@
+         seenNonSlash = true;
+         firstNonSlashEnd = index + 1;
+       }
+-      if (extensionIndex > -1) {
+-        if (path.charAt(index) == extension.charAt(extensionIndex)) {
+-          extensionIndex = extensionIndex - 1;
+-          if (extensionIndex < 0) end = index;
++      if (extnameIndex > -1) {
++        if (JS.strictEqual(JS.invoke(path, "codePointAt", index), JS.invoke(extname, "codePointAt", extnameIndex))) {
++          extnameIndex--;
++          if (extnameIndex < 0) end = index;
+         } else {
+-          extensionIndex = -1;
++          extnameIndex = -1;
+           end = firstNonSlashEnd;
+         }
+       }
+@@ -73,547 +118,458 @@
+   } else if (end < 0) {
+     end = path.length;
+   }
+-  return path.slice(start, end);
++  return JS.invoke(path, "slice", start, end);
+ }
+ 
+-string pathDirname(string path) {
+-  if (path.length == 0) return ".";
+-  int end = -1;
+-  int index = path.length;
++JsValue dirname(JsValue path) {
++  if (path.length == 0.0) return ".";
++  float end = -1;
++  float index = path.length;
+   bool unmatchedSlash = false;
+   while (index > 1) {
+-    index = index - 1;
+-    if (path.charAt(index) == "/") {
++    index--;
++    if (isSlash(path, index)) {
+       if (unmatchedSlash) {
+         end = index;
+         break;
+       }
+-    } else if (!unmatchedSlash) {
++    } else {
+       unmatchedSlash = true;
+     }
+   }
+-  if (end < 0) {
+-    if (path.charAt(0) == "/") return "/";
+-    return ".";
+-  }
+-  if (end == 1 && path.charAt(0) == "/") return "//";
+-  return path.slice(0, end);
++  return if (end < 0) {
++    if (isSlash(path, 0)) { "/" } else { "." }
++  } else {
++    if (end == 1 && isSlash(path, 0)) { "//" } else { JS.invoke(path, "slice", 0.0, end) }
++  };
+ }
+ 
+-string pathExtname(string path) {
+-  int index = path.length;
+-  int end = -1;
+-  int startPart = 0;
+-  int startDot = -1;
+-  int preDotState = 0;
++JsValue extname(JsValue path) {
++  float index = path.length;
++  float end = -1;
++  float startPart = 0;
++  float startDot = -1;
++  float preDotState = 0;
+   bool unmatchedSlash = false;
+   while (index > 0) {
+-    index = index - 1;
+-    string character = path.charAt(index);
+-    if (character == "/") {
++    index--;
++    JsValue code = JS.invoke(path, "codePointAt", index);
++    if (JS.strictEqual(code, 47.0)) {
+       if (unmatchedSlash) {
+         startPart = index + 1;
+         break;
+       }
+-    } else {
+-      if (end < 0) {
+-        unmatchedSlash = true;
+-        end = index + 1;
+-      }
+-      if (character == ".") {
+-        if (startDot < 0) {
+-          startDot = index;
+-        } else if (preDotState != 1) {
+-          preDotState = 1;
+-        }
+-      } else if (startDot > -1) {
+-        preDotState = -1;
++      continue;
++    }
++    if (end < 0) {
++      unmatchedSlash = true;
++      end = index + 1;
++    }
++    if (JS.strictEqual(code, 46.0)) {
++      if (startDot < 0) {
++        startDot = index;
++      } else {
++        preDotState = 1;
+       }
++    } else if (startDot > -1) {
++      preDotState = -1;
+     }
+   }
+-  if (startDot < 0 || end < 0 || preDotState == 0 || preDotState == 1 && startDot == end - 1 && startDot == startPart + 1) {
+-    return "";
+-  }
+-  return path.slice(startDot, end);
+-}
+-
+-string normalizePath(string path, bool allowAboveRoot) {
+-  string result = "";
+-  int lastSegmentLength = 0;
+-  int lastSlash = -1;
+-  int dots = 0;
+-  int index = 0;
+-  while (index <= path.length) {
+-    string character = "/";
+-    if (index < path.length) character = path.charAt(index);
+-    if (character == "/") {
+-      if (lastSlash == index - 1 || dots == 1) {
+-      } else if (lastSlash != index - 1 && dots == 2) {
+-        bool ordinaryParent = result.length < 2 || lastSegmentLength != 2 || result.charAt(result.length - 1) != "." || result.charAt(result.length - 2) != ".";
+-        if (ordinaryParent) {
+-          if (result.length > 2) {
+-            int previousSlash = result.lastIndexOf("/");
+-            if (previousSlash != result.length - 1) {
+-              if (previousSlash < 0) {
+-                result = "";
+-                lastSegmentLength = 0;
+-              } else {
+-                result = result.slice(0, previousSlash);
+-                lastSegmentLength = result.length - 1 - result.lastIndexOf("/");
++  return if (startDot < 0 || end < 0 || preDotState == 0 || preDotState == 1 && startDot == end - 1 && startDot == startPart + 1) {
++    ""
++  } else {
++    JS.invoke(path, "slice", startDot, end)
++  };
++}
++
++JsValue normalizeString(JsValue path, bool allowAboveRoot) {
++  JsValue result = "";
++  float lastSegmentLength = 0;
++  float lastSlash = -1;
++  float dots = 0;
++  JsValue code = JS.undefined();
++  for (float index = 0; index <= path.length; index++) {
++    if (index < path.length) {
++      code = JS.invoke(path, "codePointAt", index);
++    } else if (JS.strictEqual(code, 47.0)) {
++      break;
++    } else {
++      code = 47.0;
++    }
++    if (JS.strictEqual(code, 47.0)) {
++      if (lastSlash != index - 1 && dots != 1) {
++        if (dots == 2) {
++          if (result.length < 2 || lastSegmentLength != 2 || !JS.strictEqual(JS.invoke(result, "codePointAt", result.length - 1), 46.0) || !JS.strictEqual(JS.invoke(result, "codePointAt", result.length - 2), 46.0)) {
++            if (result.length > 2) {
++              float lastSlashIndex = JS.number(JS.invoke(result, "lastIndexOf", "/"));
++              if (lastSlashIndex != result.length - 1) {
++                if (lastSlashIndex < 0) {
++                  result = "";
++                  lastSegmentLength = 0;
++                } else {
++                  result = JS.invoke(result, "slice", 0.0, lastSlashIndex);
++                  lastSegmentLength = result.length - 1 - JS.number(JS.invoke(result, "lastIndexOf", "/"));
++                }
++                lastSlash = index;
++                dots = 0;
++                continue;
+               }
++            } else if (result.length > 0) {
++              result = "";
++              lastSegmentLength = 0;
+               lastSlash = index;
+               dots = 0;
+-              index = index + 1;
+               continue;
+             }
+-          } else if (result.length > 0) {
+-            result = "";
+-            lastSegmentLength = 0;
+-            lastSlash = index;
+-            dots = 0;
+-            index = index + 1;
+-            continue;
+           }
+-        }
+-        if (allowAboveRoot) {
+-          if (result.length > 0) {
+-            result = result + "/..";
+-          } else {
+-            result = "..";
++          if (allowAboveRoot) {
++            result = if (result.length > 0) { JS.add(result, "/..") } else { ".." };
++            lastSegmentLength = 2;
+           }
+-          lastSegmentLength = 2;
+-        }
+-      } else {
+-        string segment = path.slice(lastSlash + 1, index);
+-        if (result.length > 0) {
+-          result = result + "/" + segment;
+         } else {
+-          result = segment;
++          JsValue segment = JS.invoke(path, "slice", lastSlash + 1, index);
++          result = if (result.length > 0) { JS.add(JS.add(result, "/"), segment) } else { segment };
++          lastSegmentLength = index - lastSlash - 1;
+         }
+-        lastSegmentLength = index - lastSlash - 1;
+       }
+       lastSlash = index;
+       dots = 0;
+-    } else if (character == "." && dots > -1) {
+-      dots = dots + 1;
++    } else if (JS.strictEqual(code, 46.0) && dots > -1) {
++      dots++;
+     } else {
+       dots = -1;
+     }
+-    index = index + 1;
+   }
+   return result;
+ }
+ 
+-string normalize(string path) {
+-  bool absolute = path.charAt(0) == "/";
+-  string value = normalizePath(path, !absolute);
+-  if (value.length == 0 && !absolute) value = ".";
+-  if (value.length > 0 && path.charAt(path.length - 1) == "/") value = value + "/";
+-  if (absolute) return "/" + value;
+-  return value;
+-}
+-
+-void assertPathValue(JsValue value) {
+-  if (JS.typeOf(value) != "string") {
+-    throw JS.construct(
+-      TypeError,
+-      "Path must be a string. Received " + JS.string(JS.invoke(JSON, "stringify", value))
+-    );
+-  }
+-}
+-
+-string pathJoin(JsValue leftValue, JsValue rightValue) {
+-  assertPathValue(leftValue);
+-  assertPathValue(rightValue);
+-  string left = JS.string(leftValue);
+-  string right = JS.string(rightValue);
+-  string joined = "";
+-  if (left.length > 0) joined = left;
+-  if (right.length > 0) {
+-    if (joined.length > 0) {
+-      joined = joined + "/" + right;
+-    } else {
+-      joined = right;
+-    }
+-  }
+-  if (joined.length == 0) return ".";
+-  return normalize(joined);
++JsValue join(JsValue left, JsValue right) {
++  assertPath(left);
++  assertPath(right);
++  JsValue joined = if (!left.truthy()) { right } else { if (right.truthy()) { JS.add(JS.add(left, "/"), right) } else { left } };
++  if (!joined.truthy()) return ".";
++  bool absolute = isSlash(joined, 0);
++  JsValue value = normalizeString(joined, !absolute);
++  if (value.length == 0.0 && !absolute) value = ".";
++  if (value.length > 0 && isSlash(joined, joined.length - 1)) value = JS.add(value, "/");
++  return if (absolute) { JS.add("/", value) } else { value };
+ }
+ 
+-void assertPart(JsValue part, string name) {
+-  if (part.truthy() && JS.invoke(part, "includes", "/").truthy()) {
+-    throw JS.construct(Error, "`" + name + "` cannot be a path: did not expect `/`");
+-  }
+-}
++// ---------------------------------------------------------------- minurl (browser)
+ 
+-void assertNonEmpty(JsValue part, string name) {
+-  if (!part.truthy()) throw JS.construct(Error, "`" + name + "` cannot be empty");
++bool isUrl(JsValue value) {
++  VFileUrlView url = JS.assume(value);
++  return value.truthy() && JS.typeOf(value) == "object" && JS.in("href", value) && url.href.truthy() &&
++    JS.in("protocol", value) && url.protocol.truthy() && JS.isUndefined(url.auth);
+ }
+ 
+-JsValue getPath(JsValue self) {
+-  JsValue history = JS.get(self, "history");
+-  if (history.length.toInt() == 0) return JS.undefined();
+-  return history[history.length.toInt() - 1];
++void throwCode(string message, string code) {
++  throw JS.invoke(Object, "assign", JS.construct(TypeError, message), JS.object("code", code));
+ }
+ 
+-void setPath(JsValue self, JsValue value) {
+-  JsValue path = value;
+-  if (isUrl(path)) {
+-    if (JS.string(JS.get(path, "protocol")) != "file:") {
+-      JsValue error = JS.construct(TypeError, "The URL must be of scheme file");
+-      error["code"] = "ERR_INVALID_URL_SCHEME";
+-      throw error;
+-    }
+-    if (JS.string(JS.get(path, "hostname")).length > 0) {
+-      JsValue error = JS.construct(TypeError, "File URL host must be \"localhost\" or empty on darwin");
+-      error["code"] = "ERR_INVALID_FILE_URL_HOST";
+-      throw error;
+-    }
+-    string pathname = JS.string(JS.get(path, "pathname"));
+-    int index = 0;
+-    while (index < pathname.length) {
+-      if (pathname.charAt(index) == "%" && pathname.charAt(index + 1) == "2" &&
+-          (pathname.charAt(index + 2) == "F" || pathname.charAt(index + 2) == "f")) {
+-        JsValue error = JS.construct(TypeError, "File URL path must not include encoded / characters");
+-        error["code"] = "ERR_INVALID_FILE_URL_PATH";
+-        throw error;
++JsValue urlToPath(JsValue value) {
++  VFileUrlView url = JS.assume(value);
++  if (!JS.strictEqual(url.protocol, "file:")) {
++    throwCode("The URL must be of scheme file", "ERR_INVALID_URL_SCHEME");
++  }
++  if (!JS.strictEqual(url.hostname, "")) {
++    throwCode("File URL host must be \"localhost\" or empty on darwin", "ERR_INVALID_FILE_URL_HOST");
++  }
++  JsValue pathname = url.pathname;
++  for (float index = 0; index < pathname.length; index++) {
++    if (JS.strictEqual(JS.invoke(pathname, "codePointAt", index), 37.0) && JS.strictEqual(JS.invoke(pathname, "codePointAt", index + 1), 50.0)) {
++      JsValue third = JS.invoke(pathname, "codePointAt", index + 2);
++      if (JS.strictEqual(third, 70.0) || JS.strictEqual(third, 102.0)) {
++        throwCode("File URL path must not include encoded / characters", "ERR_INVALID_FILE_URL_PATH");
+       }
+-      index = index + 1;
+     }
+-    path = JS.invoke(globalThis, "decodeURIComponent", pathname);
+-  }
+-  assertNonEmpty(path, "path");
+-  if (!JS.strictEqual(getPath(self), path)) {
+-    JsValue[] history = JS.assume(JS.get(self, "history"));
+-    history.push(path);
+   }
++  return JS.invoke(globalThis, "decodeURIComponent", pathname);
+ }
+ 
+-JsValue pointFromPlace(JsValue place) {
+-  if (place.truthy() && JS.in("start", place)) return JS.get(place, "start");
+-  return place;
++// ---------------------------------------------------------------- vfile-message
++
++JsValue point(JsValue value) {
++  VFileMessageView p = JS.assume(value);
++  return JS.add(JS.add(index(JS.and(value, p.line)), ":"), index(JS.and(value, p.column)));
+ }
+ 
+-string stringifyPoint(JsValue point) {
+-  if (!point.truthy()) return "1:1";
+-  JsValue line = JS.get(point, "line");
+-  JsValue column = JS.get(point, "column");
+-  string lineText = "1";
+-  string columnText = "1";
+-  if (JS.typeOf(line) == "number" && line.truthy()) lineText = JS.string(line);
+-  if (JS.typeOf(column) == "number" && column.truthy()) columnText = JS.string(column);
+-  return lineText + ":" + columnText;
++JsValue position(JsValue value) {
++  VFileMessageView p = JS.assume(value);
++  return JS.add(JS.add(point(JS.and(value, p.start)), "-"), point(JS.and(value, p.end)));
+ }
+ 
+-string stringifyPlace(JsValue place) {
+-  if (!place.truthy()) return "1:1";
+-  if (JS.in("start", place) || JS.in("end", place)) {
+-    return stringifyPoint(JS.get(place, "start")) + "-" + stringifyPoint(JS.get(place, "end"));
+-  }
+-  return stringifyPoint(place);
++JsValue index(JsValue value) {
++  return if (value.truthy() && value is float) { value } else { 1.0 };
++}
++
++JsValue stringifyPosition(JsValue value) {
++  VFileMessageView p = JS.assume(value);
++  return if (!value.truthy() || JS.typeOf(value) != "object") {
++    ""
++  } else {
++    if (JS.in("position", value) || JS.in("type", value)) {
++      position(p.position)
++    } else {
++      if (JS.in("start", value) || JS.in("end", value)) {
++        position(value)
++      } else {
++        if (JS.in("line", value) || JS.in("column", value)) { point(value) } else { "" }
++      }
++    }
++  };
+ }
+ 
+-JsValue createMessage(JsValue causeOrReason, JsValue optionsOrPlace, JsValue origin) {
+-  if (JS.typeOf(optionsOrPlace) == "string") {
++JsValue createMessage(JsValue proto, JsValue causeOrReason, JsValue optionsOrPlace, JsValue origin) {
++  if (optionsOrPlace is string) {
+     origin = optionsOrPlace;
+     optionsOrPlace = JS.undefined();
+   }
+   JsValue reason = "";
+-  JsValue options = JS.object();
+   bool legacyCause = false;
+-  if (optionsOrPlace.truthy()) {
+-    if (JS.in("line", optionsOrPlace) && JS.in("column", optionsOrPlace)) {
+-      options["place"] = optionsOrPlace;
+-    } else if (JS.in("start", optionsOrPlace) && JS.in("end", optionsOrPlace)) {
+-      options["place"] = optionsOrPlace;
+-    } else if (JS.in("type", optionsOrPlace)) {
+-      options["ancestors"] = JS.array(optionsOrPlace);
+-      options["place"] = JS.get(optionsOrPlace, "position");
++  VFileMessageView options = JS.assume(
++    if (!optionsOrPlace.truthy()) {
++      JS.object()
+     } else {
+-      options = JS.invoke(Object, "assign", options, optionsOrPlace);
++      if (JS.in("line", optionsOrPlace) && JS.in("column", optionsOrPlace) || JS.in("start", optionsOrPlace) && JS.in("end", optionsOrPlace)) {
++        JS.object("place", optionsOrPlace)
++      } else {
++        if (JS.in("type", optionsOrPlace)) {
++          JS.object("ancestors", JS.array(optionsOrPlace), "place", JS.get(optionsOrPlace, "position"))
++        } else {
++          JS.invoke(Object, "assign", JS.object(), optionsOrPlace)
++        }
++      }
+     }
+-  }
+-  if (JS.typeOf(causeOrReason) == "string") {
+-    reason = JS.string(causeOrReason);
+-  } else if (!JS.get(options, "cause").truthy() && causeOrReason.truthy()) {
++  );
++  if (causeOrReason is string) {
++    reason = causeOrReason;
++  } else if (!options.cause.truthy() && causeOrReason.truthy()) {
+     legacyCause = true;
+     reason = JS.get(causeOrReason, "message");
+-    options["cause"] = causeOrReason;
++    options.cause = causeOrReason;
+   }
+-  if (!JS.get(options, "ruleId").truthy() && !JS.get(options, "source").truthy() && JS.typeOf(origin) == "string") {
+-    string originText = JS.string(origin);
+-    int colon = originText.indexOf(":");
+-    if (colon < 0) {
+-      options["ruleId"] = originText;
++  if (!options.ruleId.truthy() && !options.source.truthy() && origin is string) {
++    JsValue colon = JS.invoke(origin, "indexOf", ":");
++    if (JS.strictEqual(colon, -1.0)) {
++      options.ruleId = origin;
+     } else {
+-      options["source"] = originText.slice(0, colon);
+-      options["ruleId"] = originText.slice(colon + 1);
++      options.source = JS.invoke(origin, "slice", 0.0, colon);
++      options.ruleId = JS.invoke(origin, "slice", JS.add(colon, 1.0));
+     }
+   }
+-  JsValue ancestors = JS.get(options, "ancestors");
+-  if (!JS.get(options, "place").truthy() && ancestors.truthy() && ancestors.length.toInt() > 0) {
+-    JS.set(options, "place", JS.get(ancestors[ancestors.length.toInt() - 1], "position"));
+-  }
+-  JsValue place = JS.get(options, "place");
+-  JsValue start = place;
+-  if (place.truthy() && JS.in("start", place)) start = JS.get(place, "start");
+-  JsValue message = JS.construct(Error);
+-  JS.invoke(Object, "setPrototypeOf", message, messagePrototype);
+-  message["ancestors"] = JS.undefined();
+-  if (ancestors.truthy()) message["ancestors"] = ancestors;
+-  message["cause"] = JS.undefined();
+-  if (JS.get(options, "cause").truthy()) message["cause"] = JS.get(options, "cause");
+-  message["column"] = JS.undefined();
+-  if (start.truthy()) message["column"] = JS.get(start, "column");
+-  message["fatal"] = JS.undefined();
+-  message["file"] = "";
+-  message["message"] = reason;
+-  message["line"] = JS.undefined();
+-  if (start.truthy()) message["line"] = JS.get(start, "line");
+-  message["name"] = stringifyPlace(place);
+-  message["place"] = JS.undefined();
+-  if (place.truthy()) message["place"] = place;
+-  message["reason"] = reason;
+-  message["ruleId"] = JS.undefined();
+-  if (JS.get(options, "ruleId").truthy()) message["ruleId"] = JS.get(options, "ruleId");
+-  message["source"] = JS.undefined();
+-  if (JS.get(options, "source").truthy()) message["source"] = JS.get(options, "source");
+-  message["actual"] = JS.undefined();
+-  message["expected"] = JS.undefined();
+-  message["note"] = JS.undefined();
+-  message["url"] = JS.undefined();
+-  if (legacyCause && JS.typeOf(JS.get(JS.get(options, "cause"), "stack")) == "string") {
+-    message["stack"] = JS.get(JS.get(options, "cause"), "stack");
+-  } else {
+-    message["stack"] = "";
+-  }
+-  return message;
++  JsValue ancestors = options.ancestors;
++  if (!options.place.truthy() && ancestors.truthy()) {
++    JsValue parent = ancestors[ancestors.length - 1];
++    if (parent.truthy()) options.place = JS.get(parent, "position");
++  }
++  JsValue place = options.place;
++  JsValue start = if (place.truthy() && JS.in("start", place)) { JS.get(place, "start") } else { place };
++  VFileMessageView startFields = JS.assume(start);
++  JsValue cause = options.cause;
++  return JS.invoke(Object, "assign", JS.invoke(Object, "setPrototypeOf", JS.construct(Error), proto), JS.object(
++    "ancestors", JS.or(ancestors, JS.undefined()),
++    "cause", JS.or(cause, JS.undefined()),
++    "column", if (start.truthy()) { startFields.column } else { JS.undefined() },
++    "fatal", JS.undefined(),
++    "file", "",
++    "message", reason,
++    "line", if (start.truthy()) { startFields.line } else { JS.undefined() },
++    "name", JS.or(stringifyPosition(place), "1:1"),
++    "place", JS.or(place, JS.undefined()),
++    "reason", reason,
++    "ruleId", JS.or(options.ruleId, JS.undefined()),
++    "source", JS.or(options.source, JS.undefined()),
++    "stack", if (legacyCause && cause.truthy() && JS.get(cause, "stack") is string) { JS.get(cause, "stack") } else { "" },
++    "actual", JS.undefined(),
++    "expected", JS.undefined(),
++    "note", JS.undefined(),
++    "url", JS.undefined()
++  ));
+ }
+ 
+-JsValue vfileConstruct(JsValue self, JsValue value) {
+-  if (JS.isUndefined(self)) {
+-    throw JS.construct(TypeError, "Class constructor VFile cannot be invoked without 'new'");
+-  }
+-  JsValue options = value;
+-  if (!value.truthy()) {
+-    options = JS.object();
+-  } else if (isUrl(value)) {
+-    options = JS.object("path", value);
+-  } else if (JS.typeOf(value) == "string" || isUint8Array(value)) {
+-    options = JS.object("value", value);
+-  }
+-  string initialCwd = cwd();
+-  if (JS.in("cwd", options)) initialCwd = "";
+-  JS.set(self, "cwd", initialCwd);
+-  JS.set(self, "data", JS.object());
+-  JS.set(self, "history", JS.array());
+-  JS.set(self, "messages", JS.array());
+-  int index = 0;
+-  while (index < pathFields.length) {
+-    string field = JS.string(pathFields[index]);
+-    if (JS.in(field, options) && !JS.isNullish(JS.get(options, field)) && !JS.isUndefined(JS.get(options, field))) {
+-      JsValue fieldValue = JS.get(options, field);
+-      if (field == "history") fieldValue = JS.invoke(fieldValue, "slice");
+-      JS.set(self, field, fieldValue);
+-    }
+-    index = index + 1;
+-  }
+-  for (string field in options) {
+-    if (!includesField(field)) JS.set(self, field, JS.get(options, field));
+-  }
+-  return self;
+-}
++export JsValue VFileMessage = JS.method3((JsValue self, JsValue reason, JsValue options, JsValue origin) => {
++  requireNew(self, "VFileMessage");
++  return createMessage(JS.get(VFileMessage, "prototype"), reason, options, origin);
++});
++finishClass(VFileMessage, "VFileMessage");
++JS.invoke(Object, "setPrototypeOf", VFileMessage, Error);
++JS.invoke(Object, "assign", JS.invoke(Object, "setPrototypeOf", JS.get(VFileMessage, "prototype"), JS.get(Error, "prototype")), JS.object(
++  "file", "",
++  "name", "",
++  "reason", "",
++  "message", "",
++  "stack", "",
++  "column", JS.undefined(),
++  "line", JS.undefined(),
++  "ancestors", JS.undefined(),
++  "cause", JS.undefined(),
++  "fatal", JS.undefined(),
++  "place", JS.undefined(),
++  "ruleId", JS.undefined(),
++  "source", JS.undefined()
++));
+ 
+-JsValue vfileMessage(JsValue self, JsValue reason, JsValue options, JsValue origin) {
+-  JsValue message = createMessage(reason, options, origin);
+-  JsValue path = getPath(self);
+-  if (path.truthy()) {
+-    message["name"] = JS.string(path) + ":" + JS.string(JS.get(message, "name"));
+-    message["file"] = path;
+-  }
+-  message["fatal"] = false;
+-  JsValue[] messages = JS.assume(JS.get(self, "messages"));
+-  messages.push(message);
+-  return message;
++export JsValue createVFileMessage(JsValue reason, JsValue options) {
++  return createMessage(JS.get(VFileMessage, "prototype"), reason, options, JS.undefined());
+ }
+ 
+-JsValue vfileFail(JsValue self, JsValue reason, JsValue options, JsValue origin) {
+-  JsValue message = JS.call(JS.get(self, "message"), self, reason, options, origin);
+-  message["fatal"] = true;
+-  throw message;
+-}
++// ---------------------------------------------------------------- VFile
++
+ 
+-JsValue vfileInfo(JsValue self, JsValue reason, JsValue options, JsValue origin) {
+-  JsValue message = JS.call(JS.get(self, "message"), self, reason, options, origin);
+-  message["fatal"] = JS.undefined();
+-  return message;
++void assertPart(JsValue part, string name) {
++  if (part.truthy() && JS.invoke(part, "includes", "/").truthy()) {
++    throw JS.construct(Error, "`" + name + "` cannot be a path: did not expect `/`");
++  }
+ }
+ 
+-JsValue vfileToString(JsValue self, JsValue encoding) {
+-  JsValue value = JS.get(self, "value");
+-  if (JS.isUndefined(value)) return "";
+-  if (JS.typeOf(value) == "string") return value;
+-  JsValue selectedEncoding = JS.undefined();
+-  if (encoding.truthy()) selectedEncoding = encoding;
+-  JsValue decoder = JS.construct(TextDecoder, selectedEncoding);
+-  return JS.invoke(decoder, "decode", value);
++void assertNonEmpty(JsValue part, string name) {
++  if (!part.truthy()) {
++    throw JS.construct(Error, "`" + name + "` cannot be empty");
++  }
+ }
+ 
+-export JsValue createVFileMessage(JsValue reason, JsValue options) {
+-  return createMessage(reason, options, JS.undefined());
++void assertPathSet(JsValue path, string name) {
++  if (!path.truthy()) {
++    throw JS.construct(Error, "Setting `" + name + "` requires `path` to be set too");
++  }
+ }
+ 
+-export JsValue VFileMessage = JS.method3((JsValue self, JsValue reason, JsValue options, JsValue origin) => {
+-  if (JS.isUndefined(self)) {
+-    throw JS.construct(TypeError, "Class constructor VFileMessage cannot be invoked without 'new'");
++export JsValue VFile = JS.method1((JsValue self, JsValue value) => {
++  requireNew(self, "VFile");
++  JsValue options = if (!value.truthy()) {
++    JS.object()
++  } else {
++    if (isUrl(value)) {
++      JS.object("path", value)
++    } else {
++      if (value is string || isUint8Array(value)) { JS.object("value", value) } else { value }
++    }
++  };
++  // minproc: Node's `process.cwd()` where there is one, `/` in a browser.
++  JsValue process = JS.get(globalThis, "process");
++  JS.invoke(Object, "assign", self, JS.object(
++    "cwd", if (JS.in("cwd", options)) { "" } else { if (process.truthy() && isFn(JS.get(process, "cwd"))) { JS.invoke(process, "cwd") } else { "/" } },
++    "data", JS.object(),
++    "history", JS.array(),
++    "messages", JS.array()
++  ));
++  for (float index = 0; index < order.length; index++) {
++    string field = JS.assume(order[index]);
++    if (JS.in(field, options)) {
++      JsValue given = JS.get(options, field);
++      if (!JS.isNullish(given)) JS.set(self, field, if (field == "history") { JS.invoke(given, "slice") } else { given });
++    }
++  }
++  for (string field in options) {
++    if (!JS.invoke(order, "includes", field).truthy()) JS.set(self, field, JS.get(options, field));
+   }
+-  return createMessage(reason, options, origin);
++  return JS.undefined();
+ });
+-messagePrototype = JS.get(VFileMessage, "prototype");
+-JS.invoke(Object, "setPrototypeOf", VFileMessage, Error);
+-JS.invoke(Object, "setPrototypeOf", messagePrototype, JS.get(Error, "prototype"));
+-JS.invoke(Object, "defineProperty", VFileMessage, "name", JS.object("configurable", true, "value", "VFileMessage"));
+-messagePrototype["file"] = "";
+-messagePrototype["name"] = "";
+-messagePrototype["reason"] = "";
+-messagePrototype["message"] = "";
+-messagePrototype["stack"] = "";
+-messagePrototype["column"] = JS.undefined();
+-messagePrototype["line"] = JS.undefined();
+-messagePrototype["ancestors"] = JS.undefined();
+-messagePrototype["cause"] = JS.undefined();
+-messagePrototype["fatal"] = JS.undefined();
+-messagePrototype["place"] = JS.undefined();
+-messagePrototype["ruleId"] = JS.undefined();
+-messagePrototype["source"] = JS.undefined();
+-JS.invoke(Object, "defineProperty", VFileMessage, "prototype", JS.object("writable", false));
+-
+-JsValue prototype = JS.undefined();
+-export JsValue VFile = JS.method1(vfileConstruct);
+-prototype = JS.get(VFile, "prototype");
+-JS.invoke(Object, "setPrototypeOf", prototype, JS.get(Object, "prototype"));
+-JS.invoke(Object, "defineProperty", VFile, "name", JS.object("configurable", true, "value", "VFile"));
+-
+-void defineVFileAccessor(string name, JsValue descriptor) {
+-  JS.invoke(Object, "defineProperty", prototype, name, descriptor);
+-  JsValue getter = JS.get(descriptor, "get");
+-  JsValue setter = JS.get(descriptor, "set");
+-  JS.invoke(Object, "defineProperty", getter, "name", JS.object("configurable", true, "value", "get " + name));
+-  JS.invoke(Object, "defineProperty", setter, "name", JS.object("configurable", true, "value", "set " + name));
+-}
+-
+-void defineVFileMethod(string name, JsValue method) {
+-  JS.invoke(Object, "defineProperty", method, "name", JS.object("configurable", true, "value", name));
+-  JS.invoke(
+-    Object,
+-    "defineProperty",
+-    prototype,
+-    name,
+-    JS.object("configurable", true, "writable", true, "value", method)
+-  );
+-}
++finishClass(VFile, "VFile");
+ 
+-JsValue failMethod = JS.method3(vfileFail);
+-JsValue infoMethod = JS.method3(vfileInfo);
+-JsValue messageMethod = JS.method3(vfileMessage);
+-JsValue toStringMethod = JS.method1(vfileToString);
+-defineVFileAccessor("basename", JS.object(
+-  "configurable", true,
+-  "get", JS.method0((JsValue self) => {
+-    JsValue path = getPath(self);
+-    if (JS.typeOf(path) == "string") return pathBasename(JS.string(path), "");
+-    return JS.undefined();
+-  }),
+-  "set", JS.method1((JsValue self, JsValue value) => {
+-    assertNonEmpty(value, "basename");
+-    assertPart(value, "basename");
+-    JsValue dirname = JS.get(self, "dirname");
+-    JsValue directory = "";
+-    if (dirname.truthy()) directory = dirname;
+-    setPath(self, pathJoin(directory, value));
+-    return JS.undefined();
+-  })
+-));
+-defineVFileAccessor("dirname", JS.object(
+-  "configurable", true,
+-  "get", JS.method0((JsValue self) => {
+-    JsValue path = getPath(self);
+-    if (JS.typeOf(path) == "string") return pathDirname(JS.string(path));
+-    return JS.undefined();
++JsValue vfileMembers = JS.object(
++  "basename", JS.object(
++    "get", JS.method0((JsValue self) => {
++      VFileView file = JS.assume(self);
++      return if (file.path is string) { basename(file.path, JS.undefined()) } else { JS.undefined() };
++    }),
++    "set", JS.method1((JsValue self, JsValue value) => {
++      VFileView file = JS.assume(self);
++      assertNonEmpty(value, "basename");
++      assertPart(value, "basename");
++      file.path = join(JS.or(file.dirname, ""), value);
++      return JS.undefined();
++    })
++  ),
++  "dirname", JS.object(
++    "get", JS.method0((JsValue self) => {
++      VFileView file = JS.assume(self);
++      return if (file.path is string) { dirname(file.path) } else { JS.undefined() };
++    }),
++    "set", JS.method1((JsValue self, JsValue value) => {
++      VFileView file = JS.assume(self);
++      assertPathSet(file.basename, "dirname");
++      file.path = join(JS.or(value, ""), file.basename);
++      return JS.undefined();
++    })
++  ),
++  "extname", JS.object(
++    "get", JS.method0((JsValue self) => {
++      VFileView file = JS.assume(self);
++      return if (file.path is string) { extname(file.path) } else { JS.undefined() };
++    }),
++    "set", JS.method1((JsValue self, JsValue value) => {
++      VFileView file = JS.assume(self);
++      assertPart(value, "extname");
++      assertPathSet(file.dirname, "extname");
++      if (value.truthy()) {
++        if (!JS.strictEqual(JS.invoke(value, "codePointAt", 0.0), 46.0)) {
++          throw JS.construct(Error, "`extname` must start with `.`");
++        }
++        if (JS.invoke(value, "includes", ".", 1.0).truthy()) {
++          throw JS.construct(Error, "`extname` cannot contain multiple dots");
++        }
++      }
++      file.path = join(file.dirname, JS.add(file.stem, JS.or(value, "")));
++      return JS.undefined();
++    })
++  ),
++  "path", JS.object(
++    "get", JS.method0((JsValue self) => {
++      VFileView file = JS.assume(self);
++      return file.history[file.history.length - 1];
++    }),
++    "set", JS.method1((JsValue self, JsValue path) => {
++      VFileView file = JS.assume(self);
++      if (isUrl(path)) path = urlToPath(path);
++      assertNonEmpty(path, "path");
++      if (!JS.strictEqual(file.path, path)) JS.invoke(file.history, "push", path);
++      return JS.undefined();
++    })
++  ),
++  "stem", JS.object(
++    "get", JS.method0((JsValue self) => {
++      VFileView file = JS.assume(self);
++      return if (file.path is string) { basename(file.path, file.extname) } else { JS.undefined() };
++    }),
++    "set", JS.method1((JsValue self, JsValue value) => {
++      VFileView file = JS.assume(self);
++      assertNonEmpty(value, "stem");
++      assertPart(value, "stem");
++      file.path = join(JS.or(file.dirname, ""), JS.add(value, JS.or(file.extname, "")));
++      return JS.undefined();
++    })
++  ),
++  "fail", JS.method3((JsValue self, JsValue reason, JsValue options, JsValue origin) => {
++    VFileMessageView message = JS.assume(JS.invoke(self, "message", reason, options, origin));
++    message.fatal = true;
++    throw message;
++    return message;
+   }),
+-  "set", JS.method1((JsValue self, JsValue value) => {
+-    JsValue basename = JS.get(self, "basename");
+-    if (!basename.truthy()) throw JS.construct(Error, "Setting `dirname` requires `path` to be set too");
+-    JsValue directory = "";
+-    if (value.truthy()) directory = value;
+-    setPath(self, pathJoin(directory, basename));
+-    return JS.undefined();
+-  })
+-));
+-defineVFileAccessor("extname", JS.object(
+-  "configurable", true,
+-  "get", JS.method0((JsValue self) => {
+-    JsValue path = getPath(self);
+-    if (JS.typeOf(path) == "string") return pathExtname(JS.string(path));
+-    return JS.undefined();
++  "info", JS.method3((JsValue self, JsValue reason, JsValue options, JsValue origin) => {
++    VFileMessageView message = JS.assume(JS.invoke(self, "message", reason, options, origin));
++    message.fatal = JS.undefined();
++    return message;
+   }),
+-  "set", JS.method1((JsValue self, JsValue value) => {
+-    JsValue extname = value;
+-    assertPart(extname, "extname");
+-    JsValue dirname = JS.get(self, "dirname");
+-    if (!dirname.truthy()) throw JS.construct(Error, "Setting `extname` requires `path` to be set too");
+-    if (extname.truthy()) {
+-      if (JS.number(JS.invoke(extname, "codePointAt", 0.0)).toInt() != 46) {
+-        throw JS.construct(Error, "`extname` must start with `.`");
+-      }
+-      if (JS.invoke(extname, "includes", ".", 1.0).truthy()) {
+-        throw JS.construct(Error, "`extname` cannot contain multiple dots");
+-      }
+-    }
+-    string extension = "";
+-    if (extname.truthy()) extension = JS.string(extname);
+-    setPath(self, pathJoin(dirname, JS.string(JS.get(self, "stem")) + extension));
+-    return JS.undefined();
+-  })
+-));
+-defineVFileAccessor("path", JS.object(
+-  "configurable", true,
+-  "get", JS.method0((JsValue self) => getPath(self)),
+-  "set", JS.method1((JsValue self, JsValue value) => { setPath(self, value); return JS.undefined(); })
+-));
+-defineVFileAccessor("stem", JS.object(
+-  "configurable", true,
+-  "get", JS.method0((JsValue self) => {
+-    JsValue path = getPath(self);
+-    if (JS.typeOf(path) == "string") return pathBasename(JS.string(path), JS.string(JS.get(self, "extname")));
+-    return JS.undefined();
++  "message", JS.method3((JsValue self, JsValue reason, JsValue options, JsValue origin) => {
++    VFileView file = JS.assume(self);
++    VFileMessageView message = JS.assume(createMessage(JS.get(VFileMessage, "prototype"), reason, options, origin));
++    if (file.path.truthy()) {
++      message.name = JS.add(JS.add(file.path, ":"), message.name);
++      message.file = file.path;
++    }
++    message.fatal = false;
++    JS.invoke(file.messages, "push", message);
++    return message;
+   }),
+-  "set", JS.method1((JsValue self, JsValue value) => {
+-    assertNonEmpty(value, "stem");
+-    assertPart(value, "stem");
+-    string stem = JS.string(value);
+-    JsValue dirname = JS.get(self, "dirname");
+-    string directory = "";
+-    if (dirname.truthy()) directory = JS.string(dirname);
+-    JsValue extname = JS.get(self, "extname");
+-    string extension = "";
+-    if (extname.truthy()) extension = JS.string(extname);
+-    setPath(self, pathJoin(directory, stem + extension));
+-    return JS.undefined();
++  "toString", JS.method1((JsValue self, JsValue encoding) => {
++    VFileView file = JS.assume(self);
++    return if (JS.isUndefined(file.value)) {
++      ""
++    } else {
++      if (file.value is string) { file.value } else { JS.invoke(JS.construct(TextDecoder, JS.or(encoding, JS.undefined())), "decode", file.value) }
++    };
+   })
+-));
+-defineVFileMethod("fail", failMethod);
+-defineVFileMethod("info", infoMethod);
+-defineVFileMethod("message", messageMethod);
+-defineVFileMethod("toString", toStringMethod);
+-JS.invoke(Object, "defineProperty", VFile, "prototype", JS.object("writable", false));
+-
+-export bool looksLikeAVFile(JsValue value) {
+-  if (!value.truthy() || JS.typeOf(value) != "object") return false;
+-  return JS.in("message", value) && JS.in("messages", value);
+-}
+-
+-export JsValue asVFile(JsValue value) {
+-  if (looksLikeAVFile(value)) return value;
+-  return JS.construct(VFile, value);
+-}
++);
++defineMembers(vfileMembers, JS.get(VFile, "prototype"));

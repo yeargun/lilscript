@@ -720,6 +720,7 @@ impl ResolvedPolicy {
                 "keep_published_function_names":language.abi.keep_published_function_names,
                 "pristine_builtins":language.assumptions.pristine_builtins,
                 "pure_property_reads":language.assumptions.pure_property_reads,
+                "unconstructed_callbacks":language.assumptions.unconstructed_callbacks,
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,

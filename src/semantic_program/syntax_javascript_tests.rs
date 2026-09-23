@@ -1384,6 +1384,49 @@ fn a_method_reached_through_its_receiver_is_a_method_call() {
 }
 
 #[test]
+fn a_lambda_that_may_be_constructed_stays_a_function() {
+    let source = r#"
+        extern void show(JsValue value);
+        JsValue M = JS.method1((JsValue self, JsValue a) => JS.get(a, "x"));
+        export JsValue P = JS.get(M, "prototype");
+        export JsValue make(JsValue v) { return JS.construct(M, v); }
+        JsValue direct = JS.method1((JsValue self, JsValue a) => JS.get(a, "y"));
+        show(JS.box(JS.typeOf(P)));
+        show(make(JS.object("x", JS.object("y", 1))));
+        show(JS.call(direct, JS.undefined(), JS.object("y", 2)));
+    "#;
+    let javascript = compile_with(source, PRISTINE);
+    // The adapter's result was constructible with a prototype: a lambda that
+    // escapes stays a function; one only ever called may be an arrow.
+    assert!(javascript.contains("=function("), "{javascript}");
+    assert_eq!(run(&javascript, SHOW), "\"object\"\n{\"y\":1}\n2\n");
+}
+
+#[test]
+fn a_declared_unconstructed_callback_may_be_an_arrow_where_it_escapes() {
+    let source = r#"
+        extern void show(JsValue value);
+        JsValue M = JS.method1((JsValue self, JsValue a) => JS.get(a, "x"));
+        export JsValue make(JsValue v) { return JS.construct(M, v); }
+        export JsValue escape() { return JS.method1((JsValue self, JsValue a) => JS.get(a, "z")); }
+        show(make(JS.object("x", JS.object("y", 1))));
+        show(JS.call(escape(), JS.undefined(), JS.object("z", 3)));
+    "#;
+    let sound = compile_with(source, PRISTINE);
+    assert!(sound.contains("return function(") && !sound.contains("=>"), "{sound}");
+    let assumed = compile_with(
+        source,
+        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\nassume_unconstructed_callbacks=true\n",
+    );
+    // The escaping lambda may be an arrow; the one the program constructs
+    // through its variable stays a function.
+    assert!(assumed.contains("=>") && assumed.contains("=function("), "{assumed}");
+    for javascript in [sound, assumed] {
+        assert_eq!(run(&javascript, SHOW), "{\"y\":1}\n3\n");
+    }
+}
+
+#[test]
 fn a_literal_root_constant_is_its_literal_where_it_is_initialized() {
     let source = r#"
         extern void show(JsValue value);
@@ -1475,6 +1518,36 @@ fn a_host_value_assumed_to_be_a_struct_is_read_by_field_name() {
     // and the view is a value, so the store stays in it.
     assert!(javascript.contains(".type,") && javascript.contains(".flag]"), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "true\nfalse\nfalse\n");
+}
+
+#[test]
+fn a_large_constant_string_table_is_decoded_from_two_strings() {
+    // Sorted keys sharing prefixes, as a named-entity table has; one key a
+    // numeric string, which JavaScript enumerates first either way.
+    let mut entries = vec!["\"7\": \"seven\"".to_string()];
+    for index in 0..80 {
+        entries.push(format!("entity{index:02}: \"value {index} ü\""));
+    }
+    let source = format!(
+        r#"
+        extern void show(JsValue value);
+        extern JsValue Object;
+        JsValue table = object {{ {} }};
+        export JsValue get(string key) {{ return table[key]; }}
+        show(get("entity42"));
+        show(get("7"));
+        show(JS.invoke(Object, "keys", table));
+        "#,
+        entries.join(", ")
+    );
+    let javascript = compile_with(&source, PRISTINE);
+    assert!(!javascript.contains("entity42:") && javascript.contains(".split("), "{javascript}");
+    let mut keys = vec!["\"7\"".to_string()];
+    keys.extend((0..80).map(|index| format!("\"entity{index:02}\"")));
+    assert_eq!(
+        run(&javascript, SHOW),
+        format!("\"value 42 ü\"\n\"seven\"\n[{}]\n", keys.join(","))
+    );
 }
 
 #[test]

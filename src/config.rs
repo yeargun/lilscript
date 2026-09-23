@@ -61,8 +61,9 @@ pub enum AggregateLayout {
 pub struct CompilerConfig {
     /// Worker threads and codec workers the compiler may use; the CLI flags `--jobs` and `--codec-jobs` override these.
     pub resources: CompilerResourceConfig,
-    /// The compiler route a build takes: `legacy` (the default) or
-    /// `semantic`. The CLI flag `--backend` overrides it.
+    /// The compiler route a build takes: `semantic` (the default) or
+    /// `legacy`, the route it replaces, kept only until every port builds on
+    /// the semantic route (plan 014). The CLI flag `--backend` overrides it.
     pub backend: CompilerBackend,
 }
 
@@ -70,8 +71,8 @@ pub struct CompilerConfig {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CompilerBackend {
-    #[default]
     Legacy,
+    #[default]
     Semantic,
 }
 
@@ -243,6 +244,7 @@ impl ProjectConfig {
                     assumptions: JavaScriptUnsafeAssumptions {
                         pristine_builtins: self.javascript.assume_pristine_builtins,
                         pure_property_reads: self.javascript.assume_pure_property_reads,
+                        unconstructed_callbacks: self.javascript.assume_unconstructed_callbacks,
                         numeric_lengths: self
                             .javascript
                             .compression_enabled(CompressionDecision::LengthToNumberElision),
@@ -1737,6 +1739,14 @@ pub struct JavaScriptConfig {
     /// it is false by default because a library cannot assume its callers'
     /// objects have no accessors.
     pub assume_pure_property_reads: bool,
+    /// A function made from a lambda is never constructed (with `new`) nor its
+    /// `prototype` read, except through the variable the program declared it
+    /// in, the way Terser's `unsafe_arrows` assumes. A lambda that ignores its
+    /// receiver may then be an arrow wherever it goes; one the program
+    /// constructs or whose `prototype` it reads through its variable stays a
+    /// function either way. False by default: a library cannot know what its
+    /// callers do with its callbacks.
+    pub assume_unconstructed_callbacks: bool,
     /// Keep the exact source `name` of every function whose name some code
     /// could read, not only of published exports. Off by default: an exported
     /// function always keeps its source name (D2), while an internal function
@@ -1817,6 +1827,7 @@ impl Default for JavaScriptConfig {
             aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,
             assume_pure_property_reads: false,
+            assume_unconstructed_callbacks: false,
             keep_function_names: false,
             keep_published_function_names: true,
             strip_console: true,
@@ -4128,12 +4139,12 @@ optimization_level = 15
     /// The migration route is an explicit per-project choice; an unknown
     /// route is refused rather than silently taking the default.
     #[test]
-    fn the_compiler_backend_is_selected_explicitly_and_defaults_to_legacy() {
+    fn the_compiler_backend_is_selected_explicitly_and_defaults_to_semantic() {
         let default: ProjectConfig = toml::from_str("").unwrap();
-        assert_eq!(default.compiler.backend, CompilerBackend::Legacy);
-        let semantic: ProjectConfig =
-            toml::from_str("[compiler]\nbackend = \"semantic\"\n").unwrap();
-        assert_eq!(semantic.compiler.backend, CompilerBackend::Semantic);
+        assert_eq!(default.compiler.backend, CompilerBackend::Semantic);
+        let legacy: ProjectConfig =
+            toml::from_str("[compiler]\nbackend = \"legacy\"\n").unwrap();
+        assert_eq!(legacy.compiler.backend, CompilerBackend::Legacy);
         assert!(toml::from_str::<ProjectConfig>("[compiler]\nbackend = \"fast\"\n").is_err());
     }
 }

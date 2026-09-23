@@ -48,6 +48,9 @@ pub struct JavaScriptAbiContract {
 pub struct JavaScriptUnsafeAssumptions {
     pub pristine_builtins: bool,
     pub pure_property_reads: bool,
+    /// Code outside the program never constructs a function the program
+    /// hands it, nor reads its `prototype` (Terser's `unsafe_arrows`).
+    pub unconstructed_callbacks: bool,
     /// A host value's `length` is an int32 Number, as it is for strings,
     /// arrays, typed arrays, `arguments` and functions: size-first's
     /// length-to-number decision.
@@ -347,6 +350,7 @@ impl ProjectConfig {
             assumptions: JavaScriptUnsafeAssumptions {
                 pristine_builtins: self.javascript.assume_pristine_builtins,
                 pure_property_reads: self.javascript.assume_pure_property_reads,
+                unconstructed_callbacks: self.javascript.assume_unconstructed_callbacks,
                 numeric_lengths: self
                     .javascript
                     .compression_enabled(crate::config::CompressionDecision::LengthToNumberElision),

@@ -8,11 +8,15 @@
 //!   twice), or a member chain of them when property reads are pure.
 //! * A receiver adapter (`function(f){return function(a,…){return
 //!   f(this,a,…)}}`, how `JS.methodN` hands a lambda its `this`) applied
-//!   to an arrow that never reads that receiver is the arrow without it.
-//!   The adapter passes exactly its own parameters, so the arrow keeps the
-//!   same count and the same `length`. Only construction differs: an arrow
-//!   cannot be `new`ed, and a lambda that ignores its receiver has nothing
-//!   a construction could give it.
+//!   to an arrow that never reads that receiver is the lambda without it.
+//!   The adapter passes exactly its own parameters, so the lambda keeps the
+//!   same count and the same `length`. The adapter's result is an ordinary
+//!   function: constructible, with a `prototype`. The lambda stays an arrow
+//!   only where every use of it is a direct call, so nothing can construct
+//!   it or read its prototype. Anywhere else it becomes a `function`
+//!   expression, which `new` treats as the adapter's result was treated (a
+//!   returned object replaces the fresh one), when its body reads no
+//!   lexical `this` or `arguments`; otherwise the adapter stays.
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
@@ -124,10 +128,69 @@ impl Module {
         }
         let reach = self.reach(budget)?;
         let mut references = vec![0usize; self.bindings.len()];
+        // Who uses each expression, and which declaration holds each value.
+        let mut parents: Vec<Option<ExprId>> = vec![None; self.expressions.len()];
         for &(id, _) in &reach.expressions {
             budget.work(Analysis, 1)?;
             if let Expr::Binding(binding) = self.expressions[id.index()] {
                 references[binding.index()] += 1;
+            }
+            let _ = self.expressions[id.index()].visit_children(|child| {
+                parents[child.index()] = Some(id);
+                Ok::<_, ()>(())
+            });
+        }
+        let mut declared: Vec<Option<BindingId>> = vec![None; self.expressions.len()];
+        let mut written = vec![false; self.bindings.len()];
+        for &region in &reach.regions {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                match *statement {
+                    Statement::Let {
+                        binding,
+                        value: Some(value),
+                    } => declared[value.index()] = Some(binding),
+                    Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
+                        written[binding.index()] = true
+                    }
+                    _ => {}
+                }
+            }
+        }
+        for &(id, _) in &reach.expressions {
+            if let Expr::Assign { target, .. } = self.expressions[id.index()] {
+                if let Expr::Binding(binding) = self.expressions[target.index()] {
+                    written[binding.index()] = true;
+                }
+            }
+        }
+        for export in &self.exports {
+            written[export.binding.index()] = true;
+        }
+        // A read that is the callee of a call.
+        let called = |module: &Self, id: ExprId| {
+            parents[id.index()].is_some_and(|parent| {
+                matches!(module.expressions[parent.index()], Expr::Call { callee, .. } if callee == id)
+            })
+        };
+        let mut calls_only = vec![true; self.bindings.len()];
+        // Constructed, or its `prototype` read, through a binding.
+        let mut constructed = vec![false; self.bindings.len()];
+        for &(id, _) in &reach.expressions {
+            if let Expr::Binding(binding) = self.expressions[id.index()] {
+                if !called(self, id) {
+                    calls_only[binding.index()] = false;
+                }
+                constructed[binding.index()] |= parents[id.index()].is_some_and(|parent| {
+                    match &self.expressions[parent.index()] {
+                        Expr::Construct { callee, .. } => *callee == id,
+                        Expr::Member {
+                            object,
+                            property: Property::Named(name),
+                        } => *object == id && name == "prototype",
+                        _ => false,
+                    }
+                });
             }
         }
         let mut rewrites = Vec::new();
@@ -159,15 +222,61 @@ impl Module {
             {
                 continue;
             }
-            rewrites.push((id, argument, function));
+            // Only ever called: an arrow. Otherwise constructible, when its
+            // body allows it.
+            let direct = called(self, id)
+                || declared[id.index()]
+                    .is_some_and(|binding| !written[binding.index()] && calls_only[binding.index()])
+                || self.unconstructed_callbacks
+                    && !declared[id.index()].is_some_and(|binding| constructed[binding.index()]);
+            if !direct && self.lexical_receiver(function, budget)? {
+                continue;
+            }
+            rewrites.push((id, argument, function, direct));
         }
-        for &(call, argument, function) in &rewrites {
+        for &(call, argument, function, direct) in &rewrites {
+            self.functions[function.index()].arrow = direct;
             self.functions[function.index()].parameters.remove(0);
             // The call is the arrow now; its old node no longer creates it.
             self.expressions[call.index()] = Expr::Function(function);
             self.expressions[argument.index()] = Expr::Literal(Literal::Undefined);
         }
         Ok(rewrites.len())
+    }
+
+    /// Whether an arrow's body reads the enclosing `this` or `arguments`, or
+    /// calls `super`, through itself or a nested arrow.
+    fn lexical_receiver(&self, function: FunctionId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+        let mut regions = vec![self.functions[function.index()].body];
+        let mut expressions = Vec::new();
+        while let Some(region) = regions.pop() {
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                statement.visit_expressions(|root| expressions.push(root));
+                statement.visit_regions(|child| regions.push(child));
+                if let Statement::Function { .. } = statement {
+                    // A declaration is never an arrow: its body has its own.
+                }
+            }
+            while let Some(id) = expressions.pop() {
+                budget.work(Analysis, 1)?;
+                let expression = &self.expressions[id.index()];
+                match expression {
+                    Expr::This | Expr::SuperCall { .. } => return Ok(true),
+                    Expr::Host(name) if name == "arguments" => return Ok(true),
+                    Expr::Function(nested) if self.functions[nested.index()].arrow => {
+                        regions.push(self.functions[nested.index()].body);
+                    }
+                    Expr::Function(_) | Expr::Class { .. } => continue,
+                    _ => {}
+                }
+                let _ = expression.visit_children(|child| {
+                    expressions.push(child);
+                    Ok::<_, ()>(())
+                });
+            }
+        }
+        Ok(false)
     }
 
     /// `function(f){return function(a,…){return f(this,a,…)}}`: the count

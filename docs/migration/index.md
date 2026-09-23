@@ -2335,6 +2335,68 @@ What remains, +1,371 Brotli:
 - unified (+489);
 - react-markdown's own layer: `hast-util-to-jsx-runtime`, `property-information`, `style-to-js` and `vfile`.
 
+### 013 batch 29: constant string tables as data (2026-09-23)
+
+A measurement by a parallel session (splice experiments on b70 artifacts, `~/lilscript-work/data-encoding/`) found that re-encoding large constant tables removes novelty every codec pays for. Closure, Terser, Oxc and esbuild re-encode no data. This batch lands the string-table family (`encode_string_tables`, [tables.rs](../../src/structured_js/tables.rs)):
+- **The rule.** A root `let t={k:"v",…}` of at least 64 string entries prints as a call to one shared, hoisted decoder over two strings. The keys are front-coded (one digit for the prefix shared with the key before, then the rest), the values are joined, and both use a separator no entry contains.
+- **When it applies.** The encoded text must be at most 85% of the literal's.
+- **Semantics.** The decoder builds the same plain object: the same keys stored in the same order, so the same enumeration order (integer-like keys first, as in the literal), and the same values. It runs once, where the literal was evaluated, and calls only pristine `String` and `Array` methods. A `__proto__` key, a duplicate key, a lone surrogate or a protected literal keeps the table as it was.
+- **micromark's 2,125 named character references** (upstream's own object literal): −1,094 Brotli on micromarklil, whose three markdown ports now all win both objectives.
+
+| Brotli objective | micromarklil | mdast-util-from-markdownlil | remark-parselil |
+|---|---|---|---|
+| Batch 27 (b73) | 23,163 | 24,155 | 24,199 |
+| **Batch 29 (b74)** | **22,069** | **23,065** | **23,111** |
+| Bar | 22,696 | 23,151 | 23,171 |
+
+Numeric tables (katexlil's `fontMetricsData`: columnar integers measured −2,529 Brotli) are the family's next member; each objective prefers a different numeric encoding.
+
+### 013 batch 30: a lambda the program may construct stays a function (2026-09-23)
+
+Batch 26 dissolved a receiver adapter around a lambda that ignores its receiver into a bare arrow. The adapter's result is an ordinary function: constructible, with a `prototype`. unifiedlil's rewrite found the wrong program this made (`M=a=>a.x`, then `new M(v)`: "M is not a constructor").
+- **The rule now** ([calls.rs](../../src/structured_js/calls.rs)):
+  - The lambda is an arrow only where every use of it is a direct call.
+  - Anywhere else it becomes a `function` expression, when its body reads no lexical `this` or `arguments` (checked through nested arrows). `new` treats such a function the way it treated the adapter's result: a returned object replaces the fresh one.
+  - Otherwise the adapter stays.
+- **A declared contract assumption,** `assume_unconstructed_callbacks` (config, contract, policy receipt; Terser's `unsafe_arrows`). A port whose callbacks are only ever called says so, and its escaping lambdas may be arrows. One the program constructs, or whose `prototype` it reads through its variable, stays a function either way. It is false by default.
+- **Where it applies.** micromark's state functions are called by its tokenizer and by extensions. The sound default costs micromarklil +81 Brotli; the micromark ports and react-markdownlil declare the assumption.
+- **Tests:** `a_lambda_that_may_be_constructed_stays_a_function` and `a_declared_unconstructed_callback_may_be_an_arrow_where_it_escapes`.
+
+### 013 batch 31: initialization order sees what cannot call code (2026-09-23)
+
+The markdown ports still named some of micromark's token types (`M="lineEnding"`) after batch 26. Three gaps in [quiet.rs](../../src/structured_js/quiet.rs) and the declaration pruning caused it:
+- **Bare reads of standard globals.** An unused `export JsValue ObjectRef = Object;` left `Object;` at the root. Such a read is now pruned under pristine builtins, like a bare literal.
+- **What counts as quiet.** A root statement that cannot call program code is quiet, even if it could throw: a throw stops the root before any function runs. That covers a binding read, a standard global under pristine builtins, an inert value, a regular expression literal, and a call of a function factory with such arguments. A factory is a declared function or a `let` arrow, never reassigned, whose whole body returns a function expression, such as the receiver adapters and micromark's character-class factory `n=a=>b=>…`.
+- **The measure.** mdast-util-from-markdownlil went from 22,387 to 22,293 Brotli, and remark-parselil from 22,415 to 22,382.
+- **What remains.** The 18 token types still named there are read by functions that a real root call can run before the constants are declared. A trace showed functions able to run from root statement 61, and constants declared at 76. Only effect summaries (013-T7.1) can prove that call does not reach them.
+
+### 013 batch 32: the react-markdown family wins; a config was holding react-markdownlil back (2026-09-23)
+
+Three more rewrites against upstream, each with its own differential harness. All passed with 0 mismatches, and the ports' suites pass:
+- **mdast-util-from-markdownlil's builder layer.**
+  - The handlers keep their stacks in closures, and the handler tables are literals in upstream's key order.
+  - It was +577 over upstream's layer and is now −119. 67,964 differential cases.
+  - remark-parselil takes the same files.
+- **unifiedlil** (unified, trough, extend, VFile): 4,205 Brotli against 4,425. 7,660 cases; 47 old divergences now match upstream.
+- **react-markdownlil's own layer:** jsx runtime, property information, style parsing, VFile. It was already 2,145 Brotli under upstream's layer and lost only through the linked graph; it is now 1,529 smaller still. Its compile went from 28 minutes to about 20 seconds (issue: one old module made the publication search compress whole candidates repeatedly).
+
+**react-markdownlil's config** set `assume_pristine_builtins = false`, with no recorded reason. That disabled every pristine-builtins edit on the port:
+- the `.call` fold;
+- array methods;
+- store folds;
+- the string tables.
+
+Its graph calls standard builtins as upstream does, so the port now assumes pristine builtins. Two other changes: `function_spelling = "function"` has no effect on the semantic route and goes, and the port declares `assume_unconstructed_callbacks`.
+
+| react-markdownlil browser build (b79) | Brotli | Raw |
+|---|---|---|
+| Rewritten family, config as shipped | 29,681 | 108,522 |
+| + pristine builtins | 27,394 | 97,972 |
+| + unconstructed callbacks | **27,248** | **95,550** |
+| Bar (upstream browser graph, Terser) | 31,082 | 117,674 |
+
+react-markdownlil's graph was regenerated from the rewritten siblings (69 modules). Verification: 120/120 on the development build, 85/91 official tests on the browser build (the same six development-only throws the Node production build has), and 0 differential mismatches in 3,000 cases on the browser, Node and closed builds.
+
 ### 013-T7: Closure ADVANCED parity
 
 The owner asked (2026-09-23) that the semantic route have every flattening and whole-program optimization of Closure Compiler's ADVANCED mode, generic and sound. The judges are Brotli under the Brotli objective and raw bytes under the raw objective. This task maps two things onto the semantic route and orders what is missing: Closure's ADVANCED pipeline, and the default route's typed optimizer.
@@ -2767,3 +2829,5 @@ Order of work:
 4. **At each milestone:** the fleet's suites on this host, receipts refreshed on that binary.
 
 Work in batches of four to eight changes per build (owner, 2026-09-06), with one verification pass and one ledger row per batch.
+
+**The semantic route is the default (owner, 2026-09-23).** The owner wants no legacy behaviour: the goal is the best compiler for size, at Closure ADVANCED and beyond. `CompilerBackend` now defaults to `semantic`, and every rebuilt port states `[compiler] backend = "semantic"` explicitly. The legacy route stays only as an explicit `backend = "legacy"` opt-out, for ports that do not yet build on the semantic route. Each such port is a debt to close in the compiler, and plan 014 then deletes the route. Legacy code is read as prior art only (013-T7's inventory), never reused.

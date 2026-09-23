@@ -204,16 +204,39 @@ impl Module {
             };
         }
         let statements = &self.regions[self.root.index()].statements;
+        // Root functions whose whole body returns a function expression (a
+        // receiver adapter, a closure factory): calling one runs no program
+        // code, it only creates a function.
+        let mut factories = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
+        for statement in statements {
+            let (binding, function) = match *statement {
+                Statement::Function { binding, function } => (binding, function),
+                // `let n=a=>b=>…`, never assigned again.
+                Statement::Let {
+                    binding,
+                    value: Some(value),
+                } if !written[binding.index()] => match self.expressions[value.index()] {
+                    Expr::Function(function) => (binding, function),
+                    _ => continue,
+                },
+                _ => continue,
+            };
+            let body = &self.regions[self.functions[function.index()].body.index()].statements;
+            if let [Statement::Return(Some(value))] = body[..] {
+                factories[binding.index()] = matches!(self.expressions[value.index()], Expr::Function(_));
+            }
+        }
         let mut runs_from = budget.filled(AllocationClass::Scratch, statements.len(), statements.len())?;
         let mut next = statements.len();
         for index in (0..statements.len()).rev() {
             budget.work(Analysis, 1)?;
+            // Quiet: cannot call program code. A read that throws (a global
+            // that is missing, a binding before its declaration) stops the
+            // root before any function could run, so it is quiet too.
             let quiet = match statements[index] {
                 Statement::Function { .. } | Statement::Let { value: None, .. } => true,
-                Statement::Let { value: Some(value), .. } => {
-                    matches!(self.expressions[value.index()], Expr::Binding(_))
-                        || self.standard_member(value)
-                        || self.inert_value(value, budget)?
+                Statement::Let { value: Some(value), .. } | Statement::Evaluate(value) => {
+                    self.creates_only(value, &factories, budget)?
                 }
                 _ => false,
             };
@@ -228,6 +251,54 @@ impl Module {
             created,
             owner,
             runs_from,
+        })
+    }
+
+    /// Whether evaluating `value` cannot call program code: a binding read, a
+    /// standard global (pristine builtins), an inert value, a call of a
+    /// function factory with such arguments, and arrays and objects of those.
+    fn creates_only(
+        &self,
+        value: ExprId,
+        factories: &[bool],
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        budget.work(Analysis, 1)?;
+        // A regular expression literal creates an object and calls nothing.
+        if matches!(self.expressions[value.index()], Expr::Binding(_) | Expr::Regex(_))
+            || self.pristine_builtins && self.standard_member(value)
+            || self.inert_value(value, budget)?
+        {
+            return Ok(true);
+        }
+        Ok(match &self.expressions[value.index()] {
+            Expr::Call {
+                callee, arguments, ..
+            } => {
+                let factory = matches!(self.expressions[callee.index()], Expr::Binding(binding) if factories[binding.index()]);
+                let mut quiet = factory;
+                for &argument in arguments {
+                    quiet = quiet && self.creates_only(argument, factories, budget)?;
+                }
+                quiet
+            }
+            Expr::Array(items) => {
+                let mut quiet = true;
+                for &item in items {
+                    quiet = quiet && self.creates_only(item, factories, budget)?;
+                }
+                quiet
+            }
+            Expr::Object(entries) => {
+                let mut quiet = true;
+                for (key, item) in entries {
+                    quiet = quiet
+                        && !matches!(key, Property::Computed(_))
+                        && self.creates_only(*item, factories, budget)?;
+                }
+                quiet
+            }
+            _ => false,
         })
     }
 

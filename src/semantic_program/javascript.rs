@@ -252,6 +252,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
         assumptions: JavaScriptUnsafeAssumptions {
             pristine_builtins: false,
             pure_property_reads: false,
+            unconstructed_callbacks: false,
             numeric_lengths: false,
         },
         effects: JavaScriptEffectPolicy {
@@ -500,6 +501,7 @@ fn form_with_demand(
     let mut module = js::Module::new_in(&mut phase)?;
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
+    module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
     // `for(let i=0;…)`: never larger in Brotli on the reference ports
     // (katexlil −33). `&&`/`||` statements stay off: they lost on three.
     module.loop_head_declarations = compact;
@@ -919,6 +921,14 @@ fn form_with_demand(
             if let (_, Some(map)) = formation.module.array_receiver_calls(formation.budget)? {
                 remap_alternatives(&mut formation.literal_alternatives, &map);
             }
+            // Large constant string tables as data: front-coded keys and
+            // joined values, decoded once where the literal stood.
+            let protected: Vec<js::ExprId> = formation
+                .literal_alternatives
+                .iter()
+                .map(|alternative| alternative.expression())
+                .collect();
+            formation.module.encode_string_tables(&protected, formation.budget)?;
             formation.module.drop_default_arguments(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)

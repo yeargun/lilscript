@@ -25,6 +25,7 @@ mod calls;
 mod declarations;
 mod root_constants;
 mod scalar_objects;
+mod tables;
 mod typed;
 pub(crate) mod delivery;
 pub mod extract;
@@ -1017,6 +1018,10 @@ pub struct Module {
     /// The contract assumes member reads run no code (Terser's
     /// `pure_getters`): reads commute with reads.
     pub pure_property_reads: bool,
+    /// The contract assumes code outside the program never constructs a
+    /// function it receives nor reads its `prototype` (Terser's
+    /// `unsafe_arrows`).
+    pub unconstructed_callbacks: bool,
     /// Parameters whose type excludes `undefined` (numbers, strings,
     /// booleans, enums, collections, class and struct instances, functions):
     /// a typed caller always passes a value, so only a host or erased caller
@@ -1163,8 +1168,9 @@ impl Module {
     /// code of the region to mention `x` and `v` does not: nothing before it
     /// can read `x`, and no hoisted declaration of the region mentions it, so
     /// no read meets the later declaration's temporal dead zone. With
-    /// `prunes`, a bare statement whose value is only a literal, a function
-    /// or a literal of those has no effect and goes. Returns the number of
+    /// `prunes`, a bare statement whose value is only a literal, a function,
+    /// a literal of those or (under pristine builtins) a standard global has
+    /// no effect and goes. Returns the number of
     /// edits.
     pub(crate) fn merge_declarations(
         &mut self,
@@ -1180,7 +1186,11 @@ impl Module {
             while prunes && index < self.regions[region].statements.len() {
                 budget.work(Analysis, 1)?;
                 if let Statement::Evaluate(value) = self.regions[region].statements[index] {
-                    if self.inert_value(value, budget)? {
+                    // A read of a standard global (`Object;`, left by an unused
+                    // alias) is as inert under pristine builtins.
+                    if self.inert_value(value, budget)?
+                        || self.pristine_builtins && self.standard_member(value)
+                    {
                         self.regions[region].statements.remove(index);
                         if root && index < self.root_modules.len() {
                             self.root_modules.remove(index);
@@ -3037,6 +3047,7 @@ impl Module {
             root: RegionId::new(0),
             pristine_builtins: false,
             pure_property_reads: false,
+            unconstructed_callbacks: false,
             defined_parameters: Vec::new(),
             binding_classes: Vec::new(),
             root_modules: vec![],

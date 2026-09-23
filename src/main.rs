@@ -59,8 +59,9 @@ struct Args {
     #[arg(long, value_enum, default_value_t = Target::Js)]
     target: Target,
 
-    /// Explicit migration backend, overriding `[compiler] backend`. The
-    /// semantic backend diagnoses unsupported input.
+    /// Compiler route, overriding `[compiler] backend`. The semantic backend
+    /// is the default and diagnoses unsupported input; `legacy` remains only
+    /// until every port builds on the semantic route.
     #[arg(long, value_enum)]
     backend: Option<Backend>,
 
