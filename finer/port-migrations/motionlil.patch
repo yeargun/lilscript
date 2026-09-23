@@ -907,7 +907,17 @@ diff -ru a/src/motion-utils/types/geometry.lil b/src/motion-utils/types/geometry
 diff -ru a/src/lilscript.toml b/src/lilscript.toml
 --- a/src/lilscript.toml
 +++ b/src/lilscript.toml
-@@ -20,3 +20,8 @@
+@@ -13,6 +13,9 @@
+ optimization_level = 15
+ cost_model = "brotli"
+ function_spelling = "arrow"
++# Motion runs against the platform's own builtins, as every other port here
++# declares: a class construction is then its literal (the store fold).
++assume_pristine_builtins = true
+ local_name_reserve = 48
+ 
+ [mangle]
+@@ -20,3 +23,8 @@
  properties = true
  exports = false
  pool_strings = true

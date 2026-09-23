@@ -347,7 +347,7 @@ impl Module {
 
     /// For every region, the statement that holds it: its region and index.
     /// A function body's parent is the statement creating the function.
-    fn region_parents(
+    pub(super) fn region_parents(
         &self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Vec<Option<(RegionId, usize)>>, AllocationError> {

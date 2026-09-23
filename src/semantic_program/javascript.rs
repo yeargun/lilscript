@@ -761,6 +761,10 @@ fn form_with_demand(
                 if formation.module.flatten_constant_objects(formation.budget)? != 0 {
                     formation.module.unobserve_called_names(formation.budget)?;
                 }
+                // Field initializers become their stores, for the fold to take.
+                if pristine {
+                    formation.module.inline_initializers(formation.budget)?;
+                }
                 // A literal that took its stores often has one reader left.
                 if pristine && formation.module.fold_object_stores(formation.budget)? != 0 {
                     formation.module.forward_single_uses(formation.budget)?;

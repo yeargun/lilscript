@@ -19,14 +19,14 @@ Each bar is the port's own declared baseline: the `baseline: true` row of its `s
 
 Brotli of the compiler output with the Brotli objective, raw bytes of the raw-objective build. Batches are listed in `docs/migration/index.md`.
 
-| Port | Start (`577d472d`) | Now (batch 9) | Bar | Gap |
+| Port | Start (`577d472d`) | Now (batch 10) | Bar | Gap |
 |---|---|---|---|---|
 | katexlil (complete `katex.esm.js`) | 65,727 | 64,886 | 63,044 | +1,842 |
 | markedlil (`marked.raw.js`) | 9,397 | 9,300 | 10,092 | **win −792** |
 | posthoglil (`posthog.raw.js`) | 5,952 | 5,620 | 5,622 | level (−2) |
 | jquerylil (`jquery.esm.js`, both with banners) | 33,593 | 29,555 | 27,445 | +2,110 |
 | zodlil (complete package: `dist/index.js` bundled, hand-written JS unminified) | open | 45,720 | 51,948 | **win −6,228** |
-| motionlil (`full.js`) | does not build | 52,893 | 41,032 | +11,861 |
+| motionlil (`full.js`) | does not build | 51,774 | 41,032 | +10,742 |
 
 | Raw objective | Start | Now (batch 9) | Bar | Gap |
 |---|---|---|---|---|

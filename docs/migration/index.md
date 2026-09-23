@@ -1734,6 +1734,31 @@ katexlil and jquerylil first had a raw build this batch (the port configurations
 
 **Verification.** 3,050 unit tests pass, including `a_raw_objective_reads_repeated_strings_from_constants_and_packs_string_arrays` and `a_contract_may_publish_names_without_reflecting_them`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9. The config schema is regenerated.
 
+### 013 batch 10: constructions through a field initializer are their literals (2026-09-23)
+
+A class construction forms a literal of field defaults and then calls the class's `init` with it. When `init` only stores its parameters (and literals) into fields, that call is the whole construction. motionlil has 78 such `init`s among 132, and its compiled core carried 47 of them, called 140 times: `Ya={test:null,…};G(Ya,…)`.
+- **Initializers become their stores.** [initializers.rs](../../src/structured_js/initializers.rs) runs under pristine builtins, before the store fold. It rewrites a call `f(o,v,…);` into `o.k=v;…` when:
+  - `f` is used only as such call statements;
+  - `f`'s body is default checks followed by stores of parameters or literals into its first parameter;
+  - the call directly follows `o`'s own literal, which has every stored key;
+  - no argument mentions `o`, arguments with effects are stored in their own order, and an argument nothing stores runs nothing;
+  - a defaulted parameter's argument cannot be `undefined` (a literal, a function, an object, an operator's result), or is `void 0` and takes the default;
+  - every call runs after `f`'s declaration.
+
+  The store fold then writes the stores into the literal: `o={test:…,parse:…}`. Once every construction is rewritten, `f` has no use left and goes.
+- **motionlil declares pristine builtins** ([motionlil.patch](../../finer/port-migrations/motionlil.patch)), as the other five ports do. The store fold needs the assumption, because a literal key defines a property where a store could run an inherited setter. On its own it is −632 on `full.js`.
+
+| motionlil | core (`.__compiled-full.mjs`) | `full.js` | `mini.js` |
+|---|---|---|---|
+| Batch 8 (embedded host modules) | 51,757 | 52,893 | 10,980 |
+| Pristine builtins | 51,145 | 52,218 | 10,747 |
+| **After** | **50,577** | **51,774** | **10,481** |
+| Upstream | | 41,032 | 4,446 |
+
+The other ports have no such constructions (jquerylil two), and their outputs are unchanged under both objectives. What remains in motionlil's `mini` is reached by the port's own module graph: the frame loop, color parsing and value types that upstream's WAAPI `mini` does not carry.
+
+**Verification.** 3,050 unit tests pass, including `constructions_through_a_field_initializer_are_their_literals`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

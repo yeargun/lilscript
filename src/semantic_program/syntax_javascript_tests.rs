@@ -807,3 +807,33 @@ fn a_contract_may_publish_names_without_reflecting_them() {
     assert_eq!(run(&kept, SHOW), "[\"3\",false]\n");
     assert_eq!(run(&dropped, SHOW), "[\"3\",false]\n");
 }
+
+#[test]
+fn constructions_through_a_field_initializer_are_their_literals() {
+    let javascript = compile_with(
+        r#"
+        extern void show(JsValue value);
+        extern float seed();
+        class Point {
+            float x;
+            float y;
+            init(float x, float y = 0.0) { this.x = x; this.y = y; }
+        }
+        JsValue describe(Point p) { return JS.array(JS.box(p.x), JS.box(p.y)); }
+        Point a = new Point(1.0, 2.0);
+        Point b = new Point(seed());
+        Point c = new Point(seed(), seed() + 1.0);
+        show(describe(a));
+        show(describe(b));
+        show(describe(c));
+        "#,
+        PRISTINE,
+    );
+    // Every construction is its literal, and the initializer is gone.
+    assert!(javascript.contains("{x:1,y:2}") && javascript.contains("{x:seed(),y:0}"), "{javascript}");
+    assert!(!javascript.contains(".x=") && !javascript.contains(".y="), "{javascript}");
+    assert_eq!(
+        run(&javascript, "globalThis.seed=(()=>{let n=4;return()=>n++})();globalThis.show=v=>console.log(JSON.stringify(v));"),
+        "[1,2]\n[4,0]\n[5,7]\n"
+    );
+}

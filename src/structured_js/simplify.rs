@@ -25,7 +25,7 @@ use super::*;
 
 /// The primitive type an expression's value is known to have.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Known {
+pub(super) enum Known {
     Number,
     Boolean,
     String,
@@ -355,7 +355,7 @@ impl Module {
 
     /// The primitive type `id` is known to produce, when every evaluation
     /// that completes yields that type.
-    fn known(&self, id: ExprId) -> Option<Known> {
+    pub(super) fn known(&self, id: ExprId) -> Option<Known> {
         self.known_within(id, 64)
     }
 
