@@ -39,6 +39,9 @@ pub struct JavaScriptAbiContract {
     /// Every function whose name some code could read keeps its exact source
     /// name, not only published exports.
     pub keep_function_names: bool,
+    /// Published functions keep their exact source name (D2). A contract
+    /// that publishes names but not `fn.name` turns it off.
+    pub keep_published_function_names: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -339,6 +342,7 @@ impl ProjectConfig {
                         // `function_spelling` knob governs private functions only.
                         public_function_spelling: None,
                 keep_function_names: self.javascript.keep_function_names,
+                keep_published_function_names: self.javascript.keep_published_function_names,
             },
             assumptions: JavaScriptUnsafeAssumptions {
                 pristine_builtins: self.javascript.assume_pristine_builtins,

@@ -21,3 +21,14 @@ diff -ru a/test/api.test.mjs b/test/api.test.mjs
      }
    })
  
+diff -ru a/lilscript.bytes.toml b/lilscript.bytes.toml
+--- a/lilscript.bytes.toml
++++ b/lilscript.bytes.toml
+@@ -1,4 +1,7 @@
+ [javascript]
++# The raw artifact publishes its names, not `fn.name`: its bars mangle every
++# published function, and reflecting the source name costs about 1,000 bytes.
++keep_published_function_names = false
+ priority = "size-first"
+ optimization_level = 15
+ cost_model = "raw"

@@ -46,6 +46,7 @@ mod rewrite;
 mod simplify;
 mod blocks;
 mod host_lowering;
+mod pooling;
 pub(crate) use rewrite::literal_array_projection;
 #[cfg(test)]
 mod string_recipe_tests;

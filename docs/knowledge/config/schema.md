@@ -103,6 +103,7 @@ error, not a silently ignored setting.
 | `assume_pristine_builtins` | `bool` | `false` | Allow representations that bypass ambient JavaScript constructor bindings. |
 | `assume_pure_property_reads` | `bool` | `false` | Treat a dynamic member read as free of coercion hooks, the way Terser's `pure_getters` does. |
 | `keep_function_names` | `bool` | `false` | Keep the exact source `name` of every function whose name some code could read, not only of published exports. |
+| `keep_published_function_names` | `bool` | `true` | Keep the exact source `name` of published functions (D2). |
 | `strip_console` | `bool` | `true` | Drop `print()` / `debugLog` from JavaScript. |
 | `startup` | `StartupCostConfig` | `StartupCostConfig::default()` | Limits on the startup cost an emitted artifact may add (parse, compile and initialization work); a candidate over them is not admitted. |
 | `performance` | `JavaScriptPerformanceConfig` | `JavaScriptPerformanceConfig::default()` | See [configuration.md](../../configuration.md). |

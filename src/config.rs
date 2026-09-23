@@ -236,6 +236,9 @@ impl ProjectConfig {
                         // `function_spelling` knob governs private functions only.
                         public_function_spelling: None,
                         keep_function_names: self.javascript.keep_function_names,
+                        keep_published_function_names: self
+                            .javascript
+                            .keep_published_function_names,
                     },
                     assumptions: JavaScriptUnsafeAssumptions {
                         pristine_builtins: self.javascript.assume_pristine_builtins,
@@ -1741,6 +1744,12 @@ pub struct JavaScriptConfig {
     /// Terser's and the default route's mangling give it. Turn it on for code
     /// that reads `fn.name` of callbacks it did not export.
     pub keep_function_names: bool,
+    /// Keep the exact source `name` of published functions (D2). On by
+    /// default. A library whose contract is its export names, not the
+    /// reflected `fn.name` of what it exports, may turn it off: its published
+    /// functions are then named like any other, as a minifier's top-level
+    /// mangling names them.
+    pub keep_published_function_names: bool,
     /// Drop `print()` / `debugLog` from JavaScript. On by default so production
     /// builds do not ship `console.log`. Test oracles set false. Does not strip
     /// `console.warn` (observable library behavior).
@@ -1809,6 +1818,7 @@ impl Default for JavaScriptConfig {
             assume_pristine_builtins: false,
             assume_pure_property_reads: false,
             keep_function_names: false,
+            keep_published_function_names: true,
             strip_console: true,
             startup: StartupCostConfig::default(),
             performance: JavaScriptPerformanceConfig::default(),

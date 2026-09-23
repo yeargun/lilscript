@@ -1709,6 +1709,31 @@ Exact duplicates (the port's `…Full`/`…Mini` module variants) are only 4.5 K
 
 The next lever is to form a field-storing constructor's construction as the literal itself. That is typed-layout work (013-T3), and formation has the facts for it.
 
+### 013 batch 9: raw spellings of names and strings (2026-09-23)
+
+Every change here is the raw objective's. The Brotli-objective outputs of all six ports are byte-identical to batch 8's.
+
+- **The root's most read bindings take its shortest names.** Scoped naming allocates each scope in declaration order, restarting per scope, so the first 54 root bindings got one character however rarely they were read. posthoglil's raw build spelled 96 two-character names over 387 uses, while `C`, `K`, `X` and `$` were read twice each. Raw plans now order the root by reads, as esbuild gives top-level symbols their own frequency-ranked slots. Nested scopes keep declaration order, so the same position in every function spells the same name. Under Brotli the declaration order stays: frequency order measured +647 on zodlil, +189 on jquerylil and +51 on markedlil, and −125 on katexlil.
+- **Repeated strings are root constants, and string arrays are split strings.** [pooling.rs](../../src/structured_js/pooling.rs), last in formation once no edit reads a literal:
+  - A literal repeated enough to pay for a constant (`k·L > 2k + L + 4`) is read from `let s="…"`, declared ahead of every root statement. A string is a primitive, so the read is the literal's value, initialized before any code runs.
+  - Under pristine builtins, an array of plain strings becomes `"a b c".split(" ")` where shorter, with a separator no element contains. Each evaluation still creates a fresh array.
+  - Protected literal alternatives are left alone.
+  - katexlil spells its symbol-table strings (`"math"`, `"main"`, `"rel"`) inline wherever upstream reads a variable: pooling is worth −10,369 raw there, and zodlil −7,935.
+- **`keep_published_function_names`.** Published functions keep their exact source name (D2), and that stays the default. A contract that publishes export names but not `fn.name` may turn it off, and its published functions are then named like any other, as a minifier's top-level mangling names them. posthoglil's raw artifact turns it off ([posthoglil.patch](../../finer/port-migrations/posthoglil.patch)): its bars mangle every published function, and the 57 reflected names cost 1,014 bytes. Its Brotli artifact keeps them, since dropping them measured +228 Brotli: the repeated names are nearly free there. The error-tracking pack, whose tests compare `fn.name` with the official package, builds with its own configuration.
+
+| Raw objective | posthoglil | markedlil | zodlil (`zod.core.js`) | katexlil (`esm`) | jquerylil (`esm`) |
+|---|---|---|---|---|---|
+| Batch 8 | 18,350 | 36,460 | 123,167 | 272,347 | 91,134 |
+| Frequency naming | 18,195 | 36,262 | 121,330 | | |
+| **After** | **16,805** | **36,089** | **113,395** | **261,978** | **89,322** |
+| Bar | 16,123 | 37,022 | | 267,050 | 87,151 |
+
+katexlil and jquerylil first had a raw build this batch (the port configurations with `cost_model = "raw"`). katexlil's raw objective is now a win (−5,072). Its raw build also scores 64,693 Brotli, below the Brotli objective's 64,886. The Brotli search never tries the raw plan, so that is a terminal challenger for 013-T4.
+
+**Measured alongside.** Terser's full compression over our katexlil output finds only −383 Brotli, and flattening its 89 constant namespace reads costs +16 Brotli (−1,124 raw). katexlil's Brotli gap is the program the untyped port produces (013-T6), not target spelling. The default route builds jquerylil at 28,095 Brotli with the current binary, against the semantic route's 29,555.
+
+**Verification.** 3,050 unit tests pass, including `a_raw_objective_reads_repeated_strings_from_constants_and_packs_string_arrays` and `a_contract_may_publish_names_without_reflecting_them`. The census passes 72/72/72 with no miscompiles, and probelil passes both lanes. katexlil passes 21/21 and 1,230/1,230, zodlil passes, markedlil 29/29, jquerylil 7/7 and posthoglil 21/21 on both objectives, and motionlil 9/9. The config schema is regenerated.
+
 ## 014 Retirement and Final Certification
 
 Contracts: A1-A7 and the objective. Make the service the normal route for every supported source/target/delivery mode. Complete declared configuration compatibility with actionable diagnostics. Remove obsolete optimizer/emitter/search owners, duplicate facts, generated-text semantic recovery, temporary adapters/selectors and development bypasses. Retain necessary native lowering and independent verification with explicit consumers.

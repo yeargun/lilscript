@@ -717,6 +717,7 @@ impl ResolvedPolicy {
                 "internal_exports_may_mangle":language.abi.internal_export_bindings_may_mangle,
                 "public_function_spelling":format!("{:?}",language.abi.public_function_spelling),
                 "keep_function_names":language.abi.keep_function_names,
+                "keep_published_function_names":language.abi.keep_published_function_names,
                 "pristine_builtins":language.assumptions.pristine_builtins,
                 "pure_property_reads":language.assumptions.pure_property_reads,
                 "numeric_lengths":language.assumptions.numeric_lengths,

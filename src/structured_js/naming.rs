@@ -475,8 +475,32 @@ impl<'a> Basis<'a> {
         }
         phase.work(WorkKind::Analysis, sort_work(order.len(), 1)?)?;
         order.sort_unstable_by_key(|binding| (module.bindings[binding.index()].scope, *binding));
+        // For raw bytes, the root's most read bindings take its shortest
+        // names, as a frequency renamer gives them (esbuild's top-level
+        // slots). Nested scopes keep declaration order either way, so the
+        // same position in every function spells the same name. A codec
+        // prefers the declaration order: measured +647 Brotli on zodlil.
+        let mut reads = phase.filled(AllocationClass::Scratch, module.bindings.len(), 0u32)?;
+        for &(expression, _) in &self.references {
+            phase.work(WorkKind::Analysis, 1)?;
+            if let Expr::Binding(binding) = module.expressions[expression.index()] {
+                reads[binding.index()] = reads[binding.index()].saturating_add(1);
+            }
+        }
+        let root = module.regions[module.root.index()].scope;
+        let mut by_reads = phase.vector(AllocationClass::Retained, order.len())?;
+        phase.extend_copy(AllocationClass::Retained, &mut by_reads, &order)?;
+        phase.work(WorkKind::Analysis, sort_work(by_reads.len(), 1)?)?;
+        by_reads.sort_by_key(|binding| {
+            let scope = module.bindings[binding.index()].scope;
+            (scope, if scope == root { u32::MAX - reads[binding.index()] } else { 0 })
+        });
         self.scoped
-            .set(Scoped { order, free })
+            .set(Scoped {
+                order,
+                by_reads,
+                free,
+            })
             .map_err(|_| OutputError::Invalid("scoped naming cache raced"))?;
         phase.finish_retained()?;
         Ok(self.scoped.get().unwrap())
@@ -677,7 +701,12 @@ impl<'a> Basis<'a> {
             Ok(())
         };
         if let Some(scoped) = scoped {
-            for &symbol in &scoped.order {
+            let order = if plan.raw_spelling {
+                &scoped.by_reads
+            } else {
+                &scoped.order
+            };
+            for &symbol in order {
                 allocate(symbol)?;
             }
         } else {
@@ -757,6 +786,8 @@ fn name_available(
 
 struct Scoped {
     order: Vec<BindingId>,
+    /// `order` with the root's bindings by descending reads, for raw plans.
+    by_reads: Vec<BindingId>,
     free: Vec<Vec<BindingId>>,
 }
 

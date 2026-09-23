@@ -247,6 +247,7 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
             internal_export_bindings_may_mangle: true,
             public_function_spelling: None,
             keep_function_names: false,
+            keep_published_function_names: true,
         },
         assumptions: JavaScriptUnsafeAssumptions {
             pristine_builtins: false,
@@ -810,6 +811,32 @@ fn form_with_demand(
                 formation.module.drop_unreferenced_functions(formation.budget)?;
             }
             Ok(0)
+        });
+        // Repeated strings last, once no other edit reads a literal: packed
+        // arrays, then root constants.
+        let edited = edited.and_then(|_| {
+            if !raw_structure {
+                return Ok(0);
+            }
+            let protected: Vec<js::ExprId> = formation
+                .literal_alternatives
+                .iter()
+                .map(|alternative| alternative.expression())
+                .collect();
+            if let (_, Some(map)) = formation.module.pack_string_arrays(&protected, formation.budget)? {
+                formation
+                    .literal_alternatives
+                    .retain_mut(|alternative| alternative.remap(&map));
+                formation
+                    .literal_alternatives
+                    .sort_unstable_by_key(|alternative| alternative.expression());
+            }
+            let protected: Vec<js::ExprId> = formation
+                .literal_alternatives
+                .iter()
+                .map(|alternative| alternative.expression())
+                .collect();
+            formation.module.pool_strings(&protected, formation.budget)
         });
         if let Err(error) = edited {
             drop(formation);
@@ -4078,15 +4105,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     }
                     _ => false,
                 };
-                // D2 keeps a published function's source name. Any other
-                // function's name is its binding's unless the contract keeps
-                // every name some code could read.
+                // D2 keeps a published function's source name unless the
+                // contract publishes names only. Any other function's name is
+                // its binding's unless the contract keeps every name some
+                // code could read.
                 let internal = self.compact
                     && !self.contract.abi.keep_function_names
-                    && !match operation.result {
-                        Some(result) => self.flows_into_exported_cell(unit, result)?,
-                        None => true,
-                    };
+                    && !(self.contract.abi.keep_published_function_names
+                        && match operation.result {
+                            Some(result) => self.flows_into_exported_cell(unit, result)?,
+                            None => true,
+                        });
                 // The exact name is allocated only when it is kept.
                 let name = if private || private_cell.is_some() || unobserved || internal {
                     js::FunctionName::Unobserved

@@ -761,3 +761,49 @@ fn a_fresh_struct_meets_its_public_shape_as_a_literal() {
         "{\"from\":{\"x\":1,\"y\":2},\"to\":{\"x\":3,\"y\":4},\"label\":\"s\"}\n"
     );
 }
+
+#[test]
+fn a_raw_objective_reads_repeated_strings_from_constants_and_packs_string_arrays() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue kinds(JsValue a, JsValue b, JsValue c) {
+            return JS.array(JS.typeOf(a) == "string", JS.typeOf(b) == "string", JS.typeOf(c) == "string");
+        }
+        export JsValue names() {
+            return JS.array("alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta");
+        }
+        show(kinds("x", 1, "y"));
+        show(names());
+        show(names() == names());
+    "#;
+    let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
+    let coded = compile_with(source, PRISTINE);
+    // `"string"` is spelled once, as a constant; the names are one string.
+    assert_eq!(raw.matches("\"string\"").count(), 1, "{raw}");
+    assert!(raw.contains(".split(\" \")") && !coded.contains(".split("), "{raw}\n{coded}");
+    assert!(raw.len() < coded.len(), "{raw}\n{coded}");
+    // Each call still creates a fresh array.
+    let expected = "[true,false,true]\n[\"alpha\",\"beta\",\"gamma\",\"delta\",\"epsilon\",\"zeta\",\"eta\",\"theta\"]\nfalse\n";
+    assert_eq!(run(&raw, SHOW), expected);
+    assert_eq!(run(&coded, SHOW), expected);
+}
+
+#[test]
+fn a_contract_may_publish_names_without_reflecting_them() {
+    let source = r#"
+        extern void show(JsValue value);
+        export JsValue describeTheValue(JsValue value) {
+            return JS.array(JS.string(value), JS.isNullish(value));
+        }
+        show(describeTheValue(3));
+    "#;
+    let kept = compile_plan(source, PRISTINE, Plan::spelled(Style::Global, true));
+    let config = format!("{PRISTINE}keep_published_function_names=false\n");
+    let dropped = compile_plan(source, &config, Plan::spelled(Style::Global, true));
+    // Kept, the name is the function's and the export's; dropped, only the
+    // export's.
+    assert_eq!(kept.matches("describeTheValue").count(), 2, "{kept}");
+    assert_eq!(dropped.matches("describeTheValue").count(), 1, "{dropped}");
+    assert_eq!(run(&kept, SHOW), "[\"3\",false]\n");
+    assert_eq!(run(&dropped, SHOW), "[\"3\",false]\n");
+}
