@@ -201,9 +201,17 @@ fn same_grammar_preserves_ast_and_observed_javascript() {
         let arena = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
         let admitted = arena.parse(source).unwrap();
         assert_eq!(format!("{plain:?}"), format!("{admitted:?}"));
+        // Both parses elaborate and print through the one compiler's
+        // inspection path, so equal syntax must give equal JavaScript.
         let emit = |syntax: &Program<'_, '_>| {
-            crate::codegen_js::JsEmitter::new(crate::codegen_js::CodegenOptions::default())
-                .emit_program(syntax)
+            let semantics = crate::analyze(syntax).unwrap();
+            crate::semantic_program::from_checked_source(syntax, &semantics)
+                .unwrap()
+                .to_javascript()
+                .unwrap()
+                .render(crate::structured_js::PrintPolicy {
+                    mangle_bindings: true,
+                })
                 .unwrap()
         };
         let javascript = emit(&admitted);

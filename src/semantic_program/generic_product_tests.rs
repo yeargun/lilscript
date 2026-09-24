@@ -102,7 +102,6 @@ fn imported_forwarding_preserves_nominal_presence_for_an_independent_downstream_
         dependency_order: vec![2, 1, 0],
         root: 0,
         eager: vec![true; 3],
-        for_of_specialize_family: 0,
     };
     let arena = bumpalo::Bump::new();
     let syntax: Vec<_> = sources

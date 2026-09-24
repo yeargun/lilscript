@@ -32,7 +32,6 @@ fn modules(
         dependency_order: order.to_vec(),
         root: 0,
         eager: vec![true; sources.len()],
-        for_of_specialize_family: 0,
     };
     let arena = bumpalo::Bump::new();
     let syntax: Vec<_> = sources

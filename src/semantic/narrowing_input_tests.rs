@@ -370,10 +370,20 @@ print(present(null));print(present("x"));print(absent(null));print(absent(""));p
         "&&true".repeat(64),
         "||false".repeat(64)
     );
-    for javascript in [
-        crate::compiler::compile_source(&source).unwrap(),
-        crate::compiler::compile_source_to_js_module(&source).unwrap(),
-    ] {
+    let mut config = crate::config::ProjectConfig::default();
+    config.javascript.strip_console = false;
+    for preserve_root_exports in [false, true] {
+        let options = crate::compiler_service::ServiceOptions {
+            preserve_root_exports,
+            ..Default::default()
+        };
+        let compiled = crate::compiler_service::compile_source_semantic(&source, &config, options)
+            .unwrap();
+        let javascript = compiled
+            .javascript(config.javascript.cost_model)
+            .unwrap()
+            .javascript()
+            .to_string();
         let output = std::process::Command::new("node")
             .args(["--input-type=module", "-e", &javascript])
             .output()

@@ -1,41 +1,28 @@
 mod arena_budget;
-pub mod artifact_memo;
 pub mod ast;
-pub mod codegen_ir_js;
-pub mod codegen_js;
-pub mod codegen_native;
 pub mod compilation_contract;
 pub mod compilation_policy;
 #[cfg(test)]
 mod compilation_policy_evidence_tests;
-pub mod compiler;
 pub mod compiler_service;
-pub mod compress_passes;
 pub mod compression;
 mod host_modules;
 pub mod config;
-pub mod decision_registry;
 pub mod diagnostics;
-pub mod for_of_family;
 pub mod formatter;
 pub mod interpreter;
-pub mod ir;
-mod js_externs;
-pub mod js_peephole;
+pub mod js_platform;
 mod js_regex;
 mod js_string;
 pub mod js_syntax_target;
 pub mod lexer;
 pub mod lint;
 pub mod literal;
-pub mod lower;
 pub mod module;
-pub mod optimizer;
 mod output_budget;
 pub mod package;
 pub mod parser;
 pub mod primitive;
-pub mod profile;
 pub(crate) mod scalar_transfer;
 #[cfg(test)]
 mod scalar_transfer_tests;
@@ -46,25 +33,10 @@ mod stable_hash;
 pub mod structured_js;
 pub mod timing;
 pub mod typed_array;
-pub mod value_analysis;
 
-pub use codegen_js::{CodegenError, CodegenOptions, CompileError, JsEmitter, compile_to_js};
-pub use codegen_native::{NativeOptions, compile_to_c, emit_native_c, emit_native_c_with_options};
 pub use compilation_contract::{
-    JavaScriptAbiContract, JavaScriptAbiManifest, JavaScriptCompilationContract,
-    JavaScriptEffectPolicy, JavaScriptExportAbi, JavaScriptExportKind, JavaScriptMethodAbi,
-    JavaScriptOptimizationObjective, JavaScriptUnsafeAssumptions, JavaScriptWorld,
-};
-pub use compiler::{
-    BundledCompilationArtifacts, CompilationArtifacts, JavaScriptCompilation,
-    JavaScriptSelectionMetrics, SourceCompileError, compile_path, compile_path_all,
-    compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
-    compile_path_explained_configured, compile_path_to_c, compile_path_to_c_configured,
-    compile_path_to_js_bundle_configured, compile_path_to_js_module,
-    compile_path_to_js_module_configured, compile_path_to_js_module_explained_configured,
-    compile_path_to_js_module_with_source, compile_path_with_source,
-    compile_path_with_source_configured, compile_source, compile_source_all, compile_source_to_c,
-    compile_source_to_js_module, profile_template_path_configured,
+    JavaScriptAbiContract, JavaScriptCompilationContract, JavaScriptEffectPolicy,
+    JavaScriptExecution, JavaScriptUnsafeAssumptions, JavaScriptWorld,
 };
 pub use diagnostics::{
     SourceDiagnostic, render_diagnostic, render_message_diagnostic, render_module_diagnostic,
@@ -88,8 +60,6 @@ pub use lint::{
     LintProviderDiagnostic, LintRuleContext, LintRuleProvider, WebRuleProvider, lint_checked,
     lint_checked_with_providers, lint_path_with_providers,
 };
-pub use lower::{LowerError, lower_to_control_flow};
 pub use module::ModuleError;
 pub use parser::{ParseError, Parser, parse_source};
-pub use profile::{JavaScriptPerformanceMetrics, OptimizationProfile};
 pub use semantic::{SemanticError, SemanticModel, Type, analyze};

@@ -11,7 +11,7 @@ const DEFAULT_SEED: u64 = 0x6c69_6c73_6372_6970;
 
 #[derive(Debug, Parser)]
 #[command(name = "lilscript-differential")]
-#[command(about = "Generate deterministic programs and compare every LilScript backend.")]
+#[command(about = "Generate deterministic programs and compare the compiler's output with the reference interpreter.")]
 struct Args {
     /// Number of generated functions and result rows.
     #[arg(long, default_value_t = 64)]
@@ -35,7 +35,7 @@ struct Args {
     #[arg(long)]
     compiler: Option<PathBuf>,
 
-    /// Directory for generated sources and backend artifacts.
+    /// Directory for generated sources and compiled artifacts.
     #[arg(long)]
     output_dir: Option<PathBuf>,
 }
@@ -71,11 +71,6 @@ fn run() -> Result<(), String> {
         .map_err(|error| format!("failed to create {}: {error}", output_dir.display()))?;
     let source_path = output_dir.join("generated.lil");
     let expected_path = output_dir.join("expected.out");
-    let optimized_base = output_dir.join("optimized");
-    let no_optimization_js = output_dir.join("no-optimization.js");
-    let optimized_no_peephole_js = output_dir.join("optimized-no-peephole.js");
-    let no_optimization_no_peephole_js = output_dir.join("no-optimization-no-peephole.js");
-    let emitted_c_native = output_dir.join("emitted-c-native");
     let source = ProgramGenerator::new(args.seed).generate(args.cases);
 
     let arena = Bump::new();
@@ -105,114 +100,53 @@ fn run() -> Result<(), String> {
         ));
     }
 
-    run_checked(
-        Command::new(&compiler)
-            .arg(&source_path)
-            .args(["--target", "all", "--mode", "production", "-o"])
-            .arg(&optimized_base),
-        "optimized compilation",
-    )?;
-    run_checked(
-        Command::new(&compiler)
-            .arg(&source_path)
-            .args(["--target", "js", "--mode", "production", "--config"])
-            .arg(root.join("tests/config/no-optimization.toml"))
-            .arg("-o")
-            .arg(&no_optimization_js),
-        "optimizer-disabled JavaScript compilation",
-    )?;
-    run_checked(
-        Command::new(&compiler)
-            .arg(&source_path)
-            .args(["--target", "js", "--mode", "production", "--config"])
-            .arg(root.join("tests/config/no-peephole.toml"))
-            .arg("-o")
-            .arg(&optimized_no_peephole_js),
-        "peephole-disabled optimized JavaScript compilation",
-    )?;
-    run_checked(
-        Command::new(&compiler)
-            .arg(&source_path)
-            .args(["--target", "js", "--mode", "production", "--config"])
-            .arg(root.join("tests/config/no-optimization-no-peephole.toml"))
-            .arg("-o")
-            .arg(&no_optimization_no_peephole_js),
-        "peephole-disabled optimizer-disabled JavaScript compilation",
-    )?;
-
+    // The JavaScript lanes: the production policy (the repository's
+    // `lilscript.toml`), development mode (no candidate search), and formation
+    // only (every tactic vetoed and no search, `tests/config/no-optimization.toml`).
+    //
+    // The native lanes are masked. Every generated program uses `Record<int>`
+    // (the `differentialIdentity` prelude), which the native target refuses
+    // until native records land; plan M11.4 owns them and restores these lanes.
+    let formation_only = root.join("tests/config/no-optimization.toml");
+    let lanes: [(&str, Vec<&std::ffi::OsStr>); 3] = [
+        ("production JavaScript", vec!["--mode".as_ref(), "production".as_ref()]),
+        (
+            "development JavaScript",
+            vec!["--mode".as_ref(), "development".as_ref()],
+        ),
+        (
+            "formation-only JavaScript",
+            vec![
+                "--mode".as_ref(),
+                "production".as_ref(),
+                "--config".as_ref(),
+                formation_only.as_os_str(),
+            ],
+        ),
+    ];
     let node = std::env::var_os("NODE").unwrap_or_else(|| "node".into());
-    let optimized_js = optimized_base.with_extension("js");
-    compare_output(
-        "optimized JavaScript",
-        &expected,
+    for (index, (lane, flags)) in lanes.iter().enumerate() {
+        let javascript = output_dir.join(format!("lane-{index}.js"));
         run_checked(
-            Command::new(&node).arg(&optimized_js),
-            "optimized JavaScript",
-        )?,
-        args.seed,
-        &source_path,
-    )?;
-    compare_output(
-        "optimizer-disabled JavaScript",
-        &expected,
-        run_checked(
-            Command::new(&node).arg(&no_optimization_js),
-            "optimizer-disabled JavaScript",
-        )?,
-        args.seed,
-        &source_path,
-    )?;
-    compare_output(
-        "peephole-disabled optimized JavaScript",
-        &expected,
-        run_checked(
-            Command::new(&node).arg(&optimized_no_peephole_js),
-            "peephole-disabled optimized JavaScript",
-        )?,
-        args.seed,
-        &source_path,
-    )?;
-    compare_output(
-        "peephole-disabled optimizer-disabled JavaScript",
-        &expected,
-        run_checked(
-            Command::new(&node).arg(&no_optimization_no_peephole_js),
-            "peephole-disabled optimizer-disabled JavaScript",
-        )?,
-        args.seed,
-        &source_path,
-    )?;
-    compare_output(
-        "native executable",
-        &expected,
-        run_checked(&mut Command::new(&optimized_base), "native executable")?,
-        args.seed,
-        &source_path,
-    )?;
-
-    let cc = std::env::var_os("CC").unwrap_or_else(|| "clang".into());
-    let mut cc_command = Command::new(&cc);
-    cc_command
-        .args(["-std=c11", "-O3"])
-        .arg(optimized_base.with_extension("c"))
-        .arg("-o")
-        .arg(&emitted_c_native);
-    #[cfg(not(target_os = "windows"))]
-    cc_command.arg("-lm");
-    run_checked(&mut cc_command, "independent emitted C compilation")?;
-    compare_output(
-        "independently compiled C",
-        &expected,
-        run_checked(
-            &mut Command::new(&emitted_c_native),
-            "independently compiled C",
-        )?,
-        args.seed,
-        &source_path,
-    )?;
+            Command::new(&compiler)
+                .arg(&source_path)
+                .args(["--target", "js"])
+                .args(flags)
+                .arg("-o")
+                .arg(&javascript),
+            &format!("{lane} compilation"),
+        )?;
+        compare_output(
+            lane,
+            &expected,
+            run_checked(Command::new(&node).arg(&javascript), lane)?,
+            args.seed,
+            &source_path,
+        )?;
+    }
 
     println!(
-        "{} deterministic programs matched the Rust reference evaluator across optimized and optimizer-disabled JavaScript with parsed peepholes enabled and disabled, emitted C, and native execution (seed {:#018x}).",
+        "{} deterministic programs matched the Rust reference evaluator across production, development and formation-only JavaScript; the native lanes are masked until native records land (plan M11.4) (seed {:#018x}).",
         args.cases, args.seed
     );
     Ok(())

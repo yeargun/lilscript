@@ -117,7 +117,6 @@ fn graph(sources: &[&str], dependencies: &[&[usize]], order: &[usize]) -> Module
         dependency_order: order.to_vec(),
         root: 0,
         eager: vec![true; sources.len()],
-        for_of_specialize_family: 0,
     }
 }
 

@@ -108,9 +108,6 @@ fn main() {
     }
     if let Some(report) = lilscript::timing::report(started.elapsed().as_nanos()) {
         eprintln!("lilscript-timing {report}");
-        if let Some(folds) = lilscript::timing::idle_fold_report(24) {
-            eprint!("{folds}");
-        }
     }
 }
 
@@ -127,8 +124,8 @@ fn run() -> Result<(), String> {
         .path
         .as_ref()
         .map_or_else(|| "lilscript.toml".to_string(), |path| path.display().to_string());
-    for note in loaded.config.unimplemented_knobs() {
-        eprintln!("warning: {config_label}: {note}");
+    for warning in &loaded.warnings {
+        eprintln!("warning: {config_label}: {warning}");
     }
     if args.jobs.is_some() || args.codec_jobs.is_some() {
         eprintln!(
@@ -464,7 +461,8 @@ fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> 
         .expect("every target resolves a policy");
     let mut receipt = json!({
         "config": loaded.path.as_ref().map(|path| path.display().to_string()),
-        "unimplemented_knobs": loaded.config.unimplemented_knobs(),
+        // Retired keys the file set: each has no effect in this compiler.
+        "warnings": loaded.warnings,
         // How this run executes, after command-line overrides. Deliberately
         // outside the fingerprint: thread counts must never change the output.
         "execution": {

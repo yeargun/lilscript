@@ -43,7 +43,6 @@ pub enum CompilationContract {
     JavaScript {
         language: JavaScriptCompilationContract,
         preserved_properties: Vec<String>,
-        owned_properties: crate::config::InternalProperties,
         bundle_mode: crate::config::BundleMode,
         /// Split delivery's chunk rule; absent in the other modes, whose
         /// output these settings cannot change.
@@ -423,11 +422,15 @@ impl PolicyConfig {
 }
 
 /// Ranking stays independent from legality and hard candidate constraints.
+/// The configuration loader admits only `size-first`; the other priorities
+/// stay for the day runtime estimators exist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ObjectiveRank {
     pub priority: JavaScriptPriority,
-    pub realistic_performance_limit_percent: u32,
 }
+
+/// The performance regression `realistic-performance-first` tolerates.
+const REALISTIC_PERFORMANCE_LIMIT_PERCENT: u64 = 25;
 
 impl ObjectiveRank {
     /// Compatibility rank for existing clients. Size-first uses exact bytes,
@@ -444,9 +447,8 @@ impl ObjectiveRank {
         match self.priority {
             JavaScriptPriority::PerformanceFirst => (performance_ratio, transfer_ratio),
             JavaScriptPriority::RealisticPerformanceFirst => {
-                let limit = 10_000u64.saturating_add(
-                    u64::from(self.realistic_performance_limit_percent).saturating_mul(100),
-                );
+                let limit = 10_000u64
+                    .saturating_add(REALISTIC_PERFORMANCE_LIMIT_PERCENT.saturating_mul(100));
                 let rejected = u64::from(performance_ratio > limit);
                 (
                     rejected
@@ -480,7 +482,6 @@ pub struct OptimizationObjective {
     pub rank: ObjectiveRank,
     pub optional_alternatives: usize,
     pub optional_codec_probes: usize,
-    pub cleanup_finalists: usize,
     pub retained_candidates: usize,
     pub retained_candidate_bytes: usize,
     pub beam_width: usize,
@@ -778,16 +779,12 @@ impl ResolvedPolicy {
             CompilationContract::JavaScript {
                 language,
                 preserved_properties,
-                owned_properties,
                 bundle_mode,
                 split,
                 preload,
             } => json!({
                 "target":"javascript", "world":format!("{:?}",language.world), "execution":format!("{:?}",language.execution), "ecmascript":language.ecmascript.name(),
                 "preserve_root_exports":language.abi.preserve_root_exports,
-                "public_aggregate_abi":format!("{:?}",language.abi.public_aggregate_abi),
-                "preserve_extern_fields":language.abi.preserve_extern_fields,
-                "internal_exports_may_mangle":language.abi.internal_export_bindings_may_mangle,
                 "keep_function_names":language.abi.keep_function_names,
                 "keep_published_function_names":language.abi.keep_published_function_names,
                 "pristine_builtins":language.assumptions.pristine_builtins,
@@ -796,13 +793,13 @@ impl ResolvedPolicy {
                 "numeric_lengths":language.assumptions.numeric_lengths,
                 "strip_console":language.effects.strip_console,
                 "preserved_properties":preserved_properties,
-                "owned_properties":format!("{owned_properties:?}"), "bundle_mode":format!("{bundle_mode:?}"),
+                "bundle_mode":format!("{bundle_mode:?}"),
                 "split":split.map(|rule| json!({"min_chunk_bytes":rule.min_chunk_bytes, "max_chunks":rule.max_chunks,
                     "shared_min_imports":rule.shared_min_imports, "cost":format!("{:?}", rule.cost)})),
                 "preload":format!("{preload:?}")
             }),
         };
-        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "realistic_performance_limit_percent":o.rank.realistic_performance_limit_percent, "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "cleanup_finalists":o.cleanup_finalists, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval,"interaction_interval":o.search.interaction_interval}}));
+        let objective = self.objective.map(|o| json!({"codec":format!("{:?}",o.codec), "priority":format!("{:?}",o.rank.priority), "optional_alternatives":o.optional_alternatives, "optional_codec_probes":o.optional_codec_probes, "retained_candidates":o.retained_candidates, "retained_candidate_bytes":o.retained_candidate_bytes, "beam_width":o.beam_width, "search":{"version":SEARCH_SCHEDULE_VERSION,"codec_schedule":o.search.codec_schedule,"render_batch":o.search.render_batch,"diversity_interval":o.search.diversity_interval,"interaction_interval":o.search.interaction_interval}}));
         json!({"schema":POLICY_SCHEMA_VERSION, "algorithm":POLICY_ALGORITHM_VERSION, "contract":contract, "objective":objective, "effort":self.effort, "tactics":TacticId::ALL.map(|id| json!({"id":id, "state":self.tactic(id)})), "resources":self.resources, "constraints":self.constraints})
     }
     pub fn fingerprint(&self) -> [u8; 32] {
@@ -1603,7 +1600,6 @@ mod tests {
     fn exact_size_ranking_does_not_quantize_away_real_bytes() {
         let rank = ObjectiveRank {
             priority: JavaScriptPriority::SizeFirst,
-            realistic_performance_limit_percent: 25,
         };
         assert!(rank.rank(100_001, 100_000, 0, 100) > rank.rank(100_000, 100_000, 100, 100));
         let balanced = ObjectiveRank {

@@ -49,7 +49,6 @@ fn imported_generic_calls_keep_original_arguments_and_one_body_for_point_and_int
         dependency_order: vec![2, 1, 0],
         root: 0,
         eager: vec![true; 3],
-        for_of_specialize_family: 0,
     };
     let arena = bumpalo::Bump::new();
     let syntax: Vec<_> = sources

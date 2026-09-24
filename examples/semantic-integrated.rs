@@ -210,7 +210,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("edits must be 1..=100000; retain-at must be before the final edit".into());
     }
     let config_text = std::fs::read_to_string(&args.config)?;
-    let mut config: lilscript::config::ProjectConfig = toml::from_str(&config_text)?;
+    let parsed = lilscript::config::parse_project_config(&config_text)?;
+    for warning in &parsed.warnings {
+        eprintln!("warning: {}: {warning}", args.config.display());
+    }
+    let mut config = parsed.config;
     if let Some(level) = args.level {
         config.javascript.optimization_level = level;
     }
@@ -224,6 +228,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         objectives: Some(Objectives::All),
         logical_work: args.work,
         retained_bytes: args.memory,
+        ..ServiceOptions::default()
     };
     let (workflow, finished) = with_checked_path(
         &args.entry,

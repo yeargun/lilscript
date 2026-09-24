@@ -1,106 +1,410 @@
+//! `lilscript.toml`: the project configuration and its resolution into the
+//! compiler's policy.
+//!
+//! A configuration is read in two steps. The retired-key table
+//! (`RETIRED_KEYS`) is applied to the parsed TOML first: a key this compiler no
+//! longer reads is removed with a warning, and a key whose meaning it cannot
+//! honour refuses the configuration. What remains is deserialized strictly, so
+//! an unknown key is an error. Nothing is accepted silently.
+
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
-use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::codegen_ir_js::{
-    ControlFlowSpelling, FunctionLayout, FunctionSpelling, HostAliasSpelling, IdentifierAlphabet,
-    IrJsOptions, LoopSpelling, MutationSpelling, PhiAffinityMode, StateMachineSpelling,
-    StringQuote,
-};
-use crate::codegen_native::NativeOptions;
-use crate::js_syntax_target::{resolve_ecmascript_target, EcmaScriptEdition, JsSyntaxFeature};
-use crate::optimizer::OptimizationOptions;
-use crate::profile::{JavaScriptPerformanceWeights, OptimizationProfile};
+use crate::js_syntax_target::{resolve_ecmascript_target, EcmaScriptEdition};
 
-/// The values the sibling line's `name_ordering` knob accepts. Parsed so a
-/// misspelled value is still a configuration error; none of them changes this
-/// line's output (see `JavaScriptConfig::name_ordering`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SiblingNameOrdering {
-    EmissionWalk,
-    FrequencyDesc,
-    IdiomConverged,
+/// What becomes of a configuration key this compiler no longer reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Retirement {
+    /// The key is removed before the configuration is read, and the loader
+    /// warns: "`<key>` has no effect in this compiler: <reason>; remove it".
+    NoEffect(&'static str),
+    /// The configuration is refused with this reason.
+    Refused(&'static str),
+    /// Refused with `refused` unless the key holds `value`. With that value
+    /// the key is kept when `then` is `None` (the compiler reads it), and
+    /// removed with a warning when `then` gives the reason it has no effect.
+    RefusedUnless {
+        value: RetiredValue,
+        then: Option<&'static str>,
+        refused: &'static str,
+    },
 }
 
-impl SiblingNameOrdering {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::EmissionWalk => "emission-walk",
-            Self::FrequencyDesc => "frequency-desc",
-            Self::IdiomConverged => "idiom-converged",
+/// The one value a conditionally refused key may hold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RetiredValue {
+    String(&'static str),
+    Integer(i64),
+}
+
+impl RetiredValue {
+    fn matches(self, value: &toml::Value) -> bool {
+        match (self, value) {
+            (Self::String(expected), toml::Value::String(actual)) => expected == actual,
+            (Self::Integer(expected), toml::Value::Integer(actual)) => expected == *actual,
+            _ => false,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum PublicAggregateAbi {
-    #[default]
-    Named,
-    Positional,
-}
+const OLD_OPTIMIZER: &str = "it switched a pass of the old compiler's optimizer, which was deleted; \
+this compiler's optional transformations are permitted per family in `[policy.tactics]`";
+const OLD_EMITTER: &str =
+    "it chose a spelling in the old compiler's JavaScript emitter, which was deleted";
+const OLD_NAMING: &str = "it steered the old compiler's local naming, which was deleted; \
+this compiler chooses names per artifact";
+const OLD_SEARCH: &str = "it bounded the old compiler's candidate search, which was deleted";
+const OLD_INLINER: &str = "it bounded the old compiler's inliner, which was deleted";
+const SIBLING_LINE: &str = "it configured the `migration/target-tree` line of the compiler, \
+which this compiler does not implement";
+const PROFILE_GUIDED: &str =
+    "profile-guided optimization belonged to the old compiler and was removed with it";
+const RUNTIME_SCORING: &str = "it weighted the old compiler's static runtime-cost scores; \
+size is the objective, and runtime limits need runtime estimators that do not exist yet";
 
-/// Runtime layout for class and struct instances. `Positional` emits array slots, which is the
-/// smallest possible output. `Named` emits hidden-class objects, which cost fewer bytes per
-/// instance at runtime because V8 stores named properties inline instead of behind a separate
-/// elements backing store.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum AggregateLayout {
-    #[default]
-    Positional,
-    Named,
-}
+/// Every configuration key this compiler no longer reads, by dotted path. A
+/// path names a key or a whole table; a table entry covers every key in it.
+/// Applied to the parsed TOML before strict deserialization
+/// (`parse_project_config`). The list entries of `javascript.compression` and
+/// `javascript.optimizations` are retired separately
+/// (`RETIRED_COMPRESSION_DECISIONS`, `RETIRED_JAVASCRIPT_OPTIMIZATIONS`).
+pub const RETIRED_KEYS: &[(&str, Retirement)] = &[
+    (
+        "compiler.backend",
+        Retirement::Refused("there is one compiler; remove [compiler] backend"),
+    ),
+    (
+        "compiler.resources",
+        Retirement::NoEffect(
+            "the compiler compiles and encodes on one thread; worker threads and codec workers are not implemented yet",
+        ),
+    ),
+    (
+        "policy.constraints",
+        Retirement::Refused(
+            "size is the objective; runtime constraints need runtime estimators that do not exist yet; remove [policy.constraints]",
+        ),
+    ),
+    ("optimization.algebraic_simplification", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.common_subexpression_elimination", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.finite_value_propagation", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.global_optimization", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.inline_closure_factories", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.constant_parameter_specialization", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.specialize_tagged_constants", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.dead_store_elimination", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.capture_signature_cloning", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.identical_function_folding", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.function_subsumption", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.pipeline_fusion", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.partial_escape_sinking", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.region_outlining", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.expression_superopt", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.path_sensitive_propagation", Retirement::NoEffect(OLD_OPTIMIZER)),
+    ("optimization.profile_guided", Retirement::NoEffect(PROFILE_GUIDED)),
+    (
+        "optimization.for_of_specialize_family",
+        Retirement::RefusedUnless {
+            value: RetiredValue::Integer(0),
+            then: Some("the for-of family specialization was an old-compiler source rewrite"),
+            refused: "the for-of family specialization was an old-compiler source rewrite and was removed; remove the key",
+        },
+    ),
+    (
+        "javascript.priority",
+        Retirement::RefusedUnless {
+            value: RetiredValue::String("size-first"),
+            then: None,
+            refused: "size is the objective; runtime priorities need runtime estimators that do not exist yet; use `priority = \"size-first\"` or remove the key",
+        },
+    ),
+    (
+        "javascript.public_aggregate_abi",
+        Retirement::RefusedUnless {
+            value: RetiredValue::String("named"),
+            then: Some("public aggregates are plain objects with named fields (D2), the only shape"),
+            refused: "public aggregates are plain objects with named fields (D2); the positional shape is not produced; remove the key",
+        },
+    ),
+    ("javascript.pool_numeric_literals", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.integer_coercions", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.inline_instruction_limit", Retirement::NoEffect(OLD_INLINER)),
+    ("javascript.inline_control_flow_limit", Retirement::NoEffect(OLD_INLINER)),
+    ("javascript.max_inline_growth", Retirement::NoEffect(OLD_INLINER)),
+    (
+        "javascript.terminal_cleanup_finalists",
+        Retirement::NoEffect(
+            "it carried spellings through the old compiler's text cleanup, which was deleted",
+        ),
+    ),
+    ("javascript.max_candidate_raw_growth_percent", Retirement::NoEffect(OLD_SEARCH)),
+    ("javascript.function_layout_exact_limit", Retirement::NoEffect(OLD_SEARCH)),
+    ("javascript.precise_cross_scope_shadowing", Retirement::NoEffect(OLD_NAMING)),
+    ("javascript.transitive_nested_shadowing", Retirement::NoEffect(OLD_NAMING)),
+    ("javascript.frequency_order_local_names", Retirement::NoEffect(OLD_NAMING)),
+    ("javascript.local_name_reserve", Retirement::NoEffect(OLD_NAMING)),
+    ("javascript.stable_local_names", Retirement::NoEffect(OLD_NAMING)),
+    ("javascript.local_name_coalescing", Retirement::NoEffect(OLD_NAMING)),
+    ("javascript.idiom_directed_naming", Retirement::NoEffect(OLD_NAMING)),
+    (
+        "javascript.function_scope",
+        Retirement::NoEffect(
+            "the module wrapper was an old-compiler emission; it returns as the `format` contract axis (plan M3.1)",
+        ),
+    ),
+    ("javascript.emit_pure_annotations", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.truthy_nullable_checks", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.name_ordering", Retirement::NoEffect(SIBLING_LINE)),
+    ("javascript.terminal_cleanup_chain", Retirement::NoEffect(SIBLING_LINE)),
+    ("javascript.wide_single_use_collapse", Retirement::NoEffect(SIBLING_LINE)),
+    ("javascript.iife_private_callee_clusters", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.nested_once_run_helpers", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.aggregate_operand_order_fusion", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.sink_entry_function_declarations", Retirement::NoEffect(OLD_EMITTER)),
+    (
+        "javascript.function_spelling",
+        Retirement::NoEffect(
+            "this compiler chooses the spelling of private functions itself, and an exported function keeps the callable kind its source declares (D2)",
+        ),
+    ),
+    ("javascript.struct_method_shorthand", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.local_phi_expression_regions", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.rematerialize_member_reads", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.aggregate_layout", Retirement::NoEffect(OLD_EMITTER)),
+    ("javascript.startup", Retirement::NoEffect(RUNTIME_SCORING)),
+    ("javascript.performance", Retirement::NoEffect(RUNTIME_SCORING)),
+    (
+        "mangle.exports",
+        Retirement::NoEffect(
+            "a library build (`--target js-module`) keeps its export names and an application build has none to keep",
+        ),
+    ),
+    (
+        "mangle.extern_fields",
+        Retirement::NoEffect("no property is renamed, so extern fields always keep their names"),
+    ),
+    (
+        "mangle.internal_properties",
+        Retirement::NoEffect(
+            "no property is renamed; typed property renaming (plan M9.6) will take ownership from declared types",
+        ),
+    ),
+    ("profile", Retirement::NoEffect(PROFILE_GUIDED)),
+    (
+        "native",
+        Retirement::NoEffect(
+            "these switched the old compiler's C emitter, which was deleted; the native target has no such switches",
+        ),
+    ),
+];
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct CompilerConfig {
-    /// Worker threads and codec workers the compiler may use; the CLI flags `--jobs` and `--codec-jobs` override these.
-    pub resources: CompilerResourceConfig,
-    /// The compiler route a build takes: `semantic` (the default) or
-    /// `legacy`, the route it replaces, kept only until every port builds on
-    /// the semantic route (plan 014). The CLI flag `--backend` overrides it.
-    pub backend: CompilerBackend,
-}
+/// `javascript.compression` entries that no longer decide anything. Each chose
+/// an old-compiler emission or search family.
+pub const RETIRED_COMPRESSION_DECISIONS: &[&str] = &[
+    "entropy-aware-mangling",
+    "quote-style-selection",
+    "export-mangling",
+    "size-aware-inlining",
+    "safe-integer-coercion-elision",
+    "compact-boolean-literals",
+    "standard-grammar-elision",
+    "structured-closure-inlining",
+    "pure-helper-inlining",
+    "dense-string-return-tables",
+    "host-alias-spelling",
+    "regex-literals",
+    "unused-catch-binding-elision",
+    "compact-generator-star",
+    "callee-default-arguments",
+    "scalar-phi-copies",
+    "phi-affinity-coalescing",
+    "ir-inlining-variants",
+    "exported-internal-inlining",
+    "global-alias-forwarding",
+    "ir-closure-factory-variants",
+    "ir-phase-ordering-variants",
+    "loop-spelling-selection",
+    "mutation-spelling-selection",
+    "indexed-char-at",
+    "effect-ternary",
+    "array-pipeline-fusion",
+    "partial-escape-sinking",
+    "region-outlining",
+    "expression-superoptimization",
+    "path-sensitive-propagation",
+    "joint-representation-search",
+    "joint-chunk-symbol-search",
+];
 
-/// The migration's explicit route selection.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum CompilerBackend {
-    Legacy,
-    #[default]
-    Semantic,
-}
+/// `javascript.optimizations` entries that no longer decide anything. Each
+/// named an old-compiler search family.
+pub const RETIRED_JAVASCRIPT_OPTIMIZATIONS: &[&str] = &[
+    "ir-inlining-variants",
+    "ir-closure-factory-variants",
+    "ir-phase-ordering-variants",
+    "ir-function-subsumption-variants",
+    "ir-specialization-variants",
+    "structural-control-flow-variants",
+    "ssa-destruction-variants",
+    "conditional-expression-variants",
+    "expression-phi-region-variants",
+    "local-phi-expression-region-variants",
+    "phi-edge-value-forwarding-variants",
+    "constructor-initializer-fusion-variants",
+    "fresh-literal-factory-inlining-variants",
+    "default-argument-variants",
+    "comma-expression-variants",
+    "operand-order-fusion-variants",
+    "structural-loop-variants",
+    "do-loop-variants",
+    "update-loop-variants",
+    "switch-lowering-variants",
+    "compound-mutation-variants",
+    "entropy-property-assignment",
+    "parsed-peephole",
+    "startup-cost-guard",
+    "performance-shape-model",
+    "profile-guided-optimization",
+    "capture-signature-cloning",
+    "identical-function-folding",
+    "function-layout-variants",
+    "ir-compress-pass-variants",
+    "joint-chunk-symbol-search",
+    "joint-representation-search",
+];
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct CompilerResourceConfig {
-    /// Total Rayon workers for one configured JavaScript compilation. When
-    /// omitted, Rayon keeps its process/global `RAYON_NUM_THREADS` or host
-    /// default rather than creating a per-compilation pool.
-    pub threads: Option<NonZeroUsize>,
-    /// Maximum terminal Brotli plan finalizers. The effective value is also
-    /// capped by the active Rayon pool.
-    pub codec_workers: NonZeroUsize,
-}
-
-impl Default for CompilerResourceConfig {
-    fn default() -> Self {
-        Self {
-            threads: None,
-            codec_workers: NonZeroUsize::new(4).expect("four is nonzero"),
+/// Apply the retired-key table to a parsed configuration: remove what has no
+/// effect, and return one warning for each removal. The first refusal is the
+/// error.
+pub fn apply_retired_keys(table: &mut toml::Table) -> Result<Vec<String>, String> {
+    let mut warnings = Vec::new();
+    for &(key, retirement) in RETIRED_KEYS {
+        let path = key.split('.').collect::<Vec<_>>();
+        let Some(value) = lookup(table, &path) else {
+            continue;
+        };
+        let no_effect = match retirement {
+            Retirement::NoEffect(reason) => reason,
+            Retirement::Refused(reason) => return Err(format!("`{key}` is refused: {reason}")),
+            Retirement::RefusedUnless {
+                value: allowed,
+                then,
+                refused,
+            } => {
+                if !allowed.matches(value) {
+                    return Err(format!("`{key} = {value}` is refused: {refused}"));
+                }
+                match then {
+                    None => continue,
+                    Some(reason) => reason,
+                }
+            }
+        };
+        remove(table, &path);
+        warnings.push(format!(
+            "`{key}` has no effect in this compiler: {no_effect}; remove it"
+        ));
+    }
+    for (key, retired, reason) in [
+        (
+            "compression",
+            RETIRED_COMPRESSION_DECISIONS,
+            "they chose old-compiler emission and search families",
+        ),
+        (
+            "optimizations",
+            RETIRED_JAVASCRIPT_OPTIMIZATIONS,
+            "they named old-compiler search families",
+        ),
+    ] {
+        let Some(toml::Value::Array(entries)) = table
+            .get_mut("javascript")
+            .and_then(toml::Value::as_table_mut)
+            .and_then(|javascript| javascript.get_mut(key))
+        else {
+            continue;
+        };
+        let mut removed = Vec::new();
+        entries.retain(|entry| match entry.as_str() {
+            Some(name) if retired.contains(&name) => {
+                if !removed.contains(&name.to_string()) {
+                    removed.push(name.to_string());
+                }
+                false
+            }
+            _ => true,
+        });
+        if !removed.is_empty() {
+            let names = removed
+                .iter()
+                .map(|name| format!("`{name}`"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            warnings.push(format!(
+                "`javascript.{key}` entries {names} have no effect in this compiler: {reason}, which were deleted; remove them"
+            ));
         }
     }
+    // A table left empty by the removals, such as `[compiler]`, goes too: its
+    // section no longer exists.
+    for &(key, _) in RETIRED_KEYS {
+        let path = key.split('.').collect::<Vec<_>>();
+        for depth in (1..path.len()).rev() {
+            if lookup(table, &path[..depth])
+                .and_then(toml::Value::as_table)
+                .is_some_and(toml::Table::is_empty)
+            {
+                remove(table, &path[..depth]);
+            }
+        }
+    }
+    Ok(warnings)
 }
 
-impl CompilerResourceConfig {
-    pub fn effective_codec_workers(&self, active_threads: usize) -> usize {
-        self.codec_workers.get().min(active_threads.max(1))
+fn lookup<'a>(table: &'a toml::Table, path: &[&str]) -> Option<&'a toml::Value> {
+    let (last, parents) = path.split_last()?;
+    let mut current = table;
+    for part in parents {
+        current = current.get(*part)?.as_table()?;
     }
+    current.get(*last)
+}
+
+fn remove(table: &mut toml::Table, path: &[&str]) {
+    let Some((last, parents)) = path.split_last() else {
+        return;
+    };
+    let mut current = table;
+    for part in parents {
+        match current.get_mut(*part).and_then(toml::Value::as_table_mut) {
+            Some(next) => current = next,
+            None => return,
+        }
+    }
+    current.remove(*last);
+}
+
+/// A configuration read from TOML, with a warning for every retired key it set.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedConfig {
+    pub config: ProjectConfig,
+    pub warnings: Vec<String>,
+}
+
+/// Read a configuration: retired keys first (`apply_retired_keys`), then
+/// strict deserialization and validation.
+pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
+    let mut table = source
+        .parse::<toml::Table>()
+        .map_err(|error| format!("invalid config: {error}"))?;
+    let warnings = apply_retired_keys(&mut table)?;
+    let config = ProjectConfig::deserialize(table)
+        .map_err(|error| format!("invalid config: {error}"))?;
+    config.validate()?;
+    Ok(ParsedConfig { config, warnings })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
@@ -110,13 +414,10 @@ pub struct ProjectConfig {
     pub policy: Option<crate::compilation_policy::PolicyConfig>,
     pub package: Option<PackageMetadata>,
     pub dependencies: BTreeMap<String, DependencyConfig>,
-    pub compiler: CompilerConfig,
     pub optimization: OptimizationConfig,
     pub javascript: JavaScriptConfig,
     pub mangle: MangleConfig,
     pub bundle: BundleConfig,
-    pub profile: OptimizationProfileConfig,
-    pub native: NativeConfig,
     pub lint: LintConfig,
     pub format: FormatConfig,
     #[serde(skip)]
@@ -124,9 +425,9 @@ pub struct ProjectConfig {
 }
 
 impl ProjectConfig {
-    /// Resolve configuration once at a public compilation boundary. Old raw
-    /// clients are compatibility paths until migrated to this policy's
-    /// candidate admission and ledger.
+    /// Resolve configuration once at a public compilation boundary: the one
+    /// place the compiler's contract, objective, effort and tactic permissions
+    /// are built.
     pub fn resolve_policy(
         &self,
         request: crate::compilation_policy::CompilationRequest,
@@ -162,8 +463,7 @@ impl ProjectConfig {
             if spec.javascript_only && !javascript {
                 continue;
             }
-            let (legacy_explicit, configured_default) =
-                self.legacy_tactic_setting(tactic, javascript);
+            let (legacy_explicit, configured_default) = self.configured_tactic(tactic, javascript);
             let default = configured_default.unwrap_or(spec.default.enabled(maximum_preset));
             let configured = policy
                 .tactics
@@ -206,13 +506,11 @@ impl ProjectConfig {
             CompilationRequest::JavaScript {
                 preserve_root_exports,
             } => {
-                // Do not call js_options here: its historical preserved-name
-                // adapter leaks a boxed set and constructs unrelated emit data.
                 let language = JavaScriptCompilationContract {
-                    // Compatibility adapter: this request's export flag was
-                    // historically also the module-output selector. Record
-                    // that execution promise explicitly; world/visibility is
-                    // not proof that an artifact executes in strict mode.
+                    // The request's export flag also selects module output.
+                    // Record that execution promise explicitly; world and
+                    // visibility are no proof that an artifact executes in
+                    // strict mode.
                     execution: if preserve_root_exports {
                         JavaScriptExecution::Module
                     } else {
@@ -226,14 +524,6 @@ impl ProjectConfig {
                     ecmascript: self.javascript.resolved_ecmascript(),
                     abi: JavaScriptAbiContract {
                         preserve_root_exports,
-                        public_aggregate_abi: self.javascript.public_aggregate_abi,
-                        preserve_extern_fields: self.mangle.extern_fields.unwrap_or(true),
-                        internal_export_bindings_may_mangle: self.mangle.exports.unwrap_or_else(
-                            || {
-                                self.javascript
-                                    .compression_enabled(CompressionDecision::ExportMangling)
-                            },
-                        ),
                         keep_function_names: self.javascript.keep_function_names,
                         keep_published_function_names: self
                             .javascript
@@ -259,14 +549,9 @@ impl ProjectConfig {
                     codec: self.javascript.cost_model,
                     rank: ObjectiveRank {
                         priority: self.javascript.priority,
-                        realistic_performance_limit_percent: self
-                            .javascript
-                            .performance
-                            .max_regression_percent,
                     },
                     optional_alternatives: self.javascript.effective_candidate_proposal_limit(),
                     optional_codec_probes: self.javascript.effective_terminal_codec_probe_limit(),
-                    cleanup_finalists: self.javascript.terminal_cleanup_finalists(),
                     retained_candidates: self.javascript.effective_candidate_limit(),
                     retained_candidate_bytes: self.javascript.effective_candidate_byte_budget(),
                     beam_width: self.javascript.effective_candidate_beam_width(),
@@ -276,10 +561,6 @@ impl ProjectConfig {
                     CompilationContract::JavaScript {
                         language,
                         preserved_properties,
-                        owned_properties: self
-                            .mangle
-                            .internal_properties
-                            .unwrap_or(InternalProperties::UnderscoreSuffix),
                         bundle_mode: self.bundle.mode,
                         split: (self.bundle.mode == BundleMode::Split).then_some(
                             crate::compilation_policy::SplitRule {
@@ -299,8 +580,6 @@ impl ProjectConfig {
                 )
             }
         };
-        // The schema owns explicit hard limits. Historical performance scores
-        // remain ranking estimates, not newly invented runtime guarantees.
         Ok(ResolvedPolicy::new(
             contract,
             objective,
@@ -312,12 +591,12 @@ impl ProjectConfig {
         ))
     }
 
-    /// The sole bridge from historical flags/allowlists into the tactic
-    /// registry: an explicit setting, and a default that replaces the spec
-    /// row's where the configured priority decides it. Explicit omission from
-    /// a legacy allowlist means off; it must not reappear through a different
+    /// The sole bridge from the older per-tactic keys and allowlists into the
+    /// tactic registry: an explicit setting, and a default that replaces the
+    /// spec row's where the configured priority decides it. Explicit omission
+    /// from an allowlist means off; it must not reappear through a different
     /// aggregate producer.
-    fn legacy_tactic_setting(
+    fn configured_tactic(
         &self,
         tactic: crate::compilation_policy::TacticId,
         javascript: bool,
@@ -352,9 +631,16 @@ impl ProjectConfig {
             }
             T::HelperSharing => {
                 let (legacy, _) = compression(CompressionDecision::ParameterizedFunctionMerging);
+                let default = self
+                    .optimization
+                    .parameterized_function_merging
+                    .unwrap_or(self.optimization.preset != OptimizationPreset::None)
+                    && self
+                        .javascript
+                        .compression_enabled(CompressionDecision::ParameterizedFunctionMerging);
                 (
                     self.optimization.parameterized_function_merging.or(legacy),
-                    Some(self.js_parameterized_function_merging_enabled()),
+                    Some(default),
                 )
             }
             T::TargetCompaction => ((!self.javascript.operand_order_fusion).then_some(false), None),
@@ -381,670 +667,6 @@ impl ProjectConfig {
                 (explicit, None)
             }
         }
-    }
-
-    pub fn optimizer_options(&self) -> OptimizationOptions {
-        self.optimization.resolve()
-    }
-
-    pub fn native_profile_guided_optimization(&self) -> bool {
-        self.optimization.profile_guided.unwrap_or(matches!(
-            self.optimization.preset,
-            OptimizationPreset::Maximum
-        ))
-    }
-
-    pub fn js_profile_guided_optimization(&self) -> bool {
-        self.native_profile_guided_optimization()
-            && self.javascript_optimization_configured(
-                JavaScriptOptimization::ProfileGuidedOptimization,
-            )
-    }
-
-    pub fn js_optimizer_options(&self) -> OptimizationOptions {
-        let mut options = self.optimization.resolve();
-        options.specialize_tagged_constants = self
-            .optimization
-            .specialize_tagged_constants
-            .unwrap_or(true);
-        options.call_site_specialization &= self
-            .javascript
-            .optimization_enabled(JavaScriptOptimization::CallSiteSpecialization, None);
-        options.capture_signature_cloning &= self
-            .javascript
-            .optimization_enabled(JavaScriptOptimization::CaptureSignatureCloning, None);
-        options.identical_function_folding &= self
-            .javascript
-            .optimization_enabled(JavaScriptOptimization::IdenticalFunctionFolding, None);
-        options.function_subsumption &= self
-            .javascript
-            .optimization_enabled(JavaScriptOptimization::IrFunctionSubsumptionVariants, None);
-        let compress = self.compress_pass_options();
-        options.pipeline_fusion = compress.pipeline_fusion;
-        options.partial_escape_sinking = compress.partial_escape_sinking;
-        options.region_outlining = compress.region_outlining;
-        options.expression_superopt = compress.expression_superopt;
-        options.path_sensitive_propagation = compress.path_sensitive_propagation;
-        options.parameterized_function_merging = self.js_parameterized_function_merging_enabled();
-        // Exported-body duplication is proposed only by its scored IR recipe;
-        // the configured incumbent remains source-shaped.
-        options.inline_exported_internal_calls = false;
-        if !options.inlining {
-            return options;
-        }
-        let policy = self.javascript.priority.policy();
-        options.inline_instruction_limit = self
-            .javascript
-            .inline_instruction_limit
-            .unwrap_or(policy.inline_instruction_limit);
-        options.inline_control_flow_limit = self
-            .javascript
-            .inline_control_flow_limit
-            .unwrap_or(policy.inline_control_flow_limit);
-        options.inline_growth_limit =
-            self.javascript
-                .max_inline_growth
-                .map(Some)
-                .unwrap_or_else(|| {
-                    self.javascript
-                        .compression_enabled(CompressionDecision::SizeAwareInlining)
-                        .then_some(policy.max_inline_growth)
-                });
-        options
-    }
-
-    pub fn js_function_subsumption_variants_enabled(&self) -> bool {
-        if self.optimization.function_subsumption == Some(false)
-            || !self
-                .javascript
-                .optimization_enabled(JavaScriptOptimization::IrFunctionSubsumptionVariants, None)
-        {
-            return false;
-        }
-        self.optimization.function_subsumption == Some(true)
-            || self.javascript.optimizations.is_some()
-            || matches!(self.javascript.priority, JavaScriptPriority::SizeFirst)
-    }
-
-    pub fn load_optimization_profile(&self) -> Result<OptimizationProfile, String> {
-        let mut profile = if let Some(path) = &self.profile.path {
-            let path = if path.is_absolute() {
-                path.clone()
-            } else {
-                self.config_dir
-                    .as_deref()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(path)
-            };
-            let source = fs::read_to_string(&path).map_err(|error| {
-                format!(
-                    "failed to read optimization profile `{}`: {error}",
-                    path.display()
-                )
-            })?;
-            serde_json::from_str::<OptimizationProfile>(&source).map_err(|error| {
-                format!("invalid optimization profile `{}`: {error}", path.display())
-            })?
-        } else {
-            OptimizationProfile::default()
-        };
-        profile.merge(&OptimizationProfile {
-            version: 1,
-            functions: self.profile.functions.clone(),
-            loops: self.profile.loops.clone(),
-        });
-        profile.validate()?;
-        Ok(profile)
-    }
-
-    pub const fn javascript_performance_weights(&self) -> JavaScriptPerformanceWeights {
-        JavaScriptPerformanceWeights {
-            deoptimization: self.javascript.performance.deoptimization_weight,
-            allocation: self.javascript.performance.allocation_weight,
-            indirect_call: self.javascript.performance.indirect_call_weight,
-            hot_code: self.javascript.performance.hot_code_weight,
-        }
-    }
-
-    pub const fn native_options(&self) -> NativeOptions {
-        NativeOptions {
-            partial_escape_analysis: self.native.partial_escape_analysis,
-            stack_allocation: self.native.stack_allocation,
-            region_allocation: self.native.region_allocation,
-            stack_array_element_limit: self.native.stack_array_element_limit,
-        }
-    }
-
-    pub fn js_options(&self) -> IrJsOptions {
-        IrJsOptions {
-            mangle_identifiers: self.mangle.identifiers.unwrap_or_else(|| {
-                self.javascript
-                    .compression_enabled(CompressionDecision::IdentifierMangling)
-            }),
-            mangle_properties: self.mangle.properties.unwrap_or_else(|| {
-                self.javascript
-                    .compression_enabled(CompressionDecision::PropertyMangling)
-            }),
-            mangle_exports: self.mangle.exports.unwrap_or_else(|| {
-                self.javascript
-                    .compression_enabled(CompressionDecision::ExportMangling)
-            }),
-            mangle_extern_fields: self.mangle.extern_fields.unwrap_or(true),
-            preserved_js_properties: match &self.mangle.preserve_properties {
-                // Borrowed rather than owned because `IrJsOptions` is `Copy`:
-                // the candidate search copies it once per proposal. The list is
-                // read from the project's config once per compile.
-                Some(names) if !names.is_empty() => Box::leak(Box::new(
-                    names.iter().cloned().collect::<crate::stable_hash::StableHashSet<String>>(),
-                )),
-                _ => crate::codegen_ir_js::empty_preserved_js_properties(),
-            },
-            owned_js_properties: match self.mangle.internal_properties {
-                Some(InternalProperties::All) => {
-                    crate::codegen_ir_js::OwnedJsProperties::All
-                }
-                Some(InternalProperties::UnderscoreSuffix) | None => {
-                    crate::codegen_ir_js::OwnedJsProperties::UnderscoreSuffix
-                }
-            },
-            public_aggregate_fields: matches!(
-                self.javascript.public_aggregate_abi,
-                PublicAggregateAbi::Named
-            ),
-            named_aggregate_fields: matches!(
-                self.javascript.aggregate_layout,
-                AggregateLayout::Named
-            ),
-            pool_strings: self.mangle.pool_strings.unwrap_or_else(|| {
-                self.javascript
-                    .compression_enabled(CompressionDecision::StringPooling)
-            }),
-            // Objective-scaled, but the scale is raw bytes and the underlying
-            // savings model credits every repeated occurrence at full literal
-            // width. Under a compressing objective those repeats were already
-            // matches, so the model overstates the benefit. Raising the Brotli
-            // number is *not* the fix: measured on jQuery, thresholds of 16 and
-            // 32 are worse than 8 while 64 is better, because the knob
-            // perturbs which candidates the beam explores rather than moving a
-            // smooth cost curve. The principled fix is to stop crediting the
-            // repeats. See finer/hypotheses/011-string-pooling-under-compression.
-            string_pool_minimum_savings: match self.javascript.cost_model {
-                CompressionCostModel::Raw => 1,
-                CompressionCostModel::Gzip => 4,
-                CompressionCostModel::Brotli => 8,
-            },
-            pool_identifier_strings: !matches!(
-                self.javascript.cost_model,
-                CompressionCostModel::Brotli
-            ),
-            pool_numeric_literals: self.javascript.pool_numeric_literals,
-            ordinary_record_literals: false,
-            elide_safe_integer_coercions: !self.javascript.keep_integer_coercions(),
-            elide_safe_string_coercions: !self.javascript.keep_integer_coercions(),
-            elide_length_tonumber: self
-                .javascript
-                .compression_enabled(CompressionDecision::LengthToNumberElision),
-            compact_boolean_literals: self
-                .javascript
-                .compression_enabled(CompressionDecision::CompactBooleanLiterals),
-            elide_block_terminal_semicolons: self
-                .javascript
-                .compression_enabled(CompressionDecision::StandardGrammarElision),
-            elide_new_parentheses: self
-                .javascript
-                .compression_enabled(CompressionDecision::StandardGrammarElision),
-            elide_call_chain_parentheses: self
-                .javascript
-                .compression_enabled(CompressionDecision::StandardGrammarElision),
-            inline_structured_closures: self
-                .javascript
-                .compression_enabled(CompressionDecision::StructuredClosureInlining),
-            snapshot_immutable_closure_captures: false,
-            struct_method_shorthand: self.javascript.struct_method_shorthand.unwrap_or(true),
-            truthy_nullable_checks: self
-                .javascript
-                .truthy_nullable_checks
-                .unwrap_or(!self.javascript.priority.keeps_integer_coercions()),
-            pack_string_arrays: self
-                .javascript
-                .compression_enabled(CompressionDecision::StringArrayPacking)
-                && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
-            regex_literals: self.javascript.assume_pristine_builtins
-                && self
-                    .javascript
-                    .compression_enabled(CompressionDecision::RegexLiterals),
-            unused_catch_binding_elision: self
-                .javascript
-                .compression_enabled(CompressionDecision::UnusedCatchBindingElision)
-                && self
-                    .javascript
-                    .resolved_ecmascript()
-                    .allows(JsSyntaxFeature::OptionalCatchBinding),
-            compact_generator_star: self
-                .javascript
-                .compression_enabled(CompressionDecision::CompactGeneratorStar),
-            // Candidate search can introduce this whole-program
-            // representation when structured-function compression is enabled.
-            // Keeping the configured baseline named preserves predictable
-            // development output and lets the exact transfer codec decide.
-            inline_single_use_functions: false,
-            inline_exclusive_closures: true,
-            iife_private_callee_clusters: self.javascript.iife_private_callee_clusters,
-            nested_once_run_helpers: self.javascript.nested_once_run_helpers,
-            batch_property_assigns: false,
-            batch_property_assign_minimum: 2,
-            // Fresh-literal factory substitution changes complete-artifact
-            // repetition history, so candidate search scores it separately.
-            inline_fresh_empty_array_factories: false,
-            // Complete constructor-literal fusion is scored as a distinct
-            // local-codegen candidate; the configured baseline stays dense and
-            // source-shaped for predictable output and codec comparison.
-            constructor_initializer_fusion: false,
-            pure_helper_inlining: crate::codegen_ir_js::PureHelperInliningPolicy::None,
-            // The configured artifact remains source-shaped. Candidate search
-            // introduces the dense representation only when its dedicated
-            // compression decision is enabled and exact codec scoring wins.
-            dense_string_return_tables: false,
-            host_alias_spelling: HostAliasSpelling::Shared,
-            callee_default_arguments: self
-                .javascript
-                .compression_enabled(CompressionDecision::CalleeDefaultArguments),
-            scalar_phi_copies: self
-                .javascript
-                .compression_enabled(CompressionDecision::ScalarPhiCopies),
-            local_name_coalescing: self.javascript.local_name_coalescing,
-            phi_affinity_mode: if self
-                .javascript
-                .compression_enabled(CompressionDecision::PhiAffinityCoalescing)
-            {
-                PhiAffinityMode::Grouped
-            } else {
-                PhiAffinityMode::Conservative
-            },
-            control_flow_spelling: ControlFlowSpelling::Auto,
-            state_machine_spelling: StateMachineSpelling::Switch,
-            conditional_expressions: self
-                .javascript
-                .optimization_enabled(JavaScriptOptimization::ConditionalExpressionVariants, None),
-            expression_phi_regions: self
-                .javascript
-                .optimization_enabled(JavaScriptOptimization::ExpressionPhiRegionVariants, None),
-            // Statement-authored phi recovery is raw-positive in the common
-            // case, but may disrupt Brotli's larger-context repetitions. Use
-            // a codec-aware canonical state and let candidate search score the
-            // opposite state over the complete artifact.
-            local_phi_expression_regions: self.javascript.optimization_enabled(
-                JavaScriptOptimization::LocalPhiExpressionRegionVariants,
-                None,
-            ) && self
-                .javascript
-                .local_phi_expression_regions
-                .unwrap_or(!matches!(
-                    self.javascript.cost_model,
-                    CompressionCostModel::Brotli
-                )),
-            // Naming a twice-read aggregate field is the raw-cheap spelling and,
-            // under a compressor, sometimes the expensive one: the un-hoisted read
-            // repeats verbatim and every copy after the first costs a
-            // back-reference. Off by default -- it is a raw regression by
-            // construction, so a port turns it on only after measuring its own
-            // artifact.
-            rematerialize_member_reads: self
-                .javascript
-                .rematerialize_member_reads
-                .unwrap_or(false),
-            phi_edge_value_forwarding: self
-                .javascript
-                .optimization_enabled(JavaScriptOptimization::PhiEdgeValueForwardingVariants, None)
-                && !matches!(self.javascript.cost_model, CompressionCostModel::Brotli),
-            operand_order_fusion: self.javascript.operand_order_fusion,
-            aggregate_operand_order_fusion: self.javascript.aggregate_operand_order_fusion,
-            assume_pristine_builtins: self.javascript.assume_pristine_builtins,
-            assume_pure_property_reads: self.javascript.assume_pure_property_reads,
-            sink_entry_function_declarations: self.javascript.sink_entry_function_declarations,
-            comma_expressions: false,
-            update_loop_layout: true,
-            cross_scope_name_reuse: self
-                .javascript
-                .optimization_enabled(JavaScriptOptimization::EntropyCrossScopeReuse, None),
-            // Keep the mandatory emission conservative. Production search
-            // scores exact transitive nested-function shadowing separately.
-            transitive_nested_shadowing: self
-                .javascript
-                .transitive_nested_shadowing
-                .unwrap_or(false),
-            // The precise regime is an aggressive scored proposal. Keep the
-            // configured/pinned emission conservative so an incomplete
-            // transitive-reference proof can be rejected without making the
-            // compiler's mandatory fallback invalid.
-            precise_cross_scope_shadowing: self
-                .javascript
-                .precise_cross_scope_shadowing
-                .unwrap_or(false),
-            reserved_local_name_prefix: false,
-            local_name_reserve: self.javascript.local_name_reserve,
-            stable_local_names: self.javascript.stable_local_names,
-            frequency_order_local_names: self
-                .javascript
-                .frequency_order_local_names
-                .unwrap_or(false),
-            entropy_property_names: self
-                .javascript
-                .optimization_enabled(JavaScriptOptimization::EntropyPropertyAssignment, None),
-            owner_scoped_property_names: false,
-            function_layout: FunctionLayout::Source,
-            function_layout_exact_limit: self.javascript.function_layout_exact_limit,
-            function_spelling: self.javascript.function_spelling.unwrap_or(
-                if matches!(self.javascript.cost_model, CompressionCostModel::Brotli) {
-                    FunctionSpelling::Function
-                } else {
-                    FunctionSpelling::Arrow
-                },
-            ),
-            // An exported function keeps the callable kind the original library
-            // publishes — an ordinary `function`, constructible, with its own
-            // `prototype` — whatever `function_spelling` chooses for private
-            // functions. That spelling was a combined public/private knob; the
-            // ABI freezes the public half (D2, javascript-shape-abi).
-            public_function_arrows: false,
-            loop_spelling: LoopSpelling::Auto,
-            mutation_spelling: MutationSpelling::Assignment,
-            identifier_alphabet: IdentifierAlphabet::canonical(),
-            string_quote: StringQuote::Double,
-            pool_window_roots: true,
-            bare_window_root: false,
-            alias_array_prototype_methods: !matches!(
-                self.javascript.cost_model,
-                CompressionCostModel::Brotli
-            ),
-            ecmascript: self.javascript.resolved_ecmascript(),
-            indexed_char_at: false,
-            effect_ternary: true,
-        }
-    }
-
-    pub fn entropy_aware_mangling_enabled(&self) -> bool {
-        self.javascript
-            .compression_enabled(CompressionDecision::EntropyAwareMangling)
-    }
-
-    pub fn quote_style_selection_enabled(&self) -> bool {
-        self.javascript
-            .compression_enabled(CompressionDecision::QuoteStyleSelection)
-    }
-
-    pub fn single_use_function_expression_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::StructuredClosureInlining)
-    }
-
-    pub fn pure_helper_inlining_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::PureHelperInlining)
-    }
-
-    pub fn dense_string_return_table_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::DenseStringReturnTables)
-    }
-
-    pub fn host_alias_spelling_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::HostAliasSpelling)
-    }
-
-    pub fn string_array_packing_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::StringArrayPacking)
-    }
-
-    pub fn identifier_string_pooling_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::StringPooling)
-    }
-
-    pub fn ir_inlining_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::IrInliningVariants,
-                Some(CompressionDecision::IrInliningVariants),
-            )
-    }
-
-    pub fn exported_internal_inlining_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::IrInliningVariants,
-                Some(CompressionDecision::ExportedInternalInlining),
-            )
-    }
-
-    pub fn global_alias_forwarding_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::JointRepresentationSearch,
-                Some(CompressionDecision::GlobalAliasForwarding),
-            )
-    }
-
-    pub fn ir_closure_factory_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::IrClosureFactoryVariants,
-                Some(CompressionDecision::IrClosureFactoryVariants),
-            )
-    }
-
-    pub fn ir_phase_ordering_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::IrPhaseOrderingVariants,
-                Some(CompressionDecision::IrPhaseOrderingVariants),
-            )
-    }
-
-    pub fn javascript_optimization_enabled(&self, feature: JavaScriptOptimization) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(feature, None)
-    }
-
-    pub fn js_scalar_phi_copy_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::SsaDestructionVariants,
-                Some(CompressionDecision::ScalarPhiCopies),
-            )
-    }
-
-    pub fn js_phi_affinity_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::SsaDestructionVariants,
-                Some(CompressionDecision::PhiAffinityCoalescing),
-            )
-    }
-
-    /// The full coalesced/uncoalesced spelling is another bounded
-    /// SSA-destruction variant. It intentionally shares the existing
-    /// phi-affinity allowlist for backward-compatible configuration, while
-    /// callers can distinguish it from choosing an affinity mode.
-    pub fn js_local_name_coalescing_variants_enabled(&self) -> bool {
-        self.js_phi_affinity_variants_enabled()
-    }
-
-    pub fn javascript_optimization_configured(&self, feature: JavaScriptOptimization) -> bool {
-        self.javascript.optimization_enabled(feature, None)
-    }
-
-    pub fn loop_spelling_selection_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::StructuralLoopVariants,
-                Some(CompressionDecision::LoopSpellingSelection),
-            )
-    }
-
-    pub fn mutation_spelling_selection_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::CompoundMutationVariants,
-                Some(CompressionDecision::MutationSpellingSelection),
-            )
-    }
-
-    pub fn indexed_char_at_candidates_enabled(&self) -> bool {
-        self.javascript
-            .search_compression_enabled(CompressionDecision::IndexedCharAt)
-    }
-
-    pub fn effect_ternary_candidates_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::EffectTernary)
-    }
-
-    pub fn compress_pass_options(&self) -> crate::compress_passes::CompressPassOptions {
-        let allow_profile_defaults = self.optimization.preset != OptimizationPreset::None;
-        crate::compress_passes::CompressPassOptions {
-            pipeline_fusion: self
-                .optimization
-                .pipeline_fusion
-                .unwrap_or(allow_profile_defaults)
-                && self
-                    .javascript
-                    .compression_enabled(CompressionDecision::ArrayPipelineFusion),
-            partial_escape_sinking: self
-                .optimization
-                .partial_escape_sinking
-                .unwrap_or(allow_profile_defaults)
-                && self
-                    .javascript
-                    .compression_enabled(CompressionDecision::PartialEscapeSinking),
-            // Default off: helpers often win raw while losing gzip/Brotli. A
-            // codec-scored search may reintroduce outlining only when the
-            // compression policy permits that decision.
-            region_outlining: self.optimization.region_outlining.unwrap_or(false)
-                && self
-                    .javascript
-                    .compression_enabled(CompressionDecision::RegionOutlining),
-            expression_superopt: self
-                .optimization
-                .expression_superopt
-                .unwrap_or(allow_profile_defaults)
-                && self
-                    .javascript
-                    .compression_enabled(CompressionDecision::ExpressionSuperoptimization),
-            path_sensitive_propagation: self
-                .optimization
-                .path_sensitive_propagation
-                .unwrap_or(allow_profile_defaults)
-                && self
-                    .javascript
-                    .compression_enabled(CompressionDecision::PathSensitivePropagation),
-        }
-    }
-
-    pub fn js_joint_chunk_symbol_search_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::JointChunkSymbolSearch,
-                Some(CompressionDecision::JointChunkSymbolSearch),
-            )
-    }
-
-    pub fn js_region_outlining_candidate_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.optimization.region_outlining != Some(false)
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::RegionOutlining)
-    }
-
-    pub fn js_joint_representation_search_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::JointRepresentationSearch,
-                Some(CompressionDecision::JointRepresentationSearch),
-            )
-    }
-
-    pub fn js_length_to_number_elision_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::LengthToNumberElision)
-    }
-
-    pub fn js_scalar_replacement_variants_enabled(&self) -> bool {
-        self.js_keep_object_variants_enabled()
-    }
-
-    pub fn js_keep_object_variants_enabled(&self) -> bool {
-        self.js_joint_representation_search_enabled()
-            && self.optimization.scalar_replacement != Some(false)
-    }
-
-    pub fn js_default_argument_variants_enabled(&self) -> bool {
-        self.javascript.candidate_search_enabled()
-            && self.javascript.optimization_enabled(
-                JavaScriptOptimization::DefaultArgumentVariants,
-                Some(CompressionDecision::CalleeDefaultArguments),
-            )
-    }
-
-    pub fn js_parameterized_function_merging_enabled(&self) -> bool {
-        let allow_profile_defaults = self.optimization.preset != OptimizationPreset::None;
-        self.optimization
-            .parameterized_function_merging
-            .unwrap_or(allow_profile_defaults)
-            && self
-                .javascript
-                .compression_enabled(CompressionDecision::ParameterizedFunctionMerging)
-    }
-
-    /// Accepted knobs this compiler does not implement, one message each. The
-    /// CLI prints them as warnings; an empty list means every setting in the
-    /// configuration is honoured.
-    pub fn unimplemented_knobs(&self) -> Vec<String> {
-        let javascript = &self.javascript;
-        let mut notes = Vec::new();
-        if let Some(ordering) = javascript.name_ordering {
-            if ordering != SiblingNameOrdering::EmissionWalk {
-                notes.push(format!(
-                    "`javascript.name_ordering = \"{}\"` selects a naming strategy this compiler does not implement; \
-                     it is accepted and has no effect, and the default naming is used",
-                    ordering.as_str()
-                ));
-            }
-        }
-        if javascript.terminal_cleanup_chain == Some(true) {
-            notes.push(
-                "`javascript.terminal_cleanup_chain = true` enables a cleanup this compiler does not implement; \
-                 it is accepted and has no effect"
-                    .to_string(),
-            );
-        }
-        if javascript.wide_single_use_collapse == Some(true) {
-            notes.push(
-                "`javascript.wide_single_use_collapse = true` enables a collapse this compiler does not implement; \
-                 it is accepted and has no effect"
-                    .to_string(),
-            );
-        }
-        notes
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -1128,20 +750,6 @@ impl ProjectConfig {
         if self.javascript.candidate_beam_width == 0 {
             return Err("`javascript.candidate_beam_width` must be greater than zero".to_string());
         }
-        if self.javascript.max_candidate_raw_growth_percent > 1000 {
-            return Err(
-                "`javascript.max_candidate_raw_growth_percent` must be at most 1000".to_string(),
-            );
-        }
-        if self.javascript.function_layout_exact_limit > 18 {
-            return Err("`javascript.function_layout_exact_limit` must be at most 18".to_string());
-        }
-        if self.javascript.local_name_reserve > 256 {
-            return Err("`javascript.local_name_reserve` must be at most 256".to_string());
-        }
-        if self.javascript.startup.max_nesting == Some(0) {
-            return Err("`javascript.startup.max_nesting` must be greater than zero".to_string());
-        }
         if self.javascript.optimization_level > 16 {
             return Err("`javascript.optimization_level` must be between 0 and 16".to_string());
         }
@@ -1156,66 +764,13 @@ impl ProjectConfig {
                 }
             }
         }
-        if self.javascript.performance.deoptimization_weight == 0
-            && self.javascript.performance.allocation_weight == 0
-            && self.javascript.performance.indirect_call_weight == 0
-            && self.javascript.performance.hot_code_weight == 0
-        {
-            return Err(
-                "`javascript.performance` must enable at least one cost weight".to_string(),
-            );
-        }
-        if self.javascript.performance.max_regression_percent > 1_000 {
-            return Err(
-                "`javascript.performance.max_regression_percent` must be at most 1000".to_string(),
-            );
-        }
-        if self.profile.specialization_min_count == 0 {
-            return Err("`profile.specialization_min_count` must be greater than zero".to_string());
-        }
-        if self.profile.max_specializations_per_function == 0 {
-            return Err(
-                "`profile.max_specializations_per_function` must be greater than zero".to_string(),
-            );
-        }
-        if self.profile.max_clone_instructions == 0 {
-            return Err("`profile.max_clone_instructions` must be greater than zero".to_string());
-        }
-        if self.native.stack_array_element_limit == 0 {
-            return Err("`native.stack_array_element_limit` must be greater than zero".to_string());
-        }
-        OptimizationProfile {
-            version: 1,
-            functions: self.profile.functions.clone(),
-            loops: self.profile.loops.clone(),
-        }
-        .validate()?;
-        for (name, percent) in [
-            (
-                "parse_overhead_limit_percent",
-                self.javascript.startup.parse_overhead_limit_percent,
-            ),
-            (
-                "compile_overhead_limit_percent",
-                self.javascript.startup.compile_overhead_limit_percent,
-            ),
-            (
-                "memory_overhead_limit_percent",
-                self.javascript.startup.memory_overhead_limit_percent,
-            ),
-        ] {
-            if percent > 1_000 {
-                return Err(format!("`javascript.startup.{name}` must be at most 1000"));
-            }
-        }
         if self.format.line_width < 40 {
             return Err("`format.line_width` must be at least 40".to_string());
         }
-        for (rule, severity) in &self.lint.rules {
+        for rule in self.lint.rules.keys() {
             if rule.trim().is_empty() {
                 return Err("`lint.rules` contains an empty rule name".to_string());
             }
-            let _ = severity;
         }
         if let Some(providers) = &self.lint.providers {
             let mut unique = HashSet::with_capacity(providers.len());
@@ -1234,6 +789,7 @@ impl ProjectConfig {
         Ok(())
     }
 }
+
 
 fn validate_package_name(name: &str) -> Result<(), String> {
     if name.is_empty()
@@ -1286,6 +842,7 @@ impl Default for DependencyConfig {
     }
 }
 
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum JavaScriptPriority {
@@ -1298,230 +855,60 @@ pub enum JavaScriptPriority {
 }
 
 impl JavaScriptPriority {
-    const fn policy(self) -> JavaScriptPolicy {
-        match self {
-            Self::PerformanceFirst => JavaScriptPolicy::new(24, 60, 32),
-            Self::RealisticPerformanceFirst => JavaScriptPolicy::new(18, 45, 16),
-            Self::Balanced => JavaScriptPolicy::new(12, 30, 4),
-            Self::SizeFirst => JavaScriptPolicy::new(12, 30, 16),
-        }
-    }
-
-    const fn keeps_integer_coercions(self) -> bool {
-        matches!(
-            self,
-            Self::PerformanceFirst | Self::RealisticPerformanceFirst
-        )
-    }
-
+    /// Whether the priority enables a compression decision when
+    /// `javascript.compression` is omitted. Only `size-first` passes the
+    /// configuration loader; the others remain for the ranking machinery
+    /// that runtime estimators will need.
     const fn enables_compression(self, decision: CompressionDecision) -> bool {
         match decision {
             CompressionDecision::IdentifierMangling => true,
-            CompressionDecision::EntropyAwareMangling => !matches!(self, Self::PerformanceFirst),
-            CompressionDecision::QuoteStyleSelection => !matches!(self, Self::PerformanceFirst),
             CompressionDecision::StringPooling => !matches!(self, Self::PerformanceFirst),
-            CompressionDecision::SizeAwareInlining => !matches!(self, Self::PerformanceFirst),
-            // `|0` never helps gzip/Brotli. Size-first and balanced drop
-            // proven-redundant coercions. Emission still follows
-            // `javascript.integer_coercions` / performance-first, not this
-            // allowlist: exact `compression = []` must not reintroduce `|0`.
-            CompressionDecision::SafeIntegerCoercionElision => !self.keeps_integer_coercions(),
-            CompressionDecision::LengthToNumberElision => matches!(self, Self::SizeFirst),
-            CompressionDecision::CompactBooleanLiterals => !matches!(self, Self::PerformanceFirst),
-            CompressionDecision::StandardGrammarElision => true,
-            CompressionDecision::StructuredClosureInlining => {
-                !matches!(self, Self::PerformanceFirst)
-            }
-            CompressionDecision::PureHelperInlining
-            | CompressionDecision::DenseStringReturnTables
-            | CompressionDecision::HostAliasSpelling => matches!(self, Self::SizeFirst),
-            CompressionDecision::StringArrayPacking => matches!(self, Self::SizeFirst),
-            CompressionDecision::RegexLiterals => !matches!(self, Self::PerformanceFirst),
-            CompressionDecision::UnusedCatchBindingElision => true,
-            CompressionDecision::CompactGeneratorStar => true,
-            CompressionDecision::CalleeDefaultArguments => !matches!(self, Self::PerformanceFirst),
-            CompressionDecision::ScalarPhiCopies => matches!(self, Self::SizeFirst),
-            CompressionDecision::PhiAffinityCoalescing => true,
-            CompressionDecision::IrInliningVariants => matches!(self, Self::SizeFirst),
-            CompressionDecision::ExportedInternalInlining => matches!(self, Self::SizeFirst),
-            // Forwarding can remove syntax while weakening repeated byte shapes.
-            // Keep it explicitly opt-in until corpus evidence supports a default.
-            CompressionDecision::GlobalAliasForwarding => false,
-            CompressionDecision::IrClosureFactoryVariants => matches!(self, Self::SizeFirst),
-            CompressionDecision::IrPhaseOrderingVariants => matches!(self, Self::SizeFirst),
-            CompressionDecision::LoopSpellingSelection => {
-                matches!(self, Self::SizeFirst | Self::Balanced)
-            }
-            CompressionDecision::MutationSpellingSelection | CompressionDecision::IndexedCharAt => {
-                matches!(self, Self::SizeFirst)
-            }
-            CompressionDecision::EffectTernary => false,
-            CompressionDecision::PropertyMangling => matches!(self, Self::SizeFirst),
-            CompressionDecision::ExportMangling => false,
-            CompressionDecision::ArrayPipelineFusion
-            | CompressionDecision::PartialEscapeSinking
-            | CompressionDecision::RegionOutlining
-            | CompressionDecision::JointRepresentationSearch
-            | CompressionDecision::JointChunkSymbolSearch
-            | CompressionDecision::ParameterizedFunctionMerging => {
-                matches!(self, Self::SizeFirst)
-            }
-            CompressionDecision::ExpressionSuperoptimization
-            | CompressionDecision::PathSensitivePropagation => {
-                matches!(self, Self::SizeFirst | Self::Balanced)
-            }
+            CompressionDecision::LengthToNumberElision
+            | CompressionDecision::StringArrayPacking
+            | CompressionDecision::PropertyMangling
+            | CompressionDecision::ParameterizedFunctionMerging => matches!(self, Self::SizeFirst),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct JavaScriptPolicy {
-    inline_instruction_limit: usize,
-    inline_control_flow_limit: usize,
-    max_inline_growth: usize,
-}
-
-impl JavaScriptPolicy {
-    const fn new(
-        inline_instruction_limit: usize,
-        inline_control_flow_limit: usize,
-        max_inline_growth: usize,
-    ) -> Self {
-        Self {
-            inline_instruction_limit,
-            inline_control_flow_limit,
-            max_inline_growth,
-        }
-    }
-}
-
+/// The `javascript.compression` decisions this compiler reads. Each maps onto
+/// a tactic permission or a contract assumption; an explicit list that omits
+/// one turns it off. The retired decisions are in
+/// `RETIRED_COMPRESSION_DECISIONS`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CompressionDecision {
+    /// The `identifier-mangling` tactic.
     IdentifierMangling,
-    EntropyAwareMangling,
-    QuoteStyleSelection,
+    /// The `property-mangling` tactic.
     PropertyMangling,
-    ExportMangling,
+    /// The `string-pooling` tactic.
     StringPooling,
-    SizeAwareInlining,
-    SafeIntegerCoercionElision,
+    /// The contract assumption that a host value's `length` is an int32 Number.
     LengthToNumberElision,
-    CompactBooleanLiterals,
-    StandardGrammarElision,
-    StructuredClosureInlining,
-    PureHelperInlining,
-    DenseStringReturnTables,
-    HostAliasSpelling,
+    /// The `string-array-packing` tactic.
     StringArrayPacking,
-    RegexLiterals,
-    UnusedCatchBindingElision,
-    CompactGeneratorStar,
-    CalleeDefaultArguments,
-    ScalarPhiCopies,
-    PhiAffinityCoalescing,
-    IrInliningVariants,
-    ExportedInternalInlining,
-    GlobalAliasForwarding,
-    IrClosureFactoryVariants,
-    IrPhaseOrderingVariants,
-    LoopSpellingSelection,
-    MutationSpellingSelection,
-    IndexedCharAt,
-    EffectTernary,
-    ArrayPipelineFusion,
-    PartialEscapeSinking,
-    RegionOutlining,
-    ExpressionSuperoptimization,
-    PathSensitivePropagation,
-    JointRepresentationSearch,
-    JointChunkSymbolSearch,
+    /// The `helper-sharing` tactic.
     ParameterizedFunctionMerging,
 }
 
 impl CompressionDecision {
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 6] = [
         Self::IdentifierMangling,
-        Self::EntropyAwareMangling,
-        Self::QuoteStyleSelection,
         Self::PropertyMangling,
-        Self::ExportMangling,
         Self::StringPooling,
-        Self::SizeAwareInlining,
-        Self::SafeIntegerCoercionElision,
         Self::LengthToNumberElision,
-        Self::CompactBooleanLiterals,
-        Self::StandardGrammarElision,
-        Self::StructuredClosureInlining,
-        Self::PureHelperInlining,
-        Self::DenseStringReturnTables,
-        Self::HostAliasSpelling,
         Self::StringArrayPacking,
-        Self::RegexLiterals,
-        Self::UnusedCatchBindingElision,
-        Self::CompactGeneratorStar,
-        Self::CalleeDefaultArguments,
-        Self::ScalarPhiCopies,
-        Self::PhiAffinityCoalescing,
-        Self::IrInliningVariants,
-        Self::ExportedInternalInlining,
-        Self::GlobalAliasForwarding,
-        Self::IrClosureFactoryVariants,
-        Self::IrPhaseOrderingVariants,
-        Self::LoopSpellingSelection,
-        Self::MutationSpellingSelection,
-        Self::IndexedCharAt,
-        Self::EffectTernary,
-        Self::ArrayPipelineFusion,
-        Self::PartialEscapeSinking,
-        Self::RegionOutlining,
-        Self::ExpressionSuperoptimization,
-        Self::PathSensitivePropagation,
-        Self::JointRepresentationSearch,
-        Self::JointChunkSymbolSearch,
         Self::ParameterizedFunctionMerging,
     ];
 
     pub const fn name(self) -> &'static str {
         match self {
             Self::IdentifierMangling => "identifier-mangling",
-            Self::EntropyAwareMangling => "entropy-aware-mangling",
-            Self::QuoteStyleSelection => "quote-style-selection",
             Self::PropertyMangling => "property-mangling",
-            Self::ExportMangling => "export-mangling",
             Self::StringPooling => "string-pooling",
-            Self::SizeAwareInlining => "size-aware-inlining",
-            Self::SafeIntegerCoercionElision => "safe-integer-coercion-elision",
             Self::LengthToNumberElision => "length-to-number-elision",
-            Self::CompactBooleanLiterals => "compact-boolean-literals",
-            Self::StandardGrammarElision => "standard-grammar-elision",
-            Self::StructuredClosureInlining => "structured-closure-inlining",
-            Self::PureHelperInlining => "pure-helper-inlining",
-            Self::DenseStringReturnTables => "dense-string-return-tables",
-            Self::HostAliasSpelling => "host-alias-spelling",
             Self::StringArrayPacking => "string-array-packing",
-            Self::RegexLiterals => "regex-literals",
-            Self::UnusedCatchBindingElision => "unused-catch-binding-elision",
-            Self::CompactGeneratorStar => "compact-generator-star",
-            Self::CalleeDefaultArguments => "callee-default-arguments",
-            Self::ScalarPhiCopies => "scalar-phi-copies",
-            Self::PhiAffinityCoalescing => "phi-affinity-coalescing",
-            Self::IrInliningVariants => "ir-inlining-variants",
-            Self::ExportedInternalInlining => "exported-internal-inlining",
-            Self::GlobalAliasForwarding => "global-alias-forwarding",
-            Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
-            Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
-            Self::LoopSpellingSelection => "loop-spelling-selection",
-            Self::MutationSpellingSelection => "mutation-spelling-selection",
-            Self::IndexedCharAt => "indexed-char-at",
-            Self::EffectTernary => "effect-ternary",
-            Self::ArrayPipelineFusion => "array-pipeline-fusion",
-            Self::PartialEscapeSinking => "partial-escape-sinking",
-            Self::RegionOutlining => "region-outlining",
-            Self::ExpressionSuperoptimization => "expression-superoptimization",
-            Self::PathSensitivePropagation => "path-sensitive-propagation",
-            Self::JointRepresentationSearch => "joint-representation-search",
-            Self::JointChunkSymbolSearch => "joint-chunk-symbol-search",
             Self::ParameterizedFunctionMerging => "parameterized-function-merging",
         }
     }
@@ -1530,25 +917,37 @@ impl CompressionDecision {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct JavaScriptConfig {
+    /// The objective's priority. Only `size-first` is accepted: size is the
+    /// objective, and runtime priorities need runtime estimators that do not
+    /// exist yet.
     pub priority: JavaScriptPriority,
+    /// The ECMAScript edition the output may use.
     pub ecmascript: EcmaScriptEdition,
+    /// Browser floors; the output uses the newest edition all of them support,
+    /// capped by `ecmascript`.
     pub browsers: Vec<String>,
+    /// The effort level, 0 to 16: a versioned schedule of search breadth and
+    /// tactic gates.
     pub optimization_level: u8,
+    /// An exact allowlist of search families. This compiler reads two entries:
+    /// `call-site-specialization` (the `call-specialization` tactic) and
+    /// `entropy-cross-scope-reuse` (the `naming-search` tactic); an explicit
+    /// list that omits one turns that tactic off.
     pub optimizations: Option<Vec<JavaScriptOptimization>>,
+    /// An exact allowlist of compression decisions (`CompressionDecision`);
+    /// omitted, `priority` decides. An explicit list that omits a decision
+    /// turns it off.
     pub compression: Option<Vec<CompressionDecision>>,
-    pub pool_numeric_literals: bool,
-    /// Keep compiler-generated signed-i32 `|0` even when range analysis proves
-    /// it redundant. Source-written `value | 0` is always preserved while live.
-    /// Omitted: size-first and balanced drop proven generated normalization;
-    /// performance-first and realistic-performance-first keep it.
-    pub integer_coercions: Option<bool>,
-    pub inline_instruction_limit: Option<usize>,
-    pub inline_control_flow_limit: Option<usize>,
-    pub max_inline_growth: Option<usize>,
+    /// The codec whose bytes the objective minimizes: `raw`, `gzip` or `brotli`.
     pub cost_model: CompressionCostModel,
+    /// Whether the candidate search runs: `off`, `production` or `always`.
+    /// `--mode development` sets `off`.
     pub candidate_search: CandidateSearch,
+    /// The most whole-artifact candidates the search retains.
     pub candidate_limit: usize,
+    /// The most bytes of retained candidates.
     pub candidate_byte_budget: usize,
+    /// The beam width of the structural search.
     pub candidate_beam_width: usize,
     /// Maximum optional structural emission plans admitted after the scored
     /// context seeds are installed. Omitted values also honor
@@ -1559,142 +958,15 @@ pub struct JavaScriptConfig {
     pub candidate_proposal_limit: Option<usize>,
     /// Maximum whole-artifact work units in terminal syntax/name search. A
     /// unit is charged before optional repair/validation and bounds one exact
-    /// codec call. Omitted values derive from level and artifact size; zero
-    /// disables optional terminal search while retaining the incumbent.
-    /// How many cleanup spellings are carried through the terminal namespace
-    /// remapping before one is chosen. Default 1: the cleanup's own ranking
-    /// decides, as it always has.
-    ///
-    /// The cleanup ranks a spelling by what it costs at that point, but the
-    /// remapping that follows is not monotone in that cost — a locally cheaper
-    /// spelling can remap worse, and a single extra candidate has been measured
-    /// moving a finished artifact by more than a percent. Raising this carries
-    /// the beam's next-best spellings through the same finishing stages and
-    /// keeps whichever ends smallest, which is the only ranking that matches
-    /// what ships. It costs one full remap per extra candidate.
-    pub terminal_cleanup_finalists: Option<usize>,
+    /// codec call. Omitted values derive from the level; zero disables
+    /// optional terminal search while retaining the incumbent.
     pub terminal_codec_probe_limit: Option<usize>,
-    pub max_candidate_raw_growth_percent: u16,
-    pub function_layout_exact_limit: usize,
-    /// Let an inner scope take an enclosing binding's name whenever it proves
-    /// it never reads that binding, rather than reserving every enclosing name.
-    /// Terser does this from its reference graph and reaches a measurably
-    /// tighter name set for it -- 401 distinct short names against our 445 on
-    /// zodlil (finer 054). The mandatory emission stays conservative because an
-    /// incomplete transitive-reference proof must be rejectable; production
-    /// search scores the aggressive regime separately. Set it here to pin the
-    /// regime and measure a finished artifact instead of an intermediate one.
-    pub precise_cross_scope_shadowing: Option<bool>,
-    /// Extend that proof through nested function bodies as well.
-    pub transitive_nested_shadowing: Option<bool>,
-    /// Hand the shortest names to the most-used locals within a scope.
-    pub frequency_order_local_names: Option<bool>,
-    pub local_name_reserve: usize,
-    pub stable_local_names: bool,
-    /// Reuse bindings for noninterfering SSA values in identifier-mangled
-    /// output. Candidate search may still score the opposite spelling because
-    /// fewer names can require more assignment and parenthesis syntax in the
-    /// final JavaScript. Unmangled output preserves source-oriented names and
-    /// does not use this switch.
-    pub local_name_coalescing: bool,
-    /// Emit a single-bundle module's internal bindings inside one function
-    /// scope, with the export bindings assigned outside it. V8 reads a
-    /// module-scope binding through a module cell (several dependent loads)
-    /// and a function-scope binding through one context slot, so hot state
-    /// declared at module scope pays per access; upstream libraries hand-write
-    /// that state as closures. Off by default: the wrapper is a few dozen raw
-    /// bytes per artifact, and the exported bindings hold `undefined` until the
-    /// body has run, which only an import cycle can observe. A port turns it on
-    /// against its own measure.
-    pub function_scope: Option<bool>,
-    /// Emit pure-call annotations for checked pure exports in the final module.
-    pub emit_pure_annotations: bool,
-    /// Spell `x != null` on a nullable whose present values are always truthy
-    /// (classes, arrays, maps, …) as `x` / `!x`. Shorter, and slower: V8 tests
-    /// an object for truthiness in about 3.8 ns against 2.6 for `x!==null`
-    /// (finer 048, one process per variant). Omitted: on for size-first and
-    /// balanced, off for performance-first and realistic-performance-first.
-    pub truthy_nullable_checks: Option<bool>,
-    /// Offer an idiom-directed naming candidate beside the canonical one: ask
-    /// bindings that take part in a token idiom the artifact repeats for the
-    /// spelling that idiom's commonest occurrence uses, so two scopes writing
-    /// the same idiom write it the same way.
-    ///
-    /// **Default off, and the fleet says leave it off** (059). The candidate is
-    /// scored like every other, so it cannot make an artifact worse -- but it
-    /// has not yet made one better either. Claiming a name displaces the
-    /// canonical sequence behind it, and the displacement is monotone in the
-    /// dose: on jquerylil four claimed bindings cost +21 Brotli, sixteen +35,
-    /// two hundred and fifty-six +130. The knob exists so the next context can
-    /// re-measure it in one flag rather than rebuild the experiment.
-    pub idiom_directed_naming: bool,
-    /// Optimizer knobs that maintained ports set for the `migration/target-tree`
-    /// line of the compiler, which this line does not implement.
-    ///
-    /// They are strategy choices, not language semantics: each one decides how
-    /// the output is spelled, never what the program does. Twelve of the
-    /// twenty-seven maintained ports set at least one of them, and refusing the
-    /// whole configuration made those ports impossible to build from source at
-    /// all (migration 001). So they are accepted, their values are validated,
-    /// and the CLI warns that they have no effect here -- the port builds with
-    /// this line's default strategy, and whether a knob is worth porting is
-    /// then a measured byte difference rather than a guess.
-    ///
-    /// `name_ordering = "idiom-converged"` is *not* `idiom_directed_naming`:
-    /// the sibling knob re-spells repeated token shapes from the tree, this
-    /// line's knob only offers a candidate beside the canonical naming. Mapping
-    /// one onto the other would silently change what the port asked for.
-    pub name_ordering: Option<SiblingNameOrdering>,
-    /// See `name_ordering`. On the sibling line: re-open the canonical peephole
-    /// on each finalist's text during cleanup.
-    pub terminal_cleanup_chain: Option<bool>,
-    /// See `name_ordering`. On the sibling line: the port-fixed wide single-use
-    /// collapse, constant across every plan of a compile.
-    pub wide_single_use_collapse: Option<bool>,
-    /// Wrap exclusive callees of a named root in a once-run IIFE so those
-    /// helpers can reuse short names. Off only for oracles that need the
-    /// three-address helper spelling their fixture was written against.
-    pub iife_private_callee_clusters: bool,
-    /// Declare helpers whose every reference lives in one named host as nested
-    /// `function` bindings in that host. Off only for oracles that need the
-    /// module-scope helper spelling their fixture was written against.
-    pub nested_once_run_helpers: bool,
     /// Rebuild a nested expression when a run of single-use producers all feed
-    /// one consumer that reads them in production order. Off only for oracles
-    /// that need the three-address spelling their fixture was written against.
+    /// one consumer that reads them in production order. `false` turns the
+    /// `target-compaction` tactic off.
     pub operand_order_fusion: bool,
-    /// Nest single-use calls into array/record literals across inert literals.
-    /// Off by default; projects that repeat that shape can opt in.
-    pub aggregate_operand_order_fusion: bool,
-    /// Declare a defaulted function at its only entry Closure instead of in
-    /// the hoisted function group. Off by default.
-    pub sink_entry_function_declarations: bool,
-    pub function_spelling: Option<FunctionSpelling>,
-    /// Spell an object method as `k(){…}` rather than `k:function(){…}`.
-    /// Shorthand is shorter, and shorter is not always smaller: measured on
-    /// jQuery, turning it off is -94 Brotli *and* -404 raw, because the shapes
-    /// the emitter reaches without it repeat better. It is neutral on marked,
-    /// mobx, posthog and zod, so the default stands and a port that has
-    /// measured its own artifact says otherwise here.
-    pub struct_method_shorthand: Option<bool>,
-    /// Recover statement-authored local selections as conditional expressions.
-    /// The default follows the cost model, because the trade is real and goes
-    /// both ways: measured across the ports, forcing it on is jQuery -87 Brotli
-    /// and marked +172, zod +201, mobx +58, monaco +50, posthog +22. Candidate
-    /// search does carry both states, but the winning one is only cheaper after
-    /// terminal cleanup, so a beam that ranks mid-pipeline drops it. A port that
-    /// has measured its own artifact says so here.
-    pub local_phi_expression_regions: Option<bool>,
-    /// Re-emit a twice-read LilScript aggregate field at each use instead of
-    /// binding it to a name. Off by default: it is a raw-byte regression by
-    /// construction, and only pays when the un-hoisted spelling repeats often
-    /// enough for the compressor to charge a back-reference instead of the text.
-    pub rematerialize_member_reads: Option<bool>,
-    pub public_aggregate_abi: PublicAggregateAbi,
-    pub aggregate_layout: AggregateLayout,
     /// Allow representations that bypass ambient JavaScript constructor
-    /// bindings. This is false for open-world library output. At present it
-    /// gates only `new RegExp(...)` to regular-expression literal candidates.
+    /// bindings. This is false for open-world library output.
     pub assume_pristine_builtins: bool,
     /// Treat a dynamic member read as free of coercion hooks, the way Terser's
     /// `pure_getters` does. A read like `o[k]` is otherwise a hook: a getter
@@ -1716,8 +988,8 @@ pub struct JavaScriptConfig {
     /// could read, not only of published exports. Off by default: an exported
     /// function always keeps its source name (D2), while an internal function
     /// that escapes through a `JsValue` gets whatever name its binding has, as
-    /// Terser's and the default route's mangling give it. Turn it on for code
-    /// that reads `fn.name` of callbacks it did not export.
+    /// Terser's mangling gives it. Turn it on for code that reads `fn.name` of
+    /// callbacks it did not export.
     pub keep_function_names: bool,
     /// Keep the exact source `name` of published functions (D2). On by
     /// default. A library whose contract is its export names, not the
@@ -1729,9 +1001,6 @@ pub struct JavaScriptConfig {
     /// builds do not ship `console.log`. Test oracles set false. Does not strip
     /// `console.warn` (observable library behavior).
     pub strip_console: bool,
-    /// Limits on the startup cost an emitted artifact may add (parse, compile and initialization work); a candidate over them is not admitted.
-    pub startup: StartupCostConfig,
-    pub performance: JavaScriptPerformanceConfig,
 }
 
 impl Default for JavaScriptConfig {
@@ -1751,260 +1020,40 @@ impl Default for JavaScriptConfig {
             optimization_level: 13,
             optimizations: None,
             compression: None,
-            pool_numeric_literals: true,
-            integer_coercions: None,
-            inline_instruction_limit: None,
-            inline_control_flow_limit: None,
-            max_inline_growth: None,
             cost_model: CompressionCostModel::Brotli,
             candidate_search: CandidateSearch::Production,
             candidate_limit: 1536,
             candidate_byte_budget: 1024 * 1024,
             candidate_beam_width: 12,
             candidate_proposal_limit: None,
-            terminal_cleanup_finalists: None,
             terminal_codec_probe_limit: None,
-            max_candidate_raw_growth_percent: 0,
-            function_layout_exact_limit: 13,
-            precise_cross_scope_shadowing: None,
-            transitive_nested_shadowing: None,
-            frequency_order_local_names: None,
-            local_name_reserve: 16,
-            stable_local_names: true,
-            local_name_coalescing: true,
-            function_scope: None,
-            emit_pure_annotations: false,
-            truthy_nullable_checks: None,
-            idiom_directed_naming: false,
-            name_ordering: None,
-            terminal_cleanup_chain: None,
-            wide_single_use_collapse: None,
-            iife_private_callee_clusters: true,
-            nested_once_run_helpers: true,
             operand_order_fusion: true,
-            aggregate_operand_order_fusion: false,
-            sink_entry_function_declarations: false,
-            function_spelling: None,
-            struct_method_shorthand: None,
-            local_phi_expression_regions: None,
-            rematerialize_member_reads: None,
-            public_aggregate_abi: PublicAggregateAbi::Named,
-            aggregate_layout: AggregateLayout::default(),
             assume_pristine_builtins: false,
             assume_pure_property_reads: false,
             assume_unconstructed_callbacks: false,
             keep_function_names: false,
             keep_published_function_names: true,
             strip_console: true,
-            startup: StartupCostConfig::default(),
-            performance: JavaScriptPerformanceConfig::default(),
         }
     }
 }
 
+/// The `javascript.optimizations` entries this compiler reads. The retired
+/// entries are in `RETIRED_JAVASCRIPT_OPTIMIZATIONS`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum JavaScriptOptimization {
-    IrInliningVariants,
-    IrClosureFactoryVariants,
-    IrPhaseOrderingVariants,
-    IrFunctionSubsumptionVariants,
-    IrSpecializationVariants,
-    StructuralControlFlowVariants,
-    SsaDestructionVariants,
-    ConditionalExpressionVariants,
-    ExpressionPhiRegionVariants,
-    LocalPhiExpressionRegionVariants,
-    PhiEdgeValueForwardingVariants,
-    ConstructorInitializerFusionVariants,
-    FreshLiteralFactoryInliningVariants,
-    DefaultArgumentVariants,
-    CommaExpressionVariants,
-    OperandOrderFusionVariants,
-    StructuralLoopVariants,
-    DoLoopVariants,
-    UpdateLoopVariants,
-    SwitchLoweringVariants,
-    CompoundMutationVariants,
-    EntropyCrossScopeReuse,
-    EntropyPropertyAssignment,
-    ParsedPeephole,
-    StartupCostGuard,
-    PerformanceShapeModel,
-    ProfileGuidedOptimization,
+    /// The `call-specialization` tactic.
     CallSiteSpecialization,
-    CaptureSignatureCloning,
-    IdenticalFunctionFolding,
-    FunctionLayoutVariants,
-    IrCompressPassVariants,
-    JointChunkSymbolSearch,
-    JointRepresentationSearch,
+    /// The `naming-search` tactic.
+    EntropyCrossScopeReuse,
 }
 
 impl JavaScriptOptimization {
     pub const fn name(self) -> &'static str {
         match self {
-            Self::IrInliningVariants => "ir-inlining-variants",
-            Self::IrClosureFactoryVariants => "ir-closure-factory-variants",
-            Self::IrPhaseOrderingVariants => "ir-phase-ordering-variants",
-            Self::IrFunctionSubsumptionVariants => "ir-function-subsumption-variants",
-            Self::IrSpecializationVariants => "ir-specialization-variants",
-            Self::StructuralControlFlowVariants => "structural-control-flow-variants",
-            Self::SsaDestructionVariants => "ssa-destruction-variants",
-            Self::ConditionalExpressionVariants => "conditional-expression-variants",
-            Self::ExpressionPhiRegionVariants => "expression-phi-region-variants",
-            Self::LocalPhiExpressionRegionVariants => "local-phi-expression-region-variants",
-            Self::PhiEdgeValueForwardingVariants => "phi-edge-value-forwarding-variants",
-            Self::ConstructorInitializerFusionVariants => "constructor-initializer-fusion-variants",
-            Self::FreshLiteralFactoryInliningVariants => "fresh-literal-factory-inlining-variants",
-            Self::DefaultArgumentVariants => "default-argument-variants",
-            Self::CommaExpressionVariants => "comma-expression-variants",
-            Self::OperandOrderFusionVariants => "operand-order-fusion-variants",
-            Self::StructuralLoopVariants => "structural-loop-variants",
-            Self::DoLoopVariants => "do-loop-variants",
-            Self::UpdateLoopVariants => "update-loop-variants",
-            Self::SwitchLoweringVariants => "switch-lowering-variants",
-            Self::CompoundMutationVariants => "compound-mutation-variants",
-            Self::EntropyCrossScopeReuse => "entropy-cross-scope-reuse",
-            Self::EntropyPropertyAssignment => "entropy-property-assignment",
-            Self::ParsedPeephole => "parsed-peephole",
-            Self::StartupCostGuard => "startup-cost-guard",
-            Self::PerformanceShapeModel => "performance-shape-model",
-            Self::ProfileGuidedOptimization => "profile-guided-optimization",
             Self::CallSiteSpecialization => "call-site-specialization",
-            Self::CaptureSignatureCloning => "capture-signature-cloning",
-            Self::IdenticalFunctionFolding => "identical-function-folding",
-            Self::FunctionLayoutVariants => "function-layout-variants",
-            Self::IrCompressPassVariants => "ir-compress-pass-variants",
-            Self::JointChunkSymbolSearch => "joint-chunk-symbol-search",
-            Self::JointRepresentationSearch => "joint-representation-search",
-        }
-    }
-
-    const fn minimum_level(self) -> u8 {
-        match self {
-            Self::ConditionalExpressionVariants => 4,
-            Self::ExpressionPhiRegionVariants => 4,
-            Self::LocalPhiExpressionRegionVariants => 4,
-            Self::PhiEdgeValueForwardingVariants => 4,
-            Self::DefaultArgumentVariants => 7,
-            Self::UpdateLoopVariants
-            | Self::CompoundMutationVariants
-            | Self::ConstructorInitializerFusionVariants
-            | Self::FreshLiteralFactoryInliningVariants => 5,
-            Self::CommaExpressionVariants | Self::SsaDestructionVariants => 7,
-            Self::OperandOrderFusionVariants => 4,
-            Self::EntropyCrossScopeReuse | Self::EntropyPropertyAssignment => 8,
-            Self::StructuralLoopVariants | Self::ParsedPeephole => 9,
-            Self::IrInliningVariants
-            | Self::IrSpecializationVariants
-            | Self::StructuralControlFlowVariants => 10,
-            Self::IrClosureFactoryVariants | Self::DoLoopVariants => 11,
-            Self::SwitchLoweringVariants => 12,
-            Self::StartupCostGuard => 1,
-            Self::PerformanceShapeModel => 3,
-            Self::ProfileGuidedOptimization => 10,
-            Self::CallSiteSpecialization => 11,
-            Self::CaptureSignatureCloning => 12,
-            Self::IdenticalFunctionFolding => 13,
-            Self::FunctionLayoutVariants => 13,
-            Self::JointRepresentationSearch => 13,
-            Self::IrFunctionSubsumptionVariants
-            | Self::IrPhaseOrderingVariants
-            | Self::IrCompressPassVariants
-            | Self::JointChunkSymbolSearch => 14,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct JavaScriptPerformanceConfig {
-    pub deoptimization_weight: u32,
-    pub allocation_weight: u32,
-    pub indirect_call_weight: u32,
-    pub hot_code_weight: u32,
-    pub max_regression_percent: u32,
-}
-
-impl Default for JavaScriptPerformanceConfig {
-    fn default() -> Self {
-        Self {
-            deoptimization_weight: 32,
-            allocation_weight: 12,
-            indirect_call_weight: 24,
-            hot_code_weight: 1,
-            max_regression_percent: 25,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct OptimizationProfileConfig {
-    pub path: Option<PathBuf>,
-    pub functions: BTreeMap<String, u64>,
-    pub loops: BTreeMap<String, u64>,
-    pub specialization_min_count: u64,
-    pub max_specializations_per_function: usize,
-    pub max_clone_instructions: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct NativeConfig {
-    pub partial_escape_analysis: bool,
-    pub stack_allocation: bool,
-    pub region_allocation: bool,
-    pub stack_array_element_limit: usize,
-}
-
-impl Default for NativeConfig {
-    fn default() -> Self {
-        Self {
-            partial_escape_analysis: true,
-            stack_allocation: true,
-            region_allocation: true,
-            stack_array_element_limit: 64,
-        }
-    }
-}
-
-impl Default for OptimizationProfileConfig {
-    fn default() -> Self {
-        Self {
-            path: None,
-            functions: BTreeMap::new(),
-            loops: BTreeMap::new(),
-            specialization_min_count: 100,
-            max_specializations_per_function: 8,
-            max_clone_instructions: 64,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct StartupCostConfig {
-    pub parse_weight: u32,
-    pub compile_weight: u32,
-    pub memory_weight: u32,
-    pub max_nesting: Option<usize>,
-    pub parse_overhead_limit_percent: u32,
-    pub compile_overhead_limit_percent: u32,
-    pub memory_overhead_limit_percent: u32,
-}
-
-impl Default for StartupCostConfig {
-    fn default() -> Self {
-        Self {
-            parse_weight: 1,
-            compile_weight: 1,
-            memory_weight: 1,
-            max_nesting: None,
-            parse_overhead_limit_percent: 30,
-            compile_overhead_limit_percent: 30,
-            memory_overhead_limit_percent: 35,
+            Self::EntropyCrossScopeReuse => "entropy-cross-scope-reuse",
         }
     }
 }
@@ -2111,98 +1160,17 @@ impl Default for FormatConfig {
     }
 }
 
+
 impl JavaScriptConfig {
-    fn gradual_artifact_work_limit(level_limit: usize, raw_size: usize) -> usize {
-        const FULL_WORK_SIZE: usize = 16 * 1024;
-        const QUARTER_WORK_SIZE: usize = 64 * 1024;
-        const TWELFTH_WORK_SIZE: usize = 256 * 1024;
-
-        if raw_size <= FULL_WORK_SIZE {
-            return level_limit;
-        }
-
-        let quarter_limit = level_limit.div_ceil(4);
-        let twelfth_limit = level_limit.div_ceil(12);
-        let (start_size, end_size, start_limit, end_limit) = if raw_size <= QUARTER_WORK_SIZE {
-            (
-                FULL_WORK_SIZE,
-                QUARTER_WORK_SIZE,
-                level_limit,
-                quarter_limit,
-            )
-        } else if raw_size <= TWELFTH_WORK_SIZE {
-            (
-                QUARTER_WORK_SIZE,
-                TWELFTH_WORK_SIZE,
-                quarter_limit,
-                twelfth_limit,
-            )
-        } else {
-            return twelfth_limit;
-        };
-
-        let elapsed = raw_size - start_size;
-        let span = end_size - start_size;
-        // The bounded byte span keeps this exact product well below u128::MAX.
-        let reduction =
-            ((start_limit - end_limit) as u128 * elapsed as u128 / span as u128) as usize;
-        start_limit - reduction
-    }
-
-    fn keep_integer_coercions(&self) -> bool {
-        self.integer_coercions
-            .unwrap_or_else(|| self.priority.keeps_integer_coercions())
-    }
-
     pub fn resolved_ecmascript(&self) -> EcmaScriptEdition {
         resolve_ecmascript_target(self.ecmascript, &self.browsers).unwrap_or(self.ecmascript)
     }
 
-    pub(crate) fn compression_enabled(&self, decision: CompressionDecision) -> bool {
+    fn compression_enabled(&self, decision: CompressionDecision) -> bool {
         self.compression.as_ref().map_or_else(
             || self.priority.enables_compression(decision),
             |enabled| enabled.contains(&decision),
         )
-    }
-
-    pub fn removed_size_first_compression_families(&self) -> Vec<&'static str> {
-        let Some(enabled) = &self.compression else {
-            return Vec::new();
-        };
-        CompressionDecision::ALL
-            .into_iter()
-            .filter(|decision| {
-                JavaScriptPriority::SizeFirst.enables_compression(*decision)
-                    && !enabled.contains(decision)
-            })
-            .map(CompressionDecision::name)
-            .collect()
-    }
-
-    fn search_compression_enabled(&self, decision: CompressionDecision) -> bool {
-        self.candidate_search_enabled()
-            && match &self.compression {
-                None => self.priority.enables_compression(decision),
-                Some(enabled) if enabled.is_empty() => false,
-                Some(enabled) => {
-                    enabled.contains(&decision) || self.priority.enables_compression(decision)
-                }
-            }
-    }
-
-    pub const fn candidate_search_enabled(&self) -> bool {
-        !matches!(self.candidate_search, CandidateSearch::Off)
-    }
-
-    fn optimization_enabled(
-        &self,
-        feature: JavaScriptOptimization,
-        legacy: Option<CompressionDecision>,
-    ) -> bool {
-        self.optimizations.as_ref().map_or_else(
-            || self.optimization_level >= feature.minimum_level(),
-            |features| features.contains(&feature),
-        ) && legacy.is_none_or(|decision| self.compression_enabled(decision))
     }
 
     pub fn effective_candidate_limit(&self) -> usize {
@@ -2316,28 +1284,6 @@ impl JavaScriptConfig {
         )
     }
 
-    /// Default proposal work scales gradually from full work through 16 KiB to
-    /// one quarter at 64 KiB and one twelfth at 256 KiB. Without an explicit
-    /// proposal limit, the retained candidate limit is an additional ceiling.
-    /// An explicit value can exceed the survivor count and bypasses artifact
-    /// scaling, but remains bounded by the level and search tier.
-    pub fn effective_candidate_proposal_limit_for_artifact(&self, raw_size: usize) -> usize {
-        let level_limit = self.candidate_proposal_level_limit();
-        if level_limit == 0 {
-            return 0;
-        }
-        let artifact_limit = Self::gradual_artifact_work_limit(level_limit, raw_size);
-        // An explicit proposal budget is a request for a wider search and is
-        // honored past the level's default breadth, the same way
-        // `terminal_codec_probe_limit` is. Clamping it to the level tier meant a
-        // config could ask for four times the proposals and silently receive
-        // none of them. The search tier is a separate ceiling and stays hard.
-        self.candidate_proposal_limit.map_or_else(
-            || self.effective_candidate_limit().min(artifact_limit),
-            |configured| configured.min(self.candidate_proposal_tier_ceiling()),
-        )
-    }
-
     /// Hard ceiling for optional whole-artifact work after structural
     /// candidates have been ranked. This is deliberately independent of
     /// survivor count: one large survivor can expose thousands of proposals.
@@ -2375,11 +1321,6 @@ impl JavaScriptConfig {
         }
     }
 
-    /// How many cleanup spellings to finish and compare. At least one.
-    pub fn terminal_cleanup_finalists(&self) -> usize {
-        self.terminal_cleanup_finalists.unwrap_or(1).max(1)
-    }
-
     pub fn effective_terminal_codec_probe_limit(&self) -> usize {
         let level_limit = self.terminal_codec_probe_level_limit();
         if level_limit == 0 {
@@ -2393,19 +1334,6 @@ impl JavaScriptConfig {
         // for four times the search and receive none of it.
         self.terminal_codec_probe_limit.unwrap_or(level_limit)
     }
-
-    /// Default terminal work scales gradually from full work through 16 KiB to
-    /// one quarter at 64 KiB and one twelfth at 256 KiB. An explicit value
-    /// bypasses that scaling and sets the ceiling itself; the search tier still
-    /// gates it to zero when candidate search is off.
-    pub fn effective_terminal_codec_probe_limit_for_artifact(&self, raw_size: usize) -> usize {
-        let level_limit = self.terminal_codec_probe_level_limit();
-        if level_limit == 0 {
-            return 0;
-        }
-        let artifact_limit = Self::gradual_artifact_work_limit(level_limit, raw_size);
-        self.terminal_codec_probe_limit.unwrap_or(artifact_limit)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -2416,174 +1344,44 @@ pub enum OptimizationPreset {
     Maximum,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct OptimizationConfig {
+    /// `maximum` (the default) or `none`: the default of every tactic whose
+    /// spec row follows the preset.
     pub preset: OptimizationPreset,
+    /// The `constant-folding` tactic, when set.
     pub constant_folding: Option<bool>,
-    pub algebraic_simplification: Option<bool>,
-    pub common_subexpression_elimination: Option<bool>,
-    pub finite_value_propagation: Option<bool>,
-    pub global_optimization: Option<bool>,
+    /// The `inlining` tactic, when set.
     pub inlining: Option<bool>,
-    pub inline_closure_factories: Option<bool>,
-    pub constant_parameter_specialization: Option<bool>,
-    pub specialize_tagged_constants: Option<bool>,
+    /// The `scalar-replacement` tactic, when set.
     pub scalar_replacement: Option<bool>,
-    pub dead_store_elimination: Option<bool>,
+    /// The `dead-code-elimination` tactic, when set.
     pub dead_code_elimination: Option<bool>,
+    /// The `call-specialization` tactic, when set.
     pub call_site_specialization: Option<bool>,
-    pub capture_signature_cloning: Option<bool>,
-    pub identical_function_folding: Option<bool>,
-    pub function_subsumption: Option<bool>,
-    pub pipeline_fusion: Option<bool>,
-    pub partial_escape_sinking: Option<bool>,
-    pub region_outlining: Option<bool>,
-    pub expression_superopt: Option<bool>,
-    pub path_sensitive_propagation: Option<bool>,
+    /// The `helper-sharing` tactic, when set.
     pub parameterized_function_merging: Option<bool>,
-    pub profile_guided: Option<bool>,
-    pub for_of_specialize_family: Option<usize>,
-}
-
-impl Default for OptimizationConfig {
-    fn default() -> Self {
-        Self {
-            preset: OptimizationPreset::Maximum,
-            constant_folding: None,
-            algebraic_simplification: None,
-            common_subexpression_elimination: None,
-            finite_value_propagation: None,
-            global_optimization: None,
-            inlining: None,
-            inline_closure_factories: None,
-            constant_parameter_specialization: None,
-            specialize_tagged_constants: None,
-            scalar_replacement: None,
-            dead_store_elimination: None,
-            dead_code_elimination: None,
-            call_site_specialization: None,
-            capture_signature_cloning: None,
-            identical_function_folding: None,
-            function_subsumption: None,
-            pipeline_fusion: None,
-            partial_escape_sinking: None,
-            region_outlining: None,
-            expression_superopt: None,
-            path_sensitive_propagation: None,
-            parameterized_function_merging: None,
-            profile_guided: None,
-            for_of_specialize_family: None,
-        }
-    }
-}
-
-impl OptimizationConfig {
-    pub fn for_of_specialize_family(&self) -> usize {
-        self.for_of_specialize_family.unwrap_or(0)
-    }
-
-    pub fn resolve(&self) -> OptimizationOptions {
-        let base = match self.preset {
-            OptimizationPreset::None => OptimizationOptions::disabled(),
-            OptimizationPreset::Maximum => OptimizationOptions::default(),
-        };
-        OptimizationOptions {
-            constant_folding: self.constant_folding.unwrap_or(base.constant_folding),
-            algebraic_simplification: self
-                .algebraic_simplification
-                .unwrap_or(base.algebraic_simplification),
-            common_subexpression_elimination: self
-                .common_subexpression_elimination
-                .unwrap_or(base.common_subexpression_elimination),
-            finite_value_propagation: self
-                .finite_value_propagation
-                .unwrap_or(base.finite_value_propagation),
-            global_optimization: self.global_optimization.unwrap_or(base.global_optimization),
-            forward_global_aliases: false,
-            inlining: self.inlining.unwrap_or(base.inlining),
-            inline_exported_internal_calls: false,
-            inline_closure_factories: self
-                .inline_closure_factories
-                .unwrap_or(base.inline_closure_factories),
-            scalar_replacement: self.scalar_replacement.unwrap_or(base.scalar_replacement),
-            dead_store_elimination: self
-                .dead_store_elimination
-                .unwrap_or(base.dead_store_elimination),
-            dead_code_elimination: self
-                .dead_code_elimination
-                .unwrap_or(base.dead_code_elimination),
-            constant_parameter_specialization: self
-                .constant_parameter_specialization
-                .unwrap_or(base.constant_parameter_specialization),
-            specialize_tagged_constants: self
-                .specialize_tagged_constants
-                .unwrap_or(base.specialize_tagged_constants),
-            call_site_specialization: self
-                .call_site_specialization
-                .unwrap_or(base.call_site_specialization),
-            capture_signature_cloning: self
-                .capture_signature_cloning
-                .unwrap_or(base.capture_signature_cloning),
-            identical_function_folding: self
-                .identical_function_folding
-                .unwrap_or(base.identical_function_folding),
-            function_subsumption: self
-                .function_subsumption
-                .unwrap_or(base.function_subsumption),
-            pipeline_fusion: self.pipeline_fusion.unwrap_or(base.pipeline_fusion),
-            partial_escape_sinking: self
-                .partial_escape_sinking
-                .unwrap_or(base.partial_escape_sinking),
-            region_outlining: self.region_outlining.unwrap_or(base.region_outlining),
-            expression_superopt: self.expression_superopt.unwrap_or(base.expression_superopt),
-            path_sensitive_propagation: self
-                .path_sensitive_propagation
-                .unwrap_or(base.path_sensitive_propagation),
-            parameterized_function_merging: self
-                .parameterized_function_merging
-                .unwrap_or(base.parameterized_function_merging),
-            inline_instruction_limit: base.inline_instruction_limit,
-            inline_control_flow_limit: base.inline_control_flow_limit,
-            inline_growth_limit: base.inline_growth_limit,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct MangleConfig {
+    /// The `identifier-mangling` tactic, when set.
     pub identifiers: Option<bool>,
+    /// The `property-mangling` tactic, when set.
     pub properties: Option<bool>,
-    pub exports: Option<bool>,
-    pub extern_fields: Option<bool>,
-    /// Which dynamically-keyed properties the program claims as its own, and so
-    /// may have renamed. Only consulted when `extern_fields = false`, because
-    /// that is the setting by which a program says its member spellings are not
-    /// a contract with anything outside it.
-    ///
-    /// `"underscore-suffix"` (the default) claims a property when its spelling
-    /// says so, `name_`. `"all"` claims every key the compiler cannot see the
-    /// host read: the derived surface -- host field reads and writes, host
-    /// method calls, extern aggregate fields, and anything an export can
-    /// observe -- is still preserved exactly. This is Closure ADVANCED's
-    /// externs contract with the externs derived instead of written.
-    pub internal_properties: Option<InternalProperties>,
     /// Property names this port's public API exchanges with its callers, which
     /// the compiler cannot see because they are read in code it never compiles:
     /// options a caller sets on an object it authors, fields a callback reads
     /// off a context the program hands it, members of a value the program
-    /// returns. The platform surface is already known (`js_externs`); this is
-    /// the part only the port knows.
+    /// returns. A contract: these names are never renamed. The host surface is
+    /// already known (`js_platform`); this is the part only the port knows.
+    /// Nothing renames properties yet, so the contract holds for every name;
+    /// typed property renaming (plan M9.6) reads it.
     pub preserve_properties: Option<Vec<String>>,
+    /// The `string-pooling` tactic, when set.
     pub pool_strings: Option<bool>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum InternalProperties {
-    UnderscoreSuffix,
-    All,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -2728,10 +1526,14 @@ impl Default for BundleConfig {
     }
 }
 
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedConfig {
     pub config: ProjectConfig,
     pub path: Option<PathBuf>,
+    /// One warning for each retired key the file set (`RETIRED_KEYS`). The
+    /// CLI prints them and `--print-policy` reports them.
+    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2757,26 +1559,27 @@ pub fn load_project_config(
         return Ok(LoadedConfig {
             config: ProjectConfig::default(),
             path: None,
+            warnings: Vec::new(),
         });
     };
     let source = fs::read_to_string(&path).map_err(|error| ConfigError {
         path: path.clone(),
         message: format!("failed to read config: {error}"),
     })?;
-    let mut config = toml::from_str::<ProjectConfig>(&source).map_err(|error| ConfigError {
+    let ParsedConfig {
+        mut config,
+        warnings,
+    } = parse_project_config(&source).map_err(|message| ConfigError {
         path: path.clone(),
-        message: format!("invalid config: {error}"),
+        message,
     })?;
     config.config_dir = path
         .parent()
         .and_then(|directory| directory.canonicalize().ok());
-    config.validate().map_err(|message| ConfigError {
-        path: path.clone(),
-        message,
-    })?;
     Ok(LoadedConfig {
         config,
         path: Some(path),
+        warnings,
     })
 }
 
@@ -2815,16 +1618,25 @@ fn discover(input: &Path) -> Option<PathBuf> {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compilation_policy::{CompilationRequest, TacticId, TacticPermission};
+
+    fn parse(source: &str) -> ParsedConfig {
+        parse_project_config(source).unwrap()
+    }
+
+    fn refusal(source: &str) -> String {
+        parse_project_config(source).unwrap_err()
+    }
 
     /// A bare relative filename must find the same project config as the same
     /// file spelled `./name`. `Path::parent()` returns `Some("")` for the bare
     /// spelling, and the empty path does not canonicalize, so treating it as
-    /// "no config" silently dropped every setting -- including the two that
-    /// change what the program *means*: `function_spelling`, which rebinds
-    /// `this`, and `strip_console`, which decides whether it produces output.
+    /// "no config" silently dropped every setting -- including `strip_console`,
+    /// which decides whether the program produces output at all.
     #[test]
     fn a_bare_filename_searches_the_same_directory_as_a_dotted_one() {
         assert_eq!(config_search_parent(Path::new("main.lil")), Path::new("."));
@@ -2840,1161 +1652,264 @@ mod tests {
     }
 
     #[test]
-    fn parses_typed_compiler_resource_limits() {
-        let defaults = ProjectConfig::default();
-        assert_eq!(defaults.compiler.resources.threads, None);
-        assert_eq!(defaults.compiler.resources.codec_workers.get(), 4);
+    fn the_route_selector_is_refused_with_an_actionable_message() {
+        for route in ["semantic", "legacy"] {
+            let error = refusal(&format!("[compiler]\nbackend = \"{route}\"\n"));
+            assert!(
+                error.contains("there is one compiler; remove [compiler] backend"),
+                "{error}"
+            );
+        }
+    }
 
-        let configured: ProjectConfig =
-            toml::from_str("[compiler.resources]\nthreads=12\ncodec_workers=8\n").unwrap();
-        assert_eq!(configured.compiler.resources.threads.unwrap().get(), 12);
-        assert_eq!(configured.compiler.resources.codec_workers.get(), 8);
-        assert_eq!(configured.compiler.resources.effective_codec_workers(6), 6);
-        assert_eq!(configured.compiler.resources.effective_codec_workers(16), 8);
-
-        assert!(toml::from_str::<ProjectConfig>(
-            "[compiler.resources]\nthreads=0\ncodec_workers=4\n"
-        )
-        .is_err());
-        assert!(
-            toml::from_str::<ProjectConfig>("[compiler.resources]\ncodec_workers=0\n").is_err()
+    #[test]
+    fn keys_with_no_effect_are_removed_with_one_warning_each() {
+        let parsed = parse(
+            "[compiler.resources]\nthreads=12\n[optimization]\nfinite_value_propagation=false\n\
+             [javascript]\nfunction_scope=true\nlocal_name_reserve=48\n\
+             [javascript.startup]\nparse_weight=1\n[mangle]\nexports=false\n\
+             [profile]\nspecialization_min_count=50\n[native]\nstack_allocation=false\n",
         );
+        assert_eq!(parsed.config, ProjectConfig::default());
+        let keys = [
+            "compiler.resources",
+            "optimization.finite_value_propagation",
+            "javascript.local_name_reserve",
+            "javascript.function_scope",
+            "javascript.startup",
+            "mangle.exports",
+            "profile",
+            "native",
+        ];
+        assert_eq!(parsed.warnings.len(), keys.len(), "{:?}", parsed.warnings);
+        for key in keys {
+            assert!(
+                parsed.warnings.iter().any(|warning| warning.starts_with(&format!(
+                    "`{key}` has no effect in this compiler: "
+                )) && warning.ends_with("; remove it")),
+                "{key}: {:?}",
+                parsed.warnings
+            );
+        }
+        assert!(parse("").warnings.is_empty());
+    }
+
+    /// The sibling line's knobs warn whatever their value, as every retired key does.
+    #[test]
+    fn sibling_line_knobs_are_retired_keys() {
+        let parsed = parse(
+            "[javascript]\nname_ordering = \"idiom-converged\"\nterminal_cleanup_chain = false\nwide_single_use_collapse = true\n",
+        );
+        assert_eq!(parsed.warnings.len(), 3, "{:?}", parsed.warnings);
+        assert!(parsed.warnings[0].contains("javascript.name_ordering"));
+        assert!(parsed.warnings[0].contains("migration/target-tree"));
     }
 
     #[test]
-    fn resolves_presets_and_fine_grained_overrides() {
-        let config: ProjectConfig = toml::from_str(
-            r#"
-[optimization]
-preset = "none"
-constant_folding = true
-finite_value_propagation = true
-inline_closure_factories = true
-
-[javascript]
-priority = "size-first"
-
-[mangle]
-identifiers = false
-properties = true
-exports = true
-
-[bundle]
-mode = "split"
-min_chunk_bytes = 4096
-max_chunks = 8
-shared_min_imports = 3
-"#,
-        )
-        .unwrap();
-        let optimizer = config.optimizer_options();
-        assert!(optimizer.constant_folding);
-        assert!(optimizer.finite_value_propagation);
-        assert!(optimizer.inline_closure_factories);
-        assert!(!optimizer.inlining);
-        assert_eq!(config.javascript.priority, JavaScriptPriority::SizeFirst);
-        assert!(config.javascript.strip_console);
-        assert!(!config.js_options().mangle_identifiers);
-        assert!(config.js_options().mangle_properties);
-        assert_eq!(config.bundle.mode, BundleMode::Split);
-        assert_eq!(config.bundle.min_chunk_bytes, 4096);
-        config.validate().unwrap();
+    fn runtime_priorities_and_constraints_are_refused() {
+        for priority in [
+            "performance-first",
+            "realistic-performance-first",
+            "realisticperf-first",
+            "balanced",
+        ] {
+            let error = refusal(&format!("[javascript]\npriority = \"{priority}\"\n"));
+            assert!(
+                error.contains(&format!("`javascript.priority = \"{priority}\"` is refused")),
+                "{error}"
+            );
+            assert!(error.contains("size is the objective"), "{error}");
+            assert!(error.contains("runtime estimators"), "{error}");
+        }
+        let size = parse("[javascript]\npriority = \"size-first\"\n");
+        assert!(size.warnings.is_empty());
+        assert_eq!(size.config.javascript.priority, JavaScriptPriority::SizeFirst);
+        for limit in [
+            "max_startup_work",
+            "max_recurring_work",
+            "max_runtime_memory_bytes",
+            "max_performance_regression_percent",
+        ] {
+            let error = refusal(&format!("[policy.constraints]\n{limit} = 1\n"));
+            assert!(error.contains("`policy.constraints` is refused"), "{error}");
+            assert!(error.contains("runtime estimators"), "{error}");
+        }
     }
 
     #[test]
-    fn sibling_line_optimizer_knobs_are_accepted_and_reported() {
-        let config: ProjectConfig = toml::from_str(
-            "[javascript]\nname_ordering = \"idiom-converged\"\nterminal_cleanup_chain = true\nwide_single_use_collapse = true\n",
-        )
-        .unwrap();
-        assert_eq!(config.javascript.name_ordering, Some(SiblingNameOrdering::IdiomConverged));
-        let notes = config.unimplemented_knobs();
-        assert_eq!(notes.len(), 3, "{notes:?}");
-        assert!(notes[0].contains("idiom-converged"), "{notes:?}");
-        assert!(notes[1].contains("terminal_cleanup_chain"), "{notes:?}");
-        assert!(notes[2].contains("wide_single_use_collapse"), "{notes:?}");
+    fn the_positional_public_shape_is_refused_and_named_has_no_effect() {
+        let error = refusal("[javascript]\npublic_aggregate_abi = \"positional\"\n");
+        assert!(error.contains("plain objects with named fields (D2)"), "{error}");
+        let named = parse("[javascript]\npublic_aggregate_abi = \"named\"\n");
+        assert_eq!(named.warnings.len(), 1);
+        assert!(named.warnings[0].contains("`javascript.public_aggregate_abi` has no effect"));
     }
 
     #[test]
-    fn sibling_line_knobs_at_their_anchor_values_are_silent() {
-        let config: ProjectConfig = toml::from_str(
-            "[javascript]\nname_ordering = \"emission-walk\"\nterminal_cleanup_chain = false\nwide_single_use_collapse = false\n",
-        )
-        .unwrap();
-        assert!(config.unimplemented_knobs().is_empty());
-        assert!(ProjectConfig::default().unimplemented_knobs().is_empty());
+    fn a_for_of_family_specialization_is_refused() {
+        let error = refusal("[optimization]\nfor_of_specialize_family = 4\n");
+        assert!(error.contains("for_of_specialize_family = 4"), "{error}");
+        let zero = parse("[optimization]\nfor_of_specialize_family = 0\n");
+        assert_eq!(zero.warnings.len(), 1);
+    }
+
+    /// Retired list entries are dropped with one warning per list; the entries
+    /// this compiler reads keep their exact-allowlist meaning, and a misspelled
+    /// entry is still an error.
+    #[test]
+    fn retired_list_entries_warn_and_the_read_entries_keep_their_meaning() {
+        let parsed = parse(
+            "[javascript]\ncompression = [\"identifier-mangling\", \"quote-style-selection\", \"loop-spelling-selection\"]\n\
+             optimizations = [\"parsed-peephole\", \"call-site-specialization\"]\n",
+        );
+        assert_eq!(parsed.warnings.len(), 2, "{:?}", parsed.warnings);
+        assert!(parsed.warnings[0].contains("`quote-style-selection`, `loop-spelling-selection`"));
+        assert_eq!(
+            parsed.config.javascript.compression,
+            Some(vec![CompressionDecision::IdentifierMangling])
+        );
+        assert_eq!(
+            parsed.config.javascript.optimizations,
+            Some(vec![JavaScriptOptimization::CallSiteSpecialization])
+        );
+        let policy = parsed
+            .config
+            .resolve_policy(CompilationRequest::JavaScript {
+                preserve_root_exports: true,
+            })
+            .unwrap();
+        assert_eq!(
+            policy.tactic(TacticId::IdentifierMangling).permission,
+            TacticPermission::On
+        );
+        for omitted in [TacticId::PropertyMangling, TacticId::StringPooling, TacticId::NamingSearch] {
+            assert_eq!(policy.tactic(omitted).permission, TacticPermission::Off, "{omitted:?}");
+        }
+        assert_eq!(
+            policy.tactic(TacticId::CallSpecialization).permission,
+            TacticPermission::On
+        );
+        assert!(!policy.javascript_contract().unwrap().assumptions.numeric_lengths);
+        assert!(parse_project_config("[javascript]\ncompression = [\"string-poolin\"]\n")
+            .unwrap_err()
+            .contains("unknown variant"));
     }
 
     #[test]
-    fn a_misspelled_sibling_knob_value_is_still_an_error() {
-        assert!(toml::from_str::<ProjectConfig>("[javascript]\nname_ordering = \"idom-converged\"\n").is_err());
-        assert!(toml::from_str::<ProjectConfig>("[javascript]\nterminal_cleanup_chain = \"yes\"\n").is_err());
-        assert!(toml::from_str::<ProjectConfig>("[javascript]\nno_such_knob = true\n").is_err());
+    fn an_emptied_retired_section_goes_with_its_keys() {
+        let parsed = parse("[compiler]\n[compiler.resources]\ncodec_workers=8\n");
+        assert_eq!(parsed.warnings.len(), 1);
+        assert_eq!(parsed.config, ProjectConfig::default());
     }
 
     #[test]
     fn parses_javascript_strip_console() {
-        let enabled: ProjectConfig = toml::from_str("[javascript]\nstrip_console=true\n").unwrap();
+        let enabled = parse("[javascript]\nstrip_console=true\n").config;
         assert!(enabled.javascript.strip_console);
-        let disabled: ProjectConfig =
-            toml::from_str("[javascript]\nstrip_console=false\n").unwrap();
+        let disabled = parse("[javascript]\nstrip_console=false\n").config;
         assert!(!disabled.javascript.strip_console);
         assert!(ProjectConfig::default().javascript.strip_console);
     }
 
     #[test]
-    fn regex_literals_require_an_explicit_pristine_builtin_contract() {
-        let open_world: ProjectConfig =
-            toml::from_str("[javascript]\npriority='size-first'\ncompression=['regex-literals']\n")
-                .unwrap();
-        assert!(!open_world.js_options().regex_literals);
-
-        let pristine: ProjectConfig = toml::from_str(
-            "[javascript]\npriority='size-first'\ncompression=['regex-literals']\nassume_pristine_builtins=true\n",
-        )
-        .unwrap();
-        assert!(pristine.js_options().regex_literals);
-        assert!(!ProjectConfig::default().javascript.assume_pristine_builtins);
-    }
-
-    #[test]
-    fn maps_javascript_priorities_to_concrete_policies() {
-        let performance: ProjectConfig =
-            toml::from_str("[javascript]\npriority='performance-first'\n").unwrap();
-        let performance_optimizer = performance.js_optimizer_options();
-        assert_eq!(performance_optimizer.inline_instruction_limit, 24);
-        assert_eq!(performance_optimizer.inline_control_flow_limit, 60);
-        assert_eq!(performance_optimizer.inline_growth_limit, None);
-        assert!(!performance.js_options().pool_strings);
-        assert!(!performance.js_options().elide_safe_integer_coercions);
-        assert!(!performance.js_options().elide_safe_string_coercions);
-        assert!(!performance.js_options().elide_length_tonumber);
+    fn rejects_unknown_and_invalid_settings() {
+        assert!(parse_project_config("[mangle]\nmagic=true").is_err());
+        assert!(parse_project_config("[javascript]\nno_such_knob = true\n").is_err());
+        assert!(parse_project_config("[bundle]\nmax_chunks=0")
+            .unwrap_err()
+            .contains("max_chunks"));
         assert!(
-            ProjectConfig::default()
-                .js_options()
-                .elide_safe_integer_coercions
+            parse_project_config("[javascript]\ncompression=['string-pooling','string-pooling']\n")
+                .unwrap_err()
+                .contains("duplicate")
         );
-        assert!(
-            ProjectConfig::default()
-                .js_options()
-                .elide_safe_string_coercions
-        );
-
-        let realistic: ProjectConfig =
-            toml::from_str("[javascript]\npriority='realistic-performance-first'\n").unwrap();
-        let realistic_optimizer = realistic.js_optimizer_options();
-        assert_eq!(
-            realistic.javascript.priority,
-            JavaScriptPriority::RealisticPerformanceFirst
-        );
-        assert_eq!(realistic_optimizer.inline_instruction_limit, 18);
-        assert_eq!(realistic_optimizer.inline_control_flow_limit, 45);
-        assert_eq!(realistic_optimizer.inline_growth_limit, Some(16));
-        assert!(realistic.js_options().mangle_identifiers);
-        assert!(realistic.entropy_aware_mangling_enabled());
-        assert!(realistic.js_options().pool_strings);
-        assert!(!realistic.js_options().elide_safe_integer_coercions);
-        assert!(!realistic.js_options().elide_safe_string_coercions);
-        assert!(realistic.js_options().compact_boolean_literals);
-        assert!(!realistic.js_options().pack_string_arrays);
-        assert_eq!(realistic.javascript.candidate_limit, 1536);
-        assert_eq!(
-            realistic.js_options().phi_affinity_mode,
-            PhiAffinityMode::Grouped
-        );
-
-        let alias: ProjectConfig =
-            toml::from_str("[javascript]\npriority='realisticperf-first'\n").unwrap();
-        assert_eq!(
-            alias.javascript.priority,
-            JavaScriptPriority::RealisticPerformanceFirst
-        );
-
-        let balanced: ProjectConfig =
-            toml::from_str("[javascript]\npriority='balanced'\n").unwrap();
-        let balanced_optimizer = balanced.js_optimizer_options();
-        assert_eq!(balanced_optimizer.inline_instruction_limit, 12);
-        assert_eq!(balanced_optimizer.inline_control_flow_limit, 30);
-        assert_eq!(balanced_optimizer.inline_growth_limit, Some(4));
-        assert!(balanced.js_options().pool_strings);
-        assert!(balanced.js_options().elide_safe_integer_coercions);
-        assert!(balanced.js_options().elide_safe_string_coercions);
-        assert!(!balanced.js_options().pack_string_arrays);
-
-        // This case is about what `priority` maps to, not about the effort
-        // ladder, so it pins the level rather than inheriting the default.
-        // Four of the assertions below name features gated at level 14.
-        let size: ProjectConfig =
-            toml::from_str("[javascript]\npriority='size-first'\noptimization_level=15\n").unwrap();
-        assert_eq!(size.js_optimizer_options().inline_growth_limit, Some(16));
-        assert!(size.js_options().pool_strings);
-        assert!(size.js_options().elide_safe_integer_coercions);
-        assert!(size.js_options().elide_safe_string_coercions);
-        assert!(size.js_options().elide_length_tonumber);
-        assert!(size.js_length_to_number_elision_variants_enabled());
-        assert!(size
-            .javascript
-            .removed_size_first_compression_families()
-            .is_empty());
-        assert!(!balanced.js_options().elide_length_tonumber);
-        assert!(size.js_options().inline_structured_closures);
-        assert!(!size.js_options().pack_string_arrays);
-        assert_eq!(size.js_options().string_pool_minimum_savings, 8);
-        assert!(!size.js_options().pool_identifier_strings);
-        assert!(size.js_options().scalar_phi_copies);
-        assert!(size.js_options().mangle_properties);
-        assert!(!size.js_options().mangle_exports);
-        assert!(size.ir_inlining_variants_enabled());
-        assert!(!size.global_alias_forwarding_variants_enabled());
-        assert!(size.pure_helper_inlining_candidates_enabled());
-        assert!(size.dense_string_return_table_candidates_enabled());
-        assert!(size.host_alias_spelling_candidates_enabled());
-        assert!(size.string_array_packing_candidates_enabled());
-        assert!(size.identifier_string_pooling_candidates_enabled());
-        assert!(size.ir_closure_factory_variants_enabled());
-        assert!(size.ir_phase_ordering_variants_enabled());
-        assert!(size.loop_spelling_selection_enabled());
-        assert!(size.mutation_spelling_selection_enabled());
-        assert!(size.indexed_char_at_candidates_enabled());
-        assert!(!size.effect_ternary_candidates_enabled());
-        assert!(size.js_joint_chunk_symbol_search_enabled());
-        assert!(size.js_joint_representation_search_enabled());
-        assert!(size.js_keep_object_variants_enabled());
-        assert!(size.js_scalar_replacement_variants_enabled());
-        assert!(size.js_parameterized_function_merging_enabled());
-        let size_passes = size.compress_pass_options();
-        assert!(size_passes.pipeline_fusion);
-        assert!(size_passes.partial_escape_sinking);
-        assert!(!size_passes.region_outlining);
-        assert!(size_passes.expression_superopt);
-        assert!(size_passes.path_sensitive_propagation);
-        assert_eq!(
-            size.js_options().phi_affinity_mode,
-            PhiAffinityMode::Grouped
-        );
-        assert_eq!(
-            ProjectConfig::default().javascript.priority,
-            JavaScriptPriority::SizeFirst
-        );
-
-        assert!(!performance.entropy_aware_mangling_enabled());
-        assert!(!performance.js_options().compact_boolean_literals);
-        assert!(performance.js_options().elide_block_terminal_semicolons);
-        assert!(!performance.js_options().mangle_properties);
-        assert!(!performance.ir_inlining_variants_enabled());
-        assert!(!performance.global_alias_forwarding_variants_enabled());
-        assert!(!performance.pure_helper_inlining_candidates_enabled());
-        assert!(!performance.dense_string_return_table_candidates_enabled());
-        assert!(!performance.host_alias_spelling_candidates_enabled());
-        assert!(!performance.string_array_packing_candidates_enabled());
-        assert!(!performance.identifier_string_pooling_candidates_enabled());
-        assert!(!performance.ir_closure_factory_variants_enabled());
-        assert!(!performance.ir_phase_ordering_variants_enabled());
-        assert!(!performance.loop_spelling_selection_enabled());
-        assert!(!performance.mutation_spelling_selection_enabled());
-        assert!(!performance.indexed_char_at_candidates_enabled());
-        assert!(!performance.effect_ternary_candidates_enabled());
-        assert!(!performance.js_joint_chunk_symbol_search_enabled());
-        assert!(!performance.js_joint_representation_search_enabled());
-        assert!(!performance.js_keep_object_variants_enabled());
-        assert!(!performance.js_scalar_replacement_variants_enabled());
-        assert!(!performance.js_parameterized_function_merging_enabled());
-        let performance_passes = performance.compress_pass_options();
-        assert!(!performance_passes.pipeline_fusion);
-        assert!(!performance_passes.partial_escape_sinking);
-        assert!(!performance_passes.region_outlining);
-        assert!(!performance_passes.expression_superopt);
-        assert!(!performance_passes.path_sensitive_propagation);
-
-        assert!(!balanced.js_options().mangle_properties);
-        assert!(balanced.loop_spelling_selection_enabled());
-        assert!(!balanced.mutation_spelling_selection_enabled());
-        assert!(!balanced.indexed_char_at_candidates_enabled());
-        assert!(!balanced.effect_ternary_candidates_enabled());
-        let balanced_passes = balanced.compress_pass_options();
-        assert!(!balanced_passes.pipeline_fusion);
-        assert!(!balanced_passes.partial_escape_sinking);
-        assert!(!balanced_passes.region_outlining);
-        assert!(balanced_passes.expression_superopt);
-        assert!(balanced_passes.path_sensitive_propagation);
-        assert!(!balanced.js_joint_chunk_symbol_search_enabled());
-        assert!(!balanced.js_joint_representation_search_enabled());
-        assert!(!balanced.global_alias_forwarding_variants_enabled());
-        assert!(!balanced.js_parameterized_function_merging_enabled());
-
-        let explicit_pooling: ProjectConfig = toml::from_str(
-            "[javascript]\npriority='performance-first'\n[mangle]\npool_strings=true\n",
+        assert!(parse_project_config("[javascript]\noptimization_level=17\n")
+            .unwrap_err()
+            .contains("between 0 and 16"));
+        assert!(parse_project_config("[javascript]\ncandidate_beam_width=0\n")
+            .unwrap_err()
+            .contains("candidate_beam_width"));
+        assert!(parse_project_config("[javascript]\ncandidate_byte_budget=0\n")
+            .unwrap_err()
+            .contains("candidate_byte_budget"));
+        assert!(parse_project_config(
+            "[javascript]\noptimizations=['call-site-specialization','call-site-specialization']\n"
         )
-        .unwrap();
-        assert!(explicit_pooling.js_options().pool_strings);
-
-        let keep_coercions: ProjectConfig =
-            toml::from_str("[javascript]\npriority='size-first'\ninteger_coercions=true\n")
-                .unwrap();
-        assert!(!keep_coercions.js_options().elide_safe_integer_coercions);
-        assert!(!keep_coercions.js_options().elide_safe_string_coercions);
-
-        let keep_balanced: ProjectConfig =
-            toml::from_str("[javascript]\npriority='balanced'\ninteger_coercions=true\n").unwrap();
-        assert!(!keep_balanced.js_options().elide_safe_integer_coercions);
-        assert!(!keep_balanced.js_options().elide_safe_string_coercions);
-
-        let drop_on_performance: ProjectConfig =
-            toml::from_str("[javascript]\npriority='performance-first'\ninteger_coercions=false\n")
-                .unwrap();
-        assert!(
-            drop_on_performance
-                .js_options()
-                .elide_safe_integer_coercions
-        );
-        assert!(drop_on_performance.js_options().elide_safe_string_coercions);
-    }
-
-    #[test]
-    fn applies_an_exact_custom_compression_decision_set() {
-        let custom: ProjectConfig = toml::from_str(
-            r#"
-[javascript]
-priority = "performance-first"
-compression = [
-  "string-pooling",
-  "size-aware-inlining",
-  "property-mangling",
-]
-inline_instruction_limit = 7
-inline_control_flow_limit = 9
-max_inline_growth = 3
-local_name_coalescing = false
-"#,
-        )
-        .unwrap();
-        custom.validate().unwrap();
-        let optimizer = custom.js_optimizer_options();
-        let codegen = custom.js_options();
-
-        assert_eq!(optimizer.inline_instruction_limit, 7);
-        assert_eq!(optimizer.inline_control_flow_limit, 9);
-        assert_eq!(optimizer.inline_growth_limit, Some(3));
-        assert!(!codegen.mangle_identifiers);
-        assert!(codegen.mangle_properties);
-        assert!(!codegen.mangle_exports);
-        assert!(codegen.pool_strings);
-        assert!(!codegen.elide_safe_integer_coercions);
-        assert!(!codegen.elide_safe_string_coercions);
-        assert!(!codegen.elide_block_terminal_semicolons);
-        assert!(!codegen.elide_new_parentheses);
-        assert!(!codegen.elide_call_chain_parentheses);
-        assert!(!codegen.compact_generator_star);
-        assert!(!codegen.local_name_coalescing);
-        assert!(!custom.ir_inlining_variants_enabled());
-        assert!(!custom.global_alias_forwarding_variants_enabled());
-        assert!(!custom.ir_closure_factory_variants_enabled());
-        assert!(!custom.ir_phase_ordering_variants_enabled());
-        assert!(!custom.loop_spelling_selection_enabled());
-        assert!(!custom.mutation_spelling_selection_enabled());
-        assert!(!custom.indexed_char_at_candidates_enabled());
-        assert!(!custom.effect_ternary_candidates_enabled());
-
-        let size_overlay: ProjectConfig = toml::from_str(
-            "[javascript]\npriority='size-first'\ncompression=['identifier-mangling']\n",
-        )
-        .unwrap();
-        assert!(size_overlay.indexed_char_at_candidates_enabled());
-        assert!(!size_overlay.js_options().indexed_char_at);
-        assert!(!size_overlay.effect_ternary_candidates_enabled());
-        assert!(!size_overlay.js_options().elide_length_tonumber);
-        assert!(!size_overlay.js_length_to_number_elision_variants_enabled());
-        let removed = size_overlay
-            .javascript
-            .removed_size_first_compression_families();
-        assert!(removed.contains(&"length-to-number-elision"), "{removed:?}");
-        assert!(!removed.contains(&"global-alias-forwarding"), "{removed:?}");
-        assert!(
-            removed.contains(&"joint-representation-search"),
-            "{removed:?}"
-        );
-        assert!(!removed.contains(&"identifier-mangling"), "{removed:?}");
-        assert!(!removed.contains(&"export-mangling"), "{removed:?}");
-        assert!(!removed.contains(&"effect-ternary"), "{removed:?}");
-
-        let none: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
-        let none_codegen = none.js_options();
-        assert_eq!(none.js_optimizer_options().inline_growth_limit, None);
-        assert!(!none_codegen.mangle_identifiers);
-        assert!(!none_codegen.mangle_properties);
-        assert!(!none_codegen.mangle_exports);
-        assert!(!none_codegen.pool_strings);
-        assert!(none_codegen.elide_safe_integer_coercions);
-        assert!(none_codegen.elide_safe_string_coercions);
-        assert!(!none_codegen.compact_boolean_literals);
-        assert!(!none_codegen.elide_block_terminal_semicolons);
-        assert!(!none_codegen.elide_new_parentheses);
-        assert!(!none_codegen.elide_call_chain_parentheses);
-        assert!(!none_codegen.pack_string_arrays);
-        assert!(!none_codegen.compact_generator_star);
-        assert!(!none_codegen.scalar_phi_copies);
-        assert!(!none.indexed_char_at_candidates_enabled());
-        assert!(!none.effect_ternary_candidates_enabled());
-        assert!(!none.js_options().indexed_char_at);
-        assert!(none.js_options().effect_ternary);
-        assert_eq!(
-            none_codegen.phi_affinity_mode,
-            PhiAffinityMode::Conservative
-        );
-        assert!(!none.entropy_aware_mangling_enabled());
-        assert!(!none.js_region_outlining_candidate_enabled());
-        assert!(!none.global_alias_forwarding_variants_enabled());
-        assert!(ProjectConfig::default().js_region_outlining_candidate_enabled());
-
-        let hard_disabled_outlining: ProjectConfig = toml::from_str(
-            "[optimization]\nregion_outlining=false\n[javascript]\ncompression=['region-outlining']\n",
-        )
-        .unwrap();
-        assert!(!hard_disabled_outlining.js_region_outlining_candidate_enabled());
-
-        let explicit_mangle: ProjectConfig = toml::from_str(
-            "[javascript]\ncompression=[]\n[mangle]\nidentifiers=true\npool_strings=true\n",
-        )
-        .unwrap();
-        assert!(explicit_mangle.js_options().mangle_identifiers);
-        assert!(explicit_mangle.js_options().pool_strings);
-        assert!(explicit_mangle.js_options().mangle_extern_fields);
-
-        let closed: ProjectConfig = toml::from_str("[mangle]\nextern_fields=false\n").unwrap();
-        assert!(!closed.js_options().mangle_extern_fields);
-        assert!(ProjectConfig::default().js_options().mangle_extern_fields);
+        .unwrap_err()
+        .contains("duplicate"));
     }
 
     #[test]
     fn resolves_javascript_ecmascript_and_browser_floors() {
         let defaults = ProjectConfig::default();
         assert_eq!(defaults.javascript.ecmascript, EcmaScriptEdition::Es2022);
-        assert_eq!(defaults.js_options().ecmascript, EcmaScriptEdition::Es2022);
-        assert!(!defaults.js_options().indexed_char_at);
-        assert!(defaults.js_options().effect_ternary);
-        assert!(defaults.indexed_char_at_candidates_enabled());
-        assert!(!defaults.effect_ternary_candidates_enabled());
-
-        assert!(toml::from_str::<ProjectConfig>("[javascript]\necmascript='es2014'\n").is_err());
-
-        let unknown_browser: ProjectConfig =
-            toml::from_str("[javascript]\nbrowsers=['opera80']\n").unwrap();
-        assert!(unknown_browser.validate().is_err());
-
-        let intersected: ProjectConfig = toml::from_str(
-            "[javascript]\necmascript='es2022'\nbrowsers=['chrome80','firefox78']\n",
-        )
-        .unwrap();
-        intersected.validate().unwrap();
+        assert!(parse_project_config("[javascript]\necmascript='es2014'\n").is_err());
+        assert!(parse_project_config("[javascript]\nbrowsers=['opera80']\n").is_err());
+        let intersected =
+            parse("[javascript]\necmascript='es2022'\nbrowsers=['chrome80','firefox78']\n").config;
         assert_eq!(
             intersected.javascript.resolved_ecmascript(),
             EcmaScriptEdition::Es2020
         );
-        assert_eq!(
-            intersected.js_options().ecmascript,
-            EcmaScriptEdition::Es2020
-        );
-
-        let balanced_listed: ProjectConfig = toml::from_str(
-            "[javascript]\npriority='balanced'\ncompression=['indexed-char-at','effect-ternary']\n",
-        )
-        .unwrap();
-        assert!(balanced_listed.indexed_char_at_candidates_enabled());
-        assert!(balanced_listed.effect_ternary_candidates_enabled());
-        assert!(!balanced_listed.js_options().indexed_char_at);
-        assert!(balanced_listed.js_options().effect_ternary);
-
-        let omitted_balanced: ProjectConfig =
-            toml::from_str("[javascript]\npriority='balanced'\n").unwrap();
-        assert_eq!(
-            omitted_balanced.js_options().effect_ternary,
-            balanced_listed.js_options().effect_ternary
-        );
-        assert_eq!(
-            omitted_balanced.js_options().indexed_char_at,
-            balanced_listed.js_options().indexed_char_at
-        );
     }
 
     #[test]
-    fn paired_variant_searches_require_both_exact_allowlists() {
-        fn states(config: &ProjectConfig) -> [bool; 11] {
-            [
-                config.ir_inlining_variants_enabled(),
-                config.ir_closure_factory_variants_enabled(),
-                config.ir_phase_ordering_variants_enabled(),
-                config.loop_spelling_selection_enabled(),
-                config.mutation_spelling_selection_enabled(),
-                config.js_joint_chunk_symbol_search_enabled(),
-                config.js_joint_representation_search_enabled(),
-                config.js_default_argument_variants_enabled(),
-                config.js_scalar_phi_copy_variants_enabled(),
-                config.js_phi_affinity_variants_enabled(),
-                config.js_local_name_coalescing_variants_enabled(),
-            ]
-        }
-
-        let all_optimizations = vec![
-            JavaScriptOptimization::IrInliningVariants,
-            JavaScriptOptimization::IrClosureFactoryVariants,
-            JavaScriptOptimization::IrPhaseOrderingVariants,
-            JavaScriptOptimization::StructuralLoopVariants,
-            JavaScriptOptimization::CompoundMutationVariants,
-            JavaScriptOptimization::JointChunkSymbolSearch,
-            JavaScriptOptimization::JointRepresentationSearch,
-            JavaScriptOptimization::DefaultArgumentVariants,
-            JavaScriptOptimization::SsaDestructionVariants,
-        ];
-        let all_compression = vec![
-            CompressionDecision::IrInliningVariants,
-            CompressionDecision::IrClosureFactoryVariants,
-            CompressionDecision::IrPhaseOrderingVariants,
-            CompressionDecision::LoopSpellingSelection,
-            CompressionDecision::MutationSpellingSelection,
-            CompressionDecision::JointChunkSymbolSearch,
-            CompressionDecision::JointRepresentationSearch,
-            CompressionDecision::CalleeDefaultArguments,
-            CompressionDecision::ScalarPhiCopies,
-            CompressionDecision::PhiAffinityCoalescing,
-        ];
-
-        let mut enabled = ProjectConfig::default();
-        enabled.javascript.optimizations = Some(all_optimizations.clone());
-        enabled.javascript.compression = Some(all_compression.clone());
-        assert_eq!(states(&enabled), [true; 11]);
-
-        let mut no_compression = enabled.clone();
-        no_compression.javascript.compression = Some(Vec::new());
-        assert_eq!(states(&no_compression), [false; 11]);
-
-        let mut no_optimizations = enabled.clone();
-        no_optimizations.javascript.optimizations = Some(Vec::new());
-        assert_eq!(states(&no_optimizations), [false; 11]);
-
-        let mut exact_empty = ProjectConfig::default();
-        exact_empty.javascript.optimizations = Some(Vec::new());
-        exact_empty.javascript.compression = Some(Vec::new());
-        assert_eq!(states(&exact_empty), [false; 11]);
-
-        let mut mixed = ProjectConfig::default();
-        mixed.javascript.optimizations = Some(vec![
-            JavaScriptOptimization::IrInliningVariants,
-            JavaScriptOptimization::DefaultArgumentVariants,
-            JavaScriptOptimization::SsaDestructionVariants,
-        ]);
-        mixed.javascript.compression = Some(vec![
-            CompressionDecision::IrClosureFactoryVariants,
-            CompressionDecision::CalleeDefaultArguments,
-            CompressionDecision::ScalarPhiCopies,
-        ]);
-        assert_eq!(
-            states(&mixed),
-            [false, false, false, false, false, false, false, true, true, false, false,]
-        );
-
-        let mut legacy = ProjectConfig::default();
-        // The legacy path gates on the compression allowlist alone, but the
-        // level gate still applies underneath it: two of these eleven searches
-        // are level-14 features, so the ladder is pinned to isolate the axis
-        // this case is about.
-        legacy.javascript.optimization_level = 15;
-        legacy.javascript.optimizations = None;
-        legacy.javascript.compression = Some(all_compression);
-        assert_eq!(states(&legacy), [true; 11]);
-    }
-
-    #[test]
-    fn gates_helper_and_dense_table_search_with_independent_decisions() {
-        let helper_only: ProjectConfig =
-            toml::from_str("[javascript]\ncompression=['pure-helper-inlining']\n").unwrap();
-        assert!(helper_only.pure_helper_inlining_candidates_enabled());
-        assert!(!helper_only.dense_string_return_table_candidates_enabled());
-        assert!(!helper_only.single_use_function_expression_candidates_enabled());
-
-        let table_only: ProjectConfig =
-            toml::from_str("[javascript]\ncompression=['dense-string-return-tables']\n").unwrap();
-        assert!(!table_only.pure_helper_inlining_candidates_enabled());
-        assert!(table_only.dense_string_return_table_candidates_enabled());
-        assert!(!table_only.single_use_function_expression_candidates_enabled());
-
-        let legacy_closure_only: ProjectConfig =
-            toml::from_str("[javascript]\ncompression=['structured-closure-inlining']\n").unwrap();
-        assert!(!legacy_closure_only.pure_helper_inlining_candidates_enabled());
-        assert!(!legacy_closure_only.dense_string_return_table_candidates_enabled());
-        assert!(legacy_closure_only.single_use_function_expression_candidates_enabled());
-    }
-
-    #[test]
-    fn gates_host_alias_spelling_with_search_and_the_exact_compression_set() {
-        let enabled: ProjectConfig =
-            toml::from_str("[javascript]\ncompression=['host-alias-spelling']\n").unwrap();
-        assert!(enabled.host_alias_spelling_candidates_enabled());
-        assert_eq!(
-            enabled.js_options().host_alias_spelling,
-            HostAliasSpelling::Shared
-        );
-
-        let exact_empty: ProjectConfig = toml::from_str("[javascript]\ncompression=[]\n").unwrap();
-        assert!(!exact_empty.host_alias_spelling_candidates_enabled());
-
-        let search_off: ProjectConfig = toml::from_str(
-            "[javascript]\ncandidate_search='off'\ncompression=['host-alias-spelling']\n",
-        )
-        .unwrap();
-        assert!(!search_off.host_alias_spelling_candidates_enabled());
-
-        let explicit_override: ProjectConfig = toml::from_str(
-            "[javascript]\npriority='performance-first'\ncompression=['host-alias-spelling']\n",
-        )
-        .unwrap();
-        assert!(explicit_override.host_alias_spelling_candidates_enabled());
-    }
-
-    #[test]
-    fn resolves_javascript_optimization_levels_and_exact_allowlists() {
-        let disabled: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=0\ncandidate_limit=1536\n").unwrap();
-        disabled.validate().unwrap();
-        assert_eq!(disabled.javascript.candidate_beam_width, 12);
-        assert_eq!(disabled.javascript.candidate_byte_budget, 1024 * 1024);
-        assert_eq!(disabled.javascript.candidate_proposal_limit, None);
-        assert_eq!(disabled.javascript.terminal_codec_probe_limit, None);
-        assert_eq!(disabled.javascript.max_candidate_raw_growth_percent, 0);
-        assert_eq!(disabled.javascript.function_layout_exact_limit, 13);
-        assert_eq!(disabled.javascript.local_name_reserve, 16);
-        assert!(disabled.javascript.stable_local_names);
+    fn effort_levels_set_the_search_breadth() {
+        let disabled = parse("[javascript]\noptimization_level=0\ncandidate_limit=1536\n").config;
         assert_eq!(disabled.javascript.effective_candidate_limit(), 1);
         assert_eq!(disabled.javascript.effective_candidate_beam_width(), 1);
         assert_eq!(
             disabled.javascript.effective_candidate_byte_budget(),
             64 * 1024
         );
-        assert_eq!(
-            disabled.javascript.effective_terminal_codec_probe_limit(),
-            0
-        );
+        assert_eq!(disabled.javascript.effective_terminal_codec_probe_limit(), 0);
         assert_eq!(disabled.javascript.effective_candidate_proposal_limit(), 0);
-        assert!(!disabled.javascript_optimization_configured(
-            JavaScriptOptimization::ConditionalExpressionVariants
-        ));
-        assert!(
-            !disabled.javascript_optimization_configured(JavaScriptOptimization::StartupCostGuard)
-        );
-        assert!(!disabled.js_options().conditional_expressions);
-        assert!(!disabled.js_options().expression_phi_regions);
-        assert!(!disabled.js_options().local_phi_expression_regions);
-        assert!(!disabled.js_options().phi_edge_value_forwarding);
-        assert!(!disabled.js_options().constructor_initializer_fusion);
-        assert!(!disabled.js_options().inline_fresh_empty_array_factories);
-        assert!(!disabled.javascript_optimization_configured(
-            JavaScriptOptimization::ConstructorInitializerFusionVariants
-        ));
-        assert!(!disabled.javascript_optimization_configured(
-            JavaScriptOptimization::FreshLiteralFactoryInliningVariants
-        ));
-        assert!(!disabled.js_options().cross_scope_name_reuse);
 
-        let standard: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=9\n").unwrap();
+        let standard = parse("[javascript]\noptimization_level=9\n").config;
         assert_eq!(standard.javascript.effective_candidate_limit(), 384);
         assert_eq!(standard.javascript.effective_candidate_beam_width(), 6);
         assert_eq!(
             standard.javascript.effective_candidate_byte_budget(),
             384 * 1024
         );
-        assert_eq!(
-            standard.javascript.effective_terminal_codec_probe_limit(),
-            64
-        );
-        assert_eq!(
-            standard.javascript.effective_candidate_proposal_limit(),
-            384
-        );
-        assert!(standard.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
-        assert!(standard
-            .javascript_optimization_configured(JavaScriptOptimization::EntropyPropertyAssignment));
-        assert!(standard.javascript_optimization_configured(
-            JavaScriptOptimization::ConstructorInitializerFusionVariants
-        ));
-        assert!(standard.javascript_optimization_configured(
-            JavaScriptOptimization::FreshLiteralFactoryInliningVariants
-        ));
-        assert!(!standard.js_options().constructor_initializer_fusion);
-        assert!(!standard.js_options().inline_fresh_empty_array_factories);
-        assert!(!standard
-            .javascript_optimization_configured(JavaScriptOptimization::IrInliningVariants));
-        assert!(!standard.js_options().local_phi_expression_regions);
-        assert!(!standard.js_options().phi_edge_value_forwarding);
+        assert_eq!(standard.javascript.effective_terminal_codec_probe_limit(), 64);
+        assert_eq!(standard.javascript.effective_candidate_proposal_limit(), 384);
 
-        let shorthand_off: ProjectConfig =
-            toml::from_str("[javascript]\nstruct_method_shorthand=false\n").unwrap();
-        assert!(!shorthand_off.js_options().struct_method_shorthand);
-        let shorthand_default: ProjectConfig = toml::from_str("[javascript]\n").unwrap();
-        assert!(shorthand_default.js_options().struct_method_shorthand);
-
-        // The cost model picks the default, and a port that has measured its
-        // own artifact overrides it in either direction.
-        let forced_on: ProjectConfig = toml::from_str(
-            "[javascript]\noptimization_level=9\ncost_model='brotli'\nlocal_phi_expression_regions=true\n",
-        )
-        .unwrap();
-        assert!(forced_on.js_options().local_phi_expression_regions);
-        let forced_off: ProjectConfig = toml::from_str(
-            "[javascript]\noptimization_level=9\ncost_model='gzip'\nlocal_phi_expression_regions=false\n",
-        )
-        .unwrap();
-        assert!(!forced_off.js_options().local_phi_expression_regions);
-
-        let gzip: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=9\ncost_model='gzip'\n").unwrap();
-        assert!(gzip.js_options().local_phi_expression_regions);
-        assert!(gzip.js_options().phi_edge_value_forwarding);
-
-        let exhaustive: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=13\n").unwrap();
-        assert!(exhaustive
-            .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
-        assert!(exhaustive
-            .javascript_optimization_configured(JavaScriptOptimization::IdenticalFunctionFolding));
-        assert!(exhaustive
-            .javascript_optimization_configured(JavaScriptOptimization::JointRepresentationSearch));
-        assert!(!exhaustive.javascript_optimization_configured(
-            JavaScriptOptimization::IrFunctionSubsumptionVariants
-        ));
-        assert!(!exhaustive
-            .javascript_optimization_configured(JavaScriptOptimization::IrCompressPassVariants));
-        assert!(!exhaustive
-            .javascript_optimization_configured(JavaScriptOptimization::JointChunkSymbolSearch));
-
-        let level_fourteen: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=14\n").unwrap();
-        assert_eq!(
-            level_fourteen.javascript.effective_candidate_beam_width(),
-            11
-        );
+        let level_fourteen = parse("[javascript]\noptimization_level=14\n").config;
+        assert_eq!(level_fourteen.javascript.effective_candidate_beam_width(), 11);
         assert_eq!(
             level_fourteen.javascript.effective_candidate_byte_budget(),
             896 * 1024
         );
         assert_eq!(
-            level_fourteen
-                .javascript
-                .effective_terminal_codec_probe_limit(),
+            level_fourteen.javascript.effective_terminal_codec_probe_limit(),
             384
         );
-        let level_fifteen: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=15\n").unwrap();
-        assert_eq!(
-            level_fifteen
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(16 * 1024),
-            384
-        );
-        assert_eq!(
-            level_fifteen
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(32 * 1024),
-            288
-        );
-        assert_eq!(
-            level_fifteen
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            84
-        );
-        let level_fifteen_always: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=15\ncandidate_search='always'\n")
-                .unwrap();
-        assert_eq!(
-            level_fifteen_always
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(16 * 1024),
-            1_536
-        );
-        assert_eq!(
-            level_fifteen
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(16 * 1024),
-            384
-        );
-        assert_eq!(
-            level_fifteen
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(32 * 1024),
-            288
-        );
-        assert_eq!(
-            level_fifteen
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            84
-        );
-        let mut bounded_override = level_fifteen.clone();
-        bounded_override.javascript.terminal_codec_probe_limit = Some(17);
-        bounded_override.javascript.candidate_proposal_limit = Some(23);
-        assert_eq!(
-            bounded_override
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            17
-        );
-        assert_eq!(
-            bounded_override
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            23
-        );
-        bounded_override.javascript.terminal_codec_probe_limit = Some(999);
-        bounded_override.javascript.candidate_proposal_limit = Some(999);
-        assert_eq!(
-            bounded_override
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            999,
-            "an explicit terminal ceiling is honored, not clamped to the level tier"
-        );
-        assert_eq!(
-            bounded_override
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            384,
-            "production search remains a hard ceiling for an explicit proposal budget"
-        );
-        assert!(level_fourteen.javascript_optimization_configured(
-            JavaScriptOptimization::IrFunctionSubsumptionVariants
-        ));
-        assert!(level_fourteen
-            .javascript_optimization_configured(JavaScriptOptimization::IrCompressPassVariants));
-        assert!(level_fourteen
-            .javascript_optimization_configured(JavaScriptOptimization::JointChunkSymbolSearch));
-        assert!(level_fourteen.js_function_subsumption_variants_enabled());
-
-        let exact: ProjectConfig = toml::from_str(
-            r#"
-[javascript]
-optimization_level = 0
-  optimizations = ["parsed-peephole", "do-loop-variants", "function-layout-variants", "ir-function-subsumption-variants", "constructor-initializer-fusion-variants", "fresh-literal-factory-inlining-variants"]
-"#,
-        )
-        .unwrap();
-        exact.validate().unwrap();
-        assert_eq!(exact.javascript.effective_candidate_limit(), 1);
-        assert_eq!(exact.javascript.effective_candidate_beam_width(), 1);
-        assert_eq!(
-            exact.javascript.effective_candidate_byte_budget(),
-            64 * 1024
-        );
-        assert_eq!(exact.javascript.effective_terminal_codec_probe_limit(), 0);
-        assert_eq!(exact.javascript.effective_candidate_proposal_limit(), 0);
-        assert!(exact.javascript_optimization_configured(JavaScriptOptimization::ParsedPeephole));
-        assert!(exact.javascript_optimization_configured(JavaScriptOptimization::DoLoopVariants));
-        assert!(exact
-            .javascript_optimization_configured(JavaScriptOptimization::FunctionLayoutVariants));
-        assert!(exact.javascript_optimization_configured(
-            JavaScriptOptimization::IrFunctionSubsumptionVariants
-        ));
-        assert!(exact.javascript_optimization_configured(
-            JavaScriptOptimization::ConstructorInitializerFusionVariants
-        ));
-        assert!(exact.javascript_optimization_configured(
-            JavaScriptOptimization::FreshLiteralFactoryInliningVariants
-        ));
-        assert!(!exact.javascript_optimization_configured(
-            JavaScriptOptimization::ConditionalExpressionVariants
-        ));
-        assert!(!exact.javascript_optimization_configured(
-            JavaScriptOptimization::ExpressionPhiRegionVariants
-        ));
-        assert!(!exact.javascript_optimization_configured(
-            JavaScriptOptimization::LocalPhiExpressionRegionVariants
-        ));
-        assert!(!exact.javascript_optimization_configured(
-            JavaScriptOptimization::PhiEdgeValueForwardingVariants
-        ));
-
-        let mut exact_always = exact.clone();
-        exact_always.javascript.candidate_search = CandidateSearch::Always;
-        assert_eq!(exact_always.javascript.effective_candidate_limit(), 1);
-        assert_eq!(exact_always.javascript.effective_candidate_beam_width(), 1);
-        assert_eq!(
-            exact_always.javascript.effective_candidate_byte_budget(),
-            64 * 1024
-        );
-        assert_eq!(
-            exact_always
-                .javascript
-                .effective_terminal_codec_probe_limit(),
-            0
-        );
-
-        exact_always.javascript.terminal_codec_probe_limit = Some(17);
-        exact_always.javascript.candidate_proposal_limit = Some(23);
-        assert_eq!(
-            exact_always
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            0,
-            "an explicit proposal value cannot bypass the level-zero tier"
-        );
-        assert_eq!(
-            exact_always
-                .javascript
-                .effective_terminal_codec_probe_limit(),
-            0,
-            "an explicit terminal value cannot bypass the level-zero tier"
-        );
-        assert_eq!(
-            exact_always
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(100 * 1024),
-            0
-        );
-        exact_always.javascript.candidate_search = CandidateSearch::Off;
-        assert_eq!(
-            exact_always.javascript.effective_candidate_proposal_limit(),
-            0,
-            "candidate_search=off is a hard stop even with an explicit proposal cap"
-        );
-        assert_eq!(
-            exact_always
-                .javascript
-                .effective_terminal_codec_probe_limit(),
-            0,
-            "candidate_search=off is a hard stop even with an explicit lab cap"
-        );
-
-        let constructible: ProjectConfig =
-            toml::from_str("[javascript]\nfunction_spelling='function'\n").unwrap();
-        assert_eq!(
-            constructible.js_options().function_spelling,
-            FunctionSpelling::Function
-        );
-
-        let opaque_handles: ProjectConfig =
-            toml::from_str("[javascript]\npublic_aggregate_abi='positional'\n").unwrap();
-        assert!(!opaque_handles.js_options().public_aggregate_fields);
-        assert!(
-            ProjectConfig::default()
-                .js_options()
-                .public_aggregate_fields
-        );
-
-        let exact_layout: ProjectConfig =
-            toml::from_str("[javascript]\nfunction_layout_exact_limit=18\n").unwrap();
-        exact_layout.validate().unwrap();
-        assert_eq!(exact_layout.js_options().function_layout_exact_limit, 18);
-
-        let balanced: ProjectConfig =
-            toml::from_str("[javascript]\npriority='balanced'\noptimization_level=15\n").unwrap();
-        assert!(!balanced.js_function_subsumption_variants_enabled());
-        let explicit_balanced: ProjectConfig = toml::from_str(
-            "[javascript]\npriority='balanced'\noptimization_level=0\noptimizations=['ir-function-subsumption-variants']\n",
-        )
-        .unwrap();
-        assert!(explicit_balanced.js_function_subsumption_variants_enabled());
-        let hard_disabled: ProjectConfig = toml::from_str(
-            "[optimization]\nfunction_subsumption=false\n[javascript]\noptimizations=['ir-function-subsumption-variants']\n",
-        )
-        .unwrap();
-        assert!(!hard_disabled.js_function_subsumption_variants_enabled());
-    }
-
-    #[test]
-    fn artifact_work_limits_scale_gradually_at_size_boundaries() {
-        let config: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=15\n").unwrap();
-        // The two budgets share one scaling curve and, at level 15, the same
-        // base. They are checked separately anyway: the terminal probe ladder
-        // was retuned at level 13 (192 -> 384) while the proposal ladder was
-        // left alone, so the two are no longer guaranteed to agree at every
-        // level and a shared expectation would hide that.
-        let expected_proposal_limits = [
-            (16 * 1024 - 1, 384),
-            (16 * 1024, 384),
-            (16 * 1024 + 1, 384),
-            (64 * 1024 - 1, 97),
-            (64 * 1024, 96),
-            (64 * 1024 + 1, 96),
-            (66_672, 96),
-            (256 * 1024 - 1, 33),
-            (256 * 1024, 32),
-            (256 * 1024 + 1, 32),
-            (usize::MAX, 32),
-        ];
-        for (raw_size, expected) in expected_proposal_limits {
-            assert_eq!(
-                config
-                    .javascript
-                    .effective_candidate_proposal_limit_for_artifact(raw_size),
-                expected,
-                "candidate proposal limit at {raw_size} bytes"
-            );
-        }
-        let expected_probe_limits = [
-            (16 * 1024 - 1, 384),
-            (16 * 1024, 384),
-            (16 * 1024 + 1, 384),
-            (64 * 1024 - 1, 97),
-            (64 * 1024, 96),
-            (64 * 1024 + 1, 96),
-            (66_672, 96),
-            (256 * 1024 - 1, 33),
-            (256 * 1024, 32),
-            (256 * 1024 + 1, 32),
-            (usize::MAX, 32),
-        ];
-        for (raw_size, expected) in expected_probe_limits {
-            assert_eq!(
-                config
-                    .javascript
-                    .effective_terminal_codec_probe_limit_for_artifact(raw_size),
-                expected,
-                "terminal codec probe limit at {raw_size} bytes"
-            );
-        }
-
-        assert_eq!(
-            JavaScriptConfig::gradual_artifact_work_limit(13, 64 * 1024),
-            4
-        );
-        assert_eq!(
-            JavaScriptConfig::gradual_artifact_work_limit(13, 256 * 1024),
-            2
-        );
-
-        let mut previous_candidate = config
-            .javascript
-            .effective_candidate_proposal_limit_for_artifact(0);
-        let mut previous_terminal = config
-            .javascript
-            .effective_terminal_codec_probe_limit_for_artifact(0);
-        for raw_size in 1..=256 * 1024 + 1 {
-            let candidate = config
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(raw_size);
-            let terminal = config
-                .javascript
-                .effective_terminal_codec_probe_limit_for_artifact(raw_size);
-            assert!(candidate <= previous_candidate, "candidate limit increased");
-            assert!(terminal <= previous_terminal, "terminal limit increased");
-            assert!(
-                previous_candidate - candidate <= 1,
-                "candidate limit dropped abruptly at {raw_size} bytes"
-            );
-            assert!(
-                previous_terminal - terminal <= 1,
-                "terminal limit dropped abruptly at {raw_size} bytes"
-            );
-            previous_candidate = candidate;
-            previous_terminal = terminal;
-        }
     }
 
     #[test]
     fn proposal_defaults_follow_survivor_limits_but_explicit_work_is_independent() {
-        let mut config: ProjectConfig = toml::from_str(
+        let mut config = parse(
             "[javascript]\noptimization_level=15\ncandidate_search='always'\ncandidate_limit=2\n",
         )
-        .unwrap();
+        .config;
         assert_eq!(config.javascript.effective_candidate_limit(), 2);
         assert_eq!(config.javascript.effective_candidate_proposal_limit(), 2);
-        assert_eq!(
-            config
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            2,
-            "an omitted proposal limit preserves the expected tiny-work policy"
-        );
-
         config.javascript.candidate_proposal_limit = Some(23);
         assert_eq!(config.javascript.effective_candidate_proposal_limit(), 23);
-        assert_eq!(
-            config
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            23,
-            "an explicit lab budget can exceed survivor count and bypass artifact scaling"
-        );
         config.javascript.candidate_proposal_limit = Some(1);
         assert_eq!(config.javascript.effective_candidate_proposal_limit(), 1);
-        assert_eq!(
-            config
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
-            1
-        );
-
         config.javascript.optimization_level = 0;
         config.javascript.candidate_proposal_limit = Some(23);
-        assert_eq!(config.javascript.effective_candidate_proposal_limit(), 0);
         assert_eq!(
-            config
-                .javascript
-                .effective_candidate_proposal_limit_for_artifact(100 * 1024),
+            config.javascript.effective_candidate_proposal_limit(),
             0,
             "an explicit proposal ceiling cannot bypass level zero"
         );
     }
 
     #[test]
-    fn rejects_unknown_and_invalid_settings() {
-        assert!(toml::from_str::<ProjectConfig>("[mangle]\nmagic=true").is_err());
-        let config = toml::from_str::<ProjectConfig>("[bundle]\nmax_chunks=0").unwrap();
-        assert!(config.validate().unwrap_err().contains("max_chunks"));
-        let duplicate: ProjectConfig =
-            toml::from_str("[javascript]\ncompression=['string-pooling','string-pooling']\n")
-                .unwrap();
-        assert!(duplicate.validate().unwrap_err().contains("duplicate"));
-        let invalid_level: ProjectConfig =
-            toml::from_str("[javascript]\noptimization_level=17\n").unwrap();
-        assert!(invalid_level
-            .validate()
-            .unwrap_err()
-            .contains("between 0 and 16"));
-        let zero_beam: ProjectConfig =
-            toml::from_str("[javascript]\ncandidate_beam_width=0\n").unwrap();
-        assert!(zero_beam
-            .validate()
-            .unwrap_err()
-            .contains("candidate_beam_width"));
-        let zero_byte_budget: ProjectConfig =
-            toml::from_str("[javascript]\ncandidate_byte_budget=0\n").unwrap();
-        assert!(zero_byte_budget
-            .validate()
-            .unwrap_err()
-            .contains("candidate_byte_budget"));
-        let excessive_raw_growth: ProjectConfig =
-            toml::from_str("[javascript]\nmax_candidate_raw_growth_percent=1001\n").unwrap();
-        assert!(excessive_raw_growth
-            .validate()
-            .unwrap_err()
-            .contains("max_candidate_raw_growth_percent"));
-        let excessive_layout_search: ProjectConfig =
-            toml::from_str("[javascript]\nfunction_layout_exact_limit=19\n").unwrap();
-        assert!(excessive_layout_search
-            .validate()
-            .unwrap_err()
-            .contains("function_layout_exact_limit"));
-        let excessive_local_reserve: ProjectConfig =
-            toml::from_str("[javascript]\nlocal_name_reserve=257\n").unwrap();
-        assert!(excessive_local_reserve
-            .validate()
-            .unwrap_err()
-            .contains("local_name_reserve"));
-        let zero_nesting: ProjectConfig =
-            toml::from_str("[javascript.startup]\nmax_nesting=0\n").unwrap();
-        assert!(zero_nesting.validate().unwrap_err().contains("max_nesting"));
-        let duplicate_optimization: ProjectConfig =
-            toml::from_str("[javascript]\noptimizations=['parsed-peephole','parsed-peephole']\n")
-                .unwrap();
-        assert!(duplicate_optimization
-            .validate()
-            .unwrap_err()
-            .contains("duplicate"));
-    }
-
-    #[test]
-    fn discovers_the_nearest_project_config() {
+    fn discovers_the_nearest_project_config_and_reports_its_warnings() {
         let directory = std::env::temp_dir().join(format!(
             "lilscript-config-discovery-test-{}",
             std::process::id()
@@ -4003,80 +1918,24 @@ optimization_level = 0
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(
             directory.join("lilscript.toml"),
-            "[mangle]\nidentifiers=false\n",
+            "[mangle]\nidentifiers=false\n[javascript]\nstable_local_names=true\n",
         )
         .unwrap();
         let loaded = load_project_config(&nested.join("main.lil"), None).unwrap();
-
         assert_eq!(
             loaded.path,
             Some(directory.join("lilscript.toml").canonicalize().unwrap())
         );
-        assert!(!loaded.config.js_options().mangle_identifiers);
-        std::fs::remove_dir_all(directory).unwrap();
-    }
-
-    #[test]
-    fn loads_and_overlays_versioned_profile_data() {
-        let directory = std::env::temp_dir().join(format!(
-            "lilscript-profile-config-test-{}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(&directory).unwrap();
+        assert_eq!(loaded.config.mangle.identifiers, Some(false));
+        assert_eq!(loaded.warnings.len(), 1);
         std::fs::write(
-            directory.join("profile.json"),
-            r#"{"version":1,"functions":{"render":40},"loops":{"render#0":80}}"#,
+            directory.join("lilscript.toml"),
+            "[compiler]\nbackend=\"legacy\"\n",
         )
         .unwrap();
-        let config_path = directory.join("lilscript.toml");
-        std::fs::write(
-            &config_path,
-            "[profile]\npath='profile.json'\n[profile.functions]\nrender=100\n",
-        )
-        .unwrap();
-        let input = directory.join("main.lil");
-        std::fs::write(&input, "print(1);").unwrap();
-
-        let loaded = load_project_config(&input, Some(&config_path)).unwrap();
-        let profile = loaded.config.load_optimization_profile().unwrap();
-        assert_eq!(profile.functions.get("render"), Some(&100));
-        assert_eq!(profile.loops.get("render#0"), Some(&80));
+        let error = load_project_config(&nested.join("main.lil"), None).unwrap_err();
+        assert!(error.to_string().contains("there is one compiler"), "{error}");
         std::fs::remove_dir_all(directory).unwrap();
-    }
-
-    #[test]
-    fn validates_performance_native_profile_and_provider_controls() {
-        let config: ProjectConfig = toml::from_str(
-            r#"
-[javascript.performance]
-deoptimization_weight = 10
-allocation_weight = 5
-indirect_call_weight = 20
-hot_code_weight = 1
-max_regression_percent = 15
-
-[profile]
-specialization_min_count = 50
-max_specializations_per_function = 3
-max_clone_instructions = 40
-
-[native]
-partial_escape_analysis = true
-stack_allocation = true
-region_allocation = true
-stack_array_element_limit = 32
-
-[lint]
-providers = ["correctness", "web"]
-[lint.rules]
-"web/eager-host-access" = "hint"
-"#,
-        )
-        .unwrap();
-        config.validate().unwrap();
-        assert_eq!(config.profile.specialization_min_count, 50);
-        assert_eq!(config.native_options().stack_array_element_limit, 32);
-        assert_eq!(config.lint.providers.as_ref().unwrap().len(), 2);
     }
 
     #[test]
@@ -4084,54 +1943,36 @@ providers = ["correctness", "web"]
         // Guards the deliberate choice of 13 over the 0..=15 ceiling. Raising
         // this is a 20x compile-time decision on a large artifact, not a
         // tuning tweak, so it should not happen by accident.
-        let config = JavaScriptConfig::default();
-        assert_eq!(config.optimization_level, 13);
-        // The level must still admit the features that make the plateau: the
-        // three gated at 13 are what separate it from the 11-and-below cliff.
-        for feature in [
-            JavaScriptOptimization::IdenticalFunctionFolding,
-            JavaScriptOptimization::FunctionLayoutVariants,
-            JavaScriptOptimization::JointRepresentationSearch,
-        ] {
-            assert!(config.optimization_level >= feature.minimum_level());
+        assert_eq!(JavaScriptConfig::default().optimization_level, 13);
+    }
+
+    /// Every key removed as having no effect names a key or table the
+    /// configuration no longer declares: one the structs still accepted would
+    /// be dropped instead of read.
+    #[test]
+    fn retired_keys_are_not_accepted_keys() {
+        for &(key, retirement) in RETIRED_KEYS {
+            if !matches!(
+                retirement,
+                Retirement::NoEffect(_) | Retirement::RefusedUnless { then: Some(_), .. }
+            ) {
+                continue;
+            }
+            let mut table = toml::Table::new();
+            let path = key.split('.').collect::<Vec<_>>();
+            let mut current = &mut table;
+            for part in &path[..path.len() - 1] {
+                current = current
+                    .entry(part.to_string())
+                    .or_insert_with(|| toml::Value::Table(toml::Table::new()))
+                    .as_table_mut()
+                    .unwrap();
+            }
+            current.insert(path[path.len() - 1].to_string(), toml::Value::Boolean(true));
+            assert!(
+                ProjectConfig::deserialize(table).is_err(),
+                "`{key}` is retired but still deserializes"
+            );
         }
-    }
-
-    #[test]
-    fn global_optimizer_disables_override_javascript_effort_features() {
-        let config: ProjectConfig = toml::from_str(
-            r#"
-[optimization]
-preset = "maximum"
-call_site_specialization = false
-capture_signature_cloning = false
-constant_parameter_specialization = false
-specialize_tagged_constants = false
-profile_guided = false
-
-[javascript]
-optimization_level = 15
-"#,
-        )
-        .unwrap();
-        let options = config.js_optimizer_options();
-        assert!(!options.call_site_specialization);
-        assert!(!options.capture_signature_cloning);
-        assert!(!options.constant_parameter_specialization);
-        assert!(!options.specialize_tagged_constants);
-        assert!(!config.js_profile_guided_optimization());
-        assert!(!config.native_profile_guided_optimization());
-    }
-
-    /// The migration route is an explicit per-project choice; an unknown
-    /// route is refused rather than silently taking the default.
-    #[test]
-    fn the_compiler_backend_is_selected_explicitly_and_defaults_to_semantic() {
-        let default: ProjectConfig = toml::from_str("").unwrap();
-        assert_eq!(default.compiler.backend, CompilerBackend::Semantic);
-        let legacy: ProjectConfig =
-            toml::from_str("[compiler]\nbackend = \"legacy\"\n").unwrap();
-        assert_eq!(legacy.compiler.backend, CompilerBackend::Legacy);
-        assert!(toml::from_str::<ProjectConfig>("[compiler]\nbackend = \"fast\"\n").is_err());
     }
 }

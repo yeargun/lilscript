@@ -78,7 +78,6 @@ fn graph(sources: &[&str], dependencies: &[&[usize]], order: &[usize]) -> Module
         dependency_order: order.to_vec(),
         root: 0,
         eager: vec![true; sources.len()],
-        for_of_specialize_family: 0,
     }
 }
 
@@ -1052,7 +1051,6 @@ fn borrowed_source_payloads_reuse_the_original_module_checker() {
         dependency_order: owned.dependency_order.clone(),
         root: owned.root,
         eager: owned.eager.clone(),
-        for_of_specialize_family: owned.for_of_specialize_family,
     };
     let arena = bumpalo::Bump::new();
     let programs: Vec<_> = sources

@@ -2853,14 +2853,6 @@ mod tests {
         interpret_program(&program, &semantics).unwrap()
     }
 
-    fn run_with_for_of_family(source: &str, max_n: usize) -> String {
-        let arena = Bump::new();
-        let program = parse_source(&arena, source).unwrap();
-        let program = crate::for_of_family::expand_for_of_families(&arena, program, max_n);
-        let semantics = analyze(&program).unwrap();
-        interpret_program(&program, &semantics).unwrap()
-    }
-
     #[test]
     fn checked_builtin_dispatch_preserves_shadowed_callable_bindings() {
         assert_eq!(
@@ -2913,24 +2905,6 @@ mod tests {
                 r#"Record<int> values=record{"10":10,"2":2,alpha:1};print(Object.keys(values).join(","));print(Object.values(values).join(","));print(Object.hasOwn(values,"alpha"));Record<int> merged=Object.assign(values,record{beta:4});print(merged==values);print(JSON.stringify(values));print(JSON.parse("{\"ok\":true}").isObject());"#
             ),
             "2,10,alpha\n2,10,1\ntrue\ntrue\n{\"2\":2,\"10\":10,\"alpha\":1,\"beta\":4}\ntrue\n"
-        );
-    }
-
-    #[test]
-    fn evaluates_for_of_family_picker() {
-        assert_eq!(
-            run_with_for_of_family(
-                "int addAll(int[] keys, int acc){for(int key of keys){acc+=key;}return acc;}JsValue apply=addAll$pick([1,2,3]);print(apply(0));",
-                8,
-            ),
-            "6\n"
-        );
-        assert_eq!(
-            run_with_for_of_family(
-                "int addAll(int[] keys, int acc){for(int key of keys){acc+=key;}return acc;}JsValue apply=addAll$pick([1,2,3,4,5,6,7,8,9]);print(apply(0));",
-                8,
-            ),
-            "45\n"
         );
     }
 

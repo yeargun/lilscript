@@ -640,7 +640,6 @@ fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
         crate::interpreter::interpret_program(&program, &semantics).unwrap(),
         "3\n"
     );
-    crate::lower_to_control_flow(&program, &semantics).unwrap();
     let mut tree = lower::lower_slice(&program, &semantics).unwrap();
     assert_eq!(execute(tree.target(), "", PrintPolicy::default()), "3\n[]");
     optimize::optimize(
@@ -685,18 +684,6 @@ fn callable_source_occurrences_do_not_alias_at_the_same_span() {
     }
     let program = parsed.with_items(&nodes, arena.alloc_slice_fill_iter(items));
     let semantics = crate::analyze(&program).unwrap();
-    let ir = crate::lower_to_control_flow(&program, &semantics).unwrap();
-    let javascript = crate::codegen_ir_js::emit_optimized_ir_js(&ir).unwrap();
-    let result = Command::new("node")
-        .args(["--input-type=module", "-e", &javascript])
-        .output()
-        .unwrap();
-    assert!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-    assert_eq!(String::from_utf8(result.stdout).unwrap(), "1\n2\n");
     let tree = lower::lower_slice(&program, &semantics).unwrap();
     assert_eq!(
         execute(tree.target(), "", PrintPolicy::default()),
@@ -3859,9 +3846,6 @@ fn constructor_and_property_resolution_survive_optional_access_fusion() {
         operation(optional),
         Some(Property(Intrinsic::BufferByteLength))
     );
-    // The fused IR operation has the whole ?? location, while its checked
-    // property identity came from the optional member. Both must be retained.
-    crate::lower_to_control_flow(&program, &semantics).unwrap();
 
     let source = "ArrayBuffer value=new ArrayBuffer(4);print(value.byteLength);";
     let program = crate::parse_source(&arena, source).unwrap();
@@ -4328,9 +4312,6 @@ fn primitive_identity_is_resolved_before_backend_selection() {
         Some(Method(Intrinsic::ArrayMap))
     );
     assert_eq!(method(5), None);
-    // The existing IR consumer must use the checked contextual operation too.
-    // A similarly spelled user method keeps its nominal calling convention.
-    crate::lower::lower_to_control_flow(&program, &semantics).unwrap();
 
     let mut module = Module::default();
     let receiver = expr(&mut module, Expr::Literal(Literal::String("abc".into())));

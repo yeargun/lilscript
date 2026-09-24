@@ -139,25 +139,15 @@ fn execute(javascript: &str, module: bool, coercing: bool) -> Json {
 }
 
 #[test]
-fn artifact_execution_is_independent_of_world_and_records_the_legacy_output_adapter() {
-    let config = crate::config::ProjectConfig::default();
-    let mut module = config.javascript_compilation_contract(true);
-    let mut script = config.javascript_compilation_contract(false);
+fn artifact_execution_is_independent_of_world() {
+    let mut module = *policy(true).javascript_contract().unwrap();
+    let mut script = *policy(false).javascript_contract().unwrap();
     assert_eq!(module.execution, JavaScriptExecution::Module);
     assert_eq!(script.execution, JavaScriptExecution::Script);
     module.world = JavaScriptWorld::ClosedApplication;
     script.world = JavaScriptWorld::ReusableLibrary;
     assert!(module.execution.guarantees_strict_execution());
     assert!(!script.execution.guarantees_strict_execution());
-    for module_output in [false, true] {
-        let resolved = policy(module_output);
-        assert_eq!(
-            resolved.javascript_contract().unwrap().execution,
-            config
-                .javascript_compilation_contract(module_output)
-                .execution
-        );
-    }
 }
 
 #[test]

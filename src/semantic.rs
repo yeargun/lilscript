@@ -26,17 +26,12 @@ pub use modules::{
     analyze_modules, CheckedModules, InterfaceTarget, ModuleExport, ModuleImport, ModuleInterface,
     ModuleSemanticError,
 };
-pub(crate) use modules::{with_analyzed_modules, AdmittedModuleSemanticError};
+pub(crate) use modules::with_analyzed_modules;
+#[cfg(test)]
+pub(crate) use modules::AdmittedModuleSemanticError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EscapeState {
-    LocalOnly,
-    EscapesToTypedCode,
-    EscapesToUntypedBoundary,
-}
 
 /// A call whose identity was resolved by semantic analysis rather than by a
 /// runtime binding. Keeping this fact in the semantic model prevents later
@@ -636,7 +631,6 @@ pub struct Symbol<'src> {
     pub name: &'src str,
     pub ty: Type<'src>,
     pub span: Span,
-    pub escape_state: EscapeState,
     /// Classification belongs to the canonical declaration, including extern
     /// aliases shared by several checked modules.
     origin: DeclarationOrigin,
@@ -781,7 +775,6 @@ struct ModuleFacts<'ast, 'src> {
     identifier_symbols: AHashMap<Span, SymbolId>,
     enum_variant_values: AHashMap<Span, i64>,
     dynamic_import_modules: AHashMap<Span, u32>,
-    module_exports: AHashMap<u32, AHashMap<&'src str, &'src str>>,
     /// Direct module checking: a dynamically imported module's runtime
     /// exports, resolved through its interface rather than a merged scope.
     dynamic_export_symbols: AHashMap<(u32, &'src str), SymbolId>,
@@ -899,7 +892,6 @@ impl<'ast, 'src> ModuleFacts<'ast, 'src> {
             identifier_symbols: AHashMap::default(),
             enum_variant_values: AHashMap::default(),
             dynamic_import_modules: AHashMap::default(),
-            module_exports: AHashMap::default(),
             dynamic_export_symbols: AHashMap::default(),
             used_dynamic_exports: AHashSet::default(),
         }
@@ -1569,16 +1561,12 @@ enum BinaryContinuation<'ast, 'src> {
     },
 }
 
+/// A module-scoped binding: where it is declared, and the module that owns
+/// it, whose top level may not read it before that declaration.
 #[derive(Debug, Clone, Copy)]
 struct ModuleBindingState {
     declaration: Span,
-    owner: BindingOwner,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum BindingOwner {
-    LegacySpan(Span),
-    Module(crate::module::ModuleId),
+    owner: crate::module::ModuleId,
 }
 
 #[derive(Default)]
@@ -1766,15 +1754,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 "imports require file-based compilation so the module graph can be resolved",
             ));
         }
-        for import in program.dynamic_imports {
-            self.facts
-                .dynamic_import_modules
-                .insert(import.span, import.module);
-            let exports = self.facts.module_exports.entry(import.module).or_default();
-            for export in import.exports {
-                exports.insert(export.exported, export.binding);
-            }
-        }
         self.declare_nominal_types(program)?;
         self.define_enums(program)?;
         self.define_structs(program)?;
@@ -1783,7 +1762,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         self.define_extern_classes(program)?;
         self.resolve_class_hierarchies()?;
         self.declare_functions(program)?;
-        self.instantiate_module_bindings(program)?;
 
         self.analyze_items(program)?;
 
@@ -1861,27 +1839,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     fn record_identifier(&mut self, span: Span, symbol: SymbolId) {
         self.facts
             .record_identifier(self.declarations, span, symbol);
-    }
-
-    fn instantiate_module_bindings(
-        &mut self,
-        program: &Program<'ast, 'src>,
-    ) -> Result<(), AdmittedSemanticError> {
-        for binding in program.module_bindings {
-            let mut ty = self.resolve_value_type(binding.ty, "module binding")?;
-            strip_parameter_defaults_from_type(&mut ty);
-            let id = self.declare(binding.name, ty)?;
-            self.module_binding_declarations
-                .insert(binding.name.span, id);
-            self.initialization.bindings.insert(
-                id,
-                ModuleBindingState {
-                    declaration: binding.name.span,
-                    owner: BindingOwner::LegacySpan(binding.module_span),
-                },
-            );
-        }
-        Ok(())
     }
 
     fn declare_nominal_types(
@@ -3704,12 +3661,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                 }
                 if let Some(binding) = self.initialization.bindings.get(&id) {
-                    let from_owner = match binding.owner {
-                        BindingOwner::LegacySpan(span) => {
-                            ident.span.start >= span.start && ident.span.end <= span.end
-                        }
-                        BindingOwner::Module(module) => self.module == Some(module),
-                    };
+                    let from_owner = self.module == Some(binding.owner);
                     if from_owner && ident.span.start < binding.declaration.start {
                         return Err(AdmittedSemanticError::new(
                             ident.span,
@@ -5164,36 +5116,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ]))
             }
             Type::ModuleNamespace(module) => {
-                let symbol = if let Some(symbol) = self
+                let symbol = self
                     .facts
                     .dynamic_export_symbols
                     .get(&(module, property.name))
-                {
-                    self.declarations.symbols.get(symbol.0 as usize)
-                } else {
-                    let binding = self
-                        .facts
-                        .module_exports
-                        .get(&module)
-                        .and_then(|exports| exports.get(property.name))
-                        .copied()
-                        .ok_or_else(|| {
-                            AdmittedSemanticError::new(
-                                property.span,
-                                format!("dynamic module has no runtime export `{}`", property.name),
-                            )
-                        })?;
-                    self.scopes
-                        .first()
-                        .and_then(|scope| scope.get(binding))
-                        .and_then(|symbol| self.declarations.symbols.get(symbol.0 as usize))
-                }
-                .ok_or_else(|| {
-                    AdmittedSemanticError::new(
-                        property.span,
-                        format!("dynamic export `{}` is type-only", property.name),
-                    )
-                })?;
+                    .and_then(|symbol| self.declarations.symbols.get(symbol.0 as usize))
+                    .ok_or_else(|| {
+                        AdmittedSemanticError::new(
+                            property.span,
+                            format!("dynamic module has no runtime export `{}`", property.name),
+                        )
+                    })?;
                 let ty = symbol.ty.clone();
                 self.facts
                     .used_dynamic_exports
@@ -7771,7 +7704,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             name: ident.name,
             ty,
             span: ident.span,
-            escape_state: EscapeState::LocalOnly,
             origin: DeclarationOrigin::Source,
             identifier_occurrences: 0,
         };
@@ -7798,7 +7730,6 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             name: ident.name,
             ty,
             span: ident.span,
-            escape_state: EscapeState::LocalOnly,
             origin: DeclarationOrigin::Source,
             identifier_occurrences: 0,
         };
@@ -9724,7 +9655,6 @@ mod tests {
             }
         }
         assert_eq!(reads, 1);
-        crate::lower_to_control_flow(&program, &model).unwrap();
     }
 
     #[test]
@@ -9751,12 +9681,9 @@ mod tests {
         // grant that program access to another source state's checked facts.
         let other = parse_source(&arena, "\"seven\"; 7;").unwrap();
         assert!(!model.belongs_to(other.source_identity()));
-        assert!(crate::lower::lower_to_control_flow(&other, &model).is_err());
         assert!(crate::structured_js::lower::lower_slice(&other, &model).is_err());
         assert!(crate::interpreter::interpret_program(&other, &model).is_err());
-        assert!(crate::codegen_js::JsEmitter::new(Default::default())
-            .emit_checked_program(&other, &model)
-            .is_err());
+        assert!(crate::semantic_program::from_checked_source(&other, &model).is_err());
     }
 
     #[test]

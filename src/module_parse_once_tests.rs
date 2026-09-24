@@ -49,10 +49,6 @@ fn assert_same_graph(actual: &ModuleSet<&str>, expected: &ModuleSet) {
     assert_eq!(actual.root, expected.root);
     assert_eq!(actual.eager, expected.eager);
     assert_eq!(actual.dependency_order, expected.dependency_order);
-    assert_eq!(
-        actual.for_of_specialize_family,
-        expected.for_of_specialize_family
-    );
     assert_eq!(actual.modules.len(), expected.modules.len());
     for (actual, expected) in actual.modules.iter().zip(&expected.modules) {
         assert_eq!(actual.path, expected.path);

@@ -228,12 +228,6 @@ struct Frontend {
 impl Frontend {
     fn new(config: &ProjectConfig, options: ServiceOptions) -> Result<Self, ServiceError> {
         let started = Instant::now();
-        if config.optimization.for_of_specialize_family() != 0 {
-            return Err(ServiceError::new(
-                "configuration",
-                "semantic compilation does not support optimization.for_of_specialize_family; set it to 0",
-            ));
-        }
         let resolve = |request: Option<CompilationRequest>| {
             request
                 .map(|request| config.resolve_policy(request))
@@ -705,7 +699,6 @@ impl<'src> CheckedSourceSession<'src> {
                     "lexer_templates":"pre-admitted scanner frames, interpolation vectors/boxed copies and template tables; scanner byte work charged",
                     "lexer_work":"full input-byte tariff admitted before each lexical stream, including nested fragments; cooperative checks after Logos calls",
                     "source_identity":"inline opaque stamp and node count; included in typed owner capacities, no shared heap allocation",
-                    "legacy_ast_specialization":"nonzero for_of_specialize_family unsupported",
                     "parser_lookahead_work":"each token probe, including EOF, in arrow and type/reference lookahead admitted before inspection",
                     "parser_non_arena":"diagnostics and comprehensive parser traversal/recursion work uninstrumented; individual Logos calls are not preemptible",
                     "checker":"pre-admitted fixed source-node tables, module facts/interfaces, initialization order and canonical declaration vectors; model stays live through conversion",

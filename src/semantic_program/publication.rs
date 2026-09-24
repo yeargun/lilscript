@@ -2627,7 +2627,6 @@ fn copy_javascript_contract(
     let CompilationContract::JavaScript {
         language,
         preserved_properties,
-        owned_properties,
         bundle_mode,
         split,
         preload,
@@ -2650,7 +2649,6 @@ fn copy_javascript_contract(
     Ok(CompilationContract::JavaScript {
         language: *language,
         preserved_properties: names,
-        owned_properties: *owned_properties,
         bundle_mode: *bundle_mode,
         split: *split,
         preload: *preload,

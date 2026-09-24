@@ -1,23 +1,22 @@
-//! The property names a program does not own.
+//! The JavaScript host surface: property names the program does not own.
 //!
-//! Closure's ADVANCED mode renames every property that is not in an externs
-//! file. LilScript derives most of that surface instead of asking for it --
-//! host field reads and writes, host method calls, extern aggregate fields and
-//! anything an export can observe are all visible in the IR. One part cannot be
-//! derived: a member reached through `JS.invoke` or `JS.getProperty` on an
-//! untyped `JsValue` is indistinguishable from a member the program invented,
-//! because on an untyped value there is nothing to distinguish them by.
-//! `value.toUpperCase()` and `node.measuredDepth` are the same shape.
+//! This module is data. It lists the standard library and DOM members that a
+//! program reaches through an untyped `JsValue` (`JS.invoke`, `JS.getProperty`)
+//! and that therefore look exactly like members the program invented:
+//! `value.toUpperCase()` and `node.measuredDepth` have the same shape. Any
+//! renaming of properties must never touch a name in this list, whatever the
+//! ownership policy says.
 //!
-//! So the standard library and DOM surface is written down here. A name in this
-//! list is never renamed, whatever the ownership policy says. The cost of a
-//! name that belongs here and is missing is a wrong program; the cost of a name
-//! that does not belong and is present is a few bytes. The list is therefore
-//! generous on purpose, and it is the ECMAScript surface as the engine reports
-//! it plus the DOM members a browser port touches.
+//! Nothing renames properties today. The list is kept for the typed property
+//! renaming (plan M9.6), and later moves into the host operation catalog. It
+//! came from the old route's `js_externs.rs`, where it guarded that route's
+//! property mangling. The cost of a name that belongs here and is missing is a
+//! wrong program; the cost of a name that does not belong and is present is a
+//! few bytes, so the list is generous on purpose: the ECMAScript surface as the
+//! engine reports it, plus the DOM members a browser port touches.
 
 /// Sorted for binary search. Keep it sorted.
-const NOT_OURS: &[&str] = &[
+pub const HOST_PROPERTY_NAMES: &[&str] = &[
     "BYTES_PER_ELEMENT", "Collator", "Comment", "CustomEvent", "DOMParser", "DateTimeFormat",
     "DisplayNames", "Document", "DocumentFragment", "E", "EPSILON", "Element", "Event",
     "EventTarget", "HTMLElement", "LN10", "LN2", "LOG10E", "LOG2E", "ListFormat", "Locale",
@@ -106,8 +105,8 @@ const NOT_OURS: &[&str] = &[
 
 /// Whether `name` belongs to the standard library or the DOM, and so must keep
 /// its spelling however the program is configured.
-pub(crate) fn is_platform_property(name: &str) -> bool {
-    NOT_OURS.binary_search(&name).is_ok()
+pub fn is_host_property(name: &str) -> bool {
+    HOST_PROPERTY_NAMES.binary_search(&name).is_ok()
 }
 
 #[cfg(test)]
@@ -116,7 +115,7 @@ mod tests {
 
     #[test]
     fn the_list_is_sorted_so_the_search_is_valid() {
-        assert!(NOT_OURS.windows(2).all(|pair| pair[0] < pair[1]));
+        assert!(HOST_PROPERTY_NAMES.windows(2).all(|pair| pair[0] < pair[1]));
     }
 
     #[test]
@@ -125,7 +124,7 @@ mod tests {
             "toUpperCase", "charCodeAt", "hasOwnProperty", "push", "slice", "length",
             "setAttribute", "appendChild", "style", "className", "toFixed", "test",
         ] {
-            assert!(is_platform_property(name), "{name} must never be renamed");
+            assert!(is_host_property(name), "{name} must never be renamed");
         }
     }
 
@@ -134,7 +133,7 @@ mod tests {
         for name in [
             "measuredDepth", "nodeKind", "childList", "maxFontSize", "rawMessage",
         ] {
-            assert!(!is_platform_property(name), "{name} is not a platform member");
+            assert!(!is_host_property(name), "{name} is not a platform member");
         }
     }
 }

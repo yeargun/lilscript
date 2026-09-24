@@ -867,11 +867,9 @@ fn contract_changes_reject_candidate_and_output_reuse_without_changing_sources()
         let mut changed = config.clone();
         changed.javascript.ecmascript = crate::js_syntax_target::EcmaScriptEdition::Es2015;
         variants.push(resolve(&changed, true));
-        // `function_spelling` no longer reaches the contract (it is private;
-        // public callable kind follows the source), so the aggregate ABI is
-        // the public-shape variant here.
+        // The public-shape variant: keeping every function's source name.
         let mut changed = config.clone();
-        changed.javascript.public_aggregate_abi = crate::config::PublicAggregateAbi::Positional;
+        changed.javascript.keep_function_names = true;
         variants.push(resolve(&changed, true));
         let mut changed = config.clone();
         changed.mangle.preserve_properties = Some(vec!["stable".into()]);

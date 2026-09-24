@@ -32,7 +32,6 @@ fn symbol(index: usize) -> Symbol<'static> {
         name: ["a", "b", "c", "d", "e"][index],
         ty: Type::Array(Box::new(Type::Int)),
         span: Span::new(index, index + 1),
-        escape_state: EscapeState::LocalOnly,
         origin: DeclarationOrigin::Source,
         identifier_occurrences: 0,
     }

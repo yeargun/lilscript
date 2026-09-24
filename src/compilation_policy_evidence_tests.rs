@@ -182,9 +182,10 @@ fn known_legacy_costs_keep_their_existing_admission_and_priority_order() {
         ("size-first", Ordering::Less),
         ("balanced", Ordering::Less),
         ("performance-first", Ordering::Greater),
-        ("realistic-performance-first", Ordering::Greater),
+        // Ten percent slower is within the 25% realistic-performance tolerance.
+        ("realistic-performance-first", Ordering::Less),
     ] {
-        let policy = policy(&format!("[javascript]\npriority='{priority}'\n[javascript.performance]\nmax_regression_percent=5\n"));
+        let policy = policy(&format!("[javascript]\npriority='{priority}'\n"));
         for cost in [short_slow, long_fast] {
             // A ranking penalty is not an unconfigured hard constraint.
             assert_eq!(policy.admit(&[], cost, baseline), Ok(()));
@@ -202,6 +203,19 @@ fn known_legacy_costs_keep_their_existing_admission_and_priority_order() {
             Ok(Some(expected))
         );
     }
+    // Thirty percent slower is past it.
+    let much_slower = CandidateCost {
+        performance_score: 130,
+        ..short_slow
+    };
+    assert_eq!(
+        policy("[javascript]\npriority='realistic-performance-first'\n").compare(
+            much_slower,
+            long_fast,
+            baseline
+        ),
+        Some(Ordering::Greater)
+    );
     let bounded = policy("[policy.constraints]\nmax_runtime_memory_bytes=7\n");
     assert_eq!(
         bounded.admit(&[], short_slow, baseline),

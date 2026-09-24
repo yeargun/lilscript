@@ -126,10 +126,6 @@ fn check_scores(compiled: &ServiceCompilation) {
         assert_eq!(phases["discovery_parse_arena"], "not used");
         assert_eq!(phases["main_parse_arena"], "pre-admitted arena backing");
     }
-    assert_eq!(
-        phases["legacy_ast_specialization"],
-        "nonzero for_of_specialize_family unsupported"
-    );
 }
 
 #[test]
@@ -1530,82 +1526,6 @@ fn path_store_refusal_releases_prepared_graph_then_factory_source_buffers() {
     assert_eq!(releases.retained("prepared-discard"), source_bytes);
     assert_eq!(releases.retained("source"), source_bytes);
     assert_eq!(releases.retained("source-charge"), 0);
-}
-
-#[test]
-fn semantic_service_rejects_legacy_ast_specialization_before_io_or_work() {
-    let config = config("[optimization]\nfor_of_specialize_family=4");
-    let source = "export int answer(){return sum$pick([1,2],0);}";
-    let scratch = Scratch::new();
-    let missing = scratch.0.join("missing.lil");
-    for target in [
-        ServiceTarget::JavaScript,
-        ServiceTarget::Native,
-        ServiceTarget::All,
-    ] {
-        let options = ServiceOptions {
-            target,
-            logical_work: 0,
-            retained_bytes: 0,
-            ..ServiceOptions::default()
-        };
-        for error in [
-            compile_source_semantic(source, &config, options).unwrap_err(),
-            compile_path_semantic(&missing, &config, options).unwrap_err(),
-        ] {
-            assert_eq!(error.phase, "configuration");
-            assert!(error.message.contains("for_of_specialize_family"));
-            assert!(error.message.contains("set it to 0"));
-            assert!(error.resource.is_none());
-            assert!(error.diagnostic.is_none());
-        }
-    }
-}
-
-#[test]
-fn explicit_zero_specialization_matches_omitted_source_and_module_compilation() {
-    let source = "export int answer(){return 17;}";
-    let scratch = Scratch::new();
-    let path = scratch.0.join("entry.lil");
-    std::fs::write(
-        &path,
-        "import {answer} from \"./answer.lil\";export {answer};",
-    )
-    .unwrap();
-    std::fs::write(scratch.0.join("answer.lil"), source).unwrap();
-    let options = ServiceOptions {
-        objectives: Some(Objectives::One(Objective::Raw)),
-        ..ServiceOptions::default()
-    };
-    let mut outputs = Vec::new();
-    for extra in ["", "[optimization]\nfor_of_specialize_family=0"] {
-        let mut config = config(extra);
-        config.javascript.candidate_search = crate::config::CandidateSearch::Off;
-        let source = compile_source_semantic(source, &config, options).unwrap();
-        let modules = compile_path_semantic(&path, &config, options).unwrap();
-        check_scores(&source);
-        check_scores(&modules);
-        assert_eq!(modules.report()["shape"]["modules"], 2);
-        outputs.push((
-            source
-                .javascript(Objective::Raw)
-                .unwrap()
-                .javascript()
-                .to_owned(),
-            modules
-                .javascript(Objective::Raw)
-                .unwrap()
-                .javascript()
-                .to_owned(),
-        ));
-    }
-    assert_eq!(outputs[0], outputs[1]);
-    for javascript in [&outputs[1].0, &outputs[1].1] {
-        assert_eq!(
-            execute_javascript(javascript, "", "console.log(library.answer());"),
-            "17\n"
-        );
-    }
 }
 
 #[test]

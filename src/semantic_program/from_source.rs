@@ -212,9 +212,10 @@ fn convert_source<'ast, 'src>(
     }
     if !source.imports.is_empty()
         || !source.foreign_imports.is_empty()
-        || !source.dynamic_imports.is_empty()
-        || !source.module_bindings.is_empty()
-        || !source.constructor_values.is_empty()
+        || source
+            .exports
+            .iter()
+            .any(|export| export.kind == crate::ast::ExportKind::ConstructorValue)
     {
         return Err(Unsupported {
             span: source.span,

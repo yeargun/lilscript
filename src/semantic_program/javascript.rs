@@ -241,9 +241,6 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
         ecmascript: EcmaScriptEdition::Es2022,
         abi: JavaScriptAbiContract {
             preserve_root_exports: true,
-            public_aggregate_abi: crate::config::PublicAggregateAbi::Named,
-            preserve_extern_fields: true,
-            internal_export_bindings_may_mangle: true,
             keep_function_names: false,
             keep_published_function_names: true,
         },

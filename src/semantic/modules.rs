@@ -357,7 +357,7 @@ fn analyze_modules_in<'ast, 'src, S>(
                     symbol,
                     ModuleBindingState {
                         declaration: decl.name.span,
-                        owner: BindingOwner::Module(module),
+                        owner: module,
                     },
                 );
             }
@@ -600,18 +600,10 @@ fn preflight_source<'ast, 'src>(
 ) -> Result<AHashMap<&'src str, (Span, bool)>, ModuleSemanticError> {
     // Foreign imports are admitted by the graph check; each local is an
     // extern value declared in this module.
-    if !program.dynamic_imports.is_empty() || !program.module_bindings.is_empty() {
-        return Err(error(
-            module,
-            program.span,
-            "direct module checking requires original static-import source, without dynamic loaders or linked bindings",
-        ));
-    }
-    if !program.constructor_values.is_empty()
-        || program
-            .exports
-            .iter()
-            .any(|export| export.kind != crate::ast::ExportKind::Binding)
+    if program
+        .exports
+        .iter()
+        .any(|export| export.kind != crate::ast::ExportKind::Binding)
     {
         return Err(error(
             module,

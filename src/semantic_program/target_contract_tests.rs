@@ -11,7 +11,9 @@ use std::process::Command;
 
 fn policy(text: &str, exports: bool) -> ResolvedPolicy {
     // Every trace fixture chooses its logging contract explicitly in TOML.
-    let config: crate::config::ProjectConfig = toml::from_str(text).unwrap();
+    // The loader drops the retired `function_spelling` with a warning: the
+    // loops over it below check that it changes nothing.
+    let config = crate::config::parse_project_config(text).unwrap().config;
     config
         .resolve_policy(CompilationRequest::JavaScript {
             preserve_root_exports: exports,

@@ -80,9 +80,16 @@ impl<'ast, 'src> std::ops::Deref for Program<'ast, 'src> {
 pub struct ProgramData<'ast, 'src> {
     pub imports: &'ast [ImportDecl<'ast, 'src>],
     pub foreign_imports: &'ast [ForeignImportDecl<'ast, 'src>],
+    /// Filled only by the old module linker, which is deleted: always empty.
+    /// The field goes with its last reader, the test-only tree experiment in
+    /// `structured_js::lower` (plan M1.6).
     pub dynamic_imports: &'ast [DynamicImportDecl<'ast, 'src>],
+    /// Filled only by the old module linker, which is deleted: always empty.
+    /// The field goes with `structured_js::lower`, as `dynamic_imports` does.
     pub module_bindings: &'ast [ModuleBinding<'ast, 'src>],
-    /// Class bindings explicitly published as runtime constructor values.
+    /// Class bindings explicitly published as runtime constructor values:
+    /// the `ConstructorValue` entries of `exports`, kept as a list for
+    /// `structured_js::lower`, its last reader.
     pub constructor_values: &'ast [Ident<'src>],
     pub exports: &'ast [ExportDecl<'src>],
     pub items: &'ast [Item<'ast, 'src>],
