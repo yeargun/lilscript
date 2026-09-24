@@ -6,12 +6,14 @@
 //        [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR]
 //        [--ports-root ~] [--ledger tests/ports/expected-failures.json]
 //        [--timeout SECONDS] [--jobs N] [--codec <lilscript-codec>|none] [--keep]
+//        [--patches apply|none]
 //
 // For each port the runner:
 //   1. copies the port (without .git, dist, _site, .tmp, test-output; every
 //      node_modules is linked, not copied) into a scratch parent that links the
 //      sibling ports and this repository (`../lilscript`), as ports expect;
-//   2. applies finer/port-migrations/<port>.patch when present;
+//   2. applies finer/port-migrations/<port>.patch when present (`--patches none`
+//      skips them, for ports whose repositories already carry their rewrite);
 //   3. with --objective other than `shipped`, rewrites `cost_model` in every
 //      copied lilscript*.toml;
 //   4. builds with LILSCRIPT_COMPILER and MOTIONLIL_LILSCRIPT_BIN pointing at a
@@ -173,7 +175,7 @@ export function loadLedger(path) {
 // ---------------------------------------------------------------- one port
 
 async function runPort(port, context) {
-  const { compiler, codec, work, portsRoot, objective, ledger, timeoutMs, keep, log } = context;
+  const { compiler, codec, work, portsRoot, objective, ledger, timeoutMs, keep, log, patches } = context;
   const source = join(portsRoot, port);
   const row = { port, source: { path: source } };
   if (!existsSync(source)) return { ...row, state: "missing", failing: [], regressions: [], nowPassing: [] };
@@ -213,7 +215,7 @@ async function runPort(port, context) {
   };
 
   const patch = join(repository, "finer", "port-migrations", `${port}.patch`);
-  if (existsSync(patch)) {
+  if (patches === "apply" && existsSync(patch)) {
     const applied = await run("patch", ["-p1", "--forward", "--batch", "-d", workspace, "-i", patch], { timeoutMs: 120_000 });
     row.patch = { path: relative(repository, patch), sha256: sha256File(patch), status: applied.status };
     if (applied.status !== 0) {
@@ -360,14 +362,16 @@ async function main() {
       jobs: { type: "string", default: "1" },
       codec: { type: "string" },
       keep: { type: "boolean", default: false },
+      patches: { type: "string", default: "apply" },
       help: { type: "boolean", default: false },
     },
   });
   if (values.help || !values.compiler || !values.ports) {
-    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep]\n");
+    process.stderr.write("usage: node scripts/ports.mjs --compiler <lilscript> --ports a,b|all [--objective shipped|brotli|gzip|raw] [--json out.json] [--work DIR] [--ports-root DIR] [--ledger FILE] [--timeout SECONDS] [--jobs N] [--codec PATH|none] [--keep] [--patches apply|none]\n");
     process.exit(values.help ? 0 : 2);
   }
   if (!OBJECTIVES.includes(values.objective)) throw new Error(`--objective must be one of ${OBJECTIVES.join(", ")}`);
+  if (!["apply", "none"].includes(values.patches)) throw new Error("--patches must be apply or none");
   const known = maintainedPorts();
   const portsRoot = resolve(values["ports-root"]);
   // `all` is the maintained libraries that exist under the ports root.
@@ -384,7 +388,7 @@ async function main() {
   const log = (line) => process.stderr.write(`[ports] ${line}\n`);
   log(`compiler ${compiler.sha256.slice(0, 16)}, ${ports.length} ports, objective ${values.objective}`);
   const rows = await pool(ports, Number(values.jobs), (port) => runPort(port, {
-    compiler, codec, work, portsRoot, objective: values.objective, ledger, timeoutMs: Number(values.timeout) * 1000, keep: values.keep, log,
+    compiler, codec, work, portsRoot, objective: values.objective, ledger, timeoutMs: Number(values.timeout) * 1000, keep: values.keep, log, patches: values.patches,
   }).catch((error) => {
     // One port's runner fault is that port's failure, not the run's end.
     const failing = [`(runner error: ${error.message.split("\n")[0]})`];
@@ -404,6 +408,7 @@ async function main() {
     codec,
     node: process.version,
     objective: values.objective,
+    patches: values.patches,
     portsRoot,
     ledger: { path: ledger.path ? relative(repository, ledger.path) : null, sha256: ledger.sha256, entries: ledger.entries.length },
     unknownPorts: ports.filter((port) => !known.includes(port)),
