@@ -2,13 +2,14 @@ use crate::ast::ExprKind;
 use admission::{ArenaVec as BumpVec, TokenStorage};
 use bumpalo::Bump;
 
-use crate::ast::{ExternConstructorDecl, 
+use crate::ast::{
     Argument, ArrayBinding, ArrayElement, ArrowBody, AssignmentOp, BinaryOp, CatchBinding,
     CatchClause, ClassDecl, ClassMember, ConstructorDecl, EnumDecl, ExportDecl, ExportKind, Expr,
-    ExternClassDecl, ExternClassMember, ExternDecl, ExternGlobalDecl, FieldDecl, ForInitializer,
-    ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier, Item, MatchArm,
-    MatchPattern, Param, ParameterType, Program, RecordBinding, RecordElement, RecordEntry,
-    RegionPolicy, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp, UpdateOp, VarDecl,
+    ExternClassDecl, ExternClassMember, ExternConstructorDecl, ExternDecl, ExternGlobalDecl,
+    FieldDecl, ForInitializer, ForeignImportDecl, FunctionDecl, Ident, ImportDecl, ImportSpecifier,
+    Item, MatchArm, MatchPattern, Param, ParameterType, Program, RecordBinding, RecordElement,
+    RecordEntry, RegionPolicy, Stmt, StructDecl, TemplatePart, TypeKind, TypeRef, UnaryOp,
+    UpdateOp, VarDecl,
 };
 use crate::lexer::{AdmittedLexError, LexError, Token, TokenKind};
 use crate::primitive::ParameterPassing;
@@ -542,7 +543,10 @@ impl<'arena, 'src> ParserCore<'arena, 'src> {
                         "an extern class declares its host constructor at most once",
                     ));
                 }
-                self.expect(|kind| matches!(kind, TokenKind::LParen), "expected `(` after `init`")?;
+                self.expect(
+                    |kind| matches!(kind, TokenKind::LParen),
+                    "expected `(` after `init`",
+                )?;
                 let params = self.parse_params_after_open()?;
                 let semi = self.expect_semicolon()?;
                 members.push(ExternClassMember::Constructor(ExternConstructorDecl {

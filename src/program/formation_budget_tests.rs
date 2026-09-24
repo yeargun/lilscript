@@ -9,8 +9,8 @@ use crate::compilation_contract::JavaScriptCompilationContract;
 use crate::compilation_policy::{
     BudgetError, BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
 };
-use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::js;
+use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 
 const MEMORY: u64 = 20_000_000;
 const WORK: u64 = 20_000_000;

@@ -9,7 +9,7 @@ use crate::compilation_policy::{
 };
 use crate::js::selection::{Objective, Plan, Style};
 use oxc_ast::ast::{BindingPattern, Expression, Statement};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 
@@ -318,11 +318,9 @@ fn source_name_overrides_have_a_qualified_finite_structural_neighborhood() {
             let (observations, parameters) = observe(&javascript);
             if style_index == 0 {
                 if mask == 0 {
-                    assert!(
-                        !parameters
-                            .iter()
-                            .any(|name| name == "status" || name == "message")
-                    );
+                    assert!(!parameters
+                        .iter()
+                        .any(|name| name == "status" || name == "message"));
                     plain_global = Some(javascript.clone());
                 } else {
                     changed += usize::from(plain_global.as_ref().unwrap() != &javascript);

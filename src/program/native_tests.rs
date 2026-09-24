@@ -7,8 +7,8 @@ use crate::compilation_policy::{
     BudgetError, BudgetLedger, BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits,
     WorkDomain, WorkKind,
 };
-use crate::output_budget::AllocationError;
 use crate::js::selection::{Plan, Style};
+use crate::output_budget::AllocationError;
 use sha2::{Digest, Sha256};
 use std::ffi::OsString;
 use std::path::PathBuf;

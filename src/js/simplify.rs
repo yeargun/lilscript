@@ -105,7 +105,8 @@ impl Module {
                 if self.holds_protected(ExprId::new(index), protected) {
                     continue;
                 }
-                if let Some(replacement) = self.simplified(ExprId::new(index), numeric_lengths, year)
+                if let Some(replacement) =
+                    self.simplified(ExprId::new(index), numeric_lengths, year)
                 {
                     self.expressions[index] = replacement;
                     edits += 1;
@@ -139,9 +140,7 @@ impl Module {
     fn simplified(&self, id: ExprId, numeric_lengths: bool, year: u16) -> Option<Expr> {
         let es2018 = year >= 2018;
         let node = |id: ExprId| &self.expressions[id.index()];
-        let same = |a: ExprId, b: ExprId| {
-            matches!((node(a), node(b)), (Expr::Binding(x), Expr::Binding(y)) if x == y)
-        };
+        let same = |a: ExprId, b: ExprId| matches!((node(a), node(b)), (Expr::Binding(x), Expr::Binding(y)) if x == y);
         // `x===void 0?null:x`, `x==null?d:x` and `x!=null?x:d` are `x??…` for
         // a binding `x`: one read of it instead of two, and `d` runs exactly
         // when `x` is null or undefined (`null` in the first, whichever `x`
@@ -333,8 +332,10 @@ impl Module {
                 op,
                 left: operand,
                 right: literal,
-            } => match (&self.expressions[operand.index()], &self.expressions[literal.index()])
-            {
+            } => match (
+                &self.expressions[operand.index()],
+                &self.expressions[literal.index()],
+            ) {
                 (Expr::Binding(binding), Expr::Literal(value)) => {
                     Some((*op, *binding, value.clone()))
                 }
@@ -363,7 +364,11 @@ impl Module {
     fn nullish_narrowing(&self, op: Binary, left: ExprId, right: ExprId) -> Option<Expr> {
         let (loose, strict, result) = match op {
             Binary::And => (Binary::Equal, Binary::StrictNotEqual, Binary::StrictEqual),
-            Binary::Or => (Binary::NotEqual, Binary::StrictEqual, Binary::StrictNotEqual),
+            Binary::Or => (
+                Binary::NotEqual,
+                Binary::StrictEqual,
+                Binary::StrictNotEqual,
+            ),
             _ => return None,
         };
         // (operator, operand, literal node) of `binding op literal`.
@@ -372,7 +377,10 @@ impl Module {
                 op,
                 left: operand,
                 right: literal,
-            } => match (&self.expressions[operand.index()], &self.expressions[literal.index()]) {
+            } => match (
+                &self.expressions[operand.index()],
+                &self.expressions[literal.index()],
+            ) {
                 (Expr::Binding(binding), Expr::Literal(Literal::Null | Literal::Undefined)) => {
                     Some((*op, *binding, *operand, *literal))
                 }
@@ -392,7 +400,8 @@ impl Module {
             return None;
         };
         // The loose test's literal must be the other nullish value.
-        let null = |id: ExprId| matches!(self.expressions[id.index()], Expr::Literal(Literal::Null));
+        let null =
+            |id: ExprId| matches!(self.expressions[id.index()], Expr::Literal(Literal::Null));
         if null(narrow.3) == null(wide.3) {
             return None;
         }
@@ -464,15 +473,13 @@ impl Module {
             | Expr::Unary {
                 op: Unary::Plus, ..
             } => Some(Known::Number),
-            Expr::Literal(Literal::Bool(_))
-            | Expr::Unary {
-                op: Unary::Not, ..
-            } => Some(Known::Boolean),
+            Expr::Literal(Literal::Bool(_)) | Expr::Unary { op: Unary::Not, .. } => {
+                Some(Known::Boolean)
+            }
             Expr::Literal(Literal::String(_))
             | Expr::Template(_)
             | Expr::Unary {
-                op: Unary::TypeOf,
-                ..
+                op: Unary::TypeOf, ..
             } => Some(Known::String),
             // A BigInt operand keeps a BigInt; a number operand keeps a number.
             Expr::Unary {
@@ -597,7 +604,8 @@ impl Module {
                                 property: Property::Named(prototype_key),
                             } = &self.expressions[method.index()]
                             {
-                                if prototype_key == "prototype" && host(*prototype) == Some("Object")
+                                if prototype_key == "prototype"
+                                    && host(*prototype) == Some("Object")
                                 {
                                     return Some(known);
                                 }

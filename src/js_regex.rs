@@ -485,8 +485,12 @@ mod tests {
 
     #[test]
     fn the_checked_form_accepts_es2018_grammar_and_refuses_invalid_patterns() {
-        let checked = |pattern: &str, flags: &str| literal_from_decoded_checked(pattern, flags, true);
-        assert_eq!(checked(r"[\p{L}\p{N}]", "u").as_deref(), Some(r"/[\p{L}\p{N}]/u"));
+        let checked =
+            |pattern: &str, flags: &str| literal_from_decoded_checked(pattern, flags, true);
+        assert_eq!(
+            checked(r"[\p{L}\p{N}]", "u").as_deref(),
+            Some(r"/[\p{L}\p{N}]/u")
+        );
         assert_eq!(
             checked(r"(?<a>`+)[^`]+\k<a>(?!`)", "").as_deref(),
             Some(r"/(?<a>`+)[^`]+\k<a>(?!`)/")

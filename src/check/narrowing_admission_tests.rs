@@ -454,10 +454,7 @@ fn guard_free_boolean_trees_skip_only_empty_narrowing_queries() {
             assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
             drop(budget);
             assert_eq!(ledger.retained_bytes(), SENTINEL);
-            assert_eq!(
-                ledger.work_by_kind(WorkKind::Analysis),
-                4 * operators + 2
-            );
+            assert_eq!(ledger.work_by_kind(WorkKind::Analysis), 4 * operators + 2);
         }
     }
 }

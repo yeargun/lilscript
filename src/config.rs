@@ -50,7 +50,8 @@ impl RetiredValue {
     }
 }
 
-const OLD_OPTIMIZER: &str = "it switched a pass of the old compiler's optimizer, which was deleted; \
+const OLD_OPTIMIZER: &str =
+    "it switched a pass of the old compiler's optimizer, which was deleted; \
 this compiler's optional transformations are permitted per family in `[policy.tactics]`";
 const OLD_EMITTER: &str =
     "it chose a spelling in the old compiler's JavaScript emitter, which was deleted";
@@ -405,8 +406,8 @@ pub fn parse_project_config(source: &str) -> Result<ParsedConfig, String> {
         .parse::<toml::Table>()
         .map_err(|error| format!("invalid config: {error}"))?;
     let warnings = apply_retired_keys(&mut table)?;
-    let config = ProjectConfig::deserialize(table)
-        .map_err(|error| format!("invalid config: {error}"))?;
+    let config =
+        ProjectConfig::deserialize(table).map_err(|error| format!("invalid config: {error}"))?;
     config.validate()?;
     Ok(ParsedConfig { config, warnings })
 }
@@ -647,7 +648,10 @@ impl ProjectConfig {
                     Some(default),
                 )
             }
-            T::TargetCompaction => ((!self.javascript.operand_order_fusion).then_some(false), None),
+            T::TargetCompaction => (
+                (!self.javascript.operand_order_fusion).then_some(false),
+                None,
+            ),
             T::IdentifierMangling => {
                 let (legacy, _) = compression(CompressionDecision::IdentifierMangling);
                 (self.mangle.identifiers.or(legacy), None)
@@ -794,7 +798,6 @@ impl ProjectConfig {
     }
 }
 
-
 fn validate_package_name(name: &str) -> Result<(), String> {
     if name.is_empty()
         || !name
@@ -845,7 +848,6 @@ impl Default for DependencyConfig {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -1163,7 +1165,6 @@ impl Default for FormatConfig {
         }
     }
 }
-
 
 impl JavaScriptConfig {
     pub fn resolved_ecmascript(&self) -> EcmaScriptEdition {
@@ -1529,7 +1530,6 @@ impl Default for BundleConfig {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedConfig {
     pub config: ProjectConfig,
@@ -1621,7 +1621,6 @@ fn discover(input: &Path) -> Option<PathBuf> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1643,7 +1642,10 @@ mod tests {
     #[test]
     fn a_bare_filename_searches_the_same_directory_as_a_dotted_one() {
         assert_eq!(config_search_parent(Path::new("main.lil")), Path::new("."));
-        assert_eq!(config_search_parent(Path::new("./main.lil")), Path::new("."));
+        assert_eq!(
+            config_search_parent(Path::new("./main.lil")),
+            Path::new(".")
+        );
         assert_eq!(
             config_search_parent(Path::new("ports/main.lil")),
             Path::new("ports")
@@ -1687,9 +1689,9 @@ mod tests {
         assert_eq!(parsed.warnings.len(), keys.len(), "{:?}", parsed.warnings);
         for key in keys {
             assert!(
-                parsed.warnings.iter().any(|warning| warning.starts_with(&format!(
-                    "`{key}` has no effect in this compiler: "
-                )) && warning.ends_with("; remove it")),
+                parsed.warnings.iter().any(|warning| warning
+                    .starts_with(&format!("`{key}` has no effect in this compiler: "))
+                    && warning.ends_with("; remove it")),
                 "{key}: {:?}",
                 parsed.warnings
             );
@@ -1718,7 +1720,9 @@ mod tests {
         ] {
             let error = refusal(&format!("[javascript]\npriority = \"{priority}\"\n"));
             assert!(
-                error.contains(&format!("`javascript.priority = \"{priority}\"` is refused")),
+                error.contains(&format!(
+                    "`javascript.priority = \"{priority}\"` is refused"
+                )),
                 "{error}"
             );
             assert!(error.contains("size is the objective"), "{error}");
@@ -1726,7 +1730,10 @@ mod tests {
         }
         let size = parse("[javascript]\npriority = \"size-first\"\n");
         assert!(size.warnings.is_empty());
-        assert_eq!(size.config.javascript.priority, JavaScriptPriority::SizeFirst);
+        assert_eq!(
+            size.config.javascript.priority,
+            JavaScriptPriority::SizeFirst
+        );
         for limit in [
             "max_startup_work",
             "max_recurring_work",
@@ -1742,7 +1749,10 @@ mod tests {
     #[test]
     fn the_positional_public_shape_is_refused_and_named_has_no_effect() {
         let error = refusal("[javascript]\npublic_aggregate_abi = \"positional\"\n");
-        assert!(error.contains("plain objects with named fields (D2)"), "{error}");
+        assert!(
+            error.contains("plain objects with named fields (D2)"),
+            "{error}"
+        );
         let named = parse("[javascript]\npublic_aggregate_abi = \"named\"\n");
         assert_eq!(named.warnings.len(), 1);
         assert!(named.warnings[0].contains("`javascript.public_aggregate_abi` has no effect"));
@@ -1785,17 +1795,33 @@ mod tests {
             policy.tactic(TacticId::IdentifierMangling).permission,
             TacticPermission::On
         );
-        for omitted in [TacticId::PropertyMangling, TacticId::StringPooling, TacticId::NamingSearch] {
-            assert_eq!(policy.tactic(omitted).permission, TacticPermission::Off, "{omitted:?}");
+        for omitted in [
+            TacticId::PropertyMangling,
+            TacticId::StringPooling,
+            TacticId::NamingSearch,
+        ] {
+            assert_eq!(
+                policy.tactic(omitted).permission,
+                TacticPermission::Off,
+                "{omitted:?}"
+            );
         }
         assert_eq!(
             policy.tactic(TacticId::CallSpecialization).permission,
             TacticPermission::On
         );
-        assert!(!policy.javascript_contract().unwrap().assumptions.numeric_lengths);
-        assert!(parse_project_config("[javascript]\ncompression = [\"string-poolin\"]\n")
-            .unwrap_err()
-            .contains("unknown variant"));
+        assert!(
+            !policy
+                .javascript_contract()
+                .unwrap()
+                .assumptions
+                .numeric_lengths
+        );
+        assert!(
+            parse_project_config("[javascript]\ncompression = [\"string-poolin\"]\n")
+                .unwrap_err()
+                .contains("unknown variant")
+        );
     }
 
     #[test]
@@ -1821,20 +1847,26 @@ mod tests {
         assert!(parse_project_config("[bundle]\nmax_chunks=0")
             .unwrap_err()
             .contains("max_chunks"));
+        assert!(parse_project_config(
+            "[javascript]\ncompression=['string-pooling','string-pooling']\n"
+        )
+        .unwrap_err()
+        .contains("duplicate"));
         assert!(
-            parse_project_config("[javascript]\ncompression=['string-pooling','string-pooling']\n")
+            parse_project_config("[javascript]\noptimization_level=17\n")
                 .unwrap_err()
-                .contains("duplicate")
+                .contains("between 0 and 16")
         );
-        assert!(parse_project_config("[javascript]\noptimization_level=17\n")
-            .unwrap_err()
-            .contains("between 0 and 16"));
-        assert!(parse_project_config("[javascript]\ncandidate_beam_width=0\n")
-            .unwrap_err()
-            .contains("candidate_beam_width"));
-        assert!(parse_project_config("[javascript]\ncandidate_byte_budget=0\n")
-            .unwrap_err()
-            .contains("candidate_byte_budget"));
+        assert!(
+            parse_project_config("[javascript]\ncandidate_beam_width=0\n")
+                .unwrap_err()
+                .contains("candidate_beam_width")
+        );
+        assert!(
+            parse_project_config("[javascript]\ncandidate_byte_budget=0\n")
+                .unwrap_err()
+                .contains("candidate_byte_budget")
+        );
         assert!(parse_project_config(
             "[javascript]\noptimizations=['call-site-specialization','call-site-specialization']\n"
         )
@@ -1865,7 +1897,10 @@ mod tests {
             disabled.javascript.effective_candidate_byte_budget(),
             64 * 1024
         );
-        assert_eq!(disabled.javascript.effective_terminal_codec_probe_limit(), 0);
+        assert_eq!(
+            disabled.javascript.effective_terminal_codec_probe_limit(),
+            0
+        );
         assert_eq!(disabled.javascript.effective_candidate_proposal_limit(), 0);
 
         let standard = parse("[javascript]\noptimization_level=9\n").config;
@@ -1875,17 +1910,28 @@ mod tests {
             standard.javascript.effective_candidate_byte_budget(),
             384 * 1024
         );
-        assert_eq!(standard.javascript.effective_terminal_codec_probe_limit(), 64);
-        assert_eq!(standard.javascript.effective_candidate_proposal_limit(), 384);
+        assert_eq!(
+            standard.javascript.effective_terminal_codec_probe_limit(),
+            64
+        );
+        assert_eq!(
+            standard.javascript.effective_candidate_proposal_limit(),
+            384
+        );
 
         let level_fourteen = parse("[javascript]\noptimization_level=14\n").config;
-        assert_eq!(level_fourteen.javascript.effective_candidate_beam_width(), 11);
+        assert_eq!(
+            level_fourteen.javascript.effective_candidate_beam_width(),
+            11
+        );
         assert_eq!(
             level_fourteen.javascript.effective_candidate_byte_budget(),
             896 * 1024
         );
         assert_eq!(
-            level_fourteen.javascript.effective_terminal_codec_probe_limit(),
+            level_fourteen
+                .javascript
+                .effective_terminal_codec_probe_limit(),
             384
         );
     }
@@ -1937,7 +1983,10 @@ mod tests {
         )
         .unwrap();
         let error = load_project_config(&nested.join("main.lil"), None).unwrap_err();
-        assert!(error.to_string().contains("there is one compiler"), "{error}");
+        assert!(
+            error.to_string().contains("there is one compiler"),
+            "{error}"
+        );
         std::fs::remove_dir_all(directory).unwrap();
     }
 

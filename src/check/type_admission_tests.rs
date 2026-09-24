@@ -1,11 +1,11 @@
 use super::*;
 use crate::ast::BinaryOp;
-use crate::compilation_policy::{
-    BudgetError, BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain,
-};
 use crate::check::binary_types::{checked_binary_type_with, BinaryTypeError};
 use crate::check::type_relation::{is_type_assignable_with, type_equal_with};
 use crate::check::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType};
+use crate::compilation_policy::{
+    BudgetError, BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain,
+};
 use std::mem::size_of;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 

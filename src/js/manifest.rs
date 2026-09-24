@@ -258,7 +258,11 @@ mod tests {
         let bundle = javascript_bundle(
             file("entry.mjs", &["a.mjs"], "import{a}from\"./a.mjs\";a();"),
             vec![
-                file("a.mjs", &["b.mjs"], "import{b}from\"./b.mjs\";export let a=()=>b();"),
+                file(
+                    "a.mjs",
+                    &["b.mjs"],
+                    "import{b}from\"./b.mjs\";export let a=()=>b();",
+                ),
                 file("b.mjs", &[], "export let b=()=>1;"),
             ],
             Vec::new(),
@@ -276,15 +280,30 @@ mod tests {
         assert_eq!(manifest.chunks.len(), 2);
         let [a, b] = [&manifest.chunks[0], &manifest.chunks[1]];
         for chunk in [a, b] {
-            let code = &bundle.files.iter().find(|f| f.file_name == chunk.file).unwrap().code;
-            let sizes = crate::compression::measure_javascript_transfer_sizes(code.as_bytes()).unwrap();
-            assert_eq!((chunk.bytes, chunk.gzip_bytes, chunk.brotli_bytes), (sizes.raw, sizes.gzip9, sizes.brotli11));
+            let code = &bundle
+                .files
+                .iter()
+                .find(|f| f.file_name == chunk.file)
+                .unwrap()
+                .code;
+            let sizes =
+                crate::compression::measure_javascript_transfer_sizes(code.as_bytes()).unwrap();
+            assert_eq!(
+                (chunk.bytes, chunk.gzip_bytes, chunk.brotli_bytes),
+                (sizes.raw, sizes.gzip9, sizes.brotli11)
+            );
             assert_eq!(chunk.selected_transfer_bytes, sizes.brotli11);
             assert_eq!(chunk.cache_key, content_hash(code.as_bytes()));
         }
         // One level below the entry pays a request; two levels also pay depth.
-        assert_eq!(a.deploy_cost, cost.deploy_cost(a.bytes, a.gzip_bytes, a.brotli_bytes, 1, false, 1));
-        assert_eq!(b.deploy_cost, cost.deploy_cost(b.bytes, b.gzip_bytes, b.brotli_bytes, 2, false, 1));
+        assert_eq!(
+            a.deploy_cost,
+            cost.deploy_cost(a.bytes, a.gzip_bytes, a.brotli_bytes, 1, false, 1)
+        );
+        assert_eq!(
+            b.deploy_cost,
+            cost.deploy_cost(b.bytes, b.gzip_bytes, b.brotli_bytes, 2, false, 1)
+        );
         assert_eq!(manifest.build_id.len(), 64);
     }
 }

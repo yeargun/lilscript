@@ -2,8 +2,8 @@
 //! JavaScript spelling a target currently supports. Checked edits must retain
 //! the receiver, array result, omission convention and exact primitive type.
 use super::*;
-use crate::primitive::{intrinsic_call_contract, Intrinsic};
 use crate::check::{DefaultValue, FunctionSignature, FunctionType};
+use crate::primitive::{intrinsic_call_contract, Intrinsic};
 
 fn checked(source: &str, inspect: impl FnOnce(&Program<'_>)) {
     let arena = bumpalo::Bump::new();

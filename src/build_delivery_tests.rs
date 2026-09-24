@@ -6,10 +6,8 @@ use std::fs;
 use std::process::Command;
 
 fn workspace(name: &str, files: &[(&str, &str)]) -> std::path::PathBuf {
-    let directory = std::env::temp_dir().join(format!(
-        "lilscript-delivery-{name}-{}",
-        std::process::id()
-    ));
+    let directory =
+        std::env::temp_dir().join(format!("lilscript-delivery-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&directory);
     fs::create_dir_all(&directory).unwrap();
     for (file, source) in files {
@@ -119,7 +117,9 @@ fn preserve_modules_moves_self_contained_functions_into_module_chunks() {
     assert!(chunk.name.starts_with("chunk-") && chunk.name.ends_with("-lib.js"));
     assert!(chunk.code.contains("export{"), "{}", chunk.code);
     assert!(!chunk.code.contains("import"), "{}", chunk.code);
-    assert!(artifact.javascript().contains(&format!("from\"./{}\"", chunk.name)));
+    assert!(artifact
+        .javascript()
+        .contains(&format!("from\"./{}\"", chunk.name)));
     assert_eq!(artifact.entry_dependencies(), [chunk.name.clone()]);
     // The scored bytes are exactly the delivered files.
     let total: usize = delivered(&bundle).iter().map(|(_, code)| code.len()).sum();
@@ -168,7 +168,10 @@ fn functions_that_read_module_state_stay_in_the_entry() {
                 "lib.lil",
                 "extern int read();int base=read();export int offset(int x){return x+base;}",
             ),
-            ("main.lil", "import {offset} from \"./lib\";print(offset(4));"),
+            (
+                "main.lil",
+                "import {offset} from \"./lib\";print(offset(4));",
+            ),
         ],
     );
     let single = compile(&directory, "single");
@@ -360,18 +363,29 @@ fn dynamic_import_loads_a_lazy_chunk_serving_only_the_members_read() {
     let directory = lazy_workspace("lazy", LAZY_MAIN);
     let single = compile(&directory, "single");
     assert_eq!(run(&directory, &single), "42\n");
-    let single_text = single.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    let single_text = single
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
     assert!(!single_text.contains("99"), "{single_text}");
     for (bundle, preloaded) in [
         ("mode='preserve-modules'", false),
-        ("mode='split'\nmin_chunk_bytes=1\nmax_chunks=1\npreload='entry'", true),
+        (
+            "mode='split'\nmin_chunk_bytes=1\nmax_chunks=1\npreload='entry'",
+            true,
+        ),
     ] {
         let compiled = with_bundle(&directory, bundle);
         assert_eq!(run(&directory, &compiled), "42\n");
         let artifact = compiled.javascript(Objective::Brotli).unwrap();
         assert_eq!(artifact.chunks().len(), 1, "{:?}", delivered(&compiled));
         let chunk = &artifact.chunks()[0];
-        assert!(chunk.lazy && chunk.name.ends_with("-feature.js"), "{}", chunk.name);
+        assert!(
+            chunk.lazy && chunk.name.ends_with("-feature.js"),
+            "{}",
+            chunk.name
+        );
         // The importer receives the namespace, so the member keeps its name.
         assert!(chunk.code.contains("export{answer}"), "{}", chunk.code);
         assert!(!chunk.code.contains("99"), "{}", chunk.code);
@@ -463,7 +477,10 @@ fn lazy_modules_must_be_initialization_free() {
     let directory = workspace(
         "lazy-init",
         &[
-            ("feature.lil", "int seed=read();extern int read();export int answer(){return seed;}"),
+            (
+                "feature.lil",
+                "int seed=read();extern int read();export int answer(){return seed;}",
+            ),
             (
                 "main.lil",
                 "import(\"./feature\").then((auto feature)=>print(feature.answer()));",
@@ -567,7 +584,11 @@ fn relative_host_modules_travel_with_the_output() {
         },
     )
     .unwrap();
-    let text = script.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    let text = script
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
     assert!(text.contains("\"use strict\""), "{text}");
     let output = Command::new("node").args(["-e", &text]).output().unwrap();
     assert_eq!(String::from_utf8_lossy(&output.stdout), "42\n", "{text}");
@@ -582,7 +603,11 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         "export enum Mode { A }\nexport function add(left: number, right: number): number { return left + right }\n",
     );
     let auto = with_config(&directory, "[bundle]\nhost_modules='auto'").unwrap();
-    let text = auto.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    let text = auto
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
     assert!(text.contains("from\"./host.ts\""), "{text}");
     let error = with_config(&directory, "[bundle]\nhost_modules='embed'").unwrap_err();
     assert!(error.message.contains("enum"), "{error}");
@@ -592,8 +617,16 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         "host-edition",
         "export function add(left: number, right: number): number { return (left ?? 0) + right }\n",
     );
-    let old = with_config(&directory, "ecmascript='es2019'\n[bundle]\nhost_modules='auto'").unwrap();
-    let text = old.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    let old = with_config(
+        &directory,
+        "ecmascript='es2019'\n[bundle]\nhost_modules='auto'",
+    )
+    .unwrap();
+    let text = old
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
     assert!(text.contains("from\"./host.ts\""), "{text}");
     let current = with_config(&directory, "[bundle]\nhost_modules='auto'").unwrap();
     assert!(!current
@@ -603,7 +636,11 @@ fn host_modules_that_cannot_travel_stay_imports_unless_embedding_is_required() {
         .contains("import"));
     // `external`, the default, imports every host module from its own specifier.
     let external = with_config(&directory, "").unwrap();
-    let text = external.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    let text = external
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
     assert!(text.contains("import{add}from\"./host.ts\""), "{text}");
     let _ = fs::remove_dir_all(directory);
 }
@@ -643,11 +680,21 @@ fn embedded_host_modules_become_program_code_in_a_strict_output() {
         ],
     );
     let compiled = with_config(&directory, "[bundle]\nhost_modules='embed'").unwrap();
-    let text = compiled.javascript(Objective::Brotli).unwrap().javascript().to_string();
+    let text = compiled
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
     // No module is carried as text, and nothing the program leaves unused.
-    assert!(!text.contains("(()=>") && !text.contains("UNUSED_MARKER"), "{text}");
+    assert!(
+        !text.contains("(()=>") && !text.contains("UNUSED_MARKER"),
+        "{text}"
+    );
     assert!(text.contains(".indexOf(2)"), "{text}");
-    assert_eq!(run(&directory, &compiled), "1\nobject\nundefined\n8\ncaught\n");
+    assert_eq!(
+        run(&directory, &compiled),
+        "1\nobject\nundefined\n8\ncaught\n"
+    );
     let _ = fs::remove_dir_all(directory);
 }
 
@@ -663,7 +710,10 @@ fn liveness_across_modules_drops_unread_values_and_keeps_effects() {
                 "extern int read();int plain=5;int effect=read();int[] table=[1,2,3];\
                  export int used(int x){return x+1;}export int unused(int x){return x*99;}",
             ),
-            ("side.lil", "extern int read();int touched=read();export int nothing(){return 0;}"),
+            (
+                "side.lil",
+                "extern int read();int touched=read();export int nothing(){return 0;}",
+            ),
             (
                 "main.lil",
                 "import \"./side\";import {used} from \"./lib\";print(used(41));",
@@ -671,8 +721,15 @@ fn liveness_across_modules_drops_unread_values_and_keeps_effects() {
         ],
     );
     let compiled = compile(&directory, "single");
-    let text = compiled.javascript(Objective::Brotli).unwrap().javascript().to_string();
-    assert!(!text.contains("99") && !text.contains("[1,2,3]") && !text.contains('5'), "{text}");
+    let text = compiled
+        .javascript(Objective::Brotli)
+        .unwrap()
+        .javascript()
+        .to_string();
+    assert!(
+        !text.contains("99") && !text.contains("[1,2,3]") && !text.contains('5'),
+        "{text}"
+    );
     assert_eq!(text.matches("read()").count(), 2, "{text}");
     // Each module's effects run once, in initialization order.
     assert_eq!(run(&directory, &compiled), "42\n");
@@ -686,7 +743,10 @@ fn unread_exceptions_and_argumentless_constructions_print_short() {
     let source = "extern int read();int total=0;try{if(read()>0){throw \"x\";}}catch(auto e){total=total+1;}\
                   Map<string,int> map=new Map<string,int>();map.set(\"a\",total);print(map.size);";
     let config = |edition: &str| -> ProjectConfig {
-        toml::from_str(&format!("[javascript]\nstrip_console=false\necmascript='{edition}'")).unwrap()
+        toml::from_str(&format!(
+            "[javascript]\nstrip_console=false\necmascript='{edition}'"
+        ))
+        .unwrap()
     };
     let text = |edition: &str| {
         compile_source(source, &config(edition), ServiceOptions::default())
@@ -698,12 +758,19 @@ fn unread_exceptions_and_argumentless_constructions_print_short() {
     };
     let current = text("es2022");
     assert!(current.contains("catch{"), "{current}");
-    assert!(current.contains("new Map;") || current.contains("new Map,"), "{current}");
+    assert!(
+        current.contains("new Map;") || current.contains("new Map,"),
+        "{current}"
+    );
     // Before ES2019 a catch clause needs its binding.
     let old = text("es2017");
     assert!(old.contains("catch("), "{old}");
     let output = Command::new("node")
-        .args(["--input-type=module", "-e", &format!("globalThis.read=()=>1;{current}")])
+        .args([
+            "--input-type=module",
+            "-e",
+            &format!("globalThis.read=()=>1;{current}"),
+        ])
         .output()
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&output.stdout), "1\n", "{current}");

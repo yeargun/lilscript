@@ -7,7 +7,7 @@ use crate::compilation_policy::{
     BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
 };
 use crate::js::selection::{Objective, Plan, Style};
-use serde_json::{Value as Json, json};
+use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 
@@ -225,7 +225,10 @@ fn javascript_slice_split_repeat_and_trim_execute_natively() {
         .unwrap();
     for (source, expected) in [
         ("string value=\"abcdef\".slice(1,3);print(value);", "bc\n"),
-        ("string[] values=\"a/b\".split(\"/\");print(values.length);", "2\n"),
+        (
+            "string[] values=\"a/b\".split(\"/\");print(values.length);",
+            "2\n",
+        ),
         ("string[] units=\"ab\".split(\"\");print(units[1]);", "b\n"),
         ("string value=\"x\".repeat(2);print(value.length);", "2\n"),
         ("string value=\" x \".trim();print(value.length);", "1\n"),
@@ -240,7 +243,9 @@ fn javascript_slice_split_repeat_and_trim_execute_natively() {
             .unwrap();
         let retained = compilation.ledger().retained_bytes();
         let c = compilation
-            .with_native_c(source, &policy, WorkDomain::Baseline, |output| output.take_c())
+            .with_native_c(source, &policy, WorkDomain::Baseline, |output| {
+                output.take_c()
+            })
             .unwrap();
         super::native_tests::compile_and_execute(&c, expected, "native-string-methods");
         assert_eq!(compilation.ledger().retained_bytes(), retained);

@@ -3,9 +3,9 @@
 //! when a checked edit changes both the callee and call signature together.
 use super::publication::{CheckpointLimit, Compilation, PublicationError};
 use super::*;
+use crate::check::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType};
 use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 use crate::primitive::{Intrinsic, ParameterPassing};
-use crate::check::{DefaultValue, FunctionParameter, FunctionSignature, FunctionType};
 
 fn checked(source: &str, inspect: impl FnOnce(Program<'_>)) {
     let arena = bumpalo::Bump::new();

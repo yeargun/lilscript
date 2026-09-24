@@ -36,11 +36,9 @@ fn number_domain_integrality_and_zero_sign_are_independent() {
         NumberFacts::UNKNOWN.binary(Binary::Multiply, zero),
         NumberFacts::NUMBER
     );
-    assert!(
-        !NumberFacts::UNKNOWN
-            .binary(Binary::Multiply, zero)
-            .normalization_redundant()
-    );
+    assert!(!NumberFacts::UNKNOWN
+        .binary(Binary::Multiply, zero)
+        .normalization_redundant());
     assert_eq!(
         NumberFacts::UNKNOWN.binary(Binary::BitAnd, NumberFacts::UNKNOWN),
         NumberFacts::UNKNOWN
@@ -78,48 +76,35 @@ fn raw_arithmetic_is_distinct_from_signed_language_normalization() {
     assert_eq!(large_product.integer_bounds(), None);
     assert!(!large_product.normalization_redundant());
     assert_eq!(large_product.to_int32(), NumberFacts::I32);
-    assert!(
-        !NumberFacts::literal(3.0)
-            .binary(Binary::Divide, NumberFacts::literal(2.0))
-            .normalization_redundant()
-    );
+    assert!(!NumberFacts::literal(3.0)
+        .binary(Binary::Divide, NumberFacts::literal(2.0))
+        .normalization_redundant());
     for op in [Binary::Divide, Binary::Remainder] {
-        assert!(
-            !range(-10, 10)
-                .binary(op, range(0, 1))
-                .normalization_redundant()
-        );
+        assert!(!range(-10, 10)
+            .binary(op, range(0, 1))
+            .normalization_redundant());
     }
-    assert!(
-        !NumberFacts::literal(-4.0)
-            .binary(Binary::Remainder, NumberFacts::literal(2.0))
-            .normalization_redundant()
-    );
-    assert!(
-        !NumberFacts::literal(0.0)
-            .binary(Binary::Multiply, NumberFacts::literal(-1.0))
-            .normalization_redundant()
-    );
-    assert!(
-        !NumberFacts::literal(-1.0)
-            .binary(Binary::UnsignedShiftRight, NumberFacts::literal(0.0))
-            .normalization_redundant()
-    );
-    assert!(
-        NumberFacts::literal(-1.0)
-            .binary(Binary::UnsignedShiftRight, NumberFacts::literal(1.0))
-            .normalization_redundant()
-    );
+    assert!(!NumberFacts::literal(-4.0)
+        .binary(Binary::Remainder, NumberFacts::literal(2.0))
+        .normalization_redundant());
+    assert!(!NumberFacts::literal(0.0)
+        .binary(Binary::Multiply, NumberFacts::literal(-1.0))
+        .normalization_redundant());
+    assert!(!NumberFacts::literal(-1.0)
+        .binary(Binary::UnsignedShiftRight, NumberFacts::literal(0.0))
+        .normalization_redundant());
+    assert!(NumberFacts::literal(-1.0)
+        .binary(Binary::UnsignedShiftRight, NumberFacts::literal(1.0))
+        .normalization_redundant());
 }
 
 #[test]
 fn masks_shifts_and_small_intervals_supply_useful_raw_proofs() {
     let byte = NumberFacts::UNKNOWN.binary(Binary::BitAnd, NumberFacts::literal(255.0));
     assert_eq!(byte.integer_bounds(), Some((0, 255)));
-    assert!(
-        byte.binary(Binary::Add, range(1, 5))
-            .normalization_redundant()
-    );
+    assert!(byte
+        .binary(Binary::Add, range(1, 5))
+        .normalization_redundant());
     assert_eq!(
         range(-100, 100)
             .binary(Binary::ShiftRight, NumberFacts::literal(2.0))
@@ -138,26 +123,18 @@ fn masks_shifts_and_small_intervals_supply_useful_raw_proofs() {
             .integer_bounds(),
         Some((0, 9))
     );
-    assert!(
-        range(1, 100)
-            .binary(Binary::Multiply, range(-10, -1))
-            .normalization_redundant()
-    );
-    assert!(
-        !range(0, 100)
-            .binary(Binary::Multiply, range(-10, -1))
-            .normalization_redundant()
-    );
-    assert!(
-        range(-100, -1)
-            .unary(Unary::Negate)
-            .normalization_redundant()
-    );
-    assert!(
-        !range(-100, 0)
-            .unary(Unary::Negate)
-            .normalization_redundant()
-    );
+    assert!(range(1, 100)
+        .binary(Binary::Multiply, range(-10, -1))
+        .normalization_redundant());
+    assert!(!range(0, 100)
+        .binary(Binary::Multiply, range(-10, -1))
+        .normalization_redundant());
+    assert!(range(-100, -1)
+        .unary(Unary::Negate)
+        .normalization_redundant());
+    assert!(!range(-100, 0)
+        .unary(Unary::Negate)
+        .normalization_redundant());
 }
 
 fn raw(op: Binary, left: f64, right: f64) -> f64 {

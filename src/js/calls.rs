@@ -23,7 +23,10 @@ use crate::compilation_policy::WorkKind::Analysis;
 impl Module {
     /// `x.m.call(x,…)` becomes `x.m(…)` for a local binding or `this`.
     /// Returns how many calls.
-    pub(crate) fn self_method_calls(&mut self, budget: &mut AllocationBudget<'_>) -> Result<usize, AllocationError> {
+    pub(crate) fn self_method_calls(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
         if !self.pristine_builtins {
             return Ok(0);
         }
@@ -48,7 +51,10 @@ impl Module {
             if call != "call" {
                 continue;
             }
-            let Expr::Member { object: receiver, .. } = &self.expressions[method.index()] else {
+            let Expr::Member {
+                object: receiver, ..
+            } = &self.expressions[method.index()]
+            else {
                 continue;
             };
             let Some(&first) = arguments.first() else {
@@ -77,7 +83,10 @@ impl Module {
     /// binding, `this`, one pristine global, or (when property reads are
     /// pure) one member chain of those with literal or binding keys.
     fn same_reference(&self, left: ExprId, right: ExprId, pure_reads: bool) -> bool {
-        match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+        match (
+            &self.expressions[left.index()],
+            &self.expressions[right.index()],
+        ) {
             (Expr::Binding(left), Expr::Binding(right)) => left == right,
             (Expr::This, Expr::This) => true,
             (Expr::Host(left), Expr::Host(right)) => left == right,
@@ -181,16 +190,17 @@ impl Module {
                 if !called(self, id) {
                     calls_only[binding.index()] = false;
                 }
-                constructed[binding.index()] |= parents[id.index()].is_some_and(|parent| {
-                    match &self.expressions[parent.index()] {
-                        Expr::Construct { callee, .. } => *callee == id,
-                        Expr::Member {
-                            object,
-                            property: Property::Named(name),
-                        } => *object == id && name == "prototype",
-                        _ => false,
-                    }
-                });
+                constructed[binding.index()] |=
+                    parents[id.index()].is_some_and(|parent| {
+                        match &self.expressions[parent.index()] {
+                            Expr::Construct { callee, .. } => *callee == id,
+                            Expr::Member {
+                                object,
+                                property: Property::Named(name),
+                            } => *object == id && name == "prototype",
+                            _ => false,
+                        }
+                    });
             }
         }
         let mut rewrites = Vec::new();
@@ -225,8 +235,9 @@ impl Module {
             // Only ever called: an arrow. Otherwise constructible, when its
             // body allows it.
             let direct = called(self, id)
-                || declared[id.index()]
-                    .is_some_and(|binding| !written[binding.index()] && calls_only[binding.index()])
+                || declared[id.index()].is_some_and(|binding| {
+                    !written[binding.index()] && calls_only[binding.index()]
+                })
                 || self.unconstructed_callbacks
                     && !declared[id.index()].is_some_and(|binding| constructed[binding.index()]);
             if !direct && self.lexical_receiver(function, budget)? {
@@ -246,7 +257,11 @@ impl Module {
 
     /// Whether an arrow's body reads the enclosing `this` or `arguments`, or
     /// calls `super`, through itself or a nested arrow.
-    fn lexical_receiver(&self, function: FunctionId, budget: &mut AllocationBudget<'_>) -> Result<bool, AllocationError> {
+    fn lexical_receiver(
+        &self,
+        function: FunctionId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
         let mut regions = vec![self.functions[function.index()].body];
         let mut expressions = Vec::new();
         while let Some(region) = regions.pop() {
@@ -286,7 +301,8 @@ impl Module {
         let [target] = outer.parameters[..] else {
             return None;
         };
-        let [Statement::Return(Some(created))] = self.regions[outer.body.index()].statements[..] else {
+        let [Statement::Return(Some(created))] = self.regions[outer.body.index()].statements[..]
+        else {
             return None;
         };
         let Expr::Function(inner) = self.expressions[created.index()] else {
@@ -296,7 +312,8 @@ impl Module {
         if inner.arrow || inner.length.is_some() || !matches!(inner.suspension, Suspension::None) {
             return None;
         }
-        let [Statement::Return(Some(forward))] = self.regions[inner.body.index()].statements[..] else {
+        let [Statement::Return(Some(forward))] = self.regions[inner.body.index()].statements[..]
+        else {
             return None;
         };
         let Expr::Call {
@@ -309,7 +326,9 @@ impl Module {
             return None;
         }
         let (first, rest) = arguments.split_first()?;
-        if !matches!(self.expressions[first.index()], Expr::This) || rest.len() != inner.parameters.len() {
+        if !matches!(self.expressions[first.index()], Expr::This)
+            || rest.len() != inner.parameters.len()
+        {
             return None;
         }
         let forwarded = rest

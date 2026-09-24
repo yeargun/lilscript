@@ -15,11 +15,8 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
         .iter()
         .map(|source| parse_source(&arena, source).unwrap())
         .collect();
-    let checked = analyze_modules(
-        &programs,
-        &graph(&sources, &[&[1], &[2], &[]], &[2, 1, 0]),
-    )
-    .unwrap();
+    let checked =
+        analyze_modules(&programs, &graph(&sources, &[&[1], &[2], &[]], &[2, 1, 0])).unwrap();
     let mut aliases = 0;
     for (module, interface) in checked.interfaces().iter().enumerate() {
         let view = checked.view(module).unwrap();
@@ -28,7 +25,10 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
                 unreachable!();
             };
             let canonical = &checked.symbols()[id.0 as usize].ty;
-            assert!(std::ptr::eq(view.binding_type(import.span).unwrap(), canonical));
+            assert!(std::ptr::eq(
+                view.binding_type(import.span).unwrap(),
+                canonical
+            ));
             assert!(matches!(
                 checked.facts[module].binding_types.get(&import.span),
                 Some(BindingType::Symbol(symbol)) if *symbol == id
@@ -38,19 +38,38 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
         }
     }
     assert_eq!(aliases, 4);
-    let values = checked.symbols().iter().find(|symbol| symbol.name == "values").unwrap();
-    let Type::Array(outer) = &values.ty else { unreachable!() };
+    let values = checked
+        .symbols()
+        .iter()
+        .find(|symbol| symbol.name == "values")
+        .unwrap();
+    let Type::Array(outer) = &values.ty else {
+        unreachable!()
+    };
     assert!(matches!(&**outer, Type::Array(inner) if **inner == Type::Int));
     for module in 0..2 {
         let interface = &checked.interfaces()[module];
-        let alias = interface.imports.iter().find(|import| import.imported == "values").unwrap();
-        let Type::Array(alias_outer) = checked.view(module).unwrap().binding_type(alias.span).unwrap() else {
+        let alias = interface
+            .imports
+            .iter()
+            .find(|import| import.imported == "values")
+            .unwrap();
+        let Type::Array(alias_outer) = checked
+            .view(module)
+            .unwrap()
+            .binding_type(alias.span)
+            .unwrap()
+        else {
             unreachable!();
         };
         assert!(std::ptr::eq(&**outer, &**alias_outer));
     }
     let uses = checked.facts[0].source_info.iter().filter_map(|info| {
-        let Expr { kind: ExprKind::Ident(ident), .. } = info.expression? else {
+        let Expr {
+            kind: ExprKind::Ident(ident),
+            ..
+        } = info.expression?
+        else {
             return None;
         };
         Some(ident.span)
@@ -58,7 +77,9 @@ fn module_alias_binding_types_borrow_the_canonical_nested_payload() {
     for span in uses {
         assert!(checked.view(0).unwrap().binding_type(span).is_none());
     }
-    assert!(checked.declarations.identifier_index_is_consistent(&checked.facts));
+    assert!(checked
+        .declarations
+        .identifier_index_is_consistent(&checked.facts));
 }
 
 #[test]
@@ -73,29 +94,54 @@ fn repeated_foreign_binding_types_share_contracts_but_keep_detached_parameters_d
         .map(|source| parse_source(&arena, source).unwrap())
         .collect();
     let checked = analyze_modules(&programs, &graph(&sources, &[&[1], &[]], &[1, 0])).unwrap();
-    let host = checked.symbols().iter().find(|symbol| symbol.name == "host").unwrap();
+    let host = checked
+        .symbols()
+        .iter()
+        .find(|symbol| symbol.name == "host")
+        .unwrap();
     assert_eq!(host.origin, DeclarationOrigin::Foreign);
     let mut parameters = Vec::new();
     for (module, program) in programs.iter().enumerate() {
-        let declaration = program.items.iter().find_map(|item| match item {
-            Item::Extern(declaration) => Some(declaration),
-            _ => None,
-        }).unwrap();
+        let declaration = program
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Extern(declaration) => Some(declaration),
+                _ => None,
+            })
+            .unwrap();
         let view = checked.view(module).unwrap();
         assert_eq!(view.identifier_symbol(declaration.name.span), Some(host.id));
-        assert!(std::ptr::eq(view.binding_type(declaration.name.span).unwrap(), &host.ty));
+        assert!(std::ptr::eq(
+            view.binding_type(declaration.name.span).unwrap(),
+            &host.ty
+        ));
         let parameter = declaration.params[0].name;
         let id = view.identifier_symbol(parameter.span).unwrap();
         parameters.push(id);
         let canonical = &checked.symbols()[id.0 as usize];
         assert_eq!(canonical.origin, DeclarationOrigin::Source);
         assert_eq!(checked.symbol_module(id), Some(module));
-        assert!(std::ptr::eq(view.binding_type(parameter.span).unwrap(), &canonical.ty));
-        assert!(matches!(&canonical.ty, Type::Array(outer) if matches!(&**outer, Type::Array(inner) if **inner == Type::Int)));
+        assert!(std::ptr::eq(
+            view.binding_type(parameter.span).unwrap(),
+            &canonical.ty
+        ));
+        assert!(
+            matches!(&canonical.ty, Type::Array(outer) if matches!(&**outer, Type::Array(inner) if **inner == Type::Int))
+        );
     }
     assert_ne!(parameters[0], parameters[1]);
-    assert_eq!(checked.symbols().iter().filter(|symbol| symbol.name == "host").count(), 1);
-    assert!(checked.declarations.identifier_index_is_consistent(&checked.facts));
+    assert_eq!(
+        checked
+            .symbols()
+            .iter()
+            .filter(|symbol| symbol.name == "host")
+            .count(),
+        1
+    );
+    assert!(checked
+        .declarations
+        .identifier_index_is_consistent(&checked.facts));
 }
 
 fn graph(sources: &[&str], dependencies: &[&[usize]], order: &[usize]) -> ModuleSet {
@@ -151,12 +197,10 @@ fn source_local_nodes_and_private_names_share_only_the_declaration_owner() {
     assert_ne!(parses[0].id, parses[1].id);
     assert_eq!(checked.symbol_module(parses[0].id), Some(0));
     assert_eq!(checked.symbol_module(parses[1].id), Some(1));
-    assert!(
-        checked
-            .symbols()
-            .iter()
-            .all(|symbol| checked.symbol_module(symbol.id).is_some())
-    );
+    assert!(checked
+        .symbols()
+        .iter()
+        .all(|symbol| checked.symbol_module(symbol.id).is_some()));
     for (module, program) in programs.iter().enumerate() {
         for info in &checked.facts[module].source_info {
             if let Some(expr) = info.expression {
@@ -169,12 +213,10 @@ fn source_local_nodes_and_private_names_share_only_the_declaration_owner() {
                         .unwrap(),
                     expr
                 ));
-                assert!(
-                    checked
-                        .view(module)
-                        .unwrap()
-                        .belongs_to(program.source_identity())
-                );
+                assert!(checked
+                    .view(module)
+                    .unwrap()
+                    .belongs_to(program.source_identity()));
             }
         }
     }
@@ -224,11 +266,9 @@ fn colliding_spans_do_not_conflate_types_or_declaration_occurrences() {
         checked.view(1).unwrap().expression_type(literals[1]),
         Some(&Type::String)
     );
-    assert!(
-        checked
-            .declarations
-            .identifier_index_is_consistent(&checked.facts)
-    );
+    assert!(checked
+        .declarations
+        .identifier_index_is_consistent(&checked.facts));
 }
 
 #[test]
@@ -409,13 +449,11 @@ fn equal_foreign_contracts_share_identity_and_conflicts_keep_declaring_source() 
             .origin,
         DeclarationOrigin::Foreign
     );
-    assert!(
-        checked
-            .symbols()
-            .iter()
-            .filter(|symbol| symbol.name == "value")
-            .all(|symbol| symbol.origin == DeclarationOrigin::Source)
-    );
+    assert!(checked
+        .symbols()
+        .iter()
+        .filter(|symbol| symbol.name == "value")
+        .all(|symbol| symbol.origin == DeclarationOrigin::Source));
     assert_eq!(
         checked
             .symbols()
@@ -543,29 +581,23 @@ fn original_graph_order_and_side_effect_only_edges_are_preserved() {
     let checked = analyze_modules(&programs, &modules).unwrap();
     assert_eq!(checked.initialization_order(), &[2, 1, 0]);
     assert_eq!(checked.interfaces()[0].dependencies, [1, 2]);
-    assert!(
-        checked
-            .interfaces()
-            .iter()
-            .all(|interface| interface.imports.is_empty())
-    );
+    assert!(checked
+        .interfaces()
+        .iter()
+        .all(|interface| interface.imports.is_empty()));
     modules.dependency_order = vec![1, 2, 0];
-    assert!(
-        analyze_modules(&programs, &modules)
-            .unwrap_err()
-            .error
-            .message
-            .contains("initialization order")
-    );
+    assert!(analyze_modules(&programs, &modules)
+        .unwrap_err()
+        .error
+        .message
+        .contains("initialization order"));
     modules.dependency_order = vec![2, 1, 0];
     modules.modules[1].dependencies = vec![30];
-    assert!(
-        analyze_modules(&programs, &modules)
-            .unwrap_err()
-            .error
-            .message
-            .contains("dependency mismatch")
-    );
+    assert!(analyze_modules(&programs, &modules)
+        .unwrap_err()
+        .error
+        .message
+        .contains("dependency mismatch"));
 }
 
 #[test]
@@ -648,22 +680,18 @@ fn nominal_module_diamond_keeps_original_identity_and_type_only_occurrences() {
             Some(&Type::Struct(declaration))
         );
     }
-    assert!(
-        checked
-            .symbols()
-            .iter()
-            .all(|symbol| !matches!(symbol.name, "P" | "Left" | "Right" | "PublicP"))
-    );
+    assert!(checked
+        .symbols()
+        .iter()
+        .all(|symbol| !matches!(symbol.name, "P" | "Left" | "Right" | "PublicP")));
     let field = view.nominal_struct(declaration.identity).unwrap().fields["x"].member;
     assert!(
         matches!(view.nominal_member(field),Some(NominalMember::Field { owner, .. }) if owner==declaration.identity)
     );
-    assert!(
-        checked
-            .source(3)
-            .unwrap()
-            .same(&programs[3].source_identity())
-    );
+    assert!(checked
+        .source(3)
+        .unwrap()
+        .same(&programs[3].source_identity()));
 }
 
 #[test]
@@ -792,19 +820,15 @@ fn nominal_export_occurrences_distinguish_value_type_and_ambiguous_bare_names() 
     let source = "struct Item{int x;}int Item=7;export {Item};";
     let arena = Bump::new();
     let program = parse_source(&arena, source).unwrap();
-    assert!(
-        analyze(&program)
-            .unwrap_err()
-            .message
-            .contains("ambiguous export")
-    );
-    assert!(
-        analyze_modules(&[program], &graph(&[source], &[&[]], &[0]))
-            .unwrap_err()
-            .error
-            .message
-            .contains("ambiguous export")
-    );
+    assert!(analyze(&program)
+        .unwrap_err()
+        .message
+        .contains("ambiguous export"));
+    assert!(analyze_modules(&[program], &graph(&[source], &[&[]], &[0]))
+        .unwrap_err()
+        .error
+        .message
+        .contains("ambiguous export"));
 }
 
 #[test]

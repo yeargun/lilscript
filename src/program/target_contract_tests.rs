@@ -327,10 +327,7 @@ fn explicit_callable_spelling_preserves_names_and_arity_with_selected_constructi
         for (_, javascript) in artifacts(source, &resolved, false, Style::Global).unwrap() {
             assert_eq!(
                 execute(&javascript, "", observations),
-                json!([
-                    ["add", 2, 5, true, true],
-                    ["callback", 0, 9, false, false]
-                ]),
+                json!([["add", 2, 5, true, true], ["callback", 0, 9, false, false]]),
                 "{spelling}\n{javascript}"
             );
         }
@@ -528,11 +525,15 @@ fn a_public_closure_over_module_arguments_stays_an_arrow_whatever_the_private_sp
     assert!(!outputs.is_empty());
     for (_, javascript) in outputs {
         let host = "let reads=0;Object.defineProperty(globalThis,'arguments',{configurable:true,get(){events.push(['arguments-get',++reads]);return reads;}});";
-        assert_eq!(execute(
-            &javascript,
-            host,
-            "events.push(['created',reads]);events.push(['value',library.callback()]);",
-        ), json!([["created",0],["arguments-get",1],["value",1]]), "{javascript}");
+        assert_eq!(
+            execute(
+                &javascript,
+                host,
+                "events.push(['created',reads]);events.push(['value',library.callback()]);",
+            ),
+            json!([["created", 0], ["arguments-get", 1], ["value", 1]]),
+            "{javascript}"
+        );
     }
 }
 

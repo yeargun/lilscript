@@ -2,11 +2,11 @@ use super::*;
 use crate::compilation_policy::{
     AdmissionError, BudgetError, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
 };
-use crate::program::CellId;
+use crate::js::selection::Style;
 use crate::program::publication::{
     CheckpointLimit, Compilation, NativeHostBinding, NativeHostBindings, SemanticId,
 };
-use crate::js::selection::Style;
+use crate::program::CellId;
 
 const WORK: u64 = 100_000_000;
 const MEMORY: u64 = 128_000_000;
@@ -131,11 +131,9 @@ fn native_handoff_is_typed_zero_copy_and_rejects_foreign_consumed_and_stale_rece
         assert!(owner.ledger().retained_bytes() >= before + capacity);
         assert_eq!(owner.ledger().work_by_kind(WorkKind::Codec), codecs);
         let mut foreign = compilation();
-        assert!(
-            foreign
-                .with_qualified_native_artifact(&receipt, |_| ())
-                .is_err()
-        );
+        assert!(foreign
+            .with_qualified_native_artifact(&receipt, |_| ())
+            .is_err());
         assert!(foreign.take_qualified_native_artifact(receipt).is_err());
         assert_eq!(foreign.finish().retained_bytes(), 0);
         let retained = owner.ledger().retained_bytes();
@@ -154,11 +152,9 @@ fn native_handoff_is_typed_zero_copy_and_rejects_foreign_consumed_and_stale_rece
             .unwrap();
         assert_eq!(receipt.artifact.slot, next.artifact.slot);
         assert_ne!(receipt.artifact.generation, next.artifact.generation);
-        assert!(
-            owner
-                .with_qualified_native_artifact(&receipt, |_| ())
-                .is_err()
-        );
+        assert!(owner
+            .with_qualified_native_artifact(&receipt, |_| ())
+            .is_err());
         owner.discard(source).unwrap();
         let (next_c, _) = owner.take_qualified_native_artifact(next).unwrap();
         assert_eq!(
@@ -319,11 +315,9 @@ fn javascript_exact_score_reuse_skips_native_slots_without_consuming_them() {
                         .reuse_scores(target, Objectives::One(CompressionCostModel::Gzip), budget)
                         .unwrap();
                     assert_eq!(sizes.gzip9, Some(size));
-                    assert!(
-                        arena
-                            .with_artifact(ArtifactId(native.artifact), |_| ())
-                            .is_err()
-                    );
+                    assert!(arena
+                        .with_artifact(ArtifactId(native.artifact), |_| ())
+                        .is_err());
                     assert!(arena.take(ArtifactId(native.artifact), budget).is_err());
                 })
             })

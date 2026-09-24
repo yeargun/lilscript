@@ -351,18 +351,36 @@ fn an_internal_class_may_extend_a_host_class() {
     let source = "extern class Error{string message;init(string message);}class VFileMessage extends Error{string reason;init(string reason){super(reason);this.reason=reason;}}";
     let arena = bumpalo::Bump::new();
     let program = crate::parse_source(&arena, source).unwrap();
-    assert!(crate::check::analyze(&program).is_ok(), "an internal subclass of a host class must check");
+    assert!(
+        crate::check::analyze(&program).is_ok(),
+        "an internal subclass of a host class must check"
+    );
 }
 
 #[test]
 fn host_class_rules_that_still_hold() {
     for (source, message) in [
         // A host constructor signature exists only for `super(...)`.
-        ("extern class Error{init(string message);}Error e=new Error(\"x\");", "extern class `Error` cannot be constructed"),
-        ("extern class Error{init(string message);init(string other);}", "an extern class declares its host constructor at most once"),
-        ("extern class Error{init(string message=\"x\");}", "a host constructor signature cannot declare parameter defaults"),
-        ("extern class Error{init(string message);}class M extends Error{init(){super(1);}}", "expected"),
-        ("extern class Error{}class M extends Error{init(string reason){super(reason);}}", "implicit base constructor `Error` expects no arguments"),
+        (
+            "extern class Error{init(string message);}Error e=new Error(\"x\");",
+            "extern class `Error` cannot be constructed",
+        ),
+        (
+            "extern class Error{init(string message);init(string other);}",
+            "an extern class declares its host constructor at most once",
+        ),
+        (
+            "extern class Error{init(string message=\"x\");}",
+            "a host constructor signature cannot declare parameter defaults",
+        ),
+        (
+            "extern class Error{init(string message);}class M extends Error{init(){super(1);}}",
+            "expected",
+        ),
+        (
+            "extern class Error{}class M extends Error{init(string reason){super(reason);}}",
+            "implicit base constructor `Error` expects no arguments",
+        ),
     ] {
         let arena = bumpalo::Bump::new();
         let error = match crate::parse_source(&arena, source) {
@@ -372,6 +390,9 @@ fn host_class_rules_that_still_hold() {
                 Ok(_) => panic!("expected a refusal for {source}"),
             },
         };
-        assert!(error.contains(message), "{source}: expected `{message}`, got `{error}`");
+        assert!(
+            error.contains(message),
+            "{source}: expected `{message}`, got `{error}`"
+        );
     }
 }

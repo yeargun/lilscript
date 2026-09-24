@@ -300,9 +300,7 @@ impl Formation<'_, '_, '_, '_, '_> {
                 return self.store_aggregate_field(context, root, path, replacement);
             }
             _ => {
-                return Err(
-                    self.error(span, "mutable struct projection through aggregate storage")
-                )
+                return Err(self.error(span, "mutable struct projection through aggregate storage"))
             }
         };
         if path.is_empty() {

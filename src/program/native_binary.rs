@@ -158,7 +158,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 format!("ls_buffer_new(ls_v{})", argument.index())
             }
             _ => {
-                let (kind, _) = crate::typed_array::classify_typed_array_intrinsic(intrinsic).unwrap();
+                let (kind, _) =
+                    crate::typed_array::classify_typed_array_intrinsic(intrinsic).unwrap();
                 let size = kind.bytes_per_element();
                 if from_buffer {
                     format!("ls_typed_over(ls_v{}, {size})", argument.index())

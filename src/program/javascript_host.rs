@@ -18,7 +18,11 @@ impl Formation<'_, '_, '_, '_, '_> {
         })
     }
 
-    fn host_member(&mut self, object: js::ExprId, key: js::ExprId) -> Result<js::ExprId, FormationError> {
+    fn host_member(
+        &mut self,
+        object: js::ExprId,
+        key: js::ExprId,
+    ) -> Result<js::ExprId, FormationError> {
         // A literal identifier key prints as `o.name`; others as `o[key]`.
         self.expression(js::Expr::Member {
             object,
@@ -92,7 +96,8 @@ impl Formation<'_, '_, '_, '_, '_> {
             invocation: Invocation::Value,
         })?;
         self.statement(inner_body, js::Statement::Return(Some(call)))?;
-        let inner = js::FunctionId::try_new(self.module.functions.len()).ok_or(AllocationError::Capacity)?;
+        let inner = js::FunctionId::try_new(self.module.functions.len())
+            .ok_or(AllocationError::Capacity)?;
         self.budget.push(
             AllocationClass::Retained,
             &mut self.module.functions,
@@ -111,7 +116,8 @@ impl Formation<'_, '_, '_, '_, '_> {
         self.statement(outer_body, js::Statement::Return(Some(inner)))?;
         let mut outer_parameters = self.budget.vector(AllocationClass::Retained, 1)?;
         self.append(&mut outer_parameters, target)?;
-        let outer = js::FunctionId::try_new(self.module.functions.len()).ok_or(AllocationError::Capacity)?;
+        let outer = js::FunctionId::try_new(self.module.functions.len())
+            .ok_or(AllocationError::Capacity)?;
         self.budget.push(
             AllocationClass::Retained,
             &mut self.module.functions,
@@ -134,12 +140,19 @@ impl Formation<'_, '_, '_, '_, '_> {
                 function: outer,
             },
         )?;
-        self.budget
-            .push(AllocationClass::Scratch, &mut self.host_factories, (key, binding))?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.host_factories,
+            (key, binding),
+        )?;
         Ok(binding)
     }
 
-    fn fresh_binding(&mut self, scope: js::ScopeId, spelling: &str) -> Result<js::BindingId, FormationError> {
+    fn fresh_binding(
+        &mut self,
+        scope: js::ScopeId,
+        spelling: &str,
+    ) -> Result<js::BindingId, FormationError> {
         let spelling = self.text(spelling)?;
         Ok(self.module.binding_in(
             js::Binding {
@@ -444,7 +457,8 @@ impl Formation<'_, '_, '_, '_, '_> {
                     self.module.expressions[rest[0].index()],
                     js::Expr::Literal(js::Literal::Undefined)
                 ) {
-                    let mut forwarded = self.budget.vector(AllocationClass::Retained, rest.len())?;
+                    let mut forwarded =
+                        self.budget.vector(AllocationClass::Retained, rest.len())?;
                     for &value in &rest[1..] {
                         self.append(&mut forwarded, value)?;
                     }

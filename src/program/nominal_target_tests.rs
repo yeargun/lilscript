@@ -216,7 +216,11 @@ fn qualify(
     );
     assert_eq!(compilation.checkpoint_count(), 1);
     let executions = compile_and_execute(&c, expected, case);
-    assert_eq!(executions.len(), 7, "two compilers, O0/O2/UBSan, and Clang ASan");
+    assert_eq!(
+        executions.len(),
+        7,
+        "two compilers, O0/O2/UBSan, and Clang ASan"
+    );
 
     let mut javascript = Vec::new();
     for compact in [false, true] {

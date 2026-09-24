@@ -3,14 +3,14 @@ use crate::ast::{
     self, ArrayElement, ArrowBody, AssignmentOp, ExprKind, ForInitializer, Item, RecordElement,
     Stmt,
 };
+use crate::check::{
+    CheckedModule, CheckedModules, CheckedView, ClassInfo, ExpressionResolution, NominalMember,
+};
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::{
     AllocationBudget,
     AllocationClass::{Retained, Scratch},
     AllocationError,
-};
-use crate::check::{
-    CheckedModules, ClassInfo, ExpressionResolution, NominalMember, CheckedModule, CheckedView,
 };
 
 /// The frontend owns its tables exclusively until the checked Program is
@@ -439,7 +439,9 @@ fn convert_modules<'ast, 'src>(
     for module in 0..sources.len() {
         let view = semantics.view(module).unwrap();
         for (target, name) in view.used_dynamic_exports() {
-            lower.work(1).map_err(|error| ModuleConversionError { module, error })?;
+            lower
+                .work(1)
+                .map_err(|error| ModuleConversionError { module, error })?;
             let target = target as usize;
             let cell = semantics
                 .interfaces()
@@ -456,13 +458,14 @@ fn convert_modules<'ast, 'src>(
                     InterfaceTarget::Struct(_) => None,
                 })
                 .ok_or_else(|| fail(module, "dynamic export has no runtime cell"))?;
-            let name = lower
-                .budget
-                .string(Retained, name)
-                .map_err(|error| ModuleConversionError {
-                    module,
-                    error: error.into(),
-                })?;
+            let name =
+                lower
+                    .budget
+                    .string(Retained, name)
+                    .map_err(|error| ModuleConversionError {
+                        module,
+                        error: error.into(),
+                    })?;
             let namespace = &mut building_table(&mut lower.program.modules)[target].namespace;
             if !namespace.iter().any(|(known, _)| *known == name) {
                 lower
@@ -476,7 +479,9 @@ fn convert_modules<'ast, 'src>(
         }
     }
     for module in building_table(&mut lower.program.modules) {
-        module.namespace.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+        module
+            .namespace
+            .sort_unstable_by(|left, right| left.0.cmp(&right.0));
     }
     // Register all canonical callable identities before lowering cyclic bodies.
     for (module, source) in sources.iter().enumerate() {
@@ -493,7 +498,11 @@ fn convert_modules<'ast, 'src>(
             .emit_source(UnitId::from_index(module).unwrap(), source)
             .map_err(|error| ModuleConversionError { module, error })?;
         lower
-            .foreign_imports(module, source, &semantics.interfaces()[module].foreign_sources)
+            .foreign_imports(
+                module,
+                source,
+                &semantics.interfaces()[module].foreign_sources,
+            )
             .map_err(|error| ModuleConversionError { module, error })?;
         let start = lower.program.exports.len();
         for export in &semantics.interfaces()[module].exports {
@@ -539,7 +548,11 @@ struct Lower<'budget, 'ledger, 'sem, 'ast, 'src> {
 #[derive(Clone, Copy)]
 enum CallReceiver<'src> {
     Value(ValueId),
-    Construction { class: &'src str, ty: TypeId, origin: Option<SourceNodeId> },
+    Construction {
+        class: &'src str,
+        ty: TypeId,
+        origin: Option<SourceNodeId>,
+    },
 }
 
 /// A class method or `init` (`name: None`), converted to a function unit that
@@ -928,9 +941,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     }
     fn ty(&mut self, ty: &Type<'src>) -> Result<TypeId, ConversionError> {
         use crate::check::type_admission::TypeQueryAdmission;
-        use crate::check::type_payload::{
-            measure_payload, Payload, PayloadError, PayloadMeasure,
-        };
+        use crate::check::type_payload::{measure_payload, Payload, PayloadError, PayloadMeasure};
         fn measure(
             ty: &Type<'_>,
             budget: &mut AllocationBudget<'_>,
@@ -1086,9 +1097,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     let later = parts[index + 1..]
                         .iter()
                         .any(|part| matches!(part, ast::TemplatePart::Expr(_)));
-                    if later && !effect_free_string_conversion(&self.program.types[substitution.index()]) {
-                        let prefix =
-                            self.value(unit, region, OperationKind::Template, &operands, ty, None, span)?;
+                    if later
+                        && !effect_free_string_conversion(&self.program.types[substitution.index()])
+                    {
+                        let prefix = self.value(
+                            unit,
+                            region,
+                            OperationKind::Template,
+                            &operands,
+                            ty,
+                            None,
+                            span,
+                        )?;
                         operands.clear();
                         self.budget.push(Scratch, &mut operands, prefix)?;
                     }
@@ -1107,7 +1127,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
             )?
         } else {
-            self.value(unit, region, OperationKind::Template, &operands, ty, origin, span)?
+            self.value(
+                unit,
+                region,
+                OperationKind::Template,
+                &operands,
+                ty,
+                origin,
+                span,
+            )?
         };
         drop_vector(operands, Scratch, self.budget)?;
         Ok(result)
@@ -1214,7 +1242,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
     ) -> Result<ValueId, ConversionError> {
         let place = self.push_place(unit, Place::Cell(cell))?;
         let ty = self.program.cells[cell.index()].ty;
-        self.value(unit, region, OperationKind::Load(place), &[], ty, None, span)
+        self.value(
+            unit,
+            region,
+            OperationKind::Load(place),
+            &[],
+            ty,
+            None,
+            span,
+        )
     }
     /// `for (T element of array)`, including `inline for`, whose unrolling is
     /// an optimization rather than a meaning. The array is evaluated once; each
@@ -1256,7 +1292,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             Type::Array(_) => crate::primitive::Intrinsic::ArrayLength,
             ty => match crate::typed_array::TypedArrayKind::from_type(ty) {
                 Some(kind) => kind.length_intrinsic(),
-                None => return self.unsupported(iterable.span(), "for-of over a non-indexed iterable"),
+                None => {
+                    return self.unsupported(iterable.span(), "for-of over a non-indexed iterable")
+                }
             },
         };
         let int = self.ty(&Type::Int)?;
@@ -1264,11 +1302,30 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let scope = self.region(unit, region, span)?;
         let array = self.expression(unit, scope, iterable)?;
         let array_cell = self.synthetic_cell(unit, scope, element, "$for_of_array", collection)?;
-        self.effect(unit, scope, OperationKind::Initialize(array_cell), &[array], span)?;
+        self.effect(
+            unit,
+            scope,
+            OperationKind::Initialize(array_cell),
+            &[array],
+            span,
+        )?;
         let index_cell = self.synthetic_cell(unit, scope, element, "$for_of_index", int)?;
-        let zero =
-            self.value(unit, scope, OperationKind::Constant(Constant::Integer(0)), &[], int, None, span)?;
-        self.effect(unit, scope, OperationKind::Initialize(index_cell), &[zero], span)?;
+        let zero = self.value(
+            unit,
+            scope,
+            OperationKind::Constant(Constant::Integer(0)),
+            &[],
+            int,
+            None,
+            span,
+        )?;
+        self.effect(
+            unit,
+            scope,
+            OperationKind::Initialize(index_cell),
+            &[zero],
+            span,
+        )?;
 
         let test = self.region(unit, scope, span)?;
         let index = self.load_cell(unit, test, index_cell, span)?;
@@ -1297,17 +1354,44 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let cell = self.declare(unit, iteration, element)?;
         let current = self.load_cell(unit, iteration, array_cell, span)?;
         let index = self.load_cell(unit, iteration, index_cell, span)?;
-        let item = self.push_place(unit, Place::Index { receiver: current, key: index })?;
+        let item = self.push_place(
+            unit,
+            Place::Index {
+                receiver: current,
+                key: index,
+            },
+        )?;
         let item_type = self.program.cells[cell.index()].ty;
-        let item = self.value(unit, iteration, OperationKind::Load(item), &[], item_type, None, span)?;
+        let item = self.value(
+            unit,
+            iteration,
+            OperationKind::Load(item),
+            &[],
+            item_type,
+            None,
+            span,
+        )?;
         let item = self.copy_value(unit, iteration, item, span)?;
-        self.effect(unit, iteration, OperationKind::Initialize(cell), &[item], span)?;
+        self.effect(
+            unit,
+            iteration,
+            OperationKind::Initialize(cell),
+            &[item],
+            span,
+        )?;
         self.statement(unit, iteration, body)?;
 
         let update = self.region(unit, scope, span)?;
         let index = self.load_cell(unit, update, index_cell, span)?;
-        let one =
-            self.value(unit, update, OperationKind::Constant(Constant::Integer(1)), &[], int, None, span)?;
+        let one = self.value(
+            unit,
+            update,
+            OperationKind::Constant(Constant::Integer(1)),
+            &[],
+            int,
+            None,
+            span,
+        )?;
         let next = self.value(
             unit,
             update,
@@ -1448,7 +1532,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let constructor = self.load_cell(unit, region, init.cell, span)?;
         let mut values = self.host_arguments(unit, region, arguments, parameters, span)?;
         values.insert(0, constructor);
-        self.value(unit, region, OperationKind::ConstructClass, &values, ty, origin, span)
+        self.value(
+            unit,
+            region,
+            OperationKind::ConstructClass,
+            &values,
+            ty,
+            origin,
+            span,
+        )
     }
     fn class_info(&self, name: &str, span: Span) -> Result<&'sem ClassInfo<'src>, ConversionError> {
         self.semantics.class_info(name).ok_or_else(|| {
@@ -1520,7 +1612,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     _ => None,
                 });
                 let Some(declaration) = declaration else {
-                    return self.unsupported(binding.local.span, "foreign import without extern value");
+                    return self
+                        .unsupported(binding.local.span, "foreign import without extern value");
                 };
                 let cell = self.cell(declaration)?;
                 let source = self.budget.string(Retained, specifier)?;
@@ -1646,8 +1739,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         )?;
         // A class with a host ancestor stays a real subclass: its `init` is
         // the JavaScript constructor, which `super(...)` must reach.
-        let class_index = u32::try_from(self.program.classes.len() - 1)
-            .map_err(|_| AllocationError::Capacity)?;
+        let class_index =
+            u32::try_from(self.program.classes.len() - 1).map_err(|_| AllocationError::Capacity)?;
         let host = self.host_derived(declaration.name.name, span)?;
         if host
             && !declaration
@@ -1672,7 +1765,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     if !method.type_params.is_empty() {
                         return self.unsupported(function.span, "generic method conversion");
                     }
-                    (Some(function.name.name), function.name.span, method.signature.clone())
+                    (
+                        Some(function.name.name),
+                        function.name.span,
+                        method.signature.clone(),
+                    )
                 }
                 ast::ClassMember::Constructor(constructor) => {
                     let signature = info.constructor.clone().ok_or(Unsupported {
@@ -1687,7 +1784,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span: this_span,
             };
             let this_cell = self.cell(this)?;
-            let receiver = self.program.types[self.program.cells[this_cell.index()].ty.index()].clone();
+            let receiver =
+                self.program.types[self.program.cells[this_cell.index()].ty.index()].clone();
             let mut params = Vec::with_capacity(signature.params.len() + 1);
             params.push(crate::check::FunctionParameter::value(receiver));
             params.extend(signature.params.iter().cloned());
@@ -1782,13 +1880,29 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span: this_span,
             };
             let this_cell = self.cell(this)?;
-            let outer = self.current_class.replace((declaration.name.name, this_cell));
+            let outer = self
+                .current_class
+                .replace((declaration.name.name, this_cell));
             self.parameters_with_receiver(method.unit, Some(this), params)?;
             self.statements(method.unit, RegionId::from_index(0).unwrap(), body)?;
             self.current_class = outer;
             let ty = self.program.cells[method.cell.index()].ty;
-            let value = self.value(root, region, OperationKind::Closure(method.unit), &[], ty, None, span)?;
-            self.effect(root, region, OperationKind::Initialize(method.cell), &[value], span)?;
+            let value = self.value(
+                root,
+                region,
+                OperationKind::Closure(method.unit),
+                &[],
+                ty,
+                None,
+                span,
+            )?;
+            self.effect(
+                root,
+                region,
+                OperationKind::Initialize(method.cell),
+                &[value],
+                span,
+            )?;
         }
         Ok(())
     }
@@ -1860,7 +1974,14 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     None,
                     span,
                 )?;
-                return self.construct_builtin(unit, region, kind.new_intrinsic(), Some(zero), ty, span);
+                return self.construct_builtin(
+                    unit,
+                    region,
+                    kind.new_intrinsic(),
+                    Some(zero),
+                    ty,
+                    span,
+                );
             }
             Type::Nullable(_) | Type::TypeParameter("$js") | Type::Null => Constant::Null,
             // Legacy leaves a non-nullable class, struct or callable field
@@ -1879,7 +2000,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 );
             }
         };
-        self.value(unit, region, OperationKind::Constant(constant), &[], ty, None, span)
+        self.value(
+            unit,
+            region,
+            OperationKind::Constant(constant),
+            &[],
+            ty,
+            None,
+            span,
+        )
     }
     fn construct_builtin(
         &mut self,
@@ -1922,7 +2051,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         span: Span,
     ) -> Result<ValueId, ConversionError> {
         self.work(self.program.classes.len())?;
-        let Some(definition) = self.program.classes.iter().position(|definition| definition.name == class) else {
+        let Some(definition) = self
+            .program
+            .classes
+            .iter()
+            .position(|definition| definition.name == class)
+        else {
             return self.unsupported(span, "construction of an unconverted class");
         };
         let fields = self.program.classes[definition].fields.len();
@@ -1970,19 +2104,21 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         let value = self.copy_value(unit, region, value, argument.span)?;
                         self.budget.push(Scratch, &mut values, value)?;
                     }
-                    let instance =
-                        self.construct_class_values(unit, region, class, &values, ty, origin, span)?;
+                    let instance = self
+                        .construct_class_values(unit, region, class, &values, ty, origin, span)?;
                     drop_vector(values, Scratch, self.budget)?;
                     return Ok(instance);
                 }
                 // A reference argument is a place the prepared call owns; the
                 // instance is created inside that call, after the arguments.
                 let receiver = CallReceiver::Construction { class, ty, origin };
-                let (_, instance) =
-                    self.call_class_function_with(unit, region, init, receiver, ty, arguments, span)?;
+                let (_, instance) = self
+                    .call_class_function_with(unit, region, init, receiver, ty, arguments, span)?;
                 Ok(instance)
             }
-            None if arguments.is_empty() => self.class_instance(unit, region, class, ty, origin, span),
+            None if arguments.is_empty() => {
+                self.class_instance(unit, region, class, ty, origin, span)
+            }
             None => self.unsupported(span, "arguments to a class without init"),
         }
     }
@@ -2007,7 +2143,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let mut values = Vec::with_capacity(arguments.len() + 1);
             values.push(constructor);
             values.extend_from_slice(arguments);
-            return self.value(unit, region, OperationKind::ConstructClass, &values, ty, origin, span);
+            return self.value(
+                unit,
+                region,
+                OperationKind::ConstructClass,
+                &values,
+                ty,
+                origin,
+                span,
+            );
         }
         let instance = self.class_instance(unit, region, class, ty, origin, span)?;
         match self.inherited_init(class, span)? {
@@ -2075,7 +2219,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let (base, base_arguments) = match &info.base {
                 Some(Type::ClassInstance { name, args }) => (*name, args.clone()),
                 Some(Type::Class(name)) => (*name, Vec::new()),
-                _ => return self.unsupported(span, "generic class body on another class's receiver"),
+                _ => {
+                    return self.unsupported(span, "generic class body on another class's receiver")
+                }
             };
             let parameters = info.type_params.clone();
             let mut substituted = Vec::with_capacity(base_arguments.len());
@@ -2118,11 +2264,12 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let argument = self.ty(argument)?;
             self.budget.push(Retained, &mut ids, argument)?;
         }
-        let id = CallInstantiationId::from_index(self.units[unit.index()].call_instantiations.len())
-            .ok_or(Unsupported {
-                span,
-                feature: "generic call instance capacity",
-            })?;
+        let id =
+            CallInstantiationId::from_index(self.units[unit.index()].call_instantiations.len())
+                .ok_or(Unsupported {
+                    span,
+                    feature: "generic call instance capacity",
+                })?;
         self.budget.push(
             Retained,
             &mut self.units[unit.index()].call_instantiations,
@@ -2214,7 +2361,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         )?;
         let value = self.value(unit, region, kind, &operands, result, None, span)?;
         drop_vector(operands, Scratch, self.budget)?;
-        Ok((value, receiver.expect("a class function call has a receiver")))
+        Ok((
+            value,
+            receiver.expect("a class function call has a receiver"),
+        ))
     }
     fn declare(
         &mut self,
@@ -2419,7 +2569,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let offset = usize::from(receiver.is_some());
         if let Some(receiver) = receiver {
             let cell = self.declare(unit, RegionId::from_index(0).unwrap(), receiver)?;
-            building_table(&mut self.program.cells)[cell.index()].binding = CellBinding::Parameter(0);
+            building_table(&mut self.program.cells)[cell.index()].binding =
+                CellBinding::Parameter(0);
             self.budget
                 .push(Retained, &mut self.units[unit.index()].parameters, cell)?;
         }
@@ -2454,7 +2605,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     feature: "parameter default without a checked signature",
                 })?;
             let Some(default) = signature.params[position].default.clone() else {
-                return self.unsupported(parameter.span, "parameter default lost its checked value");
+                return self
+                    .unsupported(parameter.span, "parameter default lost its checked value");
             };
             if matches!(default, crate::check::DefaultValue::Undefined) {
                 // Absence already is `undefined`; there is nothing to apply.
@@ -2480,10 +2632,18 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     let earlier = self.units[unit.index()].parameters[earlier + offset];
                     self.load_cell(unit, yes, earlier, parameter.span)?
                 }
-                default => self.default_value(unit, yes, &default, ty, &[], true, parameter.span)?,
+                default => {
+                    self.default_value(unit, yes, &default, ty, &[], true, parameter.span)?
+                }
             };
             let target = self.push_place(unit, Place::Cell(cell))?;
-            self.effect(unit, yes, OperationKind::Store(target), &[value], parameter.span)?;
+            self.effect(
+                unit,
+                yes,
+                OperationKind::Store(target),
+                &[value],
+                parameter.span,
+            )?;
             self.effect(
                 unit,
                 entry,
@@ -2585,7 +2745,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     unit,
                     region,
                     CallTarget::Intrinsic {
-                        operation: ResolvedIntrinsic::Method(crate::primitive::Intrinsic::ArraySlice),
+                        operation: ResolvedIntrinsic::Method(
+                            crate::primitive::Intrinsic::ArraySlice,
+                        ),
                         receiver: Some(source),
                     },
                     contract,
@@ -2596,8 +2758,22 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 drop_vector(operands, Scratch, self.budget)?;
                 rest
             } else {
-                let place = self.push_place(unit, Place::Index { receiver: source, key: index })?;
-                self.value(unit, region, OperationKind::Load(place), &[], ty, None, span)?
+                let place = self.push_place(
+                    unit,
+                    Place::Index {
+                        receiver: source,
+                        key: index,
+                    },
+                )?;
+                self.value(
+                    unit,
+                    region,
+                    OperationKind::Load(place),
+                    &[],
+                    ty,
+                    None,
+                    span,
+                )?
             };
             let item = self.copy_value(unit, region, item, span)?;
             self.effect(unit, region, OperationKind::Initialize(cell), &[item], span)?;
@@ -2624,14 +2800,38 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         let mut keys = self.budget.vector(Scratch, bindings.len())?;
         for binding in bindings {
             self.work(1)?;
-            let key = self.decoded_string(binding.key.name, binding.key.span, "invalid record binding key")?;
+            let key = self.decoded_string(
+                binding.key.name,
+                binding.key.span,
+                "invalid record binding key",
+            )?;
             self.budget.push(Scratch, &mut keys, key)?;
             let cell = self.declare(unit, region, binding.name)?;
             let ty = self.program.cells[cell.index()].ty;
-            let place = self.push_place(unit, Place::Member { receiver: source, key })?;
-            let item = self.value(unit, region, OperationKind::Load(place), &[], ty, None, binding.span)?;
+            let place = self.push_place(
+                unit,
+                Place::Member {
+                    receiver: source,
+                    key,
+                },
+            )?;
+            let item = self.value(
+                unit,
+                region,
+                OperationKind::Load(place),
+                &[],
+                ty,
+                None,
+                binding.span,
+            )?;
             let item = self.copy_value(unit, region, item, binding.span)?;
-            self.effect(unit, region, OperationKind::Initialize(cell), &[item], binding.span)?;
+            self.effect(
+                unit,
+                region,
+                OperationKind::Initialize(cell),
+                &[item],
+                binding.span,
+            )?;
         }
         if let Some(name) = rest {
             let cell = self.declare(unit, region, name)?;
@@ -2668,12 +2868,41 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     span,
                 )?;
                 let inner = self.region(unit, body, span)?;
-                self.effect(unit, body, OperationKind::If { yes: inner, no: None }, &[other], span)?;
+                self.effect(
+                    unit,
+                    body,
+                    OperationKind::If {
+                        yes: inner,
+                        no: None,
+                    },
+                    &[other],
+                    span,
+                )?;
                 body = inner;
             }
-            let from = self.push_place(unit, Place::Index { receiver: source, key })?;
-            let item = self.value(unit, body, OperationKind::Load(from), &[], present, None, span)?;
-            let to = self.push_place(unit, Place::Index { receiver: record, key })?;
+            let from = self.push_place(
+                unit,
+                Place::Index {
+                    receiver: source,
+                    key,
+                },
+            )?;
+            let item = self.value(
+                unit,
+                body,
+                OperationKind::Load(from),
+                &[],
+                present,
+                None,
+                span,
+            )?;
+            let to = self.push_place(
+                unit,
+                Place::Index {
+                    receiver: record,
+                    key,
+                },
+            )?;
             self.effect(unit, body, OperationKind::Store(to), &[item], span)?;
             self.effect(
                 unit,
@@ -2686,7 +2915,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 span,
             )?;
             let record = self.copy_value(unit, region, record, span)?;
-            self.effect(unit, region, OperationKind::Initialize(cell), &[record], span)?;
+            self.effect(
+                unit,
+                region,
+                OperationKind::Initialize(cell),
+                &[record],
+                span,
+            )?;
         }
         drop_vector(keys, Scratch, self.budget)?;
         Ok(())
@@ -2734,7 +2969,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             },
         };
         let place = self.push_place(unit, place)?;
-        self.value(unit, region, OperationKind::Load(place), &[], ty, Some(expr.id), span)
+        self.value(
+            unit,
+            region,
+            OperationKind::Load(place),
+            &[],
+            ty,
+            Some(expr.id),
+            span,
+        )
     }
     /// The remaining arms of a `match` as one value region.
     fn match_region(
@@ -2787,15 +3030,17 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     feature: "enum discriminant outside int",
                 })?)
             }
-            ast::MatchPattern::Int(value, _) => Constant::Integer(i32::try_from(value).map_err(|_| {
-                Unsupported {
+            ast::MatchPattern::Int(value, _) => {
+                Constant::Integer(i32::try_from(value).map_err(|_| Unsupported {
                     span,
                     feature: "integer pattern outside int",
-                }
-            })?),
-            ast::MatchPattern::String(value, _) => {
-                Constant::String(self.decoded_string(value, span, "invalid match string pattern")?)
+                })?)
             }
+            ast::MatchPattern::String(value, _) => Constant::String(self.decoded_string(
+                value,
+                span,
+                "invalid match string pattern",
+            )?),
             ast::MatchPattern::Bool(value, _) => Constant::Boolean(value),
             ast::MatchPattern::Wildcard(_) => {
                 return self.unsupported(span, "match wildcard before the last arm")
@@ -3282,8 +3527,11 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         )?;
         let id = PlaceId::from_index(self.units[unit.index()].places.len())
             .ok_or(AllocationError::Capacity)?;
-        self.budget
-            .push(Retained, &mut self.units[unit.index()].places, Place::Value(value))?;
+        self.budget.push(
+            Retained,
+            &mut self.units[unit.index()].places,
+            Place::Value(value),
+        )?;
         Ok(id)
     }
 
@@ -3439,8 +3687,16 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             // `a?.m` and `a?.[i]`: the receiver is evaluated once; when it is
             // present the access reads the narrowed receiver (the index only
             // then), and otherwise the result is null.
-            ExprKind::OptionalMember { object, span: access, .. }
-            | ExprKind::OptionalIndex { object, span: access, .. } => {
+            ExprKind::OptionalMember {
+                object,
+                span: access,
+                ..
+            }
+            | ExprKind::OptionalIndex {
+                object,
+                span: access,
+                ..
+            } => {
                 let receiver = self.expression(unit, region, object)?;
                 let optional = self.units[unit.index()].values[receiver.index()].ty;
                 let Type::Nullable(inner) = self.program.types[optional.index()].clone() else {
@@ -3493,8 +3749,22 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                     }
                     ExprKind::OptionalIndex { index, .. } => {
                         let key = self.expression(unit, yes, index)?;
-                        let place = self.push_place(unit, Place::Index { receiver: narrowed, key })?;
-                        self.value(unit, yes, OperationKind::Load(place), &[], present, None, span)?
+                        let place = self.push_place(
+                            unit,
+                            Place::Index {
+                                receiver: narrowed,
+                                key,
+                            },
+                        )?;
+                        self.value(
+                            unit,
+                            yes,
+                            OperationKind::Load(place),
+                            &[],
+                            present,
+                            None,
+                            span,
+                        )?
                     }
                     _ => unreachable!(),
                 };
@@ -3691,7 +3961,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         if let Some(found) = self.class_method(method.owner, Some(name))? {
                             // Static dispatch: the checker rejects overriding.
                             let receiver = self.expression(unit, region, object)?;
-                            return self.call_class_function(unit, region, found, receiver, args, span);
+                            return self
+                                .call_class_function(unit, region, found, receiver, args, span);
                         }
                     }
                 }
@@ -3715,7 +3986,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                         ExprKind::Member { .. } | ExprKind::Index { .. }
                     ) {
                         let place = self.place(unit, region, callee)?;
-                        if matches!(self.units[unit.index()].places[place.index()], Place::Field { .. }) {
+                        if matches!(
+                            self.units[unit.index()].places[place.index()],
+                            Place::Field { .. }
+                        ) {
                             // A function held in a value struct has no
                             // receiver: `s.f(x)` calls the loaded value, so
                             // the callee never sees the struct as `this`.
@@ -3894,7 +4168,9 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 let spread = elements
                     .iter()
                     .any(|element| matches!(element, ArrayElement::Spread { .. }));
-                let mut flags = self.budget.vector(Retained, if spread { elements.len() } else { 0 })?;
+                let mut flags = self
+                    .budget
+                    .vector(Retained, if spread { elements.len() } else { 0 })?;
                 for element in *elements {
                     let (value, spreads) = match element {
                         ArrayElement::Value(value) => (value, false),
@@ -3964,9 +4240,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 return self.template(unit, region, parts, ty, origin, span);
             }
             ExprKind::TypeCheck {
-                value,
-                span: check,
-                ..
+                value, span: check, ..
             } => {
                 let target = self.semantics.type_check_type(*check).ok_or(Unsupported {
                     span,
@@ -3981,7 +4255,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
             ExprKind::Await { task, .. } => {
                 let task = self.expression(unit, region, task)?;
-                (OperationKind::Await, self.budget.copy_slice(Scratch, &[task])?)
+                (
+                    OperationKind::Await,
+                    self.budget.copy_slice(Scratch, &[task])?,
+                )
             }
             _ => return self.unsupported(span, "expression conversion"),
         };
@@ -4013,8 +4290,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
         arguments: &'ast [ast::Argument<'ast, 'src>],
         preparation: Span,
     ) -> Result<(OperationKind, Vec<ValueId>), ConversionError> {
-        let (kind, operands, _) =
-            self.prepare_call_with_receiver(unit, region, target, contract, None, arguments, preparation)?;
+        let (kind, operands, _) = self.prepare_call_with_receiver(
+            unit,
+            region,
+            target,
+            contract,
+            None,
+            arguments,
+            preparation,
+        )?;
         Ok((kind, operands))
     }
     /// A call whose operands are values the caller already evaluated, in order.
@@ -4040,7 +4324,13 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 arguments: ArgumentRange { start: 0, len: 0 },
             },
         )?;
-        self.effect(unit, region, OperationKind::PrepareCall(call), &[], preparation)?;
+        self.effect(
+            unit,
+            region,
+            OperationKind::PrepareCall(call),
+            &[],
+            preparation,
+        )?;
         let mut arguments = self.budget.vector(Scratch, values.len())?;
         for &value in values {
             self.budget
@@ -4210,7 +4500,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
             let ty = self.ty(&signature.params[position].ty)?;
             let value = self.default_value(unit, region, default, ty, values, false, span)?;
-            self.budget.push(Scratch, values, CallArgument::Value(value))?;
+            self.budget
+                .push(Scratch, values, CallArgument::Value(value))?;
         }
         Ok(())
     }
@@ -4234,13 +4525,19 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 return self.unsupported(span, "arrow default evaluated by a caller");
             }
             DefaultValue::Arrow(source) => {
-                let expression = self.semantics.source_expression(*source).ok_or(Unsupported {
-                    span,
-                    feature: "missing checked arrow default",
-                })?;
+                let expression = self
+                    .semantics
+                    .source_expression(*source)
+                    .ok_or(Unsupported {
+                        span,
+                        feature: "missing checked arrow default",
+                    })?;
                 return self.expression(unit, region, expression);
             }
-            DefaultValue::Struct { name, values: fields } => {
+            DefaultValue::Struct {
+                name,
+                values: fields,
+            } => {
                 let identity = self
                     .semantics
                     .struct_info(name)
@@ -4265,7 +4562,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 let mut operands = self.budget.vector(Scratch, fields.len())?;
                 for (offset, field) in fields.iter().enumerate() {
                     let field_ty = self.program.fields[range.start + offset].ty;
-                    let value = self.default_value(unit, region, field, field_ty, values, callee, span)?;
+                    let value =
+                        self.default_value(unit, region, field, field_ty, values, callee, span)?;
                     self.budget.push(Scratch, &mut operands, value)?;
                 }
                 let kind = self.allocation(unit, AllocationKind::Struct(identity))?;
@@ -4289,22 +4587,24 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                             feature: "constructor default without a checked parameter",
                         })?;
                     let parameter = self.ty(&parameter)?;
-                    let value = self.default_value(unit, region, argument, parameter, values, callee, span)?;
+                    let value = self
+                        .default_value(unit, region, argument, parameter, values, callee, span)?;
                     self.budget.push(Scratch, &mut operands, value)?;
                 }
-                let result = self.construct_class_values(unit, region, name, &operands, ty, None, span)?;
+                let result =
+                    self.construct_class_values(unit, region, name, &operands, ty, None, span)?;
                 drop_vector(operands, Scratch, self.budget)?;
                 return Ok(result);
             }
             DefaultValue::Int(value) if matches!(self.program.types[ty.index()], Type::Float) => {
                 Constant::Number((*value as f64).to_bits())
             }
-            DefaultValue::Int(value) => Constant::Integer(i32::try_from(*value).map_err(|_| {
-                Unsupported {
+            DefaultValue::Int(value) => {
+                Constant::Integer(i32::try_from(*value).map_err(|_| Unsupported {
                     span,
                     feature: "integer default outside the language domain",
-                }
-            })?),
+                })?)
+            }
             DefaultValue::Float(bits) => Constant::Number(*bits),
             DefaultValue::String(text) => Constant::String(self.decoded_string(
                 text,
@@ -4321,7 +4621,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 return self.copy_value(unit, region, *value, span);
             }
             DefaultValue::Symbol(symbol) => {
-                let cell = CellId::from_index(symbol.0 as usize).ok_or(AllocationError::Capacity)?;
+                let cell =
+                    CellId::from_index(symbol.0 as usize).ok_or(AllocationError::Capacity)?;
                 self.reference(unit, cell)?;
                 let value = self.load_cell(unit, region, cell, span)?;
                 return self.copy_value(unit, region, value, span);
@@ -4333,7 +4634,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 };
                 let mut items = self.budget.vector(Scratch, elements.len())?;
                 for item in elements {
-                    let value = self.default_value(unit, region, item, element, values, callee, span)?;
+                    let value =
+                        self.default_value(unit, region, item, element, values, callee, span)?;
                     self.budget.push(Scratch, &mut items, value)?;
                 }
                 let kind = self.allocation(unit, AllocationKind::Array)?;
@@ -4343,7 +4645,15 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             }
             _ => return self.unsupported(span, "unresolved checked default"),
         };
-        self.value(unit, region, OperationKind::Constant(constant), &[], ty, None, span)
+        self.value(
+            unit,
+            region,
+            OperationKind::Constant(constant),
+            &[],
+            ty,
+            None,
+            span,
+        )
     }
     fn allocation(
         &mut self,

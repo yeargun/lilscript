@@ -5,13 +5,13 @@ use super::*;
 use crate::compilation_policy::{
     AdmissionError, BaselineSeal, CandidateCostEvidence, CodecSchedule, OptimizationObjective,
 };
+use crate::js::selection::{Objective, Objectives, Plan, Sizes, Style};
 use crate::output_budget::{AllocationClass::Retained, RetainedCharge};
 use crate::program::artifact_provenance::ProvenanceError;
 use crate::program::implementation_identity::{
     ImplementationDescription, SharedImplementationIdentity,
 };
 use crate::program::search_opportunities::{Inventory, OpportunityView};
-use crate::js::selection::{Objective, Objectives, Plan, Sizes, Style};
 use std::cmp::Ordering;
 
 #[path = "search_selection.rs"]
@@ -704,8 +704,8 @@ impl JavaScriptSearch<'_, '_> {
                     })
                     .checked_sub(before_render)
                     .expect("one monotonic render-work owner");
-                let (raw, capacity) =
-                    output.with_artifact(artifact, |view| (view.sizes.raw, view.retained_capacity))?;
+                let (raw, capacity) = output
+                    .with_artifact(artifact, |view| (view.sizes.raw, view.retained_capacity))?;
                 if capacity > available {
                     return Err(SearchError::Limit(SearchLimit::ArtifactBytes));
                 }
@@ -910,8 +910,7 @@ impl JavaScriptSearch<'_, '_> {
                 .structural_attempts
                 .checked_add(1)
                 .ok_or(AllocationError::Capacity)?;
-            self.states[parent].as_mut().unwrap().last_served =
-                self.counters.structural_attempts;
+            self.states[parent].as_mut().unwrap().last_served = self.counters.structural_attempts;
             let base = self.states[parent].as_ref().unwrap().candidate;
             let step = self.states[parent].as_ref().unwrap().next;
             self.states[parent].as_mut().unwrap().next += 1;
@@ -1021,9 +1020,7 @@ impl JavaScriptSearch<'_, '_> {
         let direct = self.states[0].as_ref().unwrap().candidate;
         let result = (|| -> Result<Seed, CandidateError> {
             Ok(
-                match Self::opportunity(self.inventory.as_ref().unwrap(), step)
-                    .unwrap()
-                {
+                match Self::opportunity(self.inventory.as_ref().unwrap(), step).unwrap() {
                     OpportunityView::Scalar(cell) => match self
                         .compilation
                         .scalar_javascript(
@@ -1169,9 +1166,7 @@ impl JavaScriptSearch<'_, '_> {
         candidate: CandidateId,
     ) -> Result<(), SearchError> {
         let inventory = self.inventory.as_ref().unwrap();
-        let Some(OpportunityView::Product(cell)) =
-            Self::opportunity(inventory, step)
-        else {
+        let Some(OpportunityView::Product(cell)) = Self::opportunity(inventory, step) else {
             unreachable!("product reuse follows a product opportunity");
         };
         let slot = self.compilation.candidate_slot(candidate)?;

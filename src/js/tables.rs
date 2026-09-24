@@ -38,7 +38,11 @@ impl Module {
             return Ok(0);
         }
         let mut tables = Vec::new();
-        for (index, statement) in self.regions[self.root.index()].statements.iter().enumerate() {
+        for (index, statement) in self.regions[self.root.index()]
+            .statements
+            .iter()
+            .enumerate()
+        {
             budget.work(Analysis, 1)?;
             let Statement::Let {
                 value: Some(value), ..
@@ -56,9 +60,14 @@ impl Module {
         let decoder = self.table_decoder(budget)?;
         let count = tables.len();
         for (index, (keys, values, separator)) in tables {
-            let mut literal = |text: String, module: &mut Self, budget: &mut AllocationBudget<'_>| {
-                module.expression_in(Expr::Literal(Literal::String(StringValue::from(text.as_str()))), None, budget)
-            };
+            let mut literal =
+                |text: String, module: &mut Self, budget: &mut AllocationBudget<'_>| {
+                    module.expression_in(
+                        Expr::Literal(Literal::String(StringValue::from(text.as_str()))),
+                        None,
+                        budget,
+                    )
+                };
             let keys = literal(keys, self, budget)?;
             let values = literal(values, self, budget)?;
             let separator = literal(separator.to_string(), self, budget)?;
@@ -73,7 +82,9 @@ impl Module {
                 budget,
             )?;
             // The decoder was declared ahead of the root: one statement later.
-            if let Statement::Let { value, .. } = &mut self.regions[self.root.index()].statements[index + 1] {
+            if let Statement::Let { value, .. } =
+                &mut self.regions[self.root.index()].statements[index + 1]
+            {
                 *value = Some(call);
             }
         }
@@ -119,10 +130,11 @@ impl Module {
             };
             pairs.push((key, text));
         }
-        let Some(separator) = SEPARATORS
-            .into_iter()
-            .find(|&separator| pairs.iter().all(|(key, value)| !key.contains(separator) && !value.contains(separator)))
-        else {
+        let Some(separator) = SEPARATORS.into_iter().find(|&separator| {
+            pairs
+                .iter()
+                .all(|(key, value)| !key.contains(separator) && !value.contains(separator))
+        }) else {
             return Ok(None);
         };
         let mut keys = String::new();
@@ -157,9 +169,15 @@ impl Module {
 
     /// Declare the shared decoder at the start of the root; returns its
     /// binding.
-    fn table_decoder(&mut self, budget: &mut AllocationBudget<'_>) -> Result<BindingId, AllocationError> {
+    fn table_decoder(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<BindingId, AllocationError> {
         let root_scope = self.regions[self.root.index()].scope;
-        let mut binding = |module: &mut Self, scope: ScopeId, spelling: &str, budget: &mut AllocationBudget<'_>| {
+        let mut binding = |module: &mut Self,
+                           scope: ScopeId,
+                           spelling: &str,
+                           budget: &mut AllocationBudget<'_>| {
             module.binding_in(
                 Binding {
                     source_symbol: None,
@@ -184,10 +202,20 @@ impl Module {
         };
         let named = |name: &str| Property::Named(name.into());
         // k=k.split(s); v=v.split(s)
-        let mut split = |module: &mut Self, list: BindingId, budget: &mut AllocationBudget<'_>| -> Result<Statement, AllocationError> {
+        let mut split = |module: &mut Self,
+                         list: BindingId,
+                         budget: &mut AllocationBudget<'_>|
+         -> Result<Statement, AllocationError> {
             let target = node(module, Expr::Binding(list), budget)?;
             let object = node(module, Expr::Binding(list), budget)?;
-            let callee = node(module, Expr::Member { object, property: named("split") }, budget)?;
+            let callee = node(
+                module,
+                Expr::Member {
+                    object,
+                    property: named("split"),
+                },
+                budget,
+            )?;
             let argument = node(module, Expr::Binding(separator), budget)?;
             let call = node(
                 module,
@@ -198,13 +226,24 @@ impl Module {
                 },
                 budget,
             )?;
-            let assign = node(module, Expr::Assign { target, value: call }, budget)?;
+            let assign = node(
+                module,
+                Expr::Assign {
+                    target,
+                    value: call,
+                },
+                budget,
+            )?;
             Ok(Statement::Evaluate(assign))
         };
         let split_keys = split(self, keys, budget)?;
         let split_values = split(self, values, budget)?;
         let empty_object = node(self, Expr::Object(vec![]), budget)?;
-        let empty_string = node(self, Expr::Literal(Literal::String(StringValue::from(""))), budget)?;
+        let empty_string = node(
+            self,
+            Expr::Literal(Literal::String(StringValue::from(""))),
+            budget,
+        )?;
         let zero = node(self, Expr::Literal(Literal::Number(0.0)), budget)?;
         // for(let e of k){…}
         let loop_body = self.region_in(scope, budget)?;
@@ -213,7 +252,14 @@ impl Module {
         // p=p.slice(0,+e[0])+e.slice(1)
         let head = {
             let object = node(self, Expr::Binding(prefix), budget)?;
-            let callee = node(self, Expr::Member { object, property: named("slice") }, budget)?;
+            let callee = node(
+                self,
+                Expr::Member {
+                    object,
+                    property: named("slice"),
+                },
+                budget,
+            )?;
             let start = node(self, Expr::Literal(Literal::Number(0.0)), budget)?;
             let digit_object = node(self, Expr::Binding(entry), budget)?;
             let digit_index = node(self, Expr::Literal(Literal::Number(0.0)), budget)?;
@@ -225,7 +271,14 @@ impl Module {
                 },
                 budget,
             )?;
-            let length = node(self, Expr::Unary { op: Unary::Plus, value: digit }, budget)?;
+            let length = node(
+                self,
+                Expr::Unary {
+                    op: Unary::Plus,
+                    value: digit,
+                },
+                budget,
+            )?;
             node(
                 self,
                 Expr::Call {
@@ -238,7 +291,14 @@ impl Module {
         };
         let tail = {
             let object = node(self, Expr::Binding(entry), budget)?;
-            let callee = node(self, Expr::Member { object, property: named("slice") }, budget)?;
+            let callee = node(
+                self,
+                Expr::Member {
+                    object,
+                    property: named("slice"),
+                },
+                budget,
+            )?;
             let one = node(self, Expr::Literal(Literal::Number(1.0)), budget)?;
             node(
                 self,
@@ -250,17 +310,46 @@ impl Module {
                 budget,
             )?
         };
-        let joined = node(self, Expr::Binary { op: Binary::Add, left: head, right: tail }, budget)?;
+        let joined = node(
+            self,
+            Expr::Binary {
+                op: Binary::Add,
+                left: head,
+                right: tail,
+            },
+            budget,
+        )?;
         let prefix_target = node(self, Expr::Binding(prefix), budget)?;
-        let rebuild = node(self, Expr::Assign { target: prefix_target, value: joined }, budget)?;
+        let rebuild = node(
+            self,
+            Expr::Assign {
+                target: prefix_target,
+                value: joined,
+            },
+            budget,
+        )?;
         // o[p]=v[i]
         let store = {
             let table = node(self, Expr::Binding(object), budget)?;
             let key = node(self, Expr::Binding(prefix), budget)?;
-            let target = node(self, Expr::Member { object: table, property: Property::Computed(key) }, budget)?;
+            let target = node(
+                self,
+                Expr::Member {
+                    object: table,
+                    property: Property::Computed(key),
+                },
+                budget,
+            )?;
             let list = node(self, Expr::Binding(values), budget)?;
             let position = node(self, Expr::Binding(index), budget)?;
-            let value = node(self, Expr::Member { object: list, property: Property::Computed(position) }, budget)?;
+            let value = node(
+                self,
+                Expr::Member {
+                    object: list,
+                    property: Property::Computed(position),
+                },
+                budget,
+            )?;
             node(self, Expr::Assign { target, value }, budget)?
         };
         // i=i+1
@@ -268,8 +357,23 @@ impl Module {
             let target = node(self, Expr::Binding(index), budget)?;
             let current = node(self, Expr::Binding(index), budget)?;
             let one = node(self, Expr::Literal(Literal::Number(1.0)), budget)?;
-            let next = node(self, Expr::Binary { op: Binary::Add, left: current, right: one }, budget)?;
-            node(self, Expr::Assign { target, value: next }, budget)?
+            let next = node(
+                self,
+                Expr::Binary {
+                    op: Binary::Add,
+                    left: current,
+                    right: one,
+                },
+                budget,
+            )?;
+            node(
+                self,
+                Expr::Assign {
+                    target,
+                    value: next,
+                },
+                budget,
+            )?
         };
         self.regions[loop_body.index()].statements = vec![
             Statement::Evaluate(rebuild),
@@ -281,9 +385,18 @@ impl Module {
         self.regions[body.index()].statements = vec![
             split_keys,
             split_values,
-            Statement::Let { binding: object, value: Some(empty_object) },
-            Statement::Let { binding: prefix, value: Some(empty_string) },
-            Statement::Let { binding: index, value: Some(zero) },
+            Statement::Let {
+                binding: object,
+                value: Some(empty_object),
+            },
+            Statement::Let {
+                binding: prefix,
+                value: Some(empty_string),
+            },
+            Statement::Let {
+                binding: index,
+                value: Some(zero),
+            },
             Statement::ForOf {
                 binding: entry,
                 iterable,
@@ -291,7 +404,8 @@ impl Module {
             },
             Statement::Return(Some(result)),
         ];
-        let function = FunctionId::try_new(self.functions.len()).ok_or(AllocationError::Capacity)?;
+        let function =
+            FunctionId::try_new(self.functions.len()).ok_or(AllocationError::Capacity)?;
         budget.push(
             AllocationClass::Retained,
             &mut self.functions,
@@ -306,10 +420,18 @@ impl Module {
             },
         )?;
         let root = self.root.index();
-        budget.reserve_vec(AllocationClass::Retained, &mut self.regions[root].statements, 1)?;
-        self.regions[root]
-            .statements
-            .insert(0, Statement::Function { binding: decoder, function });
+        budget.reserve_vec(
+            AllocationClass::Retained,
+            &mut self.regions[root].statements,
+            1,
+        )?;
+        self.regions[root].statements.insert(
+            0,
+            Statement::Function {
+                binding: decoder,
+                function,
+            },
+        );
         if let Some(&first) = self.root_modules.first() {
             budget.reserve_vec(AllocationClass::Retained, &mut self.root_modules, 1)?;
             self.root_modules.insert(0, first);

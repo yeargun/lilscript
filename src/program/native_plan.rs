@@ -113,7 +113,9 @@ impl NativeType {
             | Self::Symbol
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_retain({value});\n")),
-            Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_retain({value});\n")),
+            Self::Dynamic(Tagged { owns: true, .. }) => {
+                Some(format!("ls_value_retain({value});\n"))
+            }
             _ => None,
         }
     }
@@ -128,7 +130,9 @@ impl NativeType {
             | Self::Symbol
             | Self::Buffer
             | Self::Typed(_) => Some(format!("ls_native_release({value});\n")),
-            Self::Dynamic(Tagged { owns: true, .. }) => Some(format!("ls_value_release({value});\n")),
+            Self::Dynamic(Tagged { owns: true, .. }) => {
+                Some(format!("ls_value_release({value});\n"))
+            }
             _ => None,
         }
     }
@@ -184,25 +188,53 @@ pub(super) struct CellPlan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum PreparedTarget {
     Function(UnitId),
-    Callable { callee: ValueId, signature: usize },
+    Callable {
+        callee: ValueId,
+        signature: usize,
+    },
     /// A callable read from a place when the call is prepared, before its
     /// arguments, and held until the call returns.
-    Placed { place: PlaceId, signature: usize },
-    Host { binding: usize, signature: usize },
+    Placed {
+        place: PlaceId,
+        signature: usize,
+    },
+    Host {
+        binding: usize,
+        signature: usize,
+    },
     Print,
     MathImul,
-    CharCodeAt { receiver: ValueId },
-    CharAt { receiver: ValueId },
-    ArrayPush { receiver: ValueId, array: usize },
-    ArrayPop { receiver: ValueId, array: usize },
+    CharCodeAt {
+        receiver: ValueId,
+    },
+    CharAt {
+        receiver: ValueId,
+    },
+    ArrayPush {
+        receiver: ValueId,
+        array: usize,
+    },
+    ArrayPop {
+        receiver: ValueId,
+        array: usize,
+    },
     /// A string, `int` or `float` method; `native_strings` owns each recipe.
-    ScalarMethod { receiver: ValueId, method: Intrinsic },
+    ScalarMethod {
+        receiver: ValueId,
+        method: Intrinsic,
+    },
     /// `new Map()`, `new Set()`, `new Symbol(...)`, buffers and typed arrays.
     Construct(Intrinsic),
     /// A typed array's or buffer's `slice`/`subarray`.
-    BinaryMethod { receiver: ValueId, method: Intrinsic },
+    BinaryMethod {
+        receiver: ValueId,
+        method: Intrinsic,
+    },
     /// A `Map` or `Set` method; `native_collections` owns each recipe.
-    CollectionMethod { receiver: ValueId, method: Intrinsic },
+    CollectionMethod {
+        receiver: ValueId,
+        method: Intrinsic,
+    },
     /// Any other admitted array method; `native_arrays` owns each recipe.
     ArrayMethod {
         receiver: ValueId,
@@ -215,7 +247,10 @@ pub(super) enum PreparedTarget {
 pub(super) enum PlaceRecipe {
     Cell(CellId),
     Value(ValueId),
-    Field { base: PlaceId, slot: usize },
+    Field {
+        base: PlaceId,
+        slot: usize,
+    },
     /// A field of a class instance, by its flattened slot, spelled through
     /// the class that declares it.
     Member {
@@ -586,7 +621,10 @@ fn plan_places(
                 writable: false,
             },
             Place::Index { receiver, .. } | Place::Member { receiver, .. }
-                if matches!(values[receiver.index()], ValueStorage::Value(NativeType::Dynamic(_))) =>
+                if matches!(
+                    values[receiver.index()],
+                    ValueStorage::Value(NativeType::Dynamic(_))
+                ) =>
             {
                 let (index, element) = match *place {
                     Place::Index { key, .. }
@@ -594,15 +632,31 @@ fn plan_places(
                     {
                         (Some(key), None)
                     }
-                    Place::Member { key, .. } if program.strings[key.index()].as_unicode() == Some("length") => {
+                    Place::Member { key, .. }
+                        if program.strings[key.index()].as_unicode() == Some("length") =>
+                    {
                         (None, Some(NativeType::I32))
                     }
-                    _ => return Err(fail(None, None, Span::default(), "native host aggregate place")),
+                    _ => {
+                        return Err(fail(
+                            None,
+                            None,
+                            Span::default(),
+                            "native host aggregate place",
+                        ))
+                    }
                 };
-                let Some((array, kind, item)) =
-                    indexed_union(program, &program.types[unit.values[receiver.index()].ty.index()], arrays)
-                else {
-                    return Err(fail(None, None, Span::default(), "native host aggregate place"));
+                let Some((array, kind, item)) = indexed_union(
+                    program,
+                    &program.types[unit.values[receiver.index()].ty.index()],
+                    arrays,
+                ) else {
+                    return Err(fail(
+                        None,
+                        None,
+                        Span::default(),
+                        "native host aggregate place",
+                    ));
                 };
                 PlacePlan {
                     recipe: PlaceRecipe::IndexedUnion {
@@ -644,10 +698,17 @@ fn plan_places(
                 }
             }
             Place::Index { receiver, key } => {
-                let (ValueStorage::Value(NativeType::Array(array)), ValueStorage::Value(NativeType::I32)) =
-                    (values[receiver.index()], values[key.index()])
+                let (
+                    ValueStorage::Value(NativeType::Array(array)),
+                    ValueStorage::Value(NativeType::I32),
+                ) = (values[receiver.index()], values[key.index()])
                 else {
-                    return Err(fail(None, None, Span::default(), "native host aggregate place"));
+                    return Err(fail(
+                        None,
+                        None,
+                        Span::default(),
+                        "native host aggregate place",
+                    ));
                 };
                 PlacePlan {
                     recipe: PlaceRecipe::Element {
@@ -661,8 +722,14 @@ fn plan_places(
                 }
             }
             Place::Member { receiver, key } => {
-                let ValueStorage::Value(NativeType::Object(class)) = values[receiver.index()] else {
-                    return Err(fail(None, None, Span::default(), "native host member place"));
+                let ValueStorage::Value(NativeType::Object(class)) = values[receiver.index()]
+                else {
+                    return Err(fail(
+                        None,
+                        None,
+                        Span::default(),
+                        "native host member place",
+                    ));
                 };
                 let fields = &program.classes[class].fields;
                 work(budget, fields.len())?;
@@ -1218,7 +1285,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                 work(budget, 1)?;
                 let cell = plan.cells[capture.index()];
                 has_environment |= cell.captured;
-                if matches!(cell.storage, ValueStorage::Value(_)) && !cell.captured && !cell.global {
+                if matches!(cell.storage, ValueStorage::Value(_)) && !cell.captured && !cell.global
+                {
                     return Err(unit_error("native missing captured box"));
                 }
             }
@@ -1350,7 +1418,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     CallTarget::Intrinsic {
                         operation:
                             ResolvedIntrinsic::Constructor(
-                                intrinsic @ (Intrinsic::MapNew | Intrinsic::SetNew | Intrinsic::SymbolNew),
+                                intrinsic @ (Intrinsic::MapNew
+                                | Intrinsic::SetNew
+                                | Intrinsic::SymbolNew),
                             ),
                         receiver: None,
                     } => {
@@ -1376,15 +1446,17 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         receiver: Some(receiver),
                     } if (intrinsic == Intrinsic::BufferSlice
                         && values[receiver.index()] == ValueStorage::Value(NativeType::Buffer))
-                        || (matches!(values[receiver.index()], ValueStorage::Value(NativeType::Typed(_)))
-                            && matches!(
-                                crate::typed_array::classify_typed_array_intrinsic(intrinsic),
-                                Some((
-                                    _,
-                                    crate::typed_array::TypedArrayIntrinsic::Slice
-                                        | crate::typed_array::TypedArrayIntrinsic::Subarray
-                                ))
-                            )) =>
+                        || (matches!(
+                            values[receiver.index()],
+                            ValueStorage::Value(NativeType::Typed(_))
+                        ) && matches!(
+                            crate::typed_array::classify_typed_array_intrinsic(intrinsic),
+                            Some((
+                                _,
+                                crate::typed_array::TypedArrayIntrinsic::Slice
+                                    | crate::typed_array::TypedArrayIntrinsic::Subarray
+                            ))
+                        )) =>
                     {
                         plan.helpers.require(Helper::Binary);
                         PreparedTarget::BinaryMethod {
@@ -1507,8 +1579,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     CallTarget::Intrinsic {
                         operation: ResolvedIntrinsic::Method(intrinsic),
                         receiver: Some(receiver),
-                    } if matches!(values[receiver.index()], ValueStorage::Value(NativeType::Array(_))) => {
-                        let ValueStorage::Value(NativeType::Array(array)) = values[receiver.index()] else {
+                    } if matches!(
+                        values[receiver.index()],
+                        ValueStorage::Value(NativeType::Array(_))
+                    ) =>
+                    {
+                        let ValueStorage::Value(NativeType::Array(array)) =
+                            values[receiver.index()]
+                        else {
                             unreachable!()
                         };
                         plan.helpers.require(Helper::ClosureRuntime);
@@ -1530,13 +1608,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             | Intrinsic::ArraySplice
                             | Intrinsic::ArrayFill
                             | Intrinsic::ArrayCopyWithin => {
-                                if matches!(intrinsic, Intrinsic::ArrayIndexOf | Intrinsic::ArrayIncludes) {
+                                if matches!(
+                                    intrinsic,
+                                    Intrinsic::ArrayIndexOf | Intrinsic::ArrayIncludes
+                                ) {
                                     match plan.arrays[array] {
                                         // Products compare backing identity in JavaScript.
                                         NativeType::Struct(_) => {
                                             return Err(error("native product array search"))
                                         }
-                                        NativeType::String => plan.helpers.require(Helper::StringEqual),
+                                        NativeType::String => {
+                                            plan.helpers.require(Helper::StringEqual)
+                                        }
                                         _ => {}
                                     }
                                 }
@@ -1725,12 +1808,16 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             if derived == base {
                 return true;
             }
-            let Some(next) = self.program.classes[derived].base.as_deref().and_then(|name| {
-                self.program
-                    .classes
-                    .iter()
-                    .position(|candidate| candidate.name == name)
-            }) else {
+            let Some(next) = self.program.classes[derived]
+                .base
+                .as_deref()
+                .and_then(|name| {
+                    self.program
+                        .classes
+                        .iter()
+                        .position(|candidate| candidate.name == name)
+                })
+            else {
                 return false;
             };
             derived = next;
@@ -1774,11 +1861,12 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     ValueStorage::Value(NativeType::Callable(signature)),
                     ValueStorage::Value(NativeType::Dynamic(tagged)),
                 ) => tagged.callable.is_none_or(|callable| callable == signature),
-                (ValueStorage::Value(NativeType::Dynamic(tagged)), ValueStorage::Function(unit)) => {
-                    tagged
-                        .callable
-                        .is_none_or(|callable| callable == self.signature_for_unit(unit))
-                }
+                (
+                    ValueStorage::Value(NativeType::Dynamic(tagged)),
+                    ValueStorage::Function(unit),
+                ) => tagged
+                    .callable
+                    .is_none_or(|callable| callable == self.signature_for_unit(unit)),
                 (ValueStorage::Value(NativeType::Dynamic(_)), ValueStorage::Value(actual)) => {
                     payload(actual)
                 }
@@ -1847,7 +1935,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         && self.compatible(ValueStorage::Value(inner), ValueStorage::Value(outer))
                 })
             && !matches!(from.result, NativeType::Callable(_))
-            && self.compatible(ValueStorage::Value(to.result), ValueStorage::Value(from.result)))
+            && self.compatible(
+                ValueStorage::Value(to.result),
+                ValueStorage::Value(from.result),
+            ))
         .then_some((source, target))
     }
     fn admit_adapter(
@@ -1883,7 +1974,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
     }
     /// The interned array whose elements are strings, if any.
     pub(super) fn string_array(&self) -> Option<usize> {
-        self.arrays.iter().position(|&element| element == NativeType::String)
+        self.arrays
+            .iter()
+            .position(|&element| element == NativeType::String)
     }
 
     pub(super) fn uses_objects(&self) -> bool {
@@ -2010,7 +2103,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             OperationKind::TypeTest(target) => expect(
                 operands.len() == 1
                     && result == Some(Stored(Bool))
-                    && crate::primitive::runtime_type_test(&self.program.types[target.index()]).is_some(),
+                    && crate::primitive::runtime_type_test(&self.program.types[target.index()])
+                        .is_some(),
                 "native type test",
             ),
             OperationKind::Initialize(cell) => expect(
@@ -2096,7 +2190,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     fields == operands.len()
                         && operands.iter().enumerate().all(|(slot, &argument)| {
                             let declaring = declaring_class(self.program, class, slot);
-                            self.compatible(Stored(self.class_fields[declaring][slot]), value(argument))
+                            self.compatible(
+                                Stored(self.class_fields[declaring][slot]),
+                                value(argument),
+                            )
                         }),
                     "native class instance fields",
                 )
@@ -2164,7 +2261,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
             }
             OperationKind::Intrinsic(ResolvedIntrinsic::Property(Intrinsic::ArrayLength)) => {
                 expect(
-                    matches!(operand(0), Stored(NativeType::Array(_))) && result == Some(Stored(I32)),
+                    matches!(operand(0), Stored(NativeType::Array(_)))
+                        && result == Some(Stored(I32)),
                     "native array length",
                 )?;
                 self.helpers.require(Helper::ClosureRuntime);
@@ -2212,16 +2310,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         && result == Some(Stored(Bool)),
                     "native string comparison",
                 )?;
-                self.helpers.require(if matches!(kind, BinaryOp::Eq | BinaryOp::NotEq) {
-                    Helper::StringEqual
-                } else {
-                    Helper::Strings
-                });
+                self.helpers
+                    .require(if matches!(kind, BinaryOp::Eq | BinaryOp::NotEq) {
+                        Helper::StringEqual
+                    } else {
+                        Helper::Strings
+                    });
                 Ok(())
             }
             OperationKind::Template => {
                 expect(
-                    result == Some(Stored(Text)) && operands.iter().all(|&id| stringable(value(id))),
+                    result == Some(Stored(Text))
+                        && operands.iter().all(|&id| stringable(value(id))),
                     "native template operands",
                 )?;
                 self.helpers.require(Helper::Strings);
@@ -2387,7 +2487,11 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                 CallArgument::Value(argument) => {
                                     !self.reference_parameter(parameter)
                                         && (self.compatible(expected, value(argument))
-                                            || self.admit_adapter(expected, value(argument), budget)?)
+                                            || self.admit_adapter(
+                                                expected,
+                                                value(argument),
+                                                budget,
+                                            )?)
                                 }
                                 CallArgument::Reference(place) => {
                                     self.reference_parameter(parameter)
@@ -2408,14 +2512,21 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     | PreparedTarget::Host { signature, .. } => {
                         // A host call preserves omissions; a C provider takes
                         // every parameter, so only a complete call reaches one.
-                        let complete = arguments.len() == self.signatures[signature].parameters.len();
+                        let complete =
+                            arguments.len() == self.signatures[signature].parameters.len();
                         expect(
                             match site.contract.defaults {
                                 DefaultConvention::MaterializeAtCaller => {
-                                    complete || self.omits_only_arrow_defaults(signature, arguments.len())
+                                    complete
+                                        || self
+                                            .omits_only_arrow_defaults(signature, arguments.len())
                                 }
                                 DefaultConvention::PreserveOmission => {
-                                    complete && matches!(plan.calls[call.index()], PreparedTarget::Host { .. })
+                                    complete
+                                        && matches!(
+                                            plan.calls[call.index()],
+                                            PreparedTarget::Host { .. }
+                                        )
                                 }
                             },
                             "native callable arity/default convention",
@@ -2423,12 +2534,17 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         for (position, argument) in arguments.iter().enumerate() {
                             work(budget, 1)?;
                             let expected = Stored(self.signatures[signature].parameters[position]);
-                            let passing = self.signatures[signature].source.params[position].passing;
+                            let passing =
+                                self.signatures[signature].source.params[position].passing;
                             let compatible = match argument {
                                 CallArgument::Value(argument) => {
                                     passing == crate::primitive::ParameterPassing::Value
                                         && (self.compatible(expected, value(*argument))
-                                            || self.admit_adapter(expected, value(*argument), budget)?)
+                                            || self.admit_adapter(
+                                                expected,
+                                                value(*argument),
+                                                budget,
+                                            )?)
                                 }
                                 CallArgument::Reference(place) => {
                                     passing == crate::primitive::ParameterPassing::MutableReference
@@ -2447,7 +2563,10 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     PreparedTarget::Print => {
                         expect(
                             arguments.len() == 1
-                                && matches!(argument(0), Some(Stored(I32 | Bool | F64 | Text | NativeType::Dynamic(_))))
+                                && matches!(
+                                    argument(0),
+                                    Some(Stored(I32 | Bool | F64 | Text | NativeType::Dynamic(_)))
+                                )
                                 && result == Some(Stored(Void)),
                             "native print representation",
                         )?;
@@ -2507,11 +2626,18 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         let (admitted, output) = match method {
                             Intrinsic::MapGet => (
                                 arguments.len() == 1 && tagged(0),
-                                result.filter(|result| matches!(result, Stored(NativeType::Dynamic(_)))),
+                                result.filter(|result| {
+                                    matches!(result, Stored(NativeType::Dynamic(_)))
+                                }),
                             ),
-                            Intrinsic::MapSet => (arguments.len() == 2 && tagged(0) && tagged(1), Some(own)),
+                            Intrinsic::MapSet => {
+                                (arguments.len() == 2 && tagged(0) && tagged(1), Some(own))
+                            }
                             Intrinsic::SetAdd => (arguments.len() == 1 && tagged(0), Some(own)),
-                            Intrinsic::MapHas | Intrinsic::MapDelete | Intrinsic::SetHas | Intrinsic::SetDelete => {
+                            Intrinsic::MapHas
+                            | Intrinsic::MapDelete
+                            | Intrinsic::SetHas
+                            | Intrinsic::SetDelete => {
                                 (arguments.len() == 1 && tagged(0), Some(Stored(Bool)))
                             }
                             _ => (arguments.is_empty(), Some(Stored(Void))),
@@ -2528,7 +2654,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                         let count = arguments.len();
                         let int = |position: usize| argument(position) == Some(Stored(I32));
                         let text = |position: usize| argument(position) == Some(Stored(Text));
-                        let float = |position: usize| numeric(argument(position).unwrap_or(Stored(Void)));
+                        let float =
+                            |position: usize| numeric(argument(position).unwrap_or(Stored(Void)));
                         let (admitted, output) = match method {
                             Intrinsic::StringIncludes
                             | Intrinsic::StringStartsWith
@@ -2542,7 +2669,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             | Intrinsic::StringTrim
                             | Intrinsic::StringTrimStart
                             | Intrinsic::StringTrimEnd => (count == 0, Text),
-                            Intrinsic::StringSlice => ((1..=2).contains(&count) && (0..count).all(int), Text),
+                            Intrinsic::StringSlice => {
+                                ((1..=2).contains(&count) && (0..count).all(int), Text)
+                            }
                             Intrinsic::StringSplit => (
                                 count == 1 && text(0) && self.string_array().is_some(),
                                 NativeType::Array(self.string_array().unwrap_or(usize::MAX)),
@@ -2574,16 +2703,24 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     ),
                     PreparedTarget::ArrayPush { array, .. } => expect(
                         arguments.len() == 1
-                            && argument(0).is_some_and(|value| self.compatible(Stored(self.arrays[array]), value))
+                            && argument(0).is_some_and(|value| {
+                                self.compatible(Stored(self.arrays[array]), value)
+                            })
                             && result == Some(Stored(I32)),
                         "native array push operands",
                     ),
                     PreparedTarget::ArrayPop { array, .. } => expect(
                         arguments.is_empty()
-                            && result.is_some_and(|result| self.compatible(result, Stored(self.arrays[array]))),
+                            && result.is_some_and(|result| {
+                                self.compatible(result, Stored(self.arrays[array]))
+                            }),
                         "native array pop operands",
                     ),
-                    PreparedTarget::ArrayMethod { array: kind, method, .. } => {
+                    PreparedTarget::ArrayMethod {
+                        array: kind,
+                        method,
+                        ..
+                    } => {
                         let item = Stored(self.arrays[kind]);
                         let array = Stored(NativeType::Array(kind));
                         // A callback's physical signature: exact arity, each
@@ -2597,16 +2734,14 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             };
                             let signature = &self.signatures[signature];
                             (signature.parameters.len() == passed.len()
-                                && signature
-                                    .parameters
-                                    .iter()
-                                    .zip(passed)
-                                    .all(|(&parameter, &value)| self.compatible(Stored(parameter), value))
-                                && signature
-                                    .source
-                                    .params
-                                    .iter()
-                                    .all(|parameter| parameter.passing == crate::primitive::ParameterPassing::Value))
+                                && signature.parameters.iter().zip(passed).all(
+                                    |(&parameter, &value)| {
+                                        self.compatible(Stored(parameter), value)
+                                    },
+                                )
+                                && signature.source.params.iter().all(|parameter| {
+                                    parameter.passing == crate::primitive::ParameterPassing::Value
+                                }))
                             .then_some(signature.result)
                         };
                         let int = |position: usize| argument(position) == Some(Stored(I32));
@@ -2647,7 +2782,9 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                         && accumulator != Void
                                         && self.compatible(Stored(accumulator), initial)
                                         && callback(0, &[Stored(accumulator), item]).is_some_and(
-                                            |next| self.compatible(Stored(accumulator), Stored(next)),
+                                            |next| {
+                                                self.compatible(Stored(accumulator), Stored(next))
+                                            },
                                         )
                                 }
                                 _ => false,
@@ -2664,9 +2801,13 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                                     && result == Some(Stored(Bool))
                             }
                             Intrinsic::ArrayConcat => {
-                                arguments.len() == 1 && argument(0) == Some(array) && result == Some(array)
+                                arguments.len() == 1
+                                    && argument(0) == Some(array)
+                                    && result == Some(array)
                             }
-                            Intrinsic::ArrayReverse => arguments.is_empty() && result == Some(array),
+                            Intrinsic::ArrayReverse => {
+                                arguments.is_empty() && result == Some(array)
+                            }
                             Intrinsic::ArraySlice => {
                                 arguments.len() <= 2
                                     && (0..arguments.len()).all(int)
@@ -2688,7 +2829,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                             _ => false,
                         };
                         expect(
-                            admitted && site.contract.defaults == DefaultConvention::PreserveOmission,
+                            admitted
+                                && site.contract.defaults == DefaultConvention::PreserveOmission,
                             "native array method operands",
                         )
                     }
@@ -2746,7 +2888,8 @@ impl<'program, 'src> NativePlan<'program, 'src> {
                     && result.is_some_and(|result| {
                         matches!(result, Stored(ty) if ty != Void)
                             && self.compatible(result, operand(0))
-                            && region_result(*right).is_some_and(|value| self.compatible(result, value))
+                            && region_result(*right)
+                                .is_some_and(|value| self.compatible(result, value))
                     }),
                 "native nullish coalescing",
             ),

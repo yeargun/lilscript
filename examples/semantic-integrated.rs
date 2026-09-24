@@ -2,13 +2,13 @@
 //! Compiler phase clocks exclude artifact serialization and external execution.
 //! Source edits are observable changes, not claims of optimization equivalence.
 use clap::{Parser, ValueEnum};
-use lilscript::compilation_policy::{BudgetLedger, WorkDomain, WorkKind};
 use lilscript::build::{
     with_checked_path, CheckedSourceSession, ServiceJavaScript, ServiceOptions, ServiceTarget,
 };
+use lilscript::compilation_policy::{BudgetLedger, WorkDomain, WorkKind};
+use lilscript::js::selection::{Objective, Objectives};
 use lilscript::program::publication::*;
 use lilscript::program::{CellBinding, CellId, Constant, OpId, OperationKind, UnitId};
-use lilscript::js::selection::{Objective, Objectives};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;

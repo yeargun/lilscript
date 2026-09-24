@@ -188,8 +188,7 @@ fn path_service_publishes_re_exported_value_struct_functions_with_source_names()
     // A struct function declared in one module and re-exported under an
     // alias by another keeps its source name, as JavaScript does for
     // `export {translate as move}`.
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/program/fixtures/public-structs");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/program/fixtures/public-structs");
     let result = compile_path(
         &root.join("entry.lil"),
         &config(""),
@@ -246,8 +245,8 @@ fn shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api() {
 
 #[test]
 fn path_service_preserves_original_module_initialization_callbacks_and_public_objects() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/program/fixtures/modules-javascript");
+    let root =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/program/fixtures/modules-javascript");
     let result = compile_path(
         &root.join("entry.lil"),
         &config(""),
@@ -286,8 +285,8 @@ fn path_service_preserves_original_module_initialization_callbacks_and_public_ob
 
 #[test]
 fn integrated_original_modules_execute_through_fast_and_searched_public_service() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/program/fixtures/integrated-architecture");
+    let root =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/program/fixtures/integrated-architecture");
     let expected: Value = serde_json::from_str(include_str!(
         "program/fixtures/integrated-architecture/expected.json"
     ))
@@ -364,7 +363,9 @@ fn service_rejects_unknown_runtime_cost_and_unsupported_source_without_fallback(
     // D2 adapter, so the target refuses it.
     assert_eq!(result.phase, "javascript");
     assert!(
-        result.message.contains("public value-struct ABI adaptation"),
+        result
+            .message
+            .contains("public value-struct ABI adaptation"),
         "{result}"
     );
     // The target session no longer holds source text, so a formation refusal
@@ -394,8 +395,7 @@ fn resource_owner_exists_before_discovery_and_parse() {
     };
     let source = compile_source("not valid syntax", &config(""), options).unwrap_err();
     assert_eq!(source.phase, "frontend resources");
-    let path =
-        compile_path(Path::new("/does-not-exist.lil"), &config(""), options).unwrap_err();
+    let path = compile_path(Path::new("/does-not-exist.lil"), &config(""), options).unwrap_err();
     assert_eq!(path.phase, "frontend resources");
 }
 
@@ -1506,7 +1506,8 @@ fn shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger()
     let mut frontend = Frontend::new(&config, options).unwrap();
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-    let error = discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap_err();
+    let error =
+        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap_err();
     assert!(matches!(error, ModuleDiscoveryError::Resources(_)));
     drop(arena);
     let source_bytes = sources.allocated_bytes() as u64;
@@ -1591,7 +1592,11 @@ fn foreign_imports_become_es_imports_of_their_extern_values() {
     let javascript = result.javascript(Objective::Brotli).unwrap().javascript();
     assert!(javascript.contains("from\"./host.mjs\""), "{javascript}");
     // Both modules import `twice`: its pinned local name is declared once.
-    assert_eq!(javascript.matches("import{twice}").count(), 1, "{javascript}");
+    assert_eq!(
+        javascript.matches("import{twice}").count(),
+        1,
+        "{javascript}"
+    );
     std::fs::write(scratch.0.join("out.mjs"), javascript).unwrap();
     let output = Command::new("node")
         .args([
@@ -1605,7 +1610,11 @@ fn foreign_imports_become_es_imports_of_their_extern_values() {
         ])
         .output()
         .unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "hi422:42\n");
 }
 

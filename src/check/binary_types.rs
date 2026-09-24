@@ -6,8 +6,8 @@
 
 use super::type_relation::{type_equal_with, RelationAdmission, RelationEvent, Unmetered};
 use super::{
-    binary_op_name, common_numeric_type, is_js_value, nullish_present_type, BinaryOp,
-    CheckError, Span, Type,
+    binary_op_name, common_numeric_type, is_js_value, nullish_present_type, BinaryOp, CheckError,
+    Span, Type,
 };
 use std::convert::Infallible;
 

@@ -7,18 +7,18 @@
 
 #[path = "facts_return_origin.rs"]
 mod return_origin;
-pub(super) use return_origin::{ReturnedValueOrigin, returned_value_origin};
+pub(super) use return_origin::{returned_value_origin, ReturnedValueOrigin};
 
 #[path = "facts_type_transport.rs"]
 mod type_transport;
 pub(super) use type_transport::contains_nominal_product;
 
 use super::*;
-use ahash::AHashMap;
 use crate::compilation_policy::{
     AnalysisAttempt, AnalysisCompletion, AnalysisWorkReceipt, BudgetError, BudgetLedger, WorkDomain,
 };
 use crate::primitive::Intrinsic;
+use ahash::AHashMap;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::mem::size_of;
@@ -1027,15 +1027,15 @@ pub(super) fn operation_evaluation_behavior(
         Op::Constant(_) => EvaluationBehavior::TOTAL,
         Op::IsUndefined => EvaluationBehavior::TOTAL,
         // `typeof` never throws; `Array.isArray` throws on a revoked proxy.
-        Op::TypeTest(target) => match crate::primitive::runtime_type_test(
-            &program.types[target.index()],
-        ) {
-            Some(crate::primitive::RuntimeTypeTest::TypeOf(_)) => EvaluationBehavior::TOTAL,
-            _ => EvaluationBehavior {
-                may_throw: true,
-                ..EvaluationBehavior::TOTAL
-            },
-        },
+        Op::TypeTest(target) => {
+            match crate::primitive::runtime_type_test(&program.types[target.index()]) {
+                Some(crate::primitive::RuntimeTypeTest::TypeOf(_)) => EvaluationBehavior::TOTAL,
+                _ => EvaluationBehavior {
+                    may_throw: true,
+                    ..EvaluationBehavior::TOTAL
+                },
+            }
+        }
         // Building the string can exhaust memory; converting a non-primitive
         // operand can run user code or throw (a Symbol).
         Op::Template => {
@@ -1202,7 +1202,9 @@ pub(super) fn primitive_evaluation_behavior(
                 let dynamic = operands
                     .iter()
                     .any(|&value| matches!(ty(value), Type::TypeParameter("$js")));
-                let against_null = operands.iter().any(|&value| matches!(ty(value), Type::Null));
+                let against_null = operands
+                    .iter()
+                    .any(|&value| matches!(ty(value), Type::Null));
                 return Some(if dynamic && !against_null && !operands_primitive {
                     EvaluationBehavior::COERCION
                 } else {
@@ -1264,7 +1266,10 @@ pub(super) fn unassigned_local_initializers(
         if entry.binding != CellBinding::Local || entry.assigned {
             continue;
         }
-        if let Some(&operand) = unit.operands(operation.operands).and_then(|operands| operands.first()) {
+        if let Some(&operand) = unit
+            .operands(operation.operands)
+            .and_then(|operands| operands.first())
+        {
             initializers.entry(cell).or_default().push(operand);
         }
     }

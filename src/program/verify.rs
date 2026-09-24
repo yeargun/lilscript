@@ -5,7 +5,8 @@ mod scratch;
 use crate::check::binary_types::{checked_binary_type_with, BinaryTypeError};
 use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::{
-    is_type_assignable_with as structurally_assignable, type_equal_with, RelationAdmission, RelationEvent,
+    is_type_assignable_with as structurally_assignable, type_equal_with, RelationAdmission,
+    RelationEvent,
 };
 use crate::check::type_substitution::substitute_signature_with;
 
@@ -451,7 +452,8 @@ fn verify_units(
                 eprintln!(
                     "place verification failed in module {} unit {:?}: {error:?}",
                     unit.module.index(),
-                    unit.function_name.map(|name| &program.strings[name.index()]),
+                    unit.function_name
+                        .map(|name| &program.strings[name.index()]),
                 );
             }
         })?;
@@ -1031,7 +1033,9 @@ fn verify_units(
                         OperationKind::ConstructClass => (None, true),
                         OperationKind::SuperConstruct => {
                             if unit.host_class.is_none() {
-                                return fail("super construction outside a host-derived constructor");
+                                return fail(
+                                    "super construction outside a host-derived constructor",
+                                );
                             }
                             (None, false)
                         }
@@ -1540,7 +1544,8 @@ fn verify_types(
                 Constant::Null => Type::Null,
                 Constant::Undefined => Type::TypeParameter("$js"),
             };
-            expect(class_assignable(program, 
+            expect(class_assignable(
+                program,
                 result.unwrap(),
                 &literal_type,
                 &mut query,
@@ -1551,7 +1556,8 @@ fn verify_types(
             expect(
                 cell.binding != CellBinding::Foreign
                     && cell.region == operation.region
-                    && class_assignable(program, 
+                    && class_assignable(
+                        program,
                         &program.types[cell.ty.index()],
                         operand(0),
                         &mut query,
@@ -1678,7 +1684,10 @@ fn verify_types(
             statement_region(*body)?;
             expect(
                 !operand(0).is_void()
-                    && matches!(program.types[program.cells[key.index()].ty.index()], Type::String),
+                    && matches!(
+                        program.types[program.cells[key.index()].ty.index()],
+                        Type::String
+                    ),
             )
         }
         OperationKind::ForOf { item, body } => {
@@ -1724,17 +1733,22 @@ fn verify_types(
             if !matches!(value_type(constructor), Type::Function(_)) {
                 return Err(error());
             }
-            expect(arguments.len() == parameters.len() && {
-                let mut all = true;
-                for (&operand, expected) in arguments.iter().zip(parameters) {
-                    all &= class_assignable(program, expected, value_type(operand), &mut query)?;
-                }
-                all
-            })
+            expect(
+                arguments.len() == parameters.len() && {
+                    let mut all = true;
+                    for (&operand, expected) in arguments.iter().zip(parameters) {
+                        all &=
+                            class_assignable(program, expected, value_type(operand), &mut query)?;
+                    }
+                    all
+                },
+            )
         }
         // The base constructor of this constructor's class.
         OperationKind::SuperConstruct => {
-            let class = unit.host_class.ok_or("super construction outside a constructor")? as usize;
+            let class =
+                unit.host_class
+                    .ok_or("super construction outside a constructor")? as usize;
             let base = program
                 .classes
                 .get(class)
@@ -1748,13 +1762,16 @@ fn verify_types(
                 .ok_or("super construction of an unknown base")?;
             let parameters = host_constructor_parameters(program, base, &mut query)?
                 .ok_or("super construction of a base without a constructor")?;
-            expect(operands.len() == parameters.len() && {
-                let mut all = true;
-                for (&operand, expected) in operands.iter().zip(parameters) {
-                    all &= class_assignable(program, expected, value_type(operand), &mut query)?;
-                }
-                all
-            })
+            expect(
+                operands.len() == parameters.len() && {
+                    let mut all = true;
+                    for (&operand, expected) in operands.iter().zip(parameters) {
+                        all &=
+                            class_assignable(program, expected, value_type(operand), &mut query)?;
+                    }
+                    all
+                },
+            )
         }
         OperationKind::Yield { delegate } => {
             let signature =
@@ -1859,11 +1876,17 @@ fn verify_types(
             // exactly its declared fields in order.
             AllocationKind::Object(keys) => expect(match result {
                 Some(Type::TypeParameter("$js")) => true,
-                Some(Type::Class(name) | Type::ClassInstance { name, .. }) => program.class(name).is_some_and(|class| {
-                    !class.external
-                        && class.fields.len() == keys.len()
-                        && class.fields.iter().zip(keys).all(|((key, _), actual)| key == actual)
-                }),
+                Some(Type::Class(name) | Type::ClassInstance { name, .. }) => {
+                    program.class(name).is_some_and(|class| {
+                        !class.external
+                            && class.fields.len() == keys.len()
+                            && class
+                                .fields
+                                .iter()
+                                .zip(keys)
+                                .all(|((key, _), actual)| key == actual)
+                    })
+                }
                 _ => false,
             }),
             AllocationKind::Struct(identity) => {
@@ -1890,7 +1913,8 @@ fn verify_types(
                     .iter()
                     .zip(operands)
                 {
-                    if !class_assignable(program, 
+                    if !class_assignable(
+                        program,
                         &program.types[field.ty.index()],
                         value_type(value),
                         &mut query,
@@ -2008,7 +2032,10 @@ fn verify_types(
                         Some(argument) => Some(value_argument(argument).ok_or_else(error)?),
                         None => None,
                     };
-                    if arguments.iter().any(|argument| value_argument(argument).is_none()) {
+                    if arguments
+                        .iter()
+                        .any(|argument| value_argument(argument).is_none())
+                    {
                         return Err(error());
                     }
                     let result = result.ok_or_else(error)?;
@@ -2209,12 +2236,13 @@ fn verify_types(
                     let CallArgument::Value(value) = arguments[position] else {
                         return Err("caller default evaluations must be values".into());
                     };
-                    let Some(default) = declared.get(position).and_then(|p| p.default.as_ref()) else {
+                    let Some(default) = declared.get(position).and_then(|p| p.default.as_ref())
+                    else {
                         return Err("caller default evaluations need a checked default".into());
                     };
                     if !materialized_default(unit, default, value, arguments) {
                         return Err(
-                            "caller default evaluations disagree with the checked defaults".into()
+                            "caller default evaluations disagree with the checked defaults".into(),
                         );
                     }
                 }
@@ -2405,7 +2433,13 @@ fn host_constructor_parameters<'program, 'src>(
     let signature = if definition.external {
         match definition.constructor.map(|ty| &program.types[ty.index()]) {
             Some(Type::Function(signature)) => {
-                return Ok(Some(signature.params.iter().map(|parameter| &parameter.ty).collect()))
+                return Ok(Some(
+                    signature
+                        .params
+                        .iter()
+                        .map(|parameter| &parameter.ty)
+                        .collect(),
+                ))
             }
             _ => return Ok(None),
         }
@@ -2418,12 +2452,23 @@ fn host_constructor_parameters<'program, 'src>(
         else {
             return Ok(None);
         };
-        match unit.data().callable_type.map(|ty| &program.types[ty.index()]) {
+        match unit
+            .data()
+            .callable_type
+            .map(|ty| &program.types[ty.index()])
+        {
             Some(Type::Function(signature)) => signature,
             _ => return Ok(None),
         }
     };
-    Ok(Some(signature.params.iter().skip(1).map(|parameter| &parameter.ty).collect()))
+    Ok(Some(
+        signature
+            .params
+            .iter()
+            .skip(1)
+            .map(|parameter| &parameter.ty)
+            .collect(),
+    ))
 }
 
 fn class_assignable(
@@ -2533,7 +2578,10 @@ fn class_assignable(
             let mut current: &str = actual;
             loop {
                 query.work(program.classes.len())?;
-                let Some(base) = program.class(current).and_then(|class| class.base.as_deref()) else {
+                let Some(base) = program
+                    .class(current)
+                    .and_then(|class| class.base.as_deref())
+                else {
                     break false;
                 };
                 if base == *expected {

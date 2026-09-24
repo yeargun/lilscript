@@ -1,9 +1,9 @@
 use super::*;
-use crate::primitive::ParameterPassing;
 use crate::check::{
     DefaultValue, FunctionParameter, FunctionSignature, FunctionType, GenericFunctionType,
     NominalId, StructType,
 };
+use crate::primitive::ParameterPassing;
 
 #[path = "binary_types_old_oracle.rs"]
 mod old;

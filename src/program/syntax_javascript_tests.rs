@@ -2,7 +2,9 @@
 //! value structs, observed by running the output.
 use super::publication::*;
 use super::*;
-use crate::compilation_policy::{BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain};
+use crate::compilation_policy::{
+    BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
+};
 use crate::js::selection::{Plan, Style};
 use std::process::Command;
 
@@ -156,7 +158,10 @@ fn a_class_extending_a_host_class_is_a_real_subclass() {
         inspect(problem);
         "#,
     );
-    assert!(javascript.contains("class Problem extends Error"), "{javascript}");
+    assert!(
+        javascript.contains("class Problem extends Error"),
+        "{javascript}"
+    );
     assert_eq!(
         run(
             &javascript,
@@ -293,9 +298,15 @@ fn only_published_functions_keep_their_source_names_by_default() {
         "#,
     );
     // The escaping callback is named by its binding; the export keeps its own.
-    assert!(!javascript.contains("callbackWithALongName"), "{javascript}");
+    assert!(
+        !javascript.contains("callbackWithALongName"),
+        "{javascript}"
+    );
     assert_eq!(
-        run(&javascript, "globalThis.inspect=f=>console.log(f.name.length<3);"),
+        run(
+            &javascript,
+            "globalThis.inspect=f=>console.log(f.name.length<3);"
+        ),
         "true\n42\nfalse\n"
     );
 }
@@ -362,7 +373,10 @@ fn redundant_operators_and_conversions_leave_no_residue() {
     // `isUndef(x)||x==null` is `x==null`; `Math.trunc` is already a number
     // and `Number.isInteger` a boolean; `"n="+(v+"")` converts `v` once.
     assert!(!javascript.contains("===void 0"), "{javascript}");
-    assert!(!javascript.contains(",+Math.") && !javascript.contains("+ +Math."), "{javascript}");
+    assert!(
+        !javascript.contains(",+Math.") && !javascript.contains("+ +Math."),
+        "{javascript}"
+    );
     assert!(!javascript.contains("!!Number."), "{javascript}");
     assert!(!javascript.contains("+\"\")"), "{javascript}");
     assert_eq!(
@@ -392,7 +406,10 @@ fn constant_regex_constructors_become_literals_only_when_valid() {
     );
     assert!(javascript.contains("/a\\/b/g"), "{javascript}");
     assert!(javascript.contains("/[\\p{L}]+/u"), "{javascript}");
-    assert!(javascript.contains("/(?<word>b+)\\k<word>/"), "{javascript}");
+    assert!(
+        javascript.contains("/(?<word>b+)\\k<word>/"),
+        "{javascript}"
+    );
     // An invalid pattern stays a constructor: it throws when evaluated,
     // never while the module loads.
     assert!(javascript.contains("RegExp(\"(\",\"\")"), "{javascript}");
@@ -477,7 +494,10 @@ fn a_function_read_once_takes_its_later_reference() {
         "{javascript}"
     );
     assert_eq!(
-        run(&javascript, "globalThis.show=v=>console.log(v);globalThis.register=(k,h)=>console.log(k,h(41));"),
+        run(
+            &javascript,
+            "globalThis.show=v=>console.log(v);globalThis.register=(k,h)=>console.log(k,h(41));"
+        ),
         "1\n2\nkey 42\n"
     );
 }
@@ -585,7 +605,10 @@ fn a_reset_method_and_its_stores_fold_into_the_constructed_literal() {
     // `reset` inlines at its one call, its stores replace the literal's own
     // entries in place, and the constructor, now `()=>({…})` with one call,
     // inlines too: the token is the literal itself.
-    assert!(javascript.contains("{kind:3,raw:\"x\",text:\"\",task:!1}"), "{javascript}");
+    assert!(
+        javascript.contains("{kind:3,raw:\"x\",text:\"\",task:!1}"),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "3\n\"x\"\nfalse\n");
 }
 
@@ -735,7 +758,10 @@ fn comparisons_between_one_primitive_type_are_loose() {
         PRISTINE,
     );
     // `typeof` is a string, so it compares with a string the same loosely.
-    assert!(!javascript.contains("===") && !javascript.contains("!=="), "{javascript}");
+    assert!(
+        !javascript.contains("===") && !javascript.contains("!=="),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "[true,true]\n[false,false]\n");
 }
 
@@ -753,11 +779,15 @@ fn a_fresh_struct_meets_its_public_shape_as_a_literal() {
     );
     // Every field is written in place: no encoder is needed.
     assert!(
-        javascript.contains("{from:{x:1,y:2},to:{x:seed(),y:4},label:\"s\"}") && !javascript.contains("function"),
+        javascript.contains("{from:{x:1,y:2},to:{x:seed(),y:4},label:\"s\"}")
+            && !javascript.contains("function"),
         "{javascript}"
     );
     assert_eq!(
-        run(&javascript, "globalThis.seed=()=>3;globalThis.show=v=>console.log(JSON.stringify(v));"),
+        run(
+            &javascript,
+            "globalThis.seed=()=>3;globalThis.show=v=>console.log(JSON.stringify(v));"
+        ),
         "{\"from\":{\"x\":1,\"y\":2},\"to\":{\"x\":3,\"y\":4},\"label\":\"s\"}\n"
     );
 }
@@ -780,7 +810,10 @@ fn a_raw_objective_reads_repeated_strings_from_constants_and_packs_string_arrays
     let coded = compile_with(source, PRISTINE);
     // `"string"` is spelled once, as a constant; the names are one string.
     assert_eq!(raw.matches("\"string\"").count(), 1, "{raw}");
-    assert!(raw.contains(".split(\" \")") && !coded.contains(".split("), "{raw}\n{coded}");
+    assert!(
+        raw.contains(".split(\" \")") && !coded.contains(".split("),
+        "{raw}\n{coded}"
+    );
     assert!(raw.len() < coded.len(), "{raw}\n{coded}");
     // Each call still creates a fresh array.
     let expected = "[true,false,true]\n[\"alpha\",\"beta\",\"gamma\",\"delta\",\"epsilon\",\"zeta\",\"eta\",\"theta\"]\nfalse\n";
@@ -830,8 +863,14 @@ fn constructions_through_a_field_initializer_are_their_literals() {
         PRISTINE,
     );
     // Every construction is its literal, and the initializer is gone.
-    assert!(javascript.contains("{x:1,y:2}") && javascript.contains("{x:seed(),y:0}"), "{javascript}");
-    assert!(!javascript.contains(".x=") && !javascript.contains(".y="), "{javascript}");
+    assert!(
+        javascript.contains("{x:1,y:2}") && javascript.contains("{x:seed(),y:0}"),
+        "{javascript}"
+    );
+    assert!(
+        !javascript.contains(".x=") && !javascript.contains(".y="),
+        "{javascript}"
+    );
     assert_eq!(
         run(&javascript, "globalThis.seed=(()=>{let n=4;return()=>n++})();globalThis.show=v=>console.log(JSON.stringify(v));"),
         "[1,2]\n[4,0]\n[5,7]\n"
@@ -1000,7 +1039,10 @@ fn a_raw_objective_ends_a_body_with_an_else_instead_of_an_exit() {
     let raw = compile_with(source, &format!("{PRISTINE}cost_model=\"raw\"\n"));
     let coded = compile_with(source, PRISTINE);
     // Neither the early `return;` nor the `continue` is spelled.
-    assert!(!raw.contains("return") && !raw.contains("continue"), "{raw}");
+    assert!(
+        !raw.contains("return") && !raw.contains("continue"),
+        "{raw}"
+    );
     assert!(coded.contains("continue"), "{coded}");
     let host = "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.note=v=>console.log('note',v);";
     let expected = "note [String: 'a']\n[[1,1],[2,2]]\nnote quiet\n";
@@ -1025,7 +1067,10 @@ fn a_value_that_only_reads_moves_past_member_reads_under_pure_property_reads() {
         }
         show(describe(JS.object("cols", 2, "parser", JS.object("name", "p", "settings", JS.object("leqno", true)))));
     "#;
-    let pure = compile_with(source, &format!("{PRISTINE}assume_pure_property_reads=true\n"));
+    let pure = compile_with(
+        source,
+        &format!("{PRISTINE}assume_pure_property_reads=true\n"),
+    );
     let plain = compile_with(source, PRISTINE);
     // Reads commute with reads: the literal is created in the call.
     assert!(pure.contains(",{cols:"), "{pure}");
@@ -1058,7 +1103,10 @@ fn a_function_of_one_statement_is_inlined_where_its_value_is_discarded() {
     let coded = compile_with(source, PRISTINE);
     // `put`'s body is its calls' statements; the function is gone.
     for javascript in [&raw, &coded] {
-        assert!(javascript.contains(".opacity=") && javascript.contains(".scale="), "{javascript}");
+        assert!(
+            javascript.contains(".opacity=") && javascript.contains(".scale="),
+            "{javascript}"
+        );
     }
     // `if(v===void 0)return null;return v` compresses to `return v??null`.
     assert!(raw.contains("??null"), "{raw}");
@@ -1111,10 +1159,16 @@ fn method_stores_into_one_prototype_become_one_assign() {
         }
         show(make(1, 2));
     "#;
-    let pure = compile_with(source, &format!("{PRISTINE}assume_pure_property_reads=true\n"));
+    let pure = compile_with(
+        source,
+        &format!("{PRISTINE}assume_pure_property_reads=true\n"),
+    );
     let plain = compile_with(source, PRISTINE);
     // One read of `Point.prototype` needs member reads that run no code.
-    assert!(pure.contains("Object.assign(") && pure.matches(".prototype").count() == 1, "{pure}");
+    assert!(
+        pure.contains("Object.assign(") && pure.matches(".prototype").count() == 1,
+        "{pure}"
+    );
     assert!(!plain.contains("Object.assign("), "{plain}");
     let expected = "[3,7,\"point\"]\n";
     assert_eq!(run(&pure, SHOW), expected);
@@ -1143,7 +1197,10 @@ fn a_temporary_and_its_test_are_the_logical_operator() {
     let javascript = compile_with(source, PRISTINE);
     // `options&&options.font||fallback`: no temporary is tested.
     assert!(!javascript.contains("if("), "{javascript}");
-    assert!(javascript.contains("&&") && javascript.contains("||"), "{javascript}");
+    assert!(
+        javascript.contains("&&") && javascript.contains("||"),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "\"bold\"\n\"normal\"\n\"none\"\n");
 }
 
@@ -1166,8 +1223,14 @@ fn defaults_of_a_function_only_ever_called_print_natively() {
     // Nothing reads `scaled` but its calls, so its `length` is free and the
     // body's default checks become `(a,b=2,c=1)`. (A default of a typed
     // parameter no typed caller can omit goes altogether.)
-    assert!(javascript.contains("=2,") && !javascript.contains("===void 0"), "{javascript}");
-    assert_eq!(run(&javascript, &format!("globalThis.seed=()=>0;{SHOW}")), "7\n13\n17\n");
+    assert!(
+        javascript.contains("=2,") && !javascript.contains("===void 0"),
+        "{javascript}"
+    );
+    assert_eq!(
+        run(&javascript, &format!("globalThis.seed=()=>0;{SHOW}")),
+        "7\n13\n17\n"
+    );
 }
 
 #[test]
@@ -1186,7 +1249,10 @@ fn an_inert_value_is_created_in_the_branch_that_reads_it() {
     let javascript = compile_with(source, PRISTINE);
     // Neither function is read anywhere else: each is created in the arm
     // that stores it, and its binding goes.
-    assert!(javascript.contains("{get:") && !javascript.contains("let "), "{javascript}");
+    assert!(
+        javascript.contains("{get:") && !javascript.contains("let "),
+        "{javascript}"
+    );
     assert_eq!(
         run(&javascript, "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.enabled=()=>false;globalThis.hooks={};"),
         "7\n"
@@ -1258,9 +1324,15 @@ fn an_initializer_store_the_literal_already_holds_goes() {
     let javascript = compile_with(source, PRISTINE);
     // Every construction's literal already holds `count:0` and `items:[]`,
     // and `show(seed())` cannot see the object: those stores go.
-    assert!(!javascript.contains(".count=0") && !javascript.contains(".items=[]"), "{javascript}");
+    assert!(
+        !javascript.contains(".count=0") && !javascript.contains(".items=[]"),
+        "{javascript}"
+    );
     assert_eq!(
-        run(&javascript, "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.seed=()=>\"s\";"),
+        run(
+            &javascript,
+            "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.seed=()=>\"s\";"
+        ),
         "\"s\"\n1\n\"a\"\n\"s\"\n0\n\"b\"\n"
     );
 }
@@ -1283,7 +1355,10 @@ fn a_default_only_erased_callers_could_use_is_no_check() {
     // function opens without it.
     assert!(!javascript.contains("=2"), "{javascript}");
     assert_eq!(
-        run(&javascript, "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.noise=()=>1;"),
+        run(
+            &javascript,
+            "globalThis.show=v=>console.log(JSON.stringify(v));globalThis.noise=()=>1;"
+        ),
         "3\n4\n2\n3\n"
     );
 }
@@ -1312,7 +1387,10 @@ fn an_object_only_read_through_its_fields_is_its_fields() {
     "#;
     let javascript = compile_with(source, PRISTINE);
     // The cell never leaves its fields: the closure shares two locals.
-    assert!(!javascript.contains(".on") && !javascript.contains(".n="), "{javascript}");
+    assert!(
+        !javascript.contains(".on") && !javascript.contains(".n="),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "12\n7\n");
 }
 
@@ -1352,7 +1430,10 @@ fn an_array_the_program_created_takes_its_own_methods() {
     let javascript = compile_with(source, PRISTINE);
     // Every value `items` holds is an array literal: its own `push` is
     // `Array.prototype.push` under pristine builtins.
-    assert!(!javascript.contains("prototype") && javascript.contains(".push("), "{javascript}");
+    assert!(
+        !javascript.contains("prototype") && javascript.contains(".push("),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "[0,2,4]\n");
 }
 
@@ -1413,14 +1494,20 @@ fn a_declared_unconstructed_callback_may_be_an_arrow_where_it_escapes() {
         show(JS.call(escape(), JS.undefined(), JS.object("z", 3)));
     "#;
     let sound = compile_with(source, PRISTINE);
-    assert!(sound.contains("return function(") && !sound.contains("=>"), "{sound}");
+    assert!(
+        sound.contains("return function(") && !sound.contains("=>"),
+        "{sound}"
+    );
     let assumed = compile_with(
         source,
         "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\nassume_unconstructed_callbacks=true\n",
     );
     // The escaping lambda may be an arrow; the one the program constructs
     // through its variable stays a function.
-    assert!(assumed.contains("=>") && assumed.contains("=function("), "{assumed}");
+    assert!(
+        assumed.contains("=>") && assumed.contains("=function("),
+        "{assumed}"
+    );
     for javascript in [sound, assumed] {
         assert_eq!(run(&javascript, SHOW), "{\"y\":1}\n3\n");
     }
@@ -1442,8 +1529,14 @@ fn a_literal_root_constant_is_its_literal_where_it_is_initialized() {
     let javascript = compile_with(source, PRISTINE);
     // Nothing runs before the constants hold their values: every read is
     // the literal, and no name is left.
-    assert!(!javascript.contains("=\"thematicBreak\"") && javascript.contains(">=3"), "{javascript}");
-    assert_eq!(run(&javascript, SHOW), "\"thematicBreak\"\n\"thematicBreak!\"\n");
+    assert!(
+        !javascript.contains("=\"thematicBreak\"") && javascript.contains(">=3"),
+        "{javascript}"
+    );
+    assert_eq!(
+        run(&javascript, SHOW),
+        "\"thematicBreak\"\n\"thematicBreak!\"\n"
+    );
 }
 
 #[test]
@@ -1457,10 +1550,15 @@ fn a_repeated_long_number_is_named_once_for_raw_bytes() {
         export float d(float x) { return x / big; }
         show(JS.box(a(1.0) + b(1.0) + c(0.0) + d(0.0)));
     "#;
-    let raw = "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let raw =
+        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
     let javascript = compile_with(source, raw);
     // Canonicalized into its reads, then pooled again for the raw objective.
-    assert_eq!(javascript.matches("281474976710655").count(), 1, "{javascript}");
+    assert_eq!(
+        javascript.matches("281474976710655").count(),
+        1,
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "2\n");
 }
 
@@ -1476,7 +1574,10 @@ fn a_loose_null_test_narrowed_by_a_strict_one_is_the_strict_test() {
         show(JS.box(isNull(null)));
     "#;
     let javascript = compile_with(source, PRISTINE);
-    assert!(javascript.contains("===null") && !javascript.contains("==null&&"), "{javascript}");
+    assert!(
+        javascript.contains("===null") && !javascript.contains("==null&&"),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "false\nfalse\ntrue\n");
 }
 
@@ -1488,7 +1589,8 @@ fn a_string_of_double_quotes_prints_in_single_quotes_for_raw_bytes() {
         export JsValue table() { return JS.invoke(JSON, "parse", "{\"a\":\"b\"}"); }
         show(table());
     "#;
-    let raw = "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
+    let raw =
+        "[javascript]\nstrip_console=false\nassume_pristine_builtins=true\ncost_model=\"raw\"\n";
     let javascript = compile_plan(source, raw, Plan::spelled(Style::Global, true));
     assert!(javascript.contains(r#"'{"a":"b"}'"#), "{javascript}");
     assert_eq!(run(&javascript, SHOW), "{\"a\":\"b\"}\n");
@@ -1516,7 +1618,10 @@ fn a_host_value_assumed_to_be_a_struct_is_read_by_field_name() {
     let javascript = compile_with(source, PRISTINE);
     // A struct's storage is private: the host object is decoded by name,
     // and the view is a value, so the store stays in it.
-    assert!(javascript.contains(".type,") && javascript.contains(".flag]"), "{javascript}");
+    assert!(
+        javascript.contains(".type,") && javascript.contains(".flag]"),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "true\nfalse\nfalse\n");
 }
 
@@ -1541,7 +1646,10 @@ fn a_large_constant_string_table_is_decoded_from_two_strings() {
         entries.join(", ")
     );
     let javascript = compile_with(&source, PRISTINE);
-    assert!(!javascript.contains("entity42:") && javascript.contains(".split("), "{javascript}");
+    assert!(
+        !javascript.contains("entity42:") && javascript.contains(".split("),
+        "{javascript}"
+    );
     let mut keys = vec!["\"7\"".to_string()];
     keys.extend((0..80).map(|index| format!("\"entity{index:02}\"")));
     assert_eq!(
@@ -1564,6 +1672,9 @@ fn a_number_counts_up_with_the_increment() {
     "#;
     let javascript = compile_with(source, PRISTINE);
     // A float's `x=x+1` is `++x`; the int counter keeps its wrap.
-    assert!(javascript.contains("++") && javascript.contains("+1|0"), "{javascript}");
+    assert!(
+        javascript.contains("++") && javascript.contains("+1|0"),
+        "{javascript}"
+    );
     assert_eq!(run(&javascript, SHOW), "3.5\n");
 }

@@ -9,7 +9,7 @@ use crate::compilation_policy::{
     BudgetLedger, BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
 };
 use crate::js::selection::{Objective, Plan, Style};
-use serde_json::{Value as Json, json};
+use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 
@@ -513,7 +513,8 @@ fn maintained_integrated_reference_consumer_keeps_fresh_local_activations() {
             "/src/program/fixtures/integrated-architecture/products.lil"
         )),
         setup: "",
-        observations: "events.push(library.productScore(5,9));events.push(library.productScore(2,3));",
+        observations:
+            "events.push(library.productScore(5,9));events.push(library.productScore(2,3));",
         expected: "[17,5,9,11,10,5,9,28,8,2,3,8,4,2,3,16]",
         root: "referenceState",
         helpers: &["updateReference"],

@@ -24,13 +24,13 @@ pub(crate) mod type_admission;
 pub(crate) mod type_payload;
 pub(crate) mod type_relation;
 pub(crate) mod type_substitution;
-pub use modules::{
-    analyze_modules, CheckedModules, InterfaceTarget, ModuleExport, ModuleImport, ModuleInterface,
-    ModuleCheckError,
-};
 pub(crate) use modules::with_analyzed_modules;
 #[cfg(test)]
 pub(crate) use modules::AdmittedModuleCheckError;
+pub use modules::{
+    analyze_modules, CheckedModules, InterfaceTarget, ModuleCheckError, ModuleExport, ModuleImport,
+    ModuleInterface,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(pub u32);
@@ -921,9 +921,8 @@ impl<'src> DeclarationTables<'src> {
         module: Option<crate::module::ModuleId>,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<SymbolId, AllocationError> {
-        let id = SymbolId(
-            u32::try_from(self.symbols.len()).map_err(|_| AllocationError::Capacity)?,
-        );
+        let id =
+            SymbolId(u32::try_from(self.symbols.len()).map_err(|_| AllocationError::Capacity)?);
         debug_assert_eq!(symbol.id, id);
         debug_assert_eq!(self.symbols.len(), self.symbol_modules.len());
         budget.reserve_vec(AllocationClass::Scratch, &mut self.symbols, 1)?;
@@ -1607,7 +1606,10 @@ fn narrowing_leaf<'ast, 'src>(
             Some(NarrowingLeaf::TypeCheck { ident, span: *span })
         }
         ExprKind::Binary {
-            op: op @ (BinaryOp::Eq | BinaryOp::NotEq), lhs, rhs, ..
+            op: op @ (BinaryOp::Eq | BinaryOp::NotEq),
+            lhs,
+            rhs,
+            ..
         } => {
             let ident = match (&lhs.kind, &rhs.kind) {
                 (ExprKind::Ident(ident), ExprKind::Null(_))
@@ -1635,7 +1637,13 @@ struct NarrowingInput<'ast, 'src> {
 impl<'ast, 'src> NarrowingInput<'ast, 'src> {
     fn leaf(expression: &'ast Expr<'ast, 'src>) -> Self {
         let relevant = narrowing_leaf(expression).is_some()
-            || matches!(expression.kind, ExprKind::Unary { op: UnaryOp::Not, .. });
+            || matches!(
+                expression.kind,
+                ExprKind::Unary {
+                    op: UnaryOp::Not,
+                    ..
+                }
+            );
         Self {
             expression: relevant.then_some(expression),
             when_true: true,
@@ -2036,9 +2044,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         fields.insert(
                             field.name.name,
                             FieldInfo {
-                                member: self
-                                    .declarations
-                                    .declare_member(owner, MemberSlot::field(index), self.budget)?,
+                                member: self.declarations.declare_member(
+                                    owner,
+                                    MemberSlot::field(index),
+                                    self.budget,
+                                )?,
                                 name: field.name.name,
                                 ty,
                                 index,
@@ -2064,9 +2074,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             fields.insert(
                                 method.name.name,
                                 FieldInfo {
-                                    member: self
-                                        .declarations
-                                        .declare_member(owner, MemberSlot::field(index), self.budget)?,
+                                    member: self.declarations.declare_member(
+                                        owner,
+                                        MemberSlot::field(index),
+                                        self.budget,
+                                    )?,
                                     name: method.name.name,
                                     ty: Type::Function(signature.clone()),
                                     index,
@@ -2077,13 +2089,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         methods.insert(
                             method.name.name,
                             MethodInfo {
-                                member: self
-                                    .declarations
-                                    .declare_member(
-                                        owner,
-                                        MemberSlot::method(methods.len()),
-                                        self.budget,
-                                    )?,
+                                member: self.declarations.declare_member(
+                                    owner,
+                                    MemberSlot::method(methods.len()),
+                                    self.budget,
+                                )?,
                                 owner: decl.name.name,
                                 type_params: validate_type_params(method.type_params)?,
                                 signature,
@@ -2242,7 +2252,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         // The host constructor's parameters, for `super(...)`
                         // from an internal subclass. Defaults would need the
                         // host's own default semantics, so they are refused.
-                        if let Some(param) = constructor.params.iter().find(|param| param.default.is_some()) {
+                        if let Some(param) = constructor
+                            .params
+                            .iter()
+                            .find(|param| param.default.is_some())
+                        {
                             return Err(AdmittedCheckError::new(
                                 param.span,
                                 "a host constructor signature cannot declare parameter defaults",
@@ -2250,13 +2264,17 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }
                         let mut params = Vec::with_capacity(constructor.params.len());
                         for param in constructor.params {
-                            params.push(self.resolve_parameter_type(&param.parameter, "host constructor parameter")?);
+                            params.push(self.resolve_parameter_type(
+                                &param.parameter,
+                                "host constructor parameter",
+                            )?);
                         }
                         let signature = FunctionType::new(FunctionSignature {
                             params,
                             return_type: Box::new(Type::Void),
                         });
-                        if Type::Function(signature.clone()).contains_mutable_reference_parameters() {
+                        if Type::Function(signature.clone()).contains_mutable_reference_parameters()
+                        {
                             return Err(AdmittedCheckError::new(
                                 constructor.span,
                                 "foreign callable contracts do not support mutable-reference parameters",
@@ -2280,9 +2298,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         fields.insert(
                             field.name.name,
                             FieldInfo {
-                                member: self
-                                    .declarations
-                                    .declare_member(owner, MemberSlot::field(index), self.budget)?,
+                                member: self.declarations.declare_member(
+                                    owner,
+                                    MemberSlot::field(index),
+                                    self.budget,
+                                )?,
                                 name: field.name.name,
                                 ty: self.resolve_value_type(field.ty, "extern class field")?,
                                 index,
@@ -2305,13 +2325,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         methods.insert(
                             method.name.name,
                             MethodInfo {
-                                member: self
-                                    .declarations
-                                    .declare_member(
-                                        owner,
-                                        MemberSlot::method(methods.len()),
-                                        self.budget,
-                                    )?,
+                                member: self.declarations.declare_member(
+                                    owner,
+                                    MemberSlot::method(methods.len()),
+                                    self.budget,
+                                )?,
                                 owner: decl.name.name,
                                 type_params: validate_type_params(method.type_params)?,
                                 signature: self.extern_type(method)?,
@@ -2382,10 +2400,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         };
         let base_name =
             class_type_name(base_ty).expect("base classes were validated while defining classes");
-        let base =
-            self.declarations.classes.get(base_name).ok_or_else(|| {
-                AdmittedCheckError::new(span, format!("unknown base class `{base_name}`"))
-            })?;
+        let base = self.declarations.classes.get(base_name).ok_or_else(|| {
+            AdmittedCheckError::new(span, format!("unknown base class `{base_name}`"))
+        })?;
         // An internal class may extend a host (`extern`) class: that is how a
         // typed class becomes a real `Error` subclass, with a native prototype
         // chain, `instanceof`, `stack` and `message`, instead of hand-written
@@ -2516,9 +2533,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             fields.insert(
                 field.name.name,
                 FieldInfo {
-                    member: self
-                        .declarations
-                        .declare_member(owner, MemberSlot::field(index), self.budget)?,
+                    member: self.declarations.declare_member(
+                        owner,
+                        MemberSlot::field(index),
+                        self.budget,
+                    )?,
                     name: field.name.name,
                     ty,
                     index,
@@ -2529,7 +2548,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(fields)
     }
 
-    fn declare_functions(&mut self, program: &Program<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+    fn declare_functions(
+        &mut self,
+        program: &Program<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         for item in program.items {
             match item {
                 Item::Function(function) => {
@@ -2659,7 +2681,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(signature)
     }
 
-    fn analyze_class(&mut self, class: &'ast ClassDecl<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+    fn analyze_class(
+        &mut self,
+        class: &'ast ClassDecl<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         self.push_type_params(class.type_params)?;
         let requires_super = self
             .declarations
@@ -2785,11 +2810,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             &mut self.constructor_classes,
             Some(class_name),
         )?;
-        self.budget.push(
-            AllocationClass::Scratch,
-            &mut self.generator_contexts,
-            None,
-        )?;
+        self.budget
+            .push(AllocationClass::Scratch, &mut self.generator_contexts, None)?;
         for statement in constructor.body {
             self.analyze_stmt(statement)?;
         }
@@ -3005,7 +3027,14 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
         }
         for (index, symbol) in self.declarations.symbols.iter_mut().enumerate() {
-            if self.declarations.symbol_modules.get(index).copied().flatten() == Some(module) {
+            if self
+                .declarations
+                .symbol_modules
+                .get(index)
+                .copied()
+                .flatten()
+                == Some(module)
+            {
                 finalize_default_bindings_in_type(&mut symbol.ty, source_info, true)?;
             }
         }
@@ -3062,7 +3091,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         Ok(())
     }
 
-    fn analyze_stmt(&mut self, statement: &'ast Stmt<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+    fn analyze_stmt(
+        &mut self,
+        statement: &'ast Stmt<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         match statement {
             Stmt::VarDecl(decl) => self.analyze_var_decl(decl),
             Stmt::ArrayDestructure {
@@ -3380,7 +3412,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .copied()
             .flatten()
             .ok_or_else(|| {
-                AdmittedCheckError::new(span, "`super` is only valid in a derived class constructor")
+                AdmittedCheckError::new(
+                    span,
+                    "`super` is only valid in a derived class constructor",
+                )
             })?;
         let class = self
             .declarations
@@ -3430,7 +3465,9 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             .generator_contexts
             .last()
             .and_then(Clone::clone)
-            .ok_or_else(|| AdmittedCheckError::new(span, "`yield` is only valid inside a generator"))?;
+            .ok_or_else(|| {
+                AdmittedCheckError::new(span, "`yield` is only valid inside a generator")
+            })?;
         if delegate {
             let iterable = self.analyze_expr(value, None)?;
             let actual = match iterable {
@@ -3457,7 +3494,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
     }
 
-    fn analyze_var_decl(&mut self, decl: &'ast VarDecl<'ast, 'src>) -> Result<(), AdmittedCheckError> {
+    fn analyze_var_decl(
+        &mut self,
+        decl: &'ast VarDecl<'ast, 'src>,
+    ) -> Result<(), AdmittedCheckError> {
         if decl.initializer.is_none() {
             return Err(AdmittedCheckError::new(
                 decl.span,
@@ -3878,7 +3918,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             .unwrap_or(usize::MAX),
                     )
                     .ok_or_else(|| {
-                        AdmittedCheckError::new(name.span, format!("unknown struct `{}`", name.name))
+                        AdmittedCheckError::new(
+                            name.span,
+                            format!("unknown struct `{}`", name.name),
+                        )
                     })?;
                 if values.len() != info.fields.len() {
                     return Err(AdmittedCheckError::new(
@@ -3964,16 +4007,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 )? {
                     ty
                 } else {
-                    let info = self
-                        .declarations
-                        .classes
-                        .get(class.name)
-                        .ok_or_else(|| {
-                            AdmittedCheckError::new(
-                                class.span,
-                                format!("unknown class `{}`", class.name),
-                            )
-                        })?;
+                    let info = self.declarations.classes.get(class.name).ok_or_else(|| {
+                        AdmittedCheckError::new(
+                            class.span,
+                            format!("unknown class `{}`", class.name),
+                        )
+                    })?;
                     self.facts.source_info[expr.id.index()].resolution =
                         ExpressionResolution::NominalConstruction(
                             self.view()
@@ -4043,12 +4082,7 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             );
                         }
                     } else if type_params.is_empty() {
-                        self.resolve_type_arguments(
-                            class.name,
-                            type_args,
-                            &type_params,
-                            *span,
-                        )?;
+                        self.resolve_type_arguments(class.name, type_args, &type_params, *span)?;
                     }
                     let mut actual_args = Vec::with_capacity(args.len());
                     for (arg, pattern) in args.iter().zip(params) {
@@ -4369,13 +4403,19 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                     }
                 } else {
                     let expected_index = index_key_type(&inner).ok_or_else(|| {
-                        AdmittedCheckError::new(*span, format!("cannot index a value of type `{inner}`"))
+                        AdmittedCheckError::new(
+                            *span,
+                            format!("cannot index a value of type `{inner}`"),
+                        )
                     })?;
                     let index_type = self.analyze_expr(index, Some(&expected_index))?;
                     self.require_assignable(&expected_index, &index_type, index.span())?;
                 }
                 let element = index_value_type(&inner, false).ok_or_else(|| {
-                    AdmittedCheckError::new(*span, format!("cannot index a value of type `{inner}`"))
+                    AdmittedCheckError::new(
+                        *span,
+                        format!("cannot index a value of type `{inner}`"),
+                    )
                 })?;
                 self.facts
                     .optional_present_types
@@ -4528,7 +4568,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             let mut next = expression;
             let mut next_expected = expected.cloned();
             'visit: loop {
-                self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                self.budget
+                    .work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                 if let ExprKind::Binary { lhs, .. } = &next.kind {
                     self.budget.push(
                         AllocationClass::Scratch,
@@ -4549,7 +4590,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 let mut ty = self.analyze_expr(next, next_expected.as_ref())?;
                 let mut narrowing = NarrowingInput::leaf(next);
                 loop {
-                    self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                    self.budget
+                        .work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                     match pending.pop() {
                         None => return Ok(ty),
                         Some(BinaryContinuation::Left {
@@ -4561,7 +4603,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             };
                             let narrowed_scope = matches!(op, BinaryOp::And | BinaryOp::Or);
                             next_expected = if narrowed_scope {
-                                let (when_true, when_false) = self.narrowing_from_input(narrowing)?;
+                                let (when_true, when_false) =
+                                    self.narrowing_from_input(narrowing)?;
                                 self.push_scope()?;
                                 self.apply_narrowing(if *op == BinaryOp::And {
                                     when_true
@@ -5178,9 +5221,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 )),
             },
             Type::Array(element) => match property.name {
-                "map" | "filter" | "forEach" | "reduce" | "some" | "every" | "findIndex" => Err(
-                    AdmittedCheckError::new(span, format!("array `{}` must be called", property.name)),
-                ),
+                "map" | "filter" | "forEach" | "reduce" | "some" | "every" | "findIndex" => {
+                    Err(AdmittedCheckError::new(
+                        span,
+                        format!("array `{}` must be called", property.name),
+                    ))
+                }
                 "push" => Ok(Type::Function(FunctionType::new(FunctionSignature {
                     params: vec![FunctionParameter::value(*element)],
                     return_type: Box::new(Type::Int),
@@ -5473,7 +5519,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             let ty = self.facts.expression_types[argument.expression.id.index()]
                 .clone()
                 .ok_or_else(|| {
-                    AdmittedCheckError::new(argument.span, "array callback argument lost its checked type")
+                    AdmittedCheckError::new(
+                        argument.span,
+                        "array callback argument lost its checked type",
+                    )
                 })?;
             params.push(FunctionParameter::value(ty));
         }
@@ -6051,7 +6100,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             ("JSON", "parse") => {
                 let [value] = args else {
-                    return Err(AdmittedCheckError::new(span, "`JSON.parse` expects one string"));
+                    return Err(AdmittedCheckError::new(
+                        span,
+                        "`JSON.parse` expects one string",
+                    ));
                 };
                 let actual = self.analyze_value_argument(value, Some(&Type::String))?;
                 self.require_assignable(&Type::String, &actual, value.span)?;
@@ -6059,7 +6111,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             ("Task", "resolve") => {
                 let [value] = args else {
-                    return Err(AdmittedCheckError::new(span, "`Task.resolve` expects one value"));
+                    return Err(AdmittedCheckError::new(
+                        span,
+                        "`Task.resolve` expects one value",
+                    ));
                 };
                 let expected_value = match expected {
                     Some(Type::Task(value)) => Some(value.as_ref()),
@@ -6073,7 +6128,10 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             ("Task", "reject") => {
                 let [reason] = args else {
-                    return Err(AdmittedCheckError::new(span, "`Task.reject` expects one reason"));
+                    return Err(AdmittedCheckError::new(
+                        span,
+                        "`Task.reject` expects one reason",
+                    ));
                 };
                 let reason_type = self.analyze_value_argument(reason, None)?;
                 if reason_type == Type::Void {
@@ -6757,11 +6815,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         );
         self.callable_depth += 1;
         self.push_scope()?;
-        self.budget.push(
-            AllocationClass::Scratch,
-            &mut self.generator_contexts,
-            None,
-        )?;
+        self.budget
+            .push(AllocationClass::Scratch, &mut self.generator_contexts, None)?;
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.constructor_classes,
@@ -7423,8 +7478,16 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         };
         let (when_true, when_false) = self.condition_narrowing(expression)?;
         Ok((
-            if input.when_true { when_true } else { empty_narrowing() },
-            if input.when_false { when_false } else { empty_narrowing() },
+            if input.when_true {
+                when_true
+            } else {
+                empty_narrowing()
+            },
+            if input.when_false {
+                when_false
+            } else {
+                empty_narrowing()
+            },
         ))
     }
 
@@ -7443,7 +7506,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 ..
             }
         ) {
-            self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+            self.budget
+                .work(crate::compilation_policy::WorkKind::Analysis, 1)?;
             return self.condition_narrowing_leaf(condition);
         }
         let mut pending = Vec::new();
@@ -7455,7 +7519,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                 NarrowingStep::Visit(condition),
             )?;
             loop {
-                self.budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+                self.budget
+                    .work(crate::compilation_policy::WorkKind::Analysis, 1)?;
                 let Some(step) = pending.pop() else {
                     break;
                 };
@@ -7466,7 +7531,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                             expr,
                             ..
                         } => {
-                            self.budget.push(AllocationClass::Scratch, &mut pending, NarrowingStep::Not)?;
+                            self.budget.push(
+                                AllocationClass::Scratch,
+                                &mut pending,
+                                NarrowingStep::Not,
+                            )?;
                             self.budget.push(
                                 AllocationClass::Scratch,
                                 &mut pending,
@@ -7497,11 +7566,13 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         }
                         _ => {
                             let answer = self.condition_narrowing_leaf(expression)?;
-                            self.budget.push(AllocationClass::Scratch, &mut answers, answer)?;
+                            self.budget
+                                .push(AllocationClass::Scratch, &mut answers, answer)?;
                         }
                     },
                     NarrowingStep::Not => {
-                        let (when_true, when_false) = answers.pop().expect("analyzed negated guard");
+                        let (when_true, when_false) =
+                            answers.pop().expect("analyzed negated guard");
                         self.budget.push(
                             AllocationClass::Scratch,
                             &mut answers,
@@ -7516,7 +7587,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
                         } else {
                             (empty_narrowing(), merge_narrowing(lhs_else, rhs_else))
                         };
-                        self.budget.push(AllocationClass::Scratch, &mut answers, answer)?;
+                        self.budget
+                            .push(AllocationClass::Scratch, &mut answers, answer)?;
                     }
                 }
             }
@@ -7568,7 +7640,11 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
             }
             return Ok((then_narrowing, else_narrowing));
         }
-        let NarrowingLeaf::NullComparison { ident, present_when_true } = leaf else {
+        let NarrowingLeaf::NullComparison {
+            ident,
+            present_when_true,
+        } = leaf
+        else {
             unreachable!("type guard returned above")
         };
         let symbol = self.resolve(ident)?;
@@ -7699,7 +7775,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         }
 
         let id = SymbolId(
-            u32::try_from(self.declarations.symbols.len()).map_err(|_| AllocationError::Capacity)?,
+            u32::try_from(self.declarations.symbols.len())
+                .map_err(|_| AllocationError::Capacity)?,
         );
         let symbol = Symbol {
             id,
@@ -7725,7 +7802,8 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
         ty: Type<'src>,
     ) -> Result<SymbolId, AdmittedCheckError> {
         let id = SymbolId(
-            u32::try_from(self.declarations.symbols.len()).map_err(|_| AllocationError::Capacity)?,
+            u32::try_from(self.declarations.symbols.len())
+                .map_err(|_| AllocationError::Capacity)?,
         );
         let symbol = Symbol {
             id,
@@ -7775,9 +7853,12 @@ impl<'check, 'budget, 'ast, 'src> Analyzer<'check, 'budget, 'ast, 'src> {
     }
 
     fn push_scope(&mut self) -> Result<(), AllocationError> {
-        self.budget.reserve_vec(AllocationClass::Scratch, &mut self.scopes, 1)?;
-        self.budget.reserve_vec(AllocationClass::Scratch, &mut self.narrowings, 1)?;
-        self.budget.work(crate::compilation_policy::WorkKind::Render, 2)?;
+        self.budget
+            .reserve_vec(AllocationClass::Scratch, &mut self.scopes, 1)?;
+        self.budget
+            .reserve_vec(AllocationClass::Scratch, &mut self.narrowings, 1)?;
+        self.budget
+            .work(crate::compilation_policy::WorkKind::Render, 2)?;
         self.scopes.push(AHashMap::default());
         self.narrowings.push(AHashMap::default());
         Ok(())
@@ -9093,11 +9174,7 @@ fn is_js_value_or_nullable_js_value(ty: &Type<'_>) -> bool {
     }
 }
 
-fn validate_type_guard(
-    value: &Type<'_>,
-    target: &Type<'_>,
-    span: Span,
-) -> Result<(), CheckError> {
+fn validate_type_guard(value: &Type<'_>, target: &Type<'_>, span: Span) -> Result<(), CheckError> {
     if matches!(target, Type::Union(_) | Type::Nullable(_)) {
         return Err(CheckError::new(
             span,

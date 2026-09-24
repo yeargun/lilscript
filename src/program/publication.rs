@@ -8,19 +8,18 @@
 //! construction or externally retained source/type storage.
 
 pub use super::artifact_provenance::{ArtifactProvenanceDescription, LiteralOutput, OutputTactics};
-pub use super::artifacts::{DeliveredBundle, DeliveredChunk, EntryLinks};
 use super::artifacts::ArtifactArena;
 pub use super::artifacts::{
-    ArtifactId, ArtifactRuntimeEvidence, ArtifactView,
-    BudgetedJavaScriptOutput, NativeArtifactView, QualifiedArtifact, QualifiedNativeArtifact,
-    ScopedArtifactId,
+    ArtifactId, ArtifactRuntimeEvidence, ArtifactView, BudgetedJavaScriptOutput,
+    NativeArtifactView, QualifiedArtifact, QualifiedNativeArtifact, ScopedArtifactId,
 };
+pub use super::artifacts::{DeliveredBundle, DeliveredChunk, EntryLinks};
 use super::facts::{
     CacheLimits, FactRequest, FactsError, FactsSession, FactsSessionWork, RetainedFactsCache,
     UnitFacts, LOCAL_FACTS_PLAN, LOCAL_FACTS_VERSION,
 };
-use super::implementation_identity::SharedImplementationIdentity;
 pub use super::implementation_identity::ImplementationDescription;
+use super::implementation_identity::SharedImplementationIdentity;
 use super::implementations::{ImplementationError, ImplementationMap};
 pub use super::native::{BudgetedNativeOutput, NativeError, NativeHostBinding, NativeHostBindings};
 use super::rewrite_lineage::RewriteLineage;

@@ -8,11 +8,11 @@ use serde::Serialize;
 
 use crate::ast::{self, ArrowBody, ClassMember, Expr, ExprKind, ExternClassMember, Item, Stmt};
 use crate::build::{with_checked_program, CheckedProgram, ServiceError};
+use crate::check::{CheckedModules, SymbolId};
 use crate::config::{BundleMode, LintConfig, LintPreset, LintSeverity, ProjectConfig};
 use crate::lexer::{lex, TokenKind};
 use crate::module::{ModuleError, ModuleId, ModuleSet};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
-use crate::check::{CheckedModules, SymbolId};
 use crate::program::{
     host_call, host_receiver, AllocationKind, CallTarget, CellBinding, Operation, OperationKind,
     Place, PlaceId, Program, RegionId, UnitData, ValueId,

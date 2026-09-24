@@ -1,8 +1,8 @@
 //! Closed semantic rules. A caller selects a site, never a replacement or an
 //! unchecked equivalence claim. Publication uses the existing patch transaction.
 use super::*;
-use crate::compilation_policy::AdmissionError;
 use crate::check::Type;
+use crate::compilation_policy::AdmissionError;
 use crate::program::facts::{Legality, ObservationDemand};
 use crate::program::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 
@@ -166,7 +166,8 @@ impl Compilation<'_> {
         facts: LocalFactsRequest,
     ) -> Result<Option<SemanticId>, RewriteError> {
         let started = self.ledger.work_used(domain);
-        let Some(proof) = self.prepare_dead_value_drop(base, unit, operation, policy, domain, facts)?
+        let Some(proof) =
+            self.prepare_dead_value_drop(base, unit, operation, policy, domain, facts)?
         else {
             return Ok(None);
         };
@@ -317,8 +318,15 @@ impl Compilation<'_> {
             // instead, and its computation — and whatever fed only that —
             // can be retired.
             if !uses.iter().all(|value_use| match *value_use {
-                ValueUse::Operand { operation: initializer, position: 0 } => {
-                    match data.operations.get(initializer.index()).map(|operation| &operation.kind) {
+                ValueUse::Operand {
+                    operation: initializer,
+                    position: 0,
+                } => {
+                    match data
+                        .operations
+                        .get(initializer.index())
+                        .map(|operation| &operation.kind)
+                    {
                         Some(OperationKind::Initialize(cell)) => {
                             cell_is_write_only(&semantic.uses, &semantic.program, *cell)
                         }
@@ -343,12 +351,10 @@ impl Compilation<'_> {
         };
         let permitted = self
             .with_local_facts(domain, 1, |group| {
-                group
-                    .query(base, unit, facts)
-                    .map(|view| {
-                        view.facts.can_drop(operation, ObservationDemand::Discarded)
-                            == Legality::PermittedUnderContext
-                    })
+                group.query(base, unit, facts).map(|view| {
+                    view.facts.can_drop(operation, ObservationDemand::Discarded)
+                        == Legality::PermittedUnderContext
+                })
             })
             .map_err(|_| RewriteError::FactsUnavailable)?
             .map_err(|_| RewriteError::FactsUnavailable)?;

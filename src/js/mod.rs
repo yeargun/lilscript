@@ -11,21 +11,21 @@
 //! occurrence, never accidental duplication of a shared expression graph.
 
 use crate::ast::SourceNodeId;
+use crate::check::SymbolId;
 use crate::literal::StringValue;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{IntBinary, Intrinsic};
-use crate::check::SymbolId;
 
 mod calls;
 mod declarations;
+pub(crate) mod delivery;
+pub mod extract;
+mod literal_output;
+pub mod manifest;
 mod root_constants;
 mod scalar_objects;
 mod tables;
 mod typed;
-pub(crate) mod delivery;
-pub mod manifest;
-pub mod extract;
-mod literal_output;
 pub use literal_output::LiteralOutput;
 pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
 #[cfg(test)]
@@ -37,15 +37,15 @@ mod naming;
 pub mod selection;
 use naming::Names;
 pub(crate) use naming::NamingProvenance;
-#[cfg(test)]
-mod output_policy_tests;
-mod print;
-mod simplify;
 mod blocks;
 mod host_lowering;
 mod initializers;
+#[cfg(test)]
+mod output_policy_tests;
 mod pooling;
+mod print;
 mod quiet;
+mod simplify;
 mod statements;
 pub(crate) use simplify::literal_array_projection;
 #[cfg(test)]
@@ -294,7 +294,11 @@ impl Expr {
     /// constructor of a class value.
     pub(crate) fn created_function(&self) -> Option<FunctionId> {
         match *self {
-            Self::Function(function) | Self::Class { constructor: function, .. } => Some(function),
+            Self::Function(function)
+            | Self::Class {
+                constructor: function,
+                ..
+            } => Some(function),
             _ => None,
         }
     }
@@ -593,7 +597,9 @@ fn intrinsic_recipe(operation: Intrinsic) -> Option<IntrinsicRecipe> {
         Intrinsic::StringEndsWith => (Method("endsWith"), 1..=2, false),
         Intrinsic::StringLastIndexOf => (Method("lastIndexOf"), 1..=2, true),
         Intrinsic::StringSearch => (Method("search"), 1..=1, true),
-        Intrinsic::IntToString | Intrinsic::IntToUnsignedString => (Method("toString"), 0..=1, false),
+        Intrinsic::IntToString | Intrinsic::IntToUnsignedString => {
+            (Method("toString"), 0..=1, false)
+        }
         Intrinsic::ArrayPush => (Method("push"), 1..=1, true),
         Intrinsic::ArrayIndexOf => (Method("indexOf"), 1..=1, true),
         Intrinsic::ArrayIncludes => (Method("includes"), 1..=2, false),
@@ -779,8 +785,7 @@ impl Statement {
             | Self::Evaluate(value)
             | Self::Throw(value)
             | Self::Let {
-                value: Some(value),
-                ..
+                value: Some(value), ..
             }
             | Self::If {
                 condition: value, ..
@@ -804,7 +809,10 @@ impl Statement {
             }
             Self::Evaluate(value) | Self::Throw(value) => visit(*value),
             Self::If { condition, .. } => visit(*condition),
-            Self::ForIn { object, .. } | Self::ForOf { iterable: object, .. } => visit(*object),
+            Self::ForIn { object, .. }
+            | Self::ForOf {
+                iterable: object, ..
+            } => visit(*object),
             Self::Loop {
                 condition, update, ..
             } => {
@@ -858,7 +866,10 @@ impl Statement {
             | Self::Return(Some(value))
             | Self::Throw(value) => *value = map(*value),
             Self::If { condition, .. } => *condition = map(*condition),
-            Self::ForIn { object, .. } | Self::ForOf { iterable: object, .. } => *object = map(*object),
+            Self::ForIn { object, .. }
+            | Self::ForOf {
+                iterable: object, ..
+            } => *object = map(*object),
             Self::Loop {
                 condition, update, ..
             } => {
@@ -1111,15 +1122,19 @@ impl Module {
                 crate::compilation_policy::WorkKind::Analysis,
                 1 + self.regions[region].statements.len() as u64,
             )?;
-            let Some(exit) = self.regions[region].statements.iter().position(|statement| {
-                matches!(
-                    statement,
-                    Statement::Return(_)
-                        | Statement::Throw(_)
-                        | Statement::Break
-                        | Statement::Continue
-                )
-            }) else {
+            let Some(exit) = self.regions[region]
+                .statements
+                .iter()
+                .position(|statement| {
+                    matches!(
+                        statement,
+                        Statement::Return(_)
+                            | Statement::Throw(_)
+                            | Statement::Break
+                            | Statement::Continue
+                    )
+                })
+            else {
                 continue;
             };
             let root = region == self.root.index();
@@ -1215,7 +1230,11 @@ impl Module {
                 let Statement::Evaluate(store) = self.regions[region].statements[target] else {
                     continue;
                 };
-                let Expr::Assign { target: place, value } = self.expressions[store.index()] else {
+                let Expr::Assign {
+                    target: place,
+                    value,
+                } = self.expressions[store.index()]
+                else {
                     continue;
                 };
                 if matches!(self.expressions[place.index()], Expr::Binding(found) if found == binding)
@@ -1252,7 +1271,9 @@ impl Module {
             Expr::Literal(_) | Expr::Function(_) => true,
             // `-5`, `!0`, `typeof "a"`: an operator on a primitive literal
             // converts nothing that could run code.
-            Expr::Unary { value, .. } => matches!(self.expressions[value.index()], Expr::Literal(_)),
+            Expr::Unary { value, .. } => {
+                matches!(self.expressions[value.index()], Expr::Literal(_))
+            }
             Expr::Array(items) => {
                 let mut inert = true;
                 for item in items {
@@ -1318,10 +1339,15 @@ impl Module {
                     right,
                 } => {
                     let (left, right) = (*left, *right);
-                    match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+                    match (
+                        &self.expressions[left.index()],
+                        &self.expressions[right.index()],
+                    ) {
                         _ => match (number(self, left), number(self, right)) {
                             (Some(a), Some(b)) => Some(a + b)
-                                .filter(|r| r.is_finite() && spelled(*r) <= spelled(a) + spelled(b) + 1)
+                                .filter(|r| {
+                                    r.is_finite() && spelled(*r) <= spelled(a) + spelled(b) + 1
+                                })
                                 .map(|r| Expr::Literal(Literal::Number(r))),
                             _ => None,
                         },
@@ -1350,9 +1376,9 @@ impl Module {
                         number(self, *left).and_then(int32),
                         number(self, *right).and_then(int32),
                     ) {
-                        (Some(a), Some(b)) => Some(Expr::Literal(Literal::Number(f64::from(
-                            op.evaluate(a, b),
-                        )))),
+                        (Some(a), Some(b)) => {
+                            Some(Expr::Literal(Literal::Number(f64::from(op.evaluate(a, b)))))
+                        }
                         _ => None,
                     }
                 }
@@ -1598,16 +1624,14 @@ impl Module {
                     index += 1;
                     continue;
                 };
-                if first
-                    .get(&binding)
-                    .is_none_or(|&mention| mention <= index)
-                {
+                if first.get(&binding).is_none_or(|&mention| mention <= index) {
                     index += 1;
                     continue;
                 }
                 let mut entries = entries.clone();
                 let mut end = index + 1;
-                while let Some(Statement::Evaluate(store)) = self.regions[region].statements.get(end)
+                while let Some(Statement::Evaluate(store)) =
+                    self.regions[region].statements.get(end)
                 {
                     budget.work(Analysis, 1)?;
                     if root && self.root_modules.get(end) != self.root_modules.get(index) {
@@ -1842,12 +1866,15 @@ impl Module {
             let mut index = 0;
             while index < self.regions[body.index()].statements.len() {
                 budget.work(Analysis, 1)?;
-                let Some((parameter, _)) = self.default_check(&self.regions[body.index()].statements[index])
+                let Some((parameter, _)) =
+                    self.default_check(&self.regions[body.index()].statements[index])
                 else {
                     break;
                 };
                 if defined.get(parameter.index()).copied().unwrap_or(false)
-                    && self.functions[function.index()].parameters.contains(&parameter)
+                    && self.functions[function.index()]
+                        .parameters
+                        .contains(&parameter)
                 {
                     self.regions[body.index()].statements.remove(index);
                     dropped += 1;
@@ -1961,7 +1988,8 @@ impl Module {
             }
         }
         // Each callee's parameter count and its literal defaults by position.
-        let mut defaults: Vec<Option<(usize, Vec<Option<ExprId>>)>> = vec![None; self.bindings.len()];
+        let mut defaults: Vec<Option<(usize, Vec<Option<ExprId>>)>> =
+            vec![None; self.bindings.len()];
         let reach = self.reach(budget)?;
         for &region in &reach.regions {
             for statement in &self.regions[region.index()].statements {
@@ -1994,18 +2022,20 @@ impl Module {
                 defaults[binding.index()] = Some((declared.parameters.len(), literal));
             }
         }
-        let same = |module: &Self, argument: ExprId, default: Option<ExprId>| {
-            match &module.expressions[argument.index()] {
-                Expr::Literal(Literal::Undefined) => true,
-                Expr::Literal(passed) => default.is_some_and(|default| {
-                    match (passed, &module.expressions[default.index()]) {
-                        (Literal::Number(a), Expr::Literal(Literal::Number(b))) => a.to_bits() == b.to_bits(),
-                        (a, Expr::Literal(b)) => a == b,
-                        _ => false,
+        let same = |module: &Self, argument: ExprId, default: Option<ExprId>| match &module
+            .expressions[argument.index()]
+        {
+            Expr::Literal(Literal::Undefined) => true,
+            Expr::Literal(passed) => default.is_some_and(|default| {
+                match (passed, &module.expressions[default.index()]) {
+                    (Literal::Number(a), Expr::Literal(Literal::Number(b))) => {
+                        a.to_bits() == b.to_bits()
                     }
-                }),
-                _ => false,
-            }
+                    (a, Expr::Literal(b)) => a == b,
+                    _ => false,
+                }
+            }),
+            _ => false,
         };
         let mut dropped = 0;
         for &(id, _) in &reach.expressions {
@@ -2027,7 +2057,11 @@ impl Module {
             let mut keep = arguments.len();
             while keep > 0 {
                 let position = keep - 1;
-                let default = if position < *parameters { literal[position] } else { None };
+                let default = if position < *parameters {
+                    literal[position]
+                } else {
+                    None
+                };
                 if position >= *parameters || !same(self, arguments[position], default) {
                     break;
                 }
@@ -2073,7 +2107,10 @@ impl Module {
         else {
             return None;
         };
-        let tested = match (&self.expressions[left.index()], &self.expressions[right.index()]) {
+        let tested = match (
+            &self.expressions[left.index()],
+            &self.expressions[right.index()],
+        ) {
             (Expr::Binding(tested), Expr::Literal(Literal::Undefined))
             | (Expr::Literal(Literal::Undefined), Expr::Binding(tested)) => *tested,
             _ => return None,
@@ -2081,7 +2118,10 @@ impl Module {
         let Expr::Assign { target, value } = &self.expressions[assign.index()] else {
             return None;
         };
-        match (&self.expressions[target.index()], &self.expressions[value.index()]) {
+        match (
+            &self.expressions[target.index()],
+            &self.expressions[value.index()],
+        ) {
             (Expr::Binding(target), Expr::Literal(literal))
                 if *target == tested && !matches!(literal, Literal::Undefined) =>
             {
@@ -2107,9 +2147,10 @@ impl Module {
     /// arrows it creates. In a sloppy frame that object aliases the
     /// parameters: writing `arguments[0]` assigns the first.
     fn reads_arguments(&self, function: FunctionId) -> bool {
-        self.frame_reads(function, |expression| {
-            matches!(expression, Expr::Host(name) if name == "arguments")
-        })
+        self.frame_reads(
+            function,
+            |expression| matches!(expression, Expr::Host(name) if name == "arguments"),
+        )
     }
 
     /// Whether `function`'s frame reads no `arguments` object and calls no
@@ -2278,7 +2319,9 @@ impl Module {
             };
             for statement in &self.regions[region.index()].statements {
                 budget.work(Analysis, 1)?;
-                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
+                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } =
+                    statement
+                {
                     visit(*binding, true);
                 }
                 statement.visit_expressions(|root| expressions.push(root));
@@ -2301,8 +2344,7 @@ impl Module {
         &mut self,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<(usize, Option<Vec<Option<ExprId>>>), AllocationError> {
-        let mut references =
-            budget.filled(AllocationClass::Scratch, self.bindings.len(), 0u32)?;
+        let mut references = budget.filled(AllocationClass::Scratch, self.bindings.len(), 0u32)?;
         budget.work(
             crate::compilation_policy::WorkKind::Analysis,
             self.exports.len() as u64,
@@ -2311,12 +2353,17 @@ impl Module {
         // same walk finds the bindings that code assigns, so the two cannot
         // disagree about which nodes are live.
         let mut written = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        self.walk_mentions(&mut vec![self.root], &mut Vec::new(), budget, |binding, write| {
-            references[binding.index()] = references[binding.index()].saturating_add(1);
-            if write {
-                written[binding.index()] = true;
-            }
-        })?;
+        self.walk_mentions(
+            &mut vec![self.root],
+            &mut Vec::new(),
+            budget,
+            |binding, write| {
+                references[binding.index()] = references[binding.index()].saturating_add(1);
+                if write {
+                    written[binding.index()] = true;
+                }
+            },
+        )?;
         for export in &self.exports {
             references[export.binding.index()] = u32::MAX;
         }
@@ -2357,11 +2404,13 @@ impl Module {
                     && !self.bindings[binding.index()].pinned
                     && !matches!(self.expressions[value.index()], Expr::Class { .. })
                     && function.is_none_or(|function| {
-                        matches!(self.functions[function.index()].name, FunctionName::Unobserved)
+                        matches!(
+                            self.functions[function.index()].name,
+                            FunctionName::Unobserved
+                        )
                     });
-                let same_module = |at: usize| {
-                    !root || self.root_modules.get(index) == self.root_modules.get(at)
-                };
+                let same_module =
+                    |at: usize| !root || self.root_modules.get(index) == self.root_modules.get(at);
                 let leaf = if movable && function.is_none() && same_module(index + 1) {
                     let next = &self.regions[region].statements[index + 1];
                     // A function created in a `for…in`/`for…of` head closes
@@ -2421,7 +2470,9 @@ impl Module {
                 let mut nested: Option<RegionId> = None;
                 let leaf = match leaf {
                     Some(leaf) => Some(leaf),
-                    None if movable && (settled.is_some() || self.inert_value(value, budget)?) => {
+                    None if movable
+                        && (settled.is_some() || self.inert_value(value, budget)?) =>
+                    {
                         let mut found = None;
                         for later in index + 1..self.regions[region].statements.len() {
                             budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
@@ -2489,8 +2540,9 @@ impl Module {
                 };
                 let target_region = nested.map_or(region, |inner| inner.index());
                 match leaf {
-                    Leaf::Root => self.regions[target_region].statements[target_statement]
-                        .replace_root(value),
+                    Leaf::Root => {
+                        self.regions[target_region].statements[target_statement].replace_root(value)
+                    }
                     Leaf::Child(parent) => {
                         let target = binding;
                         let expressions = &self.expressions;
@@ -2513,8 +2565,13 @@ impl Module {
                         // created after its new parent (a literal a store fold
                         // rebuilt) waits for the renumbering below.
                         disordered |= value.index() > parent.index();
-                        self.expressions[parent.index()]
-                            .remap_children(|child| if child == slot { value } else { child });
+                        self.expressions[parent.index()].remap_children(|child| {
+                            if child == slot {
+                                value
+                            } else {
+                                child
+                            }
+                        });
                     }
                 }
                 // Functions the value creates now open in the branch's scope.
@@ -2606,12 +2663,17 @@ impl Module {
                         if *declared == binding
                 )
             };
-            if self.regions[region.index()].statements[..index].iter().any(declares) {
+            if self.regions[region.index()].statements[..index]
+                .iter()
+                .any(declares)
+            {
                 return Ok(true);
             }
             if let Some(function) = frames.bodies[region.index()] {
                 return Ok(!frames.arguments[function.index()]
-                    && self.functions[function.index()].parameters.contains(&binding));
+                    && self.functions[function.index()]
+                        .parameters
+                        .contains(&binding));
             }
             let Some((parent, _)) = frames.parents[region.index()] else {
                 return Ok(false);
@@ -2628,12 +2690,12 @@ impl Module {
                 return Ok(false);
             };
             match &statements[at] {
-                Statement::ForIn { binding: declared, .. }
-                | Statement::ForOf { binding: declared, .. }
-                    if *declared == binding =>
-                {
-                    return Ok(true)
+                Statement::ForIn {
+                    binding: declared, ..
                 }
+                | Statement::ForOf {
+                    binding: declared, ..
+                } if *declared == binding => return Ok(true),
                 Statement::Try {
                     catch:
                         Some(Catch {
@@ -2701,7 +2763,8 @@ impl Module {
         loop {
             if let Some(id) = expressions.pop() {
                 if let Expr::Assign { target, .. } = &self.expressions[id.index()] {
-                    if matches!(self.expressions[target.index()], Expr::Binding(b) if bindings.contains(&b)) {
+                    if matches!(self.expressions[target.index()], Expr::Binding(b) if bindings.contains(&b))
+                    {
                         return true;
                     }
                 }
@@ -2715,7 +2778,9 @@ impl Module {
                 return false;
             };
             for statement in &self.regions[region.index()].statements {
-                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
+                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } =
+                    statement
+                {
                     if bindings.contains(binding) {
                         return true;
                     }
@@ -2934,8 +2999,7 @@ impl Module {
             | Statement::Evaluate(value)
             | Statement::Throw(value)
             | Statement::Let {
-                value: Some(value),
-                ..
+                value: Some(value), ..
             }
             | Statement::If {
                 condition: value, ..
@@ -3013,7 +3077,11 @@ impl Module {
         let mut stack: Vec<Node> = regions
             .iter()
             .map(|region| Node::Region(*region, false))
-            .chain(expressions.iter().map(|expression| Node::Expr(*expression, false)))
+            .chain(
+                expressions
+                    .iter()
+                    .map(|expression| Node::Expr(*expression, false)),
+            )
             .collect();
         while let Some(node) = stack.pop() {
             match node {
@@ -3059,10 +3127,8 @@ impl Module {
                                     stack.push(Node::Region(*finally, inside));
                                 }
                             }
-                            Statement::Function { function, .. } => stack.push(Node::Region(
-                                self.functions[function.index()].body,
-                                true,
-                            )),
+                            Statement::Function { function, .. } => stack
+                                .push(Node::Region(self.functions[function.index()].body, true)),
                             _ => {}
                         }
                     }

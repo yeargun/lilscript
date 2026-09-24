@@ -4,11 +4,11 @@ use crate::compilation_policy::{
     BaselineFirstPlan, BudgetLedger, BudgetPlan, CompilationRequest, ResolvedPolicy,
     ResourceLimits, WorkDomain, WorkKind,
 };
+use crate::js::selection::{Objective, Objectives, Plan, Sizes, Style};
 use crate::program::facts::CacheLimits;
 use crate::program::publication::*;
 use crate::program::*;
-use crate::js::selection::{Objective, Objectives, Plan, Sizes, Style};
-use serde_json::{Value as Json, json};
+use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 

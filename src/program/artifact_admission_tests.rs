@@ -3,11 +3,11 @@ use super::*;
 use crate::compilation_policy::{
     AdmissionError, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
 };
+use crate::js::selection::Style;
 use crate::program::publication::{
     CheckpointLimit, Compilation, OperationPatch, SemanticId, UnitPatch,
 };
 use crate::program::{Constant, OpId, OperationKind, UnitId};
-use crate::js::selection::Style;
 
 fn policy(extra: &str, exports: bool) -> ResolvedPolicy {
     let config: crate::config::ProjectConfig = toml::from_str(&format!(

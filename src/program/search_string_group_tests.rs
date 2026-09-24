@@ -8,9 +8,9 @@ use crate::compilation_policy::{
     BudgetLedger, BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
     WorkKind,
 };
-use crate::output_budget::AllocationBudget;
 use crate::js::selection::{Objective, Plan, Style};
-use serde_json::{Value, json};
+use crate::output_budget::AllocationBudget;
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 

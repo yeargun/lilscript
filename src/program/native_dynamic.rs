@@ -139,7 +139,9 @@ ls_callable{index} result; memcpy(&result, &value.as.c, sizeof result); return r
             (F64, Dynamic(_)) => ("ls_value_float(".into(), ")"),
             (Bool, Dynamic(_)) => ("ls_value_bool(".into(), ")"),
             (String, Dynamic(_)) => ("ls_value_string(".into(), ")"),
-            (Object(_) | Map | Set | Buffer | Typed(_), Dynamic(_)) => ("ls_value_object(".into(), ")"),
+            (Object(_) | Map | Set | Buffer | Typed(_), Dynamic(_)) => {
+                ("ls_value_object(".into(), ")")
+            }
             (Symbol, Dynamic(_)) => ("ls_value_symbol(".into(), ")"),
             (Array(_), Dynamic(_)) => ("ls_value_array((ls_native_object *)".into(), ")"),
             (Callable(signature), Dynamic(_)) => (format!("ls_value_callable{signature}("), ")"),
@@ -231,7 +233,10 @@ static {} {name}_code(void *environment",
             ))?;
             self.signature_parameters(to, true, true)?;
             self.write(format_args!(") {{\n{name} *adapter = environment;\n"))?;
-            let (inner, outer) = (self.plan.signatures[from].result, self.plan.signatures[to].result);
+            let (inner, outer) = (
+                self.plan.signatures[from].result,
+                self.plan.signatures[to].result,
+            );
             let (prefix, suffix) = Self::conversion(inner, outer);
             if outer != NativeType::Void {
                 self.text("return ")?;

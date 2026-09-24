@@ -139,7 +139,11 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
     }
 
     /// Whether this value is formed through its D2 public encoder.
-    pub(super) fn encoded(&mut self, context: ContextId, value: ValueId) -> Result<bool, FormationError> {
+    pub(super) fn encoded(
+        &mut self,
+        context: ContextId,
+        value: ValueId,
+    ) -> Result<bool, FormationError> {
         if self.struct_plan.public_encodes.is_empty() {
             return Ok(false);
         }
@@ -159,7 +163,9 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         actual: &Type<'_>,
     ) -> Result<bool, FormationError> {
         let admitted = match actual {
-            Type::Struct(_) => super::public_structs::adaptable(self.program, actual, 0, self.budget)?,
+            Type::Struct(_) => {
+                super::public_structs::adaptable(self.program, actual, 0, self.budget)?
+            }
             // A function value is wrapped by a D2 callable adapter.
             Type::Function(signature) => {
                 super::public_structs::adaptable_callable(self.program, signature, self.budget)?
@@ -238,21 +244,23 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
             Place::Index { receiver, .. } => (receiver, None),
             _ => return Ok(None),
         };
-        Ok(match &program.types[data.values[receiver.index()].ty.index()] {
-            Type::Array(inner) | Type::Record(inner) => Some(inner.as_ref()),
-            // A host object's property is a `JsValue` position.
-            dynamic @ Type::TypeParameter("$js") => Some(dynamic),
-            Type::Class(name) | Type::ClassInstance { name, .. } => {
-                self.work(program.classes.len())?;
-                let Some(key) = key else { return Ok(None) };
-                program
-                    .class(name)
-                    .filter(|class| !class.external)
-                    .and_then(|class| class.fields.iter().find(|(field, _)| *field == key))
-                    .map(|(_, ty)| &program.types[ty.index()])
-            }
-            _ => None,
-        })
+        Ok(
+            match &program.types[data.values[receiver.index()].ty.index()] {
+                Type::Array(inner) | Type::Record(inner) => Some(inner.as_ref()),
+                // A host object's property is a `JsValue` position.
+                dynamic @ Type::TypeParameter("$js") => Some(dynamic),
+                Type::Class(name) | Type::ClassInstance { name, .. } => {
+                    self.work(program.classes.len())?;
+                    let Some(key) = key else { return Ok(None) };
+                    program
+                        .class(name)
+                        .filter(|class| !class.external)
+                        .and_then(|class| class.fields.iter().find(|(field, _)| *field == key))
+                        .map(|(_, ty)| &program.types[ty.index()])
+                }
+                _ => None,
+            },
+        )
     }
 
     fn struct_load_interface(
@@ -278,7 +286,9 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                 match self.member_declared_type(context, place)? {
                     Some(declared) => declared,
                     // Dynamic host receivers lack a product interface.
-                    None => return Err(self.error(span, "value-struct load requires an ABI adapter")),
+                    None => {
+                        return Err(self.error(span, "value-struct load requires an ABI adapter"))
+                    }
                 }
             }
         };
@@ -401,16 +411,27 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         if class.is_none()
                             && matches!(result_type, Some(Type::TypeParameter("$js")))
                         {
-                            self.struct_transfer(context, value, &Type::TypeParameter("$js"), span)?;
+                            self.struct_transfer(
+                                context,
+                                value,
+                                &Type::TypeParameter("$js"),
+                                span,
+                            )?;
                             continue;
                         }
-                        let declared = class.and_then(|class| {
-                            class.fields.iter().find(|(field, _)| field == key)
-                        });
+                        let declared = class
+                            .and_then(|class| class.fields.iter().find(|(field, _)| field == key));
                         let Some(&(_, declared)) = declared else {
-                            return Err(self.error(span, "value-struct object entry ABI adaptation"));
+                            return Err(
+                                self.error(span, "value-struct object entry ABI adaptation")
+                            );
                         };
-                        self.struct_transfer(context, value, &program.types[declared.index()], span)?;
+                        self.struct_transfer(
+                            context,
+                            value,
+                            &program.types[declared.index()],
+                            span,
+                        )?;
                     }
                 }
                 AllocationKind::Struct(identity) => {
@@ -459,7 +480,12 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         }
                         // A dynamic callee takes `JsValue` arguments.
                         if dynamic {
-                            self.struct_transfer(context, value, &Type::TypeParameter("$js"), span)?;
+                            self.struct_transfer(
+                                context,
+                                value,
+                                &Type::TypeParameter("$js"),
+                                span,
+                            )?;
                             continue;
                         }
                         let params = params.ok_or_else(|| {
@@ -473,7 +499,11 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                             );
                         }
                     }
-                } else if self.product_array_method(context, operation, &data.calls[call.index()].target)? {
+                } else if self.product_array_method(
+                    context,
+                    operation,
+                    &data.calls[call.index()].target,
+                )? {
                     // Every product-bearing operand was checked closed there.
                 } else if matches!(
                     data.calls[call.index()].target,
@@ -484,11 +514,12 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                     // public shape, like any `JsValue` position.
                     if let (Some(result), [CallArgument::Value(value)]) = (result_type, arguments) {
                         let host = Type::TypeParameter("$js");
-                        let expected = if super::public_structs::carries_product(result, self.budget)? {
-                            result
-                        } else {
-                            &host
-                        };
+                        let expected =
+                            if super::public_structs::carries_product(result, self.budget)? {
+                                result
+                            } else {
+                                &host
+                            };
                         self.struct_transfer(context, *value, expected, span)?;
                     }
                 } else {
@@ -501,8 +532,8 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
                         self.work(1)?;
                         if let CallArgument::Value(value) = argument {
                             if self.struct_boundary_value(context, value) {
-                                let actual = &self.program.types
-                                    [data.values[value.index()].ty.index()];
+                                let actual =
+                                    &self.program.types[data.values[value.index()].ty.index()];
                                 if host && self.public_encode(context, value, actual)? {
                                     continue;
                                 }
@@ -557,7 +588,11 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
         // products; a Set of products would compare backing identity.
         let collection = receiver
             .map(|receiver| data.values[receiver.index()].ty)
-            .or_else(|| operation.result.map(|result| data.values[result.index()].ty));
+            .or_else(|| {
+                operation
+                    .result
+                    .map(|result| data.values[result.index()].ty)
+            });
         let map_key = match collection.map(|ty| &self.program.types[ty.index()]) {
             Some(Type::Map(key, _)) => Some(key.as_ref()),
             _ => None,
@@ -619,15 +654,20 @@ impl<'program, 'src> Formation<'_, 'program, 'src, '_, '_> {
     ) -> Result<bool, FormationError> {
         let data = self.data(context);
         let arguments = match operation.kind {
-            OperationKind::Call(call) => data.arguments(data.calls[call.index()].arguments).unwrap(),
+            OperationKind::Call(call) => {
+                data.arguments(data.calls[call.index()].arguments).unwrap()
+            }
             _ => &[],
         };
-        let values = operation.result.into_iter().chain(receiver).chain(
-            arguments.iter().filter_map(|argument| match *argument {
-                CallArgument::Value(value) => Some(value),
-                _ => None,
-            }),
-        );
+        let values =
+            operation
+                .result
+                .into_iter()
+                .chain(receiver)
+                .chain(arguments.iter().filter_map(|argument| match *argument {
+                    CallArgument::Value(value) => Some(value),
+                    _ => None,
+                }));
         for value in values {
             self.work(1)?;
             if self.struct_boundary_value(context, value) {

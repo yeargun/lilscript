@@ -3,8 +3,8 @@ use super::*;
 use crate::compilation_policy::{
     BudgetError, BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
 };
-use crate::program::publication::{CheckpointLimit, Compilation};
 use crate::js::selection::Style;
+use crate::program::publication::{CheckpointLimit, Compilation};
 
 const WORK: u64 = 100_000_000;
 const MEMORY: u64 = 128_000_000;

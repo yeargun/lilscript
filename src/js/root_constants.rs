@@ -32,7 +32,11 @@ impl Module {
         let order = self.order(&frames, budget)?;
         let mut values: Vec<Option<(usize, ExprId)>> = vec![None; self.bindings.len()];
         let mut any = false;
-        for (index, statement) in self.regions[self.root.index()].statements.iter().enumerate() {
+        for (index, statement) in self.regions[self.root.index()]
+            .statements
+            .iter()
+            .enumerate()
+        {
             budget.work(Analysis, 1)?;
             let Statement::Let {
                 binding,
@@ -77,5 +81,4 @@ impl Module {
         }
         Ok(rewrites.len())
     }
-
 }

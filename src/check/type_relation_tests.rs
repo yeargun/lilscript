@@ -1,8 +1,6 @@
 use super::*;
+use crate::check::{FunctionParameter, FunctionType, GenericFunctionType, NominalId, StructType};
 use crate::primitive::ParameterPassing;
-use crate::check::{
-    FunctionParameter, FunctionType, GenericFunctionType, NominalId, StructType,
-};
 
 fn function(params: Vec<FunctionParameter<'static>>, result: Type<'static>) -> Type<'static> {
     Type::Function(FunctionType::new(FunctionSignature {

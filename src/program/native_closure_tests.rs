@@ -526,9 +526,7 @@ fn qualify_public_factory(name: &str, source_text: &str, expected: &str, path_fa
         source_text,
         &config,
         ServiceOptions {
-            objectives: Some(crate::js::selection::Objectives::One(
-                Objective::Raw,
-            )),
+            objectives: Some(crate::js::selection::Objectives::One(Objective::Raw)),
             ..ServiceOptions::default()
         },
         |session| {

@@ -11,7 +11,9 @@ const DEFAULT_SEED: u64 = 0x6c69_6c73_6372_6970;
 
 #[derive(Debug, Parser)]
 #[command(name = "lilscript-differential")]
-#[command(about = "Generate deterministic programs and compare the compiler's output with the reference interpreter.")]
+#[command(
+    about = "Generate deterministic programs and compare the compiler's output with the reference interpreter."
+)]
 struct Args {
     /// Number of generated functions and result rows.
     #[arg(long, default_value_t = 64)]

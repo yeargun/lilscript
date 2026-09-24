@@ -254,7 +254,9 @@ fn native_modules_share_imported_and_function_captured_scalar_storage() {
                 // A module binding another module or a function reads is one
                 // file-scope slot, guarded until its initializer runs.
                 let c = compilation
-                    .with_native_c(source, &policy, WorkDomain::Baseline, |output| output.take_c())
+                    .with_native_c(source, &policy, WorkDomain::Baseline, |output| {
+                        output.take_c()
+                    })
                     .unwrap_or_else(|error| panic!("{case}: {error:?}"));
                 assert!(c.contains("ls_native_unbound"), "{case}");
                 compile_and_execute(&c, "4\n", "module-global-scalar");

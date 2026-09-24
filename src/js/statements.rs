@@ -77,7 +77,9 @@ impl Module {
                 body,
             } = statement
             {
-                if let Some(&Statement::Evaluate(last)) = self.regions[body.index()].statements.last() {
+                if let Some(&Statement::Evaluate(last)) =
+                    self.regions[body.index()].statements.last()
+                {
                     if !self.continues(body, budget)? && self.outside_body(last, body, budget)? {
                         self.regions[body.index()].statements.pop();
                         self.regions[region.index()].statements[index] = Statement::Loop {
@@ -136,11 +138,13 @@ impl Module {
             }
             // `if(a){if(b)S}` is `if(a&&b)S`: `b` runs exactly when `a` holds.
             if no.is_none() {
-                if let Some(&[Statement::If {
-                    condition: inner,
-                    yes: inner_yes,
-                    no: None,
-                }]) = self.only(yes, 1)
+                if let Some(
+                    &[Statement::If {
+                        condition: inner,
+                        yes: inner_yes,
+                        no: None,
+                    }],
+                ) = self.only(yes, 1)
                 {
                     self.adopt(yes, region, budget)?;
                     let both = self.expression_in(
@@ -272,10 +276,11 @@ impl Module {
                         _ => None,
                     };
                     let same = match (assigned(&yes_values), assigned(&no_values)) {
-                        (Some((left, a)), Some((right, b))) => {
-                            self.same_store(left, right, condition, region, index, frames, captured, budget)?
-                                .then_some((left, a, b))
-                        }
+                        (Some((left, a)), Some((right, b))) => self
+                            .same_store(
+                                left, right, condition, region, index, frames, captured, budget,
+                            )?
+                            .then_some((left, a, b)),
                         _ => None,
                     };
                     match same {
@@ -450,12 +455,15 @@ impl Module {
                 let Some((parent, _)) = frames.parents[region.index()] else {
                     return false;
                 };
-                self.regions[parent.index()].statements.iter().any(|statement| match statement {
-                    Statement::Loop { body, .. }
-                    | Statement::ForIn { body, .. }
-                    | Statement::ForOf { body, .. } => *body == region,
-                    _ => false,
-                })
+                self.regions[parent.index()]
+                    .statements
+                    .iter()
+                    .any(|statement| match statement {
+                        Statement::Loop { body, .. }
+                        | Statement::ForIn { body, .. }
+                        | Statement::ForOf { body, .. } => *body == region,
+                        _ => false,
+                    })
             }
             _ => false,
         }
@@ -533,7 +541,10 @@ impl Module {
         index: usize,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<RegionId, AllocationError> {
-        let rest: Vec<Statement> = self.regions[region.index()].statements.drain(index + 1..).collect();
+        let rest: Vec<Statement> = self.regions[region.index()]
+            .statements
+            .drain(index + 1..)
+            .collect();
         let parent = self.regions[region.index()].scope;
         let tail = self.region_in(parent, budget)?;
         let scope = self.regions[tail.index()].scope;
@@ -767,10 +778,14 @@ impl Module {
                     } => Some((binding, value, None)),
                     Statement::Evaluate(root_expression) => {
                         match self.expressions[root_expression.index()] {
-                            Expr::Assign { target, value } => match self.expressions[target.index()] {
-                                Expr::Binding(binding) => Some((binding, value, Some(root_expression))),
-                                _ => None,
-                            },
+                            Expr::Assign { target, value } => {
+                                match self.expressions[target.index()] {
+                                    Expr::Binding(binding) => {
+                                        Some((binding, value, Some(root_expression)))
+                                    }
+                                    _ => None,
+                                }
+                            }
                             _ => None,
                         }
                     }
@@ -791,7 +806,9 @@ impl Module {
                 };
                 let op = self.logical_test(condition, binding, nullish);
                 let second = match (op, &self.regions[yes.index()].statements[..]) {
-                    (Some(op), [Statement::Evaluate(value)]) => match self.expressions[value.index()] {
+                    (Some(op), [Statement::Evaluate(value)]) => match self.expressions
+                        [value.index()]
+                    {
                         Expr::Assign { target, value } => match self.expressions[target.index()] {
                             Expr::Binding(assigned) if assigned == binding => Some((op, value)),
                             _ => None,
@@ -800,8 +817,8 @@ impl Module {
                     },
                     _ => None,
                 };
-                let same_module = !root
-                    || self.root_modules.get(index) == self.root_modules.get(index + 1);
+                let same_module =
+                    !root || self.root_modules.get(index) == self.root_modules.get(index + 1);
                 let Some((op, second_value)) = second.filter(|_| same_module) else {
                     index += 1;
                     continue;
@@ -876,11 +893,14 @@ impl Module {
             let mut index = 0;
             while index < self.regions[region].statements.len() {
                 budget.work(Analysis, 1)?;
-                let Statement::If { condition, yes, no } = self.regions[region].statements[index] else {
+                let Statement::If { condition, yes, no } = self.regions[region].statements[index]
+                else {
                     index += 1;
                     continue;
                 };
-                let returned = |module: &Self, arm: RegionId| match module.regions[arm.index()].statements[..] {
+                let returned = |module: &Self, arm: RegionId| match module.regions[arm.index()]
+                    .statements[..]
+                {
                     [Statement::Return(Some(value))] => Some(value),
                     _ => None,
                 };
@@ -902,7 +922,9 @@ impl Module {
                 };
                 let mut fold = None;
                 for tested in [binding_of(a), binding_of(b)].into_iter().flatten() {
-                    let Some((truthiness, positive)) = self.test_polarity(condition, tested, nullish) else {
+                    let Some((truthiness, positive)) =
+                        self.test_polarity(condition, tested, nullish)
+                    else {
                         continue;
                     };
                     let first = binding_of(a) == Some(tested);
@@ -925,7 +947,8 @@ impl Module {
                     index += 1;
                     continue;
                 };
-                let combined = self.expression_in(Expr::Binary { op, left, right }, None, budget)?;
+                let combined =
+                    self.expression_in(Expr::Binary { op, left, right }, None, budget)?;
                 // The arms' scopes (functions their values create) nest here.
                 self.adopt(yes, RegionId::new(region), budget)?;
                 if let Some(no) = no {
@@ -946,7 +969,12 @@ impl Module {
     /// truthiness, `(false, positive)` for a loose comparison with `null`
     /// (with `nullish`), where `positive` means the condition holds when the
     /// binding is truthy (or not nullish). Each `!` flips it.
-    fn test_polarity(&self, condition: ExprId, binding: BindingId, nullish: bool) -> Option<(bool, bool)> {
+    fn test_polarity(
+        &self,
+        condition: ExprId,
+        binding: BindingId,
+        nullish: bool,
+    ) -> Option<(bool, bool)> {
         let is_binding = |id: ExprId| matches!(self.expressions[id.index()], Expr::Binding(found) if found == binding);
         let mut positive = true;
         let mut tested = condition;
@@ -975,8 +1003,9 @@ impl Module {
                 Expr::Literal(Literal::Null | Literal::Undefined)
             )
         };
-        (nullish && ((is_binding(*left) && nothing(*right)) || (nothing(*left) && is_binding(*right))))
-            .then_some((false, positive == loose))
+        (nullish
+            && ((is_binding(*left) && nothing(*right)) || (nothing(*left) && is_binding(*right))))
+        .then_some((false, positive == loose))
     }
 
     fn logical_test(&self, condition: ExprId, binding: BindingId, nullish: bool) -> Option<Binary> {
@@ -993,7 +1022,11 @@ impl Module {
             tested = value;
         }
         if is_binding(tested) {
-            return Some(if negations % 2 == 0 { Binary::And } else { Binary::Or });
+            return Some(if negations % 2 == 0 {
+                Binary::And
+            } else {
+                Binary::Or
+            });
         }
         match &self.expressions[condition.index()] {
             Expr::Binary {

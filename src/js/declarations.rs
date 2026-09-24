@@ -183,8 +183,8 @@ impl Module {
                 let mut last_store = index;
                 while let Some(statement) = self.regions[region].statements.get(end) {
                     budget.work(Analysis, 1)?;
-                    let same_module = !root
-                        || self.root_modules.get(end) == self.root_modules.get(index);
+                    let same_module =
+                        !root || self.root_modules.get(end) == self.root_modules.get(index);
                     if !same_module {
                         break;
                     }
@@ -236,7 +236,9 @@ impl Module {
                 )?;
                 let replaced = declarations.len() + 1;
                 declarations.push(Statement::Evaluate(call));
-                self.regions[region].statements.splice(index..end, declarations);
+                self.regions[region]
+                    .statements
+                    .splice(index..end, declarations);
                 if root && end <= self.root_modules.len() {
                     self.root_modules.drain(index + replaced..end);
                 }

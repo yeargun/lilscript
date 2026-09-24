@@ -998,4 +998,3 @@ fn invalid_ledger_and_missing_runtime_evidence_reject_before_search_work_or_stor
         });
     }
 }
-

@@ -3,32 +3,34 @@
 //! recipes in the original structured order. It creates neither CFG nor C AST.
 
 use super::native_memory;
-use super::native_plan::{NativePlan, NativeType, PlaceRecipe, PreparedTarget, Tagged, ValueStorage};
+use super::native_plan::{
+    NativePlan, NativeType, PlaceRecipe, PreparedTarget, Tagged, ValueStorage,
+};
 use super::native_runtime::{self, Helper};
+#[path = "native_arrays.rs"]
+mod arrays;
+#[path = "native_binary.rs"]
+mod binary;
+#[path = "native_classes.rs"]
+mod classes;
+#[path = "native_collections.rs"]
+mod collections;
+#[path = "native_dynamic.rs"]
+mod dynamic;
 #[path = "native_interface.rs"]
 mod interface;
 #[path = "native_ownership.rs"]
 mod ownership;
-#[path = "native_arrays.rs"]
-mod arrays;
 #[path = "native_strings.rs"]
 mod strings;
-#[path = "native_classes.rs"]
-mod classes;
-#[path = "native_dynamic.rs"]
-mod dynamic;
-#[path = "native_collections.rs"]
-mod collections;
-#[path = "native_binary.rs"]
-mod binary;
-pub(in crate::program) use binary::RUNTIME as BINARY_RUNTIME;
-pub(in crate::program) use collections::RUNTIME as COLLECTIONS_RUNTIME;
-pub(in crate::program) use dynamic::RUNTIME as DYNAMIC_RUNTIME;
 use super::publication::PublicationError;
 use super::uses::UseIndex;
 use super::*;
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
+pub(in crate::program) use binary::RUNTIME as BINARY_RUNTIME;
+pub(in crate::program) use collections::RUNTIME as COLLECTIONS_RUNTIME;
+pub(in crate::program) use dynamic::RUNTIME as DYNAMIC_RUNTIME;
 use std::fmt;
 use std::mem::{self, size_of};
 
@@ -505,7 +507,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
         for (call_index, target) in self.plan.units[id.index()].calls.iter().enumerate() {
             self.budget.work(WorkKind::Render, 1)?;
             if let PreparedTarget::Placed { signature, .. } = *target {
-                self.write(format_args!("ls_callable{signature} ls_pc{call_index} = {{0}};\n"))?;
+                self.write(format_args!(
+                    "ls_callable{signature} ls_pc{call_index} = {{0}};\n"
+                ))?;
             }
         }
         // Every reference argument owns one ordered address temporary. Later
@@ -676,7 +680,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 if let Some(result) = stored_result {
                     let destination = Destination::Value(result);
                     let from = self.plan.place_type(id, *place);
-                    let to = self.plan.value_type(self.plan.units[id.index()].values[result.index()]);
+                    let to = self
+                        .plan
+                        .value_type(self.plan.units[id.index()].values[result.index()]);
                     // An optional read of a position: past the end is null.
                     if let (
                         PlaceRecipe::Element {
@@ -759,8 +765,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                         index.index()
                     ))?;
                     self.converted(id, args[0], self.plan.arrays[array])?;
-                    self.text(");
-")?;
+                    self.text(
+                        ");
+",
+                    )?;
                 } else {
                     self.copy_value(id, Destination::Place(*place), args[0])?;
                 }
@@ -908,10 +916,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
             }
             OperationKind::Call(call) => self.call(id, *call, result)?,
             OperationKind::TypeTest(target) => {
-                let test = crate::primitive::runtime_type_test(
-                    &self.plan.program.types[target.index()],
-                )
-                .expect("native plan admits runtime type tests");
+                let test =
+                    crate::primitive::runtime_type_test(&self.plan.program.types[target.index()])
+                        .expect("native plan admits runtime type tests");
                 self.type_test(id, result.unwrap(), args[0], test)?;
             }
             OperationKind::IsUndefined => {
@@ -942,7 +949,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 if let PreparedTarget::Placed { place, signature } =
                     self.plan.units[id.index()].calls[call.index()]
                 {
-                    self.write(format_args!("ls_callable{signature}_copy(&ls_pc{},", call.index()))?;
+                    self.write(format_args!(
+                        "ls_callable{signature}_copy(&ls_pc{},",
+                        call.index()
+                    ))?;
                     self.place(id, place)?;
                     self.text(");\n")?;
                 }
@@ -975,7 +985,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 right,
             } => {
                 let destination = result.unwrap();
-                self.write(format_args!("if (ls_v{}.tag != LS_NULL) {{\n", args[0].index()))?;
+                self.write(format_args!(
+                    "if (ls_v{}.tag != LS_NULL) {{\n",
+                    args[0].index()
+                ))?;
                 self.copy_value(id, Destination::Value(destination), args[0])?;
                 self.text("} else {\n")?;
                 self.push(Task::Text("}\n"))?;
@@ -1141,7 +1154,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
         let values = &self.plan.units[unit.index()].values;
         if matches!(kind, BinaryOp::Eq | BinaryOp::NotEq)
             && [left, right].iter().any(|value| {
-                matches!(values[value.index()], ValueStorage::Value(NativeType::Dynamic(_)))
+                matches!(
+                    values[value.index()],
+                    ValueStorage::Value(NativeType::Dynamic(_))
+                )
             })
         {
             self.write(format_args!(
@@ -1305,7 +1321,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
             {
                 let actual = self.plan.units[unit.index()].values[value.index()];
                 if !self.plan.compatible(ValueStorage::Value(parameter), actual) {
-                    if let Some(pair) = self.plan.adaptation(ValueStorage::Value(parameter), actual) {
+                    if let Some(pair) = self.plan.adaptation(ValueStorage::Value(parameter), actual)
+                    {
                         adapted.push((index, value, pair));
                     }
                 }
@@ -1402,7 +1419,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 true
             }
             PreparedTarget::ArrayPush { receiver, array } => {
-                self.write(format_args!("ls_array{array}_push(ls_v{}", receiver.index()))?;
+                self.write(format_args!(
+                    "ls_array{array}_push(ls_v{}",
+                    receiver.index()
+                ))?;
                 true
             }
             PreparedTarget::ArrayPop { receiver, array } => {
@@ -1445,7 +1465,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         // Omitted arrow defaults: the empty callable, which the callee's
         // guard replaces.
-        if let (Some(signature), false) = (signature, matches!(target, PreparedTarget::Host { .. })) {
+        if let (Some(signature), false) = (signature, matches!(target, PreparedTarget::Host { .. }))
+        {
             let parameters = self.plan.signatures[signature].parameters.len();
             for position in args.len()..parameters {
                 if position != 0 || leading_argument {
@@ -1473,12 +1494,18 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.text(";\n")?;
         }
         if let PreparedTarget::Placed { signature, .. } = target {
-            self.write(format_args!("ls_callable{signature}_clear(&ls_pc{});\n", call.index()))?;
+            self.write(format_args!(
+                "ls_callable{signature}_clear(&ls_pc{});\n",
+                call.index()
+            ))?;
         }
         if !adapted.is_empty() {
             for &(index, value, (_, to)) in &adapted {
                 if tagged(self.plan, value)
-                    && matches!(parameter_type(self.plan, index), Some(NativeType::Dynamic(_)))
+                    && matches!(
+                        parameter_type(self.plan, index),
+                        Some(NativeType::Dynamic(_))
+                    )
                 {
                     self.write(format_args!("ls_value_clear(&ls_adapted{index});\n"))?;
                 } else {

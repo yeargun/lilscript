@@ -259,7 +259,11 @@ impl Module {
                             if let Initialized::Named(callee) = site {
                                 callee_sites[callee.index()] += 1;
                             }
-                            constructions.push((site, *literal, Site::Statement(region, index, *call)));
+                            constructions.push((
+                                site,
+                                *literal,
+                                Site::Statement(region, index, *call),
+                            ));
                         }
                     }
                 }
@@ -468,8 +472,13 @@ impl Module {
     /// Two inert values of the same shape: equal literals (numbers by bits),
     /// arrays and objects of such, or empty Maps or Sets of one kind.
     fn same_inert(&self, left: ExprId, right: ExprId) -> bool {
-        match (&self.expressions[left.index()], &self.expressions[right.index()]) {
-            (Expr::Literal(Literal::Number(a)), Expr::Literal(Literal::Number(b))) => a.to_bits() == b.to_bits(),
+        match (
+            &self.expressions[left.index()],
+            &self.expressions[right.index()],
+        ) {
+            (Expr::Literal(Literal::Number(a)), Expr::Literal(Literal::Number(b))) => {
+                a.to_bits() == b.to_bits()
+            }
             (Expr::Literal(a), Expr::Literal(b)) => a == b,
             (Expr::Array(a), Expr::Array(b)) => {
                 a.len() == b.len() && a.iter().zip(b).all(|(x, y)| self.same_inert(*x, *y))
@@ -477,7 +486,9 @@ impl Module {
             (Expr::Object(a), Expr::Object(b)) => {
                 a.len() == b.len()
                     && a.iter().zip(b).all(|((kx, x), (ky, y))| match (kx, ky) {
-                        (Property::Named(kx), Property::Named(ky)) => kx == ky && self.same_inert(*x, *y),
+                        (Property::Named(kx), Property::Named(ky)) => {
+                            kx == ky && self.same_inert(*x, *y)
+                        }
                         _ => false,
                     })
             }

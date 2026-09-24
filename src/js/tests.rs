@@ -25,7 +25,6 @@ fn binding(module: &mut Module, region: RegionId, source: u32, name: &str) -> Bi
     })
 }
 
-
 fn call(
     module: &mut Module,
     callee: ExprId,
@@ -906,7 +905,10 @@ fn a_sequenced_computed_object_key_is_parenthesized() {
     let name = expr(&mut module, Expr::Literal(Literal::String("a".into())));
     let key = expr(&mut module, Expr::Sequence(vec![effect, name]));
     let two = number(&mut module, 2.0);
-    let object = expr(&mut module, Expr::Object(vec![(Property::Computed(key), two)]));
+    let object = expr(
+        &mut module,
+        Expr::Object(vec![(Property::Computed(key), two)]),
+    );
     let read = expr(&mut module, Expr::Literal(Literal::String("a".into())));
     let value = expr(
         &mut module,
@@ -932,10 +934,12 @@ fn a_loop_counter_moves_into_the_for_head_only_when_no_closure_captures_it() {
         let body = module.region(module.regions[block.index()].scope);
         let counter = binding(&mut module, block, 0, "i");
         let zero = number(&mut module, 0.0);
-        module.regions[block.index()].statements.push(Statement::Let {
-            binding: counter,
-            value: Some(zero),
-        });
+        module.regions[block.index()]
+            .statements
+            .push(Statement::Let {
+                binding: counter,
+                value: Some(zero),
+            });
         let read = expr(&mut module, Expr::Binding(counter));
         let three = number(&mut module, 3.0);
         let condition = expr(
@@ -957,7 +961,13 @@ fn a_loop_counter_moves_into_the_for_head_only_when_no_closure_captures_it() {
                 right: one,
             },
         );
-        let update = expr(&mut module, Expr::Assign { target, value: next });
+        let update = expr(
+            &mut module,
+            Expr::Assign {
+                target,
+                value: next,
+            },
+        );
         let value = if captured {
             let closure = module.region(module.regions[body.index()].scope);
             let read = expr(&mut module, Expr::Binding(counter));
@@ -982,11 +992,13 @@ fn a_loop_counter_moves_into_the_for_head_only_when_no_closure_captures_it() {
         module.regions[body.index()]
             .statements
             .push(Statement::Evaluate(recorded));
-        module.regions[block.index()].statements.push(Statement::Loop {
-            condition: Some(condition),
-            update: Some(update),
-            body,
-        });
+        module.regions[block.index()]
+            .statements
+            .push(Statement::Loop {
+                condition: Some(condition),
+                update: Some(update),
+                body,
+            });
         module.regions[0].statements.push(Statement::Block(block));
         module
     };
@@ -1049,11 +1061,26 @@ fn single_statement_ifs_print_as_logical_expressions_where_shorter() {
     let policy = PrintPolicy {
         mangle_bindings: false,
     };
-    assert_eq!(build(false, false).render(policy).unwrap(), "flag&&capture(7);");
-    assert_eq!(build(true, false).render(policy).unwrap(), "flag||capture(7);");
-    assert_eq!(build(false, true).render(policy).unwrap(), "if(flag)slot=1;");
-    assert_eq!(execute(&build(true, false), "globalThis.flag=false;", policy), "[7]");
-    assert_eq!(execute(&build(false, false), "globalThis.flag=false;", policy), "[]");
+    assert_eq!(
+        build(false, false).render(policy).unwrap(),
+        "flag&&capture(7);"
+    );
+    assert_eq!(
+        build(true, false).render(policy).unwrap(),
+        "flag||capture(7);"
+    );
+    assert_eq!(
+        build(false, true).render(policy).unwrap(),
+        "if(flag)slot=1;"
+    );
+    assert_eq!(
+        execute(&build(true, false), "globalThis.flag=false;", policy),
+        "[7]"
+    );
+    assert_eq!(
+        execute(&build(false, false), "globalThis.flag=false;", policy),
+        "[]"
+    );
 }
 
 /// `let f=()=>x;let x=f();` reads `x` before its declaration completes and
@@ -1087,8 +1114,14 @@ fn a_call_initializing_a_binding_its_function_reads_stays_a_call() {
     let output = host(&mut module, "capture");
     let captured = call(&mut module, output, vec![result], Invocation::Value);
     module.regions[root.index()].statements = vec![
-        Statement::Let { binding: f, value: Some(created) },
-        Statement::Let { binding: x, value: Some(called) },
+        Statement::Let {
+            binding: f,
+            value: Some(created),
+        },
+        Statement::Let {
+            binding: x,
+            value: Some(called),
+        },
         Statement::Evaluate(captured),
     ];
     module.root_modules = vec![0; 3];
@@ -1124,7 +1157,11 @@ fn a_function_called_once_becomes_a_block_at_its_call() {
     let captured = call(&mut module, output, vec![seen], Invocation::Value);
     module.regions[body.index()].statements = vec![
         Statement::Evaluate(captured),
-        Statement::If { condition: test, yes, no: Some(no) },
+        Statement::If {
+            condition: test,
+            yes,
+            no: Some(no),
+        },
     ];
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
@@ -1144,15 +1181,33 @@ fn a_function_called_once_becomes_a_block_at_its_call() {
     let output = host(&mut module, "capture");
     let reported = call(&mut module, output, vec![read], Invocation::Value);
     module.regions[root.index()].statements = vec![
-        Statement::Let { binding: f, value: Some(created) },
-        Statement::Let { binding: result, value: Some(called) },
+        Statement::Let {
+            binding: f,
+            value: Some(created),
+        },
+        Statement::Let {
+            binding: result,
+            value: Some(called),
+        },
         Statement::Evaluate(reported),
     ];
     module.root_modules = vec![0; 3];
     module.verify().unwrap();
     let before = [
-        execute(&module, "const flag=0;", PrintPolicy { mangle_bindings: false }),
-        execute(&module, "const flag=1;", PrintPolicy { mangle_bindings: false }),
+        execute(
+            &module,
+            "const flag=0;",
+            PrintPolicy {
+                mangle_bindings: false,
+            },
+        ),
+        execute(
+            &module,
+            "const flag=1;",
+            PrintPolicy {
+                mangle_bindings: false,
+            },
+        ),
     ];
     // The early form, `if(p)return 1;…`, would need a loop to leave.
     let mut early = module.clone();
@@ -1161,12 +1216,37 @@ fn a_function_called_once_becomes_a_block_at_its_call() {
     assert_eq!(early.inline_single_calls(true, &mut budget).unwrap(), 0);
     assert_eq!(module.inline_single_calls(true, &mut budget).unwrap(), 1);
     module.verify().unwrap();
-    let javascript = module.render(PrintPolicy { mangle_bindings: false }).unwrap();
-    assert!(!javascript.contains("for(;;)") && !javascript.contains("=>"), "{javascript}");
+    let javascript = module
+        .render(PrintPolicy {
+            mangle_bindings: false,
+        })
+        .unwrap();
+    assert!(
+        !javascript.contains("for(;;)") && !javascript.contains("=>"),
+        "{javascript}"
+    );
     assert_eq!(before[0], "[0,2]");
     assert_eq!(before[1], "[1,1]");
-    assert_eq!(execute(&module, "const flag=0;", PrintPolicy { mangle_bindings: false }), before[0]);
-    assert_eq!(execute(&module, "const flag=1;", PrintPolicy { mangle_bindings: false }), before[1]);
+    assert_eq!(
+        execute(
+            &module,
+            "const flag=0;",
+            PrintPolicy {
+                mangle_bindings: false
+            }
+        ),
+        before[0]
+    );
+    assert_eq!(
+        execute(
+            &module,
+            "const flag=1;",
+            PrintPolicy {
+                mangle_bindings: false
+            }
+        ),
+        before[1]
+    );
 }
 
 /// `let j={k:x};capture(0);capture(j)` creates the object at its one use:
@@ -1184,7 +1264,10 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
         let j = binding(&mut module, root, 2, "j");
         let one = number(&mut module, 1.0);
         let read = expr(&mut module, Expr::Binding(x));
-        let object = expr(&mut module, Expr::Object(vec![(Property::Named("k".into()), read)]));
+        let object = expr(
+            &mut module,
+            Expr::Object(vec![(Property::Named("k".into()), read)]),
+        );
         let zero = number(&mut module, 0.0);
         let output = host(&mut module, "capture");
         let first = call(&mut module, output, vec![zero], Invocation::Value);
@@ -1195,8 +1278,14 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
         let output = host(&mut module, "capture");
         let third = call(&mut module, output, vec![later], Invocation::Value);
         let mut statements = vec![
-            Statement::Let { binding: x, value: Some(one) },
-            Statement::Let { binding: j, value: Some(object) },
+            Statement::Let {
+                binding: x,
+                value: Some(one),
+            },
+            Statement::Let {
+                binding: j,
+                value: Some(object),
+            },
         ];
         if assigned {
             let target = expr(&mut module, Expr::Binding(x));
@@ -1214,12 +1303,17 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
         module.verify().unwrap();
         module
     };
-    let policy = PrintPolicy { mangle_bindings: false };
+    let policy = PrintPolicy {
+        mangle_bindings: false,
+    };
     let mut budget = AllocationBudget::new(None);
     let mut moved = build(false);
     assert_eq!(moved.forward_single_uses(&mut budget).unwrap().0, 1);
     moved.verify().unwrap();
-    assert_eq!(moved.render(policy).unwrap(), "let x=1;capture(0);capture({k:x});capture(x);");
+    assert_eq!(
+        moved.render(policy).unwrap(),
+        "let x=1;capture(0);capture({k:x});capture(x);"
+    );
     assert_eq!(execute(&moved, "", policy), "[0,{\"k\":1},1]");
     let mut kept = build(true);
     assert_eq!(kept.forward_single_uses(&mut budget).unwrap().0, 0);
@@ -1233,7 +1327,10 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     let block = module.region(root_scope);
     let j = binding(&mut module, block, 2, "j");
     let read = expr(&mut module, Expr::Binding(x));
-    let object = expr(&mut module, Expr::Object(vec![(Property::Named("k".into()), read)]));
+    let object = expr(
+        &mut module,
+        Expr::Object(vec![(Property::Named("k".into()), read)]),
+    );
     let zero = number(&mut module, 0.0);
     let output = host(&mut module, "capture");
     let first = call(&mut module, output, vec![zero], Invocation::Value);
@@ -1241,13 +1338,21 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     let output = host(&mut module, "capture");
     let second = call(&mut module, output, vec![used], Invocation::Value);
     module.regions[block.index()].statements = vec![
-        Statement::Let { binding: j, value: Some(object) },
+        Statement::Let {
+            binding: j,
+            value: Some(object),
+        },
         Statement::Evaluate(first),
         Statement::Evaluate(second),
     ];
     let one = number(&mut module, 1.0);
-    module.regions[root.index()].statements =
-        vec![Statement::Block(block), Statement::Let { binding: x, value: Some(one) }];
+    module.regions[root.index()].statements = vec![
+        Statement::Block(block),
+        Statement::Let {
+            binding: x,
+            value: Some(one),
+        },
+    ];
     module.root_modules = vec![0; 2];
     module.verify().unwrap();
     assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
@@ -1262,12 +1367,18 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     let p = binding(&mut module, body, 2, "p");
     let j = binding(&mut module, body, 3, "j");
     let read = expr(&mut module, Expr::Binding(p));
-    let object = expr(&mut module, Expr::Object(vec![(Property::Named("k".into()), read)]));
+    let object = expr(
+        &mut module,
+        Expr::Object(vec![(Property::Named("k".into()), read)]),
+    );
     let arguments = host(&mut module, "arguments");
     let key = number(&mut module, 0.0);
     let target = expr(
         &mut module,
-        Expr::Member { object: arguments, property: Property::Computed(key) },
+        Expr::Member {
+            object: arguments,
+            property: Property::Computed(key),
+        },
     );
     let two = number(&mut module, 2.0);
     let store = expr(&mut module, Expr::Assign { target, value: two });
@@ -1275,7 +1386,10 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
     let output = host(&mut module, "capture");
     let captured = call(&mut module, output, vec![used], Invocation::Value);
     module.regions[body.index()].statements = vec![
-        Statement::Let { binding: j, value: Some(object) },
+        Statement::Let {
+            binding: j,
+            value: Some(object),
+        },
         Statement::Evaluate(store),
         Statement::Evaluate(captured),
     ];
@@ -1289,8 +1403,14 @@ fn a_value_of_settled_reads_is_created_at_its_one_use() {
         length: None,
         suspension: Suspension::None,
     });
-    module.regions[root.index()].statements = vec![Statement::Function { binding: f, function }];
-    module.exports.push(Export { binding: f, name: "f".into() });
+    module.regions[root.index()].statements = vec![Statement::Function {
+        binding: f,
+        function,
+    }];
+    module.exports.push(Export {
+        binding: f,
+        name: "f".into(),
+    });
     module.root_modules = vec![0];
     module.verify().unwrap();
     assert_eq!(module.forward_single_uses(&mut budget).unwrap().0, 0);
@@ -1342,7 +1462,13 @@ fn a_loop_update_cannot_be_reused_as_a_body_statement() {
             right: one,
         },
     );
-    let update = expr(&mut module, Expr::Assign { target, value: next });
+    let update = expr(
+        &mut module,
+        Expr::Assign {
+            target,
+            value: next,
+        },
+    );
     module.regions[0].statements.push(Statement::Loop {
         condition: Some(condition),
         update: Some(update),

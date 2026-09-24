@@ -65,8 +65,7 @@ fn admitted_printer_preserves_utf16_number_template_spelling_and_retains_complet
         let mut ledger = ledger(100_000_000, 100_000_000);
         {
             let mut budget = AllocationBudget::new(Some((&mut ledger, domain)));
-            let output =
-                render_admitted(&module, &names, expected.len(), &mut budget).unwrap();
+            let output = render_admitted(&module, &names, expected.len(), &mut budget).unwrap();
             assert_eq!(output, expected);
             let retained = output.capacity() as u64;
             assert_eq!(budget.retained_bytes(AllocationClass::Retained), retained);

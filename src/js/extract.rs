@@ -428,7 +428,14 @@ impl<'a> Output<'a> {
         let mut bodies = Vec::with_capacity(files.len());
         let mut used = 0usize;
         for file in (1..files.len()).chain(std::iter::once(0)) {
-            let body = print(file, print::FilePart::Body, &files, &[], limit - used, budget)?;
+            let body = print(
+                file,
+                print::FilePart::Body,
+                &files,
+                &[],
+                limit - used,
+                budget,
+            )?;
             used += body.len();
             if file != 0 {
                 let stem = files[file]
@@ -438,8 +445,7 @@ impl<'a> Output<'a> {
                     .map_or("module", String::as_str);
                 let digest = format!("{:x}", Sha256::digest(body.as_bytes()));
                 budget.work(WorkKind::Render, body.len() as u64)?;
-                files[file].name =
-                    format!("chunk-{}-{stem}.{}", &digest[..10], spec.extension);
+                files[file].name = format!("chunk-{}-{stem}.{}", &digest[..10], spec.extension);
             }
             bodies.push((file, body));
         }
@@ -512,7 +518,11 @@ impl<'a> Output<'a> {
         &self,
         rule: crate::compilation_policy::SplitRule,
         spec: &delivery::BundleSpec,
-        deliver: &dyn Fn(&[bool], usize, &mut AllocationBudget<'_>) -> Result<Delivered, OutputError>,
+        deliver: &dyn Fn(
+            &[bool],
+            usize,
+            &mut AllocationBudget<'_>,
+        ) -> Result<Delivered, OutputError>,
         render: &mut AllocationBudget<'_>,
     ) -> Result<Vec<bool>, OutputError> {
         let eager = |module: usize| spec.eager.get(module).copied().unwrap_or(true);
@@ -570,13 +580,14 @@ impl<'a> Output<'a> {
         };
         optional.sort_unstable_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(&right.0)));
         optional.truncate(rule.max_chunks.saturating_mul(8).max(32));
-        let cost = |allowed: &[bool], render: &mut AllocationBudget<'_>| -> Result<u64, OutputError> {
-            let mut trial = render.scope();
-            let delivered = deliver(allowed, usize::MAX, &mut trial)?;
-            let cost = delivered.deploy_cost(&rule.cost, spec, &mut trial);
-            drop(delivered);
-            cost
-        };
+        let cost =
+            |allowed: &[bool], render: &mut AllocationBudget<'_>| -> Result<u64, OutputError> {
+                let mut trial = render.scope();
+                let delivered = deliver(allowed, usize::MAX, &mut trial)?;
+                let cost = delivered.deploy_cost(&rule.cost, spec, &mut trial);
+                drop(delivered);
+                cost
+            };
         let mut current = cost(&selected, render)?;
         while count < rule.max_chunks && !optional.is_empty() {
             let mut best = None::<(usize, u64)>;
@@ -726,8 +737,8 @@ impl Delivered {
             if weight == 0 {
                 return Ok(0);
             }
-            crate::compression::measure_admitted(text.as_bytes(), model, budget).map_err(
-                |error| match error {
+            crate::compression::measure_admitted(text.as_bytes(), model, budget).map_err(|error| {
+                match error {
                     crate::compression::CodecError::Admission(error) => {
                         OutputError::Admission(error)
                     }
@@ -738,8 +749,8 @@ impl Delivered {
                     | crate::compression::CodecError::Encoder(reason) => {
                         OutputError::Invalid(reason)
                     }
-                },
-            )
+                }
+            })
         };
         let mut reachability = vec![0usize; self.files.len()];
         for link in &self.links {

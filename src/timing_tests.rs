@@ -1,9 +1,9 @@
 use super::*;
+use crate::build::{compile_source, ServiceOptions, ServiceTarget};
 use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
-use crate::build::{ServiceOptions, ServiceTarget, compile_source};
-use crate::output_budget::AllocationBudget;
 use crate::js::selection::{Objective, Objectives, Plan, Style};
-use serde_json::{Value, json};
+use crate::output_budget::AllocationBudget;
+use serde_json::{json, Value};
 use std::process::Command;
 use std::time::Instant;
 
@@ -246,13 +246,11 @@ fn semantic_phase_timing_is_observational_and_covers_refusal() {
         Err(())
     };
     assert!(fail().is_err());
-    assert!(
-        std::panic::catch_unwind(|| {
-            let _scope = GUARD.scope(0);
-            panic!("intentional timing guard unwind");
-        })
-        .is_err()
-    );
+    assert!(std::panic::catch_unwind(|| {
+        let _scope = GUARD.scope(0);
+        panic!("intentional timing guard unwind");
+    })
+    .is_err());
     assert_eq!(GUARD.snapshot().1, if enabled() { 2 } else { 0 });
     let report = report(0).map(|text| serde_json::from_str::<Value>(&text).unwrap());
     assert_eq!(report.is_some(), enabled());

@@ -92,7 +92,8 @@ impl Module {
                 for (key, item) in entries {
                     match key {
                         Property::Named(name)
-                            if name != "__proto__" && !keys.iter().any(|(seen, _)| seen == name) =>
+                            if name != "__proto__"
+                                && !keys.iter().any(|(seen, _)| seen == name) =>
                         {
                             keys.push((name.clone(), *item));
                         }
@@ -113,16 +114,22 @@ impl Module {
             }
         }
         // Later statements first within a region, so earlier indices hold.
-        candidates.sort_unstable_by_key(|(region, index, _, _)| std::cmp::Reverse((region.index(), *index)));
+        candidates.sort_unstable_by_key(|(region, index, _, _)| {
+            std::cmp::Reverse((region.index(), *index))
+        });
         let replaced = candidates.len();
         for (region, index, binding, keys) in candidates {
-            budget.work(Analysis, keys.len() as u64 + members[binding.index()].len() as u64)?;
+            budget.work(
+                Analysis,
+                keys.len() as u64 + members[binding.index()].len() as u64,
+            )?;
             let scope = self.bindings[binding.index()].scope;
             let spelling = self.bindings[binding.index()].spelling.clone();
             let mut fields: Vec<(String, BindingId)> = Vec::with_capacity(keys.len());
             let mut lets = Vec::with_capacity(keys.len());
             for (key, value) in &keys {
-                let field = BindingId::try_new(self.bindings.len()).ok_or(AllocationError::Capacity)?;
+                let field =
+                    BindingId::try_new(self.bindings.len()).ok_or(AllocationError::Capacity)?;
                 budget.reserve_vec(AllocationClass::Retained, &mut self.bindings, 1)?;
                 self.bindings.push(Binding {
                     source_symbol: None,
@@ -137,12 +144,17 @@ impl Module {
                 });
             }
             for (member, key) in &members[binding.index()] {
-                let field = fields.iter().find(|(name, _)| name == key).map(|(_, field)| *field);
+                let field = fields
+                    .iter()
+                    .find(|(name, _)| name == key)
+                    .map(|(_, field)| *field);
                 if let Some(field) = field {
                     self.expressions[member.index()] = Expr::Binding(field);
                 }
             }
-            self.regions[region.index()].statements.splice(index..=index, lets);
+            self.regions[region.index()]
+                .statements
+                .splice(index..=index, lets);
         }
         Ok(replaced)
     }

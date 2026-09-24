@@ -301,7 +301,14 @@ impl Module {
         binding: BindingId,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<
-        Option<(ExprId, usize, Vec<usize>, Vec<Option<(usize, bool)>>, usize, bool)>,
+        Option<(
+            ExprId,
+            usize,
+            Vec<usize>,
+            Vec<Option<(usize, bool)>>,
+            usize,
+            bool,
+        )>,
         AllocationError,
     > {
         let frame_free = self.frame_free(function);
@@ -390,9 +397,7 @@ impl Module {
             Expr::Unary {
                 op: Unary::Delete, ..
             } => return Ok(false),
-            Expr::Unary { value, .. }
-            | Expr::ToInt32(value)
-            | Expr::IntNegate(value) => {
+            Expr::Unary { value, .. } | Expr::ToInt32(value) | Expr::IntNegate(value) => {
                 return operands_then_self(self, &[*value], events, budget);
             }
             Expr::Binary {
@@ -564,9 +569,7 @@ impl Module {
                 parameters.contains(binding)
                     || self.pristine_builtins && self.standard_global(*binding)
             }
-            Expr::Host(name) => {
-                self.pristine_builtins && STANDARD_GLOBALS.contains(&name.as_str())
-            }
+            Expr::Host(name) => self.pristine_builtins && STANDARD_GLOBALS.contains(&name.as_str()),
             Expr::Member { object, property } => {
                 self.pristine_builtins && self.literal_key(property) && self.standard_path(*object)
             }
@@ -612,9 +615,7 @@ impl Module {
                 !self.bindings[binding.index()].pinned
                     || self.pristine_builtins && self.standard_global(*binding)
             }
-            Expr::Host(name) => {
-                self.pristine_builtins && STANDARD_GLOBALS.contains(&name.as_str())
-            }
+            Expr::Host(name) => self.pristine_builtins && STANDARD_GLOBALS.contains(&name.as_str()),
             Expr::Member { object, property } => {
                 self.pristine_builtins && self.literal_key(property) && self.standard_path(*object)
             }
@@ -660,7 +661,10 @@ impl Module {
         match property {
             Property::Named(_) => true,
             Property::Computed(key) => {
-                matches!(self.expressions[key.index()], Expr::Literal(Literal::String(_)))
+                matches!(
+                    self.expressions[key.index()],
+                    Expr::Literal(Literal::String(_))
+                )
             }
         }
     }
@@ -718,7 +722,10 @@ impl Module {
 
     /// Every expression and region reachable from the root, each expression
     /// with its depth as the verifier counts it.
-    pub(super) fn reach(&self, budget: &mut AllocationBudget<'_>) -> Result<Reach, AllocationError> {
+    pub(super) fn reach(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Reach, AllocationError> {
         let mut seen_regions = vec![false; self.regions.len()];
         let mut seen = vec![false; self.expressions.len()];
         let mut reach = Reach {
@@ -764,7 +771,11 @@ impl Module {
                         declared[parameter.index()] = Some(Some(*function));
                         reach.parameters[parameter.index()] = true;
                     }
-                    regions.push((self.functions[function.index()].body, depth + 2, Some(*function)));
+                    regions.push((
+                        self.functions[function.index()].body,
+                        depth + 2,
+                        Some(*function),
+                    ));
                 }
                 while let Some((id, at)) = pending.pop() {
                     budget.work(Analysis, 1)?;
@@ -781,7 +792,11 @@ impl Module {
                             declared[parameter.index()] = Some(Some(function));
                             reach.parameters[parameter.index()] = true;
                         }
-                        regions.push((self.functions[function.index()].body, at + 2, Some(function)));
+                        regions.push((
+                            self.functions[function.index()].body,
+                            at + 2,
+                            Some(function),
+                        ));
                     }
                     let _ = expression.visit_children(|child| {
                         pending.push((child, at + 1));
@@ -851,8 +866,8 @@ impl Module {
                     expression.remap_children(|child| {
                         map[child.index()].expect("an operand precedes its parent")
                     });
-                    let new = ExprId::try_new(self.expressions.len())
-                        .ok_or(AllocationError::Capacity)?;
+                    let new =
+                        ExprId::try_new(self.expressions.len()).ok_or(AllocationError::Capacity)?;
                     self.expressions.push(expression);
                     self.origins.push(old_origins[id.index()]);
                     map[id.index()] = Some(new);
@@ -1018,7 +1033,9 @@ impl Module {
                 let mut stable = true;
                 for (position, &argument) in arguments.iter().enumerate() {
                     stable = stable
-                        && self.settled(argument, position, arguments, region, index, &reach, budget)?;
+                        && self.settled(
+                            argument, position, arguments, region, index, &reach, budget,
+                        )?;
                 }
                 if stable {
                     sites.push((region, index, binding));
@@ -1055,7 +1072,9 @@ impl Module {
                 statements.push(Statement::Evaluate(id));
             }
             let root = region == self.root;
-            let module = root.then(|| self.root_modules.get(index).copied()).flatten();
+            let module = root
+                .then(|| self.root_modules.get(index).copied())
+                .flatten();
             let count = statements.len();
             self.regions[region.index()]
                 .statements
@@ -1093,10 +1112,7 @@ impl Module {
             Expr::Unary {
                 op: Unary::Delete,
                 value,
-            } => !matches!(
-                self.expressions[value.index()],
-                Expr::Binding(_)
-            ),
+            } => !matches!(self.expressions[value.index()], Expr::Binding(_)),
             _ => true,
         };
         let mut children = true;
@@ -1199,7 +1215,10 @@ impl Module {
         let mut replacement: Vec<Option<BindingId>> = vec![None; self.bindings.len()];
         let mut removed = 0;
         for &region in &reach.regions {
-            budget.work(Analysis, 1 + self.regions[region.index()].statements.len() as u64)?;
+            budget.work(
+                Analysis,
+                1 + self.regions[region.index()].statements.len() as u64,
+            )?;
             let aliases: Vec<(usize, BindingId, BindingId)> = self.regions[region.index()]
                 .statements
                 .iter()
@@ -1367,15 +1386,13 @@ impl Module {
                     Statement::Let {
                         binding,
                         value: Some(value),
-                    } => {
-                        match &self.expressions[value.index()] {
-                            Expr::Object(_) => literals.push((region, index, binding, value)),
-                            Expr::Function(function) => {
-                                arrows[binding.index()] = self.functions[function.index()].arrow;
-                            }
-                            _ => {}
+                    } => match &self.expressions[value.index()] {
+                        Expr::Object(_) => literals.push((region, index, binding, value)),
+                        Expr::Function(function) => {
+                            arrows[binding.index()] = self.functions[function.index()].arrow;
                         }
-                    }
+                        _ => {}
+                    },
                     Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
                         written[binding.index()] = true;
                     }
@@ -1427,9 +1444,9 @@ impl Module {
         let settled_at = |binding: BindingId, region: RegionId, index: usize| {
             !written[binding.index()]
                 || assignments(binding) == all_writes[binding.index()]
-                    && writes[binding.index()]
-                        .iter()
-                        .all(|site| matches!(site, Some((found, at)) if *found == region && *at < index))
+                    && writes[binding.index()].iter().all(
+                        |site| matches!(site, Some((found, at)) if *found == region && *at < index),
+                    )
         };
         // A read of `M` before its declaration throws; the flattened read
         // would not. So nothing earlier in its region may mention `M`, not
@@ -1460,7 +1477,8 @@ impl Module {
         let mut removals: Vec<(RegionId, usize)> = Vec::new();
         for (region, index, object, value) in literals {
             budget.work(Analysis, 1)?;
-            let early = assigned[object.index()] || first[object.index()].is_some_and(|at| at <= index);
+            let early =
+                assigned[object.index()] || first[object.index()].is_some_and(|at| at <= index);
             if written[object.index()] && !assigned[object.index()]
                 || root_use[object.index()]
                 || self.bindings[object.index()].pinned
@@ -1536,10 +1554,15 @@ impl Module {
                                         if all_writes[alias.index()] == 1
                                             && !root_use[alias.index()]
                                             && !self.bindings[alias.index()].pinned
-                                            && !self.exports.iter().any(|export| export.binding == alias) =>
+                                            && !self
+                                                .exports
+                                                .iter()
+                                                .any(|export| export.binding == alias) =>
                                     {
                                         match writes[alias.index()][..] {
-                                            [Some((found, at))] if found == self.root && at > index => {
+                                            [Some((found, at))]
+                                                if found == self.root && at > index =>
+                                            {
                                                 Some((alias, at, target))
                                             }
                                             _ => None,

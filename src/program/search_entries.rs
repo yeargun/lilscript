@@ -1,8 +1,8 @@
 //! One bounded metadata owner for queued artifacts and exact incumbents.
 //! ArtifactArena owns immutable text and codec scores. Search owns disposal of
 //! each entry's artifact; this container owns only its Vec backing.
-use super::RevisionId;
 use super::artifacts::{ArtifactId, QualifiedArtifact};
+use super::RevisionId;
 use crate::compilation_policy::{BudgetError, BudgetLedger, WorkKind};
 use crate::output_budget::{
     AllocationBudget, AllocationClass::Retained, AllocationError, RetainedCharge,
@@ -237,10 +237,8 @@ mod tests {
     use crate::compilation_policy::{
         BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits, WorkDomain,
     };
-    use crate::program::publication::{
-        BudgetedJavaScriptOutput, CheckpointLimit, Compilation,
-    };
     use crate::js::selection::{Plan, Style};
+    use crate::program::publication::{BudgetedJavaScriptOutput, CheckpointLimit, Compilation};
 
     const WORK: u64 = 10_000_000;
     const MEMORY: u64 = 4_000_000;

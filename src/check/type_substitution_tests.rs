@@ -1,11 +1,11 @@
 use super::*;
+use crate::check::type_admission::TypeQueryAdmission;
+use crate::check::type_relation::type_equal_with;
+use crate::check::{normalize_union, NominalId, StructType};
 use crate::compilation_policy::{
     BudgetError, BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain,
 };
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
-use crate::check::type_admission::TypeQueryAdmission;
-use crate::check::type_relation::type_equal_with;
-use crate::check::{normalize_union, NominalId, StructType};
 use crate::stable_hash::StableHashMap as AHashMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 

@@ -232,7 +232,10 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 } else {
                     "delete"
                 };
-                self.write(format_args!("ls_v{} = ls_map_{operation}(ls_v{r},", result.index()))?;
+                self.write(format_args!(
+                    "ls_v{} = ls_map_{operation}(ls_v{r},",
+                    result.index()
+                ))?;
                 self.converted(unit, argument(0), any)?;
                 self.text(");\n")
             }

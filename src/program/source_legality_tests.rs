@@ -28,8 +28,8 @@ fn formed(
     style: Style,
     library: bool,
 ) -> String {
-    let program = from_checked_source(syntax, checked)
-        .unwrap_or_else(|error| panic!("convert: {error:?}"));
+    let program =
+        from_checked_source(syntax, checked).unwrap_or_else(|error| panic!("convert: {error:?}"));
     program.verify().unwrap();
     let config: crate::config::ProjectConfig = toml::from_str(config).unwrap();
     let policy = config
@@ -1206,9 +1206,9 @@ fn exact_string_values_cross_cells_joins_and_utf16_operations() {
 #[test]
 fn source_operations_with_one_diagnostic_span_keep_distinct_resolution() {
     use crate::ast::{ArrayElement, ExprKind, Ident, Item, SourceNodes, Stmt};
+    use crate::check::BuiltinCall;
     use crate::primitive::Intrinsic;
     use crate::primitive::ResolvedIntrinsic::Property;
-    use crate::check::BuiltinCall;
     let arena = bumpalo::Bump::new();
     let empty = crate::parse_source(&arena, "").unwrap();
     let nodes = SourceNodes::default();
@@ -1980,7 +1980,11 @@ fn opaque_host_arguments_keep_their_coercion_and_throws() {
             .output()
             .unwrap();
         assert!(result.status.success());
-        assert_eq!(String::from_utf8(result.stdout).unwrap(), expected, "{javascript}");
+        assert_eq!(
+            String::from_utf8(result.stdout).unwrap(),
+            expected,
+            "{javascript}"
+        );
     }
 }
 

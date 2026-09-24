@@ -4,8 +4,8 @@
 use super::demand::{ContextId, DemandPlan, EffectiveUseRole, EffectiveUseSite};
 use super::*;
 use crate::compilation_policy::WorkKind;
-use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
 use crate::js;
+use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum ValueStorage {
@@ -284,9 +284,11 @@ pub(super) fn plan(
         let child_body = demand
             .child(context, operation)
             .is_some_and(|child| demand.context(child).kind.is_inline())
-            || matches!(data.operations[operation.index()].kind, OperationKind::Closure(_))
-                && (expression_regions[data.operations[operation.index()].region.index()]
-                    || !matches!(counts[index], Uses::One(EffectiveUseSite::Operation(_))));
+            || matches!(
+                data.operations[operation.index()].kind,
+                OperationKind::Closure(_)
+            ) && (expression_regions[data.operations[operation.index()].region.index()]
+                || !matches!(counts[index], Uses::One(EffectiveUseSite::Operation(_))));
         // Reconstructing a value's ancestors reads its current sibling fields.
         // The RHS must already have completed, including calls that mutate
         // those siblings. Capturing here preserves the semantic schedule; a
@@ -363,9 +365,10 @@ pub(super) fn plan(
             }
             // Each use reads a rematerialized load again; its definition is
             // not an evaluation event.
-            if op.result.is_some_and(|value| {
-                matches!(storage[value.index()], ValueStorage::Rematerialized)
-            }) {
+            if op
+                .result
+                .is_some_and(|value| matches!(storage[value.index()], ValueStorage::Rematerialized))
+            {
                 continue;
             }
             work(&mut phase, demand.product_lookup_work())?;

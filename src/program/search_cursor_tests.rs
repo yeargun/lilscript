@@ -223,12 +223,10 @@ fn refused_cursor_scan_preserves_progress_and_exact_incumbent() {
         assert_eq!(search.ledger().retained_bytes(), retained);
         assert_eq!(search.counters.skipped_unknown, 0);
         assert_eq!(search.counters.structural_attempts, 0);
-        assert!(
-            search
-                .states
-                .iter()
-                .all(|state| state.as_ref().unwrap().next == 0)
-        );
+        assert!(search
+            .states
+            .iter()
+            .all(|state| state.as_ref().unwrap().next == 0));
         assert_eq!(
             search.with_winner(Objective::Raw, |view, _| view.javascript.to_owned()),
             winner

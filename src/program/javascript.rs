@@ -22,28 +22,28 @@ use crate::compilation_contract::{
     JavaScriptUnsafeAssumptions, JavaScriptWorld,
 };
 use crate::compilation_policy::{BudgetError, BudgetLedger, WorkDomain, WorkKind};
+use crate::js;
 use crate::js_syntax_target::{EcmaScriptEdition, JsSyntaxFeature};
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
 use crate::scalar_transfer::NumberFacts;
-use crate::js;
 
+#[path = "javascript_host.rs"]
+mod host;
+#[path = "javascript_int32.rs"]
+mod int32;
 #[path = "javascript_product_calls.rs"]
 mod product_calls;
 #[path = "javascript_products.rs"]
 mod products;
+#[path = "javascript_public_structs.rs"]
+mod public_structs;
 #[path = "javascript_references.rs"]
 mod references;
 #[path = "javascript_struct_boundaries.rs"]
 mod struct_boundaries;
 #[path = "javascript_structs.rs"]
 mod structs;
-#[path = "javascript_public_structs.rs"]
-mod public_structs;
-#[path = "javascript_host.rs"]
-mod host;
-#[path = "javascript_int32.rs"]
-mod int32;
 
 /// The operation's selected result recipe, shared by formation and domain
 /// evidence. The source signature alone never supplies a runtime domain.
@@ -266,12 +266,13 @@ pub(super) fn lower(program: &Program<'_>) -> Result<js::Module, Unsupported> {
         span: Span::default(),
         feature,
     };
-    let uses = UseIndex::build(program, &mut ledger, WorkDomain::Baseline).map_err(|error| {
-        match error {
-            super::uses::UseError::InvalidProgram(feature) => unsupported(feature),
-            _ => unsupported("JavaScript inspection use index"),
-        }
-    })?;
+    let uses =
+        UseIndex::build(program, &mut ledger, WorkDomain::Baseline).map_err(
+            |error| match error {
+                super::uses::UseError::InvalidProgram(feature) => unsupported(feature),
+                _ => unsupported("JavaScript inspection use index"),
+            },
+        )?;
     let module = form(
         program,
         Some(&uses),
@@ -610,8 +611,7 @@ fn form_with_demand(
                 }
                 let mut binding = formation.cell_binding(context, cell)?;
                 if !formation.struct_plan.boundary_types.is_empty()
-                    && formation.struct_plan.boundary_types
-                        [program.cells[cell.index()].ty.index()]
+                    && formation.struct_plan.boundary_types[program.cells[cell.index()].ty.index()]
                 {
                     binding = formation.public_struct_export(cell, binding)?;
                 }
@@ -630,7 +630,9 @@ fn form_with_demand(
         return Err(error);
     }
     if formation.module.root_modules.len()
-        != formation.module.regions[formation.module.root.index()].statements.len()
+        != formation.module.regions[formation.module.root.index()]
+            .statements
+            .len()
     {
         let error = formation.error(Span::default(), "root statement without its source module");
         drop(formation);
@@ -669,7 +671,11 @@ fn form_with_demand(
         if let Err(error) = formation
             .module
             .self_method_calls(formation.budget)
-            .and_then(|_| formation.module.dissolve_receiver_adapters(formation.budget))
+            .and_then(|_| {
+                formation
+                    .module
+                    .dissolve_receiver_adapters(formation.budget)
+            })
             .and_then(|_| {
                 formation
                     .module
@@ -755,7 +761,9 @@ fn form_with_demand(
                 }
                 formation.module.elide_undefined(formation.budget)?;
                 // `let o;o={…}` must meet as `let o={…}` before stores fold.
-                formation.module.merge_declarations(prunes, formation.budget)?;
+                formation
+                    .module
+                    .merge_declarations(prunes, formation.budget)?;
                 // `let t=a;if(!t)t=b` is `let t=a||b`, as the source wrote it,
                 // and `if(t)return t;return b` is `return t||b`; the tested
                 // value then often has one read left, where it moves once
@@ -763,17 +771,25 @@ fn form_with_demand(
                 let logical = formation
                     .module
                     .fold_logical_assignments(year >= 2020, formation.budget)?
-                    + formation.module.fold_logical_returns(year >= 2020, formation.budget)?;
+                    + formation
+                        .module
+                        .fold_logical_returns(year >= 2020, formation.budget)?;
                 // `let N;N=M` merged into `let N=M` is an alias to remove before
                 // namespace objects flatten; flattening can leave functions
                 // only called, whose names nothing reads any more.
                 formation.module.eliminate_aliases(formation.budget)?;
-                if formation.module.flatten_constant_objects(formation.budget)? != 0 {
+                if formation
+                    .module
+                    .flatten_constant_objects(formation.budget)?
+                    != 0
+                {
                     formation.module.unobserve_called_names(formation.budget)?;
                 }
                 // Typed callers pass every typed argument: their callees'
                 // defaults for those never apply.
-                formation.module.drop_typed_default_checks(formation.budget)?;
+                formation
+                    .module
+                    .drop_typed_default_checks(formation.budget)?;
                 // Field initializers become their stores, for the fold to take.
                 if pristine {
                     formation.module.inline_initializers(formation.budget)?;
@@ -792,10 +808,14 @@ fn form_with_demand(
                     .iter()
                     .map(|alternative| alternative.expression())
                     .collect();
-                formation.module.forward_root_constants(&protected, formation.budget)?;
+                formation
+                    .module
+                    .forward_root_constants(&protected, formation.budget)?;
                 formation.module.drop_double_negations(formation.budget)?;
                 if logical != 0 {
-                    if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
+                    if let (_, Some(map)) =
+                        formation.module.forward_single_uses(formation.budget)?
+                    {
                         remap_alternatives(&mut formation.literal_alternatives, &map);
                     }
                 }
@@ -805,9 +825,12 @@ fn form_with_demand(
                     .iter()
                     .map(|alternative| alternative.expression())
                     .collect();
-                formation
-                    .module
-                    .simplify_operators(numeric_lengths, year, &protected, formation.budget)?;
+                formation.module.simplify_operators(
+                    numeric_lengths,
+                    year,
+                    &protected,
+                    formation.budget,
+                )?;
                 Ok(0)
             });
         if let Err(error) = edited {
@@ -840,13 +863,21 @@ fn form_with_demand(
             // `x.m.call(x,…)`, and receiver adapters of lambdas that ignore
             // their receiver.
             formation.module.self_method_calls(formation.budget)?;
-            formation.module.dissolve_receiver_adapters(formation.budget)?;
+            formation
+                .module
+                .dissolve_receiver_adapters(formation.budget)?;
             if raw_structure {
                 // Functions with one call, as statements, take its place;
                 // their parameters are then copies to forward.
-                if formation.module.inline_single_calls(strict, formation.budget)? != 0 {
+                if formation
+                    .module
+                    .inline_single_calls(strict, formation.budget)?
+                    != 0
+                {
                     formation.module.eliminate_aliases(formation.budget)?;
-                    if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
+                    if let (_, Some(map)) =
+                        formation.module.forward_single_uses(formation.budget)?
+                    {
                         remap_alternatives(&mut formation.literal_alternatives, &map);
                     }
                 }
@@ -876,16 +907,25 @@ fn form_with_demand(
                 }
             }
             // A function left with one call is created there.
-            if let (_, Some(map)) = formation.module.place_single_calls(strict, formation.budget)? {
+            if let (_, Some(map)) = formation
+                .module
+                .place_single_calls(strict, formation.budget)?
+            {
                 remap_alternatives(&mut formation.literal_alternatives, &map);
             }
             // Initializer stores the construction literal already holds.
-            formation.module.drop_redundant_init_stores(formation.budget)?;
+            formation
+                .module
+                .drop_redundant_init_stores(formation.budget)?;
             // Objects only read and written through their fields are those
             // fields.
-            formation.module.scalarize_member_objects(formation.budget)?;
+            formation
+                .module
+                .scalarize_member_objects(formation.budget)?;
             if prunes {
-                formation.module.drop_unreferenced_functions(formation.budget)?;
+                formation
+                    .module
+                    .drop_unreferenced_functions(formation.budget)?;
             }
             formation.module.drop_unreachable(formation.budget)?;
             // Regrouped where the printer lists them: method stores into
@@ -906,7 +946,9 @@ fn form_with_demand(
                 .iter()
                 .map(|alternative| alternative.expression())
                 .collect();
-            formation.module.encode_string_tables(&protected, formation.budget)?;
+            formation
+                .module
+                .encode_string_tables(&protected, formation.budget)?;
             formation.module.drop_default_arguments(formation.budget)?;
             formation.module.native_default_lengths(formation.budget)?;
             Ok(0)
@@ -922,7 +964,10 @@ fn form_with_demand(
                 .iter()
                 .map(|alternative| alternative.expression())
                 .collect();
-            if let (_, Some(map)) = formation.module.pack_string_arrays(&protected, formation.budget)? {
+            if let (_, Some(map)) = formation
+                .module
+                .pack_string_arrays(&protected, formation.budget)?
+            {
                 formation
                     .literal_alternatives
                     .retain_mut(|alternative| alternative.remap(&map));
@@ -1016,10 +1061,7 @@ fn fold_stores(
 
 /// Point literal alternatives at their renumbered nodes, ascending for
 /// lookups; those whose node is gone go too.
-fn remap_alternatives(
-    alternatives: &mut Vec<js::LiteralAlternative>,
-    map: &[Option<js::ExprId>],
-) {
+fn remap_alternatives(alternatives: &mut Vec<js::LiteralAlternative>, map: &[Option<js::ExprId>]) {
     alternatives.retain_mut(|alternative| alternative.remap(map));
     alternatives.sort_unstable_by_key(|alternative| alternative.expression());
 }
@@ -1133,7 +1175,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         // A parameter read never throws. Demand keeps a classic script's
         // parameter reads in place because mapped `arguments` can alias them;
         // with no `arguments` read anywhere, nothing but a store can change one.
-        if matches!(program.cells[cell.index()].binding, CellBinding::Parameter(_)) {
+        if matches!(
+            program.cells[cell.index()].binding,
+            CellBinding::Parameter(_)
+        ) {
             if self.contract.execution == crate::compilation_contract::JavaScriptExecution::Script
                 && self.reads_arguments()?
             {
@@ -1240,10 +1285,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         {
             return Ok(None);
         }
-        let Some(&[ValueUse::Operand {
-            operation: initialize,
-            position: 0,
-        }]) = uses.unit(semantic).and_then(|uses| uses.value_uses(value))
+        let Some(
+            &[ValueUse::Operand {
+                operation: initialize,
+                position: 0,
+            }],
+        ) = uses.unit(semantic).and_then(|uses| uses.value_uses(value))
         else {
             return Ok(None);
         };
@@ -1462,7 +1509,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         };
         self.work(readers.len())?;
         for reader in readers {
-            let ValueUse::Operand { operation, position: 0 } = *reader else {
+            let ValueUse::Operand {
+                operation,
+                position: 0,
+            } = *reader
+            else {
                 continue;
             };
             let cell = match data.operations[operation.index()].kind {
@@ -1475,7 +1526,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             };
             if self.namespace_member(cell)?
                 || (self.contract.abi.preserve_root_exports
-                    && self.program.value_exports().any(|(_, exported)| exported == cell))
+                    && self
+                        .program
+                        .value_exports()
+                        .any(|(_, exported)| exported == cell))
             {
                 return Ok(true);
             }
@@ -1543,8 +1597,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         )?;
         if region == self.module.root {
             let module = self.current_module;
-            self.budget
-                .push(AllocationClass::Retained, &mut self.module.root_modules, module)?;
+            self.budget.push(
+                AllocationClass::Retained,
+                &mut self.module.root_modules,
+                module,
+            )?;
         }
         Ok(())
     }
@@ -1932,9 +1989,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 else {
                     continue;
                 };
-                let Some(child) = self
-                    .demand
-                    .child(context, OpId::from_index(index).unwrap())
+                let Some(child) = self.demand.child(context, OpId::from_index(index).unwrap())
                 else {
                     continue;
                 };
@@ -2385,14 +2440,22 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     /// script has no module syntax to spell one.
     fn foreign_import(&mut self, cell: CellId) -> Result<Option<js::BindingId>, FormationError> {
         self.work(self.foreign_bindings.len() + 1)?;
-        if let Some(&(_, binding)) = self.foreign_bindings.iter().find(|(known, _)| *known == cell) {
+        if let Some(&(_, binding)) = self
+            .foreign_bindings
+            .iter()
+            .find(|(known, _)| *known == cell)
+        {
             return Ok(Some(binding));
         }
         let program = self.program;
         let mut found = None;
         for module in program.modules.iter() {
             self.work(module.foreign_imports.len() + 1)?;
-            if let Some(import) = module.foreign_imports.iter().find(|import| import.cell == cell) {
+            if let Some(import) = module
+                .foreign_imports
+                .iter()
+                .find(|import| import.cell == cell)
+            {
                 found = Some(import);
                 break;
             }
@@ -2415,11 +2478,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             if existing.imported != import.imported
                 || existing.source.as_unicode() != Some(import.source.as_str())
             {
-                return Err(self.error(declaration, "foreign binding imported from conflicting modules"));
+                return Err(self.error(
+                    declaration,
+                    "foreign binding imported from conflicting modules",
+                ));
             }
             let binding = existing.binding;
-            self.budget
-                .push(AllocationClass::Scratch, &mut self.foreign_bindings, (cell, binding))?;
+            self.budget.push(
+                AllocationClass::Scratch,
+                &mut self.foreign_bindings,
+                (cell, binding),
+            )?;
             return Ok(Some(binding));
         }
         let scope = self.module.regions[self.module.root.index()].scope;
@@ -2438,8 +2507,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         )?;
         self.module
             .import_in(&import.source, &import.imported, binding, self.budget)?;
-        self.budget
-            .push(AllocationClass::Scratch, &mut self.foreign_bindings, (cell, binding))?;
+        self.budget.push(
+            AllocationClass::Scratch,
+            &mut self.foreign_bindings,
+            (cell, binding),
+        )?;
         Ok(Some(binding))
     }
 
@@ -2505,15 +2577,19 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     }
 
     /// Whether exactly one operation of this context accesses `place`.
-    fn single_access_place(&mut self, unit: ContextId, place: PlaceId) -> Result<bool, FormationError> {
+    fn single_access_place(
+        &mut self,
+        unit: ContextId,
+        place: PlaceId,
+    ) -> Result<bool, FormationError> {
         let data = self.data(unit);
         self.work(data.operations.len())?;
         let mut accesses = 0;
         for operation in &data.operations {
             accesses += match operation.kind {
-                OperationKind::Load(used) | OperationKind::Store(used) | OperationKind::CheckPlace(used) => {
-                    usize::from(used == place)
-                }
+                OperationKind::Load(used)
+                | OperationKind::Store(used)
+                | OperationKind::CheckPlace(used) => usize::from(used == place),
                 // A prepared call and its call are one access.
                 OperationKind::Call(call) => usize::from(matches!(
                     data.calls[call.index()].target,
@@ -2915,7 +2991,13 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     {
                         let expression = self.host_builtin(builtin, arguments, operation.span)?;
                         let sum = builtin == BuiltinCall::JsAdd
-                            && matches!(expression, js::Expr::Binary { op: js::Binary::Add, .. });
+                            && matches!(
+                                expression,
+                                js::Expr::Binary {
+                                    op: js::Binary::Add,
+                                    ..
+                                }
+                            );
                         let expression = self.expression(expression)?;
                         if sum {
                             self.budget.push(
@@ -3117,7 +3199,10 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
     ) -> Result<js::ExprId, FormationError> {
         let program = self.program;
         let data = self.data(unit);
-        if !matches!(data.calls[call.index()].target, CallTarget::Builtin(BuiltinCall::JsAssume)) {
+        if !matches!(
+            data.calls[call.index()].target,
+            CallTarget::Builtin(BuiltinCall::JsAssume)
+        ) {
             return Ok(expression);
         }
         let Some(result) = operation.result else {
@@ -3136,7 +3221,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         }
         let decoded = match result {
             Type::Struct(_) => Some(result),
-            Type::Array(element) if matches!(element.as_ref(), Type::Struct(_)) => Some(element.as_ref()),
+            Type::Array(element) if matches!(element.as_ref(), Type::Struct(_)) => {
+                Some(element.as_ref())
+            }
             _ => None,
         };
         let decodable = match decoded {
@@ -3205,7 +3292,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     let Place::Cell(cell) = function.places[place.index()] else {
                         return None;
                     };
-                    if function.parameters.get(loaded) != Some(&cell) || operation.result.is_none() {
+                    if function.parameters.get(loaded) != Some(&cell) || operation.result.is_none()
+                    {
                         return None;
                     }
                     loaded += 1;
@@ -3263,7 +3351,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let CallTarget::Value { callee, .. } = data.calls[inner.index()].target else {
             return false;
         };
-        let OperationKind::Load(place) = data.operations[data.values[callee.index()].definition.index()].kind
+        let OperationKind::Load(place) =
+            data.operations[data.values[callee.index()].definition.index()].kind
         else {
             return false;
         };
@@ -3300,7 +3389,11 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
         let returned = |operation: OpId| {
             let operation = &function.operations[operation.index()];
             matches!(operation.kind, OperationKind::Return).then(|| {
-                function.operands(operation.operands).unwrap_or(&[]).first().copied()
+                function
+                    .operands(operation.operands)
+                    .unwrap_or(&[])
+                    .first()
+                    .copied()
             })
         };
         match (operations.next(), operations.next(), operations.next()) {
@@ -3315,9 +3408,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     ),
                     _ => false,
                 };
-                undefined
-                    && produced.result.is_some()
-                    && returned(second) == Some(produced.result)
+                undefined && produced.result.is_some() && returned(second) == Some(produced.result)
             }
             _ => false,
         }
@@ -3395,7 +3486,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             CallTarget::Intrinsic {
                 operation:
                     ResolvedIntrinsic::Method(
-                        operation @ (Intrinsic::JsTruthy | Intrinsic::JsIsArray | Intrinsic::JsIsObject),
+                        operation @ (Intrinsic::JsTruthy
+                        | Intrinsic::JsIsArray
+                        | Intrinsic::JsIsObject),
                     ),
                 receiver: Some(receiver),
             } if arguments.is_empty() => {
@@ -3489,12 +3582,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     arguments,
                     invocation: Invocation::Reference,
                 };
-                let result = contract
-                    .signature
-                    .and_then(|signature| match &self.program.types[signature.index()] {
+                let result = contract.signature.and_then(|signature| {
+                    match &self.program.types[signature.index()] {
                         Type::Function(signature) => Some(signature.return_type.as_ref()),
                         _ => None,
-                    });
+                    }
+                });
                 match result {
                     Some(Type::Int) => js::Expr::ToInt32(self.expression(popped)?),
                     Some(Type::String)
@@ -3617,11 +3710,16 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
             }
             _ => return Err(self.error(span, "semantic JavaScript call implementation")),
         };
-        let sum = matches!(node, js::Expr::Binary { op: js::Binary::Add, .. })
-            && matches!(
-                self.data(unit).calls[call.index()].target,
-                CallTarget::Builtin(BuiltinCall::JsAdd)
-            );
+        let sum = matches!(
+            node,
+            js::Expr::Binary {
+                op: js::Binary::Add,
+                ..
+            }
+        ) && matches!(
+            self.data(unit).calls[call.index()].target,
+            CallTarget::Builtin(BuiltinCall::JsAdd)
+        );
         let id = self.expression(node)?;
         if sum {
             self.budget
@@ -3850,9 +3948,7 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 let string = self.host_path(&["String"])?;
                 let program = self.program;
                 let members_len = program.modules[module.index()].namespace.len();
-                let mut members = self
-                    .budget
-                    .vector(AllocationClass::Retained, members_len)?;
+                let mut members = self.budget.vector(AllocationClass::Retained, members_len)?;
                 for index in 0..members_len {
                     let (name, cell) = &program.modules[module.index()].namespace[index];
                     let binding = self.cell_binding(unit, *cell)?;
@@ -3861,11 +3957,12 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     self.budget
                         .push(AllocationClass::Retained, &mut members, (name, value))?;
                 }
-                let specifier = program.strings[specifier.index()]
-                    .as_unicode()
-                    .ok_or_else(|| {
-                        self.error(operation.span, "dynamic import specifier is not text")
-                    })?;
+                let specifier =
+                    program.strings[specifier.index()]
+                        .as_unicode()
+                        .ok_or_else(|| {
+                            self.error(operation.span, "dynamic import specifier is not text")
+                        })?;
                 let specifier = self.text(specifier)?;
                 js::Expr::LoadModule {
                     module: module.index() as u32,
@@ -3913,7 +4010,9 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                             invocation: Invocation::Reference,
                         }
                     }
-                    None => return Err(self.error(operation.span, "type test without a runtime test")),
+                    None => {
+                        return Err(self.error(operation.span, "type test without a runtime test"))
+                    }
                 }
             }
             OperationKind::Template => {
@@ -3937,14 +4036,18 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     for index in 0..spliced {
                         self.work(1)?;
                         let part = match &self.module.expressions[value.index()] {
-                            js::Expr::Literal(js::Literal::String(text)) => js::TemplatePart::String(
-                                self.budget.string_value(AllocationClass::Retained, text)?,
-                            ),
+                            js::Expr::Literal(js::Literal::String(text)) => {
+                                js::TemplatePart::String(
+                                    self.budget.string_value(AllocationClass::Retained, text)?,
+                                )
+                            }
                             js::Expr::Template(inner) => match &inner[index] {
                                 js::TemplatePart::String(text) => js::TemplatePart::String(
                                     self.budget.string_value(AllocationClass::Retained, text)?,
                                 ),
-                                js::TemplatePart::Expression(id) => js::TemplatePart::Expression(*id),
+                                js::TemplatePart::Expression(id) => {
+                                    js::TemplatePart::Expression(*id)
+                                }
                             },
                             _ => unreachable!("counted splice"),
                         };
@@ -3993,13 +4096,17 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                 // but a host may hand one over as `undefined` (a missing
                 // element, say): the loose test treats both as absent.
                 let program = self.program;
-                let ty = |value: ValueId| &program.types[self.data(unit).values[value.index()].ty.index()];
+                let ty = |value: ValueId| {
+                    &program.types[self.data(unit).values[value.index()].ty.index()]
+                };
                 let dynamic = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
                     && operands[..2]
                         .iter()
                         .any(|&value| matches!(ty(value), Type::TypeParameter("$js")));
                 let null_test = matches!(op, BinaryOp::Eq | BinaryOp::NotEq)
-                    && operands[..2].iter().any(|&value| matches!(ty(value), Type::Null));
+                    && operands[..2]
+                        .iter()
+                        .any(|&value| matches!(ty(value), Type::Null));
                 // Two numbers, two strings or two booleans compare the same
                 // loosely: `==` converts nothing when the types already agree.
                 let primitive = |ty: &Type<'_>| match ty {
@@ -4055,7 +4162,8 @@ impl<'demand, 'program, 'src> Formation<'demand, 'program, 'src, '_, '_> {
                     && matches!(property, Intrinsic::StringLength | Intrinsic::ArrayLength)
                 {
                     self.transfer_number(unit, operation, false, |_| {
-                        NumberFacts::integer_range(0, 1 << 30, false).unwrap_or(NumberFacts::UNKNOWN)
+                        NumberFacts::integer_range(0, 1 << 30, false)
+                            .unwrap_or(NumberFacts::UNKNOWN)
                     })?;
                 }
                 let receiver = self.value(unit, operands[0])?;

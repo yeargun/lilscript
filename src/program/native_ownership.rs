@@ -109,7 +109,9 @@ impl Emitter<'_, '_, '_, '_, '_> {
                 continue;
             }
             let ty = self.plan.value_type(cell.storage);
-            self.write(format_args!("typedef struct {{ ls_native_object owner; {ty} value; }} ls_box{index};\n"))?;
+            self.write(format_args!(
+                "typedef struct {{ ls_native_object owner; {ty} value; }} ls_box{index};\n"
+            ))?;
             // A box owns a managed payload: it retains on creation and
             // releases when the last closure sharing it goes.
             let destroy = if let Some(prefix) = ty.owner_prefix() {
@@ -293,7 +295,8 @@ impl Emitter<'_, '_, '_, '_, '_> {
             self.budget.work(WorkKind::Render, 1)?;
             let operation = &data.operations[op.index()];
             if let Some(value) = operation.result {
-                if let ValueStorage::Value(ty) = self.plan.units[unit.index()].values[value.index()] {
+                if let ValueStorage::Value(ty) = self.plan.units[unit.index()].values[value.index()]
+                {
                     if let Some(prefix) = ty.owner_prefix() {
                         self.write(format_args!("{prefix}_clear(&ls_v{});\n", value.index()))?;
                     }

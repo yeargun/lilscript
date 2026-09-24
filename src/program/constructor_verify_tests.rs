@@ -3,9 +3,9 @@
 //! cannot replace it, and checked edits cannot cross a live call envelope.
 use super::publication::*;
 use super::*;
+use crate::check::DefaultValue;
 use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 use crate::primitive::{intrinsic_call_contract, Intrinsic};
-use crate::check::DefaultValue;
 
 fn checked(source: &str, inspect: impl FnOnce(&Program<'_>)) {
     let arena = bumpalo::Bump::new();
@@ -242,7 +242,10 @@ fn builtin_constructors_cannot_borrow_another_constructors_checked_shape() {
                     receiver: None,
                 };
             });
-            assert!(broken.verify().is_err(), "{operation:?} borrowed Regex's shape");
+            assert!(
+                broken.verify().is_err(),
+                "{operation:?} borrowed Regex's shape"
+            );
         }
     });
     for source in [

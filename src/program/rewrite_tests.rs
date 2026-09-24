@@ -4,10 +4,10 @@ use crate::compilation_policy::{
     WorkDomain, WorkKind,
 };
 use crate::config::CompressionCostModel;
+use crate::js::selection::{Plan, Style};
 use crate::primitive::IntBinary;
 use crate::program::publication::*;
 use crate::program::*;
-use crate::js::selection::{Plan, Style};
 use std::process::Command;
 
 const WORK: u64 = 100_000_000;
@@ -1078,7 +1078,6 @@ fn checked_fold_unwind_and_deadline_restore_parent_indices_identities_and_artifa
     }
 }
 
-
 fn dce_policy(dead_code: bool, folding: bool) -> ResolvedPolicy {
     let configuration: crate::config::ProjectConfig = toml::from_str(&format!(
         "[javascript]\nstrip_console=false\n[policy.tactics]\nconstant-folding='{}'\ndead-code-elimination='{}'\ntarget-compaction='off'\n",
@@ -1121,12 +1120,25 @@ fn drop_to_fixpoint(
 ) -> (SemanticId, usize) {
     let mut steps = 0;
     loop {
-        let count = compiler.view(snapshot).unwrap().unit(unit).unwrap().operations.len();
+        let count = compiler
+            .view(snapshot)
+            .unwrap()
+            .unit(unit)
+            .unwrap()
+            .operations
+            .len();
         let mut progressed = false;
         for index in 0..count {
             let operation = OpId::from_index(index).unwrap();
             if let Some(next) = compiler
-                .drop_dead_value(snapshot, unit, operation, policy, WorkDomain::Optional, facts)
+                .drop_dead_value(
+                    snapshot,
+                    unit,
+                    operation,
+                    policy,
+                    WorkDomain::Optional,
+                    facts,
+                )
                 .unwrap()
             {
                 snapshot = next;
@@ -1142,7 +1154,15 @@ fn drop_to_fixpoint(
 }
 
 fn kinds(compiler: &Compilation<'_>, snapshot: SemanticId, unit: UnitId) -> Vec<OperationKind> {
-    compiler.view(snapshot).unwrap().unit(unit).unwrap().operations.iter().map(|operation| operation.kind.clone()).collect()
+    compiler
+        .view(snapshot)
+        .unwrap()
+        .unit(unit)
+        .unwrap()
+        .operations
+        .iter()
+        .map(|operation| operation.kind.clone())
+        .collect()
 }
 
 #[test]
@@ -1150,37 +1170,54 @@ fn dead_local_computations_cascade_away_through_checked_steps() {
     // `b` and `c` are written and never read. Their arithmetic, and the loads
     // that fed only that arithmetic, retire one published step at a time;
     // `a`, which the function returns, is untouched.
-    checked("export int run(){int a=3;int b=a+4;int c=b*5;return a;}", |program| {
-        let unit = function(&program, "run");
-        let mut compiler = owner(64, MEMORY);
-        let source = compiler.adopt_checked(program, WorkDomain::Baseline).unwrap();
-        let policy = dce_policy(true, false);
-        let facts = with_facts(&mut compiler);
-        let before = kinds(&compiler, source, unit);
-        let parent = render(&mut compiler, source, &policy);
-        let (cleaned, steps) = drop_to_fixpoint(&mut compiler, source, unit, &policy, facts);
-        assert!(steps >= 3, "expected the multiply, the load of b and the add to retire, got {steps}");
-        let after = kinds(&compiler, cleaned, unit);
-        assert_eq!(
-            after.iter().filter(|kind| matches!(kind, OperationKind::IntBinary(_))).count(),
-            0,
-            "{after:?}"
-        );
-        // The original snapshot survives unchanged beside every step.
-        assert_eq!(format!("{:?}", kinds(&compiler, source, unit)), format!("{before:?}"));
-        assert_eq!(compiler.view(cleaned).unwrap().rewrites().len(), steps);
-        assert!(compiler
-            .view(cleaned)
-            .unwrap()
-            .rewrites()
-            .steps()
-            .all(|step| step.rule.dead_value_drop().is_some()));
-        matches_full_index(&mut compiler, cleaned);
-        let child = render(&mut compiler, cleaned, &policy);
-        let probe = "console.log(library.run());";
-        assert_eq!(observe(&compiler, child, probe), observe(&compiler, parent, probe));
-        assert_eq!(observe(&compiler, child, probe), "3\n");
-    });
+    checked(
+        "export int run(){int a=3;int b=a+4;int c=b*5;return a;}",
+        |program| {
+            let unit = function(&program, "run");
+            let mut compiler = owner(64, MEMORY);
+            let source = compiler
+                .adopt_checked(program, WorkDomain::Baseline)
+                .unwrap();
+            let policy = dce_policy(true, false);
+            let facts = with_facts(&mut compiler);
+            let before = kinds(&compiler, source, unit);
+            let parent = render(&mut compiler, source, &policy);
+            let (cleaned, steps) = drop_to_fixpoint(&mut compiler, source, unit, &policy, facts);
+            assert!(
+                steps >= 3,
+                "expected the multiply, the load of b and the add to retire, got {steps}"
+            );
+            let after = kinds(&compiler, cleaned, unit);
+            assert_eq!(
+                after
+                    .iter()
+                    .filter(|kind| matches!(kind, OperationKind::IntBinary(_)))
+                    .count(),
+                0,
+                "{after:?}"
+            );
+            // The original snapshot survives unchanged beside every step.
+            assert_eq!(
+                format!("{:?}", kinds(&compiler, source, unit)),
+                format!("{before:?}")
+            );
+            assert_eq!(compiler.view(cleaned).unwrap().rewrites().len(), steps);
+            assert!(compiler
+                .view(cleaned)
+                .unwrap()
+                .rewrites()
+                .steps()
+                .all(|step| step.rule.dead_value_drop().is_some()));
+            matches_full_index(&mut compiler, cleaned);
+            let child = render(&mut compiler, cleaned, &policy);
+            let probe = "console.log(library.run());";
+            assert_eq!(
+                observe(&compiler, child, probe),
+                observe(&compiler, parent, probe)
+            );
+            assert_eq!(observe(&compiler, child, probe), "3\n");
+        },
+    );
 }
 
 #[test]
@@ -1188,28 +1225,40 @@ fn a_dead_value_that_can_run_a_coercion_hook_is_kept() {
     // An exported `int` parameter still receives arbitrary JavaScript values,
     // so `value*3` can call `valueOf`. The facts summarize that as a coercion,
     // which may throw and reenter: dropping it would erase an observable hook.
-    checked("export int run(int value){int b=value*3;return 1;}", |program| {
-        let unit = function(&program, "run");
-        let operation = binary(&program, unit);
-        let mut compiler = owner(8, MEMORY);
-        let source = compiler.adopt_checked(program, WorkDomain::Baseline).unwrap();
-        let policy = dce_policy(true, false);
-        let facts = with_facts(&mut compiler);
-        assert!(compiler
-            .drop_dead_value(source, unit, operation, &policy, WorkDomain::Optional, facts)
-            .unwrap()
-            .is_none());
-        assert_eq!(compiler.checkpoint_count(), 1);
-        let artifact = render(&mut compiler, source, &policy);
-        assert_eq!(
-            observe(
-                &compiler,
-                artifact,
-                r#"const trace=[];library.run({valueOf(){trace.push("valueOf");return 2;}});console.log(JSON.stringify(trace));"#
-            ),
-            "[\"valueOf\"]\n"
-        );
-    });
+    checked(
+        "export int run(int value){int b=value*3;return 1;}",
+        |program| {
+            let unit = function(&program, "run");
+            let operation = binary(&program, unit);
+            let mut compiler = owner(8, MEMORY);
+            let source = compiler
+                .adopt_checked(program, WorkDomain::Baseline)
+                .unwrap();
+            let policy = dce_policy(true, false);
+            let facts = with_facts(&mut compiler);
+            assert!(compiler
+                .drop_dead_value(
+                    source,
+                    unit,
+                    operation,
+                    &policy,
+                    WorkDomain::Optional,
+                    facts
+                )
+                .unwrap()
+                .is_none());
+            assert_eq!(compiler.checkpoint_count(), 1);
+            let artifact = render(&mut compiler, source, &policy);
+            assert_eq!(
+                observe(
+                    &compiler,
+                    artifact,
+                    r#"const trace=[];library.run({valueOf(){trace.push("valueOf");return 2;}});console.log(JSON.stringify(trace));"#
+                ),
+                "[\"valueOf\"]\n"
+            );
+        },
+    );
 }
 
 #[test]
@@ -1217,7 +1266,9 @@ fn a_value_that_is_read_is_not_retired() {
     checked("export int run(){int a=3;return a+1;}", |program| {
         let unit = function(&program, "run");
         let mut compiler = owner(8, MEMORY);
-        let source = compiler.adopt_checked(program, WorkDomain::Baseline).unwrap();
+        let source = compiler
+            .adopt_checked(program, WorkDomain::Baseline)
+            .unwrap();
         let policy = dce_policy(true, false);
         let facts = with_facts(&mut compiler);
         let (_, steps) = drop_to_fixpoint(&mut compiler, source, unit, &policy, facts);
@@ -1232,26 +1283,54 @@ fn dead_value_drop_obeys_policy_and_records_only_its_own_tactic() {
         let unit = function(&program, "run");
         let operation = binary(&program, unit);
         let mut compiler = owner(16, MEMORY);
-        let source = compiler.adopt_checked(program, WorkDomain::Baseline).unwrap();
+        let source = compiler
+            .adopt_checked(program, WorkDomain::Baseline)
+            .unwrap();
         let facts = with_facts(&mut compiler);
         // The tactic is required.
         assert_eq!(
-            compiler.drop_dead_value(source, unit, operation, &dce_policy(false, true), WorkDomain::Optional, facts),
+            compiler.drop_dead_value(
+                source,
+                unit,
+                operation,
+                &dce_policy(false, true),
+                WorkDomain::Optional,
+                facts
+            ),
             Err(RewriteError::ForbiddenTactic(TacticId::DeadCodeElimination))
         );
         // Folding may be forbidden: this snapshot never folded anything.
         let dropped = compiler
-            .drop_dead_value(source, unit, operation, &dce_policy(true, false), WorkDomain::Optional, facts)
+            .drop_dead_value(
+                source,
+                unit,
+                operation,
+                &dce_policy(true, false),
+                WorkDomain::Optional,
+                facts,
+            )
             .unwrap()
             .expect("the unused product retires");
-        let steps = compiler.view(dropped).unwrap().rewrites().steps().collect::<Vec<_>>();
+        let steps = compiler
+            .view(dropped)
+            .unwrap()
+            .rewrites()
+            .steps()
+            .collect::<Vec<_>>();
         assert_eq!(steps.len(), 1);
         assert_eq!(steps[0].rule.tactic(), TacticId::DeadCodeElimination);
         // A later rule under a policy that forbids dead-code elimination is
         // refused, because the history it would extend depends on it.
         let load = OpId::from_index(0).unwrap();
         assert_eq!(
-            compiler.drop_dead_value(dropped, unit, load, &dce_policy(false, true), WorkDomain::Optional, facts),
+            compiler.drop_dead_value(
+                dropped,
+                unit,
+                load,
+                &dce_policy(false, true),
+                WorkDomain::Optional,
+                facts
+            ),
             Err(RewriteError::ForbiddenTactic(TacticId::DeadCodeElimination))
         );
     });
@@ -1263,11 +1342,20 @@ fn a_stale_or_corrupted_dead_value_proof_is_refused_without_publication() {
         let unit = function(&program, "run");
         let operation = binary(&program, unit);
         let mut compiler = owner(16, MEMORY);
-        let source = compiler.adopt_checked(program, WorkDomain::Baseline).unwrap();
+        let source = compiler
+            .adopt_checked(program, WorkDomain::Baseline)
+            .unwrap();
         let policy = dce_policy(true, false);
         let facts = with_facts(&mut compiler);
         let proof = compiler
-            .prepare_dead_value_drop(source, unit, operation, &policy, WorkDomain::Optional, facts)
+            .prepare_dead_value_drop(
+                source,
+                unit,
+                operation,
+                &policy,
+                WorkDomain::Optional,
+                facts,
+            )
             .unwrap()
             .expect("the unused product is retirable");
         let count = compiler.checkpoint_count();
@@ -1289,7 +1377,11 @@ fn a_stale_or_corrupted_dead_value_proof_is_refused_without_publication() {
             assert!(compiler
                 .commit_checked_rewrite(claim, &policy, WorkDomain::Optional, started, Some(facts))
                 .is_err());
-            assert_eq!(compiler.checkpoint_count(), count, "corruption {corruption} published");
+            assert_eq!(
+                compiler.checkpoint_count(),
+                count,
+                "corruption {corruption} published"
+            );
             assert_eq!(compiler.ledger().retained_bytes(), bytes);
         }
     });
@@ -1301,15 +1393,23 @@ fn dead_value_drop_requires_local_facts() {
         let unit = function(&program, "run");
         let operation = binary(&program, unit);
         let mut compiler = owner(8, MEMORY);
-        let source = compiler.adopt_checked(program, WorkDomain::Baseline).unwrap();
+        let source = compiler
+            .adopt_checked(program, WorkDomain::Baseline)
+            .unwrap();
         let facts = LocalFactsRequest {
             work_quota: 1_000,
             result_bytes: 1_000,
         };
         assert_eq!(
-            compiler.drop_dead_value(source, unit, operation, &dce_policy(true, false), WorkDomain::Optional, facts),
+            compiler.drop_dead_value(
+                source,
+                unit,
+                operation,
+                &dce_policy(true, false),
+                WorkDomain::Optional,
+                facts
+            ),
             Err(RewriteError::FactsUnavailable)
         );
     });
 }
-

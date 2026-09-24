@@ -303,7 +303,9 @@ fn analyze_modules_in<'ast, 'src, S>(
             .iter()
             .any(|item| matches!(item, Item::Class(_) | Item::ExternClass(_)))
     };
-    let last_with_classes = programs.iter().rposition(|program| declares_classes(program));
+    let last_with_classes = programs
+        .iter()
+        .rposition(|program| declares_classes(program));
     for (module, program) in programs.iter().enumerate() {
         let Some(last) = last_with_classes else {
             break;
@@ -992,11 +994,9 @@ impl<'src> InterfaceGraph<'src> {
                 let Some(&node) = self.exports[module].get(export.exported.name) else {
                     continue;
                 };
-                let target = self.nodes[node]
-                    .target
-                    .ok_or_else(|| {
-                        error(module, export.span, "cyclic export cannot be resolved")
-                    })?;
+                let target = self.nodes[node].target.ok_or_else(|| {
+                    error(module, export.span, "cyclic export cannot be resolved")
+                })?;
                 let direct_value = locals[module]
                     .get(export.local.name)
                     .is_some_and(|(span, _)| *span == export.local.span);

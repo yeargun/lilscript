@@ -137,9 +137,18 @@ fn a_struct_reaching_a_jsvalue_is_its_public_shape_and_stays_a_value() {
             );
         }
     }
-    let javascript = output("struct P{int x;}export JsValue expose(){return P{1};}", true, true).unwrap();
+    let javascript = output(
+        "struct P{int x;}export JsValue expose(){return P{1};}",
+        true,
+        true,
+    )
+    .unwrap();
     assert_eq!(
-        execute(&javascript, "", "console.log(JSON.stringify(library.expose()));"),
+        execute(
+            &javascript,
+            "",
+            "console.log(JSON.stringify(library.expose()));"
+        ),
         json!(["{\"x\":1}"])
     );
 }

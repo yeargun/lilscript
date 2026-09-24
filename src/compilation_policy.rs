@@ -229,9 +229,14 @@ impl TacticId {
                 T::StartupReconstruction => {
                     ("startup-reconstruction", true, 16, true, A::Values, D::On)
                 }
-                T::RecurringReconstruction => {
-                    ("recurring-reconstruction", true, 0, false, A::Values, D::Off)
-                }
+                T::RecurringReconstruction => (
+                    "recurring-reconstruction",
+                    true,
+                    0,
+                    false,
+                    A::Values,
+                    D::Off,
+                ),
                 T::NamingSearch => ("naming-search", true, 8, false, A::NamesAndBoundary, D::On),
             };
         TacticSpec {
@@ -1375,14 +1380,13 @@ mod tests {
     fn startup_effort_and_recurring_permissions_are_candidate_specific() {
         for level in [0, 13, 15, 16] {
             let p = js(&format!("[javascript]\noptimization_level={level}"));
-            assert!(
-                p.admit(
+            assert!(p
+                .admit(
                     &[usage(TacticId::StringArrayPacking, RuntimeRisk::Neutral)],
                     CandidateCost::default(),
                     CandidateCost::default()
                 )
-                .is_ok()
-            );
+                .is_ok());
             assert_eq!(
                 p.tactic(TacticId::StartupReconstruction).enabled,
                 level == 16
@@ -1396,36 +1400,33 @@ mod tests {
                 .is_ok(),
                 level == 16
             );
-            assert!(
-                p.admit(
+            assert!(p
+                .admit(
                     &[usage(TacticId::StringArrayPacking, RuntimeRisk::Recurring)],
                     CandidateCost::default(),
                     CandidateCost::default()
                 )
-                .is_err()
-            );
+                .is_err());
         }
         let on =
             js("[javascript]\noptimization_level=0\n[policy.tactics]\nstring-array-packing='on'");
-        assert!(
-            on.admit(
+        assert!(on
+            .admit(
                 &[usage(TacticId::StringArrayPacking, RuntimeRisk::Startup)],
                 CandidateCost::default(),
                 CandidateCost::default()
             )
-            .is_ok()
-        );
-        assert!(
-            on.admit(
+            .is_ok());
+        assert!(on
+            .admit(
                 &[usage(TacticId::StringArrayPacking, RuntimeRisk::Recurring)],
                 CandidateCost::default(),
                 CandidateCost::default()
             )
-            .is_ok()
-        );
+            .is_ok());
         // An unrelated opted-in tactic cannot license another tactic's risk.
-        assert!(
-            on.admit(
+        assert!(on
+            .admit(
                 &[
                     usage(TacticId::StringArrayPacking, RuntimeRisk::Neutral),
                     usage(TacticId::StringPooling, RuntimeRisk::Recurring)
@@ -1433,8 +1434,7 @@ mod tests {
                 CandidateCost::default(),
                 CandidateCost::default()
             )
-            .is_err()
-        );
+            .is_err());
     }
 
     #[test]
@@ -1561,24 +1561,18 @@ mod tests {
     #[test]
     fn version_and_level_boundaries_are_explicit() {
         for level in [0, 13, 15, 16] {
-            assert!(
-                config(&format!("[javascript]\noptimization_level={level}"))
-                    .validate()
-                    .is_ok()
-            );
-        }
-        assert!(
-            config("[javascript]\noptimization_level=17")
+            assert!(config(&format!("[javascript]\noptimization_level={level}"))
                 .validate()
-                .is_err()
-        );
+                .is_ok());
+        }
+        assert!(config("[javascript]\noptimization_level=17")
+            .validate()
+            .is_err());
         for version in [1, 3] {
-            assert!(
-                config(&format!("[policy]\nversion={version}"))
-                    .validate()
-                    .unwrap_err()
-                    .contains("translation retires at schema 3")
-            );
+            assert!(config(&format!("[policy]\nversion={version}"))
+                .validate()
+                .unwrap_err()
+                .contains("translation retires at schema 3"));
         }
         assert!(toml::from_str::<ProjectConfig>("[policy.tactics]\nnot-a-tactic='on'").is_err());
     }
@@ -1742,11 +1736,9 @@ mod tests {
         );
         let mut ledger = BudgetLedger::new(ResourceLimits::default(), plan()).unwrap();
         let before = ledger.clone();
-        assert!(
-            ledger
-                .charge(WorkDomain::Optional, WorkKind::Analysis, u64::MAX)
-                .is_err()
-        );
+        assert!(ledger
+            .charge(WorkDomain::Optional, WorkKind::Analysis, u64::MAX)
+            .is_err());
         assert_eq!(ledger, before);
         assert!(ledger.retain(WorkDomain::Baseline, u64::MAX).is_err());
         assert_eq!(ledger, before);
@@ -1804,11 +1796,9 @@ mod tests {
         .unwrap();
         assert!(!ledger.deadline_reached(19));
         assert!(ledger.deadline_reached(20));
-        assert!(
-            config("[policy.resources]\nwall_time_ms=0")
-                .validate()
-                .is_err()
-        );
+        assert!(config("[policy.resources]\nwall_time_ms=0")
+            .validate()
+            .is_err());
     }
 
     fn timed_ledger(elapsed: Duration) -> BudgetLedger {

@@ -120,10 +120,10 @@ fn run() -> Result<(), String> {
     }
     let mut loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
-    let config_label = loaded
-        .path
-        .as_ref()
-        .map_or_else(|| "lilscript.toml".to_string(), |path| path.display().to_string());
+    let config_label = loaded.path.as_ref().map_or_else(
+        || "lilscript.toml".to_string(),
+        |path| path.display().to_string(),
+    );
     for warning in &loaded.warnings {
         eprintln!("warning: {config_label}: {warning}");
     }
@@ -760,7 +760,10 @@ mod tests {
             "{summary}"
         );
         assert!(summary.contains("104 proposals"), "{summary}");
-        assert!(summary.contains("tactics enabled      inlining"), "{summary}");
+        assert!(
+            summary.contains("tactics enabled      inlining"),
+            "{summary}"
+        );
         assert!(
             summary.contains("tactics disabled     property-mangling"),
             "{summary}"

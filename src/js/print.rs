@@ -83,10 +83,7 @@ fn precedence(expression: &Expr) -> u8 {
     }
 }
 
-pub(super) fn render(
-    module: &Module,
-    names: &Names,
-) -> String {
+pub(super) fn render(module: &Module, names: &Names) -> String {
     render_bounded(module, names, usize::MAX).expect("unbounded output")
 }
 
@@ -425,7 +422,10 @@ impl Buffer<'_, '_> {
     /// expression literal would read as a comment: separate them.
     fn separate_slash(&mut self, at: usize) {
         if !matches!(
-            (self.text.as_bytes().get(at.wrapping_sub(1)), self.text.as_bytes().get(at)),
+            (
+                self.text.as_bytes().get(at.wrapping_sub(1)),
+                self.text.as_bytes().get(at)
+            ),
             (Some(b'/'), Some(b'/'))
         ) {
             return;
@@ -588,7 +588,11 @@ impl<'a> Printer<'a, '_, '_> {
         let mut groups: Vec<Vec<usize>> = vec![Vec::new(); hosts.modules.len()];
         for index in imports {
             let import = &self.module.imports[index];
-            if let Some(position) = import.source.as_unicode().and_then(|source| hosts.position(source)) {
+            if let Some(position) = import
+                .source
+                .as_unicode()
+                .and_then(|source| hosts.position(source))
+            {
                 if !groups[position].contains(&index) {
                     groups[position].push(index);
                 }
@@ -719,7 +723,9 @@ impl<'a> Printer<'a, '_, '_> {
                 Expr::ToInt32(value)
                     if matches!(
                         self.module.expressions[value.index()],
-                        Expr::IntBinary { .. } | Expr::IntNegate(_) | Expr::Literal(Literal::Number(_))
+                        Expr::IntBinary { .. }
+                            | Expr::IntNegate(_)
+                            | Expr::Literal(Literal::Number(_))
                     ) =>
                 {
                     id = value
@@ -1327,13 +1333,12 @@ impl<'a> Printer<'a, '_, '_> {
                         (Property::Named(name), None) if name != "__proto__" => Some(name.as_str()),
                         _ => None,
                     };
-                    let shorthand = spelled.is_some_and(|name| {
-                        match &self.module.expressions[value.index()] {
+                    let shorthand =
+                        spelled.is_some_and(|name| match &self.module.expressions[value.index()] {
                             Expr::Binding(binding) => self.names.get(*binding) == name,
                             Expr::Host(host) => host == name,
                             _ => false,
-                        }
-                    });
+                        });
                     if shorthand {
                         self.text(spelled.unwrap());
                         continue;
@@ -1400,7 +1405,10 @@ impl<'a> Printer<'a, '_, '_> {
             Suspension::Async => "async function ",
             Suspension::Generator => "function*",
         });
-        self.text(name.as_unicode().expect("a self-named function has an identifier name"));
+        self.text(
+            name.as_unicode()
+                .expect("a self-named function has an identifier name"),
+        );
         self.function(id);
     }
 
@@ -1695,10 +1703,11 @@ impl<'a> Printer<'a, '_, '_> {
         let Statement::If { condition, yes, no } = statement else {
             return 0;
         };
-        let only = |region: RegionId| match self.module.regions[region.index()].statements.as_slice() {
-            [only] => Some(only),
-            _ => None,
-        };
+        let only =
+            |region: RegionId| match self.module.regions[region.index()].statements.as_slice() {
+                [only] => Some(only),
+                _ => None,
+            };
         let returned = |statement: Option<&Statement>| match statement {
             Some(Statement::Return(Some(value))) => Some(*value),
             _ => None,
@@ -2032,7 +2041,9 @@ pub(super) fn number_spelling(value: f64) -> String {
     let sign = if value < 0.0 { "-" } else { "" };
     // `{:e}` gives the shortest round-trip digits: `d.ddde±x`.
     let scientific = format!("{:e}", value.abs());
-    let (mantissa, exponent) = scientific.split_once('e').expect("LowerExp has an exponent");
+    let (mantissa, exponent) = scientific
+        .split_once('e')
+        .expect("LowerExp has an exponent");
     let exponent: i32 = exponent.parse().expect("LowerExp exponent is an integer");
     let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
     let digits = digits.trim_end_matches('0');
@@ -2045,7 +2056,11 @@ pub(super) fn number_spelling(value: f64) -> String {
     } else if point >= count {
         format!("{digits}{}", "0".repeat((point - count) as usize))
     } else {
-        format!("{}.{}", &digits[..point as usize], &digits[point as usize..])
+        format!(
+            "{}.{}",
+            &digits[..point as usize],
+            &digits[point as usize..]
+        )
     };
     // DIGITS × 10^(point - count), for integers with trailing zeros and
     // for small fractions.

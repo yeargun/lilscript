@@ -117,7 +117,10 @@ impl Module {
         budget: &mut AllocationBudget<'_>,
     ) -> Result<Order, AllocationError> {
         let mut written = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
-        budget.work(Analysis, (self.expressions.len() + self.regions.len()) as u64)?;
+        budget.work(
+            Analysis,
+            (self.expressions.len() + self.regions.len()) as u64,
+        )?;
         for expression in &self.expressions {
             if let Expr::Assign { target, .. } = expression {
                 if let Expr::Binding(binding) = self.expressions[target.index()] {
@@ -127,7 +130,9 @@ impl Module {
         }
         for region in &self.regions {
             for statement in &region.statements {
-                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
+                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } =
+                    statement
+                {
                     written[binding.index()] = true;
                 }
             }
@@ -137,7 +142,11 @@ impl Module {
         }
         let mut declared = budget.filled(AllocationClass::Scratch, self.bindings.len(), None)?;
         let mut created = budget.filled(AllocationClass::Scratch, self.functions.len(), None)?;
-        for (index, statement) in self.regions[self.root.index()].statements.iter().enumerate() {
+        for (index, statement) in self.regions[self.root.index()]
+            .statements
+            .iter()
+            .enumerate()
+        {
             let moment = match statement {
                 Statement::Function { binding, .. } => {
                     declared[binding.index()] = Some(Moment::Hoisted);
@@ -223,10 +232,12 @@ impl Module {
             };
             let body = &self.regions[self.functions[function.index()].body.index()].statements;
             if let [Statement::Return(Some(value))] = body[..] {
-                factories[binding.index()] = matches!(self.expressions[value.index()], Expr::Function(_));
+                factories[binding.index()] =
+                    matches!(self.expressions[value.index()], Expr::Function(_));
             }
         }
-        let mut runs_from = budget.filled(AllocationClass::Scratch, statements.len(), statements.len())?;
+        let mut runs_from =
+            budget.filled(AllocationClass::Scratch, statements.len(), statements.len())?;
         let mut next = statements.len();
         for index in (0..statements.len()).rev() {
             budget.work(Analysis, 1)?;
@@ -235,9 +246,10 @@ impl Module {
             // root before any function could run, so it is quiet too.
             let quiet = match statements[index] {
                 Statement::Function { .. } | Statement::Let { value: None, .. } => true,
-                Statement::Let { value: Some(value), .. } | Statement::Evaluate(value) => {
-                    self.creates_only(value, &factories, budget)?
+                Statement::Let {
+                    value: Some(value), ..
                 }
+                | Statement::Evaluate(value) => self.creates_only(value, &factories, budget)?,
                 _ => false,
             };
             if !quiet {
@@ -265,8 +277,10 @@ impl Module {
     ) -> Result<bool, AllocationError> {
         budget.work(Analysis, 1)?;
         // A regular expression literal creates an object and calls nothing.
-        if matches!(self.expressions[value.index()], Expr::Binding(_) | Expr::Regex(_))
-            || self.pristine_builtins && self.standard_member(value)
+        if matches!(
+            self.expressions[value.index()],
+            Expr::Binding(_) | Expr::Regex(_)
+        ) || self.pristine_builtins && self.standard_member(value)
             || self.inert_value(value, budget)?
         {
             return Ok(true);
@@ -307,7 +321,9 @@ impl Module {
     pub(super) fn runs_after_root(&self, owner: Owner, index: usize, order: &Order) -> bool {
         match owner {
             Owner::Root(at) => at > index,
-            Owner::Function(function) => order.first_run(function).is_some_and(|first| first > index),
+            Owner::Function(function) => {
+                order.first_run(function).is_some_and(|first| first > index)
+            }
         }
     }
 
@@ -318,12 +334,20 @@ impl Module {
     ) -> Result<Vec<Option<Owner>>, AllocationError> {
         let mut owners = budget.filled(AllocationClass::Scratch, self.expressions.len(), None)?;
         let mut regions: Vec<(RegionId, Option<FunctionId>, usize)> = Vec::new();
-        for (index, statement) in self.regions[self.root.index()].statements.iter().enumerate() {
+        for (index, statement) in self.regions[self.root.index()]
+            .statements
+            .iter()
+            .enumerate()
+        {
             let mut expressions = Vec::new();
             statement.visit_expressions(|root| expressions.push((root, None)));
             statement.visit_regions(|child| regions.push((child, None, index)));
             if let Statement::Function { function, .. } = statement {
-                regions.push((self.functions[function.index()].body, Some(*function), index));
+                regions.push((
+                    self.functions[function.index()].body,
+                    Some(*function),
+                    index,
+                ));
             }
             loop {
                 if let Some((id, function)) = expressions.pop() {
@@ -350,7 +374,11 @@ impl Module {
                     statement.visit_expressions(|root| expressions.push((root, function)));
                     statement.visit_regions(|child| regions.push((child, function, index)));
                     if let Statement::Function { function, .. } = statement {
-                        regions.push((self.functions[function.index()].body, Some(*function), index));
+                        regions.push((
+                            self.functions[function.index()].body,
+                            Some(*function),
+                            index,
+                        ));
                     }
                 }
             }
@@ -381,8 +409,7 @@ impl Module {
             | Statement::Evaluate(value)
             | Statement::Throw(value)
             | Statement::Let {
-                value: Some(value),
-                ..
+                value: Some(value), ..
             }
             | Statement::If {
                 condition: value, ..
@@ -424,10 +451,12 @@ impl Module {
             assigns,
             reads_only,
         };
-        Ok(match self.walk_quiet(root, Leaf::Root, 0, &search, budget)? {
-            Walk::Found(leaf, depth) => Some((leaf, depth)),
-            Walk::Quiet | Walk::Stop => None,
-        })
+        Ok(
+            match self.walk_quiet(root, Leaf::Root, 0, &search, budget)? {
+                Walk::Found(leaf, depth) => Some((leaf, depth)),
+                Walk::Quiet | Walk::Stop => None,
+            },
+        )
     }
 
     /// Walk `id` in evaluation order: the reference, or whether all of it is
@@ -485,7 +514,9 @@ impl Module {
                 }
                 match operands(self, &parts, budget)? {
                     // A named path into a standard global runs no getter of ours.
-                    Walk::Quiet if self.pristine_builtins && self.standard_member(id) => Walk::Quiet,
+                    Walk::Quiet if self.pristine_builtins && self.standard_member(id) => {
+                        Walk::Quiet
+                    }
                     // Nor does any read, by assumption, and the value changes
                     // nothing it could read.
                     Walk::Quiet if search.reads_only => Walk::Quiet,
@@ -520,7 +551,9 @@ impl Module {
                 }
             }
             Expr::Unary { op, value } => match operands(self, &[*value], budget)? {
-                Walk::Quiet if matches!(op, Unary::Not | Unary::Void | Unary::TypeOf) => Walk::Quiet,
+                Walk::Quiet if matches!(op, Unary::Not | Unary::Void | Unary::TypeOf) => {
+                    Walk::Quiet
+                }
                 walk => runs(walk),
             },
             Expr::Binary { op, left, right } => match op {
@@ -592,7 +625,13 @@ impl Module {
                         parts.push(*key);
                     }
                     for part in parts {
-                        match self.walk_quiet(part, Leaf::Child(*target), below + 1, search, budget)? {
+                        match self.walk_quiet(
+                            part,
+                            Leaf::Child(*target),
+                            below + 1,
+                            search,
+                            budget,
+                        )? {
                             Walk::Quiet => {}
                             found => return Ok(found),
                         }
@@ -643,9 +682,22 @@ impl Module {
         }
         // Only its own function's code can assign it, and the value does not.
         if !search.captured[binding.index()] {
-            return self.initialized_at(binding, search.region, search.index, search.frames, budget);
+            return self.initialized_at(
+                binding,
+                search.region,
+                search.index,
+                search.frames,
+                budget,
+            );
         }
-        self.constant_at(binding, search.region, search.index, search.order, search.frames, budget)
+        self.constant_at(
+            binding,
+            search.region,
+            search.index,
+            search.order,
+            search.frames,
+            budget,
+        )
     }
 
     /// Whether `binding` is never assigned and holds its value wherever
@@ -683,7 +735,9 @@ impl Module {
             _ if !search.captured[binding.index()] => {
                 self.initialized_at(binding, search.region, search.index, search.frames, budget)
             }
-            None => self.initialized_at(binding, search.region, search.index, search.frames, budget),
+            None => {
+                self.initialized_at(binding, search.region, search.index, search.frames, budget)
+            }
             Some(function) => Ok(search.order.initialized_in(binding, function)),
         }
     }

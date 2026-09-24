@@ -431,8 +431,7 @@ fn module_fixture<R>(unrelated: usize, inspect: impl FnOnce(Program<'_>) -> R) -
     let arena = bumpalo::Bump::new();
     let syntax = crate::module::parse_modules(&arena, &discovered).unwrap();
     let semantics = crate::check::analyze_modules(&syntax, &discovered).unwrap();
-    let program =
-        crate::program::from_source::from_checked_modules(&syntax, &semantics).unwrap();
+    let program = crate::program::from_source::from_checked_modules(&syntax, &semantics).unwrap();
     program.verify().unwrap();
     inspect(program)
 }

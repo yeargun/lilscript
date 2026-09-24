@@ -62,7 +62,9 @@ static void ls_object_clear(ls_native_object **slot) { ls_native_release(*slot);
                     }
                 }
                 if let Some(base) = base {
-                    self.write(format_args!("ls_object{base}_clear_fields(&object->base);\n"))?;
+                    self.write(format_args!(
+                        "ls_object{base}_clear_fields(&object->base);\n"
+                    ))?;
                 }
                 self.write(format_args!(
                     "}}\nstatic void ls_object{class}_destroy(ls_native_object *owner) {{ ls_object{class}_clear_fields((ls_object{class} *)owner); }}\n"

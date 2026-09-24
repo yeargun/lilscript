@@ -1,7 +1,7 @@
 use super::*;
+use crate::check::with_analyzed_modules;
 use crate::compilation_policy::{BaselineFirstPlan, BudgetError, ResourceLimits};
 use crate::parser::admitted_arena_activity_for_test;
-use crate::check::with_analyzed_modules;
 use crate::program::from_checked_modules_admitted;
 use crate::program::publication::{CheckpointLimit, Compilation};
 use std::sync::atomic::{AtomicU64, Ordering};

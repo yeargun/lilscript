@@ -1744,35 +1744,38 @@ fn a_local_read_from_another_unit_keeps_its_temporal_dead_zone_risk() {
     // The function body is a different unit with no `Initialize` of `value`;
     // nothing there proves the read follows initialization, so it may throw
     // and an unused copy of it cannot be dropped.
-    checked("int value=1;int read(){return value;}print(read());", |program| {
-        let read = program
-            .cells
-            .iter()
-            .find_map(|cell| match cell.binding {
-                CellBinding::Function(unit) if cell.name == "read" => Some(unit),
-                _ => None,
-            })
-            .unwrap();
-        let data = program.unit(read).unwrap();
-        let mut cache = cache();
-        let mut ledger = ledger();
-        let mut session =
-            FactsSession::new(&mut cache, &mut ledger, WorkDomain::Baseline, 4).unwrap();
-        let result = session.query(program, read, request(10_000)).unwrap();
-        let mut loads = 0;
-        for (index, operation) in data.operations.iter().enumerate() {
-            if let OperationKind::Load(place) = operation.kind {
-                if matches!(data.places[place.index()], Place::Cell(_)) {
-                    loads += 1;
-                    let op = OpId::from_index(index).unwrap();
-                    assert!(result.facts.effects(op).may_throw);
-                    assert_ne!(
-                        result.facts.can_drop(op, ObservationDemand::Discarded),
-                        Legality::PermittedUnderContext
-                    );
+    checked(
+        "int value=1;int read(){return value;}print(read());",
+        |program| {
+            let read = program
+                .cells
+                .iter()
+                .find_map(|cell| match cell.binding {
+                    CellBinding::Function(unit) if cell.name == "read" => Some(unit),
+                    _ => None,
+                })
+                .unwrap();
+            let data = program.unit(read).unwrap();
+            let mut cache = cache();
+            let mut ledger = ledger();
+            let mut session =
+                FactsSession::new(&mut cache, &mut ledger, WorkDomain::Baseline, 4).unwrap();
+            let result = session.query(program, read, request(10_000)).unwrap();
+            let mut loads = 0;
+            for (index, operation) in data.operations.iter().enumerate() {
+                if let OperationKind::Load(place) = operation.kind {
+                    if matches!(data.places[place.index()], Place::Cell(_)) {
+                        loads += 1;
+                        let op = OpId::from_index(index).unwrap();
+                        assert!(result.facts.effects(op).may_throw);
+                        assert_ne!(
+                            result.facts.can_drop(op, ObservationDemand::Discarded),
+                            Legality::PermittedUnderContext
+                        );
+                    }
                 }
             }
-        }
-        assert!(loads > 0, "expected a cell read in `read`");
-    });
+            assert!(loads > 0, "expected a cell read in `read`");
+        },
+    );
 }

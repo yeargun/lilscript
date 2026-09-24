@@ -1,5 +1,5 @@
-use crate::primitive::Intrinsic;
 use crate::check::Type;
+use crate::primitive::Intrinsic;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypedArrayKind {

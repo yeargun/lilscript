@@ -377,8 +377,7 @@ print(present(null));print(present("x"));print(absent(null));print(absent(""));p
             preserve_root_exports,
             ..Default::default()
         };
-        let compiled = crate::build::compile_source(&source, &config, options)
-            .unwrap();
+        let compiled = crate::build::compile_source(&source, &config, options).unwrap();
         let javascript = compiled
             .javascript(config.javascript.cost_model)
             .unwrap()

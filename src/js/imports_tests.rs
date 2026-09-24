@@ -101,7 +101,12 @@ fn imported_live_cells_keep_snapshots_across_calls_in_every_name_plan() {
     let mut module = formed(
         "int longCounter=0;void advance(){}int prior=longCounter;advance();print(prior);print(longCounter);int a=7;int nested(int prior){return prior+longCounter;}print(nested(a));",
     );
-    replace_declaration(&mut module, "longCounter", "./producer.mjs", "publicCounter");
+    replace_declaration(
+        &mut module,
+        "longCounter",
+        "./producer.mjs",
+        "publicCounter",
+    );
     replace_declaration(&mut module, "advance", "./producer.mjs", "publicAdvance");
     assert_eq!(module.imports.len(), 2);
     let output = module.prepare_output_with_policy(&policy(true)).unwrap();
@@ -177,10 +182,8 @@ fn cyclic_import_read_keeps_tdz_even_when_its_payload_is_discarded() {
     let body = module.region(ScopeId::new(0));
     let read = module.expression(Expr::Binding(count), None);
     let seven = module.expression(Expr::Literal(Literal::Number(7.0)), None);
-    module.regions[body.index()].statements = vec![
-        Statement::Evaluate(read),
-        Statement::Return(Some(seven)),
-    ];
+    module.regions[body.index()].statements =
+        vec![Statement::Evaluate(read), Statement::Return(Some(seven))];
     let function = FunctionId::new(module.functions.len());
     module.functions.push(Function {
         parameters: vec![],

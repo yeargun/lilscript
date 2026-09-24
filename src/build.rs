@@ -4,29 +4,29 @@ use std::fmt;
 use std::path::Path;
 use std::time::Instant;
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
+use crate::check::{
+    with_analyzed_modules, with_analyzed_source, AdmittedCheckError, CheckedModules,
+};
 use crate::compilation_policy::{
     BaselineFirstPlan, BudgetLedger, CompilationRequest, ResolvedPolicy, WorkDomain, WorkKind,
 };
 use crate::config::ProjectConfig;
+use crate::js::selection::{Objective, Objectives, Plan, Sizes};
 use crate::module::{
-    ModuleDiscoveryError, ModuleError, ModuleSet, StableSourceArena,
-    discover_parsed_modules_admitted,
+    discover_parsed_modules_admitted, ModuleDiscoveryError, ModuleError, ModuleSet,
+    StableSourceArena,
 };
 use crate::output_budget::AllocationBudget;
 pub use crate::output_budget::AllocationError as ServiceResourceError;
 use crate::parser::{AdmittedArena, AdmittedParseError};
-use crate::check::{
-    AdmittedCheckError, CheckedModules, with_analyzed_modules, with_analyzed_source,
-};
 use crate::program::facts::CacheLimits;
 use crate::program::publication::*;
 use crate::program::{
-    ConversionError, RevisionId, from_checked_modules_admitted, from_checked_source_admitted,
+    from_checked_modules_admitted, from_checked_source_admitted, ConversionError, RevisionId,
 };
-use crate::js::selection::{Objective, Objectives, Plan, Sizes};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ServiceTarget {
@@ -325,7 +325,13 @@ impl Frontend {
                             .and_then(|stem| stem.to_str())
                             .unwrap_or("module");
                         stem.chars()
-                            .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+                            .map(|c| {
+                                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                                    c
+                                } else {
+                                    '_'
+                                }
+                            })
                             .collect::<String>()
                     })
                     .collect::<Vec<_>>()
@@ -639,7 +645,8 @@ impl<'src> CheckedSourceSession<'src> {
             None
         };
         output.report = json!({});
-        output.report["artifacts"] = json!(output.javascript.iter().map(|artifact| json!({
+        output.report["artifacts"] =
+            json!(output.javascript.iter().map(|artifact| json!({
             "sha256":artifact.sha256, "raw":artifact.sizes.raw, "gzip9":artifact.sizes.gzip9,
             "brotli11":artifact.sizes.brotli11, "details":artifact.details,
         })).collect::<Vec<_>>());
@@ -1016,7 +1023,11 @@ fn check_path_frontend<'src, T>(
         .with_ledger(|ledger, domain| ledger.charge(domain, WorkKind::Analysis, bytes))
         .map_err(|error| ServiceError::resources("frontend resources", error.into()))?;
     // Relative host modules travel with the output (008-D3).
-    let hosts = if build { host_requests(config, frontend.javascript.as_ref(), &modules) } else { None };
+    let hosts = if build {
+        host_requests(config, frontend.javascript.as_ref(), &modules)
+    } else {
+        None
+    };
     if let Some((root_directory, requests, edition)) = hosts {
         match crate::host_modules::deliver(root_directory, &requests, edition) {
             Ok(delivery) => {
@@ -1065,10 +1076,7 @@ fn check_path_frontend<'src, T>(
                                         &module.path,
                                         module.source,
                                         unsupported.span,
-                                        format!(
-                                            "unsupported source: {}",
-                                            unsupported.feature
-                                        ),
+                                        format!("unsupported source: {}", unsupported.feature),
                                     ),
                                 )
                             }
@@ -1203,13 +1211,15 @@ pub fn build_inputs(
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let inputs = (|| {
         let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-        let (modules, syntax) = discover_parsed_modules_admitted(path, None, config, &sources, &arena)
-            .map_err(|error| match error {
-                ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
-                ModuleDiscoveryError::Resources(error) => {
-                    ServiceError::resources("discovery resources", error)
-                }
-            })?;
+        let (modules, syntax) = discover_parsed_modules_admitted(
+            path, None, config, &sources, &arena,
+        )
+        .map_err(|error| match error {
+            ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
+            ModuleDiscoveryError::Resources(error) => {
+                ServiceError::resources("discovery resources", error)
+            }
+        })?;
         let mut inputs = BuildInputs {
             entry: modules.modules[modules.root].path.clone(),
             files: modules

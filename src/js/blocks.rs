@@ -91,9 +91,15 @@ impl Module {
                 let inner_scope = self.regions[inner.index()].scope;
                 let bare = inner.index() != region
                     && !declares.get(inner_scope.index()).copied().unwrap_or(true)
-                    && !self.regions[inner.index()].statements.iter().any(|statement| {
-                        matches!(statement, Statement::Let { .. } | Statement::Function { .. })
-                    });
+                    && !self.regions[inner.index()]
+                        .statements
+                        .iter()
+                        .any(|statement| {
+                            matches!(
+                                statement,
+                                Statement::Let { .. } | Statement::Function { .. }
+                            )
+                        });
                 if !bare {
                     index += 1;
                     continue;
@@ -453,7 +459,9 @@ impl Module {
                     let expression = &self.expressions[id.index()];
                     if let Expr::Call { callee, .. } = expression {
                         if let Expr::Binding(binding) = self.expressions[callee.index()] {
-                            if wanted(binding) && calls[binding.index()].is_some_and(|(call, _)| call == id) {
+                            if wanted(binding)
+                                && calls[binding.index()].is_some_and(|(call, _)| call == id)
+                            {
                                 // A loop's test and update repeat; a `for…in`
                                 // or `for…of` head runs with the loop's binding
                                 // in scope (and in its TDZ), which a function
@@ -488,7 +496,11 @@ impl Module {
         let mut on_paths = vec![false; self.regions.len()];
         let mut moving = vec![false; self.regions.len()];
         for &declaring in &reach.regions {
-            for (at, statement) in self.regions[declaring.index()].statements.iter().enumerate() {
+            for (at, statement) in self.regions[declaring.index()]
+                .statements
+                .iter()
+                .enumerate()
+            {
                 budget.work(Analysis, 1)?;
                 let Statement::Let {
                     binding,
@@ -545,7 +557,9 @@ impl Module {
                     } else if frame
                         && matches!(
                             self.regions[parent.0.index()].statements[parent.1],
-                            Statement::Loop { .. } | Statement::ForIn { .. } | Statement::ForOf { .. }
+                            Statement::Loop { .. }
+                                | Statement::ForIn { .. }
+                                | Statement::ForOf { .. }
                         )
                     {
                         break;

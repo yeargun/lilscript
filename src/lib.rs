@@ -34,32 +34,31 @@ mod stable_hash;
 pub mod timing;
 pub mod typed_array;
 
+pub use build::{
+    build_inputs, check_path, check_source, compile_path, compile_source, with_checked_path,
+    with_checked_program, with_checked_source, BuildInputs, CheckedProgram, CheckedSourceSession,
+    ChunkExtension, FinishedSourceSession, ServiceCompilation, ServiceError, ServiceJavaScript,
+    ServiceJavaScriptBatch, ServiceOptions, ServiceTarget,
+};
+pub use check::{analyze, CheckError, CheckedModule, Type};
 pub use compilation_contract::{
     JavaScriptAbiContract, JavaScriptCompilationContract, JavaScriptEffectPolicy,
     JavaScriptExecution, JavaScriptUnsafeAssumptions, JavaScriptWorld,
 };
 pub use diagnostics::{
-    SourceDiagnostic, render_diagnostic, render_message_diagnostic, render_module_diagnostic,
-    render_service_error,
-};
-pub use js::manifest::{
-    JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
-    JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest, ManifestFile,
-    javascript_bundle,
-};
-pub use build::{
-    BuildInputs, CheckedProgram, CheckedSourceSession, FinishedSourceSession, ServiceCompilation,
-    ServiceError, ChunkExtension, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions,
-    ServiceTarget, build_inputs, check_path, check_source, compile_path, compile_source,
-    with_checked_path, with_checked_program, with_checked_source,
+    render_diagnostic, render_message_diagnostic, render_module_diagnostic, render_service_error,
+    SourceDiagnostic,
 };
 pub use interpreter::{
-    InterpretError, InterpreterLimits, interpret_program, interpret_program_with_limits,
+    interpret_program, interpret_program_with_limits, InterpretError, InterpreterLimits,
+};
+pub use js::manifest::{
+    javascript_bundle, JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
+    JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest, ManifestFile,
 };
 pub use lint::{
-    LintProviderDiagnostic, LintRuleContext, LintRuleProvider, WebRuleProvider, lint_checked,
-    lint_checked_with_providers, lint_path_with_providers,
+    lint_checked, lint_checked_with_providers, lint_path_with_providers, LintProviderDiagnostic,
+    LintRuleContext, LintRuleProvider, WebRuleProvider,
 };
 pub use module::ModuleError;
-pub use parser::{ParseError, Parser, parse_source};
-pub use check::{CheckError, CheckedModule, Type, analyze};
+pub use parser::{parse_source, ParseError, Parser};

@@ -154,13 +154,26 @@ return {prefix}array->items[index]{suffix};\n}}\n"
             // Strict equality for `indexOf`; SameValueZero (NaN finds NaN)
             // for `includes`. Products never reach here.
             let (strict, zero) = match element {
-                NativeType::I32 | NativeType::Bool | NativeType::Array(_) | NativeType::Object(_) => {
-                    ("left == right", "left == right")
-                }
-                NativeType::F64 => ("left == right", "left == right || (left != left && right != right)"),
-                NativeType::String => ("ls_string_equal(left, right)", "ls_string_equal(left, right)"),
-                NativeType::Callable(_) => ("left.identity == right.identity", "left.identity == right.identity"),
-                NativeType::Dynamic(_) => ("ls_value_equal(left, right)", "ls_value_same_zero(left, right)"),
+                NativeType::I32
+                | NativeType::Bool
+                | NativeType::Array(_)
+                | NativeType::Object(_) => ("left == right", "left == right"),
+                NativeType::F64 => (
+                    "left == right",
+                    "left == right || (left != left && right != right)",
+                ),
+                NativeType::String => (
+                    "ls_string_equal(left, right)",
+                    "ls_string_equal(left, right)",
+                ),
+                NativeType::Callable(_) => (
+                    "left.identity == right.identity",
+                    "left.identity == right.identity",
+                ),
+                NativeType::Dynamic(_) => (
+                    "ls_value_equal(left, right)",
+                    "ls_value_same_zero(left, right)",
+                ),
                 _ => continue,
             };
             self.write(format_args!(
@@ -293,7 +306,10 @@ return false;\n}}\n"
                 self.text(&head)?;
                 self.text("if (ls_k >= ls_src->length) continue;\nls_acc = ")?;
                 self.callback_call(unit, value(0).unwrap(), &["ls_acc", "ls_src->items[ls_k]"])?;
-                self.write(format_args!(";\n}}\n}}\nls_v{} = ls_acc;\n}}\n", result_value.index()))
+                self.write(format_args!(
+                    ";\n}}\n}}\nls_v{} = ls_acc;\n}}\n",
+                    result_value.index()
+                ))
             }
             Intrinsic::ArraySome | Intrinsic::ArrayEvery => {
                 let some = method == Intrinsic::ArraySome;
@@ -333,7 +349,8 @@ return false;\n}}\n"
                 value(0).unwrap().index()
             )),
             Intrinsic::ArrayIncludes => {
-                let start = value(1).map_or("0".to_owned(), |start| format!("ls_v{}", start.index()));
+                let start =
+                    value(1).map_or("0".to_owned(), |start| format!("ls_v{}", start.index()));
                 self.write(format_args!(
                     "ls_v{} = ls_array{s}_includes(ls_v{r}, ls_v{}, {start});\n",
                     result_value.index(),
@@ -370,7 +387,10 @@ return false;\n}}\n"
                 let expression = match method {
                     Intrinsic::ArrayReverse => format!("ls_array{s}_reverse(ls_v{r})"),
                     Intrinsic::ArrayFill => {
-                        format!("ls_array{s}_fill(ls_v{r}, ls_v{})", value(0).unwrap().index())
+                        format!(
+                            "ls_array{s}_fill(ls_v{r}, ls_v{})",
+                            value(0).unwrap().index()
+                        )
                     }
                     _ => format!(
                         "ls_array{s}_copy_within(ls_v{r}, ls_v{}, ls_v{}, {}, {})",

@@ -64,10 +64,12 @@ impl Emitter<'_, '_, '_, '_, '_> {
         }
         let (r, l, rt) = (result.index(), left.index(), right.index());
         match kind {
-            BinaryOp::Eq => self.write(format_args!("ls_v{r} = ls_string_equal(ls_v{l},ls_v{rt});\n"))?,
-            BinaryOp::NotEq => {
-                self.write(format_args!("ls_v{r} = !ls_string_equal(ls_v{l},ls_v{rt});\n"))?
-            }
+            BinaryOp::Eq => self.write(format_args!(
+                "ls_v{r} = ls_string_equal(ls_v{l},ls_v{rt});\n"
+            ))?,
+            BinaryOp::NotEq => self.write(format_args!(
+                "ls_v{r} = !ls_string_equal(ls_v{l},ls_v{rt});\n"
+            ))?,
             BinaryOp::Less | BinaryOp::LessEq | BinaryOp::Greater | BinaryOp::GreaterEq => {
                 let token = match kind {
                     BinaryOp::Less => "<",

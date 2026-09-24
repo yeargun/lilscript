@@ -117,11 +117,11 @@ mod module_helper_tests;
 #[cfg(test)]
 mod class_javascript_tests;
 #[cfg(test)]
-mod syntax_javascript_tests;
+mod d3_clause_tests;
 #[cfg(test)]
 mod source_legality_tests;
 #[cfg(test)]
-mod d3_clause_tests;
+mod syntax_javascript_tests;
 
 #[cfg(test)]
 mod suspension_javascript_tests;
@@ -137,10 +137,10 @@ pub use ids::*;
 pub use storage::{FrozenUnit, WorkingUnit};
 
 use crate::ast::{BinaryOp, SourceNodeId, UnaryOp};
+use crate::check::{BuiltinCall, NominalId, NominalMemberId, SymbolId, Type};
 use crate::literal::StringValue;
 pub use crate::primitive::{DefaultConvention, Invocation};
 use crate::primitive::{IntBinary, ResolvedIntrinsic};
-use crate::check::{BuiltinCall, NominalId, NominalMemberId, SymbolId, Type};
 use crate::span::Span;
 use std::sync::Arc;
 

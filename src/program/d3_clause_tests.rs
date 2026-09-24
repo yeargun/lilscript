@@ -109,10 +109,20 @@ fn run_until(javascript: &str, host: &str, module: bool, deadline: Duration) -> 
         std::thread::sleep(Duration::from_millis(10));
     };
     let mut stdout = String::new();
-    child.stdout.take().unwrap().read_to_string(&mut stdout).unwrap();
+    child
+        .stdout
+        .take()
+        .unwrap()
+        .read_to_string(&mut stdout)
+        .unwrap();
     if let Some(status) = finished {
         let mut stderr = String::new();
-        child.stderr.take().unwrap().read_to_string(&mut stderr).unwrap();
+        child
+            .stderr
+            .take()
+            .unwrap()
+            .read_to_string(&mut stderr)
+            .unwrap();
         assert!(status.success(), "{stderr}\n{javascript}");
     }
     (stdout, finished.is_none())
@@ -141,7 +151,10 @@ fn d3_6_divergence_is_preserved_and_never_evaluated_at_compile_time() {
     )
     .unwrap();
     let (stdout, timed_out) = run_until(&javascript, "", false, Duration::from_millis(1500));
-    assert!(timed_out, "a diverging program terminated: {stdout}\n{javascript}");
+    assert!(
+        timed_out,
+        "a diverging program terminated: {stdout}\n{javascript}"
+    );
     assert_eq!(stdout, "before\n");
     // Refusal: recursion over constant input is not evaluated while
     // compiling; the result appears only when the program runs.
@@ -299,7 +312,10 @@ fn d3_10_recursion_within_limits_runs_and_inlining_refuses_recursion() {
         .unwrap()
         .outcome;
     assert!(
-        matches!(outcome, HelperOutcome::Unknown(HelperUnknownReason::Recursion)),
+        matches!(
+            outcome,
+            HelperOutcome::Unknown(HelperUnknownReason::Recursion)
+        ),
         "{outcome:?}"
     );
     assert_eq!(compiler.finish().retained_bytes(), 0);

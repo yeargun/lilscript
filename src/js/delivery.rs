@@ -8,9 +8,9 @@
 //! chunk when all of it moves; the entry then loads that file on demand.
 //! Every name is the module's final name, unchanged.
 
+use super::extract::OutputError;
 use super::*;
 use crate::compilation_policy::WorkKind;
-use super::extract::OutputError;
 use crate::output_budget::{AllocationBudget, AllocationClass};
 
 /// Which source modules may carry a delivered chunk, and how split mode
@@ -523,7 +523,9 @@ pub(crate) fn link(
     for export in &module.exports {
         budget.work(WorkKind::Analysis, 1)?;
         if foreign_of[export.binding.index()] != NONE {
-            links[entry].foreign.push(foreign_of[export.binding.index()]);
+            links[entry]
+                .foreign
+                .push(foreign_of[export.binding.index()]);
             continue;
         }
         let owner = owners[export.binding.index()];

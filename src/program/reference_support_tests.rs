@@ -8,8 +8,8 @@ use super::product_family;
 use super::uses::UseIndex;
 use super::*;
 use crate::compilation_policy::{AnalysisAttempt, CompilationRequest, WorkDomain};
-use crate::output_budget::{AllocationBudget, AllocationClass};
 use crate::js;
+use crate::output_budget::{AllocationBudget, AllocationClass};
 
 const ORIGINAL: &str = include_str!("fixtures/search-reference-runtime/opaque-int-field.lil");
 

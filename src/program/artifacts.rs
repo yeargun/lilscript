@@ -11,12 +11,12 @@ use crate::compilation_policy::{
     TacticUse, WorkKind,
 };
 use crate::config::CompressionCostModel;
-use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError, RetainedCharge};
 use crate::js::{
     extract::Output,
     selection::{Objectives, Plan, Sizes},
     BindingId,
 };
+use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError, RetainedCharge};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
 #[path = "artifact_native.rs"]

@@ -11,12 +11,17 @@ use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
 /// Array methods the host lowering reaches through `Array.prototype`.
-const ARRAY_METHODS: [&str; 9] = ["push", "pop", "slice", "indexOf", "sort", "splice", "join", "shift", "unshift"];
+const ARRAY_METHODS: [&str; 9] = [
+    "push", "pop", "slice", "indexOf", "sort", "splice", "join", "shift", "unshift",
+];
 
 impl Module {
     /// Null tests of nullable objects in test positions become truthiness.
     /// Returns how many.
-    pub(crate) fn truthy_null_tests(&mut self, budget: &mut AllocationBudget<'_>) -> Result<usize, AllocationError> {
+    pub(crate) fn truthy_null_tests(
+        &mut self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
         if self.binding_classes.is_empty() {
             return Ok(0);
         }
@@ -139,7 +144,11 @@ impl Module {
                     Statement::Let {
                         binding,
                         value: Some(value),
-                    } => mark(binding, matches!(self.expressions[value.index()], Expr::Array(_)), &mut arrays),
+                    } => mark(
+                        binding,
+                        matches!(self.expressions[value.index()], Expr::Array(_)),
+                        &mut arrays,
+                    ),
                     Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } => {
                         arrays[binding.index()] = None
                     }
@@ -160,7 +169,11 @@ impl Module {
             budget.work(Analysis, 1)?;
             if let Expr::Assign { target, value } = self.expressions[id.index()] {
                 if let Expr::Binding(binding) = self.expressions[target.index()] {
-                    mark(binding, matches!(self.expressions[value.index()], Expr::Array(_)), &mut arrays);
+                    mark(
+                        binding,
+                        matches!(self.expressions[value.index()], Expr::Array(_)),
+                        &mut arrays,
+                    );
                 }
             }
         }
@@ -236,7 +249,11 @@ impl Module {
                 *invocation = Invocation::Reference;
             }
         }
-        let map = if disordered { Some(self.renumber(budget)?) } else { None };
+        let map = if disordered {
+            Some(self.renumber(budget)?)
+        } else {
+            None
+        };
         Ok((count, map))
     }
 }

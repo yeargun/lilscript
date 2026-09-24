@@ -102,11 +102,9 @@ fn small_service_options_and_policy_limits_have_the_same_search_budget() {
     );
     assert!(report["resources"]["peak_retained_bytes"].as_u64().unwrap() <= 1_000_000);
     assert_eq!(report["resources"]["retained_bytes_after_handoff"], 0);
-    assert!(
-        !report["search"]["stop"]
-            .to_string()
-            .contains("InvalidLimits")
-    );
+    assert!(!report["search"]["stop"]
+        .to_string()
+        .contains("InvalidLimits"));
 }
 
 #[test]

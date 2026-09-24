@@ -363,7 +363,9 @@ impl<'a> Basis<'a> {
 
     fn prefer(&mut self, binding: BindingId, value: ExprId) {
         if let Expr::Function(function) = self.module.expressions[value.index()] {
-            if let Some(name) = self.module.functions[function.index()].name.exact()
+            if let Some(name) = self.module.functions[function.index()]
+                .name
+                .exact()
                 .and_then(StringValue::as_unicode)
             {
                 self.preferences.push((binding, function, name));
@@ -392,7 +394,9 @@ impl<'a> Basis<'a> {
             if function.arrow {
                 continue;
             }
-            let Some(name) = module.functions[index].name.exact()
+            let Some(name) = module.functions[index]
+                .name
+                .exact()
                 .and_then(StringValue::as_unicode)
             else {
                 continue;
@@ -409,7 +413,8 @@ impl<'a> Basis<'a> {
             self.self_named[index] = true;
             named.push(name);
         }
-        self.preferred_self = budget.filled(AllocationClass::Retained, module.bindings.len(), None)?;
+        self.preferred_self =
+            budget.filled(AllocationClass::Retained, module.bindings.len(), None)?;
         for &(binding, function, name) in &self.preferences {
             budget.work(WorkKind::Analysis, 1)?;
             self.preferred[binding.index()].get_or_insert(name);
@@ -490,7 +495,14 @@ impl<'a> Basis<'a> {
         phase.work(WorkKind::Analysis, sort_work(by_reads.len(), 1)?)?;
         by_reads.sort_by_key(|binding| {
             let scope = module.bindings[binding.index()].scope;
-            (scope, if scope == root { u32::MAX - reads[binding.index()] } else { 0 })
+            (
+                scope,
+                if scope == root {
+                    u32::MAX - reads[binding.index()]
+                } else {
+                    0
+                },
+            )
         });
         self.scoped
             .set(Scoped {
@@ -869,7 +881,10 @@ impl Names {
     }
     /// Whether this function prints as `function name(){…}`.
     pub fn self_named(&self, function: FunctionId) -> bool {
-        self.self_named.get(function.index()).copied().unwrap_or(false)
+        self.self_named
+            .get(function.index())
+            .copied()
+            .unwrap_or(false)
     }
     fn resolve_in(
         &self,

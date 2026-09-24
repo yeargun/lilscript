@@ -390,7 +390,8 @@ fn caller_default_evaluations_are_verified_and_unsupported_kinds_stay_explicit()
             .verify()
             .unwrap();
     }
-    let source = "int apply(func(int)->int f=(int x)=>x,int bias=1){return f(bias);}print(apply());";
+    let source =
+        "int apply(func(int)->int f=(int x)=>x,int bias=1){return f(bias);}print(apply());";
     let arena = bumpalo::Bump::new();
     let syntax = crate::parse_source(&arena, source).unwrap();
     let semantics = crate::analyze(&syntax).unwrap();
@@ -567,10 +568,10 @@ fn checked_intrinsics_form_their_legacy_spelling_and_the_rest_stay_explicit() {
         "export bool includes(string value){return value.includes(\"x\");}",
         |program| {
             let javascript = program
-        .to_javascript()
-        .unwrap()
-        .render(crate::js::PrintPolicy::default())
-        .unwrap();
+                .to_javascript()
+                .unwrap()
+                .render(crate::js::PrintPolicy::default())
+                .unwrap();
             assert!(javascript.contains(".includes("), "{javascript}");
         },
     );
@@ -584,7 +585,10 @@ fn checked_intrinsics_form_their_legacy_spelling_and_the_rest_stay_explicit() {
                 .unwrap()
                 .render(crate::js::PrintPolicy::default())
                 .unwrap();
-            assert!(javascript.contains("[...") && javascript.contains("].length|0"), "{javascript}");
+            assert!(
+                javascript.contains("[...") && javascript.contains("].length|0"),
+                "{javascript}"
+            );
         },
     );
     checked(

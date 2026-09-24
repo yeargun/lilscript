@@ -3,7 +3,9 @@
 //! protocol, and callbacks returning `JsValue` on some paths return it.
 use super::publication::*;
 use super::*;
-use crate::compilation_policy::{BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain};
+use crate::compilation_policy::{
+    BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
+};
 use crate::js::selection::{Plan, Style};
 use std::process::Command;
 

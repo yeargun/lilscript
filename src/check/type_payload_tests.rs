@@ -1,6 +1,6 @@
 use super::*;
-use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 use crate::check::{FunctionType, ParameterPassing};
+use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 use std::convert::Infallible;
 
 fn new_ledger(memory: u64, work: u64) -> BudgetLedger {

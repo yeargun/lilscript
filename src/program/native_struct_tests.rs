@@ -7,8 +7,8 @@ use super::*;
 use crate::compilation_policy::{
     BudgetError, BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain, WorkKind,
 };
-use crate::output_budget::AllocationError;
 use crate::js::selection::{Objective, Plan, Style};
+use crate::output_budget::AllocationError;
 use sha2::{Digest, Sha256};
 use std::process::Command;
 

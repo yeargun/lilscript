@@ -3,12 +3,12 @@
 use super::*;
 use crate::compilation_contract::JavaScriptExecution;
 use crate::compilation_policy::{BudgetPlan, CompilationRequest, ResolvedPolicy, ResourceLimits};
+use crate::js::selection::{Plan, Style};
 use crate::program::demand::{
     shared_transport_support, DemandError, DemandMode, DemandPlan, SharedTransportSupport,
 };
 use crate::program::facts::CacheLimits;
 use crate::program::publication::*;
-use crate::js::selection::{Plan, Style};
 
 struct Fixture {
     source: SemanticId,

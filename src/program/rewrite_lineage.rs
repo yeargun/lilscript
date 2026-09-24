@@ -260,7 +260,10 @@ impl RewriteLineage {
             tactic: step.rule.tactic(),
             risk: RuntimeRisk::Neutral,
         };
-        if !tactics.iter().any(|existing| existing.tactic == usage.tactic) {
+        if !tactics
+            .iter()
+            .any(|existing| existing.tactic == usage.tactic)
+        {
             tactics.push(usage);
             tactics.sort_by_key(|usage| usage.tactic);
         }

@@ -52,10 +52,7 @@ impl PreparedUseUpdate {
             )
         })
     }
-    pub(in crate::program) fn discard(
-        self,
-        ledger: &mut BudgetLedger,
-    ) -> Result<(), BudgetError> {
+    pub(in crate::program) fn discard(self, ledger: &mut BudgetLedger) -> Result<(), BudgetError> {
         let Self {
             units,
             cells,

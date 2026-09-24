@@ -25,8 +25,7 @@ const WORK: u64 = 400_000_000;
 const MEMORY: u64 = 256_000_000;
 
 fn directory() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src/program/fixtures/integrated-architecture")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/program/fixtures/integrated-architecture")
 }
 fn digest(value: impl AsRef<[u8]>) -> String {
     format!("{:x}", Sha256::digest(value.as_ref()))
@@ -1178,7 +1177,9 @@ fn integrated_edit_reuse_and_fresh_recomputation_under_the_same_rules() {
         .unwrap()
     }
     fn deliver(c: &mut Compilation<'_>, source: SemanticId, p: &ResolvedPolicy) -> String {
-        let candidate = c.direct_javascript(source, p, WorkDomain::Baseline).unwrap();
+        let candidate = c
+            .direct_javascript(source, p, WorkDomain::Baseline)
+            .unwrap();
         c.with_javascript_output(candidate, p, |output| {
             let artifact = output.render(&Plan::new(Style::Scoped))?;
             output.take_artifact(artifact)
@@ -1241,7 +1242,10 @@ fn integrated_edit_reuse_and_fresh_recomputation_under_the_same_rules() {
         let (units, hits, executed) = facts_for_every_unit(&mut c, changed, WorkDomain::Optional);
         let facts_work = total(&c) - before_facts;
         let javascript = deliver(&mut c, changed, &p);
-        assert_ne!(javascript, previous, "the edit must change the delivered program");
+        assert_ne!(
+            javascript, previous,
+            "the edit must change the delivered program"
+        );
         let row = json!({
             "arm": "reused", "units": units, "fact_cache_hits": hits,
             "edit_work": edit_work, "fact_work": facts_work, "executed_fact_steps": executed as u64,
@@ -1254,12 +1258,21 @@ fn integrated_edit_reuse_and_fresh_recomputation_under_the_same_rules() {
         assert_eq!(c.finish().retained_bytes(), 0);
         (row, javascript)
     });
-    assert_eq!(reused.1, fresh.1, "reused and fresh compilation deliver the same bytes");
+    assert_eq!(
+        reused.1, fresh.1,
+        "reused and fresh compilation deliver the same bytes"
+    );
     let (fresh, reused) = (fresh.0, reused.0);
-    eprintln!("integrated-reuse-versus-fresh {}", json!({"fresh": fresh, "reused": reused}));
+    eprintln!(
+        "integrated-reuse-versus-fresh {}",
+        json!({"fresh": fresh, "reused": reused})
+    );
     // Every unit but the edited one is answered from the retained cache.
     assert_eq!(fresh["fact_cache_hits"], 0);
-    assert_eq!(reused["fact_cache_hits"].as_u64(), Some(reused["units"].as_u64().unwrap() - 1));
+    assert_eq!(
+        reused["fact_cache_hits"].as_u64(),
+        Some(reused["units"].as_u64().unwrap() - 1)
+    );
     // Logical billing is identical by design; physical execution is not.
     assert_eq!(reused["fact_work"], fresh["fact_work"]);
     assert!(reused["executed_fact_steps"].as_u64() < fresh["executed_fact_steps"].as_u64());

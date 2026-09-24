@@ -29,7 +29,10 @@ fn schema_of(
     Ok(None)
 }
 
-pub(super) fn carries_product(ty: &Type<'_>, budget: &mut AllocationBudget<'_>) -> Result<bool, FormationError> {
+pub(super) fn carries_product(
+    ty: &Type<'_>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<bool, FormationError> {
     let mut pending = budget.vector(AllocationClass::Scratch, 1)?;
     let contains = super::super::facts::contains_nominal_product(
         ty,
@@ -166,13 +169,18 @@ fn read_only_array(
         if let OperationKind::Initialize(copy) = operation.kind {
             let operands = data.operands(operation.operands).unwrap_or(&[]);
             if program.cells[copy.index()].synthetic
-                && operands.first().is_some_and(|&value| loads_any(&cells, value))
+                && operands
+                    .first()
+                    .is_some_and(|&value| loads_any(&cells, value))
             {
                 cells.push(copy);
             }
         }
     }
-    budget.work(WorkKind::Analysis, (program.units.len() * cells.len()) as u64)?;
+    budget.work(
+        WorkKind::Analysis,
+        (program.units.len() * cells.len()) as u64,
+    )?;
     // Conversion marks every synthetic loop cell assigned; a copy is only
     // ever initialized, which the store scan below confirms.
     let stored = |cell: CellId| {
@@ -320,7 +328,9 @@ impl Formation<'_, '_, '_, '_, '_> {
                 self.budget
                     .extend_copy(AllocationClass::Scratch, &mut remaining, elements)?;
             }
-            let mut entries = self.budget.vector(AllocationClass::Retained, fields.len())?;
+            let mut entries = self
+                .budget
+                .vector(AllocationClass::Retained, fields.len())?;
             for (field, &element) in fields.iter().zip(&remaining) {
                 let value = self.public_value(&program.types[field.ty.index()], element, false)?;
                 let key = self.public_key(&field.name)?;
@@ -370,7 +380,10 @@ impl Formation<'_, '_, '_, '_, '_> {
         }
         let program = self.program;
         let Type::Function(signature) = &program.types[ty.index()] else {
-            return Err(self.error(Span::default(), "public callable adapter over a non-function"));
+            return Err(self.error(
+                Span::default(),
+                "public callable adapter over a non-function",
+            ));
         };
         let root = self.module.root;
         let scope = self.module.regions[root.index()].scope;
@@ -464,7 +477,13 @@ impl Formation<'_, '_, '_, '_, '_> {
         )?;
         // Hoisted like the codecs it calls.
         let binding = self.adapter_binding(scope, "public_callable")?;
-        self.statement(root, js::Statement::Function { binding, function: factory })?;
+        self.statement(
+            root,
+            js::Statement::Function {
+                binding,
+                function: factory,
+            },
+        )?;
         self.budget.push(
             AllocationClass::Scratch,
             &mut self.struct_plan.public_callables,
@@ -474,7 +493,11 @@ impl Formation<'_, '_, '_, '_, '_> {
     }
 
     /// One private codec per schema and direction, shared by every export.
-    fn public_codec(&mut self, schema: usize, incoming: bool) -> Result<js::BindingId, FormationError> {
+    fn public_codec(
+        &mut self,
+        schema: usize,
+        incoming: bool,
+    ) -> Result<js::BindingId, FormationError> {
         for index in 0..self.struct_plan.public_codecs.len() {
             self.work(1)?;
             let (cached, direction, binding) = self.struct_plan.public_codecs[index];
@@ -490,8 +513,12 @@ impl Formation<'_, '_, '_, '_, '_> {
         let parameter =
             self.adapter_binding(body_scope, if incoming { "boundary" } else { "product" })?;
         let fields = &program.fields[program.structs[schema].fields.clone()];
-        let mut elements = self.budget.vector(AllocationClass::Retained, fields.len())?;
-        let mut entries = self.budget.vector(AllocationClass::Retained, fields.len())?;
+        let mut elements = self
+            .budget
+            .vector(AllocationClass::Retained, fields.len())?;
+        let mut entries = self
+            .budget
+            .vector(AllocationClass::Retained, fields.len())?;
         for (position, field) in fields.iter().enumerate() {
             self.work(1)?;
             let source = self.reference(parameter)?;
@@ -536,7 +563,8 @@ impl Formation<'_, '_, '_, '_, '_> {
         )?;
         // Hoisted like the wrapper that calls it, so a wrapper reached from a
         // module cycle before this module finishes evaluating still works.
-        let binding = self.adapter_binding(scope, if incoming { "public_in" } else { "public_out" })?;
+        let binding =
+            self.adapter_binding(scope, if incoming { "public_in" } else { "public_out" })?;
         self.statement(root, js::Statement::Function { binding, function })?;
         self.budget.push(
             AllocationClass::Scratch,
@@ -600,7 +628,10 @@ impl Formation<'_, '_, '_, '_, '_> {
             .data()
             .function_name
             .ok_or_else(|| {
-                self.error(declared.declaration, "missing semantic function-name contract")
+                self.error(
+                    declared.declaration,
+                    "missing semantic function-name contract",
+                )
             })?;
         let name = &program.strings[name.index()];
         let declared_form = self.free_declaration_name(name)?;
@@ -688,7 +719,9 @@ impl Formation<'_, '_, '_, '_, '_> {
         for index in 0..self.struct_plan.public_exports.len() {
             self.work(1)?;
             if let (_, _, Some(function)) = self.struct_plan.public_exports[index] {
-                if let js::FunctionName::Exact(existing) = &self.module.functions[function.index()].name {
+                if let js::FunctionName::Exact(existing) =
+                    &self.module.functions[function.index()].name
+                {
                     if existing.as_unicode() == Some(name) {
                         return Ok(false);
                     }

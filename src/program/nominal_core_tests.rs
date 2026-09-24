@@ -3,8 +3,8 @@
 use super::publication::{CheckpointLimit, Compilation, PublicationError};
 use super::uses::{CellUseSite, UseIndex};
 use super::*;
-use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 use crate::check::{FunctionParameter, FunctionSignature, FunctionType, StructType};
+use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
 
 fn checked(source: &str, inspect: impl FnOnce(Program<'_>)) {
     let arena = bumpalo::Bump::new();

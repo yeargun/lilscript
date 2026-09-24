@@ -141,7 +141,8 @@ impl Module {
         }
         // Most saved first, then by first use, so the order is stable.
         uses.sort_by(|(a, left), (b, right)| {
-            let saved = |value: &Pooled, sites: &Vec<ExprId>| sites.len() * (value.printed() - POOLED_NAME);
+            let saved =
+                |value: &Pooled, sites: &Vec<ExprId>| sites.len() * (value.printed() - POOLED_NAME);
             saved(b, right)
                 .cmp(&saved(a, left))
                 .then_with(|| left[0].cmp(&right[0]))

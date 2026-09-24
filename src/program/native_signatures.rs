@@ -3,11 +3,11 @@
 //! function parameter/result edges and never creates a semantic type graph.
 
 use super::{native_type, work, NativeError, NativeType, TypeTables};
-use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
-use crate::primitive::ParameterPassing;
 use crate::check::type_admission::TypeQueryAdmission;
 use crate::check::type_relation::type_equal_with;
 use crate::check::{FunctionSignature, Type};
+use crate::output_budget::{AllocationBudget, AllocationClass::Scratch, AllocationError};
+use crate::primitive::ParameterPassing;
 use crate::program::Program;
 use std::mem::size_of;
 

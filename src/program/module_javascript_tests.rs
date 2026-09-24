@@ -70,8 +70,8 @@ fn named_cell(program: &Program<'_>, name: &str) -> CellId {
     id
 }
 fn with_modules<R>(inspect: impl FnOnce(Program<'_>, Targets, Json) -> R) -> R {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/program/fixtures/modules-javascript");
+    let directory =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/program/fixtures/modules-javascript");
     let discovered = crate::module::discover_modules(&directory.join("entry.lil")).unwrap();
     assert_eq!(discovered.modules.len(), FILES.len());
     for module in &discovered.modules {

@@ -241,12 +241,11 @@ fn assert_batch_output(compiler: &Compilation<'_>, artifact: ArtifactId, origina
     compiler
         .with_artifact(artifact, |view| {
             assert_eq!(view.javascript, original);
-            let result =
-                crate::program::native_tests::execute(Command::new("node").args([
-                    "--input-type=module",
-                    "-e",
-                    view.javascript,
-                ]));
+            let result = crate::program::native_tests::execute(Command::new("node").args([
+                "--input-type=module",
+                "-e",
+                view.javascript,
+            ]));
             assert!(
                 result.status.success(),
                 "{}",

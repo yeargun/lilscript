@@ -9,13 +9,13 @@ use crate::compilation_policy::{
     AdmissionError, BudgetLedger, CandidateCostEvidence, ResolvedPolicy, RuntimeRisk, TacticId,
     TacticUse, WorkKind,
 };
-use crate::output_budget::{
-    AllocationBudget, AllocationClass::Retained, AllocationError, RetainedCharge,
-};
 use crate::js::extract::OutputError;
 use crate::js::selection::Plan;
 pub use crate::js::LiteralOutput;
 use crate::js::{BindingId, NamingProvenance};
+use crate::output_budget::{
+    AllocationBudget, AllocationClass::Retained, AllocationError, RetainedCharge,
+};
 use std::cmp::Ordering;
 use std::mem::size_of;
 
@@ -54,7 +54,9 @@ impl OutputTactics {
 
     /// Permission only; artifact admission separately checks cost evidence.
     pub fn check_policy(self, policy: &ResolvedPolicy) -> Result<(), AdmissionError> {
-        if (self.literals == LiteralOutput::Observed || self.raw_structure) && !self.target_compaction {
+        if (self.literals == LiteralOutput::Observed || self.raw_structure)
+            && !self.target_compaction
+        {
             return Err(AdmissionError::ForbiddenTactic(TacticId::TargetCompaction));
         }
         for (selected, tactic) in [

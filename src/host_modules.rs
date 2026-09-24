@@ -71,7 +71,8 @@ impl HostDelivery {
     pub fn retained_bytes(&self) -> u64 {
         let text = |value: &String| value.capacity() as u64;
         let mut bytes = (self.modules.capacity() * std::mem::size_of::<HostModule>()
-            + self.reserved.capacity() * std::mem::size_of::<String>()) as u64;
+            + self.reserved.capacity() * std::mem::size_of::<String>())
+            as u64;
         bytes += self.reserved.iter().map(text).sum::<u64>();
         for module in &self.modules {
             bytes += text(&module.specifier) + text(&module.stem) + text(&module.body);
@@ -283,7 +284,10 @@ fn visit(
     }
     let source = std::fs::read_to_string(&path)
         .map_err(|error| format!("cannot read host module `{}`: {error}", path.display()))?;
-    let extension = path.extension().and_then(|value| value.to_str()).unwrap_or("");
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
     let typescript = match extension {
         "ts" | "mts" => true,
         "js" | "mjs" => false,
@@ -313,7 +317,15 @@ fn visit(
     let mut imports = Vec::new();
     for (specifier, bindings) in &analyzed.imports {
         let dependency = resolve(parent, specifier)?;
-        let index = visit(root_directory, &dependency, edition, stack, paths, modules, reserved)?;
+        let index = visit(
+            root_directory,
+            &dependency,
+            edition,
+            stack,
+            paths,
+            modules,
+            reserved,
+        )?;
         let bindings = bindings
             .iter()
             .map(|(imported, local)| {
@@ -332,7 +344,13 @@ fn visit(
         .and_then(|stem| stem.to_str())
         .unwrap_or("host")
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     modules.push(HostModule {
         specifier: crate::module::relative_module_specifier(root_directory, &path),
@@ -388,9 +406,14 @@ fn syntax_beyond(
                 Some(F::AsyncAwait)
             }
             "ObjectExpression" | "ObjectPattern"
-                if node.get("properties").and_then(Value::as_array).is_some_and(|items| {
-                    items.iter().any(|item| matches!(kind(item), "SpreadElement" | "RestElement"))
-                }) =>
+                if node
+                    .get("properties")
+                    .and_then(Value::as_array)
+                    .is_some_and(|items| {
+                        items
+                            .iter()
+                            .any(|item| matches!(kind(item), "SpreadElement" | "RestElement"))
+                    }) =>
             {
                 Some(F::ObjectRestSpread)
             }
@@ -481,7 +504,11 @@ fn walk<'v>(
 pub(crate) fn strip_typescript(source: &str) -> Result<String, String> {
     let tree = parse_tree(source, true).map_err(|error| format!("host module: {error}"))?;
     let mut erase: Vec<(usize, usize)> = Vec::new();
-    let refuse = |what: &str| Err(format!("host module uses {what}, which has runtime semantics"));
+    let refuse = |what: &str| {
+        Err(format!(
+            "host module uses {what}, which has runtime semantics"
+        ))
+    };
     let mut visit = |node: &Value| -> Result<bool, String> {
         let (start, end) = span(node).ok_or("host module node without a span")?;
         let child = |name: &str| node.get(name).filter(|value| !value.is_null());
@@ -521,7 +548,9 @@ pub(crate) fn strip_typescript(source: &str) -> Result<String, String> {
             name if name.starts_with("JSX") => return refuse("JSX"),
             "ImportDeclaration" | "ExportNamedDeclaration" | "ExportAllDeclaration"
                 if matches!(
-                    node.get("importKind").or_else(|| node.get("exportKind")).and_then(Value::as_str),
+                    node.get("importKind")
+                        .or_else(|| node.get("exportKind"))
+                        .and_then(Value::as_str),
                     Some("type")
                 ) =>
             {
@@ -532,9 +561,7 @@ pub(crate) fn strip_typescript(source: &str) -> Result<String, String> {
                 if child("declaration").is_some_and(|declaration| {
                     matches!(
                         kind(declaration),
-                        "TSInterfaceDeclaration"
-                            | "TSTypeAliasDeclaration"
-                            | "TSDeclareFunction"
+                        "TSInterfaceDeclaration" | "TSTypeAliasDeclaration" | "TSDeclareFunction"
                     ) || declaration.get("declare").and_then(Value::as_bool) == Some(true)
                 }) =>
             {
@@ -549,7 +576,9 @@ pub(crate) fn strip_typescript(source: &str) -> Result<String, String> {
             }
             "ImportSpecifier" | "ExportSpecifier"
                 if matches!(
-                    node.get("importKind").or_else(|| node.get("exportKind")).and_then(Value::as_str),
+                    node.get("importKind")
+                        .or_else(|| node.get("exportKind"))
+                        .and_then(Value::as_str),
                     Some("type")
                 ) =>
             {
@@ -560,26 +589,32 @@ pub(crate) fn strip_typescript(source: &str) -> Result<String, String> {
                 if name == "this" {
                     return refuse("a `this` parameter");
                 }
-                let limit = child("typeAnnotation").and_then(span).map_or(end, |(at, _)| at);
-                let mark = source[start..limit]
-                    .find('?')
-                    .ok_or("optional marker")?;
+                let limit = child("typeAnnotation")
+                    .and_then(span)
+                    .map_or(end, |(at, _)| at);
+                let mark = source[start..limit].find('?').ok_or("optional marker")?;
                 erase.push((start + mark, start + mark + 1));
             }
-            "Identifier" if node.get("name").and_then(Value::as_str) == Some("this")
-                && child("typeAnnotation").is_some() =>
+            "Identifier"
+                if node.get("name").and_then(Value::as_str) == Some("this")
+                    && child("typeAnnotation").is_some() =>
             {
                 return refuse("a `this` parameter");
             }
             "VariableDeclarator" if node.get("definite").and_then(Value::as_bool) == Some(true) => {
                 return refuse("a definite assignment assertion");
             }
-            "PropertyDefinition" | "MethodDefinition" | "AccessorProperty"
-            | "TSAbstractPropertyDefinition" | "TSAbstractMethodDefinition" => {
+            "PropertyDefinition"
+            | "MethodDefinition"
+            | "AccessorProperty"
+            | "TSAbstractPropertyDefinition"
+            | "TSAbstractMethodDefinition" => {
                 let flagged = ["optional", "definite", "override", "readonly", "declare"]
                     .iter()
                     .any(|flag| node.get(*flag).and_then(Value::as_bool) == Some(true))
-                    || node.get("accessibility").is_some_and(|value| !value.is_null())
+                    || node
+                        .get("accessibility")
+                        .is_some_and(|value| !value.is_null())
                     || kind(node).starts_with("TSAbstract");
                 if flagged {
                     return refuse("a class member modifier");
@@ -604,7 +639,11 @@ pub(crate) fn strip_typescript(source: &str) -> Result<String, String> {
         let mut at = start;
         while at < end {
             // U+2028 and U+2029 are line terminators; keep all three bytes.
-            if bytes[at] == 0xE2 && at + 2 < end && bytes[at + 1] == 0x80 && matches!(bytes[at + 2], 0xA8 | 0xA9) {
+            if bytes[at] == 0xE2
+                && at + 2 < end
+                && bytes[at + 1] == 0x80
+                && matches!(bytes[at + 2], 0xA8 | 0xA9)
+            {
                 at += 3;
                 continue;
             }
@@ -710,7 +749,10 @@ fn implicit_semicolons(node: &Value, source: &str, head: bool, ends: &mut Vec<us
                     }
                 }
             }
-            let loop_head = matches!(kind(node), "ForStatement" | "ForInStatement" | "ForOfStatement");
+            let loop_head = matches!(
+                kind(node),
+                "ForStatement" | "ForInStatement" | "ForOfStatement"
+            );
             for (key, value) in fields {
                 let head = loop_head && matches!(key.as_str(), "init" | "left");
                 implicit_semicolons(value, source, head, ends);
@@ -764,7 +806,10 @@ struct Analyzed {
 fn name(node: &Value) -> Option<String> {
     match kind(node) {
         "Identifier" => node.get("name").and_then(Value::as_str).map(str::to_string),
-        "Literal" => node.get("value").and_then(Value::as_str).map(str::to_string),
+        "Literal" => node
+            .get("value")
+            .and_then(Value::as_str)
+            .map(str::to_string),
         _ => None,
     }
 }
@@ -785,7 +830,12 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
         match kind(statement) {
             "VariableDeclaration" => {
                 let variable = statement.get("kind").and_then(Value::as_str).unwrap_or("");
-                for declarator in statement.get("declarations").and_then(Value::as_array).into_iter().flatten() {
+                for declarator in statement
+                    .get("declarations")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
                     if let Some(local) = declarator.get("id").and_then(name) {
                         declared_kinds.insert(local, variable.to_string());
                     }
@@ -799,7 +849,12 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
                     .ok_or("host import source")?
                     .to_string();
                 let mut bindings = Vec::new();
-                for item in statement.get("specifiers").and_then(Value::as_array).into_iter().flatten() {
+                for item in statement
+                    .get("specifiers")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
                     let local = item.get("local").and_then(name);
                     match kind(item) {
                         "ImportSpecifier" => {
@@ -813,32 +868,62 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
                 erase.push((start, end));
             }
             "ExportNamedDeclaration" => {
-                if statement.get("source").is_some_and(|source| !source.is_null()) {
+                if statement
+                    .get("source")
+                    .is_some_and(|source| !source.is_null())
+                {
                     return Err("host module re-exports another module".to_string());
                 }
-                if let Some(declaration) = statement.get("declaration").filter(|value| !value.is_null()) {
+                if let Some(declaration) = statement
+                    .get("declaration")
+                    .filter(|value| !value.is_null())
+                {
                     let (inner, _) = span(declaration).ok_or("host export span")?;
                     erase.push((start, inner));
                     match kind(declaration) {
                         "FunctionDeclaration" | "ClassDeclaration" => {
-                            let local = declaration.get("id").and_then(name).ok_or("host export name")?;
+                            let local = declaration
+                                .get("id")
+                                .and_then(name)
+                                .ok_or("host export name")?;
                             exports.push((local.clone(), local));
                         }
                         "VariableDeclaration" => {
                             if declaration.get("kind").and_then(Value::as_str) != Some("const") {
                                 return Err("host module exports a mutable binding".to_string());
                             }
-                            for declarator in declaration.get("declarations").and_then(Value::as_array).into_iter().flatten() {
-                                let local = declarator.get("id").and_then(name).ok_or("host module exports a destructuring pattern")?;
+                            for declarator in declaration
+                                .get("declarations")
+                                .and_then(Value::as_array)
+                                .into_iter()
+                                .flatten()
+                            {
+                                let local = declarator
+                                    .get("id")
+                                    .and_then(name)
+                                    .ok_or("host module exports a destructuring pattern")?;
                                 exports.push((local.clone(), local));
                             }
                         }
-                        _ => return Err("host module exports an unsupported declaration".to_string()),
+                        _ => {
+                            return Err("host module exports an unsupported declaration".to_string())
+                        }
                     }
                 } else {
-                    for item in statement.get("specifiers").and_then(Value::as_array).into_iter().flatten() {
-                        let local = item.get("local").and_then(name).ok_or("host export local")?;
-                        let exported = item.get("exported").and_then(name).ok_or("host export name")?;
+                    for item in statement
+                        .get("specifiers")
+                        .and_then(Value::as_array)
+                        .into_iter()
+                        .flatten()
+                    {
+                        let local = item
+                            .get("local")
+                            .and_then(name)
+                            .ok_or("host export local")?;
+                        let exported = item
+                            .get("exported")
+                            .and_then(name)
+                            .ok_or("host export name")?;
                         exports.push((exported, local));
                     }
                     erase.push((start, end));
@@ -851,7 +936,10 @@ fn analyze(source: &str) -> Result<Analyzed, String> {
         }
     }
     for (_, local) in &exports {
-        if declared_kinds.get(local).is_some_and(|kind| kind != "const") {
+        if declared_kinds
+            .get(local)
+            .is_some_and(|kind| kind != "const")
+        {
             return Err("host module exports a mutable binding".to_string());
         }
     }
@@ -984,9 +1072,16 @@ mod tests {
         let stripped = strip_typescript(source).unwrap();
         assert_eq!(stripped.len(), source.len());
         assert_eq!(stripped.lines().count(), source.lines().count());
-        assert!(!stripped.contains(':') && !stripped.contains("as T") && !stripped.contains("interface"));
+        assert!(
+            !stripped.contains(':')
+                && !stripped.contains("as T")
+                && !stripped.contains("interface")
+        );
         let compacted = compact(&stripped).unwrap();
-        assert_eq!(compacted, "export function f(a,b){return a}export const x=1;");
+        assert_eq!(
+            compacted,
+            "export function f(a,b){return a}export const x=1;"
+        );
     }
 
     #[test]
@@ -1010,8 +1105,14 @@ mod tests {
         assert!(compacted.ends_with("let g=a;++b"), "{compacted}");
         assert!(!compacted.contains('\n'), "{compacted}");
         // A restricted production keeps its meaning.
-        assert_eq!(compact("function f(){return\n1}").unwrap(), "function f(){return;1}");
-        assert_eq!(compact("for (let i = 0\n; i < 1\n; i++) {}").unwrap(), "for(let i=0;i<1;i++){}");
+        assert_eq!(
+            compact("function f(){return\n1}").unwrap(),
+            "function f(){return;1}"
+        );
+        assert_eq!(
+            compact("for (let i = 0\n; i < 1\n; i++) {}").unwrap(),
+            "for(let i=0;i<1;i++){}"
+        );
     }
 
     #[test]
@@ -1030,7 +1131,11 @@ mod tests {
         assert_eq!(delivery.modules.len(), 2);
         assert_eq!(delivery.position("./host.ts"), Some(1));
         assert!(delivery.reserved.is_empty(), "{:?}", delivery.reserved);
-        let free = analyze("let a = window.document.body; a.b.c(Array.isArray(a) ? 1 : 2); x: for (;;) break x").unwrap().free;
+        let free = analyze(
+            "let a = window.document.body; a.b.c(Array.isArray(a) ? 1 : 2); x: for (;;) break x",
+        )
+        .unwrap()
+        .free;
         assert_eq!(free, ["Array", "window"]);
         let expression = delivery.expression(false);
         assert_eq!(

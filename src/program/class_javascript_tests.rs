@@ -3,7 +3,9 @@
 //! first, and nothing that could hand an instance to host code is admitted.
 use super::publication::*;
 use super::*;
-use crate::compilation_policy::{BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain};
+use crate::compilation_policy::{
+    BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
+};
 use crate::js::selection::{Plan, Style};
 use std::process::Command;
 
@@ -101,10 +103,7 @@ fn instances_alias_fields_default_and_methods_dispatch_statically() {
         Counter upcast = named;
         print(upcast.add(4));
     "#;
-    assert_eq!(
-        run(&compile(source).unwrap(), ""),
-        "15\ntrue\nn:6:2\n10\n"
-    );
+    assert_eq!(run(&compile(source).unwrap(), ""), "15\ntrue\nn:6:2\n10\n");
 }
 
 #[test]
@@ -176,7 +175,9 @@ fn class_instance_allocations_verify_their_declared_fields() {
     // Dropping a declared field from the table leaves the allocation with a
     // key the class no longer declares.
     let mut broken = program.clone();
-    std::sync::Arc::make_mut(&mut broken.classes)[0].fields.pop();
+    std::sync::Arc::make_mut(&mut broken.classes)[0]
+        .fields
+        .pop();
     assert!(broken.verify().is_err());
 }
 
@@ -200,7 +201,10 @@ fn methods_and_functions_taking_host_values_are_not_boundaries() {
         print(state.effects);
     "#;
     assert_eq!(
-        run(&compile(source).unwrap(), "let n=0;globalThis.hostValue=()=>++n;"),
+        run(
+            &compile(source).unwrap(),
+            "let n=0;globalThis.hostValue=()=>++n;"
+        ),
         "2\n3\n"
     );
 }
@@ -244,7 +248,8 @@ fn an_object_key_converts_once_per_source_access() {
         JsValue first = table[key];
         print(first);
     "#;
-    let host = "globalThis.key={toString(){console.log('convert');return 'a'}};globalThis.table={a:5};";
+    let host =
+        "globalThis.key={toString(){console.log('convert');return 'a'}};globalThis.table={a:5};";
     assert_eq!(run(&compile(source).unwrap(), host), "convert\n5\n");
 }
 
@@ -265,7 +270,10 @@ fn a_for_in_key_never_shadows_a_binding_its_object_reads() {
     "#;
     for style in [Style::Global, Style::Scoped] {
         assert_eq!(
-            run(&compile_named(source, style).unwrap(), "globalThis.probe={a:1};"),
+            run(
+                &compile_named(source, style).unwrap(),
+                "globalThis.probe={a:1};"
+            ),
             "true\n"
         );
     }

@@ -6,7 +6,7 @@ use crate::compilation_policy::{
     BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
 };
 use crate::js::selection::{Objective, Plan, Style};
-use serde_json::{Value as Json, json};
+use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 

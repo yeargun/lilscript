@@ -9,7 +9,7 @@ use crate::compilation_policy::{
     ResourceLimits, WorkDomain,
 };
 use crate::js::selection::{Objective, Objectives, Plan, Style};
-use serde_json::{Value as Json, json};
+use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 use std::process::Command;
 
@@ -254,11 +254,9 @@ fn matrix(case: Case, callee_names: &[&str], oracle: bool, inline_adversary: boo
         .map(|name| named_cell(&program, name))
         .collect();
     let body = program.cells()[parameters[0].index()].owner;
-    assert!(
-        parameters
-            .iter()
-            .all(|cell| program.cells()[cell.index()].owner == body)
-    );
+    assert!(parameters
+        .iter()
+        .all(|cell| program.cells()[cell.index()].owner == body));
     let mut compiler = compilation(100_000_000);
     let source = compiler
         .adopt_checked(program, WorkDomain::Baseline)

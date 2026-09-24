@@ -281,9 +281,9 @@ fn struct_and_member_backings_refuse_at_initial_and_later_growth() {
         .unwrap_err();
         assert_eq!(
             error,
-            AdmittedCheckError::Resources(AllocationError::Budget(
-                BudgetError::MemoryExhausted(WorkDomain::Baseline)
-            ))
+            AdmittedCheckError::Resources(AllocationError::Budget(BudgetError::MemoryExhausted(
+                WorkDomain::Baseline
+            )))
         );
         assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
         drop(budget);
