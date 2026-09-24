@@ -1803,3 +1803,54 @@ fn foreign_imports_become_es_imports_of_their_extern_values() {
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(String::from_utf8(output.stdout).unwrap(), "hi422:42\n");
 }
+
+/// Three wrong programs the harvest of the old route's tests found in the
+/// searched output (plan M1.9): an async body inlined as its return value,
+/// field defaults created before a constructor's arguments, and `==` on a
+/// `JsValue` compiled as `===` against the language's dynamic equality.
+#[test]
+fn searched_output_keeps_async_calls_construction_order_and_dynamic_equality() {
+    let source = r#"
+        extern int read();
+        extern JsValue dynamic();
+        extern void note(string label);
+        async int immediate() { return 1; }
+        class Cache {
+            Map<string, int> guard;
+            int value;
+            init(int value) { this.value = value; }
+        }
+        export void run() {
+            immediate().then((int v) => print(v));
+            Cache cache = new Cache(read());
+            print(cache.value);
+            JsValue v = dynamic();
+            print(v == 0);
+            print(v != 0);
+        }
+    "#;
+    let setup = "const events=[];globalThis.Map=class{constructor(){events.push('map')}};\
+        globalThis.read=()=>{events.push('read');return 7};\
+        globalThis.dynamic=()=>({valueOf(){events.push('coerce');return 0}});";
+    for codec in [Objective::Raw, Objective::Brotli] {
+        let result = compile_source_semantic(
+            source,
+            &config(""),
+            ServiceOptions {
+                objectives: Some(Objectives::All),
+                ..ServiceOptions::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            execute_javascript(
+                result.javascript(codec).unwrap().javascript(),
+                setup,
+                "library.run();await 0;console.log(events.join(','));"
+            ),
+            "7\ntrue\nfalse\n1\nread,map,coerce,coerce\n",
+            "{}",
+            result.javascript(codec).unwrap().javascript()
+        );
+    }
+}

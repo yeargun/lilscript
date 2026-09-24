@@ -1189,11 +1189,25 @@ pub(super) fn primitive_evaluation_behavior(
             }
         }
         OperationKind::Binary(op) => {
-            if matches!(
-                op,
-                BinaryOp::Eq | BinaryOp::NotEq | BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish
-            ) {
+            if matches!(op, BinaryOp::And | BinaryOp::Or | BinaryOp::Nullish) {
                 return Some(EvaluationBehavior::TOTAL);
+            }
+            if matches!(op, BinaryOp::Eq | BinaryOp::NotEq) {
+                // `==` on a `JsValue` is JavaScript's abstract equality: an
+                // object compared with anything but `null`/`undefined` is
+                // converted to a primitive, which can run user code. Typed
+                // operands and proved primitives never convert.
+                let ty = |value: ValueId| &program.types[unit.values[value.index()].ty.index()];
+                let operands = unit.operands(operation.operands).unwrap_or(&[]);
+                let dynamic = operands
+                    .iter()
+                    .any(|&value| matches!(ty(value), Type::TypeParameter("$js")));
+                let against_null = operands.iter().any(|&value| matches!(ty(value), Type::Null));
+                return Some(if dynamic && !against_null && !operands_primitive {
+                    EvaluationBehavior::COERCION
+                } else {
+                    EvaluationBehavior::TOTAL
+                });
             }
             if !operands_primitive {
                 return Some(EvaluationBehavior::COERCION);
