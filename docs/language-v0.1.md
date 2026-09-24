@@ -527,10 +527,8 @@ Integer division truncates toward zero; division or remainder by zero produces
 native output. A source-written live `value | 0` is an explicit JavaScript
 lowering obligation and remains `|0` under every objective; dead enclosing code
 may still disappear. JavaScript may drop compiler-generated, proven-redundant
-signed-i32 normalization for `size-first` and `balanced`.
-`performance-first`, `realistic-performance-first`, and
-`javascript.integer_coercions = true` keep generated normalization too.
-Overflow-capable operations still wrap. Float arithmetic follows IEEE-754 binary64 behavior.
+signed-i32 normalization; no configuration changes that (the old priorities and
+`javascript.integer_coercions` are retired). Overflow-capable operations still wrap. Float arithmetic follows IEEE-754 binary64 behavior.
 
 ## Declarations
 

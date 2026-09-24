@@ -35,7 +35,7 @@ The language is built so authors can:
 - keep **source module** identity (`preserve-modules`) for cache granularity;
 - ask the compiler to **search** shared/lazy splits under deploy cost (`split`);
 - write `import("./feature")` for a **typed** lazy boundary the compiler must honor;
-- keep a **public facade** (`mangle.exports = false`) or a fully mangled app.
+- keep a **public facade** (`--target js-module`: the root module's exports are the API) or a closed app with no names to keep (`--target js`).
 
 Automatic split applies `min_chunk_bytes` / `shared_min_imports` to optional eager
 chunks and enforces `max_chunks` across mandatory lazy plus selected optional chunks;
