@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { codeOnly, composeConfig, LANES, parseTomlTables, selectLanes } from "./cases.mjs";
-import { failingTests, rewriteObjective, testTotals } from "./ports.mjs";
+import { diffAgainstLedger, failingTests, rewriteObjective, testTotals } from "./ports.mjs";
 
 test("feature detection ignores comments and string text but not template expressions", () => {
   const code = codeOnly('// export JsValue\nprint("extern try");\n/* Regex */ int a = 1;\nprint(`x ${JS.string(a)} throw`);');
@@ -55,4 +55,21 @@ test("failing-test names from node:test, jest and TAP", () => {
   assert.deepEqual(failingTests(jest), ["Default debug names - production"]);
   assert.deepEqual(testTotals(jest), { tests: 780, pass: 766, fail: 3 });
   assert.deepEqual(failingTests("not ok 1 - real\nnot ok 2 - later # TODO not yet\n"), ["real"]);
+  const vitest = "   × no built-in pattern is ReDoS-vulnerable 80196ms\n FAIL  tests/redos.test.ts > no built-in pattern is ReDoS-vulnerable\n";
+  assert.deepEqual(failingTests(vitest), ["no built-in pattern is ReDoS-vulnerable", "tests/redos.test.ts > no built-in pattern is ReDoS-vulnerable"]);
+});
+
+test("the port ledger: regressions, removals, and intermittent entries", () => {
+  const entries = [
+    { tests: ["a", "b"], reason: "r", owner: "M1" },
+    { tests: ["slow"], intermittent: true, reason: "timeout under load", owner: "M2.6" },
+  ];
+  assert.deepEqual(diffAgainstLedger(["a", "new"], entries, true), {
+    ledgered: ["a"],
+    regressions: ["new"],
+    nowPassing: ["b"],
+  });
+  assert.deepEqual(diffAgainstLedger(["slow"], entries, true).regressions, []);
+  assert.deepEqual(diffAgainstLedger([], entries, true).nowPassing, ["a", "b"]);
+  assert.deepEqual(diffAgainstLedger([], entries, false).nowPassing, []);
 });

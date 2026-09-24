@@ -157,7 +157,7 @@ The runners' pure parts (feature detection, lane selection, configuration mergin
 | Ledger | Entry |
 |---|---|
 | `tests/cases/expected-failures.json` | `case`: an id, a glob or a list of them. `lanes`: in the `--lanes` syntax; omitted means all. Plus `reason` and `owner` |
-| `tests/ports/expected-failures.json` | `port` and `tests` (exact failing names or pseudo-names), plus `reason` and `owner` |
+| `tests/ports/expected-failures.json` | `port` and `tests` (exact failing names or pseudo-names), plus `reason` and `owner`. `intermittent: true` marks tests whose outcome depends on the host, such as an upstream wall-clock timeout on a loaded machine: they may fail, and passing is not reported for removal |
 
 The rules:
 - Every entry names the plan task that owns the fix (`owner`, from [the migration plan](migration/index.md)) and says why it fails (`reason`). The runners refuse a ledger entry without them.
