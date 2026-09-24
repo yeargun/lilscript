@@ -1,30 +1,16 @@
 {
   "schema": 1,
-  "about": "Expected port-suite failures on the one compiler. Each entry names the failing tests, why they fail, and the plan task that owns them (docs/migration/index.md). The port runner (scripts/ports.mjs) diffs failing-test sets against this ledger: a failure not listed here is a regression, and a listed failure that passes must be removed. Test names are exactly as the runner parses them; names in parentheses are the runner's pseudo-failures (docs/testing.md). Recorded from the pre-M1 fleet run of 2026-09-23 (binary ~/lilscript-work/bin/pre-m1/lilscript, 26 ports, 21 fully green) and re-checked with scripts/ports.mjs on 2026-09-24: the node:test spec reporter reports a failing test and its failing parent suite as two names; monacolil's check:site passes, so its entry was removed; react-markdownlil's build fails before any compile.",
+  "about": "Expected port-suite failures on the one compiler. Each entry names the failing tests, why they fail, and the plan task that owns them (docs/migration/index.md). The port runner (scripts/ports.mjs) diffs failing-test sets against this ledger: a failure not listed here is a regression, and a listed failure that passes must be removed. Test names are exactly as the runner parses them; names in parentheses are the runner's pseudo-failures (docs/testing.md). Recorded from the pre-M1 fleet run of 2026-09-23 (binary ~/lilscript-work/bin/pre-m1/lilscript, 26 ports, 21 fully green) and re-checked with scripts/ports.mjs on 2026-09-24: the node:test spec reporter reports a failing test and its failing parent suite as two names; monacolil's check:site passes, so its entry was removed; On 2026-09-24, after the M2.8/M2.9 release committed each goal port's rewrite to its repository, mdast-util-from-markdownlil, remark-parselil and react-markdownlil ran green with `--patches none` (binary release-m1) and their entries were removed.",
   "entries": [
     {
-      "port": "mdast-util-from-markdownlil",
-      "tests": ["has a markedlil-style lab with receipts", "site"],
-      "reason": "The site-lab receipt test compares committed old-route dist sizes, which change on every rebuild. `site` is the failing test's parent suite.",
-      "owner": "M2.9 (the port's site and receipts are rebuilt by the pinned compiler)"
-    },
-    {
-      "port": "remark-parselil",
-      "tests": ["has a markedlil-style lab with receipts", "site"],
-      "reason": "Same site-lab receipt test as mdast-util-from-markdownlil.",
-      "owner": "M2.9"
-    },
-    {
       "port": "mobxlil",
-      "tests": ["makeAutoObservable + production build #2751", "Default debug names - production", "User provided debug names are always respected"],
+      "tests": [
+        "makeAutoObservable + production build #2751",
+        "Default debug names - production",
+        "User provided debug names are always respected"
+      ],
       "reason": "Upstream tests require ../../dist/mobx.cjs.production.min.js relative to tests/upstream/base, a path the port's layout does not have (its dist is at the repository root). Independent of the compiler.",
       "owner": "M2.8 (fix the port's upstream-test path mapping when its rewrite is committed)"
-    },
-    {
-      "port": "react-markdownlil",
-      "tests": ["(build failed)", "(compiler not invoked)", "public api", "CommonJS export", "runtime helpers are compiled from LilScript", "browser graph is pure LilScript with React external", "test/differential.test.mjs", "test/official/test.jsx", "test/parity.test.mjs"],
-      "reason": "Its build checks the sibling ports' sources (\"unified source inventory changed\") and stops before compiling: the runner applies only react-markdownlil's patch, not the sibling patches the regenerated graph expects. The suite then runs without a dist. The family builds and passes with patched siblings (rmbuild).",
-      "owner": "M2.8 (each port's rewrite committed to its own repository, so siblings match without patches)"
     }
   ]
 }
