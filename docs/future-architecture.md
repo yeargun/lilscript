@@ -2,7 +2,7 @@
 
 Revision 2026-09-23. **This is the architecture of the LilScript compiler and the size-relevant parts of the language.** It supersedes `docs/compiler-design.md` (2026-09-18), whose owner decisions D1–D5 and contracts A1–A7 are carried here unchanged in meaning (appendix A and §4). [migration/index.md](migration/index.md) is the only plan for reaching it. Owner briefs: [finer/intent/2026-09-23.md](../finer/intent/2026-09-23.md).
 
-The design is written from a full read of the codebase on 2026-09-23. That was eleven area reports, kept at `~/lilscript-work/out/arch/*.md` with file-and-line evidence. Where this document states a fact about today's code, the reports hold the citation.
+The design is written from a full read of the codebase on 2026-09-23. That was eleven area reports (ten on the compiler, one on the language), kept at `~/lilscript-work/out/arch/*.md` with file-and-line evidence. Where this document states a fact about today's code, the reports hold the citation.
 
 ---
 
@@ -13,9 +13,9 @@ The design is written from a full read of the codebase on 2026-09-23. That was e
   - It is well engineered in its algorithms: effect summaries, escape analysis, value ranges, parameter and return optimization, inlining, and function folding. Its typed optimization is still ahead on small programs.
   - Its architecture throws facts away at the print boundary and guesses them back from text. That seam produced every wrong program it shipped, and its search had saturated.
 - **What "semantic" was.** It is the replacement the 2026-09-18 reset chose.
-  - It has a checked, typed, region-structured program model with stable identities, a verifier on every edit, a structured JS target tree that cannot capture names, and exact codec selection.
-  - It is 3–12× faster per candidate, has zero miscompiles on the census, and is ahead on the maintained libraries: 11 of 13 beat their original minified builds.
-  - It has not yet realized typed interprocedural optimization, so small closed programs still compile smaller on the old route.
+  - It has a checked, typed, region-structured program model with stable identities, a verifier on conversion and on its (so far unused) edit kernel, a structured JS target tree that cannot capture names and is verified before printing, and exact codec selection.
+  - It is 3–12× faster at equal effort with the search off, about 100× cheaper per candidate, and has zero miscompiles on the census. On the 13 goal boundaries (the six reference ports and the react-markdown family), patched scratch builds beat the strongest pinned bar on 11. Ten of those wins clear D4's strict-win threshold; katexlil is ahead by 374 bytes, inside the margin. The other maintained ports are not yet measured.
+  - It has not yet realized typed interprocedural optimization, so small closed programs still compile smaller on the old route. The one-by-one disposition of every old-route pass is in the plan ("Old-route optimizations: disposition").
 - **The future compiler is the second architecture, carrying the first one's algorithms.**
   - Every typed optimization the old route had is rebuilt as a fact and a rule on the program model, where both JavaScript and native C benefit. The migration plan lists them one by one.
   - The old code is deleted. It is read as prior art, never linked.
@@ -31,7 +31,7 @@ The design is written from a full read of the codebase on 2026-09-23. That was e
 - gzip;
 - raw bytes.
 
-It must beat the strongest pinned competitor: Terser, Oxc/Rolldown, esbuild, SWC and Google Closure Compiler ADVANCED.
+It must beat the strongest pinned competitor, in both the open world (the developer-facing API preserved, per the mangling fairness contract) and the closed world. Pinned lanes today: Terser, Oxc/Rolldown and esbuild on every library; Closure ADVANCED on `comparison/algorithms` and `comparison/apps`. SWC is studied, not yet pinned (plan M12.3).
 
 **Other requirements.**
 - The public API and every behavior are preserved (D3), and complete delivery is counted (A5).
@@ -55,24 +55,25 @@ Each law exists because the codebase's history measured what happens without it.
 
 | # | Law | Why (evidence) |
 |---|---|---|
-| L1 | **One owner per fact.** Meaning is decided once, on typed identities, and never recovered from names, spellings or emitted text | The old route's text peephole produced at least six wrong programs by reasoning over mangled tokens. Today's tree passes hold four effect models, five value-domain authorities and five initialization owners that can disagree |
+| L1 | **One owner per fact.** Meaning is decided once, on typed identities, and never recovered from names, spellings or emitted text | The old route's text peephole produced at least six wrong programs by reasoning over mangled tokens. Today the program core, formation and tree passes together hold at least four effect models, five value-domain sources and five initialization owners that can disagree |
 | L2 | **Decide where the knowledge is.** Meaning-level optimizations run on the program; the JavaScript tree owns syntax, spelling, naming and delivery | 009–013 put whole-program optimizations on the JS tree. There they re-derive legality from syntax, and native C gets none of them |
 | L3 | **Remove operations by rule; choose spellings by codec** | All 13 of Closure's late peepholes: −13,197 raw, **+930** Brotli. Terser's local compressor over our output: −15,776 raw, −8 Brotli. Rules that remove calls, fields, branches and arguments pay under every codec |
-| L4 | **Emit canonical forms; never un-emit** | Formation emits shapes that later passes pattern-match back, in five known pairs. The first migration's diagnosis: 84 of 142 folds existed only to undo the emitter |
-| L5 | **Facts live on the nodes that use them** | Side tables keyed by expression ids need nine hand remaps in formation; a missed remap silently drops a decision (live-16) |
+| L4 | **Emit canonical forms; never un-emit** | Formation emits shapes that later passes pattern-match back, in six known pairs. The first migration's diagnosis: 84 of 142 folds existed only to undo the emitter |
+| L5 | **Facts live on the nodes that use them** | Side tables keyed by expression ids need ten hand remap sites in formation, and a missed remap silently drops a choice. The same lesson in its sharper form, live-16: a print decision read from thread-local policy at render time produced a wrong program |
 | L6 | **Every optional transformation is a registered family** with a written legality condition, an `off` veto, provenance, and a veto lane in the tests | One umbrella tactic (`TargetCompaction`) hides about 35 passes today; `inlining = false` changes nothing |
 | L7 | **Selection is monotone** | Chaotic plan choice moved fleet results by ±50–400 bytes per port. A change is kept only when the exact codec, on the final artifact, says the artifact shrank |
 | L8 | **Budgets, not magic constants.** Estimators order work; codecs decide | Inline limit 6, table thresholds 64 / 0.85, rounds 3 and 4, and pooling that assumes 2-character names were each tuned against three ports, inside the measurement noise |
 | L9 | **The language states what the compiler must not guess** | Typed ports compile smaller; untyped `JsValue` transliterations lose. `pure`, nominal identity and boundaries are facts the author knows |
 | L10 | **One meaning, several targets** | The same checked program feeds JavaScript and C. Target plans choose representation, never semantics |
 | L11 | **Verification is part of the pipeline** | Structural verification after every edit batch, an independent parse of every delivered file, and stdout/trace oracles that never come from the compiler under test |
-| L12 | **Per-library configuration is contract, objective, effort and permission, nothing else** | Per-port strategy flags turned fleet noise into configuration (react-markdownlil gained −2,287 Brotli by flipping an unexplained flag). A legal strategy is the codec's per-artifact choice |
+| L12 | **Per-library configuration is contract, objective, effort and permission, nothing else**, and every contract assumption a library sets carries a recorded reason | The "default by fleet average, losers opt out" rule turned measurement noise into per-port strategy knobs (`idiom_directed_naming`, `function_scope`, `aggregate_layout` …). An unexplained contract assumption (`assume_pristine_builtins = false` in react-markdownlil) cost 2,287 Brotli. A legal strategy is the codec's per-artifact choice |
+| L13 | **A typed form never costs more than its untyped equivalent** | The ports' winning rewrites deleted 98 structs and added 50 untyped "views" because typed forms cost bytes (`\|0`, decode copies, `??null`, double initialization). Types are how authors hand the compiler facts |
 
 ---
 
 ## 4. Contracts carried from the 2026-09-18 design
 
-These are unchanged in meaning; appendix A has D1–D5 verbatim.
+A2–A6 are unchanged. **A1 is amended**: syntax may still serve diagnostics, but no stage keeps a CFG (the original allowed one where justified). **A7 is amended**: the runtime-constraint axis stays in the contract model, but the one compiler refuses runtime constraints at load until runtime estimators exist (§17). Appendix A has D1–D5 verbatim.
 
 | ID | Contract |
 |---|---|
@@ -171,17 +172,17 @@ One region-structured dataflow framework runs forward and backward over regions,
 
 | Fact | Content | Replaces (today's duplicates) | Unlocks |
 |---|---|---|---|
-| **Effects** | Per operation and per unit: reads and writes by region (cells, own allocations, fields, host), may throw, may diverge, runs user code, creates identity, reenters, suspends. Also parameter mutation and retention | `facts.rs` (every call unknown), `demand.rs`'s private model, `helper_family`'s composition, `structured_js/analysis.rs`, `quiet.rs`, `inline.rs:inert` | Removing discarded pure calls, argument motion, forwarding past calls, dead stores, the `pure` contract check |
+| **Effects** | Per operation and per unit: reads and writes by region (cells, own allocations, fields, host), may throw, may diverge, runs user code, creates identity, reenters, suspends. Also parameter mutation and retention | `facts.rs` (every call unknown), `demand.rs`'s private model, `helper_family`'s composition, `quiet.rs`, `inline.rs:inert`/`runs_no_user_code`, `mod.rs:inert_value` | Removing discarded pure calls, argument motion, forwarding past calls, dead stores, the `pure` contract check |
 | **Values** | One lattice: exact ⊂ finite set (≤4) ⊂ int32 range ⊂ primitive class ⊂ unknown. Held per value, per formal (joined over complete call sets), per result, and per `(nominal, slot)` | `facts.rs` exact values, `raw_domains`, `javascript_int32`, `NumberFacts`, `binding_classes`, `simplify::known` | Folded branches, constant arguments and fields, `\|0` elision, typed peepholes |
-| **Escape** | Per allocation site: local < typed < host | none today on this compiler | Scalar replacement, layout choice, positional classes, native stack storage |
+| **Escape** | Per allocation site: local < typed < host | the tree's syntactic member-only test (`scalar_objects.rs`); the record family's narrow non-escape proof | Scalar replacement, layout choice, positional classes, native stack storage |
 | **Field facts** | Per `(nominal, slot)`: whether it is read, the join of written values, and whether it is host-reachable, reflective or part of an exported shape | none | Dead fields, constant fields, typed property renaming, ambiguation |
 | **Initialization order** | Per root binding, the statement that settles it; per function, "not invoked before root statement S" | five owners, including the tree's syntactic `quiet.rs` order and its body-shape "factory" rule | Root constants, aliases, namespace collapse, TDZ guards in C |
 | **Liveness** | Demand's observation lattice, mark and sweep | JS-only `DemandPlan` | DCE for both targets |
 
 **Termination (D3.6).** A call may be removed as effect-free only when it also terminates.
-- A **declared** `pure` function or `pure extern` asserts termination as part of its contract. This is Closure's `@nosideeffects` and Terser's `pure_funcs`, made a checked language declaration.
-- An **inferred** effect-free function counts as terminating only with a proof: no loops without a counted bound, and no recursion outside a proven-terminating SCC.
-- The old route assumed termination and removed a call that never returns. That is exactly what this rule forbids.
+- Today's rule, and the default: termination needs a **proof**. The proof holds when there are no loops without a counted bound and no recursion outside a proven-terminating SCC, for declared and inferred purity alike. A declared `pure` checks effects, not termination, exactly as the 133 existing declarations were written.
+- **Proposed amendment (needs an owner ruling):** a declared `pure` function or `pure extern` asserts termination as part of its contract, like Closure's `@nosideeffects` and Terser's `pure_funcs`. That would remove more discarded calls, but it amends the settled D3.6.
+- The old route assumed termination for every pure call and removed a call that never returns. Both options forbid that.
 
 **Publication to targets.** Formation writes the facts JS rules need onto tree nodes (§10). The native plan reads them from the program. No fact is recomputed from JavaScript syntax.
 
@@ -311,7 +312,7 @@ It gains **annotation columns** that formation writes and the arena moves on ren
 **Naming** is one allocator:
 - bindings by interference within the scope tree;
 - names handed out in printed order within a scope, so structurally identical functions spell identically;
-- seeds and the alphabet chosen per objective. An output-frequency alphabet is a gzip lever: −0.37%, and noise under Brotli;
+- the slot scheme, the assignment order and the alphabet are **seeds of a codec-judged naming choice**, never rules. Closure's slot scheme measured +86 to +1,171 Brotli *worse* on the ports. A Terser walk-order experiment suggested −353, but that is a hypothesis from batch-23-era outputs, three of five files inside noise. An output-frequency alphabet is a gzip lever (−0.37%) and noise under Brotli;
 - private `FieldRef`s renamed by the same allocator. This is Closure's RenameProperties and AmbiguateProperties, sound because identity comes from the checker, not from name clustering.
 
 **Delivery plan.**
@@ -360,33 +361,67 @@ It gains **annotation columns** that formation writes and the arena moves on ren
 
 ## 12. The language, designed for size
 
-The language already has what lets a compiler beat Closure on typed code:
-- a closed world with explicit `extern` boundaries;
+**What the language already gets right.** It has the skeleton a compiler needs to beat Closure on typed code:
+- a closed world with explicit `extern` and `export` edges;
 - static dispatch (no overriding), so devirtualization is free;
-- value structs with explicit `ref`, so aliasing is known;
+- integer enums with no metadata object;
+- erased unions and nullables;
+- value structs;
 - declared public boundaries (D2);
-- typed dynamic imports.
+- one table of primitive semantics (`primitive.rs`) shared by both targets and the reference interpreter.
 
-What it lacks falls into two groups: facts the compiler must otherwise guess, and features whose absence pushes ports into untyped `JsValue` transliteration. Untyped code loses because nothing can be proved about it. Language work is therefore size work.
+**What the ports actually do.** They do not use that skeleton:
+- The 27 ports hold 42,936 `JsValue` mentions and 38,354 `JS.*` calls in 339K lines, and use `ref`, `object`, `export constructor` and `@pool` 0 times.
+- The rewrites that made katex, jquery, posthog and the markdown family win *removed* typed forms: they deleted 98 structs and added 50 `extern class` "views" of objects the program itself creates.
+- The authors were rational. On today's compiler each typed form costs bytes:
+  - `|0` on every `int` read;
+  - struct decode copies;
+  - `??null` normalization;
+  - named objects initialized twice.
 
-| Priority | Addition | Size effect |
-|---|---|---|
-| 1 | **Nominal identity per module** for classes and enums (like structs today) | Ends the port renames; prerequisite for field identity |
-| 1 | **Checked `pure`**, with termination as part of the declaration; `pure extern` trusted | Removal of discarded calls (motionlil −529 to −639); 133 port declarations start counting |
-| 1 | **`object` singletons and `export constructor`** working in the module checker | Typed namespaces instead of `JsValue` objects; collapse and devirtualization become typed |
-| 1 | **A first-class `JsValue` type** and a typed host catalog | Typed receivers never need `pure_getters`-style global assumptions |
-| 2 | **Build-time defines** (`[target.javascript.effects] define`), resolved by the checker into constants | Dead development branches; replaces `debugLog` name matching |
-| 2 | **Declared logging** (a `debug` effect class on declarations) and `print` as a program effect | `strip_console` stops removing the language's own output |
-| 2 | **Per-member visibility and reflection** on nominal types (sealed by default; `reflective` and `enumerable` declared) | Field facts, property renaming and dead fields without whole-program guesswork |
-| 2 | **Const data and table literals** | The data-encoding choices (tables beat Closure: katex −2,529, micromark −1,054) apply to declared data, not recognized shapes |
-| 3 | **Unions and intersections, float `%`, non-null assertion** | Fewer ports fall back to `JsValue` |
-| 3 | **Typed host shapes for `JS.assume`** (decode or view) and TS-checked `extern` declarations | Safe in-place reads of host objects |
-| 3 | **Region-scoped policy** (owner, 2026-09-04): effort, objective or permissions per region | Keep hot code fast and cold code small inside one library |
-| 3 | **`inline for` and `@pool` as author-pinned choices** | Honored by the choice system instead of ignored |
+  A typed micromark helper is 378 bytes against 304 for its `JsValue` form.
 
-The full language analysis, with port evidence, is `~/lilscript-work/out/arch/language.md`. The plan's language track takes its ranked list.
+**Hence the language law: a typed form must never cost more than its untyped equivalent.**
+- Typing is how the author gives the compiler facts. A language whose typed idioms lose bytes teaches authors to hide facts.
+- Every addition below is judged by two questions. Does it state a fact the compiler otherwise guesses? Is its JavaScript lowering the bare JS operation?
+- Native emulates JS-cheap semantics, not the other way round; native size is secondary.
 
----
+**Additions, ranked by measured or estimated effect × generality.** The full evidence is in `~/lilscript-work/out/arch/language.md`.
+
+| Rank | Addition | Evidence | What the compiler gains |
+|---|---|---|---|
+| L1 | **Declared object shapes.** A reference type with a known property set:<ul><li>fields marked `data` (reads are pure) or `accessor`;</li><li>optional fields (absent = `undefined`);</li><li>a construction literal;</li><li>legal nesting in arrays, maps and nullables at boundaries;</li><li>names that are ABI only where the shape reaches a declared boundary.</li></ul>`extern class` stays for host-constructed objects | The pure-reads assumption as a *global flag* is worth −6,359 Brotli on the markdown stack. 4 of 7 reference ports set it; zod cannot, because a few of its objects have getters. The rewrites added 50 views | Pure reads, forwarding and CSE on data; dead fields and renaming on known property sets; layout choice when a shape does not escape. `assume_pure_property_reads`, `public_aggregate_abi` and `preserve_properties` become type facts |
+| L2 | **Const data and tables with bounded compile-time evaluation.**<ul><li>Deep-immutable `const` arrays, records and struct arrays;</li><li>exported const objects with exact keys;</li><li>hex, exponent and leading-dot numeric literals;</li><li>`const` functions evaluated under a configured bound (D3.6).</li></ul> | Table re-encoding measured katex −2,529 and micromark −1,054 Brotli. katex's 57,656-byte font metrics are foreign JS today. micromark builds its public tables with 372 `JS.set` statements | The data-encoding choices (front-coded, columnar, delta) become legal on declared data, not recognized shapes. Constant forwarding needs no store folds |
+| L3 | **Receiver-typed functions, constructibility and rest parameters.**<ul><li>`fn(this: T, …)`;</li><li>`fn` (never constructible) against `function`;</li><li>methods in shape and object literals;</li><li>`T... rest`.</li></ul> | katex −240 Brotli from 97 unwrapped callbacks. Adapter counts: zod 487, micromark 378, katex 142. jquery has 22 files of `extern JsValue this` | No adapter factories; arrows where legal. `assume_unconstructed_callbacks` becomes a type fact |
+| L4 | **Sealed hierarchies with virtual methods, interfaces and sum types** (enum variants with payloads). Per call the compiler picks a static call, a tag switch, or a prototype method only when identity escapes | motion emulates overriding with 15 hook fields and 56 nullable callable fields, estimated at ≈ −700. marked allocates all 26 fields for 22 token kinds | Per-variant layouts, no per-instance closures, exhaustive-match DCE over classes |
+| L5 | **Enums with ABI values and ordinals** (`enum T: string {…}`, explicit int values, `ordinal`/`from`, flag sets). Ints internally, ABI values at boundaries | micromark keeps 104 string constants plus a duplicate public table; zod uses 41 int constants and 170 compares | Closure `@enum` parity, with int layout beyond it |
+| L6 | **Immutable value structs with functional update** (`p with {column: c}`); shared mutable state is a class or shape. **This revises D1 and needs an owner ruling** | `ref` is used 0 times. A field write through a struct rebuilds the tuple and ships a lens runtime (737 bytes for 20 lines). The rewrites deleted 98 structs | Sharing equals copying, so every layout (scalars, positional, shared, hash-consed constant) is legal with no copy analysis |
+| L7 | **A JS-cheap contract for absence, numbers and strings.**<ul><li>`T?` is nullish on JS (null or undefined), normalized only at declared boundaries;</li><li>`charCodeAt` returns `number` or a range-proven index;</li><li>an index/count type that cannot overflow;</li><li>native emulates.</li></ul>**Needs an owner ruling** | `??null` on every `Map.get`; `(s.charCodeAt(i)\|0)`; `c=c+1\|0` counters; micromark moved its counters off `int`. Removing every `\|0` measured only −4 to −79 Brotli, so this ranks higher for raw than for Brotli | Normalization text disappears; typed numbers stop costing |
+| L8 | **A first-class dynamic type** with JS member, call, `new` and operator syntax. The 63 `JS.*` builtins collapse into it plus a typed host catalog; equality is defined (strict against primitive literals, explicit `looseEquals` otherwise) | Output-neutral alone. It deletes the recovery folds (`self_method_calls`, `array_receiver_calls`, `dissolve_receiver_adapters`) and fixes today's route divergence on `JsValue == "x"` | Per-operation facts instead of name-matched builtins |
+| L9 | **Checked downcasts and views** (`as?` with a brand test only where identity is kept; an explicit unsafe view), a **non-null assertion**, **float `%`**, `is` on classes and shapes | motion imports TypeScript identity functions as casts (11 externs); the missing operators force verbose motion code | Removes identity hacks that pin classes as host-observable |
+| L10 | **Author pins and build-time defines.** `inline for`, `@pool` and region-scoped policy (owner, 2026-09-04) become pinned choices; `[target.javascript.effects] define` gives build constants | Ignored by the compiler today | Honored instead of dropped; dead development branches |
+
+**Identity repairs the checker needs first** (prerequisites for L1, L4 and field identity):
+- `NominalId` for classes and enums (today name-keyed, so two modules' private `class Node` collide);
+- one module-graph checker entry;
+- `export constructor` in module mode;
+- node ids on identifiers;
+- one operation catalog;
+- target capabilities checked in the checker, with spans.
+
+**`object` singletons.** The feature has 0 uses and does not compile on the current compiler. The recommendation is to delete it in favour of module namespaces plus L2 const records. The owner can instead keep it and have the checker implement it.
+
+**`pure` and logging.**
+- `pure` is checked by the effect engine (§7), and a declared `pure` includes termination. `pure extern` is trusted.
+- Logging that `strip_console` may remove is declared as a `debug` effect class; `print` is a program effect and is never stripped.
+
+**What the language avoids.**
+- JS lowerings that need runtime normalization on every use: wrap-by-default arithmetic without range proof, sentinel-normalizing string APIs, null-only absence, null-prototype-by-default records, mutable value semantics.
+- Facts about values asserted program-wide in configuration.
+- Meaning keyed on names or spellings.
+- Features implemented for one target without a checker capability.
+- Implicit reflection: `name`, `length` and enumeration order are ABI only where declared.
+- Two spellings of "plain object" that differ in hidden prototype semantics.
 
 ## 13. Correctness by design
 
@@ -444,8 +479,16 @@ ecmascript = "es2022"
 **CLI:**
 
 ```
-lilscript <input> [--target js|js-module|c|native|all] [--objective raw,gzip,brotli] [--effort N] [--config] [-j N] [--explain] [--print-policy] [--check]
+lilscript <input> [-o OUT] [--target js|js-module|c|native|all] [--objective raw,gzip,brotli] [--effort N] [--config PATH] [-j N] [--codec-jobs N] [--explain human|json] [--print-policy] [--print-dependencies] [--write-lock] [--check]
 ```
+
+| Flag today | Fate |
+|---|---|
+| `-o/--output`, `--target`, `--config`, `-j/--jobs`, `--codec-jobs`, `--explain`, `--print-policy`, `--write-lock` | Kept |
+| `--print-dependencies`, `--delegate-bundling` (hidden; Lilpack and Vite use them) | Kept, on the one compiler's discovery |
+| `--mode development\|production` | Kept; `development` becomes an alias of `--effort 0`; used by Lilpack, Vite and port scripts |
+| `--backend` | Removed; a hidden flag fails with "there is one compiler" for one release |
+| `--profile-template` | Removed |
 
 ---
 
@@ -456,14 +499,15 @@ lilscript <input> [--target js|js-module|c|native|all] [--objective raw,gzip,bro
 | `src/syntax/` | lexer, parser, AST, spans, literals, admission | `lexer.rs`, `parser*.rs`, `ast.rs`, `span.rs`, `literal.rs` |
 | `src/check/` | the checker, module graph, packages, operation catalog | `semantic.rs`, `semantic/`, `module.rs`, `package.rs`, `primitive.rs`, `typed_array.rs` |
 | `src/program/` | the Program IR, elaboration, verifier, views, facts, edits, rules, choices, compilation owner, artifacts, search | `semantic_program/` minus targets |
-| `src/js/` | formation, target tree, target rules, naming, print, delivery, host modules | `semantic_program/javascript*.rs`, `structured_js/`, `host_modules.rs`, `js_*.rs` |
+| `src/js/` | formation, target tree, target rules, naming, print, delivery, host modules | `semantic_program/javascript*.rs`, `structured_js/`, `host_modules.rs`, `js_string.rs`, `js_regex.rs`, `js_syntax_target.rs`, `scalar_transfer.rs` (until M6 folds `NumberFacts` into the value fact) |
 | `src/native/` | native plan, C writer, runtime, toolchain | `semantic_program/native*.rs`, `artifact_native.rs` |
-| `src/policy/` | configuration schema and resolver, resolved policy, contract, ledger, codecs, budgets | `config.rs`, `compilation_policy.rs`, `compilation_contract.rs`, `compression.rs`, `output_budget.rs`, `arena_budget.rs`, `timing.rs` |
+| `src/policy/` | configuration schema and resolver, resolved policy, contract, ledger, codecs, budgets | `config.rs`, `compilation_policy.rs`, `compilation_contract.rs`, `compression.rs`, `output_budget.rs`, `arena_budget.rs`, `timing.rs`, `stable_hash.rs`, `module_source_arena.rs` |
 | `src/build.rs` | the public API | `compiler_service.rs` |
 | `src/tools/` | lint, formatter, reference interpreter | `lint.rs`, `formatter.rs`, `interpreter.rs` |
+| `src/main.rs`, `src/bin/` | the CLI and tool binaries (LSP, playground, codec, differential, lilpack, fmt, lint) | unchanged names |
 
 **Deleted:**
-- the old route: `compiler.rs`, `lower.rs`, `ir.rs`, `optimizer.rs`, `value_analysis.rs`, `compress_passes.rs`, `codegen_ir_js.rs`, `codegen_js.rs`, `codegen_native.rs`, `js_peephole/`, `decision_registry.rs`, `artifact_memo.rs`, `profile.rs`, `js_externs.rs` (its data moves to the catalog) and `for_of_family.rs`, about 148K lines with tests;
+- the old route: `compiler.rs`, `lower.rs`, `ir.rs`, `optimizer.rs`, `value_analysis.rs`, `compress_passes.rs`, `codegen_ir_js.rs`, `codegen_js.rs`, `codegen_native.rs`, `js_peephole/`, `decision_registry.rs`, `artifact_memo.rs`, `profile.rs`, `js_externs.rs` (its platform-name data moves first to a neutral data module, later to the operation catalog) and `for_of_family.rs`, about 149.5K lines with tests;
 - the module linker;
 - the test-only annotated-tree experiment in `structured_js` (about 6.5K lines);
 - the fixed two-file resource cut.
@@ -485,13 +529,13 @@ lilscript <input> [--target js|js-module|c|native|all] [--objective raw,gzip,bro
 
 ## 17. Decisions taken in this design
 
-The owner can revise any of these; each has a recommended default.
+The owner can revise any of these; each has a recommended default. Rows marked **needs an owner ruling** change language semantics and wait for the owner.
 
 | Question | Decision |
 |---|---|
 | Where do optimizations live? | Meaning-level on the program (both targets); syntax and spelling on the JS tree |
 | CFG or regions? | Regions with derived views; no CFG |
-| Termination of pure calls (D3.6) | Declared `pure` asserts termination; inferred purity needs a proof |
+| Termination of pure calls (D3.6) | Proof required for declared and inferred purity (D3.6 as settled). **Needs an owner ruling:** whether a declared `pure` may assert termination |
 | Public primitive arguments | Bodies keep their own normalization (D2 as written). Normalizing once at entry is a choice the compiler may take where it pays. A contract assumption `typed_arguments` (callers respect declared primitive types, as Closure assumes) is available per library, default off |
 | Per-library strategy flags | Removed. Per-library configuration is contract, objective, effort and family permission |
 | `print` and `strip_console` | `print` is a program effect and never stripped; `strip_console` removes declared debug logging and `console.*` host calls |
@@ -502,7 +546,17 @@ The owner can revise any of these; each has a recommended default.
 | Lint API | Breaking change allowed: rules run on the checked program and its facts |
 | Reference interpreter | Kept independent of the compiler; extended to the typed language over time |
 | Old route | Deleted from the product. One frozen reference binary remains for measurement |
-| Effort numbering | Levels 0–16 kept (ports use 13 and 15); each maps to a published schedule |
+| Resource accounting granularity | Work budgets per phase and per rule, with exact byte accounting only for retained candidate and artifact storage and measured RSS as the memory evidence. Allocation-exact ledgers inside every analysis (today 3,162 of 41,475 core lines) are retired before the fact spine is written |
+| `public_aggregate_abi = "positional"` | Refused: D2 fixes the public shape as a plain object. `named` is the only shape |
+| Source maps | Part of complete delivery. They are re-founded on the target tree (every expression already carries its source node id) as a delivery-plan feature (plan M8). The source-map branches built on the old route are prior art |
+| Runtime performance | Size first (owner, 2026-09-23). Runtime is a reported lane per phase (cnlil, markedlil and katexlil harnesses, native probes), not a gate, except where a library contract declares one after estimators exist. Known regressions: katexlil about 10% slower; native float loops and small-array churn until M11 |
+| Compile time | A gate: level-13 wall time per reference port must not regress at phase end against the pre-M1 binary, and each level's time budget is part of its schedule |
+| Effort numbering | Levels 0–16 kept; each maps to a published schedule. Port configs use 15 (42 files), 13 (15), 12 (every closed-world config), 8 (development configs), 6, 3 and 0 |
+| `object` singletons | Recommended: delete (0 uses; module namespaces and const records cover them). Owner may keep them instead |
+| **Needs an owner ruling:** D1 value structs | Recommended: immutable value structs with functional update (L6); `ref` removed or limited to local places |
+| **Needs an owner ruling:** absence on JS | Recommended: `T?` is nullish on JS and normalized only at declared boundaries (L7) |
+| **Needs an owner ruling:** the `int` contract | Recommended: keep wrapping `int` for exactness and add a non-overflowing index/count type (L7) |
+| Equality on the dynamic type | Strict against primitive literals; explicit `looseEquals` otherwise (L8) |
 
 ---
 
@@ -515,40 +569,52 @@ The owner can revise any of these; each has a recommended default.
 
 ---
 
-## Appendix A. Owner decisions D1–D5 (verbatim from the 2026-09-18 design)
+## Appendix A. Owner decisions D1–D5 (verbatim from the 2026-09-18 design, `git show d362338f:docs/compiler-design.md`)
 
 | ID | Status | Contract or decision |
 |---|---|---|
 | D1 | Owner chose | Value structs; mutation of caller storage requires explicit mutable references. Flattening is an implementation, not assignment semantics. |
 | D2 | Owner chose 2026-09-20 | Primary public-JS model: **explicitly declared boundaries around typed internals, with compatible adapters**. Each public surface declares its boundary; the adapter preserves the observations that boundary's callers already rely on — identity, mutation, enumeration, descriptors, serialization, callback retention and function observations. Types alone still do not establish privacy, and an undeclared surface keeps its existing supported observations. |
-| D3 | Settled 2026-09-20 | Preserve results, explicit throws, argument errors, host effects and divergence. Engine-dependent OOM/string-cap/stack-exhaustion timing need not match. Track resource risk and configured limits. This permits neither unbounded evaluation nor removing ordinary exceptions. |
-| D4 | Owner chose; threshold provisional 2026-09-20 | Independent raw/gzip/Brotli objectives and no per-row losses against eligible competitors. **Provisional strict-win threshold: 100 bytes or 1% of the competitor, whichever is larger.** |
-| D5 | Flag model adopted 2026-09-20 | Family flags permit or forbid exploration; enabling a family never forces its representation. Effort must not silently alter language/host assumptions or runtime-risk permissions. Level 16 grants startup-risk tactics their permission implicitly and is documented as such. |
+| D3 | Settled 2026-09-20 under the delegated resource policy; wording below | Preserve results, explicit throws, argument errors, host effects and divergence. Engine-dependent OOM/string-cap/stack-exhaustion timing need not match. Track resource risk and configured limits. This permits neither unbounded evaluation nor removing ordinary exceptions. The exact clauses are in *D3 in full* below. |
+| D4 | Owner chose; threshold provisional 2026-09-20 | Independent raw/gzip/Brotli objectives and no per-row losses against eligible competitors. **Provisional strict-win threshold: 100 bytes or 1% of the competitor, whichever is larger.** It is the measured Brotli noise floor (about +/-100 bytes per rename), so a win under it survives re-measurement. No cell measured on 2026-09-20 lies inside that margin, so the threshold changes no current verdict; it is recorded as a choice and is cheap to revise. |
+| D5 | Flag model adopted per owner guidance 2026-09-20; level 16 kept as a documented grant | Family flags permit or forbid exploration; enabling a family never forces its representation. Effort must not silently alter language/host assumptions or runtime-risk permissions. **Level 16** is the one level that grants startup-risk tactics their risk permission implicitly (`compilation_policy.rs`, `startup_at_level_16`). No maintained port uses it — nineteen set level 15 and eight set level 13 — so it is kept, unchanged, as an explicit and documented grant rather than a silent one: level 16 means level 15 plus startup-risk permission for the tactics that declare it, overridable per tactic under `[policy.tactics]`. New ports grant runtime risk through tactic permissions, not through effort. |
 
-**D2 for value structs.**
+### D2 for value structs
+
+Inside an artifact a value struct is whatever representation the compiler chooses: positional storage, scalars in locals, or fields passed as separate arguments. At a declared public boundary it is one documented shape. Milestone 006 implements this adapter for JavaScript ([javascript_public_structs.rs](../src/semantic_program/javascript_public_structs.rs)).
 
 | Rule | Contract |
 |---|---|
-| Public shape | A plain object whose own enumerable data properties are the struct's fields in declaration order, with the ordinary object prototype. Nested structs are nested objects. `__proto__` as a field name is data. |
-| Results | Every public return builds a fresh object. |
-| Arguments | An incoming object is read once per field, depth first in declaration order, when the call starts; a getter runs exactly once; a missing object throws the host's `TypeError` before the body runs. |
-| Components | Field values transfer raw; the body keeps its own normalization. |
-| Reflection | The published function keeps the source function's `name`, its `length` and its callable kind. One source function exported under two names is one identity. |
-| Refused | A struct inside an array, map, set, record, callable, union or nullable at the boundary; a generic struct instance; a struct parameter with a default; a body that observes `this` or `arguments`. |
+| Public shape | A plain object whose own enumerable data properties are the struct's fields in declaration order, with the ordinary object prototype. Nested structs are nested objects. `__proto__` as a field name is defined as data, never as a prototype. |
+| Results | Every public return builds a fresh object. A caller that mutates it cannot reach internal storage. |
+| Arguments | An incoming object is read once per field, depth first in declaration order, when the call starts; later mutation by the caller is not observed. A getter runs exactly once. A missing object throws the host's `TypeError` before the body runs. |
+| Components | Field values transfer raw, as every adapter does. The body keeps its own normalization, so an ill-typed `int` field behaves as it would reaching an `int` parameter directly. |
+| Reflection | The published function keeps the source function's `name` (not the export alias, as in JavaScript), its `length` and its callable kind (a declared function stays constructible). One source function exported under two names is one identity. |
+| Refused | A struct inside an array, map, set, record, callable, union or nullable at the boundary; a generic struct instance; a struct parameter with a default; a function body that observes `this` or `arguments`. Each needs identity, aliasing or frame behavior a copying adapter cannot give. The refusal names the feature; there is no fallback. |
 
-**D3 clauses.**
-- **D3.1** Results are equal on every target and at every effort.
-- **D3.2** Explicit throws reach the same handler.
-- **D3.3** Argument errors happen at the same point.
-- **D3.4** Host effects keep their source order and count, coercions and getters included.
-- **D3.5** Short-circuit operands are evaluated only when the source evaluates them.
-- **D3.6** Divergence is preserved.
-- **D3.7** Initialization runs once, in order, with early reads throwing where the source would.
-- **D3.8** Async and suspension interleavings are kept.
-- **D3.9** Script, strict and module frames stay distinct.
-- **D3.10** Resource exhaustion timing may differ, but a program within configured limits must not start exhausting them.
+The wrapper and its codecs are hoisted declarations, so a wrapper reached through a module cycle before the module finishes evaluating behaves like the source declaration. Byte cost is paid only by exports whose signatures carry structs; the private function loses its now-unobservable name.
 
-Each clause has positive and refusal cases in `d3_clause_tests`.
+### D3 in full
+
+Each clause is stated so it can become an executable case; clauses already exercised by 002's boundary table say so.
+
+| Clause | Rule | Executable today |
+|---|---|---|
+| D3.1 Results | A terminating program produces the same result value on every target and at every effort. | 72-case census (`.out` equality), JS and C |
+| D3.2 Explicit throws | An ordinary `throw`, including one raised inside a caller's accessor or callback, reaches the same handler with the same constructor, message and payload identity. | Boundary table: `d3/throws/*` |
+| D3.3 Argument errors | An argument error a boundary raises for unusable input is the error upstream raises, at the same point, before the same effects. | Boundary table: `d3/errors/unknown-node-type` |
+| D3.4 Host effects | Reads of caller accessors, writes to caller objects, host calls and console output occur in source order, each as many times as the source performs it. Coercions (`valueOf`, `toString`, `Symbol.toPrimitive`) and getters are effects. | Boundary table: `d3/effects/*` (read order) |
+| D3.5 Short-circuiting | `&&`, `\|\|`, `??`, `?.` and conditional operands are evaluated only when the source evaluates them. | Census |
+| D3.6 Divergence | A program that does not terminate still does not terminate; one that terminates still does. The compiler never evaluates a loop or recursion at compile time without a configured bound. | `d3_clause_tests::d3_6_*`: a diverging call still diverges with its result unused; recursion over constants is not evaluated while compiling |
+| D3.7 Initialization | Module-level initialization runs once, in dependency order, before the first observable use; a read before initialization throws where the source would. | `d3_clause_tests::d3_7_*`: initialization runs once, in order; an early read is refused while checking |
+| D3.8 Async and suspension | Settlement order of promises and the interleaving points of `await` and generators are preserved. | `d3_clause_tests::d3_8_*`: generator and `await` interleavings run in source order; native refuses suspension |
+| D3.9 Frames | Script, strict and module frames are distinct: a closed world alone never implies strict mode, and `this`, `arguments` and sloppy-mode globals keep their frame's meaning. | `d3_clause_tests::d3_9_*`: `this` is the global object in a sloppy script and `undefined` in a module; a script frame needing strict mode is refused |
+| D3.10 Resources | Exhausting memory, string length or stack is engine-dependent in *when* it happens and need not match; a program that stays within the configured limits must not start exhausting them. Every transformation that can increase peak memory, recursion depth or string size records that risk. | `d3_clause_tests::d3_10_*`: recursion 5,000 deep runs; helper inlining refuses a recursive helper |
+
+D3.6-D3.10 each have a positive and a refusal case since 007 (`src/semantic_program/d3_clause_tests.rs`), run on the semantic route. A family that could affect one of them must keep its case passing before it is enabled by default.
+
+**Owner guidance, 2026-09-20 — be pragmatic about strategies.** Optimization is not deterministic: a strategy that is better on average is often worse for some libraries, and the compiler's decisions are already controllable per port through `lilscript.toml`. So two different questions get two different rules. A *strategy default* is adopted when it wins on the fleet average; a library it hurts sets its own flag, and that loss is a tuning task for the library rather than a veto on the default. A *qualification cell* is still judged per library, but with that library's best configuration, not with whatever the default happens to be. This supports D5's model — flags permit or forbid a family, per port — without deciding D5's remaining questions.
+
 
 ## Appendix B. Measurement laws
 
