@@ -342,7 +342,7 @@ fn large_scope_uses_single_name_payloads_and_fails_capacity_before_allocation() 
         ));
         assert_eq!(budget.retained_bytes(AllocationClass::Scratch), 0);
         let structure = verify::verify_in(&module, &mut budget).unwrap();
-        let basis = Basis::new_in(&module, &structure, None, &mut budget).unwrap();
+        let basis = Basis::new_in(&module, &structure, &mut budget).unwrap();
         for style in [Style::Global, Style::Scoped, Style::Source] {
             let mut phase = budget.scope();
             let names = basis.names_in(&Plan::new(style), &mut phase).unwrap();

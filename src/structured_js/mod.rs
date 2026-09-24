@@ -1,9 +1,10 @@
-//! Experimental, structured JavaScript boundary for the architecture comparison.
+//! The JavaScript target tree. Semantic formation builds it; the passes here
+//! edit it; naming, printing and delivery turn it into files.
 //!
-//! This is not selected by the production compiler. Expressions contain syntax,
-//! lexical cells have independent `BindingId` handles. Their optional source
-//! symbol and each operation's `SourceNodeId` retain provenance through target edits.
-//! Arena handles locate target storage; source identities explain its origin.
+//! Expressions contain syntax, lexical cells have independent `BindingId`
+//! handles. Their optional source symbol and each operation's `SourceNodeId`
+//! retain provenance through target edits. Arena handles locate target
+//! storage; source identities explain its origin.
 //! There is deliberately no raw-code node or per-node rendered text.
 //! Nonliteral expression handles own one syntax occurrence. Reusing an SSA
 //! value requires a binding reference or an explicitly justified rematerialized
@@ -14,13 +15,7 @@ use crate::literal::StringValue;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError};
 use crate::primitive::{IntBinary, Intrinsic};
 use crate::semantic::SymbolId;
-use std::collections::BTreeMap;
-#[cfg(test)]
-use std::collections::BTreeSet;
 
-pub mod analysis;
-mod compact;
-mod constants;
 mod calls;
 mod declarations;
 mod root_constants;
@@ -33,7 +28,6 @@ pub mod extract;
 mod literal_output;
 pub use literal_output::LiteralOutput;
 pub(crate) use literal_output::{LiteralAlternative, WeakLiteralObservation};
-mod flow;
 #[cfg(test)]
 mod imports_tests;
 mod inline;
@@ -43,13 +37,9 @@ mod naming;
 pub mod selection;
 use naming::Names;
 pub(crate) use naming::NamingProvenance;
-pub mod lower;
-pub mod optimize;
 #[cfg(test)]
 mod output_policy_tests;
-mod plan;
 mod print;
-mod rewrite;
 mod simplify;
 mod blocks;
 mod host_lowering;
@@ -57,9 +47,7 @@ mod initializers;
 mod pooling;
 mod quiet;
 mod statements;
-pub(crate) use rewrite::literal_array_projection;
-#[cfg(test)]
-mod string_recipe_tests;
+pub(crate) use simplify::literal_array_projection;
 #[cfg(test)]
 mod tests;
 mod verify;
@@ -166,17 +154,6 @@ impl IntBinary {
             Self::Remainder => Binary::Remainder,
             Self::UnsignedShiftRight => Binary::UnsignedShiftRight,
         }
-    }
-    pub(super) fn from_javascript(op: Binary) -> Option<Self> {
-        Some(match op {
-            Binary::Add => Self::Add,
-            Binary::Subtract => Self::Subtract,
-            Binary::Multiply => Self::Multiply,
-            Binary::Divide => Self::Divide,
-            Binary::Remainder => Self::Remainder,
-            Binary::UnsignedShiftRight => Self::UnsignedShiftRight,
-            _ => return None,
-        })
     }
 }
 
@@ -3177,7 +3154,7 @@ impl Module {
 
     pub fn render(&self, policy: PrintPolicy) -> Result<String, String> {
         let names = Names::new(self, policy)?;
-        Ok(print::render(self, &names, None))
+        Ok(print::render(self, &names))
     }
 }
 

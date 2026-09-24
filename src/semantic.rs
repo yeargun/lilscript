@@ -9752,7 +9752,6 @@ mod tests {
         let other = parse_source(&arena, "\"seven\"; 7;").unwrap();
         assert!(!model.belongs_to(other.source_identity()));
         assert!(crate::lower::lower_to_control_flow(&other, &model).is_err());
-        assert!(crate::structured_js::lower::lower_slice(&other, &model).is_err());
         assert!(crate::interpreter::interpret_program(&other, &model).is_err());
         assert!(crate::codegen_js::JsEmitter::new(Default::default())
             .emit_checked_program(&other, &model)

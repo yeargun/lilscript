@@ -5,7 +5,6 @@
 use super::*;
 use crate::compilation_policy::WorkKind;
 use crate::output_budget::{AllocationBudget, AllocationClass, AllocationError, RetainedCharge};
-use analysis::{Analysis, Mode, Snapshot, Work};
 use std::cell::RefCell;
 
 /// Accounted failures retain only fixed metadata. Formatting a user diagnostic
@@ -53,43 +52,15 @@ impl std::fmt::Display for OutputError {
 }
 impl std::error::Error for OutputError {}
 
-#[derive(Clone, Copy)]
-pub(super) struct JavaScriptChoices<'a> {
-    pub plain_integer: &'a [bool],
-    unobserved_names: &'a [bool],
-}
-
-pub(super) fn function_name<'a>(
-    module: &'a Module,
-    function: FunctionId,
-    choices: Option<JavaScriptChoices<'_>>,
-) -> Option<&'a StringValue> {
-    if choices.is_some_and(|choices| choices.unobserved_names[function.index()]) {
-        None
-    } else {
-        module.functions[function.index()].name.exact()
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy)]
-pub struct NameWork {
-    pub scanned_statements: usize,
-    pub candidates: usize,
-    pub statements: usize,
-    pub expressions: usize,
-}
-
 /// One prepared output boundary shares its naming constraints, verified
 /// structure and target facts across every candidate render.
 pub struct Output<'a> {
     module: &'a Module,
     pub(super) basis: naming::Basis<'a>,
-    choices: Option<JavaScriptChoices<'a>>,
     naming: naming::Eligibility,
     literal_alternatives: &'a [LiteralAlternative],
     has_literal_alternative: bool,
     permits_observed_literals: bool,
-    pub reused_structure: bool,
     /// Host modules the output carries, and whether they run strict.
     hosts: Option<(&'a crate::host_modules::HostDelivery, bool)>,
     // Basis (including installed lazy caches) drops before its reservation owner.
@@ -133,7 +104,7 @@ impl<'a> Output<'a> {
             }
             let has_literal_alternative =
                 literal_output::validate(module, literal_alternatives, &structure, &mut prepare)?;
-            let basis = naming::Basis::new_in(module, &structure, None, &mut prepare)?;
+            let basis = naming::Basis::new_in(module, &structure, &mut prepare)?;
             drop(structure);
             prepare.finish_retained()?;
             (basis, has_literal_alternative)
@@ -141,41 +112,10 @@ impl<'a> Output<'a> {
         Ok(Self {
             module,
             basis,
-            choices: None,
             naming,
             literal_alternatives,
             has_literal_alternative,
             permits_observed_literals,
-            reused_structure: false,
-            hosts: None,
-            budget: RefCell::new(budget),
-        })
-    }
-
-    pub(super) fn new(
-        tree: &'a lower::AnnotatedTree<'_, '_>,
-        choices: Option<JavaScriptChoices<'a>>,
-    ) -> Result<Self, String> {
-        let (structure, reused_structure) = tree.structure()?;
-        let mut budget = AllocationBudget::new(None);
-        let basis = {
-            let mut prepare = budget.scope();
-            let basis = naming::Basis::new_in(tree.target(), structure, choices, &mut prepare)
-                .map_err(|error| error.to_string())?;
-            prepare
-                .finish_retained()
-                .map_err(|error| error.to_string())?;
-            basis
-        };
-        Ok(Self {
-            module: tree.target(),
-            basis,
-            choices,
-            naming: naming::Eligibility::Search,
-            literal_alternatives: &[],
-            has_literal_alternative: false,
-            permits_observed_literals: false,
-            reused_structure,
             hosts: None,
             budget: RefCell::new(budget),
         })
@@ -234,7 +174,6 @@ impl<'a> Output<'a> {
             print::render_with_literals_admitted(
                 self.module,
                 &names,
-                self.choices,
                 self.literal_alternatives,
                 literals,
                 limit,
@@ -469,7 +408,6 @@ impl<'a> Output<'a> {
             print::render_file_admitted(
                 self.module,
                 names,
-                self.choices,
                 self.literal_alternatives,
                 literals,
                 remaining,
@@ -667,13 +605,6 @@ impl<'a> Output<'a> {
     pub(crate) fn source_candidates_admitted(&self) -> Result<&[BindingId], OutputError> {
         self.basis
             .source_candidates_in(&mut self.budget.borrow_mut())
-    }
-
-    pub(super) fn naming_seeds(&self) -> &'static [naming::Style] {
-        self.naming.seeds()
-    }
-    pub(super) fn permits_naming_search(&self) -> bool {
-        self.naming.permits_search()
     }
 }
 
@@ -874,251 +805,4 @@ pub(crate) struct RenderedBundle<Owner> {
     /// Lazy chunks the entry preloads, by name.
     pub preload: Vec<String>,
     pub chunks: Vec<RenderedChunk<Owner>>,
-}
-
-pub struct JavaScriptView<'tree, 'sem, 'src> {
-    tree: &'tree lower::AnnotatedTree<'sem, 'src>,
-    plain_integer: Vec<bool>,
-    unobserved_names: Vec<bool>,
-    pub omitted_normalizations: usize,
-    pub omitted_function_names: usize,
-    pub name_work: NameWork,
-    pub reused_facts: bool,
-    pub work: Work,
-}
-
-impl<'tree, 'sem, 'src> JavaScriptView<'tree, 'sem, 'src> {
-    pub fn prepare(tree: &'tree lower::AnnotatedTree<'sem, 'src>, mode: Mode) -> Self {
-        Self::prepare_in_world(
-            tree,
-            mode,
-            crate::compilation_contract::JavaScriptWorld::ReusableLibrary,
-        )
-    }
-
-    pub fn prepare_in_world(
-        tree: &'tree lower::AnnotatedTree<'sem, 'src>,
-        mode: Mode,
-        world: crate::compilation_contract::JavaScriptWorld,
-    ) -> Self {
-        Self::prepare_in_execution(
-            tree,
-            mode,
-            world,
-            crate::compilation_contract::JavaScriptExecution::Script,
-        )
-    }
-
-    pub fn prepare_in_execution(
-        tree: &'tree lower::AnnotatedTree<'sem, 'src>,
-        mode: Mode,
-        world: crate::compilation_contract::JavaScriptWorld,
-        execution: crate::compilation_contract::JavaScriptExecution,
-    ) -> Self {
-        Self::from_analysis(
-            Analysis::new_in_execution(tree, mode, world, execution),
-            false,
-        )
-    }
-
-    pub fn prepare_reusing(
-        tree: &'tree lower::AnnotatedTree<'sem, 'src>,
-        snapshot: Snapshot,
-    ) -> Result<Self, &'static str> {
-        Self::prepare_reusing_in_execution(
-            tree,
-            snapshot,
-            crate::compilation_contract::JavaScriptExecution::Script,
-        )
-    }
-
-    pub fn prepare_reusing_in_execution(
-        tree: &'tree lower::AnnotatedTree<'sem, 'src>,
-        snapshot: Snapshot,
-        execution: crate::compilation_contract::JavaScriptExecution,
-    ) -> Result<Self, &'static str> {
-        Ok(Self::from_analysis(
-            Analysis::resume_in_execution(tree, snapshot, execution)?,
-            true,
-        ))
-    }
-
-    fn from_analysis(mut analysis: Analysis<'tree, 'sem, 'src>, reused_facts: bool) -> Self {
-        let tree = analysis.tree();
-        let module = tree.target();
-        let mut plain_integer = vec![false; module.expressions.len()];
-        let mut unobserved_names = vec![false; module.functions.len()];
-        let mut name_work = NameWork::default();
-        let mut omitted_normalizations = 0;
-        // Direct eval can invalidate lexical value facts as well as names.
-        // Until an eval contract constrains those writes, extraction must not
-        // use an initializer's old range to remove semantic normalization.
-        if analysis.has_direct_eval() {
-            return Self {
-                tree,
-                plain_integer,
-                unobserved_names,
-                omitted_normalizations,
-                omitted_function_names: 0,
-                name_work,
-                reused_facts,
-                work: analysis.work(),
-            };
-        }
-        for (index, expression) in module.expressions.iter().enumerate() {
-            if matches!(
-                expression,
-                Expr::IntBinary { .. }
-                    | Expr::IntNegate(_)
-                    | Expr::ToInt32(_)
-                    | Expr::Intrinsic { .. }
-            ) && analysis.facts(ExprId::new(index)).normalization_redundant
-            {
-                plain_integer[index] = true;
-                omitted_normalizations += 1;
-            }
-        }
-        if !module.functions.is_empty() {
-            let root_scope = module.regions[module.root.index()].scope;
-            let mut pending_regions = Vec::new();
-            let mut pending_expressions = Vec::new();
-            for region in &module.regions {
-                if analysis.world() == crate::compilation_contract::JavaScriptWorld::ReusableLibrary
-                    && region.scope == root_scope
-                {
-                    continue;
-                }
-                for statement in &region.statements {
-                    name_work.scanned_statements += 1;
-                    let (binding, function) = match statement {
-                        Statement::Function { binding, function } => (*binding, *function),
-                        Statement::Let {
-                            binding,
-                            value: Some(value),
-                        } => {
-                            let Expr::Function(function) = module.expressions[value.index()] else {
-                                continue;
-                            };
-                            (*binding, function)
-                        }
-                        _ => continue,
-                    };
-                    if module.functions[function.index()].name.exact().is_none() {
-                        continue;
-                    }
-                    let uses = analysis.binding_uses(binding);
-                    if uses.exported
-                        || uses.reads.is_empty()
-                        || !uses.writes.is_empty()
-                        || !uses
-                            .reads
-                            .iter()
-                            .all(|read| matches!(read.observation, analysis::Observation::Call(_)))
-                    {
-                        continue;
-                    }
-                    name_work.candidates += 1;
-                    unobserved_names[function.index()] = frame_unobservable(
-                        &mut analysis,
-                        function,
-                        &mut pending_regions,
-                        &mut pending_expressions,
-                        &mut name_work,
-                    );
-                }
-            }
-        }
-        let omitted_function_names = unobserved_names
-            .iter()
-            .filter(|unobserved| **unobserved)
-            .count();
-        Self {
-            tree,
-            plain_integer,
-            unobserved_names,
-            omitted_normalizations,
-            omitted_function_names,
-            name_work,
-            reused_facts,
-            work: analysis.work(),
-        }
-    }
-
-    pub fn render(&self, policy: PrintPolicy) -> Result<String, String> {
-        self.output()?
-            .render(&naming::Plan::new(if policy.mangle_bindings {
-                naming::Style::Global
-            } else {
-                naming::Style::Source
-            }))
-    }
-
-    pub fn output(&self) -> Result<Output<'_>, String> {
-        Output::new(
-            self.tree,
-            Some(JavaScriptChoices {
-                plain_integer: &self.plain_integer,
-                unobserved_names: &self.unobserved_names,
-            }),
-        )
-    }
-}
-
-/// Value effects alone do not describe observation of the executing frame.
-/// In particular, a typed primitive may emit a mutable prototype-method call.
-/// Refuse those calls without a target contract that proves them non-reentrant.
-fn frame_unobservable(
-    analysis: &mut Analysis<'_, '_, '_>,
-    function: FunctionId,
-    regions: &mut Vec<RegionId>,
-    expressions: &mut Vec<ExprId>,
-    work: &mut NameWork,
-) -> bool {
-    let module = analysis.tree().target();
-    regions.clear();
-    expressions.clear();
-    regions.push(module.functions[function.index()].body);
-    while let Some(region) = regions.pop() {
-        for statement in &module.regions[region.index()].statements {
-            work.statements += 1;
-            match statement {
-                Statement::If { yes, no, .. } => {
-                    regions.push(*yes);
-                    regions.extend(*no);
-                }
-                Statement::Loop { body, .. } | Statement::ForIn { body, .. } | Statement::ForOf { body, .. } => {
-                    regions.push(*body);
-                }
-                Statement::Block(body) => {
-                    regions.push(*body);
-                }
-                Statement::Throw(_) | Statement::Function { .. } | Statement::Try { .. } => {
-                    return false
-                }
-                _ => {}
-            }
-            let mut unobservable = true;
-            statement.visit_expressions(|root| {
-                unobservable &= analysis.facts(root).effects.stable_scalar();
-                expressions.push(root);
-            });
-            if !unobservable {
-                return false;
-            }
-            while let Some(expression) = expressions.pop() {
-                work.expressions += 1;
-                let node = &module.expressions[expression.index()];
-                if matches!(node, Expr::Intrinsic { operation, .. } if matches!(intrinsic_form(*operation), IntrinsicForm::Method(_)))
-                {
-                    return false;
-                }
-                node.visit_children(|child| {
-                    expressions.push(child);
-                    Ok::<_, ()>(())
-                })
-                .unwrap();
-            }
-        }
-    }
-    true
 }

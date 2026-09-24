@@ -86,9 +86,8 @@ fn precedence(expression: &Expr) -> u8 {
 pub(super) fn render(
     module: &Module,
     names: &Names,
-    choices: Option<extract::JavaScriptChoices<'_>>,
 ) -> String {
-    render_bounded(module, names, choices, usize::MAX).expect("unbounded output")
+    render_bounded(module, names, usize::MAX).expect("unbounded output")
 }
 
 /// Error before a complete artifact is published. No partial text escapes.
@@ -101,11 +100,10 @@ pub(crate) enum PrintError {
 pub(super) fn render_bounded(
     module: &Module,
     names: &Names,
-    choices: Option<extract::JavaScriptChoices<'_>>,
     limit: usize,
 ) -> Result<String, String> {
     let mut budget = AllocationBudget::new(None);
-    render_admitted(module, names, choices, limit, &mut budget).map_err(|error| match error {
+    render_admitted(module, names, limit, &mut budget).map_err(|error| match error {
         PrintError::ByteLimit => "render exceeds candidate byte budget".into(),
         PrintError::Admission(error) => format!("render admission failed: {error:?}"),
     })
@@ -117,14 +115,12 @@ pub(super) fn render_bounded(
 pub(super) fn render_admitted(
     module: &Module,
     names: &Names,
-    choices: Option<extract::JavaScriptChoices<'_>>,
     limit: usize,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<String, PrintError> {
     render_with_literals_admitted(
         module,
         names,
-        choices,
         &[],
         LiteralOutput::Original,
         limit,
@@ -136,7 +132,6 @@ pub(super) fn render_admitted(
 pub(super) fn render_with_literals_admitted(
     module: &Module,
     names: &Names,
-    choices: Option<extract::JavaScriptChoices<'_>>,
     literal_alternatives: &[LiteralAlternative],
     literals: LiteralOutput,
     limit: usize,
@@ -148,7 +143,6 @@ pub(super) fn render_with_literals_admitted(
     let mut printer = Printer {
         module,
         names,
-        choices,
         literal_alternatives,
         literals,
         numeric: numeric_bindings(module),
@@ -241,7 +235,6 @@ pub(super) enum FilePart {
 pub(super) fn render_file_admitted(
     module: &Module,
     names: &Names,
-    choices: Option<extract::JavaScriptChoices<'_>>,
     literal_alternatives: &[LiteralAlternative],
     literals: LiteralOutput,
     limit: usize,
@@ -259,7 +252,6 @@ pub(super) fn render_file_admitted(
     let mut printer = Printer {
         module,
         names,
-        choices,
         literal_alternatives,
         literals,
         numeric: numeric_bindings(module),
@@ -504,7 +496,6 @@ fn numeric_bindings(module: &Module) -> Vec<bool> {
 struct Printer<'a, 'budget, 'ledger> {
     module: &'a Module,
     names: &'a Names,
-    choices: Option<extract::JavaScriptChoices<'a>>,
     literal_alternatives: &'a [LiteralAlternative],
     literals: LiteralOutput,
     output: Buffer<'budget, 'ledger>,
@@ -708,9 +699,6 @@ impl<'a> Printer<'a, '_, '_> {
 
     fn plain_integer(&self, id: ExprId) -> bool {
         self.discarded_root == Some(id)
-            || self
-                .choices
-                .is_some_and(|choices| choices.plain_integer[id.index()])
             || self.module.pristine_builtins
                 && matches!(
                     self.module.expressions[id.index()],
@@ -945,7 +933,7 @@ impl<'a> Printer<'a, '_, '_> {
         }
         let expression = &self.module.expressions[id.index()];
         if let Expr::Function(function) = expression {
-            if let Some(name) = extract::function_name(self.module, *function, self.choices) {
+            if let Some(name) = self.module.functions[function.index()].name.exact() {
                 // Name comparison and two possible identifier scans.
                 let Some(work) = name.storage_bytes().checked_mul(3) else {
                     self.output.error = Some(PrintError::Admission(AllocationError::Capacity));

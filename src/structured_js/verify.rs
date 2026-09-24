@@ -404,7 +404,7 @@ impl Walk<'_, '_, '_> {
     fn expression(&mut self, id: ExprId, scope: ScopeId, depth: usize) -> Result<(), OutputError> {
         self.budget.work(WorkKind::Analysis, 1)?;
         if depth > MAX_NESTING {
-            return Err("experimental target nesting limit exceeded".into());
+            return Err("target nesting limit exceeded".into());
         }
         let module = self.module;
         let expression = module

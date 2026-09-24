@@ -1,5 +1,4 @@
 use super::naming::{Plan, Style};
-use super::selection::{Budget, Objective, Objectives};
 use super::*;
 use crate::compilation_policy::{CompilationRequest, ResolvedPolicy};
 use std::process::Command;
@@ -85,7 +84,7 @@ fn check_runtime(javascript: &str) {
 }
 
 #[test]
-fn identifier_mangling_off_restricts_render_and_search_to_source() {
+fn identifier_mangling_off_restricts_render_to_source() {
     let (module, state) = fixture();
     for naming_search in ["on", "off"] {
         let resolved = policy(&format!(
@@ -103,25 +102,6 @@ fn identifier_mangling_off_restricts_render_and_search_to_source() {
         let mut override_plan = Plan::new(Style::Source);
         override_plan.source_names.push(state);
         assert!(output.render(&override_plan).is_err());
-        let selected = output
-            .select(
-                Budget {
-                    plans: 512,
-                    candidate_bytes: 100_000,
-                },
-                Objectives::All,
-                crate::compression::measure,
-            )
-            .unwrap();
-        assert_eq!(selected.proposal_steps, 1);
-        assert_eq!(selected.attempts.len(), 1);
-        assert_eq!(selected.candidates.len(), 1);
-        assert_eq!(selected.measurement_calls, 2);
-        for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
-            let winner = selected.winner(codec).unwrap();
-            assert_eq!(winner.plan, Plan::new(Style::Source));
-            assert_eq!(winner.javascript, source);
-        }
         check_runtime(&source);
     }
 }
@@ -146,24 +126,11 @@ fn naming_search_off_keeps_one_mangled_baseline_and_rejects_manual_overrides() {
         .render(&override_plan)
         .unwrap_err()
         .contains("naming search is disabled"));
-    let selected = output
-        .select(
-            Budget {
-                plans: 512,
-                candidate_bytes: 100_000,
-            },
-            Objectives::One(Objective::Raw),
-            |_, _| panic!("raw selection does not probe a codec"),
-        )
-        .unwrap();
-    assert_eq!(selected.proposal_steps, 1);
-    assert_eq!(selected.attempts.len(), 1);
-    assert_eq!(selected.winner(Objective::Raw).unwrap().javascript, global);
     check_runtime(&global);
 }
 
 #[test]
-fn enabled_search_retains_alternatives_and_prepared_permissions_do_not_change() {
+fn enabled_search_renders_every_style_and_prepared_permissions_do_not_change() {
     let (module, state) = fixture();
     let constrained = module
         .prepare_output_with_policy(&policy("identifier-mangling='off'\nnaming-search='off'"))
@@ -180,26 +147,6 @@ fn enabled_search_retains_alternatives_and_prepared_permissions_do_not_change() 
         .render(&override_plan)
         .unwrap()
         .contains("descriptiveState"));
-    let selected = output
-        .select(
-            Budget {
-                plans: 16,
-                candidate_bytes: 100_000,
-            },
-            Objectives::One(Objective::Raw),
-            |_, _| unreachable!(),
-        )
-        .unwrap();
-    for style in [Style::Global, Style::Scoped, Style::Source] {
-        assert!(selected
-            .attempts
-            .iter()
-            .any(|attempt| attempt.plan == Plan::new(style)));
-    }
-    assert!(selected
-        .attempts
-        .iter()
-        .any(|attempt| !attempt.plan.source_names.is_empty()));
     assert!(constrained.render(&Plan::new(Style::Global)).is_err());
     assert!(constrained.render(&override_plan).is_err());
 }

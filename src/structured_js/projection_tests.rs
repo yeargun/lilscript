@@ -42,11 +42,14 @@ fn literal_projection_preserves_raw_values_and_uses_no_new_target_storage() {
                 "projection must not normalize its raw value"
             );
         }
-        rewrite::apply(
-            &mut module,
-            None,
-            vec![(value.index(), rewrite::Replacement::Value(folded))],
-        );
+        // Formation uses the projected element in place of the read, as here.
+        for expression in &mut module.expressions {
+            if let Expr::Call { arguments, .. } = expression {
+                for argument in arguments.iter_mut().filter(|argument| **argument == value) {
+                    *argument = folded;
+                }
+            }
+        }
         assert_eq!(execute(&module, "", PrintPolicy::default()), before);
         verify::verify(&module).unwrap();
     }

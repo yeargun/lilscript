@@ -119,6 +119,8 @@ mod class_javascript_tests;
 #[cfg(test)]
 mod syntax_javascript_tests;
 #[cfg(test)]
+mod source_legality_tests;
+#[cfg(test)]
 mod d3_clause_tests;
 
 #[cfg(test)]

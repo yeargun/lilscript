@@ -21,6 +21,8 @@
 //!   builtins, when the pattern is in the subset whose literal and constructor
 //!   forms mean the same (`js_regex`). Each evaluation still creates a fresh
 //!   object, so the literal is never copied or shared.
+//! * `[a,b,c][i]` of inert literals, with `i` an own present index, is the
+//!   selected element. Formation calls this rule directly on a value read.
 use super::*;
 
 /// The primitive type an expression's value is known to have.
@@ -608,4 +610,40 @@ impl Module {
             _ => None,
         }
     }
+}
+
+/// A value-read rule shared with direct target formation. The caller must
+/// supply a value occurrence, never an assignment place or receiver callee.
+/// Every element is an inert literal and the selected property is own and
+/// present, so this removes only an unobserved fresh allocation. It performs
+/// no normalization and copies no payload.
+pub(crate) fn literal_array_projection(
+    module: &Module,
+    value: ExprId,
+    budget: &mut crate::output_budget::AllocationBudget<'_>,
+) -> Result<Option<ExprId>, crate::output_budget::AllocationError> {
+    budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+    let Expr::Member {
+        object,
+        property: Property::Computed(key),
+    } = &module.expressions[value.index()]
+    else {
+        return Ok(None);
+    };
+    let (Expr::Array(elements), Expr::Literal(Literal::Number(index))) = (
+        &module.expressions[object.index()],
+        &module.expressions[key.index()],
+    ) else {
+        return Ok(None);
+    };
+    if *index < 0.0 || index.fract() != 0.0 || *index >= elements.len() as f64 {
+        return Ok(None);
+    }
+    for element in elements {
+        budget.work(crate::compilation_policy::WorkKind::Analysis, 1)?;
+        if !matches!(module.expressions[element.index()], Expr::Literal(_)) {
+            return Ok(None);
+        }
+    }
+    Ok(Some(elements[*index as usize]))
 }

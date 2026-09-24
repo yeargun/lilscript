@@ -2,7 +2,6 @@
 //! Rust tests are staged outside the repository until coordinated integration.
 use super::naming::{Plan, Style};
 use super::*;
-use crate::compilation_contract::{JavaScriptExecution, JavaScriptWorld};
 use crate::compilation_policy::{
     BudgetLedger, BudgetPlan, CompilationRequest, ResourceLimits, WorkDomain,
 };
@@ -10,13 +9,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-const MODES: [analysis::Mode; 5] = [
-    analysis::Mode::Tree,
-    analysis::Mode::Indexed,
-    analysis::Mode::Memoized,
-    analysis::Mode::Regions,
-    analysis::Mode::Values,
-];
 const STYLES: [Style; 3] = [Style::Global, Style::Scoped, Style::Source];
 static NEXT: AtomicU64 = AtomicU64::new(0);
 struct Directory(PathBuf);
@@ -85,6 +77,17 @@ fn replace_declaration(module: &mut Module, name: &str, source: &str, imported: 
     });
     module.import(source, imported, id);
 }
+/// The target tree production formation builds for `source`, before any
+/// target pass: its root declarations are still distinct bindings.
+fn formed(source: &str) -> Module {
+    let arena = bumpalo::Bump::new();
+    let syntax = crate::parse_source(&arena, source).unwrap();
+    let semantics = crate::analyze(&syntax).unwrap();
+    crate::semantic_program::from_checked_source(&syntax, &semantics)
+        .unwrap()
+        .to_javascript()
+        .unwrap()
+}
 fn policy(module: bool) -> crate::compilation_policy::ResolvedPolicy {
     crate::config::ProjectConfig::default()
         .resolve_policy(CompilationRequest::JavaScript {
@@ -94,134 +97,115 @@ fn policy(module: bool) -> crate::compilation_policy::ResolvedPolicy {
 }
 
 #[test]
-fn imported_live_cells_keep_snapshots_across_calls_in_every_analysis_and_name_plan() {
-    let arena = bumpalo::Bump::new();
-    let source = crate::parse_source(&arena,
-        "int longCounter=0;void advance(){}int prior=longCounter;advance();print(prior);print(longCounter);int a=7;int nested(int prior){return prior+longCounter;}print(nested(a));").unwrap();
-    let semantics = crate::analyze(&source).unwrap();
-    for mode in MODES {
-        let mut tree = lower::lower_slice(&source, &semantics).unwrap();
-        tree.edit(|module| {
-            replace_declaration(module, "longCounter", "./producer.mjs", "publicCounter");
-            replace_declaration(module, "advance", "./producer.mjs", "publicAdvance");
-        })
-        .unwrap();
-        optimize::optimize_in_execution(
-            &mut tree,
-            mode,
-            JavaScriptWorld::ClosedApplication,
-            JavaScriptExecution::Module,
-        )
-        .unwrap();
-        assert_eq!(tree.target().imports.len(), 2);
-        let view = extract::JavaScriptView::prepare_in_execution(
-            &tree,
-            mode,
-            JavaScriptWorld::ClosedApplication,
-            JavaScriptExecution::Module,
-        );
-        let output = view.output().unwrap();
-        for style in STYLES {
-            let js = output.render(&Plan::new(style)).unwrap();
-            assert_eq!(execute(&js, &[("producer.mjs",
-                "console.log('init');export let publicCounter=1;export function publicAdvance(){publicCounter+=1}")], false), "init\n1\n2\n9\n", "{mode:?}/{style:?}\n{js}");
-            assert!(js.contains("publicCounter") && js.contains("publicAdvance"));
-        }
+fn imported_live_cells_keep_snapshots_across_calls_in_every_name_plan() {
+    let mut module = formed(
+        "int longCounter=0;void advance(){}int prior=longCounter;advance();print(prior);print(longCounter);int a=7;int nested(int prior){return prior+longCounter;}print(nested(a));",
+    );
+    replace_declaration(&mut module, "longCounter", "./producer.mjs", "publicCounter");
+    replace_declaration(&mut module, "advance", "./producer.mjs", "publicAdvance");
+    assert_eq!(module.imports.len(), 2);
+    let output = module.prepare_output_with_policy(&policy(true)).unwrap();
+    for style in STYLES {
+        let js = output.render(&Plan::new(style)).unwrap();
+        assert_eq!(execute(&js, &[("producer.mjs",
+            "console.log('init');export let publicCounter=1;export function publicAdvance(){publicCounter+=1}")], false), "init\n1\n2\n9\n", "{style:?}\n{js}");
+        assert!(js.contains("publicCounter") && js.contains("publicAdvance"));
     }
+}
+
+fn imported(module: &mut Module, spelling: &str, source: &str, name: &str) -> BindingId {
+    let binding = module.binding(Binding {
+        source_symbol: None,
+        scope: ScopeId::new(0),
+        spelling: spelling.into(),
+        pinned: false,
+    });
+    module.import(source, name, binding);
+    binding
 }
 
 #[test]
 fn unused_import_rows_keep_authored_module_order_link_failure_and_initialization() {
-    let arena = bumpalo::Bump::new();
-    let source = crate::parse_source(&arena, "int first=0;int second=0;print(99);").unwrap();
-    let semantics = crate::analyze(&source).unwrap();
-    for mode in MODES {
-        let mut tree = lower::lower_slice(&source, &semantics).unwrap();
-        tree.edit(|module| {
-            replace_declaration(module, "first", "./first.mjs", "unused");
-            replace_declaration(module, "second", "./second.mjs", "unused");
-        })
+    let mut module = Module::default();
+    imported(&mut module, "first", "./first.mjs", "unused");
+    imported(&mut module, "second", "./second.mjs", "unused");
+    let js = module
+        .prepare_output_with_policy(&policy(true))
+        .unwrap()
+        .render(&Plan::new(Style::Global))
         .unwrap();
-        optimize::optimize_in_execution(
-            &mut tree,
-            mode,
-            JavaScriptWorld::ClosedApplication,
-            JavaScriptExecution::Module,
-        )
-        .unwrap();
-        assert_eq!(tree.target().imports.len(), 2);
-        let js = tree
-            .target()
-            .prepare_output_with_policy(&policy(true))
-            .unwrap()
-            .render(&Plan::new(Style::Global))
-            .unwrap();
-        assert_eq!(
-            execute(
-                &js,
-                &[
-                    ("first.mjs", "console.log('first');export const unused=0;"),
-                    (
-                        "second.mjs",
-                        "console.log('second');throw Error('stop');export const unused=0;"
-                    )
-                ],
-                true
-            ),
-            "first\nsecond\nError\n"
-        );
-        assert_eq!(
-            execute(
-                &js,
-                &[
-                    (
-                        "first.mjs",
-                        "console.log('must-not-run');export const unused=0;"
-                    ),
-                    ("second.mjs", "export const different=0;")
-                ],
-                true
-            ),
-            "SyntaxError\n"
-        );
-    }
+    assert_eq!(
+        execute(
+            &js,
+            &[
+                ("first.mjs", "console.log('first');export const unused=0;"),
+                (
+                    "second.mjs",
+                    "console.log('second');throw Error('stop');export const unused=0;"
+                )
+            ],
+            true
+        ),
+        "first\nsecond\nError\n"
+    );
+    assert_eq!(
+        execute(
+            &js,
+            &[
+                (
+                    "first.mjs",
+                    "console.log('must-not-run');export const unused=0;"
+                ),
+                ("second.mjs", "export const different=0;")
+            ],
+            true
+        ),
+        "SyntaxError\n"
+    );
 }
 
 #[test]
 fn cyclic_import_read_keeps_tdz_even_when_its_payload_is_discarded() {
-    let arena = bumpalo::Bump::new();
-    let source = crate::parse_source(&arena, "int count=0;int probe(){count;return 7;}").unwrap();
-    let semantics = crate::analyze(&source).unwrap();
-    for mode in MODES {
-        let mut tree = lower::lower_slice(&source, &semantics).unwrap();
-        tree.edit(|module| {
-            replace_declaration(module, "count", "./producer.mjs", "count");
-            module.exports.push(Export {
-                binding: binding(module, "probe"),
-                name: "probe".into(),
-            });
-        })
-        .unwrap();
-        optimize::optimize_in_execution(
-            &mut tree,
-            mode,
-            JavaScriptWorld::ClosedApplication,
-            JavaScriptExecution::Module,
-        )
-        .unwrap();
-        let js = extract::JavaScriptView::prepare_in_execution(
-            &tree,
-            mode,
-            JavaScriptWorld::ClosedApplication,
-            JavaScriptExecution::Module,
-        )
-        .output()
+    let mut module = Module::default();
+    let count = imported(&mut module, "count", "./producer.mjs", "count");
+    let probe = module.binding(Binding {
+        source_symbol: None,
+        scope: ScopeId::new(0),
+        spelling: "probe".into(),
+        pinned: false,
+    });
+    let body = module.region(ScopeId::new(0));
+    let read = module.expression(Expr::Binding(count), None);
+    let seven = module.expression(Expr::Literal(Literal::Number(7.0)), None);
+    module.regions[body.index()].statements = vec![
+        Statement::Evaluate(read),
+        Statement::Return(Some(seven)),
+    ];
+    let function = FunctionId::new(module.functions.len());
+    module.functions.push(Function {
+        parameters: vec![],
+        body,
+        arrow: false,
+        name: FunctionName::Unobserved,
+        strict: true,
+        length: None,
+        suspension: crate::structured_js::Suspension::None,
+    });
+    module.regions[0].statements.push(Statement::Function {
+        binding: probe,
+        function,
+    });
+    module.exports.push(Export {
+        binding: probe,
+        name: "probe".into(),
+    });
+    let js = module
+        .prepare_output_with_policy(&policy(true))
         .unwrap()
         .render(&Plan::new(Style::Scoped))
         .unwrap();
-        assert_eq!(execute(&js, &[("producer.mjs", "import{probe}from'./consumer.mjs';console.log('before');probe();export let count=1;")], true), "before\nReferenceError\n", "{mode:?}\n{js}");
-        assert_eq!(execute(&js, &[("producer.mjs", "import{probe}from'./consumer.mjs';export let count=1;console.log('before');console.log(probe());")], true), "before\n7\nloaded\n");
-    }
+    assert_eq!(execute(&js, &[("producer.mjs", "import{probe}from'./consumer.mjs';console.log('before');probe();export let count=1;")], true), "before\nReferenceError\n", "{js}");
+    assert_eq!(execute(&js, &[("producer.mjs", "import{probe}from'./consumer.mjs';export let count=1;console.log('before');console.log(probe());")], true), "before\n7\nloaded\n");
 }
 
 #[test]

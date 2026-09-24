@@ -5546,12 +5546,6 @@ mod tests {
             .unwrap_err()
             .message
             .contains("reference"));
-        assert!(
-            crate::structured_js::lower::lower_slice(&program, &semantics)
-                .unwrap_err()
-                .feature
-                .contains("reference")
-        );
     }
 
     fn lower(source: &str) -> ControlFlowModule<'_> {

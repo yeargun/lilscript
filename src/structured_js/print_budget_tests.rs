@@ -58,7 +58,7 @@ fn fixture() -> (Module, Names) {
 #[test]
 fn admitted_printer_preserves_utf16_number_template_spelling_and_retains_complete_text() {
     let (module, names) = fixture();
-    let expected = render(&module, &names, None);
+    let expected = render(&module, &names);
     assert!(expected.contains("\\ud800"));
     assert!(expected.contains("$\\{x}\\`\\n"));
     for domain in [WorkDomain::Baseline, WorkDomain::Optional] {
@@ -66,7 +66,7 @@ fn admitted_printer_preserves_utf16_number_template_spelling_and_retains_complet
         {
             let mut budget = AllocationBudget::new(Some((&mut ledger, domain)));
             let output =
-                render_admitted(&module, &names, None, expected.len(), &mut budget).unwrap();
+                render_admitted(&module, &names, expected.len(), &mut budget).unwrap();
             assert_eq!(output, expected);
             let retained = output.capacity() as u64;
             assert_eq!(budget.retained_bytes(AllocationClass::Retained), retained);
@@ -105,7 +105,7 @@ fn admitted_printer_preserves_utf16_number_template_spelling_and_retains_complet
 #[test]
 fn byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budget() {
     let (module, names) = fixture();
-    let expected = render(&module, &names, None);
+    let expected = render(&module, &names);
     for domain in [WorkDomain::Baseline, WorkDomain::Optional] {
         for (memory, work, limit, reason) in [
             (100_000, 100_000, expected.len() - 1, PrintError::ByteLimit),
@@ -138,7 +138,7 @@ fn byte_work_and_relocation_failure_drop_partial_text_before_releasing_its_budge
             {
                 let mut budget = AllocationBudget::new(Some((&mut ledger, domain)));
                 assert_eq!(
-                    render_admitted(&module, &names, None, limit, &mut budget),
+                    render_admitted(&module, &names, limit, &mut budget),
                     Err(reason)
                 );
                 assert_eq!(budget.retained_bytes(AllocationClass::Retained), 0);
@@ -157,11 +157,11 @@ fn a_failed_optional_render_preserves_the_already_rendered_incumbent() {
     let mut ledger = ledger(100_000, 100_000);
     {
         let mut budget = AllocationBudget::new(Some((&mut ledger, WorkDomain::Optional)));
-        let incumbent = render_admitted(&module, &names, None, usize::MAX, &mut budget).unwrap();
+        let incumbent = render_admitted(&module, &names, usize::MAX, &mut budget).unwrap();
         let before = budget.retained_bytes(AllocationClass::Retained);
         let same_bytes = incumbent.as_bytes().to_vec(); // Test-owned observation.
         assert_eq!(
-            render_admitted(&module, &names, None, 1, &mut budget),
+            render_admitted(&module, &names, 1, &mut budget),
             Err(PrintError::ByteLimit)
         );
         assert_eq!(incumbent.as_bytes(), same_bytes);
