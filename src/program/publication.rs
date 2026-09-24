@@ -46,7 +46,8 @@ pub use rewrites::RewriteError;
 #[path = "search.rs"]
 mod search;
 pub use search::{
-    JavaScriptSearch, SearchCounters, SearchError, SearchLimit, SearchObservation, SearchRequest,
+    ChallengerOutcome, ChallengerTrial, JavaScriptSearch, SearchCounters, SearchError, SearchLimit,
+    SearchObservation, SearchRequest, TerminalObjective, TerminalReport,
 };
 
 #[derive(Debug, Clone, Copy)]

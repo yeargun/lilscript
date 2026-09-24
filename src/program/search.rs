@@ -17,6 +17,9 @@ use std::cmp::Ordering;
 #[path = "search_selection.rs"]
 mod selection;
 use selection::Portfolio;
+#[path = "search_terminal.rs"]
+mod terminal;
+pub use terminal::{ChallengerOutcome, ChallengerTrial, TerminalObjective, TerminalReport};
 
 #[cfg(test)]
 #[path = "search_cursor_tests.rs"]
@@ -220,6 +223,8 @@ pub struct JavaScriptSearch<'a, 'src> {
     sealed: Option<BaselineSeal>,
     stopped: Option<SearchError>,
     discovery_refusal: Option<SearchError>,
+    /// The terminal challenger stage's report, once it has run.
+    terminal: Option<TerminalReport>,
 }
 
 impl<'src> Compilation<'src> {
@@ -271,6 +276,7 @@ impl<'src> Compilation<'src> {
             sealed: None,
             stopped: None,
             discovery_refusal: None,
+            terminal: None,
         };
         search.grow_states(1, WorkDomain::Baseline)?;
         let direct = search

@@ -567,6 +567,16 @@ impl ArtifactArena {
     ) -> Result<usize, CandidateError> {
         self.get_mut(id.0)?.measure(codec, budget)
     }
+    /// Whether two retained artifacts deliver the same files, byte for byte.
+    pub(super) fn same_output(
+        &self,
+        left: ArtifactId,
+        right: ArtifactId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, CandidateError> {
+        budget.work(WorkKind::Analysis, 1)?;
+        same_streams(self.get(left.0)?.view(), self.get(right.0)?.view(), budget)
+    }
     pub(super) fn provenance(&self, id: ArtifactId) -> Result<&ArtifactProvenance, CandidateError> {
         Ok(&self.get(id.0)?.provenance)
     }

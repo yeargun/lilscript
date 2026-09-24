@@ -472,6 +472,55 @@ impl Portfolio {
         let entries = std::mem::replace(&mut self.entries, Entries::new(self.owner));
         budget.with_ledger(|ledger| entries.discard(self.owner, ledger.unwrap().0).unwrap());
     }
+    /// The baseline's admission under `codec`, which every later artifact's
+    /// admission for that codec is qualified against.
+    pub(super) fn baseline_qualification(&self, codec: Objective) -> Option<&QualifiedArtifact> {
+        self.baseline_qualified[index(codec)].as_ref()
+    }
+    /// A terminal challenger that beat `codec`'s incumbent becomes its
+    /// winner: a new entry of the same source state, admitted under `codec`
+    /// alone. The displaced incumbent goes unless another codec selects it.
+    /// Returns the new entry's position.
+    pub(super) fn promote_terminal(
+        &mut self,
+        arena: &mut ArtifactArena,
+        budget: &mut AllocationBudget<'_>,
+        codec: Objective,
+        artifact: ArtifactId,
+        qualified: QualifiedArtifact,
+    ) -> Result<usize, SearchError> {
+        let i = index(codec);
+        let previous = self.selected[i].expect("a terminal challenger beats a selected incumbent");
+        let state = self.entries.get(previous).unwrap().state;
+        let (capacity, raw) =
+            arena.with_artifact(artifact, |view| (view.retained_capacity, view.sizes.raw))?;
+        let ordinal = self
+            .ordinal
+            .checked_add(1)
+            .ok_or(AllocationError::Capacity)?;
+        let ticket = self.entries.prepare_insert(capacity, budget)?;
+        let mut admitted = [None; 3];
+        admitted[i] = Some(qualified);
+        let position = self.entries.insert_prepared(
+            ticket,
+            Entry {
+                artifact,
+                state,
+                qualified: admitted,
+                capacity,
+                raw,
+                render_work: 0,
+                ordinal: self.ordinal,
+                pending: false,
+            },
+        );
+        self.ordinal = ordinal;
+        self.selected[i] = Some(position);
+        if !self.selected.contains(&Some(previous)) {
+            self.discard_entry(previous, arena, budget);
+        }
+        Ok(position)
+    }
     pub(super) fn take_winner_artifact(&mut self, objective: Objective) -> Option<ArtifactId> {
         let position = self.selected[index(objective)]?;
         for slot in &mut self.selected {

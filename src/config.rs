@@ -560,6 +560,7 @@ impl ProjectConfig {
                     retained_candidates: self.javascript.effective_candidate_limit(),
                     retained_candidate_bytes: self.javascript.effective_candidate_byte_budget(),
                     beam_width: self.javascript.effective_candidate_beam_width(),
+                    terminal_challengers: self.javascript.effective_terminal_challenger_limit(),
                     search: policy.search,
                 };
                 (
@@ -1323,6 +1324,34 @@ impl JavaScriptConfig {
             CandidateSearch::Off => 0,
             CandidateSearch::Production => level_limit,
             CandidateSearch::Always => level_limit.saturating_mul(4),
+        }
+    }
+
+    /// How many declared terminal challengers the exact codec judges on each
+    /// objective's final candidate (M5.4): each is one exact codec score of
+    /// the complete artifact, the stage's dominant cost. Challengers that
+    /// render the incumbent's bytes cost a formation and a render only, and
+    /// the declared schedule bounds those. The schedule's order is fixed, so a
+    /// higher level walks further along the same challengers: from the same
+    /// final candidate it can only keep more. The search-off levels offer
+    /// none, like the probe ladder.
+    pub fn effective_terminal_challenger_limit(&self) -> usize {
+        // Level 13 reaches every challenger kept on the seven reference ports
+        // when the stage landed (the first seven of the schedule).
+        let level_limit = match self.optimization_level {
+            0..=7 => 0,
+            8 => 3,
+            9..=10 => 4,
+            11..=12 => 5,
+            13 => 7,
+            14 => 9,
+            _ => usize::MAX,
+        };
+        match self.candidate_search {
+            CandidateSearch::Off => 0,
+            CandidateSearch::Production => level_limit,
+            CandidateSearch::Always if level_limit == 0 => 0,
+            CandidateSearch::Always => usize::MAX,
         }
     }
 

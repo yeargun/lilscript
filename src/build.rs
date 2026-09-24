@@ -516,6 +516,12 @@ impl<'src> CheckedSourceSession<'src> {
             .compilation
             .search_javascript_observed(source, policy, request, observe)
             .map_err(|error| ServiceError::new("javascript", error))?;
+        // The terminal challenger stage (M5.4): every requested objective's
+        // winner is offered the declared challengers before any handoff.
+        let terminal = search
+            .challenge(policy, objectives)
+            .map(|report| serde_json::to_value(report).unwrap_or(Value::Null))
+            .map_err(|error| ServiceError::new("javascript", error))?;
         let counters = search.counters();
         let report = json!({
             "request": resolved_request,
@@ -524,6 +530,7 @@ impl<'src> CheckedSourceSession<'src> {
             "proof_queries": counters.proof_queries, "beam_evictions": counters.beam_evictions,
             "admitted_artifacts": counters.admitted_artifacts,
             "stop": search.stopped().map(|error| format!("{error:?}")),
+            "terminal": terminal,
         });
         let selected = objectives
             .iter()
@@ -795,7 +802,8 @@ fn deliver_javascript(
             "style":format!("{:?}",plan.style),
             "source_names":plan.source_names.iter().map(|id|id.index()).collect::<Vec<_>>(),
             "output":{"dead_code_elimination":view.output.dead_code_elimination,
-                "target_compaction":view.output.target_compaction,"literals":format!("{:?}",view.output.literals)},
+                "target_compaction":view.output.target_compaction,"literals":format!("{:?}",view.output.literals),
+                "families":format!("{:?}",view.output.families),"raw_spelling":plan.raw_spelling},
             "sizes":[Some(view.sizes.raw),view.sizes.gzip9,view.sizes.brotli11],
             "chunks":view.chunks.iter().map(|chunk| json!({"file":chunk.name,"modules":chunk.modules,"bytes":chunk.code.len(),"lazy":chunk.lazy})).collect::<Vec<_>>(),
             "policy_fingerprint":receipt.policy_fingerprint(),
@@ -1401,6 +1409,10 @@ fn digest(bytes: impl AsRef<[u8]>) -> String {
 #[cfg(test)]
 #[path = "build_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "build_terminal_tests.rs"]
+mod terminal_tests;
 
 #[cfg(test)]
 #[path = "build_budget_tests.rs"]
