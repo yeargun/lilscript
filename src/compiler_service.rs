@@ -70,6 +70,21 @@ pub struct ServiceOptions {
     pub retained_bytes: u64,
 }
 
+impl ServiceOptions {
+    /// The JavaScript policy request this service resolves, if it builds
+    /// JavaScript. `--print-policy` resolves exactly this.
+    pub fn javascript_request(&self) -> Option<CompilationRequest> {
+        (self.target != ServiceTarget::Native).then_some(CompilationRequest::JavaScript {
+            preserve_root_exports: self.preserve_root_exports,
+        })
+    }
+
+    /// The native policy request this service resolves, if it builds C.
+    pub fn native_request(&self) -> Option<CompilationRequest> {
+        (self.target != ServiceTarget::JavaScript).then_some(CompilationRequest::Native)
+    }
+}
+
 impl Default for ServiceOptions {
     fn default() -> Self {
         Self {
@@ -216,26 +231,14 @@ impl Frontend {
                 "semantic compilation does not support optimization.for_of_specialize_family; set it to 0",
             ));
         }
-        let javascript = if options.target != ServiceTarget::Native {
-            Some(
-                config
-                    .resolve_policy(CompilationRequest::JavaScript {
-                        preserve_root_exports: options.preserve_root_exports,
-                    })
-                    .map_err(|error| ServiceError::new("policy", error))?,
-            )
-        } else {
-            None
+        let resolve = |request: Option<CompilationRequest>| {
+            request
+                .map(|request| config.resolve_policy(request))
+                .transpose()
+                .map_err(|error| ServiceError::new("policy", error))
         };
-        let native = if options.target != ServiceTarget::JavaScript {
-            Some(
-                config
-                    .resolve_policy(CompilationRequest::Native)
-                    .map_err(|error| ServiceError::new("policy", error))?,
-            )
-        } else {
-            None
-        };
+        let javascript = resolve(options.javascript_request())?;
+        let native = resolve(options.native_request())?;
         let policy = javascript.as_ref().or(native.as_ref()).unwrap();
         let ledger = BudgetLedger::new_baseline_first(
             policy.resources(),
@@ -1001,48 +1004,24 @@ pub fn with_checked_path<R>(
             }
         }
         // Relative host modules travel with the output (008-D3).
-        if config.bundle.host_modules != crate::config::HostModules::External
-            && frontend.javascript.is_some()
+        if let Some((root_directory, requests, edition)) =
+            host_requests(config, frontend.javascript.as_ref(), &modules)
         {
-            let root_directory = modules.modules[modules.root]
-                .path
-                .parent()
-                .unwrap_or_else(|| Path::new("."));
-            let mut requests: Vec<std::path::PathBuf> = Vec::new();
-            for module in &modules.modules {
-                for dependency in &module.foreign_dependencies {
-                    if let Some(path) = &dependency.path {
-                        if !requests.contains(path) {
-                            requests.push(path.clone());
-                        }
-                    }
+            match crate::host_modules::deliver(root_directory, &requests, edition) {
+                Ok(delivery) => {
+                    arena
+                        .with_ledger(|ledger, domain| {
+                            ledger.charge(domain, WorkKind::Analysis, delivery.retained_bytes())
+                        })
+                        .map_err(|error| {
+                            ServiceError::resources("frontend resources", error.into())
+                        })?;
+                    frontend.hosts = delivery;
                 }
-            }
-            if !requests.is_empty() {
-                let edition = frontend
-                    .javascript
-                    .as_ref()
-                    .and_then(ResolvedPolicy::javascript_contract)
-                    .map(|contract| contract.ecmascript)
-                    .unwrap_or_default();
-                match crate::host_modules::deliver(root_directory, &requests, edition) {
-                    Ok(delivery) => {
-                        arena
-                            .with_ledger(|ledger, domain| {
-                                ledger.charge(domain, WorkKind::Analysis, delivery.retained_bytes())
-                            })
-                            .map_err(|error| {
-                                ServiceError::resources("frontend resources", error.into())
-                            })?;
-                        frontend.hosts = delivery;
-                    }
-                    Err(reason)
-                        if config.bundle.host_modules == crate::config::HostModules::Embed =>
-                    {
-                        return Err(ServiceError::new("host modules", reason));
-                    }
-                    Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
+                Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+                    return Err(ServiceError::new("host modules", reason));
                 }
+                Err(reason) => frontend.phases["host_modules_external"] = json!(reason),
             }
         }
         let inputs = json!({"root": modules.root, "modules": modules.modules.iter().map(|module| json!({
@@ -1134,6 +1113,101 @@ pub fn with_checked_path<R>(
     let (outcome, mut finished) = run_client(session, client);
     let release_ns = release_source_buffers(sources, &mut finished.ledger);
     Ok(finish_factory(outcome, finished, started, Some(release_ns)))
+}
+
+/// The relative host modules a JavaScript build carries: the root module's
+/// directory, the foreign files the source imports, and the syntax target
+/// they must fit. `None` when the output imports them instead.
+fn host_requests<'m, S>(
+    config: &ProjectConfig,
+    javascript: Option<&ResolvedPolicy>,
+    modules: &'m crate::module::ModuleSet<S>,
+) -> Option<(
+    &'m Path,
+    Vec<std::path::PathBuf>,
+    crate::js_syntax_target::EcmaScriptEdition,
+)> {
+    let javascript = javascript?;
+    if config.bundle.host_modules == crate::config::HostModules::External {
+        return None;
+    }
+    let root_directory = modules.modules[modules.root]
+        .path
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    let mut requests: Vec<std::path::PathBuf> = Vec::new();
+    for module in &modules.modules {
+        for dependency in &module.foreign_dependencies {
+            if let Some(path) = &dependency.path {
+                if !requests.contains(path) {
+                    requests.push(path.clone());
+                }
+            }
+        }
+    }
+    if requests.is_empty() {
+        return None;
+    }
+    let edition = javascript
+        .javascript_contract()
+        .map(|contract| contract.ecmascript)
+        .unwrap_or_default();
+    Some((root_directory, requests, edition))
+}
+
+/// Every file a build of `path` reads, for an external build graph: the
+/// source modules in discovery order, then the host modules the JavaScript
+/// output carries.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BuildInputs {
+    pub entry: std::path::PathBuf,
+    pub files: Vec<std::path::PathBuf>,
+}
+
+/// Discover what a build with these options reads, without checking or
+/// compiling it: the same module discovery and host-module delivery as the
+/// build.
+pub fn build_inputs(
+    path: &Path,
+    config: &ProjectConfig,
+    options: ServiceOptions,
+) -> Result<BuildInputs, ServiceError> {
+    let mut frontend = Frontend::new(config, options)?;
+    let sources = StableSourceArena::new(WorkDomain::Baseline);
+    let inputs = (|| {
+        let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
+        let (modules, syntax) = discover_parsed_modules_admitted(path, config, &sources, &arena)
+            .map_err(|error| match error {
+                ModuleDiscoveryError::Module(error) => ServiceError::module("discovery", error),
+                ModuleDiscoveryError::Resources(error) => {
+                    ServiceError::resources("discovery resources", error)
+                }
+            })?;
+        let mut inputs = BuildInputs {
+            entry: modules.modules[modules.root].path.clone(),
+            files: modules
+                .modules
+                .iter()
+                .map(|module| module.path.clone())
+                .collect(),
+        };
+        if let Some((root_directory, requests, edition)) =
+            host_requests(config, frontend.javascript.as_ref(), &modules)
+        {
+            match crate::host_modules::delivered_files(root_directory, &requests, edition) {
+                Ok(files) => inputs.files.extend(files),
+                Err(reason) if config.bundle.host_modules == crate::config::HostModules::Embed => {
+                    return Err(ServiceError::new("host modules", reason));
+                }
+                // Not carried: the output imports them from their specifiers.
+                Err(_) => {}
+            }
+        }
+        drop(syntax);
+        Ok(inputs)
+    })();
+    release_source_buffers(sources, &mut frontend.ledger);
+    inputs
 }
 
 fn release_source_buffers(sources: StableSourceArena, ledger: &mut BudgetLedger) -> u64 {

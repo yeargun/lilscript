@@ -5,15 +5,15 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use clap::{Parser, ValueEnum};
+use serde_json::{json, Value};
 
-use lilscript::config::{load_project_config, BundleMode, CandidateSearch, ProjectConfig};
+use lilscript::config::{
+    load_project_config, BundleMode, CandidateSearch, LoadedConfig, ProjectConfig,
+};
 use lilscript::package::write_lockfile;
 use lilscript::{
-    compile_path_all_configured, compile_path_all_to_js_bundle_configured, compile_path_configured,
-    compile_path_explained_configured, compile_path_to_c_configured,
-    compile_path_to_js_bundle_configured, compile_path_to_js_module_configured,
-    compile_path_to_js_module_explained_configured, profile_template_path_configured,
-    render_module_diagnostic, JavaScriptBundle,
+    render_service_error, ChunkExtension, JavaScriptBundle, ServiceCompilation, ServiceJavaScript,
+    ServiceOptions, ServiceTarget,
 };
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -37,12 +37,6 @@ enum ExplainFormat {
     Json,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum Backend {
-    Legacy,
-    Semantic,
-}
-
 #[derive(Debug, Parser)]
 #[command(name = "lilscript")]
 #[command(version)]
@@ -59,39 +53,37 @@ struct Args {
     #[arg(long, value_enum, default_value_t = Target::Js)]
     target: Target,
 
-    /// Compiler route, overriding `[compiler] backend`. The semantic backend
-    /// is the default and diagnoses unsupported input; `legacy` remains only
-    /// until every port builds on the semantic route.
-    #[arg(long, value_enum)]
-    backend: Option<Backend>,
+    /// Removed: there is one compiler. Present only to refuse with a clear
+    /// message.
+    #[arg(long, hide = true, num_args = 0..=1, value_name = "ROUTE")]
+    backend: Option<Option<String>>,
 
     /// Explicit config path. Otherwise `lilscript.toml` is discovered from the input directory.
     #[arg(long)]
     config: Option<PathBuf>,
 
-    /// JavaScript compiler worker threads. Omit to use RAYON_NUM_THREADS or the host default.
+    /// Compiler worker threads. Accepted; the compiler does not run worker
+    /// threads yet, so it has no effect.
     #[arg(short = 'j', long, value_name = "N")]
     jobs: Option<NonZeroUsize>,
 
-    /// Maximum concurrent terminal Brotli finalizer workers.
+    /// Concurrent codec workers. Accepted; codec work runs on one thread
+    /// yet, so it has no effect.
     #[arg(long, value_name = "N")]
     codec_jobs: Option<NonZeroUsize>,
 
-    /// Development skips compressor-in-loop candidate search; production uses project policy.
+    /// Development skips the candidate search; production uses project policy.
     #[arg(long, value_enum, default_value_t = BuildMode::Production)]
     mode: BuildMode,
 
-    /// Print optimizer pass decisions to stderr without contaminating JavaScript stdout.
+    /// Print the compiler's report to stderr: a readable summary (`human`)
+    /// or the full report (`json`).
     #[arg(long, value_enum)]
     explain: Option<ExplainFormat>,
 
     /// Resolve all path dependencies and rewrite lilscript.lock before compiling.
     #[arg(long)]
     write_lock: bool,
-
-    /// Write a versioned profile template with stable function/loop keys, then exit.
-    #[arg(long)]
-    profile_template: Option<PathBuf>,
 
     /// Force a single ESM artifact for an external bundler such as Lilpack.
     #[arg(long, hide = true)]
@@ -120,11 +112,15 @@ fn main() {
             eprint!("{folds}");
         }
     }
-    report_store_census();
 }
 
 fn run() -> Result<(), String> {
     let args = Args::parse();
+    if args.backend.is_some() {
+        return Err(
+            "error: --backend was removed: there is one compiler; remove the flag".to_string(),
+        );
+    }
     let mut loaded = load_project_config(&args.input, args.config.as_deref())
         .map_err(|error| error.to_string())?;
     let config_label = loaded
@@ -134,7 +130,11 @@ fn run() -> Result<(), String> {
     for note in loaded.config.unimplemented_knobs() {
         eprintln!("warning: {config_label}: {note}");
     }
-    apply_resource_overrides(&mut loaded.config, args.jobs, args.codec_jobs);
+    if args.jobs.is_some() || args.codec_jobs.is_some() {
+        eprintln!(
+            "warning: --jobs and --codec-jobs have no effect in this compiler yet: it compiles and encodes on one thread"
+        );
+    }
     if args.write_lock {
         let path = write_lockfile(&loaded.config).map_err(|error| error.to_string())?;
         eprintln!("wrote {}", path.display());
@@ -145,145 +145,20 @@ fn run() -> Result<(), String> {
     if matches!(args.mode, BuildMode::Development) {
         loaded.config.javascript.candidate_search = CandidateSearch::Off;
     }
+    let options = service_options(&args);
     if args.print_dependencies {
-        return print_dependencies(&args.input, &loaded);
+        return print_dependencies(&args.input, &loaded, options);
     }
     if args.print_policy {
-        return print_policy(&args, &loaded);
+        return print_policy(&args, &loaded, options);
     }
-    if backend(&args, &loaded.config) == Backend::Semantic {
-        return run_semantic(&args, &loaded.config);
-    }
-    if let Some(output) = &args.profile_template {
-        let profile = profile_template_path_configured(&args.input, &loaded.config)
-            .map_err(|error| render_module_diagnostic(&error))?;
-        let json = serde_json::to_string_pretty(&profile)
-            .map_err(|error| format!("failed to serialize profile template: {error}"))?;
-        fs::write(output, format!("{json}\n"))
-            .map_err(|error| format!("failed to write {}: {error}", output.display()))?;
-        return Ok(());
-    }
-    match args.target {
-        Target::Js => {
-            if loaded.config.bundle.mode == BundleMode::Single {
-                if let Some(format) = args.explain {
-                    let compilation =
-                        compile_path_explained_configured(&args.input, &loaded.config)
-                            .map_err(|error| render_module_diagnostic(&error))?;
-                    print_explanation(
-                        format,
-                        &compilation.optimization_reports,
-                        &compilation.selection_metrics,
-                        &compilation.abi_manifest,
-                    )?;
-                    write_or_print(args.output.as_deref(), &compilation.javascript)?;
-                } else {
-                    let js = compile_path_configured(&args.input, &loaded.config)
-                        .map_err(|error| render_module_diagnostic(&error))?;
-                    write_or_print(args.output.as_deref(), &js)?;
-                }
-            } else {
-                if args.explain.is_some() {
-                    return Err("--explain currently requires bundle.mode=\"single\"".to_string());
-                }
-                write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
-            }
-        }
-        Target::JsModule => {
-            if loaded.config.bundle.mode == BundleMode::Single {
-                if let Some(format) = args.explain {
-                    let compilation =
-                        compile_path_to_js_module_explained_configured(&args.input, &loaded.config)
-                            .map_err(|error| render_module_diagnostic(&error))?;
-                    print_explanation(
-                        format,
-                        &compilation.optimization_reports,
-                        &compilation.selection_metrics,
-                        &compilation.abi_manifest,
-                    )?;
-                    write_or_print(args.output.as_deref(), &compilation.javascript)?;
-                } else {
-                    let js = compile_path_to_js_module_configured(&args.input, &loaded.config)
-                        .map_err(|error| render_module_diagnostic(&error))?;
-                    write_or_print(args.output.as_deref(), &js)?;
-                }
-            } else {
-                if args.explain.is_some() {
-                    return Err("--explain currently requires bundle.mode=\"single\"".to_string());
-                }
-                write_configured_bundle(&args.input, args.output.as_deref(), &loaded.config)?;
-            }
-        }
-        Target::C => {
-            let c = compile_path_to_c_configured(&args.input, &loaded.config)
-                .map_err(|error| render_module_diagnostic(&error))?;
-            write_or_print(args.output.as_deref(), &c)?;
-        }
-        Target::Native => {
-            let c = compile_path_to_c_configured(&args.input, &loaded.config)
-                .map_err(|error| render_module_diagnostic(&error))?;
-            let output = args.output.unwrap_or_else(|| {
-                let mut output = args.input.clone();
-                output.set_extension("");
-                output
-            });
-            compile_native(&c, &output)?;
-        }
-        Target::All => {
-            let base = args.output.unwrap_or_else(|| {
-                let mut output = args.input.clone();
-                output.set_extension("");
-                output
-            });
-            let javascript = base.with_extension("js");
-            let c = base.with_extension("c");
-            if loaded.config.bundle.mode == BundleMode::Single {
-                let artifacts = compile_path_all_configured(&args.input, &loaded.config)
-                    .map_err(|error| render_module_diagnostic(&error))?;
-                ensure_parent(&base)?;
-                fs::write(&javascript, &artifacts.javascript).map_err(|error| {
-                    format!("failed to write {}: {error}", javascript.display())
-                })?;
-                fs::write(&c, &artifacts.c)
-                    .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-                compile_native(&artifacts.c, &base)?;
-            } else {
-                let entry_file = javascript
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
-                let artifacts = compile_path_all_to_js_bundle_configured(
-                    &args.input,
-                    &loaded.config,
-                    entry_file,
-                )
-                .map_err(|error| render_module_diagnostic(&error))?;
-                ensure_parent(&base)?;
-                write_javascript_bundle(&javascript, &artifacts.javascript)?;
-                fs::write(&c, &artifacts.c)
-                    .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
-                compile_native(&artifacts.c, &base)?;
-            }
-        }
-    }
-
-    Ok(())
+    build(&args, &loaded.config, options)
 }
 
-/// The command line's backend, else the configuration's.
-fn backend(args: &Args, config: &ProjectConfig) -> Backend {
-    args.backend.unwrap_or(match config.compiler.backend {
-        lilscript::config::CompilerBackend::Legacy => Backend::Legacy,
-        lilscript::config::CompilerBackend::Semantic => Backend::Semantic,
-    })
-}
-
-fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
-    use lilscript::{compile_path_semantic, ServiceOptions, ServiceTarget};
-    if args.profile_template.is_some() {
-        return Err("the semantic backend does not yet support profile templates".into());
-    }
-    let options = ServiceOptions {
+/// The one mapping from the command line to what the compiler builds. The
+/// build and `--print-policy` both use it.
+fn service_options(args: &Args) -> ServiceOptions {
+    ServiceOptions {
         target: match args.target {
             Target::Js | Target::JsModule => ServiceTarget::JavaScript,
             Target::C | Target::Native => ServiceTarget::Native,
@@ -293,7 +168,7 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
         chunk_extension: args
             .output
             .as_deref()
-            .map(lilscript::ChunkExtension::of)
+            .map(ChunkExtension::of)
             .unwrap_or_default(),
         // Whole ports exceed the library default: Micromark's 303 KB of
         // source uses 354M units, and motionlil's full entry 4.4G, most of it
@@ -305,186 +180,324 @@ fn run_semantic(args: &Args, config: &ProjectConfig) -> Result<(), String> {
             .and_then(|value| value.parse().ok())
             .unwrap_or(40_000_000_000),
         ..ServiceOptions::default()
-    };
-    let result = compile_path_semantic(&args.input, config, options).map_err(|error| {
-        error
-            .diagnostic
-            .as_ref()
-            .map(render_module_diagnostic)
-            .unwrap_or_else(|| error.to_string())
-    })?;
-    if let Some(format) = args.explain {
-        match format {
-            ExplainFormat::Json => eprintln!(
-                "{}",
-                serde_json::to_string_pretty(result.report()).map_err(|error| error.to_string())?
-            ),
-            ExplainFormat::Human => eprintln!(
-                "semantic backend\n{}",
-                serde_json::to_string_pretty(result.report()).map_err(|error| error.to_string())?
-            ),
-        }
     }
-    let codec = config.javascript.cost_model;
+}
+
+fn build(args: &Args, config: &ProjectConfig, options: ServiceOptions) -> Result<(), String> {
+    let result = lilscript::compile_path_semantic(&args.input, config, options)
+        .map_err(|error| render_service_error(&error))?;
+    if let Some(format) = args.explain {
+        let text = match format {
+            ExplainFormat::Json => {
+                serde_json::to_string_pretty(result.report()).map_err(|error| error.to_string())?
+            }
+            ExplainFormat::Human => explain_human(result.report()),
+        };
+        eprintln!("{text}");
+    }
+    let javascript = || {
+        result
+            .javascript(config.javascript.cost_model)
+            .ok_or_else(|| "missing selected JavaScript artifact".to_string())
+    };
+    let native_c = || {
+        result
+            .native_c()
+            .ok_or_else(|| "missing native C artifact".to_string())
+    };
+    let base = || {
+        args.output
+            .clone()
+            .unwrap_or_else(|| args.input.with_extension(""))
+    };
     match args.target {
-        Target::Js | Target::JsModule if config.bundle.mode != BundleMode::Single => {
-            let selected = result
-                .javascript(codec)
-                .ok_or("missing selected JavaScript artifact")?;
+        Target::Js | Target::JsModule if config.bundle.mode == BundleMode::Single => {
+            write_or_print(args.output.as_deref(), javascript()?.javascript())
+        }
+        Target::Js | Target::JsModule => {
             let output = args.output.as_deref().ok_or_else(|| {
                 "split and preserve-modules bundle modes require an explicit --output entry file"
                     .to_string()
             })?;
-            let entry_file = output
-                .file_name()
-                .and_then(|name| name.to_str())
-                .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
-            // Module names relative to the entry module's directory, as the
-            // default route writes them into the manifest.
-            let paths = result.report()["inputs"]["modules"]
-                .as_array()
-                .map(|modules| {
-                    modules
-                        .iter()
-                        .map(|module| module["path"].as_str().unwrap_or("").to_string())
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            let base = args
-                .input
-                .parent()
-                .filter(|parent| !parent.as_os_str().is_empty())
-                .unwrap_or_else(|| Path::new("."));
-            let base = fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
-            let name = |index: u32| {
-                let path = Path::new(paths.get(index as usize).map_or("", String::as_str));
-                path.strip_prefix(&base)
-                    .unwrap_or(path)
-                    .display()
-                    .to_string()
-            };
-            let entry = lilscript::ManifestFile {
-                file_name: entry_file.to_string(),
-                modules: Vec::new(),
-                dependencies: selected.entry_links().dependencies.clone(),
-                dynamic_dependencies: selected.entry_links().dynamic_dependencies.clone(),
-                lazy: false,
-                importers: 0,
-                code: selected.javascript().to_string(),
-            };
-            let chunks = selected
-                .chunks()
-                .iter()
-                .map(|chunk| lilscript::ManifestFile {
-                    file_name: chunk.name.clone(),
-                    modules: chunk.modules.iter().map(|&module| name(module)).collect(),
-                    dependencies: chunk.dependencies.clone(),
-                    dynamic_dependencies: chunk.dynamic_dependencies.clone(),
-                    lazy: chunk.lazy,
-                    importers: chunk.importers,
-                    code: chunk.code.clone(),
-                })
-                .collect();
-            let bundle = lilscript::javascript_bundle(
-                entry,
-                chunks,
-                selected.entry_links().preload.clone(),
-                config.bundle.mode,
-                config.javascript.cost_model,
-                &config.bundle.cost,
-            )?;
+            let bundle = javascript_bundle(args, config, &result, javascript()?, output)?;
             write_javascript_bundle(output, &bundle)
         }
-        Target::Js | Target::JsModule => write_or_print(
-            args.output.as_deref(),
-            result
-                .javascript(codec)
-                .ok_or("missing selected JavaScript artifact")?
-                .javascript(),
-        ),
-        Target::C => write_or_print(
-            args.output.as_deref(),
-            result.native_c().ok_or("missing native C artifact")?,
-        ),
-        Target::Native | Target::All => {
-            let base = args
-                .output
-                .clone()
-                .unwrap_or_else(|| args.input.with_extension(""));
+        Target::C => write_or_print(args.output.as_deref(), native_c()?),
+        Target::Native => {
+            let base = base();
             ensure_parent(&base)?;
-            let c = result.native_c().ok_or("missing native C artifact")?;
-            if matches!(args.target, Target::All) {
-                fs::write(
-                    base.with_extension("js"),
-                    result
-                        .javascript(codec)
-                        .ok_or("missing selected JavaScript artifact")?
-                        .javascript(),
-                )
-                .map_err(|error| error.to_string())?;
-                fs::write(base.with_extension("c"), c).map_err(|error| error.to_string())?;
+            compile_native(native_c()?, &base)
+        }
+        Target::All => {
+            let base = base();
+            ensure_parent(&base)?;
+            let entry = base.with_extension("js");
+            if config.bundle.mode == BundleMode::Single {
+                fs::write(&entry, javascript()?.javascript())
+                    .map_err(|error| format!("failed to write {}: {error}", entry.display()))?;
+            } else {
+                let bundle = javascript_bundle(args, config, &result, javascript()?, &entry)?;
+                write_javascript_bundle(&entry, &bundle)?;
             }
-            compile_native_inner(c, &base, true)
+            let c = base.with_extension("c");
+            fs::write(&c, native_c()?)
+                .map_err(|error| format!("failed to write {}: {error}", c.display()))?;
+            compile_native(native_c()?, &base)
         }
     }
 }
 
-fn apply_resource_overrides(
-    config: &mut ProjectConfig,
-    jobs: Option<NonZeroUsize>,
-    codec_jobs: Option<NonZeroUsize>,
-) {
-    if let Some(jobs) = jobs {
-        config.compiler.resources.threads = Some(jobs);
+/// The delivered files of a multi-file build and their manifest, with the
+/// entry written at `output`.
+fn javascript_bundle(
+    args: &Args,
+    config: &ProjectConfig,
+    result: &ServiceCompilation,
+    selected: &ServiceJavaScript,
+    output: &Path,
+) -> Result<JavaScriptBundle, String> {
+    let entry_file = output
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
+    // Module names relative to the entry module's directory.
+    let paths = result.report()["inputs"]["modules"]
+        .as_array()
+        .map(|modules| {
+            modules
+                .iter()
+                .map(|module| module["path"].as_str().unwrap_or("").to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let base = args
+        .input
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    let base = fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
+    let name = |index: u32| {
+        let path = Path::new(paths.get(index as usize).map_or("", String::as_str));
+        path.strip_prefix(&base)
+            .unwrap_or(path)
+            .display()
+            .to_string()
+    };
+    let entry = lilscript::ManifestFile {
+        file_name: entry_file.to_string(),
+        modules: Vec::new(),
+        dependencies: selected.entry_links().dependencies.clone(),
+        dynamic_dependencies: selected.entry_links().dynamic_dependencies.clone(),
+        lazy: false,
+        importers: 0,
+        code: selected.javascript().to_string(),
+    };
+    let chunks = selected
+        .chunks()
+        .iter()
+        .map(|chunk| lilscript::ManifestFile {
+            file_name: chunk.name.clone(),
+            modules: chunk.modules.iter().map(|&module| name(module)).collect(),
+            dependencies: chunk.dependencies.clone(),
+            dynamic_dependencies: chunk.dynamic_dependencies.clone(),
+            lazy: chunk.lazy,
+            importers: chunk.importers,
+            code: chunk.code.clone(),
+        })
+        .collect();
+    lilscript::javascript_bundle(
+        entry,
+        chunks,
+        selected.entry_links().preload.clone(),
+        config.bundle.mode,
+        config.javascript.cost_model,
+        &config.bundle.cost,
+    )
+}
+
+/// The compiler's report as a person reads it: the objective, each codec's
+/// winner and its sizes, how much the search tried, the tactics the policy
+/// enabled, and time.
+fn explain_human(report: &Value) -> String {
+    use std::fmt::Write as _;
+    let text = |value: &Value| match value {
+        Value::String(text) => text.clone(),
+        Value::Null => "-".to_string(),
+        other => other.to_string(),
+    };
+    let mut out = String::new();
+    let mut line = |label: &str, value: String| {
+        let _ = writeln!(out, "{label:<20} {value}");
+    };
+    let policy = &report["javascript_policy"];
+    if !policy.is_null() {
+        let objective = &policy["objective"];
+        line(
+            "objective",
+            format!(
+                "{} bytes, effort {}",
+                text(&objective["codec"]).to_lowercase(),
+                text(&policy["effort"])
+            ),
+        );
+        let contract = &policy["contract"];
+        line(
+            "contract",
+            format!(
+                "{} {}, {}, bundle {}",
+                text(&contract["execution"]).to_lowercase(),
+                text(&contract["world"]),
+                text(&contract["ecmascript"]),
+                text(&contract["bundle_mode"]).to_lowercase()
+            ),
+        );
+        let artifacts = report["artifacts"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let winners = report["winners"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        for (codec, winner) in ["raw", "gzip", "brotli"].iter().zip(winners) {
+            let Some(artifact) = winner
+                .as_u64()
+                .and_then(|index| artifacts.get(index as usize))
+            else {
+                continue;
+            };
+            let details = &artifact["details"];
+            line(
+                &format!("{codec} winner"),
+                format!(
+                    "raw {}, gzip {}, brotli {}; {} file(s), style {}, literals {}, {} rewrite(s)",
+                    text(&artifact["raw"]),
+                    text(&artifact["gzip9"]),
+                    text(&artifact["brotli11"]),
+                    1 + details["chunks"].as_array().map_or(0, Vec::len),
+                    text(&details["style"]).to_lowercase(),
+                    text(&details["output"]["literals"]).to_lowercase(),
+                    details["semantic"]["rewrites"]
+                        .as_array()
+                        .map_or(0, Vec::len),
+                ),
+            );
+        }
+        let search = &report["search"];
+        if !search.is_null() {
+            line(
+                "search",
+                format!(
+                    "{} proposals, {} structures, {} renders, {} codec probes, {} admitted; {}",
+                    text(&search["proposals"]),
+                    text(&search["structures"]),
+                    text(&search["renders"]),
+                    text(&search["codec_probes"]),
+                    text(&search["admitted_artifacts"]),
+                    match &search["stop"] {
+                        Value::Null => "completed".to_string(),
+                        stop => format!("stopped: {}", text(stop)),
+                    }
+                ),
+            );
+        }
+        let tactics = policy["tactics"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        for (label, enabled) in [("tactics enabled", true), ("tactics disabled", false)] {
+            let names = tactics
+                .iter()
+                .filter(|tactic| tactic["state"]["enabled"].as_bool() == Some(enabled))
+                .map(|tactic| text(&tactic["id"]))
+                .collect::<Vec<_>>();
+            line(
+                label,
+                if names.is_empty() {
+                    "(none)".to_string()
+                } else {
+                    names.join(", ")
+                },
+            );
+        }
     }
-    if let Some(codec_jobs) = codec_jobs {
-        config.compiler.resources.codec_workers = codec_jobs;
+    let native = &report["native_delivery"];
+    if !native.is_null() {
+        line("native C", format!("{} bytes", text(&native["c_bytes"])));
     }
+    let milliseconds = |value: &Value| {
+        value.as_u64().map_or_else(
+            || "-".to_string(),
+            |nanos| format!("{:.1} ms", nanos as f64 / 1e6),
+        )
+    };
+    line(
+        "time",
+        format!(
+            "{} total, first artifact {}",
+            milliseconds(&report["total_ns"]),
+            milliseconds(&report["first_artifact_ns"])
+        ),
+    );
+    out.truncate(out.trim_end().len());
+    out
 }
 
 /// The resolved policy as the compiler will use it, so a port author can see
 /// every axis — contract, objective, effort, tactic permissions, resources and
 /// constraints — without reading source, and a receipt can pin its fingerprint.
-fn print_policy(args: &Args, loaded: &lilscript::config::LoadedConfig) -> Result<(), String> {
-    use lilscript::compilation_policy::CompilationRequest;
-    let request = match args.target {
-        Target::C | Target::Native => CompilationRequest::Native,
-        Target::Js => CompilationRequest::JavaScript { preserve_root_exports: false },
-        Target::JsModule | Target::All => CompilationRequest::JavaScript { preserve_root_exports: true },
+fn print_policy(args: &Args, loaded: &LoadedConfig, options: ServiceOptions) -> Result<(), String> {
+    let resolve = |request| -> Result<(String, Value), String> {
+        let policy = loaded.config.resolve_policy(request)?;
+        let fingerprint = policy
+            .fingerprint()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        Ok((fingerprint, policy.receipt()))
     };
-    let policy = loaded.config.resolve_policy(request)?;
-    let fingerprint: String = policy.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect();
-    let resources = &loaded.config.compiler.resources;
-    let receipt = serde_json::json!({
+    let javascript = options.javascript_request().map(resolve).transpose()?;
+    let native = options.native_request().map(resolve).transpose()?;
+    let (fingerprint, policy) = javascript
+        .clone()
+        .or_else(|| native.clone())
+        .expect("every target resolves a policy");
+    let mut receipt = json!({
         "config": loaded.path.as_ref().map(|path| path.display().to_string()),
         "unimplemented_knobs": loaded.config.unimplemented_knobs(),
         // How this run executes, after command-line overrides. Deliberately
         // outside the fingerprint: thread counts must never change the output.
         "execution": {
-            "threads": resources.threads.map(|threads| threads.get()),
-            "codec_workers": resources.codec_workers.get(),
+            "threads": args.jobs.map(NonZeroUsize::get),
+            "codec_workers": args.codec_jobs.map(NonZeroUsize::get),
             "mode": format!("{:?}", args.mode),
-            "backend": format!("{:?}", backend(args, &loaded.config)),
             "target": format!("{:?}", args.target),
         },
         "fingerprint": fingerprint,
-        "policy": policy.receipt(),
+        "policy": policy,
     });
-    println!("{}", serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?);
+    // `--target all` also builds C, under its own policy.
+    if let (Some(_), Some((fingerprint, policy))) = (&javascript, native) {
+        receipt["native_fingerprint"] = json!(fingerprint);
+        receipt["native_policy"] = policy;
+    }
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&receipt).map_err(|error| error.to_string())?
+    );
     Ok(())
 }
 
+/// Every file the build reads — source modules, delivered host modules, the
+/// configuration and the lockfile — for an external incremental build graph.
 fn print_dependencies(
     input: &Path,
-    loaded: &lilscript::config::LoadedConfig,
+    loaded: &LoadedConfig,
+    options: ServiceOptions,
 ) -> Result<(), String> {
-    let modules = lilscript::module::discover_modules_configured(input, &loaded.config)
-        .map_err(|error| render_module_diagnostic(&error))?;
-    let mut files = modules
-        .modules
-        .iter()
-        .map(|module| module.path.clone())
-        .collect::<Vec<_>>();
+    let inputs = lilscript::build_inputs(input, &loaded.config, options)
+        .map_err(|error| render_service_error(&error))?;
+    let mut files = inputs.files;
     if let Some(path) = &loaded.path {
         files.push(path.canonicalize().unwrap_or_else(|_| path.clone()));
     }
@@ -493,257 +506,19 @@ fn print_dependencies(
         if lockfile.is_file() {
             files.push(lockfile.canonicalize().unwrap_or(lockfile));
         }
-        if let Some(profile) = &loaded.config.profile.path {
-            let path = if profile.is_absolute() {
-                profile.clone()
-            } else {
-                root.join(profile)
-            };
-            if path.is_file() {
-                files.push(path.canonicalize().unwrap_or(path));
-            }
-        }
     }
     files.sort();
     files.dedup();
     println!(
         "{}",
-        serde_json::to_string(&serde_json::json!({
+        serde_json::to_string(&json!({
             "version": 1,
-            "entry": modules.modules[modules.root].path,
+            "entry": inputs.entry,
             "files": files,
         }))
         .map_err(|error| format!("failed to serialize compiler inputs: {error}"))?
     );
     Ok(())
-}
-
-fn print_explanation(
-    format: ExplainFormat,
-    reports: &[lilscript::optimizer::OptimizationReport],
-    metrics: &lilscript::JavaScriptSelectionMetrics,
-    abi: &lilscript::JavaScriptAbiManifest,
-) -> Result<(), String> {
-    match format {
-        ExplainFormat::Human => {
-            for report in reports {
-                eprintln!(
-                    "{:<34} {}",
-                    report.pass_name,
-                    if report.changed {
-                        "changed"
-                    } else {
-                        "unchanged"
-                    }
-                );
-            }
-            let census = lilscript::compiler::store_census();
-            if census.iter().any(|count| *count != 0) {
-                for (label, count) in [
-                    "store: crosses blocks",
-                    "store: used more than once",
-                    "store: unstable and unfused",
-                    "store: single use, fusion refused",
-                    "store: other",
-                    "  of which: only a fall-through edge",
-                ]
-                .into_iter()
-                .zip(census)
-                {
-                    eprintln!("{label:<34} {count}");
-                }
-            }
-            eprintln!("{:<34} {}", "javascript codec", metrics.codec);
-            eprintln!("{:<34} {}", "ABI world", abi.world);
-            eprintln!(
-                "{:<34} {}",
-                "public aggregate ABI", abi.public_aggregate_abi
-            );
-            if abi.exports.is_empty() {
-                eprintln!("{:<34} {}", "runtime exports", "(none)");
-            } else {
-                eprintln!(
-                    "{:<34} {}",
-                    "runtime exports",
-                    abi.exports
-                        .iter()
-                        .map(|export| format!("{}:{:?}", export.name, export.kind))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                );
-            }
-            eprintln!(
-                "{:<34} {}",
-                "selected transfer bytes", metrics.transfer_bytes
-            );
-            eprintln!("{:<34} {}", "syntax tokens", metrics.syntax.tokens);
-            eprintln!("{:<34} {}", "syntax AST nodes", metrics.syntax.ast_nodes);
-            eprintln!(
-                "{:<34} {}",
-                "estimated parse cost", metrics.syntax.parse_cost
-            );
-            eprintln!(
-                "{:<34} {}",
-                "estimated compile cost", metrics.syntax.compile_cost
-            );
-            eprintln!(
-                "{:<34} {}",
-                "estimated startup memory", metrics.syntax.estimated_memory_bytes
-            );
-            eprintln!(
-                "{:<34} {}",
-                "JavaScript performance score", metrics.performance.score
-            );
-            eprintln!(
-                "{:<34} {}",
-                "deoptimization risk", metrics.performance.deoptimization_risk
-            );
-            eprintln!(
-                "{:<34} {}",
-                "allocation pressure", metrics.performance.allocation_pressure
-            );
-            eprintln!(
-                "{:<34} {}",
-                "indirect-call pressure", metrics.performance.indirect_call_pressure
-            );
-            eprintln!(
-                "{:<34} {}",
-                "monomorphic call weight", metrics.performance.monomorphic_call_sites
-            );
-            eprintln!(
-                "{:<34} {}",
-                "candidates evaluated", metrics.candidates_evaluated
-            );
-            eprintln!("{:<34} {}", "search guarantee", metrics.search_guarantee);
-            eprintln!("{:<34} {}", "search stop", metrics.search_stop_reason);
-            eprintln!(
-                "{:<34} {}",
-                "decision registry version", metrics.decision_registry_version
-            );
-            eprintln!("{:<34} {}", "plans registered", metrics.plans_registered);
-            eprintln!(
-                "{:<34} {}",
-                "optimizer emissions attempted", metrics.optimizer_emissions_attempted
-            );
-            eprintln!(
-                "{:<34} {}",
-                "structural emissions attempted", metrics.emissions_attempted
-            );
-            eprintln!(
-                "{:<34} {}/{}{}",
-                "structural proposal work",
-                metrics.candidate_proposal_work_units,
-                metrics.candidate_proposal_limit,
-                if metrics.candidate_proposal_limit_reached {
-                    " (exhausted)"
-                } else {
-                    ""
-                }
-            );
-            eprintln!(
-                "{:<34} {}/{}{}",
-                "terminal work",
-                metrics.terminal_work_units,
-                metrics.terminal_codec_probe_limit,
-                if metrics.terminal_codec_probe_limit_reached {
-                    " (exhausted)"
-                } else {
-                    ""
-                }
-            );
-            eprintln!(
-                "{:<34} {}",
-                "terminal exact-codec calls", metrics.terminal_codec_probes
-            );
-            eprintln!("{:<34} {}", "peephole rewrites", metrics.peephole_rewrites);
-            eprintln!(
-                "{:<34} {}",
-                "layout searched",
-                if metrics.layout_searched { "yes" } else { "no" }
-            );
-            if metrics.cartesian_emission_axes.is_empty() {
-                eprintln!("{:<34} {}", "cartesian emission axes", "(none)");
-            } else {
-                eprintln!(
-                    "{:<34} {}",
-                    "cartesian emission axes",
-                    metrics.cartesian_emission_axes.join(", ")
-                );
-            }
-            if metrics.scored_emission_families.is_empty() {
-                eprintln!("{:<34} {}", "scored emission families", "(none)");
-            } else {
-                eprintln!(
-                    "{:<34} {}",
-                    "scored emission families",
-                    metrics.scored_emission_families.join(", ")
-                );
-            }
-            if metrics.starved_emission_families.is_empty() {
-                eprintln!("{:<34} {}", "starved emission families", "(none)");
-            } else {
-                eprintln!(
-                    "{:<34} {}",
-                    "starved emission families",
-                    metrics.starved_emission_families.join(", ")
-                );
-            }
-            if metrics.ir_variants_searched.is_empty() {
-                eprintln!("{:<34} {}", "scored ir variants", "(none)");
-            } else {
-                eprintln!(
-                    "{:<34} {}",
-                    "scored ir variants",
-                    metrics.ir_variants_searched.join(", ")
-                );
-            }
-            if metrics.removed_compression_families.is_empty() {
-                eprintln!("{:<34} {}", "compression families removed", "(none)");
-            } else {
-                eprintln!(
-                    "{:<34} {}",
-                    "compression families removed",
-                    metrics.removed_compression_families.join(", ")
-                );
-            }
-            eprintln!(
-                "{:<34} {} source, {} generated",
-                "operation origin", metrics.source_operations, metrics.generated_operations
-            );
-            eprintln!(
-                "{:<34} {}",
-                "compiler time (microseconds)", metrics.compiler_time_micros
-            );
-        }
-        ExplainFormat::Json => eprintln!(
-            "{}",
-            serde_json::to_string_pretty(&serde_json::json!({
-                "optimization_reports": reports,
-                "javascript_selection": metrics,
-                "abi_manifest": abi,
-            }))
-            .map_err(|error| format!("failed to serialize optimization report: {error}"))?
-        ),
-    }
-    Ok(())
-}
-
-fn write_configured_bundle(
-    input: &Path,
-    output: Option<&Path>,
-    config: &lilscript::config::ProjectConfig,
-) -> Result<(), String> {
-    let output = output.ok_or_else(|| {
-        "split and preserve-modules bundle modes require an explicit --output entry file"
-            .to_string()
-    })?;
-    let entry_file = output
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| "bundle output must have a UTF-8 file name".to_string())?;
-    let bundle = compile_path_to_js_bundle_configured(input, config, entry_file)
-        .map_err(|error| render_module_diagnostic(&error))?;
-    write_javascript_bundle(output, &bundle)
 }
 
 fn write_javascript_bundle(output: &Path, bundle: &JavaScriptBundle) -> Result<(), String> {
@@ -779,7 +554,7 @@ fn remove_stale_chunks(
     let Ok(previous) = fs::read_to_string(manifest_path) else {
         return Ok(());
     };
-    let Ok(previous) = serde_json::from_str::<serde_json::Value>(&previous) else {
+    let Ok(previous) = serde_json::from_str::<Value>(&previous) else {
         return Ok(());
     };
     let current = bundle
@@ -839,17 +614,20 @@ fn ensure_parent(output: &Path) -> Result<(), String> {
         .map_err(|error| format!("failed to create {}: {error}", parent.display()))
 }
 
+/// Compile C to an executable with the strict numerics the C target
+/// assumes: no fast math and no floating-point contraction.
 fn compile_native(c: &str, output: &Path) -> Result<(), String> {
-    compile_native_inner(c, output, false)
-}
-
-fn compile_native_inner(c: &str, output: &Path, strict_numeric: bool) -> Result<(), String> {
-    let compiler = std::env::var("CC").unwrap_or_else(|_| "clang".to_string());
+    // The platform's C compiler unless `CC` names one.
+    let compiler = std::env::var("CC").unwrap_or_else(|_| "cc".to_string());
     let mut command = Command::new(&compiler);
-    command.args(["-x", "c", "-std=c11", "-O3"]);
-    if strict_numeric {
-        command.args(["-fno-fast-math", "-ffp-contract=off"]);
-    }
+    command.args([
+        "-x",
+        "c",
+        "-std=c11",
+        "-O3",
+        "-fno-fast-math",
+        "-ffp-contract=off",
+    ]);
     #[cfg(target_os = "macos")]
     command.arg("-Wl,-no_uuid");
     command.arg("-o").arg(output).arg("-");
@@ -861,15 +639,19 @@ fn compile_native_inner(c: &str, output: &Path, strict_numeric: bool) -> Result<
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| format!("failed to start native compiler `{compiler}`: {error}"))?;
-    child
-        .stdin
-        .take()
-        .expect("native compiler stdin was piped")
-        .write_all(c.as_bytes())
-        .map_err(|error| format!("failed to send C source to `{compiler}`: {error}"))?;
+    // Feed the source from its own thread while this one drains stdout and
+    // stderr: a compiler that fills a pipe before reading all of its input
+    // would otherwise block both processes forever.
+    let mut stdin = child.stdin.take().expect("native compiler stdin was piped");
+    let source = c.to_string();
+    let writer = std::thread::spawn(move || stdin.write_all(source.as_bytes()));
     let result = child
         .wait_with_output()
         .map_err(|error| format!("failed to wait for `{compiler}`: {error}"))?;
+    writer
+        .join()
+        .expect("the source writer does not panic")
+        .map_err(|error| format!("failed to send C source to `{compiler}`: {error}"))?;
     if result.status.success() {
         Ok(())
     } else {
@@ -885,7 +667,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cli_resource_limits_are_nonzero_and_override_project_values() {
+    fn resource_flags_are_nonzero() {
         let args = Args::try_parse_from([
             "lilscript",
             "input.lil",
@@ -895,38 +677,97 @@ mod tests {
             "8",
         ])
         .unwrap();
-        let mut config = ProjectConfig::default();
-        config.compiler.resources.threads = NonZeroUsize::new(2);
-        config.compiler.resources.codec_workers = NonZeroUsize::new(3).unwrap();
-
-        apply_resource_overrides(&mut config, args.jobs, args.codec_jobs);
-
-        assert_eq!(config.compiler.resources.threads.unwrap().get(), 12);
-        assert_eq!(config.compiler.resources.codec_workers.get(), 8);
+        assert_eq!(args.jobs.unwrap().get(), 12);
+        assert_eq!(args.codec_jobs.unwrap().get(), 8);
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--jobs", "0"]).is_err());
         assert!(Args::try_parse_from(["lilscript", "input.lil", "--codec-jobs", "0"]).is_err());
     }
-}
 
-// STORE_CENSUS report (temporary)
-fn report_store_census() {
-    if std::env::var_os("LILSCRIPT_STORE_CENSUS").is_none() {
-        return;
-    }
-    let names = [
-        "cross_block",
-        "use_count>1",
-        "unstable",
-        "single_use",
-        "other",
-        "fallthrough_only",
-    ];
-    eprint!("CENSUS");
-    for (i, n) in names.iter().enumerate() {
-        eprint!(
-            " {n}={}",
-            lilscript::codegen_ir_js::STORE_REASONS[i].load(std::sync::atomic::Ordering::Relaxed)
+    #[test]
+    fn the_backend_flag_parses_only_to_be_refused() {
+        for argv in [
+            &["lilscript", "input.lil", "--backend"][..],
+            &["lilscript", "input.lil", "--backend", "semantic"][..],
+            &["lilscript", "input.lil", "--backend=legacy"][..],
+        ] {
+            assert!(
+                Args::try_parse_from(argv).unwrap().backend.is_some(),
+                "{argv:?}"
+            );
+        }
+        assert!(Args::try_parse_from(["lilscript", "input.lil"])
+            .unwrap()
+            .backend
+            .is_none());
+        assert!(
+            Args::try_parse_from(["lilscript", "input.lil", "--profile-template", "p.json"])
+                .is_err()
         );
     }
-    eprintln!();
+
+    /// `--print-policy` and the build resolve one request per target; `all`
+    /// builds a closed script and C, like `js` and `c`.
+    #[test]
+    fn every_target_maps_to_one_request() {
+        use lilscript::compilation_policy::CompilationRequest as R;
+        let requests = |target: &str| {
+            let args =
+                Args::try_parse_from(["lilscript", "input.lil", "--target", target]).unwrap();
+            let options = service_options(&args);
+            (options.javascript_request(), options.native_request())
+        };
+        let script = Some(R::JavaScript {
+            preserve_root_exports: false,
+        });
+        let module = Some(R::JavaScript {
+            preserve_root_exports: true,
+        });
+        assert_eq!(requests("js"), (script, None));
+        assert_eq!(requests("js-module"), (module, None));
+        assert_eq!(requests("c"), (None, Some(R::Native)));
+        assert_eq!(requests("native"), (None, Some(R::Native)));
+        assert_eq!(requests("all"), (script, Some(R::Native)));
+    }
+
+    #[test]
+    fn the_human_summary_names_the_objective_winner_and_tactics() {
+        let report = json!({
+            "javascript_policy": {
+                "effort": 13,
+                "objective": {"codec": "Brotli"},
+                "contract": {"execution": "Module", "world": "ReusableLibrary",
+                    "ecmascript": "es2022", "bundle_mode": "Single"},
+                "tactics": [
+                    {"id": "inlining", "state": {"permission": "auto", "enabled": true}},
+                    {"id": "property-mangling", "state": {"permission": "off", "enabled": false}},
+                ],
+            },
+            "artifacts": [{"raw": 4786, "gzip9": null, "brotli11": 1646, "details": {
+                "style": "Scoped", "output": {"literals": "Original"}, "chunks": [],
+                "semantic": {"rewrites": []}}}],
+            "winners": [null, null, 0],
+            "search": {"proposals": 104, "structures": 35, "renders": 105, "codec_probes": 102,
+                "admitted_artifacts": 105, "stop": null},
+            "native_delivery": null,
+            "total_ns": 951_596_411u64,
+            "first_artifact_ns": 19_736_025u64,
+        });
+        let summary = explain_human(&report);
+        assert!(
+            summary.contains("objective            brotli bytes, effort 13"),
+            "{summary}"
+        );
+        assert!(
+            summary.contains("brotli winner        raw 4786, gzip -, brotli 1646"),
+            "{summary}"
+        );
+        assert!(summary.contains("104 proposals"), "{summary}");
+        assert!(summary.contains("tactics enabled      inlining"), "{summary}");
+        assert!(
+            summary.contains("tactics disabled     property-mangling"),
+            "{summary}"
+        );
+        assert!(summary.contains("951.6 ms total"), "{summary}");
+        assert!(!summary.contains("raw winner"), "{summary}");
+    }
 }

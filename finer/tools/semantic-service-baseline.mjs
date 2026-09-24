@@ -2,7 +2,7 @@
 //
 // "Measure frontend-inclusive time to first valid artifact and RSS. This
 // establishes a baseline, not a speed claim." Every case the new backend
-// compiles is run through the real CLI (`--backend semantic`): the compiler's
+// compiles is run through the real CLI: the compiler's
 // own `first_artifact_ns` (discovery, parse, check, lower, first admitted
 // artifact) and, from GNU time, the whole process's wall clock and peak RSS.
 // Timing follows the cost policy: one discarded warmup, five samples, median,
@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url"
 import { fileIdentity, fingerprint } from "./artifact-evidence.mjs"
 import { TIMING_RULES } from "./cost-policy.mjs"
 import { preserveBinary } from "./preserved-binaries.mjs"
+import { routeArgs } from "./route-args.mjs"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 
@@ -29,7 +30,7 @@ const percentile = (values, fraction) => {
 }
 
 function sample({ compiler, source, target, output, config }) {
-  const args = ["-f", "%e %M", compiler, source, "--backend", "semantic", "--target", target, "--mode", "development", "--config", config, "--explain", "json", "-o", output]
+  const args = ["-f", "%e %M", compiler, source, ...routeArgs(compiler), "--target", target, "--mode", "development", "--config", config, "--explain", "json", "-o", output]
   // GNU time resolves wall clock to 10 ms, coarser than these compiles, so
   // wall time comes from this process's high-resolution clock; GNU time
   // still supplies the child's peak RSS.

@@ -225,6 +225,23 @@ pub(crate) fn deliver(
     requests: &[PathBuf],
     edition: crate::js_syntax_target::EcmaScriptEdition,
 ) -> Result<HostDelivery, String> {
+    deliver_with_files(root_directory, requests, edition).map(|(delivery, _)| delivery)
+}
+
+/// The files `deliver` carries, canonical, in delivery order.
+pub(crate) fn delivered_files(
+    root_directory: &Path,
+    requests: &[PathBuf],
+    edition: crate::js_syntax_target::EcmaScriptEdition,
+) -> Result<Vec<PathBuf>, String> {
+    deliver_with_files(root_directory, requests, edition).map(|(_, files)| files)
+}
+
+fn deliver_with_files(
+    root_directory: &Path,
+    requests: &[PathBuf],
+    edition: crate::js_syntax_target::EcmaScriptEdition,
+) -> Result<(HostDelivery, Vec<PathBuf>), String> {
     let mut delivery = HostDelivery::default();
     let mut paths: Vec<PathBuf> = Vec::new();
     let mut reserved = std::collections::BTreeSet::new();
@@ -240,7 +257,7 @@ pub(crate) fn deliver(
         )?;
     }
     delivery.reserved = reserved.into_iter().collect();
-    Ok(delivery)
+    Ok((delivery, paths))
 }
 
 fn visit(

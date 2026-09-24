@@ -76,9 +76,10 @@ pub use structured_js::manifest::{
     javascript_bundle,
 };
 pub use compiler_service::{
-    CheckedSourceSession, FinishedSourceSession, ServiceCompilation, ServiceError,
+    BuildInputs, CheckedSourceSession, FinishedSourceSession, ServiceCompilation, ServiceError,
     ChunkExtension, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions, ServiceTarget,
-    compile_path_semantic, compile_source_semantic, with_checked_path, with_checked_source,
+    build_inputs, compile_path_semantic, compile_source_semantic, with_checked_path,
+    with_checked_source,
 };
 pub use interpreter::{
     InterpretError, InterpreterLimits, interpret_program, interpret_program_with_limits,

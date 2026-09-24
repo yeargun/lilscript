@@ -4,7 +4,8 @@
 // Each port is copied to a fresh workspace (its node_modules linked, not
 // copied), the recorded source migration in finer/port-migrations/<port>.patch
 // is applied, `dist/` is removed, and the port is built and tested with
-// LILSCRIPT_COMPILER pointing at a wrapper that adds `--backend semantic`.
+// LILSCRIPT_COMPILER pointing at a wrapper around the compiler (which adds
+// `--backend semantic` for a binary from before the migration).
 // The report pins the compiler digest, each port's git revision and dirty
 // state, and each patch digest, so a receipt of this command is replayable.
 //
@@ -26,6 +27,7 @@ import { homedir, tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import { spawnSync } from "node:child_process"
 import { fileURLToPath } from "node:url"
+import { routeArgs } from "./route-args.mjs"
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const args = new Map()
@@ -133,7 +135,8 @@ for (const port of ports) {
     }
   }
   const wrapper = join(workspace, ".lilscript-semantic")
-  writeFileSync(wrapper, `#!/bin/sh\nexec ${JSON.stringify(compiler)} --backend semantic "$@"\n`)
+  const route = routeArgs(compiler).map(arg => `${arg} `).join("")
+  writeFileSync(wrapper, `#!/bin/sh\nexec ${JSON.stringify(compiler)} ${route}"$@"\n`)
   chmodSync(wrapper, 0o755)
   const env = { ...process.env, LILSCRIPT_COMPILER: wrapper }
   // A port without a package (the probe) is a differential build: it

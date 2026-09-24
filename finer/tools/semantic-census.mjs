@@ -1,7 +1,7 @@
 // How much of the language the new semantic backend carries, measured.
 //
 // This is the migration's own progress metric. Every `tests/cases/*.lil`
-// program is compiled with `--backend semantic` for JavaScript and for C, the
+// program is compiled for JavaScript and for C, the
 // result is executed, and its output is compared with the case's `.out` file,
 // which was written against the legacy backend and is therefore an independent
 // expectation for the new one.
@@ -25,6 +25,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { fileIdentity, fingerprint } from "./artifact-evidence.mjs"
 import { preserveBinary } from "./preserved-binaries.mjs"
+import { routeArgs } from "./route-args.mjs"
 
 const toolsDirectory = dirname(fileURLToPath(import.meta.url))
 const root = resolve(toolsDirectory, "../..")
@@ -70,7 +71,7 @@ export function runCensus({ compiler, directory, config = join(root, "tests/conf
     for (const target of TARGETS) {
       const label = `${stem}-${target}`
       const destination = join(directory, `${label}.${extension(target)}`)
-      const compile = run(`${label}-compile`, preserved.path, [source, "--config", config, "--backend", "semantic", "--mode", "development", "--target", target, "--output", destination])
+      const compile = run(`${label}-compile`, preserved.path, [source, "--config", config, ...routeArgs(preserved.path), "--mode", "development", "--target", target, "--output", destination])
       let nativeBuild = null, execution = null
       if (compile.status === 0) {
         let executable = destination
