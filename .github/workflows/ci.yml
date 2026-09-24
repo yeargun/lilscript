@@ -4,62 +4,45 @@ on:
   push:
   pull_request:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
-  compiler:
+  # The gate: one Linux job over the compiler, its unit tests, the case runner
+  # (every case and harvested regression in 18 lanes, against the ledger) and
+  # the codec contract. Publishing lives in scripts/release-check.sh and runs
+  # on demand, never in the gate (plan M2.1).
+  gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      LILSCRIPT_NATIVE_CLANG: clang
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: |
-            benchmarks/apps/package-lock.json
-            benchmarks/browser/package-lock.json
-            benchmarks/libraries/package-lock.json
-            benchmarks/popular/package-lock.json
-            benchmarks/scenarios/package-lock.json
-            labs/solid-client/package-lock.json
-            lilastro/package-lock.json
-            tooling/lilpack/package-lock.json
-            vscode-extension/package-lock.json
-            web/package-lock.json
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-      - run: rustup component add clippy rustfmt
-      - run: npm ci --prefix benchmarks/apps
-      - run: npm ci --prefix benchmarks/browser
-      - run: npm ci --prefix benchmarks/libraries
-      - run: npm ci --prefix benchmarks/popular
-      - run: npm ci --prefix benchmarks/scenarios
-      - run: npm ci --prefix labs/solid-client
-      - run: npm ci --prefix lilastro
-      - run: npm ci --prefix tooling/lilpack
-      - run: npm ci --prefix vscode-extension
-      - run: npm ci --prefix web
-      - run: npm --prefix benchmarks/browser exec -- playwright install --with-deps chromium
-      - run: scripts/release-check.sh
-      - name: Upload comparison evidence
+      - run: cargo fmt --all -- --check
+      - run: node scripts/check-doc-links.mjs
+      - run: cargo build --release --bins
+      - run: cargo test --release --lib
+      - run: cargo test --release --bins
+      - run: node --test benchmarks/codec-contract.test.mjs
+      - run: node --test scripts/verify-runners.test.mjs
+      - run: node scripts/cases.mjs --compiler target/release/lilscript --json cases.json
+      - name: Upload the case report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: comparison-evidence
+          name: cases
           if-no-files-found: warn
-          path: |
-            comparison/cases/summary.json
-            comparison/cases/summary.md
-            comparison/cases/build/
-            comparison/cases/generated/
-            comparison/algorithms/summary.json
-            comparison/algorithms/summary.md
-            comparison/algorithms/build/
-            comparison/summary.json
-            comparison/summary.md
+          path: cases.json
 
+  # The three-platform build runs on pull requests and on demand.
   build-matrix:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     env:
       LIBZ_SYS_STATIC: "1"
     strategy:

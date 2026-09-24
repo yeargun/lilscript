@@ -114,7 +114,11 @@ function runnerFiles(root) {
   const files = [];
   const visit = (directory) => {
     const relativeDirectory = relative(root, directory);
+    // Research and the historical finer/ experiments are not size evidence
+    // for current claims.
     if (
+      relativeDirectory === "finer" ||
+      relativeDirectory.startsWith(`finer${sep}`) ||
       relativeDirectory === join("docs", "knowledge", "research") ||
       relativeDirectory.startsWith(
         `${join("docs", "knowledge", "research")}${sep}`,
