@@ -1,0 +1,1 @@
+extern JsValue item();extern bool flag();bool choose(JsValue value,bool enabled){bool array=value.isArray();if(enabled){return array;}return false;}print(choose(item(),flag()));

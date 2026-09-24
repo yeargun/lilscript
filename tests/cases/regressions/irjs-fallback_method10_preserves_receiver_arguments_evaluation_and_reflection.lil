@@ -1,0 +1,1 @@
+extern void inspect(JsValue value);extern void keep(JsValue value);JsValue target(JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j){return JS.array(self,a,b,c,d,e,f,g,h,i,j);}inspect(JS.method10(target));inspect(JS.method10(target));keep(target(null,0,0,0,0,0,0,0,0,0,0));

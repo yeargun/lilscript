@@ -1,0 +1,1 @@
+extern int read();class Box{int value;int[] items;init(){this.value=read();}}extern void observe(Box box);Box box=new Box();observe(box);print(box.value);

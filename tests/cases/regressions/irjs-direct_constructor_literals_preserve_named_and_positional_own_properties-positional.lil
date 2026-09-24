@@ -1,0 +1,1 @@
+class Slot{int value;init(int value){this.value=value;}}extern void inspect(Slot slot);inspect(new Slot(7));

@@ -1,0 +1,22 @@
+extern bool flag();
+extern void event(string text);
+void guard(bool enabled,bool fail) {
+    if(enabled) {
+        try {
+            if(fail) { throw "failed"; }
+            event("try");
+        } catch(auto error) { event("catch"); }
+        finally { event("finally"); }
+        event("after");
+    }
+    event("exit");
+}
+void nested(bool outer,bool inner) {
+    if(outer) { if(inner) { event("inner"); } }
+    else { event("outer-else"); }
+}
+guard(flag(),flag());
+guard(flag(),flag());
+guard(flag(),flag());
+nested(flag(),flag());
+nested(flag(),flag());

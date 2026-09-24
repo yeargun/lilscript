@@ -1,0 +1,16 @@
+extern void keep(JsValue value);
+JsValue makeInfo(string propertyName, string attributeName) {
+  return JS.object("propName", propertyName, "attrName", attributeName);
+}
+JsValue find(string value) {
+  if (value == "skip") {
+    return makeInfo(value, value);
+  }
+  return makeInfo(value, value);
+}
+JsValue createProperty(string prop) {
+  JsValue info = find(prop);
+  keep(JS.get(info, "propName"));
+  return info;
+}
+keep(createProperty);

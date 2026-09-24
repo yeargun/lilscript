@@ -1,0 +1,1 @@
+extern string? first();extern string? second();extern string third();export string choose(){return (first()??second())??third();}print(choose());print(choose());

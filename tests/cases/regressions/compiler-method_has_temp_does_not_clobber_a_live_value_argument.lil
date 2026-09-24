@@ -1,0 +1,34 @@
+// Harvested from src/compiler.rs method_has_temp_does_not_clobber_a_live_value_argument.
+JsValue call1(JsValue fn, JsValue self, JsValue a) {
+  return JS.call(fn, self, a);
+}
+JsValue Ctor = JS.method0((JsValue self) => self);
+Ctor["prototype"]["has"] = JS.method1((JsValue self, JsValue value) => {
+  return false;
+});
+Ctor["prototype"]["add"] = JS.method1((JsValue self, JsValue value) => {
+  if (self["flag"].truthy()) {
+    JsValue change = JS.object();
+    change["newValue"] = value;
+    if (!change.truthy()) {
+      return self;
+    }
+    value = change["newValue"];
+  }
+  JsValue hasFn = self["has"];
+  self["touched"] = self;
+  if (!call1(hasFn, self, value).truthy()) {
+    JS.call(self["run"], JS.undefined(), JS.method0((JsValue _s) => {
+      self["added"] = value;
+      value = self["added"];
+      return JS.undefined();
+    }));
+  }
+  return self;
+});
+JsValue obj = JS.construct(Ctor);
+obj["run"] = JS.method1((JsValue _s, JsValue fn) => {
+  return JS.call(fn, JS.undefined());
+});
+JS.call(obj["add"], obj, 7);
+print(obj["added"]);

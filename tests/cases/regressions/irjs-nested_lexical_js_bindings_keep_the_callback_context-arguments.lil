@@ -1,0 +1,6 @@
+extern JsValue arguments;extern void collect(JsValue value);
+// Harness: the test ran the program inside (function ambient(){...})('ambient'), so `arguments` was
+// that function's arguments object. A script has no enclosing function, so the program body runs in
+// a LilScript function called with "ambient".
+void ambient(string tag){collect(JS.staticRest((JsValue args)=>{collect(()=>arguments);return args;}));}
+ambient("ambient");

@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs drops_globals_only_read_by_dead_functions (text-exact: the test
+// asserts the complete output `console.log(1)`).
+int secret=7;
+void unused(){print(secret);}
+print(1);

@@ -1,0 +1,7 @@
+// Harvested from src/compiler.rs initializes_each_module_once_in_a_static_cycle (a.lil of a two-module
+// cycle; the other module lives in ./compiler-initializes_each_module_once_in_a_static_cycle/).
+import {read} from "./compiler-initializes_each_module_once_in_a_static_cycle/b";
+int initialized=0;
+int initialize(){initialized+=1;return initialized;}
+export int value=initialize();
+print(read()+initialized);

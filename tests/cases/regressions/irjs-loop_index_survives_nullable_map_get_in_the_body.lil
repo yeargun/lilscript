@@ -1,0 +1,20 @@
+int total=0;
+Map<string, int> fields=new Map<string, int>();
+fields.set("a", 1);
+fields.set("arr", 2);
+Map<string, int> nested=new Map<string, int>();
+nested.set("a", 9);
+string[] keys=["a", "arr"];
+for (int i=0;i<keys.length;i=i+1) {
+  string key=keys[i];
+  int? child=nested.get(key);
+  if (child != null) {
+    total=total+child;
+  } else {
+    int? found=fields.get(key);
+    if (found != null) {
+      total=total+found;
+    }
+  }
+}
+print(total);

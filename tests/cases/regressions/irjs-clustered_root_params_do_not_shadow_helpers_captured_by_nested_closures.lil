@@ -1,0 +1,1 @@
+extern void keep(func(string[], string)->string cb);string last(string[] xs){return xs[xs.length-1];}string walk(string[] xs,string src){if(xs.length>0){return last(xs);}return src;}string parse(string src,bool block,string opt){keep(walk);if(block){return opt;}return src;}print(parse("x",true,"ok"));

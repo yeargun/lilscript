@@ -1,0 +1,20 @@
+export JsValue make(JsValue options) {
+  options = JS.or(options, JS.object());
+  JsValue memory = false;
+  func()->void fire = () => {
+    memory = JS.or(memory, options["memory"]);
+  };
+  JsValue api = JS.object();
+  api["run"] = () => {
+    fire();
+    return JS.undefined();
+  };
+  api["memory"] = () => memory;
+  return api;
+}
+
+// Harness: the test imported make and ran `const o=make({memory:true});o.run();String(Boolean(o.memory()))`.
+extern JsValue makeOptions;
+JsValue o = make(makeOptions);
+JS.invoke(o, "run");
+print(JS.invoke(o, "memory").truthy());

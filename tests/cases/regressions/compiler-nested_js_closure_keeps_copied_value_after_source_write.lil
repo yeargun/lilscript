@@ -1,0 +1,11 @@
+// Harvested from src/compiler.rs nested_js_closure_keeps_copied_value_after_source_write.
+JsValue snapshot(){
+  JsValue value=1;
+  JsValue oldValue=value;
+  JsValue nested=JS.method0((JsValue _n)=>{value=2;return JS.undefined();});
+  JS.call(nested,JS.undefined());
+  print(oldValue);
+  print(value);
+  return JS.undefined();
+}
+snapshot();

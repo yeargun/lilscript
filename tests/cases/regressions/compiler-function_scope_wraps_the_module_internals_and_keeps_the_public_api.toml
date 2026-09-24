@@ -1,0 +1,3 @@
+# The test compiled with `mangle.exports = false`: the public export names are the ABI the probe reads.
+[mangle]
+exports = false

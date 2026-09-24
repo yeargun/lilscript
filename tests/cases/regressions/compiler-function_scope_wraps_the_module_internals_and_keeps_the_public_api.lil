@@ -1,0 +1,14 @@
+// Harvested from src/compiler.rs (function_scope_tests) function_scope_wraps_the_module_internals_and_keeps_the_public_api.
+// MODULE LANE ONLY: the probe reads exported-function identity (name, arity) at the js-module
+// boundary. Compile with --target js-module; the probe in .module-probe.mjs imports the module.
+Record<string> cache = record{};
+int misses = 0;
+export string look(string key){
+  string? hit = cache[key];
+  if (hit != null) return hit;
+  misses = misses + 1;
+  string made = key + "!";
+  cache[key] = made;
+  return made;
+}
+export int missed(){return misses;}

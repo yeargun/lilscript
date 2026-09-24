@@ -1,0 +1,22 @@
+extern JsValue Object;
+JsValue Atom = JS.methodRest((JsValue self, JsValue args) => {
+  self["name_"] = args[0];
+  return self;
+});
+Atom["prototype"]["report"] = JS.method0((JsValue self) => self["name_"]);
+Atom["prototype"]["kind"] = JS.method0((JsValue self) => "atom");
+JsValue Box = JS.methodRest((JsValue self, JsValue args) => {
+  JS.call(Atom, self, args[1]);
+  self["value_"] = args[0];
+  return self;
+});
+JS.invoke(Object, "setPrototypeOf", Box["prototype"], Atom["prototype"]);
+Box["prototype"]["get"] = JS.method0((JsValue self) => self["value_"]);
+Box["prototype"]["set"] = JS.method1((JsValue self, JsValue next) => {
+  self["value_"] = next;
+  return next;
+});
+JsValue box = JS.construct(Box, 7, "n");
+print(JS.call(box["get"], box));
+print(JS.call(box["report"], box));
+print(JS.object("type", "update", "object", box, "newValue", 8)["type"]);

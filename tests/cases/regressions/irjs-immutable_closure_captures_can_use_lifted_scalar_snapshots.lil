@@ -1,0 +1,1 @@
+extern int read();extern void keep(func()->int callback);int install(){int value=read();keep(()=>value);return value;}print(install());

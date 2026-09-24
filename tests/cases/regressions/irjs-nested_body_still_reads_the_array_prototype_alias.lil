@@ -1,0 +1,15 @@
+extern void consume(JsValue value);
+JsValue list=JS.array();
+JS.push(list,1);
+JS.push(list,2);
+func()->void inner=()=>{
+  JsValue notFn=JS.object();
+  func()->void nested=()=>{
+    JS.push(list,3);
+    JS.push(list,4);
+  };
+  nested();
+  consume(notFn);
+};
+inner();
+consume(list);

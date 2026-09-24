@@ -1,0 +1,11 @@
+// Harvested from src/compiler.rs lowers_javascript_short_circuit_and_strict_comparison_without_helpers.
+// The test imported the exported functions from a Node module; here the program
+// also hands them to the host driver `check`, which replays the runner (see .host.js).
+extern JsValue left();
+extern JsValue right();
+extern void check(func()->JsValue fallback, func()->JsValue guarded, func(JsValue)->bool same, func(JsValue)->bool different);
+export JsValue fallback() { return JS.or(left(), right()); }
+export JsValue guarded() { return JS.and(left(), right()); }
+export bool same(JsValue value) { return JS.strictEqual(value, 0.0); }
+export bool different(JsValue value) { return JS.strictNotEqual(value, false); }
+check(fallback, guarded, same, different);

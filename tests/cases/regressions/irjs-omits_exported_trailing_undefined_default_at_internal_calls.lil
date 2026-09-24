@@ -1,0 +1,11 @@
+export float lookup(JsValue elem, JsValue arr, JsValue i = JS.undefined()) {
+  return JS.number(JS.invoke(arr, "indexOf", elem, i));
+}
+export float has(JsValue elem, JsValue arr) {
+  return lookup(elem, arr);
+}
+
+// Harness: the test printed String(has("b",["a","b","c"])+" "+lookup.length) = "1 3".
+// lookup.length (JavaScript arity of the export) is not expressible in a script case.
+extern JsValue letters;
+print(has("b", letters));

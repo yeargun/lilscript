@@ -1,0 +1,3 @@
+# The test compiled with `public_aggregate_fields = false`, the positional public-aggregate ABI.
+[javascript]
+public_aggregate_abi = "positional"

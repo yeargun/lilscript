@@ -1,0 +1,1 @@
+struct Item{int __proto__;}extern void inspect(Item item);inspect(Item{7});

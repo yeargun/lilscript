@@ -1,0 +1,23 @@
+// Harvested from src/optimizer.rs:15030 `inherited_field_summaries_preserve_subclass_hooks_and_integer_overflow` (old-route unit test, commit 0c17237e).
+class Base {
+    (func()->float)? hook;
+    int count;
+    string label;
+    init() { this.hook = null; this.count = 1; this.label = "base"; }
+    float sample() {
+        (func()->float)? callback = this.hook;
+        if (callback != null) { return callback(); }
+        return -1.0;
+    }
+    int next() { return this.count + 1; }
+    string name() { return this.label; }
+}
+class Child extends Base {
+    init() { super(); this.hook = () => 42.0; this.count = 2147483647; this.label = "child"; }
+}
+class Grandchild extends Child { init() { super(); } }
+Base plain = new Base();
+Grandchild derived = new Grandchild();
+print(plain.sample()); print(derived.sample());
+print(plain.next()); print(derived.next());
+print(plain.name()); print(derived.name());

@@ -1,0 +1,5 @@
+// b.lil of compiler.rs resolves_reexports_through_a_static_cycle; "./a" is the case entry.
+import {read} from "../compiler-resolves_reexports_through_a_static_cycle";
+import {value} from "./c";
+export {value};
+export int through(){return read();}

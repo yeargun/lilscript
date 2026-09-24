@@ -1,0 +1,1 @@
+pure int adjust(int value){return value+1;}print(adjust(1));print(adjust(2));

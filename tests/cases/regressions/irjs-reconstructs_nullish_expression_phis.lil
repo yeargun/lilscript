@@ -1,0 +1,1 @@
+extern string? read();extern string fallback();export string choose(){return read()??fallback();}print(choose());print(choose());

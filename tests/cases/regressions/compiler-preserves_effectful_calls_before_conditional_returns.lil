@@ -1,0 +1,9 @@
+// Harvested from src/compiler.rs preserves_effectful_calls_before_conditional_returns.
+// The host keeps the callback and calls it twice after the program (see .host.js).
+class Box{int value;init(int value){this.value=value;}void increment(){this.value+=1;}}
+extern void retain(func()->int callback);
+void install(bool flag){
+  Box box=new Box(0);
+  retain(()=>{box.increment();if(flag){return box.value;}return 0;});
+}
+install(true);

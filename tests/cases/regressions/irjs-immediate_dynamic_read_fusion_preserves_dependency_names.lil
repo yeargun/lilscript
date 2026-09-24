@@ -1,0 +1,1 @@
+extern JsValue input();string read(JsValue value){string name=JS.string(value["name"]);print(name);return name;}print(read(input()));

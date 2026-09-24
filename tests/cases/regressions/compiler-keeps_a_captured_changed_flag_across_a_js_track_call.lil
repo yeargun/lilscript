@@ -1,0 +1,48 @@
+// Harvested from src/compiler.rs keeps_a_captured_changed_flag_across_a_js_track_call.
+JsValue call1(JsValue fn,JsValue self,JsValue a0){return JS.call(fn,self,a0);}
+JsValue Reaction=JS.method0((JsValue self)=>self);
+JsValue reaction(JsValue expression,JsValue effect){
+  JsValue currentValue=JS.undefined();
+  JsValue firstTimeFlag=true;
+  JsValue changedFlag=false;
+  JsValue r=JS.undefined();
+  JsValue exprTrack=()=>{
+    JsValue nextValue=JS.call(expression,JS.undefined(),r);
+    if(firstTimeFlag.truthy()){
+      changedFlag=true;
+    }else{
+      changedFlag=!JS.strictEqual(currentValue,nextValue);
+    }
+    currentValue=nextValue;
+    return JS.undefined();
+  };
+  JsValue reactionRunner=()=>{
+    changedFlag=false;
+    call1(r["track"],r,exprTrack);
+    if(firstTimeFlag.truthy()){
+      print("first");
+    }else if(changedFlag.truthy()){
+      JS.call(effect,JS.undefined(),currentValue);
+    }else{
+      print("skip");
+    }
+    firstTimeFlag=false;
+    return JS.undefined();
+  };
+  r=JS.construct(Reaction);
+  r["track"]=JS.method1((JsValue self,JsValue fn)=>{
+    JS.call(fn,self);
+    return JS.undefined();
+  });
+  return reactionRunner;
+}
+JsValue box=JS.object();
+box["n"]=1;
+JsValue run=reaction(()=>box["n"],(JsValue value)=>{
+  print(value);
+  return JS.undefined();
+});
+JS.call(run,JS.undefined());
+box["n"]=2;
+JS.call(run,JS.undefined());
+JS.call(run,JS.undefined());

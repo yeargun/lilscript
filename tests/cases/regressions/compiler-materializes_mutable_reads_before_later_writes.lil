@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs materializes_mutable_reads_before_later_writes (third program;
+// the first two programs of the test are asserted only on emitted text).
+int state=1;
+void run(){bool wasInitial=state==1;state=2;print(wasInitial);}
+run();

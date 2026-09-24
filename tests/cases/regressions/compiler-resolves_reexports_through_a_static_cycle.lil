@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs resolves_reexports_through_a_static_cycle (a.lil of a three-module
+// graph with an a<->b cycle; the other modules live in ./compiler-resolves_reexports_through_a_static_cycle/).
+import {value} from "./compiler-resolves_reexports_through_a_static_cycle/b";
+export {value};
+export int read(){return value;}
+print(read());

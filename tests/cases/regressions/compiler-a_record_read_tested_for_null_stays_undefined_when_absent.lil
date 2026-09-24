@@ -1,0 +1,13 @@
+// Harvested from src/compiler.rs (function_scope_tests) a_record_read_tested_for_null_stays_undefined_when_absent.
+// The test imported the module and ran a probe over the exports; here the program
+// also hands the exported functions to the host driver `check` (see .host.js).
+extern void check(func(string)->string look, func(string)->string? raw);
+Record<string> cache = record{};
+export string look(string key){
+  string? hit = cache[key];
+  if (hit != null) return hit;
+  cache[key] = key + "!";
+  return cache[key] ?? "";
+}
+export string? raw(string key){return cache[key];}
+check(look, raw);

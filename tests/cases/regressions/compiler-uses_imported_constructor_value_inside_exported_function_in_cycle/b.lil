@@ -1,0 +1,5 @@
+// b.lil of compiler.rs uses_imported_constructor_value_inside_exported_function_in_cycle; "./a" is the case entry.
+import {create} from "../compiler-uses_imported_constructor_value_inside_exported_function_in_cycle";
+export constructor Context;
+class Context{JsValue value;init(JsValue value){this.value=value;}}
+export int cycleValue(){if(JS.typeOf(create)=="function")return 1;return 0;}

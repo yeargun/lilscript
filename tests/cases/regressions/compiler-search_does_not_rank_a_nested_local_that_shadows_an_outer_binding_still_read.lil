@@ -1,0 +1,16 @@
+// Harvested from src/compiler.rs search_does_not_rank_a_nested_local_that_shadows_an_outer_binding_still_read.
+// The host keeps `go` and calls it after the program with a JavaScript callback (see .host.js).
+extern void keep(func(JsValue)->void cb);
+extern void observe(JsValue value);
+void go(JsValue callback) {
+  func()->void inner = () => {
+    JsValue notFn = JS.object();
+    func()->void nested = () => {
+      JS.call(callback, JS.undefined());
+    };
+    nested();
+    observe(notFn);
+  };
+  inner();
+}
+keep(go);

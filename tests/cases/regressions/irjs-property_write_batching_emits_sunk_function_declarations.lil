@@ -1,0 +1,1 @@
+extern JsValue input();extern void consume(JsValue value);JsValue first(JsValue value=null){return value;}JsValue second(JsValue value=null){return value;}JsValue obj=input();obj["alpha"]=1;obj["first"]=first;obj["beta"]=2;obj["second"]=second;consume(obj);

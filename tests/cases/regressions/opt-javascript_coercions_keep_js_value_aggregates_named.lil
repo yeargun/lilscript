@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:16068 `javascript_coercions_keep_js_value_aggregates_named` (old-route unit test, commit 0c17237e).
+struct TemplateEntry{int templateValue;}struct AddEntry{int addValue;}struct EqEntry{int eqValue;}JsValue templateEntry=TemplateEntry{7};JsValue addEntry=AddEntry{7};JsValue eqEntry=EqEntry{7};string templateText=`${templateEntry}`;string addedText=""+addEntry;bool equal=eqEntry=="7";print(templateText);print(addedText);print(equal);

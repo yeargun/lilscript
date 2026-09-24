@@ -1,0 +1,1 @@
+extern bool outer();extern JsValue effect();extern bool inner();string choose(){if(outer()){JsValue value=effect();if(inner()){return ""+value;}return "inner-no";}return "outer-no";}print(choose());

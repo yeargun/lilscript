@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18398 `closed_record_projection_uses_decoded_identity_escapes` (old-route unit test, commit 0c17237e).
+Record<string> value=record{"\q":"\q"};print(value["\q"]??"");print(Object.keys(value).join(","));print(JSON.stringify(value));

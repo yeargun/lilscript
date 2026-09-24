@@ -1,0 +1,16 @@
+export JsValue make(JsValue options) {
+  JsValue locked = JS.undefined();
+  func()->void fire = () => {
+    locked = JS.or(locked, options["once"]);
+  };
+  JsValue api = JS.object();
+  api["run"] = () => { fire(); return JS.undefined(); };
+  api["locked"] = () => locked;
+  return api;
+}
+
+// Harness: the test ran `const o=make({once:true});o.run();String(Boolean(o.locked()))`.
+extern JsValue makeOptions;
+JsValue o = make(makeOptions);
+JS.invoke(o, "run");
+print(JS.invoke(o, "locked").truthy());

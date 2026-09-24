@@ -1,0 +1,24 @@
+// Harvested from src/compiler.rs inner_temps_do_not_clobber_module_bindings_used_as_exports.
+JsValue when = JS.methodRest((JsValue _s, JsValue args) => {
+  return args[0];
+});
+JsValue shallow = "observable.shallow";
+JsValue parseFlag(JsValue target, JsValue args) {
+  bool flag = false;
+  if (JS.number(args["length"]).toInt() > 2) {
+    flag = args[2].truthy();
+  }
+  JsValue run = JS.method0((JsValue _s) => {
+    if (flag) { return target; }
+    return args[0];
+  });
+  JS.call(run, JS.undefined());
+  return flag;
+}
+JsValue args = JS.array();
+JS.push(args, 1);
+JS.push(args, 2);
+JS.push(args, true);
+parseFlag(JS.object(), args);
+if (JS.typeOf(when) == "function") { print(1); } else { print(0); }
+print(shallow);

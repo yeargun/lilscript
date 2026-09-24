@@ -1,0 +1,1 @@
+extern void keep(JsValue v);func(int)->JsValue make=(int _d)=>JS.undefined();make=(int depth)=>{func(int)->JsValue captured=make;return JS.methodRest((JsValue thatArg,JsValue argsArg)=>{JsValue process=null;process=()=>JS.undefined();process["x"]=captured;keep(process);return JS.undefined();});};JsValue first=make(0);JS.call(first,JS.undefined());print(JS.typeOf(make(0)));

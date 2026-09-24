@@ -1,0 +1,1 @@
+JsValue[] fresh(JsValue[] values=[]){return values;}func(JsValue[])->JsValue[] callback=fresh;JsValue[] value=callback([]);print(value.length);

@@ -1,0 +1,1 @@
+struct Left{int first;}struct Right{int second;}Left left=Left{1};Right right=Right{2};print(left.first+right.second);

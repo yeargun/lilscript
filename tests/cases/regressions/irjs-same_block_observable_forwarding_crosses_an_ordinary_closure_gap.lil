@@ -1,0 +1,1 @@
+extern JsValue input;extern JsValue target;func()->int install(JsValue source,JsValue destination){JsValue observed=source["value"];func()->int callback=()=>1;destination["result"]=observed;return callback;}print(install(input,target)());

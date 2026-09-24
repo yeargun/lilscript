@@ -1,0 +1,1 @@
+extern JsValue input;bool probe(JsValue elem,string name){JsValue node=JS.and(elem,elem["nodeName"]);if(node is string){return node.toLowerCase()==name.toLowerCase();}return false;}print(probe(input,"div"));

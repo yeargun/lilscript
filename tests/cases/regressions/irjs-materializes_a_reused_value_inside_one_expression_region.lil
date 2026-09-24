@@ -1,0 +1,1 @@
+extern int input();int choose(bool flag){int result=0;if(flag){int value=input();result=value+value;}return result;}print(choose(true));

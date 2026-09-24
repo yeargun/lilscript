@@ -1,0 +1,18 @@
+export JsValue enqueue(JsValue locked, JsValue queue, JsValue context, JsValue args) {
+  if (!locked.truthy()) {
+    args = JS.or(args, JS.array());
+    if (args["slice"].truthy()) {
+      args = JS.invoke(args, "slice");
+    }
+    JS.invoke(queue, "push", [context, args]);
+  }
+  return queue;
+}
+
+// Harness: the test imported enqueue and ran enqueue(false,q,'ctx',[1,2]) and enqueue(false,q2,'c',obj).
+extern JsValue firstQueue;
+extern JsValue firstArgs;
+extern JsValue secondQueue;
+extern JsValue secondArgs;
+enqueue(false, firstQueue, "ctx", firstArgs);
+enqueue(false, secondQueue, "c", secondArgs);

@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs size_first_search_keeps_js_string_of_a_jsvalue.
+extern void consume(string text, JsValue file);
+extern JsValue file;
+consume(JS.string(file), file);

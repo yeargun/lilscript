@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs constructor_export_synthesizes_only_the_published_default_constructor.
+// MODULE LANE ONLY: the behaviour is observable only through the js-module export boundary.
+// Compile with --target js-module; the probe in .module-probe.mjs imports the module.
+export constructor Empty;
+class Empty{int value;bool ready;string label;int[] items;int ping(){return 1;}}
+class Dissolved{int value;}

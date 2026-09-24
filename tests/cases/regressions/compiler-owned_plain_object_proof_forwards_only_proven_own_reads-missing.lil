@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs owned_plain_object_proof_forwards_only_proven_own_reads (second program).
+// A missing key on an ordinary object reads through Object.prototype (see .host.js).
+JsValue value=object{alpha:1};
+print(value["missing"]);

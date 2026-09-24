@@ -1,0 +1,1 @@
+extern int? current;extern JsValue item();int run(){if(current!=null){int present=current;string ignored=""+item();return present;}return 0;}print(run());

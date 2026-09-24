@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:16109 `js_value_length_keeps_object_semantics` (old-route unit test, commit 0c17237e).
+struct Entry{int value;}JsValue entry=Entry{7};float length=entry.length;print(length);

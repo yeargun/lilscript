@@ -1,0 +1,1 @@
+class Box{int value;int[] items;init(int value){this.value=value;}}extern void observe(Box box);Box box=new Box(7);observe(box);print(`${box.value}:${box.items.length}`);

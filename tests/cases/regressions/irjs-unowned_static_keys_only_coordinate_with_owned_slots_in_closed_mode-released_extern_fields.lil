@@ -1,0 +1,1 @@
+extern JsValue bag;class Box{int value_;init(int value){this.value_=value;}}Box box=new Box(2);bag["value_"]=3;print(box.value_);print(bag["value_"]);

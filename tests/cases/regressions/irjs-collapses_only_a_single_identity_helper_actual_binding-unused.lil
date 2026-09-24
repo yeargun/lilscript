@@ -1,0 +1,1 @@
+extern int first();extern int ignored();pure int keep(int value,int unused){return value;}print(keep(first(),ignored()));

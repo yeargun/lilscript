@@ -1,0 +1,1 @@
+extern JsValue input();JsValue choose(JsValue values,string first,string second){return JS.or(values[first],values[second]);}print(choose(input(),"a","b"));

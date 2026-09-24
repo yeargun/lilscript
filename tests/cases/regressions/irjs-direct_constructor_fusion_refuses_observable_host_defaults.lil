@@ -1,0 +1,1 @@
+class Cache{Map<string,int> values;init(Map<string,int> values){this.values=values;}}extern Map<string,int> supplied();extern void inspect(Cache cache);inspect(new Cache(supplied()));

@@ -1,0 +1,14 @@
+extern void inspect(JsValue v);
+JsValue merge(JsValue first, JsValue second) {
+  float len = JS.number(second["length"]);
+  float j = 0.0;
+  float i = first.length;
+  for (; j < len; j++) {
+    first[i++] = second[j];
+  }
+  first["length"] = i;
+  return first;
+}
+inspect(merge(JS.array(), JS.array()));
+inspect(merge([1.0], JS.array()));
+inspect(merge([1.0], [2.0, 3.0]));

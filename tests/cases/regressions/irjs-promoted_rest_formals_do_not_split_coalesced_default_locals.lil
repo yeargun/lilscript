@@ -1,0 +1,20 @@
+extern void keep(JsValue value);
+JsValue normalize(JsValue value) {
+    if (JS.isNullish(value)) {
+        return JS.object();
+    }
+    return value;
+}
+JsValue callback = JS.methodRest((JsValue _self, JsValue args) => {
+    JsValue options = normalize(JS.undefined());
+    if (JS.number(args["length"]).toInt() > 1) {
+        options = normalize(args[1]);
+    }
+    JsValue value = JS.undefined();
+    if (JS.number(args["length"]).toInt() > 0) {
+        value = args[0];
+    }
+    options["seen"] = value;
+    return value;
+});
+keep(callback);

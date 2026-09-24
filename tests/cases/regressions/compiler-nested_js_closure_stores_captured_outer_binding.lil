@@ -1,0 +1,9 @@
+// Harvested from src/compiler.rs nested_js_closure_stores_captured_outer_binding.
+JsValue captured(){
+  JsValue rejector=JS.undefined();
+  JsValue inner=JS.method1((JsValue _s,JsValue reject)=>{rejector=reject;return JS.undefined();});
+  JS.call(inner,JS.undefined(),7);
+  print(rejector);
+  return JS.undefined();
+}
+captured();

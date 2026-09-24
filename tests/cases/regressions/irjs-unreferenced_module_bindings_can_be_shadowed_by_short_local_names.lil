@@ -1,0 +1,1 @@
+extern void keep(func(int)->void cb);void alpha(){print(1);}void beta(int value){print(value);}alpha();keep(beta);

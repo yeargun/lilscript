@@ -1,0 +1,9 @@
+// Harvested from src/compiler.rs every_production_objective_invokes_empty_parameter_sibling_closures.
+void run(){
+  int value=1;
+  func()->int increment=()=>{value++;return value;};
+  func()->int read=()=>value;
+  print(increment());
+  print(read());
+}
+run();

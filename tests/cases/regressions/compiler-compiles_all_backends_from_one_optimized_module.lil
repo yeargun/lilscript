@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs compiles_all_backends_from_one_optimized_module (text-exact: the test
+// asserts the complete JavaScript `console.log(42)`, which fixes the stdout below).
+int value=40+2;
+print(value);

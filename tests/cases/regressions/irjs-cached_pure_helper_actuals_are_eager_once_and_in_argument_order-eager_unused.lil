@@ -1,0 +1,1 @@
+extern bool flag();extern int input();pure int choose(bool enabled,int value){if(enabled){return value;}return 0;}print(choose(flag(),input()));

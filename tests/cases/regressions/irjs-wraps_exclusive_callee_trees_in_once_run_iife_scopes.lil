@@ -1,0 +1,1 @@
+int innerA(int x){if(x<0){return 0;}return x+1;}int innerB(int x){if(x>10){return 10;}return x;}int innerC(int x){return x+2;}int innerD(int x){return x+3;}int root(int x){return innerA(x)+innerB(x)+innerC(x)+innerD(x);}print(root(1));

@@ -1,0 +1,1 @@
+extern int input();pure int identity(int value){return value;}print(identity(input()));

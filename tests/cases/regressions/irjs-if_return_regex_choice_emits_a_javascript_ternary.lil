@@ -1,0 +1,3 @@
+extern bool flag();
+Regex pick(bool live,Regex whenTrue,Regex whenFalse){if(live){return whenTrue;}return whenFalse;}
+print(pick(flag(),new Regex("a"),new Regex("b")).source);

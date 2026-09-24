@@ -1,0 +1,1 @@
+extern int input();pure int adjust(int value,int amount=2){return value+amount;}print(adjust(input()));print(adjust(input(),3));

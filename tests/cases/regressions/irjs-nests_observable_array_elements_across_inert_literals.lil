@@ -1,0 +1,1 @@
+extern JsValue cb(string s);export JsValue tuples(){JsValue row0=["notify","progress",cb("memory"),cb("memory"),2.0];JsValue row1=["resolve","done",cb("once memory"),cb("once memory"),0.0,"resolved"];JsValue row2=["reject","fail",cb("once memory"),cb("once memory"),1.0,"rejected"];return [row0,row1,row2];}tuples();

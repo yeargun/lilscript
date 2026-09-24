@@ -1,0 +1,4 @@
+int calls=0;extern void observe(func()->int f);observe(()=>calls);
+extern int next(int previous);extern bool enabled();
+bool effect(){calls=next(calls);return true;}
+bool value=enabled()&&effect();print(value);print(value);print(calls);

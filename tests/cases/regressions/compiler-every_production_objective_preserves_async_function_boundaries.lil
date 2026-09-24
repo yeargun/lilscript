@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs every_production_objective_preserves_async_function_boundaries.
+async int immediate(){return 1;}
+async int delayed(){return await Task.resolve(2);}
+immediate().then((int value)=>print(value));
+delayed().then((int value)=>print(value));

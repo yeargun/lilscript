@@ -1,0 +1,1 @@
+int total=0;for(int index=0;index<2;index++){total=total+index;total=total+1;}if(total>0){print(total);print(7);}else{print(0);print(8);}

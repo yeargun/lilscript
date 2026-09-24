@@ -1,0 +1,1 @@
+struct Stats{int total;int count;}pure int classify(string label){if(label.startsWith("cache:")){return 11;}if(label.endsWith(":hot")){return 13;}return 3;}pure int summarize(Stats stats){return stats.total+stats.count;}Stats stats=Stats{7,2};print(classify("cache:item"));print(summarize(stats));

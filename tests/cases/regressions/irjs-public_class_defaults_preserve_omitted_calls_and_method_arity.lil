@@ -1,0 +1,28 @@
+class Counter {
+  int value;
+  init(int value = 7) { this.value = value; }
+  int add(int amount, bool enabled = true) {
+    if (enabled) { this.value += amount; }
+    return this.value;
+  }
+  int read(int? fallback = null) {
+    if (fallback != null) { return fallback; }
+    return this.value;
+  }
+  int ignored(int required, int other) { return this.value; }
+  JsValue missing(JsValue value = JS.undefined()) { return value; }
+}
+export constructor Counter;
+
+// Harness: the test constructed the exported Counter from JavaScript and printed
+// JSON.stringify([Counter.length, c.add.length, c.read.length, c.ignored.length, c.read(), c.add(2),
+// c.add(5,false), c.read(3), c.read(undefined), c.missing.length, c.missing()===undefined])
+// = [0,1,0,2,7,9,9,3,9,0,true]. The JavaScript arity reads and host omission are not expressible
+// in a script case; the value calls are made here in the same order.
+Counter c = new Counter();
+print(c.read());
+print(c.add(2));
+print(c.add(5, false));
+print(c.read(3));
+print(c.read(null));
+print(JS.strictEqual(c.missing(), JS.undefined()));

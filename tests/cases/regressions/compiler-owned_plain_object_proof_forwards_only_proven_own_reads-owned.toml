@@ -1,0 +1,3 @@
+# The test compiled with `javascript.assume_pure_property_reads = false`.
+[javascript]
+assume_pure_property_reads = false

@@ -1,0 +1,1 @@
+extern int first();extern int second();class Pair{int left;int right;init(int left,int right){this.left=left;this.right=right;}}Pair pair=new Pair(first(),second());print(`${pair.left}:${pair.right}`);

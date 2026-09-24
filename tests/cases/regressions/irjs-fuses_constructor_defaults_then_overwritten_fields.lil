@@ -1,0 +1,1 @@
+class Token{int kind;string raw;string text;init(){this.kind=0;this.raw="";this.text="";}}Token make(int kind,string raw){Token token=new Token();token.kind=kind;token.raw=raw;return token;}print(make(2,"#").kind);print(make(2,"#").raw);

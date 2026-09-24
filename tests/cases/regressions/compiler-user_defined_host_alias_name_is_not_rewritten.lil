@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs user_defined_host_alias_name_is_not_rewritten.
+// A user function that happens to share a known host-alias name is ordinary code.
+int objectHasOwn(int value, int offset){return value+offset;}
+print(objectHasOwn(3, 4));

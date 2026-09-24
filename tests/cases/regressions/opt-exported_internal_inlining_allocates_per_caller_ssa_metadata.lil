@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:17501 `exported_internal_inlining_allocates_per_caller_ssa_metadata` (old-route unit test, commit 0c17237e).
+export int bump(int value){int next=value+1;return next*2;}int left(){return bump(2);}int right(){int input=5;return bump(input);}print(left());print(right());

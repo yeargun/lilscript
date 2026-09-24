@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs private_global_store_survives_cross_function_conditional_selection.
+int state=0;
+extern bool flag();
+int choose(){state=1;int value=2;int result=0;if(flag()){result=value;}return result;}
+print(choose());
+print(state);

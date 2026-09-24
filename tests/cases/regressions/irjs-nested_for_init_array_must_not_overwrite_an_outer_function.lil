@@ -1,0 +1,19 @@
+extern void keep(func()->JsValue cb);
+extern void consume(JsValue value);
+JsValue parser() { return JS.number(7); }
+void go() {
+  func()->void inner = () => {
+    JsValue packed = JS.array();
+    JS.push(packed, 0);
+    int k = 0;
+    int n = 2;
+    while (k < n) {
+      JS.push(packed, k);
+      k = k + 1;
+    }
+    consume(packed);
+  };
+  inner();
+  keep(parser);
+}
+go();

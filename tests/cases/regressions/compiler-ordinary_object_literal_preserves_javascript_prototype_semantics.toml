@@ -1,0 +1,4 @@
+# The test compiled with `javascript.assume_pristine_builtins = false`: the host
+# mutates Object.prototype, so the program may not assume pristine builtins.
+[javascript]
+assume_pristine_builtins = false

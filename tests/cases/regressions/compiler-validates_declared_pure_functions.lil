@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs validates_declared_pure_functions (second program; text-exact: the
+// test asserts the complete output `console.log(25)`). The test's other programs are diagnostics.
+pure int square(int value){int copy=value;return copy*copy;}
+print(square(5));

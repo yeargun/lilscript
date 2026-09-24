@@ -1,0 +1,1 @@
+extern JsValue item();extern bool flag();bool choose(JsValue value,bool enabled){bool zero=value==0;if(enabled){return zero;}return false;}bool run(JsValue value,bool enabled){return choose(value,enabled);}print(run(item(),flag()));

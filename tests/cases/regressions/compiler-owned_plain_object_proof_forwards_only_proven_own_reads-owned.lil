@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs owned_plain_object_proof_forwards_only_proven_own_reads (first program).
+extern int read();
+JsValue value=object{alpha:read()};
+print(value["alpha"]);

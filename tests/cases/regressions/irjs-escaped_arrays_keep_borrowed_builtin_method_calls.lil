@@ -1,0 +1,6 @@
+extern JsValue read();
+extern void expose(JsValue value);
+JsValue values=JS.array();
+expose(values);
+JS.push(values,read());
+print(values.length);

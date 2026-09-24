@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18147 `preserves_array_push_inherited_setter_observation` (old-route unit test, commit 0c17237e).
+extern int read();extern void consume(int[] values);int[] values=[];values.push(read());consume(values);

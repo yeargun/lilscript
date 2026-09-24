@@ -1,0 +1,12 @@
+// Harvested from src/compiler.rs keeps_copied_property_load_across_a_mutating_method_call.
+JsValue probe(){
+  JsValue self=JS.object();
+  self["x"]=1;
+  self["mutate"]=JS.method0((JsValue s)=>{s["x"]=2;return JS.undefined();});
+  bool was=JS.strictEqual(self["x"],1);
+  JS.call(self["mutate"],self);
+  print(was);
+  print(self["x"]);
+  return JS.undefined();
+}
+probe();

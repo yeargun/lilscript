@@ -1,0 +1,6 @@
+extern int read();extern string text();
+bool sameNumber(int previous,int next){return previous%134217729==next%134217729;}
+bool sameText(string previous,string next){return previous.indexOf("compression-dictionary-token")==next.indexOf("compression-dictionary-token");}
+bool compareWith<T>(T value,func(T,T)->bool compare){return compare(value,value);}
+print(compareWith(read(),sameNumber));print(compareWith(text(),sameText));
+print(134217729);print("compression-dictionary-token");

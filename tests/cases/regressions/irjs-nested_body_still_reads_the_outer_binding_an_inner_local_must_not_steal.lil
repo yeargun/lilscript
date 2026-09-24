@@ -1,0 +1,14 @@
+extern void keep(func(JsValue)->void cb);
+extern void observe(JsValue value);
+void go(JsValue callback) {
+  func()->void inner = () => {
+    JsValue notFn = JS.object();
+    func()->void nested = () => {
+      JS.call(callback, JS.undefined());
+    };
+    nested();
+    observe(notFn);
+  };
+  inner();
+}
+keep(go);

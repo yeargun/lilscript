@@ -1,0 +1,1 @@
+class Box{int value;init(int value){this.value=value;}}extern void inspect(Box box);inspect(new Box(7));

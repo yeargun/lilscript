@@ -1,0 +1,1 @@
+int h1(int x){return x+1;}int h2(int x){return x+2;}int h3(int x){return x+3;}int h4(int x){return x+4;}int left(int x){return h1(x)+h2(x)+h3(x)+h4(x);}int right(int x){return h1(x)+h2(x)+h3(x)+h4(x)+1;}int foreign(int x){return h1(x)+h2(x);}print(left(1)+right(2)+foreign(3));

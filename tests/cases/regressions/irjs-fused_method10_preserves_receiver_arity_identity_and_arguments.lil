@@ -1,0 +1,1 @@
+extern void inspect(JsValue value);JsValue make(){return JS.method10((JsValue self,JsValue a,JsValue b,JsValue c,JsValue d,JsValue e,JsValue f,JsValue g,JsValue h,JsValue i,JsValue j)=>JS.array(self,a,b,c,d,e,f,g,h,i,j));}inspect(make());inspect(make());

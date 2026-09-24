@@ -1,0 +1,3 @@
+// Harvested from src/compiler.rs brotli_objective_carries_async_literal_movement_into_name_search.
+async int resolveValue(int value){int resolved=await Task.resolve(value+5);return resolved*2;}
+resolveValue(3).then((int value)=>print(value));

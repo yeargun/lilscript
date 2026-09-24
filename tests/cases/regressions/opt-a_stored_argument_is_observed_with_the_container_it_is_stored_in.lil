@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18317 `a_stored_argument_is_observed_with_the_container_it_is_stored_in` (old-route unit test, commit 0c17237e).
+extern void consume(JsValue value);void pin(JsValue target,string key,JsValue item){target[key]=item;}JsValue inner=JS.object();inner["tag"]="kept";JsValue outer=JS.object();pin(outer,"slot",inner);consume(outer);

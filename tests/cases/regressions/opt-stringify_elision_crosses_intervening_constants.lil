@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18231 `stringify_elision_crosses_intervening_constants` (old-route unit test, commit 0c17237e).
+extern JsValue dynamic;extern void consume(string value);void run(JsValue value){string text=JS.string(value);consume(text+"!");}run(dynamic);

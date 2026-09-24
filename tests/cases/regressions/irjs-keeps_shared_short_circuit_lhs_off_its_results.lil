@@ -1,0 +1,9 @@
+export JsValue classify(JsValue elem) {
+  JsValue namespace = JS.and(elem, elem["namespaceURI"]);
+  JsValue docElem = JS.and(elem, JS.or(elem["ownerDocument"], elem)["documentElement"]);
+  return JS.or(namespace, JS.and(docElem, docElem["nodeName"]));
+}
+
+// Harness: the test printed String(classify(namespaced)).
+extern JsValue namespaced;
+print(classify(namespaced));

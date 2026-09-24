@@ -1,0 +1,16 @@
+class Scale {
+  int factor;
+  init(int factor) {
+    this.factor = factor;
+  }
+  int apply(int value) {
+    return value * this.factor;
+  }
+}
+Scale scale = new Scale(3);
+int total = 0;
+for (int i = 1; i <= 8; i++) {
+  total += scale.apply(i);
+}
+print(total);
+print(scale.factor);

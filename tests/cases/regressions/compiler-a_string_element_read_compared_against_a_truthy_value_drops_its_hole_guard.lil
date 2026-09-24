@@ -1,0 +1,19 @@
+// Harvested from src/compiler.rs (function_scope_tests) a_string_element_read_compared_against_a_truthy_value_drops_its_hole_guard.
+// The test imported the module and ran a probe over the export; here the program
+// also hands the exported function to the host driver `check` (see .host.js).
+extern void check(func(JsValue, string[])->int matched);
+export int matched(JsValue args, string[] expected){
+  int slot = 0;
+  int index = 0;
+  int length = args.length.toInt();
+  while (index < length) {
+    JsValue value = args[index];
+    if (value.truthy()) {
+      if (!JS.strictEqual(value, expected[slot])) return index;
+      slot = slot + 1;
+    }
+    index = index + 1;
+  }
+  return -1;
+}
+check(matched);

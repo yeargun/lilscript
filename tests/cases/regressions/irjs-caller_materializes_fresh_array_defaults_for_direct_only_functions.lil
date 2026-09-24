@@ -1,0 +1,1 @@
+JsValue[] fresh(JsValue[] values=[]){return values;}JsValue[] first=fresh();JsValue[] second=fresh();print(JS.strictEqual(first,second));

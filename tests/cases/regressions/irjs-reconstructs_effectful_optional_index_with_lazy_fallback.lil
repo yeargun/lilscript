@@ -1,0 +1,1 @@
+extern int[]? read();extern int index();extern int fallback();export int first(){return read()?.[index()]??fallback();}print(first());print(first());

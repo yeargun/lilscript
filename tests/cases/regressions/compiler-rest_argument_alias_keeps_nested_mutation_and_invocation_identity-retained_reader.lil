@@ -1,0 +1,20 @@
+// Harvested from src/compiler_rest_capture_tests.rs (SOURCE, retained_reader=true), used by
+// rest_argument_alias_keeps_nested_mutation_and_invocation_identity_at_emission and
+// rest_argument_alias_keeps_nested_mutation_and_invocation_identity_in_configured_pipeline.
+// The test imported the exported `make` from a Node module; here the program also hands
+// `make` to the host driver `drive` (see .host.js).
+extern JsValue invoke(JsValue callback);
+extern int slot();
+extern void drive(func(JsValue)->JsValue make);
+export JsValue make(JsValue enclosing) {
+    JsValue method = JS.methodRest((JsValue _self, JsValue incoming) => {
+        JsValue saved = incoming;
+        return invoke(() => {
+            JsValue selected = invoke(() => saved[slot()]);
+            saved = null;
+            return [selected, () => saved];
+        });
+    });
+    return [method, () => enclosing];
+}
+drive(make);

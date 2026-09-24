@@ -1,0 +1,16 @@
+// Harvested from src/compiler.rs module_level_assignment_is_not_shadowed_inside_setter.
+JsValue pred = JS.undefined();
+void setPred(string name, JsValue value) {
+  if (name == "x") {
+    pred = value;
+    return;
+  }
+  pred = JS.undefined();
+}
+bool isMatch(JsValue thing) {
+  return JS.call(pred, JS.undefined(), thing).truthy();
+}
+setPred("x", JS.method1((JsValue _this, JsValue x) => {
+  return JS.strictEqual(x, 1);
+}));
+if (isMatch(1)) { print(1); } else { print(0); }

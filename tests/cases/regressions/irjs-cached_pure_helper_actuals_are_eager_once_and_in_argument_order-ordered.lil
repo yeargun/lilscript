@@ -1,0 +1,1 @@
+extern int first();extern int second();pure int combine(int left,int right){return left*10+right;}print(combine(first(),second()));

@@ -1,0 +1,1 @@
+int seed=7;int invoke(func()->int get=()=>seed){return get();}print(invoke());

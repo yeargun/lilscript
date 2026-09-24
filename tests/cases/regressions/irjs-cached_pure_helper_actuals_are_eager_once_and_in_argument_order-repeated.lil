@@ -1,0 +1,1 @@
+extern int input();pure int twice(int value){return value+value;}print(twice(input()));

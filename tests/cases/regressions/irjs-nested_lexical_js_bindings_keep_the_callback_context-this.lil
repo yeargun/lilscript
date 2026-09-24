@@ -1,0 +1,7 @@
+extern JsValue this;extern void collect(JsValue value);
+// Harness: the test ran the program inside (function(){...}).call(ambient) and compared the nested
+// arrow's `this` with that ambient receiver. A script case cannot choose its top-level `this`, so the
+// program hands its own top-level `this` to the host first.
+extern void ambient(JsValue value);
+ambient(this);
+collect(JS.method0((JsValue self)=>{collect(()=>this);return self;}));

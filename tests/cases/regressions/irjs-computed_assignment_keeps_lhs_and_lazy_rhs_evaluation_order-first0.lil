@@ -1,0 +1,1 @@
+extern JsValue input;extern JsValue destination();extern string property();void run(){destination()[property()]=JS.or(input["first"],input["second"]);}run();

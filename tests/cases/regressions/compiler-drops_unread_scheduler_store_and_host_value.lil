@@ -1,0 +1,7 @@
+// Harvested from src/compiler.rs drops_unread_scheduler_store_and_host_value (text-exact: the test
+// asserts the complete output `console.log(1)`).
+func(func()->void)->void scheduler=(func()->void callback)=>{};
+void enable(func(func()->void)->void next){scheduler=next;}
+extern void host(func()->void callback);
+enable(host);
+print(1);

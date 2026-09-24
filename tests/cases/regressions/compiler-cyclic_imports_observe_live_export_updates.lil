@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs cyclic_imports_observe_live_export_updates (a.lil of a two-module
+// cycle; the other module lives in ./compiler-cyclic_imports_observe_live_export_updates/).
+import {readAfterBump} from "./compiler-cyclic_imports_observe_live_export_updates/b";
+export int count=1;
+export void bump(){count+=1;}
+print(readAfterBump());

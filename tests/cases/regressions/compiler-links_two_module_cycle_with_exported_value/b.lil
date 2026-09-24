@@ -1,0 +1,3 @@
+// b.lil of compiler.rs links_two_module_cycle_with_exported_value; "./a" is the case entry.
+import {later} from "../compiler-links_two_module_cycle_with_exported_value";
+export int readLater(){return later;}

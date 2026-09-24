@@ -1,0 +1,1 @@
+class Box{int _lilDirectProbe;int __proto__;init(int value,int proto){this._lilDirectProbe=value;this.__proto__=proto;}}extern void inspect(Box box);inspect(new Box(7,9));

@@ -1,0 +1,1 @@
+void run(){JsValue list=JS.array();func()->JsValue fire=()=>{JS.push(list,1);return list;};print(JS.number(JS.get(fire(),"length")));}run();

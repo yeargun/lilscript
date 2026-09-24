@@ -1,0 +1,1 @@
+extern int read();int pick(int x,int y){int z=x+y;if(z>0){return 1;}return 2;}print(pick(read(),read()));

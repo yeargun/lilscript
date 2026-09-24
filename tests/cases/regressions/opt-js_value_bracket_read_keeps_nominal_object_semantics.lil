@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:16144 `js_value_bracket_read_keeps_nominal_object_semantics` (old-route unit test, commit 0c17237e).
+struct Entry{int value;}JsValue entry=Entry{7};int got=JS.assume(entry["value"]);print(got);

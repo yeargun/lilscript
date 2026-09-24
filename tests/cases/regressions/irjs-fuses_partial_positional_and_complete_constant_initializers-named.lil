@@ -1,0 +1,1 @@
+class Flags{int value;bool ready;init(int value,bool ready){this.value=value;this.ready=ready;}}extern void observe(Flags flags);Flags flags=new Flags(7,true);observe(flags);print(`${flags.value}:${flags.ready}`);

@@ -1,0 +1,1 @@
+extern void barrier();extern void consume(JsValue value);JsValue wrapped=JS.method0((JsValue self)=>self);barrier();consume(wrapped);consume(wrapped);

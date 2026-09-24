@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:14280 `keeps_borrowed_array_call_after_extern_can_shadow_method` (old-route unit test, commit 0c17237e).
+extern void expose(JsValue value);void run(){JsValue values=JS.array();expose(values);JS.push(values,1);print(JS.number(JS.get(values,"length")));}run();
