@@ -66,7 +66,7 @@ with another row.
 | dictionary and order | repeat literals/tokens, reorder declarations, exploit gzip/Brotli windows | pooling, spelling, and function/layout search use complete encoded cost |
 | aggregates and collections | scalar replace, choose arrays/objects, fuse known operations | nominal layout, escape proofs, intrinsics, and projection remove more runtime shape |
 | control flow and state | compress switches, loops, early exits, exception/generator machines | structured regions and typed ranges admit shorter equivalent spellings |
-| modules and exports | tree-shake, internalize, chunk, preserve required public names | linker knowledge and explicit ABI/lazy edges beat or match eligible bundlers |
+| modules and exports | tree-shake, internalize, chunk, preserve required public names | module-graph knowledge and explicit ABI/lazy edges beat or match eligible bundlers |
 | host and browser | preserve opaque effects and exact platform names | typed extern boundaries stop optimization precisely, without global pessimism |
 
 Scale variants must add real work: more states, fields, callbacks, graph nodes, or
