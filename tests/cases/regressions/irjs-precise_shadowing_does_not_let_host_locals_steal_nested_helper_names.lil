@@ -1,0 +1,11 @@
+extern JsValue globalThis;
+JsValue helper(){return JS.undefined();}
+void run(){
+  string name="ObservableArray";
+  JsValue trap=JS.method2((JsValue _s,JsValue target,JsValue key)=>{
+    return JS.call(globalThis["parseInt"],helper(),key);
+  });
+  print(name);
+  print(JS.call(trap,JS.undefined(),JS.object(),"42"));
+}
+run();

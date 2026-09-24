@@ -1,0 +1,1 @@
+extern int baseValue();extern int childValue();extern int extraValue();class Base{int value;init(int value){this.value=value;}}class Child extends Base{int extra;init(int value,int extra){super(value);this.extra=extra;}}Base base=new Base(baseValue());Child child=new Child(childValue(),extraValue());print(`${base.value}:${child.value}:${child.extra}`);

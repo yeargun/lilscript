@@ -1,0 +1,1 @@
+extern bool flag();int choose(){int state=0;auto read=()=>state;state=1;int value=2;int result=0;if(flag()){result=value;}print(read());return result;}print(choose());

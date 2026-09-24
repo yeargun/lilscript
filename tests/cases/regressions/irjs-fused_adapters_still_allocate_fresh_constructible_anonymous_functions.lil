@@ -1,0 +1,1 @@
+extern void inspect(JsValue value);JsValue make(){return JS.method0((JsValue self)=>self);}inspect(make());inspect(make());

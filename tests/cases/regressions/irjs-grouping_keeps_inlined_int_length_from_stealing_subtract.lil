@@ -1,0 +1,3 @@
+int points(string s){return s.codePointLength();}
+int run(string s){if(s.length>0){int n=points(s)-1;return n;}return 0;}
+print(run("**"));

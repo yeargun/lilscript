@@ -1,0 +1,1 @@
+extern void consume(JsValue value);int shared(int x){if(x<0){return 0;}return x+1;}void install(){JsValue obj=JS.object();obj["left"]=(int x)=>shared(x);obj["right"]=(int x)=>shared(x)+2;consume(obj);}install();

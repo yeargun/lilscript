@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs links_two_module_cycle_with_exported_value (a.lil of a two-module cycle;
+// the other module lives in ./compiler-links_two_module_cycle_with_exported_value/).
+import {readLater} from "./compiler-links_two_module_cycle_with_exported_value/b";
+export int entry(){return readLater();}
+export int later=7;
+print(entry());

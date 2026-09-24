@@ -1,0 +1,1 @@
+class Flags{bool ready;bool stopped;init(){this.ready=false;this.stopped=false;}}Flags flags=new Flags();print(`${flags.ready}:${flags.stopped}`);

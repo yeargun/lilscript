@@ -1,0 +1,1 @@
+void run(){JsValue setter=null;string state="pending";int i=0;while(i<1){string label="resolved";setter=()=>{state=label;return JS.undefined();};i=i+1;}JS.call(setter,JS.undefined());print(state);}run();

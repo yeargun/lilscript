@@ -1,0 +1,1 @@
+extern JsValue this;extern void consume(JsValue value);JsValue animate(JsValue prop,JsValue speed,JsValue easing,JsValue complete){JsValue self=this;consume(prop);consume(speed);consume(easing);consume(complete);return self;}JsValue obj=JS.object();obj["animate"]=animate;consume(obj);

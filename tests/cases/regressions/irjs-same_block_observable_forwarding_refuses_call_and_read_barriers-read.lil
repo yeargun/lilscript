@@ -1,0 +1,1 @@
+extern JsValue input;string inspect(JsValue source){JsValue first=source["first"];JsValue second=source["second"];return JS.string(first)+JS.string(second);}print(inspect(input));

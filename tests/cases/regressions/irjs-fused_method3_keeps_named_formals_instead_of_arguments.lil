@@ -1,0 +1,1 @@
+extern void consume(JsValue value);JsValue trap=JS.method3((JsValue self,JsValue target,JsValue key,JsValue value)=>{consume(target);consume(key);consume(value);return self;});consume(trap);

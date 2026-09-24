@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs keeps_private_module_bindings_isolated (text-exact: the test asserts
+// the complete output `console.log(3)`). main.lil; the other modules live in ./compiler-keeps_private_module_bindings_isolated/.
+import {left} from "./compiler-keeps_private_module_bindings_isolated/left";
+import {right} from "./compiler-keeps_private_module_bindings_isolated/right";
+print(left()+right());

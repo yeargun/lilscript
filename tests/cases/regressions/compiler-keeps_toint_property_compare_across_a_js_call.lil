@@ -1,0 +1,13 @@
+// Harvested from src/compiler.rs keeps_toint_property_compare_across_a_js_call.
+JsValue probe(){
+  JsValue self=JS.object();
+  self["x"]=1;
+  self["compute"]=JS.method0((JsValue s)=>{s["x"]=2;return 3;});
+  bool was=JS.number(self["x"]).toInt()==1;
+  JsValue newValue=JS.call(self["compute"],self);
+  if (was) { print(1); } else { print(0); }
+  print(newValue);
+  print(self["x"]);
+  return JS.undefined();
+}
+probe();

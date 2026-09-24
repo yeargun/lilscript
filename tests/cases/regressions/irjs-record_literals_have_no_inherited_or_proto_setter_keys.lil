@@ -1,0 +1,1 @@
+Record<int> values=record{__proto__:1};values["__proto__"]=2;print(values.toString);print(values.__proto__);

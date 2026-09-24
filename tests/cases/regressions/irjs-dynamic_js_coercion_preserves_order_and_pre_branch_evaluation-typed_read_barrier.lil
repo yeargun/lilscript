@@ -1,0 +1,1 @@
+extern JsValue item();extern int[] values;int run(){string text=""+item();int current=values[0];return current+text.length;}print(run());

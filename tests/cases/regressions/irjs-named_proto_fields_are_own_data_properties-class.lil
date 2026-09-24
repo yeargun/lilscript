@@ -1,0 +1,1 @@
+class Box{int __proto__;init(int value){this.__proto__=value;}}extern void inspect(Box box);inspect(new Box(7));

@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:17438 `exported_internal_inlining_is_scored_without_changing_the_export` (old-route unit test, commit 0c17237e).
+export int adjust(int value){int added=value+1;int scaled=added*3;return scaled-2;}print(adjust(2));print(adjust(5));

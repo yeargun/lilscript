@@ -1,0 +1,35 @@
+extern void report();
+void go(JsValue jq, float depth) {
+  JsValue mightThrow = () => {
+    report();
+    return JS.undefined();
+  };
+  JsValue process = mightThrow;
+  process = () => {
+    try {
+      mightThrow();
+    } catch (JsValue e) {
+      if (jq["Deferred"]["exceptionHook"].truthy()) {
+        JS.invoke(jq["Deferred"], "exceptionHook", e, process["error"]);
+      }
+    }
+    return JS.undefined();
+  };
+  if (depth != 0.0) {
+    process();
+  } else {
+    if (jq["Deferred"]["getErrorHook"].truthy()) {
+      process["error"] = JS.invoke(jq["Deferred"], "getErrorHook");
+    } else if (jq["Deferred"]["getStackHook"].truthy()) {
+      process["error"] = JS.invoke(jq["Deferred"], "getStackHook");
+    }
+    process();
+  }
+}
+JsValue jq = JS.object();
+JsValue deferred = JS.object();
+deferred["getErrorHook"] = () => "hook";
+deferred["getStackHook"] = () => "stack";
+jq["Deferred"] = deferred;
+go(jq, 0.0);
+go(jq, 1.0);

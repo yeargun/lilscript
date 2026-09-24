@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs preserves_branch_local_shadowing_while_linking (text-exact: the test
+// asserts the complete output `console.log(7)`). main.lil; the library lives in ./compiler-preserves_branch_local_shadowing_while_linking/.
+import {run} from "./compiler-preserves_branch_local_shadowing_while_linking/library";
+print(run(true));

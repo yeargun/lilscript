@@ -1,0 +1,1 @@
+string tag(){return "x";}string other(){return "y";}string third(){return "z";}string fourth(){return "w";}string render(string s){string out="<b>";out=out+s;string built=out+tag();return built+other()+third()+fourth();}string root(string s){return render(s);}print(root("q"));

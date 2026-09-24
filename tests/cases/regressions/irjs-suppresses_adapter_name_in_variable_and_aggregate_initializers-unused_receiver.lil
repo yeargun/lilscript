@@ -1,0 +1,1 @@
+extern void consume(JsValue value);JsValue start=JS.method1((JsValue _s,JsValue code)=>code);consume(start);consume(start);

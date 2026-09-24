@@ -1,0 +1,3 @@
+// right.lil of compiler.rs keeps_private_module_bindings_isolated.
+int helper(){return 2;}
+export pure int right(){return helper();}

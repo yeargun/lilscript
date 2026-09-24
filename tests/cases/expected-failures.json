@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "about": "Expected case-runner failures on the one compiler (scripts/cases.mjs). Each entry names cases (an id relative to tests/, a glob, or a list), the lanes it covers (the --lanes syntax; omitted means all), why they fail, and the plan task that owns the fix (docs/migration/index.md). A failure not covered here fails the run; an entry that covers no failure any more is reported for removal. Recorded from the pre-M1 binary ~/lilscript-work/bin/pre-m1/lilscript (sha256 01c5e298...) on 2026-09-24: 29 failing cases, all harvested regressions; the 72 tests/cases programs and tests/modules pass on every lane.",
+  "entries": [
+    {
+      "case": [
+        "cases/regressions/compiler-constructor_export_preserves_explicit_inheritance",
+        "cases/regressions/compiler-constructor_export_synthesizes_only_the_published_default_constructor",
+        "cases/regressions/compiler-explicit_constructor_export_preserves_named_class_identity",
+        "cases/regressions/compiler-uses_imported_constructor_value_inside_exported_function_in_cycle",
+        "cases/regressions/irjs-public_class_defaults_preserve_omitted_calls_and_method_arity",
+        "cases/regressions/irjs-public_class_members_do_not_strand_private_helper_bindings"
+      ],
+      "reason": "`export constructor` is refused: \"direct module checking does not yet support nominal constructor exports\".",
+      "owner": "M4.1"
+    },
+    {
+      "case": "cases/regressions/compiler-every_production_objective_preserves_async_function_boundaries",
+      "lanes": "production",
+      "reason": "Miscompile: `async int f(){return 1;}` is folded to the constant 1, so `f().then(...)` throws \"a.then is not a function\". Formation-only passes; production fails on every script lane and on production/raw/module.",
+      "owner": "M1.9"
+    },
+    {
+      "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
+      "reason": "Name-keyed host helper: the old route lowered the extern `objectHasOwn` to Object.hasOwn by its name; the one compiler gives extern names no meaning (dropped by design), so the program throws \"objectHasOwn is not defined\". The case's prelude must declare the binding (`globalThis.objectHasOwn = Object.hasOwn`).",
+      "owner": "M1.5 (the harvested case gets a declared binding; M10.2 owns the host catalog)"
+    },
+    {
+      "case": [
+        "cases/regressions/irjs-dense_constructor_literals_ignore_inherited_prototype_setters-positional",
+        "cases/regressions/irjs-direct_constructor_literals_preserve_named_and_positional_own_properties-positional"
+      ],
+      "reason": "`public_aggregate_abi = \"positional\"` is ignored: the instance reaches the host as {value:7}, so `slot[0]` is undefined. M1.4 refuses the key at load; these cases then become refusal cases.",
+      "owner": "M1.4"
+    },
+    {
+      "case": [
+        "cases/regressions/irjs-direct_constructor_fusion_refuses_observable_host_defaults",
+        "cases/regressions/irjs-direct_constructor_fusion_refuses_unmapped_host_defaults"
+      ],
+      "reason": "Two faults: `public_aggregate_abi = \"positional\"` is ignored, and a field default (`new Map`) is evaluated before a constructor argument (D3.4 order).",
+      "owner": "M1.4 (positional refused), M1.9 (field-default order)"
+    },
+    {
+      "case": [
+        "cases/regressions/irjs-aggregate_read_helper_stays_before_an_intervening_mutation",
+        "cases/regressions/irjs-named_proto_fields_are_own_data_properties-struct"
+      ],
+      "reason": "A struct value passed to an extern is refused: Unsupported \"foreign value-struct storage adaptation\".",
+      "owner": "M1.9"
+    },
+    {
+      "case": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-pre_branch",
+      "reason": "`JsValue == 0` is lowered to `=== 0`: the ToPrimitive coercion never runs. The language spec says dynamic equality coerces.",
+      "owner": "M1.9 (follow the spec until M10.9 changes it by owner ruling)"
+    },
+    {
+      "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate",
+      "reason": "Expectation conflict: the test expects the inferred wrapper name 'handle'; docs/language-v0.1.md says adapter wrappers stay anonymous, and the compiler follows the spec here.",
+      "owner": "M1.9 (decide the rule, then fix the case or the compiler)"
+    },
+    {
+      "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-unused_receiver",
+      "lanes": "formation-only/*/script,formation-only/*/module",
+      "reason": "The sibling of the -aggregate case: formation-only keeps the wrapper anonymous (the spec's rule, against the test's expectation); production gives it a name and passes.",
+      "owner": "M1.9 (decide the rule, then fix the case or the compiler)"
+    },
+    {
+      "case": "cases/regressions/opt-wrapped_and_generic_dynamic_aliases_keep_nominal_object_semantics",
+      "reason": "Refused, not miscompiled: a struct union widened to JsValue, a generic function taking a struct (\"generic product transport requires a complete private interface\" on scripts) and a generic body that does not return its parameter (\"generic product body requires closed value forwarding\" on modules).",
+      "owner": "M1.9 (the struct-to-host family; the plan does not yet name this gap)"
+    },
+    {
+      "case": "cases/regressions/compiler-drops_unread_scheduler_store_and_host_value",
+      "lanes": "production/raw/module",
+      "reason": "Found by the case runner (not in the harvest manifest, which ran only the Brotli script lane): the raw-objective module build fails inside the compiler with Candidate(Output(Invalid(\"assignment requires a reference\"))).",
+      "owner": "M1.9"
+    },
+    {
+      "case": [
+        "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_captured_rebind",
+        "cases/regressions/compiler-snapshot_of_a_record_field_survives_a_later_write",
+        "cases/regressions/compiler-snapshot_of_a_top_level_record_field_survives_a_captured_rebind",
+        "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback",
+        "cases/regressions/irjs-folds_redundant_record_miss_normalization_into_nullish_fallback-computed",
+        "cases/regressions/irjs-record_literals_have_no_inherited_or_proto_setter_keys",
+        "cases/regressions/opt-closed_record_json_projection_uses_ecmascript_own_key_order",
+        "cases/regressions/opt-closed_record_projection_uses_decoded_identity_escapes",
+        "cases/regressions/opt-decoded_strings_execute_in_native_c_before_and_after_folding"
+      ],
+      "lanes": "c",
+      "reason": "Native `Record<T>` is refused (\"native source type\", \"native callable payload type\").",
+      "owner": "M11.4"
+    },
+    {
+      "case": "cases/regressions/irjs-emits_exclusive_recursive_local_as_a_named_function_expression_iife",
+      "lanes": "c",
+      "reason": "A self-recursive closure is refused natively: \"native captured dynamic callable payload\".",
+      "owner": "M11.6 (the portable subset; the plan's list does not yet name closures)"
+    }
+  ]
+}

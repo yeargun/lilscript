@@ -1,0 +1,12 @@
+Regex re=new Regex("a","g");
+print(" x ".trim());
+print("x ".trimEnd());
+print(" x".trimStart());
+print("xa".search(re));
+re.lastIndex=0;
+print("abcdef".slice(1,4));
+print("a b".split(" ").join(","));
+print("ab".codePointLength());
+print(JS.encodeURI(" "));
+print(JS.encodeURIComponent(" "));
+print(JS.string(re.exec("a")));

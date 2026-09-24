@@ -1,0 +1,21 @@
+JsValue getAt(JsValue events, int index) {
+  return events[index];
+}
+export bool scan(JsValue events) {
+  int index = -1;
+  while (true) {
+    index = index + 1;
+    if (index >= JS.number(JS.get(events, "length")).toInt()) {
+      break;
+    }
+    JsValue event = getAt(events, index);
+    if (index > 0 && JS.get(event[1], "type") == "chunkFlow") {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Harness: the test called the exported scan(events) from JavaScript and printed String(result).
+extern JsValue sampleEvents;
+print(scan(sampleEvents));

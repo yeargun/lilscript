@@ -1,0 +1,2 @@
+// c.lil of compiler.rs resolves_reexports_through_a_static_cycle.
+export int value=9;

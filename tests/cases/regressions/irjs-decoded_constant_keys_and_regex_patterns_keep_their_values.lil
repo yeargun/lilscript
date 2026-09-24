@@ -1,0 +1,3 @@
+JsValue value=JS.object("\x61",7,"q\"x",8,"\ud800",9);
+print(JS.get(value,"a"));print(JS.get(value,"q\"x"));print(JS.get(value,"\ud800"));
+Regex pattern=new Regex("^a\\nb\t$");print(pattern.test("a\nb\t"));

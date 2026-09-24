@@ -1,0 +1,15 @@
+extern int read();
+string units="\x41\n\u{1f600}\ud800";
+print(units.length);print(units.charCodeAt(1));
+print(units.charAt(2).charCodeAt(0));
+print(("\ud83d"+"\ude00").length);
+print("x\n".repeat(2).length);
+print(units.indexOf("\ud800"));
+print(units.includes("\ude00"));
+print(units.startsWith("A\n"));print(units.endsWith("\ud800"));
+print("\x41"=="A");
+int seed=read();print(`first
+${`nested ${seed}`}`);
+print(`folded
+${`nested ${7}`}`);
+float zero=-0.0;print(`zero=${zero}`);

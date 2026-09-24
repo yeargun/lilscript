@@ -1,0 +1,3 @@
+# The test compiled with `mangle_extern_fields = false`: the program claims its extern field spellings.
+[mangle]
+extern_fields = false

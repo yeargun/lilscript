@@ -1,0 +1,1 @@
+extern void collect(JsValue value);collect(JS.method0((JsValue self)=>{auto read=()=>self;self=null;return read();}));

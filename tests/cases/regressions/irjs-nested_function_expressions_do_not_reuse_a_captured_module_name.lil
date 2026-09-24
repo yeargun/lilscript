@@ -1,0 +1,1 @@
+func(int)->int scale=(int x)=>x/1000;void run(){int rest=5;func(int)->int inner=(int vel)=>scale(vel)-rest;print(inner(3000));}run();

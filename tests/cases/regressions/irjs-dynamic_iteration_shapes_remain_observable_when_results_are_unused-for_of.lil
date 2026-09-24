@@ -1,0 +1,1 @@
+extern Generator<int> input();void observe(Generator<int> values){for(int value of values){}}observe(input());print(1);

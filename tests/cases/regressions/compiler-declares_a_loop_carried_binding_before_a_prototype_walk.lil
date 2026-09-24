@@ -1,0 +1,23 @@
+// Harvested from src/compiler.rs declares_a_loop_carried_binding_before_a_prototype_walk.
+// harness: "use strict" -- the test ran the emitted script with "use strict"; prepended,
+// so an undeclared loop-carried binding throws instead of creating a global.
+JsValue walk(JsValue adm, JsValue key, JsValue annotation){
+  if(JS.strictEqual(annotation,true)){annotation=adm["defaultAnnotation_"];}
+  if(JS.strictEqual(annotation,false)){return JS.undefined();}
+  JsValue source=adm["target_"];
+  while(source.truthy()&&!JS.strictEqual(source,JS.undefined())){
+    if(source[key].truthy()){break;}
+    source=source["proto"];
+  }
+  return source;
+}
+JsValue proto=JS.object();
+proto["key"]=JS.undefined();
+proto["proto"]=JS.undefined();
+JsValue target=JS.object();
+target["key"]=1;
+target["proto"]=proto;
+JsValue adm=JS.object();
+adm["target_"]=target;
+adm["defaultAnnotation_"]=JS.object();
+if(JS.strictEqual(walk(adm,"key",true),target)){print(1);}else{print(0);}

@@ -1,0 +1,19 @@
+extern int limit();
+extern JsValue object();
+extern void event(string text);
+generator int values(){yield 1;yield 2;}
+void consume() {
+    for(int i=0;i<limit();i++) {
+        try { event("for"); } catch(auto error) { event("catch"); }
+        event("after");
+    }
+    for(string key in object()) {
+        try { event(key); } catch(auto error) { event("catch"); }
+        event("after");
+    }
+    for(int value of values()) {
+        try { event("of"); } catch(auto error) { event("catch"); }
+        event("after");
+    }
+}
+consume();

@@ -1,0 +1,18 @@
+struct Result { string raw; string text; }
+string trimValue(string value) {
+    while (value.endsWith(" ")) value = value.slice(0, value.length - 1);
+    return value;
+}
+Result? tokenize(bool preserve, string source) {
+    JsValue matchValue = new Regex("^a", "u").exec(source);
+    if (JS.isNullish(matchValue)) return null;
+    string value = JS.string(matchValue[0]);
+    if (!preserve) value = trimValue(value);
+    Result result = Result{value, ""};
+    result.text = value.replace(new Regex(".", "u"), "x");
+    return result;
+}
+extern bool readBool();
+extern string readString();
+Result? result = tokenize(readBool(), readString());
+if (result != null) print(result.raw + result.text);

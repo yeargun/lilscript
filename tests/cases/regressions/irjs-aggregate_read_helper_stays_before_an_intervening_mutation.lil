@@ -1,0 +1,1 @@
+struct Stats{int total;}extern int mutate(Stats stats);pure int read(Stats stats){return stats.total;}pure int wrapped(Stats stats){return read(stats);}int observe(Stats stats){int before=wrapped(stats);int changed=mutate(stats);if(changed>0){return before;}return 0;}Stats stats=Stats{7};print(observe(stats));

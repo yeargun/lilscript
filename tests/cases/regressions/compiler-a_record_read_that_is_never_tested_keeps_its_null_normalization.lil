@@ -1,0 +1,8 @@
+// Harvested from src/compiler.rs (function_scope_tests) a_record_read_that_is_never_tested_keeps_its_null_normalization.
+// The test imported the module and ran a probe over the exports; here the program
+// also hands the exported functions to the host driver `check` (see .host.js).
+extern void check(func(string)->string seed, func(string)->JsValue peek);
+Record<string> cache = record{};
+export string seed(string key){cache[key] = key + "!";return key;}
+export JsValue peek(string key){string? hit = cache[key];return JS.assume(hit);}
+check(seed, peek);

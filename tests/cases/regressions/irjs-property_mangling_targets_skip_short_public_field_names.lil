@@ -1,0 +1,1 @@
+export class Base{int a;init(int value){this.a=value;}}class Child extends Base{int privateValue;init(int left,int right){super(left);this.privateValue=right;}int sum(){return this.a+this.privateValue;}}Child child=new Child(2,3);print(child.sum());

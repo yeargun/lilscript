@@ -1,0 +1,12 @@
+// Harvested from src/compiler.rs (function_scope_tests) an_unnormalized_map_get_tests_strictly_for_undefined_unless_truthiness_is_cheaper.
+// The test imported the module and ran a probe over the export; here the program
+// also hands the exported function to the host driver `check` (see .host.js).
+extern void check(func(string)->int count);
+Map<string, string[]> buckets = new Map<string, string[]>();
+export int count(string key){
+  string[]? bucket = buckets.get(key);
+  if (bucket == null) { string[] made = [key]; buckets.set(key, made); return 1; }
+  bucket.push(key);
+  return bucket.length;
+}
+check(count);

@@ -1,0 +1,4 @@
+extern int read();
+bool sameParity(int previous,int next){return previous%2==next%2;}
+bool compareWith<T>(T value,func(T,T)->bool compare){return compare(value,value);}
+print(compareWith(read(),sameParity));

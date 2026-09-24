@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs uses_imported_constructor_value_inside_exported_function_in_cycle
+// (a.lil of a two-module cycle; the other module lives in ./compiler-uses_imported_constructor_value_inside_exported_function_in_cycle/).
+import {Context,cycleValue} from "./compiler-uses_imported_constructor_value_inside_exported_function_in_cycle/b";
+export JsValue create(JsValue value){return JS.construct(Context,value);}
+print(JS.number(create(7)["value"]).toInt()+cycleValue());

@@ -1,0 +1,1 @@
+extern int read();extern void touch();extern int invoke(func(int)->int callback);int run(int seed){return invoke((int value=3)=>{touch();touch();touch();touch();touch();touch();touch();touch();touch();return value+seed;});}print(run(read()));

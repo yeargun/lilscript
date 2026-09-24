@@ -1,0 +1,28 @@
+export bool scan(JsValue events) {
+  int index = -1;
+  JsValue event = JS.undefined();
+  bool saw = false;
+  while (true) {
+    index = index + 1;
+    if (index >= JS.number(JS.get(events, "length")).toInt()) {
+      break;
+    }
+    event = events[index];
+    if (index > 0 && JS.get(event[1], "type") == "chunkFlow") {
+      saw = true;
+    }
+    if (JS.get(event[1], "_container").truthy()) {
+      int inner = 0;
+      JsValue[] extra = [];
+      while (inner < 3) {
+        extra.push(event);
+        inner = inner + 1;
+      }
+    }
+  }
+  return saw;
+}
+
+// Harness: the test called the exported scan(events) from JavaScript and printed String(result).
+extern JsValue sampleEvents;
+print(scan(sampleEvents));

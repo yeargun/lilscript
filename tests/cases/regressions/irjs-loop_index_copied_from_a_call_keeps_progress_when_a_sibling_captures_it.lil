@@ -1,0 +1,29 @@
+int startAt(string group){
+  if(group.length==0){return -1;}
+  return 0;
+}
+int scan(string group){
+  int splitAt=startAt(group);
+  if(splitAt<0){return 0;}
+  int compoundEnd=group.length;
+  int i=splitAt;
+  int depth=0;
+  string quote="";
+  for(;i<group.length;i=i+1){
+    string c=group.charAt(i);
+    if(quote!=""){
+      if(c==quote){quote="";}
+      continue;
+    }
+    if(c=="\""||c=="'"){quote=c;continue;}
+    if(c=="("){depth=depth+1;continue;}
+    if(c==")"){depth=depth-1;continue;}
+    if(depth==0&&(c==" "||c==">")){
+      compoundEnd=i;
+      break;
+    }
+  }
+  return compoundEnd;
+}
+print(scan(":header"));
+print(scan("ab cd"));

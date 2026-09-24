@@ -1,0 +1,19 @@
+// Harvested from src/compiler.rs nested_same_receiver_member_calls_keep_javascript_this.
+// A same-receiver member call inside a nested closure must keep JavaScript `this`.
+JsValue probe(){
+  JsValue self=JS.object();
+  self["x"]=1;
+  self["dispose"]=JS.method0((JsValue s)=>{s["x"]=2;return JS.undefined();});
+  JsValue extra=JS.object();
+  extra["name_"]=self["x"];
+  JsValue wrap=()=>{
+    JsValue name=extra["name_"];
+    JS.call(self["dispose"],self);
+    print(name);
+    return JS.undefined();
+  };
+  wrap();
+  print(self["x"]);
+  return JS.undefined();
+}
+probe();

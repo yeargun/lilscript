@@ -1,0 +1,1 @@
+extern int read();class Cache{Map<string,int> guard;int value;init(int value){this.value=value;}}extern void inspect(Cache cache);inspect(new Cache(read()));

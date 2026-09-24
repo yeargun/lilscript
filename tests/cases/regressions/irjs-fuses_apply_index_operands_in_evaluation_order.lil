@@ -1,0 +1,4 @@
+extern JsValue list;
+extern JsValue memory;
+extern float index;
+print(JS.apply(list[index], memory[0], memory[1]));

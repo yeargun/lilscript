@@ -1,0 +1,26 @@
+// Harvested from src/compiler.rs keeps_toint_property_compare_across_a_js_call_when_used_in_a_later_or.
+int NOT_TRACKING=-1;
+int toInt(JsValue value){return JS.number(value).toInt();}
+JsValue call1(JsValue fn,JsValue self,JsValue a0){return JS.call(fn,self,a0);}
+JsValue Computed=JS.method0((JsValue self)=>self);
+JsValue probe(){
+  Computed["prototype"]["trackAndCompute"]=JS.method0((JsValue self)=>{
+    JsValue oldValue=self["value_"];
+    bool wasSuspended=toInt(self["dependenciesState_"])==NOT_TRACKING;
+    JsValue newValue=call1(self["computeValue_"],self,true);
+    bool changed=wasSuspended||JS.strictEqual(oldValue,newValue);
+    if(changed){print(1);}else{print(0);}
+    print(newValue);
+    return changed;
+  });
+  JsValue self=JS.construct(Computed);
+  self["dependenciesState_"]=NOT_TRACKING;
+  self["value_"]="old";
+  self["computeValue_"]=JS.method1((JsValue s,JsValue keep)=>{
+    s["dependenciesState_"]=0;
+    return "df";
+  });
+  JS.call(self["trackAndCompute"],self);
+  return JS.undefined();
+}
+probe();

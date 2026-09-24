@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs owned_plain_object_proof_forwards_only_proven_own_reads (third program).
+// The host redefines `alpha` as a getter once the object escapes (see .host.js).
+extern void escape(JsValue value);
+JsValue value=object{alpha:1};
+escape(value);
+print(value["alpha"]);

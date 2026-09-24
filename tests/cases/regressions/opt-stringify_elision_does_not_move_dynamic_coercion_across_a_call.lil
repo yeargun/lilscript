@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18246 `stringify_elision_does_not_move_dynamic_coercion_across_a_call` (old-route unit test, commit 0c17237e).
+extern JsValue dynamic;extern void side();extern void consume(string value);string text=JS.string(dynamic);side();consume(text+"!");

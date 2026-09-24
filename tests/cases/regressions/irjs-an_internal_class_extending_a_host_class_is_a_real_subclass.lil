@@ -1,0 +1,1 @@
+extern class Error{string message;string name;init(string message);}class Problem extends Error{string code;init(string message,string code){super(message);this.code=code;}}Problem p=new Problem("disk full","E42");print(`${p.message}|${p.code}|${p.name}`);

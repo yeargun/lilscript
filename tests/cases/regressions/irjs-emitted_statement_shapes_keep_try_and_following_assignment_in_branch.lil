@@ -1,0 +1,12 @@
+extern int read();
+int total=0;
+void absorb(int raw,bool coerce) {
+    int value=raw;
+    if(coerce) {
+        try { value=raw*2; } catch(auto caught) { return; }
+        total=total+value;
+    }
+}
+absorb(read(),true);
+absorb(read(),false);
+print(total);

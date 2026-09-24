@@ -1,0 +1,1 @@
+export JsValue read(JsValue value=JS.undefined()){return value;}print(JS.isUndefined(read()));

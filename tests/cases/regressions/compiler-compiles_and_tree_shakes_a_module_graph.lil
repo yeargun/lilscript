@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs compiles_and_tree_shakes_a_module_graph (text-exact: the test asserts
+// the complete JavaScript `console.log(25)`). main.lil; the other modules live in ./compiler-compiles_and_tree_shakes_a_module_graph/.
+import {square as sq} from "./compiler-compiles_and_tree_shakes_a_module_graph/facade";
+print(sq(5));

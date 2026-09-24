@@ -1,0 +1,1 @@
+extern JsValue input();void observe(){JsValue values=input();for(string key in values){print(values[key]);}}observe();

@@ -1,0 +1,10 @@
+extern void consume(string value);
+string field(JsValue node, string key) {
+  JsValue value = JS.get(node, key);
+  if (value is string) {
+    return value;
+  }
+  return "";
+}
+consume(field(JS.object("type", "paragraph"), "type"));
+consume(field(JS.object("type", 1), "type"));

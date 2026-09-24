@@ -1,0 +1,25 @@
+extern void keep(JsValue value);
+extern void observe(JsValue first, JsValue second, JsValue third);
+void alpha() { print(1); }
+void beta() { print(2); }
+void gamma() { print(3); }
+keep(alpha);
+keep(beta);
+keep(gamma);
+JsValue callback = JS.methodRest((JsValue _self, JsValue args) => {
+    JsValue second = JS.undefined();
+    JsValue third = JS.undefined();
+    if (JS.number(args["length"]).toInt() > 1) {
+        second = args[1];
+    }
+    if (JS.number(args["length"]).toInt() > 2) {
+        third = args[2];
+    }
+    JsValue nested = JS.method0((JsValue _nestedSelf) => {
+        observe(args[0], second, third);
+        return JS.undefined();
+    });
+    JS.call(nested, JS.undefined());
+    return args[0];
+});
+keep(callback);

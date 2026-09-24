@@ -1,0 +1,1 @@
+class Box{int value;int[] items;init(int value){this.value=value;}void commit(){this.items.push(this.value);}}Box box=new Box(7);box.commit();print(box.items[0]);

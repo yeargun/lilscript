@@ -1,0 +1,8 @@
+// Harvested from src/codegen_native.rs:4778 `decoded_strings_execute_in_native_c_before_and_after_folding` (old-route unit test, commit 0c17237e).
+string value="a\n\"\\\u{1f600}\ud800";
+print(value.length);print(value.charCodeAt(6));
+print(`first
+${`nested ${7}`}`);
+print("quote: \" slash: \\");
+Record<string> entries=record{"\x61b":"ok"};
+print(Object.keys(entries).join(","));print(entries.ab??"none");

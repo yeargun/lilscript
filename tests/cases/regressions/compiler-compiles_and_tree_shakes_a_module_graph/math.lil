@@ -1,0 +1,3 @@
+// math.lil of compiler.rs compiles_and_tree_shakes_a_module_graph.
+export pure int square(int value){return value*value;}
+int unused(){return 99;}

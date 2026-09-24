@@ -1,0 +1,1 @@
+extern JsValue hooksOf(JsValue elem);extern JsValue read();JsValue setAttr(JsValue elem,JsValue value,JsValue name){JsValue hooks=hooksOf(elem);if(hooks.truthy()){JsValue ret=JS.invoke(hooks,"set",elem,value,name);if(!JS.isUndefined(ret)){return ret;}}JS.invoke(elem,"setAttribute",name,value);return value;}print(setAttr(read(),read(),read()));

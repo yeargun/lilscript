@@ -1,0 +1,5 @@
+int calls=0;extern void observe(func()->int f);observe(()=>calls);
+extern int read();bool effect(int value){calls+=1;return (value&1)==0;}
+int run(int seed){calls=0;bool a=effect(seed)||effect(seed+1);
+bool b=effect(seed+2)&&effect(seed+3);int count=calls;int flags=0;
+if(a){flags+=1;}if(b){flags+=2;}return count*10+flags;}print(run(read()));

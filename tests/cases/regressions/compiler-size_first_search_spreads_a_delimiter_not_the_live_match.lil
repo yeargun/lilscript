@@ -1,0 +1,32 @@
+// Harvested from src/compiler.rs size_first_search_spreads_a_delimiter_not_the_live_match.
+extern void consume(int n);
+extern JsValue cap;
+string pickDelim(JsValue m) {
+  int i = 1;
+  while (i <= 6) {
+    JsValue g = m[i];
+    if (!JS.isUndefined(g) && !JS.isNullish(g) && JS.string(g).length > 0) {
+      return JS.string(g);
+    }
+    i = i + 1;
+  }
+  return "";
+}
+int points(string s) {
+  return s.codePointLength();
+}
+void go() {
+  string rDelim = pickDelim(cap);
+  int rLength = 0;
+  if (rDelim.length != 0) {
+    rLength = points(rDelim);
+  }
+  bool later = !JS.isUndefined(cap[3]) && !JS.isNullish(cap[3]);
+  int flag = 0;
+  if (later) {
+    flag = 1;
+  }
+  consume(rLength);
+  consume(flag);
+}
+go();

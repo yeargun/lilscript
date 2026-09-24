@@ -1,0 +1,1 @@
+extern JsValue effect();extern bool flag();string choose(){JsValue value=effect();if(flag()){return ""+value;}return "no";}print(choose());

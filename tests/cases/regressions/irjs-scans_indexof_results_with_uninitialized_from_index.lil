@@ -1,0 +1,15 @@
+export float removeAll(JsValue arr, JsValue elem) {
+  float index = 0.0;
+  while (true) {
+    index = JS.number(JS.invoke(arr, "indexOf", elem, index));
+    if (index < 0.0) {
+      break;
+    }
+    JS.invoke(arr, "splice", index, 1.0);
+  }
+  return JS.number(arr["length"]);
+}
+
+// Harness: the test printed String(removeAll(["a","x","a","x"],"x")).
+extern JsValue letters;
+print(removeAll(letters, "x"));

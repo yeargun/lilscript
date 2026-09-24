@@ -1,0 +1,1 @@
+extern void keep(func()->int callback);int value=1;keep(()=>++value);keep(()=>++value);print(value);

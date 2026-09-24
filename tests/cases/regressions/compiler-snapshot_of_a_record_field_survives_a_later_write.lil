@@ -1,0 +1,13 @@
+// Harvested from src/compiler.rs snapshot_of_a_record_field_survives_a_later_write.
+int snapshotHrefThenWrite(Record<int> node, int next) {
+  int saved = node.href ?? 0;
+  node.href = next;
+  return saved + (node.href ?? 0);
+}
+int snapshotComputedThenWrite(Record<int> node, int next) {
+  int saved = node["href"] ?? 0;
+  node.href = next;
+  return saved + (node.href ?? 0);
+}
+print(snapshotHrefThenWrite(record{href: 42, title: 43}, 35));
+print(snapshotComputedThenWrite(record{href: 42, title: 43}, 33));

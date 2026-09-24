@@ -1,3 +1,7 @@
+// SUPERSEDED by scripts/cases.mjs (plan task M2.2), which runs every corpus case,
+// the harvested regressions and tests/modules in all 18 lanes against an
+// expected-failure ledger. See docs/testing.md. Kept for history; do not extend.
+//
 // How much of the language the new semantic backend carries, measured.
 //
 // This is the migration's own progress metric. Every `tests/cases/*.lil`

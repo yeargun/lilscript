@@ -1,0 +1,11 @@
+extern string objectToStringTag(JsValue value);
+extern void consume(JsValue value);
+func()->void inner=()=>{
+  JsValue notFn=JS.object();
+  func()->void nested=()=>{
+    consume(JS.string(objectToStringTag(JS.object())));
+  };
+  nested();
+  consume(notFn);
+};
+inner();

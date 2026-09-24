@@ -1,0 +1,1 @@
+int seed=1;int read(int value=seed){return value;}seed=2;print(read());

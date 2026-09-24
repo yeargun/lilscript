@@ -1,0 +1,1 @@
+extern class Host{int value;}extern Host host;class Box{int value;init(int value){this.value=value;}}Box box=new Box(2);print(host.value+box.value);

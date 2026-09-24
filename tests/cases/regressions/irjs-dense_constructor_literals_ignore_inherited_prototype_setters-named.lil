@@ -1,0 +1,1 @@
+class Box{int _lilProtoProbe;init(int value){this._lilProtoProbe=value;}}extern void inspect(Box box);inspect(new Box(7));

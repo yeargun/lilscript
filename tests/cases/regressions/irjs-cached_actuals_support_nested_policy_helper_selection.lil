@@ -1,0 +1,1 @@
+extern int input();pure int adjust(int score){if(score<0){return -score+7;}return score+3;}pure int audit(int score,bool enabled){if(enabled){return score*101+17;}return score;}pure int policy(int value){return audit(adjust(value*5+3),false);}print(policy(input()));

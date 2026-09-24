@@ -1,0 +1,10 @@
+extern void defineConfigurable(JsValue object, JsValue key, JsValue value);
+void put(JsValue owner) {
+  JsValue nodeType = JS.and(owner, owner["nodeType"]);
+  if (nodeType.truthy()) {
+    owner["k"] = 1;
+  } else {
+    defineConfigurable(owner, "k", 1);
+  }
+}
+put(JS.object());

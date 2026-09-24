@@ -1,0 +1,1 @@
+Regex pair=new Regex("^([a-z]+)-\\1$","i");print(pair.test("ab-ab"));

@@ -1,0 +1,1 @@
+extern int read();string label(int i){if(i==0){return "a\n";}if(i==1){return "\ud800";}return "\\";}print(label(read()&1).charCodeAt(0));

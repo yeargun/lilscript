@@ -1,0 +1,8 @@
+// Harvested from src/compiler.rs snapshot_of_a_record_field_survives_a_captured_rebind.
+int snapshotHrefThenCapturedRebind(Record<int> node, int next) {
+  int saved = node.href ?? 0;
+  func()->void rebind = () => { node = record{href: next, title: 0}; };
+  rebind();
+  return saved + (node.href ?? 0);
+}
+print(snapshotHrefThenCapturedRebind(record{href: 42, title: 43}, 47));

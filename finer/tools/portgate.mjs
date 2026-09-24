@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// SUPERSEDED by scripts/ports.mjs (plan task M2.6): one versioned port runner with
+// an expected-failure ledger (tests/ports/expected-failures.json). See
+// docs/testing.md. Kept for history; do not extend.
+//
 // portgate — make the library ports gate the compiler.
 //
 // WHY THIS EXISTS

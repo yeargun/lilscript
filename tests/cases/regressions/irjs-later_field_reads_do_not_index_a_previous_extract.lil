@@ -1,0 +1,1 @@
+struct Pair{int left;int right;}int read(Pair[] pairs,int i){Pair pair=pairs[i];int left=pair.left;return left+pair.right;}print(read([Pair{1,2}],0));

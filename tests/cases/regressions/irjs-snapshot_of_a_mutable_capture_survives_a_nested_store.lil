@@ -1,0 +1,13 @@
+void install(){
+  int current=1;
+  JsValue bump=JS.method0((JsValue _s)=>{current=2;return JS.undefined();});
+  JsValue run=JS.method0((JsValue _s)=>{
+    int oldValue=current;
+    JS.call(bump,JS.undefined());
+    print(oldValue);
+    print(current);
+    return JS.undefined();
+  });
+  JS.call(run,JS.undefined());
+}
+install();

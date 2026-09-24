@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs permits_deferred_cyclic_module_value_reads (a.lil of a two-module
+// cycle; the other module lives in ./compiler-permits_deferred_cyclic_module_value_reads/).
+import {reader} from "./compiler-permits_deferred_cyclic_module_value_reads/b";
+export int later=11;
+print(reader());

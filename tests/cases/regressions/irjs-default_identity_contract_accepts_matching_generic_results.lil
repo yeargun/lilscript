@@ -1,0 +1,1 @@
+T choose<T>(T left,T right){return right;}print(choose((int value=1)=>value,(int value=1)=>value)());

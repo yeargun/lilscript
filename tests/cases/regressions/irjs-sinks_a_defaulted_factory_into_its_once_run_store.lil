@@ -1,0 +1,14 @@
+extern void consume(JsValue value);
+JsValue factory(JsValue opt = null) {
+  if (JS.isNullish(opt)) {
+    return JS.object();
+  }
+  return opt;
+}
+int later(int x) {
+  return x + 2;
+}
+JsValue api = JS.object();
+api["factory"] = factory;
+api["n"] = later(1);
+consume(api);

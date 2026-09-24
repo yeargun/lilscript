@@ -1,0 +1,1 @@
+extern int[]? read();extern int fallback();export int length(){return read()?.length??fallback();}print(length());print(length());

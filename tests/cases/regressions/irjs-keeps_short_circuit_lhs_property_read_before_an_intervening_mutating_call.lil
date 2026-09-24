@@ -1,0 +1,20 @@
+int toInt(JsValue value){return JS.number(value).toInt();}
+JsValue call1(JsValue fn,JsValue self,JsValue a0){return JS.call(fn,self,a0);}
+JsValue Computed=JS.method0((JsValue self)=>self);
+Computed["prototype"]["trackAndCompute"]=JS.method0((JsValue self)=>{
+  JsValue oldValue=self["value_"];
+  bool wasSuspended=toInt(self["dependenciesState_"])==-1;
+  JsValue newValue=call1(self["computeValue_"],self,true);
+  bool changed=wasSuspended||JS.strictEqual(oldValue,newValue);
+  if(changed){print(1);}else{print(0);}
+  print(newValue);
+  return changed;
+});
+JsValue self=JS.construct(Computed);
+self["dependenciesState_"]=-1;
+self["value_"]="old";
+self["computeValue_"]=JS.method1((JsValue s,JsValue keep)=>{
+  s["dependenciesState_"]=0;
+  return "df";
+});
+JS.call(self["trackAndCompute"],self);

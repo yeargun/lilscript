@@ -1,0 +1,14 @@
+int h1(int x) { if (x < 0) { return 0; } return x + 1; }
+int h2(int x) { if (x < 0) { return 0; } return x + 2; }
+int h3(int x) { if (x < 0) { return 0; } return x + 3; }
+int h4(int x) { if (x < 0) { return 0; } return x + 4; }
+class Handle {
+    int value;
+    init(int x) { this.value = h1(x) + h2(x) + h3(x) + h4(x); }
+    int read() { return this.value; }
+}
+export constructor Handle;
+
+// Harness: the test imported the module and printed new ns.Handle(7).read().
+Handle handle = new Handle(7);
+print(handle.read());

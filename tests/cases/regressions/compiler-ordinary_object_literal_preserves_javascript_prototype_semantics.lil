@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs ordinary_object_literal_preserves_javascript_prototype_semantics.
+// The host installs setters for `alpha` and `beta` on Object.prototype (see .host.js).
+extern void inspect(JsValue value);
+JsValue value=object{alpha:1,"__proto__":2};
+value["beta"]=3;
+inspect(value);

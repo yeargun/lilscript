@@ -1,0 +1,1 @@
+extern int read();string value=match(read()){-1=>"negative",0=>"zero",_=>"positive"};print(value);

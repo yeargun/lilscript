@@ -1,0 +1,1 @@
+extern bool read();int choose(){return if(read()){1}else{2};}print(choose());

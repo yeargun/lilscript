@@ -1,0 +1,1 @@
+extern void inspect(JsValue value);extern void consume(JsValue value);JsValue make(JsValue state){JsValue callback=JS.method3((JsValue self,JsValue first,JsValue second,JsValue third)=>{consume(state);return third;});JsValue hydrate=state[0];return JS.object("callback",callback,"hydrate",hydrate);}inspect(make(JS.array(7)));

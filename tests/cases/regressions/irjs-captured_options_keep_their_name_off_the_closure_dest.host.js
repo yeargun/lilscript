@@ -1,0 +1,3 @@
+(() => {
+  globalThis.makeOptions = { memory: true };
+})();

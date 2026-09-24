@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs reports_missing_exports_and_links_static_module_cycles (second half;
+// text-exact: the test asserts the complete output `console.log(7)`; the first half is a
+// diagnostic). main.lil; the left<->right cycle lives in ./compiler-reports_missing_exports_and_links_static_module_cycles/.
+import {left} from "./compiler-reports_missing_exports_and_links_static_module_cycles/left";
+print(left());

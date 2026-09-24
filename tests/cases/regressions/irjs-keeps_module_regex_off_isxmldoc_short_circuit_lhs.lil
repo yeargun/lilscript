@@ -1,0 +1,10 @@
+Regex rhtmlSuffix = new Regex("HTML$", "i");
+export bool isXMLDoc(JsValue elem) {
+  JsValue namespace = JS.and(elem, elem["namespaceURI"]);
+  JsValue docElem = JS.and(elem, JS.or(elem["ownerDocument"], elem)["documentElement"]);
+  return !JS.invoke(rhtmlSuffix, "test", JS.or(namespace, JS.or(JS.and(docElem, docElem["nodeName"]), "HTML"))).truthy();
+}
+
+// Harness: the test imported isXMLDoc and printed String(isXMLDoc(namespaced)).
+extern JsValue namespaced;
+print(isXMLDoc(namespaced));

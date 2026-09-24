@@ -1,0 +1,3 @@
+# The test compiled with `assume_pristine_builtins = false`: the host installs a setter on Object.prototype.
+[javascript]
+assume_pristine_builtins = false

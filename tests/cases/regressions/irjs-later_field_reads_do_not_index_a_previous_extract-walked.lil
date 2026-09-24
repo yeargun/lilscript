@@ -1,0 +1,1 @@
+struct Tuple{string action;string listener;int list;}int walk(Tuple[] rows){int i=0;int acc=0;while(i<rows.length){Tuple tuple=rows[i];string actionName=tuple.action;string listener=tuple.listener;int list=tuple.list;acc=acc+list+actionName.length+listener.length;i=i+1;}return acc;}print(walk([Tuple{"ab","cd",3},Tuple{"e","fg",4}]));

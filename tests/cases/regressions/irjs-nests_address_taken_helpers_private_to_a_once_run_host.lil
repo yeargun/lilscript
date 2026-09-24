@@ -1,0 +1,1 @@
+extern void consume(JsValue value);JsValue helper(JsValue x){if(x==null){return 0;}return x;}void install(){JsValue obj=JS.object();obj["left"]=helper;obj["right"]=helper;consume(obj);}install();

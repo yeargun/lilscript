@@ -1,0 +1,18 @@
+int applyFlag(bool numeric, int value, int flags, int mask) {
+    bool on = false;
+    if (numeric) {
+        on = value == 1;
+    } else {
+        on = value != 0;
+    }
+    if (on) {
+        flags = flags | mask;
+    } else {
+        flags = flags & (mask ^ -1);
+    }
+    return flags;
+}
+print(applyFlag(true, 1, 0, 1));
+print(applyFlag(true, 0, 1, 1));
+print(applyFlag(false, 2, 0, 1));
+print(applyFlag(false, 0, 1, 1));

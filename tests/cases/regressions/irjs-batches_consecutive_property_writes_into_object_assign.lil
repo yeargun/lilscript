@@ -1,0 +1,1 @@
+extern JsValue input();extern void consume(JsValue value);JsValue obj=input();obj["alpha"]=1;obj["beta"]=2;consume(obj);

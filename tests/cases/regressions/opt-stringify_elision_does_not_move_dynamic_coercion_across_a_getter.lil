@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18266 `stringify_elision_does_not_move_dynamic_coercion_across_a_getter` (old-route unit test, commit 0c17237e).
+extern JsValue dynamic;extern JsValue object;extern void consume(string value);void run(JsValue value,JsValue target){string text=JS.string(value);JsValue ignored=target["property"];consume(text+"!");}run(dynamic,object);

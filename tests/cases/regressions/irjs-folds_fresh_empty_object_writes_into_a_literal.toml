@@ -1,0 +1,3 @@
+# The test compiled with `assume_pristine_builtins = true` (the fold it guards needs that contract).
+[javascript]
+assume_pristine_builtins = true

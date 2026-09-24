@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18492 `closed_record_projection_preserves_null_prototype_observations` (old-route unit test, commit 0c17237e).
+extern void pollutePrototype();Record<int> value=record{safe:1};pollutePrototype();print(value.toString??-1);print(JSON.stringify(value));

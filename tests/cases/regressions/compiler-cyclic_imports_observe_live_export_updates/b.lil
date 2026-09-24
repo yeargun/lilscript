@@ -1,0 +1,3 @@
+// b.lil of compiler.rs cyclic_imports_observe_live_export_updates; "./a" is the case entry.
+import {count,bump} from "../compiler-cyclic_imports_observe_live_export_updates";
+export int readAfterBump(){bump();return count;}

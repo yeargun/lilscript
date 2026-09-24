@@ -1,0 +1,1 @@
+extern JsValue input;string inspect(JsValue source){JsValue observed=source["value"];int marker=7;return JS.string(observed)+JS.string(marker);}print(inspect(input));

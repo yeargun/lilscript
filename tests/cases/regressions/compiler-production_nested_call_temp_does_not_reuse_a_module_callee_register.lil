@@ -1,0 +1,38 @@
+// Harvested from src/compiler.rs production_nested_call_temp_does_not_reuse_a_module_callee_register.
+JsValue action = JS.undefined();
+JsValue call1(JsValue fn, JsValue self, JsValue a) {
+  return JS.call(fn, self, a);
+}
+JsValue undef() {
+  return JS.undefined();
+}
+void run() {
+  JsValue gen = JS.object();
+  gen["next"] = JS.method1((JsValue g, JsValue x) => {
+    JsValue result = JS.object();
+    result["value"] = x;
+    result["done"] = true;
+    result["then"] = undef();
+    return result;
+  });
+  JsValue nextStep = undef();
+  JsValue onFulfilled = JS.method1((JsValue _f, JsValue v) => {
+    try {
+      string stepName = "s";
+      JsValue ret = call1(JS.call(action, undef(), stepName, gen["next"]), gen, v);
+      call1(nextStep, undef(), ret);
+    } catch (JsValue e) {
+      print("err");
+    }
+    return undef();
+  });
+  nextStep = JS.method1((JsValue _n, JsValue ret) => {
+    print(ret["value"]);
+    return undef();
+  });
+  call1(onFulfilled, undef(), 7);
+}
+action = JS.method2((JsValue _s, JsValue name, JsValue fn) => {
+  return fn;
+});
+run();

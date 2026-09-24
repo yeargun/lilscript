@@ -1,0 +1,1 @@
+extern void consume(string s, JsValue file);extern JsValue v;consume(JS.string(v), v);

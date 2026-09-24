@@ -1,0 +1,8 @@
+void run(){
+  int value=1;
+  func()->int increment=()=>{value++;return value;};
+  func()->int read=()=>value;
+  print(increment());
+  print(read());
+}
+run();

@@ -1,0 +1,5 @@
+// Harvested from src/compiler.rs explicit_constructor_export_preserves_named_class_identity.
+// MODULE LANE ONLY: the behaviour is observable only through the js-module export boundary.
+// Compile with --target js-module; the probe in .module-probe.mjs imports the module.
+export constructor Scale as PublicScale;
+class Scale{int factor;init(int factor){this.factor=factor;}int apply(int value){return value*this.factor;}}

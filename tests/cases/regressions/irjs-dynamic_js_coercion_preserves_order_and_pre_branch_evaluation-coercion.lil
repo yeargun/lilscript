@@ -1,0 +1,1 @@
+extern JsValue first();extern JsValue second();string join(JsValue left,JsValue right){string a=""+left;string b=""+right;return b+a;}string run(JsValue left,JsValue right){return join(left,right);}print(run(first(),second()));

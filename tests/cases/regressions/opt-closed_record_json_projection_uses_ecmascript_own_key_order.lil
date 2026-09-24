@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18515 `closed_record_json_projection_uses_ecmascript_own_key_order` (old-route unit test, commit 0c17237e).
+Record<int> value=record{"10":10,"2":2,b:3,a:1};print(JSON.stringify(value));

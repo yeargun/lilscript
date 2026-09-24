@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:18170 `preserves_plain_object_inherited_setter_observation` (old-route unit test, commit 0c17237e).
+extern int read();extern void consume(JsValue value);JsValue value=JS.object();value["_lilPlainObjectProbe"]=read();consume(value);

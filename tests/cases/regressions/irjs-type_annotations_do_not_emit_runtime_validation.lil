@@ -1,0 +1,5 @@
+export float add(float a,float b){return a+b;}export string label(string value){return value;}export bool flag(bool value){return value;}export bool checked(JsValue value){return value is float;}
+
+// Harness: the test imported the module and ran
+// console.log(ns.add(2,3),ns.label('x'),ns.flag(true),ns.checked(3),ns.checked('3')).
+print(`${add(2.0,3.0)} ${label("x")} ${flag(true)} ${checked(3.0)} ${checked("3")}`);

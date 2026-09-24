@@ -1,0 +1,1 @@
+class Box{int value;int[] items;init(){inspect(this.value);this.value=7;}}extern void inspect(int value);extern void consume(Box box);Box box=new Box();consume(box);print(box.value);

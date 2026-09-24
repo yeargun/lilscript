@@ -1,0 +1,1 @@
+extern void retain(func(int)->int callback);int seed=7;int literal(int value=3){return value;}int global(int value=seed){return value;}retain(literal);retain(global);

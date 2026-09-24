@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// SUPERSEDED by scripts/ports.mjs (plan task M2.6), which also pins the compiler
+// copy by digest, never passes --backend, switches objectives and diffs the
+// failing-test set against tests/ports/expected-failures.json. See
+// docs/testing.md. Kept for history; do not extend.
+//
 // Runs maintained ports' own test suites against a compiler's semantic route.
 //
 // Each port is copied to a fresh workspace (its node_modules linked, not

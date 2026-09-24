@@ -1,0 +1,3 @@
+// library.lil of compiler.rs preserves_branch_local_shadowing_while_linking.
+int helper(){return 7;}
+export int run(bool flag){if(flag)int helper=1;return helper();}

@@ -1,0 +1,15 @@
+extern JsValue globalThis;
+JsValue helper(){return JS.undefined();}
+JsValue traps=record{
+  get:JS.method2((JsValue _s,JsValue target,JsValue key)=>{
+    return JS.call(globalThis["parseInt"],helper(),key);
+  })
+};
+export JsValue factory=JS.methodRest((JsValue _s,JsValue args)=>{
+  string name="ObservableArray";
+  JsValue inner=JS.method0((JsValue __s)=>{
+    return JS.call(traps["get"],traps,JS.object(),"42");
+  });
+  return JS.call(inner,JS.undefined());
+});
+print(JS.call(factory,JS.undefined()));

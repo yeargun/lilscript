@@ -1,0 +1,20 @@
+extern void each(JsValue list, func(JsValue, JsValue)->JsValue visit);
+extern void consume(JsValue value);
+void walk(JsValue items) {
+  func(JsValue)->void addNested = (JsValue nested) => {
+    each(nested, (JsValue _i, JsValue arg) => {
+      if (arg.truthy() && arg["length"].truthy() && JS.typeOf(arg) != "string") {
+        addNested(arg);
+      } else {
+        consume(arg);
+      }
+      return JS.undefined();
+    });
+  };
+  addNested(items);
+}
+walk(JS.array());
+
+// Harness: after the program the test called walk([[1],[2,3],4]) from JavaScript.
+extern JsValue nestedItems;
+walk(nestedItems);

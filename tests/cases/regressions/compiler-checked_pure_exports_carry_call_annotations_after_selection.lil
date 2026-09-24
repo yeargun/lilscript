@@ -1,0 +1,7 @@
+// Harvested from src/compiler.rs checked_pure_exports_carry_call_annotations_after_selection.
+// The test imported the module and printed `String(m.callback())`; here the program
+// also hands the exported `callback` to the host driver `check` (see .host.js).
+extern void check(func()->float callback);
+export pure func()->float factory(float value){return()=>value;}
+export func()->float callback=factory(7.0);
+check(callback);

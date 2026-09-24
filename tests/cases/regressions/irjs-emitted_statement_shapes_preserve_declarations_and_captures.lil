@@ -1,0 +1,11 @@
+extern bool flag();
+extern int read();
+extern void save(func()->int callback);
+void install(bool enabled) {
+    if(enabled) {
+        int local=read();
+        save(()=>local);
+    }
+}
+install(flag());
+install(flag());

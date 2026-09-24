@@ -1,0 +1,3 @@
+// b.lil of compiler.rs permits_deferred_cyclic_module_value_reads; "./a" is the case entry.
+import {later} from "../compiler-permits_deferred_cyclic_module_value_reads";
+export func()->int reader=()=>later;

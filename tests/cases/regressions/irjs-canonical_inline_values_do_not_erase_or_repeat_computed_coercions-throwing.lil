@@ -1,0 +1,4 @@
+extern JsValue read();
+float twice(JsValue value){float converted=JS.number(value);return converted+converted;}
+float apply<T>(T value,func(T)->float callback){return callback(value);}
+print(apply(read(),twice));

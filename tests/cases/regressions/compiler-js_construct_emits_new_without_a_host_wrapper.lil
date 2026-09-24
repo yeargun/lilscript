@@ -1,0 +1,2 @@
+// Harvested from src/compiler.rs js_construct_emits_new_without_a_host_wrapper.
+print(JS.typeOf(JS.construct(JS.method0((JsValue self) => self))));

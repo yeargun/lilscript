@@ -1,0 +1,4 @@
+// left.lil of compiler.rs reports_missing_exports_and_links_static_module_cycles.
+import {right} from "./right";
+export int leaf(){return 3;}
+export int left(){return right()+1;}

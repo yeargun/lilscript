@@ -1,0 +1,3 @@
+// b.lil of compiler.rs initializes_each_module_once_in_a_static_cycle; "./a" is the case entry.
+import {value} from "../compiler-initializes_each_module_once_in_a_static_cycle";
+export int read(){return value;}

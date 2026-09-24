@@ -1,0 +1,1 @@
+Record<int> values=record{left:1};print(values.left??0);print(values.missing??-1);

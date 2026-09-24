@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs parsed_peephole_applies_without_candidate_search.
+extern int read();
+int state=read();
+void increment(){state=state+1;}
+increment();
+print(state);

@@ -1,0 +1,20 @@
+extern void inspect(JsValue value);
+JsValue select(JsValue self,JsValue args){
+  JsValue typeArg=args[0];
+  JsValue data=args[1];
+  string type="fx";
+  float setter=2.0;
+  if(typeArg is string){
+    type=typeArg;
+  }else{
+    data=typeArg;
+    setter=1.0;
+  }
+  inspect(setter);
+  return JS.method0((JsValue _self)=>[type,data]);
+}
+JsValue wrapped=JS.methodRest(select);
+JsValue stringCase=JS.call(wrapped,null,"custom",7.0);
+inspect(JS.call(stringCase,null));
+JsValue valueCase=JS.call(wrapped,null,9.0);
+inspect(JS.call(valueCase,null));

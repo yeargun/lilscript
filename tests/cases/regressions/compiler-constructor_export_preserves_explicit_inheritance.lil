@@ -1,0 +1,6 @@
+// Harvested from src/compiler.rs constructor_export_preserves_explicit_inheritance.
+// MODULE LANE ONLY: the behaviour is observable only through the js-module export boundary.
+// Compile with --target js-module; the probe in .module-probe.mjs imports the module.
+export constructor Child;
+class Base{int value;init(int value){this.value=value;}int read(){return this.value;}}
+class Child extends Base{int extra;init(int value,int extra){super(value);this.extra=extra;}int total(){return this.value+this.extra;}}

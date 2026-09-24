@@ -1,0 +1,4 @@
+// Harvested from src/compiler.rs gzip_search_can_keep_distinct_locals_when_coalescing_adds_syntax.
+JsValue input=JS.object();
+JsValue node=JS.and(input,input["nodeName"]);
+if(node is string){print(node);}else{print("none");}

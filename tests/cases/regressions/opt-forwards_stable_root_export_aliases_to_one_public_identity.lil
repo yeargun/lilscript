@@ -1,0 +1,2 @@
+// Harvested from src/optimizer.rs:17095 `forwards_stable_root_export_aliases_to_one_public_identity` (old-route unit test, commit 0c17237e).
+JsValue stableTarget=JS.object();export JsValue alias=stableTarget;export {alias as second};JsValue observe(){return alias;}print(observe()==stableTarget);

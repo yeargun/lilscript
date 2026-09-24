@@ -1,0 +1,17 @@
+export JsValue copyOwn(JsValue target, JsValue options) {
+  for (string name in options) {
+    JsValue copy = options[name];
+    if (name == "__proto__" || target == copy) {
+      continue;
+    }
+    if (!JS.isUndefined(copy)) {
+      target[name] = copy;
+    }
+  }
+  return target;
+}
+
+// Harness: the test ran `const target={};copyOwn(target,{a:1,b:2});JSON.stringify(target)`.
+extern JsValue copyTarget;
+extern JsValue copySource;
+copyOwn(copyTarget, copySource);
