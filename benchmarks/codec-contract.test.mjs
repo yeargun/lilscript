@@ -102,7 +102,9 @@ test("an explicit compiler/scorer pair fails closed when one path is missing", (
 });
 
 function runnerFiles(root) {
+  // `.claude` holds agent worktrees: whole checkouts that are not this tree.
   const ignoredDirectories = new Set([
+    ".claude",
     ".git",
     "artifacts",
     "build",
