@@ -1386,7 +1386,7 @@ fn path_post_discovery_work_refusal_releases_sources_before_returning() {
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let (modules, syntax) =
-        discover_parsed_modules_admitted(&path, &config, &sources, &arena).unwrap();
+        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap();
     let source_bytes = sources.allocated_bytes() as u64;
     drop(syntax);
     drop(arena);
@@ -1426,7 +1426,7 @@ fn path_checker_and_conversion_refusals_release_sources_without_a_diagnostic_cop
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let (modules, syntax) =
-        discover_parsed_modules_admitted(&path, &config, &sources, &arena).unwrap();
+        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap();
     let source_bytes = sources.allocated_bytes() as u64;
     let bytes = modules
         .modules
@@ -1686,7 +1686,7 @@ fn shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger()
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
     let (modules, syntax) =
-        discover_parsed_modules_admitted(&path, &config, &sources, &arena).unwrap();
+        discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap();
     drop(syntax);
     drop(arena);
     let discovery_peak = frontend.ledger.peak_retained_bytes();
@@ -1701,7 +1701,7 @@ fn shared_module_discovery_refusal_releases_partial_sources_on_the_same_ledger()
     let mut frontend = Frontend::new(&config, options).unwrap();
     let sources = StableSourceArena::new(WorkDomain::Baseline);
     let arena = AdmittedArena::new(&mut frontend.ledger, WorkDomain::Baseline);
-    let error = discover_parsed_modules_admitted(&path, &config, &sources, &arena).unwrap_err();
+    let error = discover_parsed_modules_admitted(&path, None, &config, &sources, &arena).unwrap_err();
     assert!(matches!(error, ModuleDiscoveryError::Resources(_)));
     drop(arena);
     let source_bytes = sources.allocated_bytes() as u64;

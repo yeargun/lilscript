@@ -218,16 +218,22 @@ pub(crate) fn host_call(program: &Program<'_>, data: &UnitData, target: &CallTar
             )
         }
         CallTarget::Reference { place } => match data.places[place.index()] {
-            Place::Member { receiver, .. } => match &program.types[data.values[receiver.index()].ty.index()] {
-                Type::TypeParameter("$js") => true,
-                Type::Class(name) | Type::ClassInstance { name, .. } => {
-                    program.class(name).is_some_and(|class| class.external)
-                }
-                _ => false,
-            },
+            Place::Member { receiver, .. } => host_receiver(program, data, receiver),
             _ => false,
         },
         CallTarget::Builtin(_) | CallTarget::Intrinsic { .. } => false,
+    }
+}
+
+/// Whether a value is a host object: a `JsValue` or an extern class
+/// instance. Its members are host properties and methods.
+pub(crate) fn host_receiver(program: &Program<'_>, data: &UnitData, receiver: ValueId) -> bool {
+    match &program.types[data.values[receiver.index()].ty.index()] {
+        Type::TypeParameter("$js") => true,
+        Type::Class(name) | Type::ClassInstance { name, .. } => {
+            program.class(name).is_some_and(|class| class.external)
+        }
+        _ => false,
     }
 }
 
@@ -382,6 +388,10 @@ impl<'src> Program<'src> {
     }
     pub fn units(&self) -> &[FrozenUnit] {
         &self.units
+    }
+    /// The checked type a value, cell or signature names.
+    pub fn ty(&self, id: TypeId) -> Option<&Type<'src>> {
+        self.types.get(id.index())
     }
     pub fn cells(&self) -> &[Cell] {
         &self.cells

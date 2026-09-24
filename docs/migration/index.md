@@ -168,6 +168,9 @@ Facts on the Program IR, each with one owner. **Each task deletes the re-derivat
 | M4.6 Escape | Per allocation site: local, typed or host; a compare with `null` is not an escape | `scalar_objects.rs`'s syntactic escape test | snippet `s17`; probe `f1`'s per-iteration `[d,d+1\|0]` |
 | M4.7 Field facts | Per `(nominal, slot)`: read, written-value join, host-reachable, reflective, exported shape | name-keyed field logic | probes `p2` and `p5`; motionlil's dead fields |
 
+- M4.6: the lint rule `performance/aggregate-escape` (removed in M1.2) returns with the escape fact.
+- Lint IR rules see the program before program rules; they move after the M5 rules when those land.
+
 **Exit.**
 - Every fact has one owner.
 - No JS tree pass computes effects, initialization order or value domains from syntax.

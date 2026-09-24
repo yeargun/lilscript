@@ -76,17 +76,17 @@ pub use structured_js::manifest::{
     javascript_bundle,
 };
 pub use compiler_service::{
-    BuildInputs, CheckedSourceSession, FinishedSourceSession, ServiceCompilation, ServiceError,
-    ChunkExtension, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions, ServiceTarget,
-    build_inputs, compile_path_semantic, compile_source_semantic, with_checked_path,
-    with_checked_source,
+    BuildInputs, CheckedProgram, CheckedSourceSession, FinishedSourceSession, ServiceCompilation,
+    ServiceError, ChunkExtension, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions,
+    ServiceTarget, build_inputs, check_path, check_source, compile_path_semantic,
+    compile_source_semantic, with_checked_path, with_checked_program, with_checked_source,
 };
 pub use interpreter::{
     InterpretError, InterpreterLimits, interpret_program, interpret_program_with_limits,
 };
 pub use lint::{
-    LintProviderDiagnostic, LintRuleContext, LintRuleProvider, WebRuleProvider,
-    lint_path_with_providers,
+    LintProviderDiagnostic, LintRuleContext, LintRuleProvider, WebRuleProvider, lint_checked,
+    lint_checked_with_providers, lint_path_with_providers,
 };
 pub use lower::{LowerError, lower_to_control_flow};
 pub use module::ModuleError;
