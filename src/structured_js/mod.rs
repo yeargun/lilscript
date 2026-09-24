@@ -2257,6 +2257,62 @@ impl Module {
         }
     }
 
+    /// Every binding mention in code that can run, with whether it is
+    /// written: an assignment's target, a `for…in`/`for…of` binding.
+    fn walk_mentions(
+        &self,
+        regions: &mut Vec<RegionId>,
+        expressions: &mut Vec<ExprId>,
+        budget: &mut AllocationBudget<'_>,
+        mut visit: impl FnMut(BindingId, bool),
+    ) -> Result<(), AllocationError> {
+        use crate::compilation_policy::WorkKind::Analysis;
+        loop {
+            if let Some(id) = expressions.pop() {
+                budget.work(Analysis, 1)?;
+                let expression = &self.expressions[id.index()];
+                match expression {
+                    Expr::Binding(binding) => visit(*binding, false),
+                    Expr::Assign { target, value } => {
+                        match self.expressions[target.index()] {
+                            // The target is written, not read: visit it once as
+                            // a write and continue with the value.
+                            Expr::Binding(binding) => {
+                                visit(binding, true);
+                                expressions.push(*value);
+                                continue;
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+                if let Some(function) = expression.created_function() {
+                    regions.push(self.functions[function.index()].body);
+                }
+                let _ = expression.visit_children(|child| {
+                    expressions.push(child);
+                    Ok::<_, ()>(())
+                });
+                continue;
+            }
+            let Some(region) = regions.pop() else {
+                return Ok(());
+            };
+            for statement in &self.regions[region.index()].statements {
+                budget.work(Analysis, 1)?;
+                if let Statement::ForIn { binding, .. } | Statement::ForOf { binding, .. } = statement {
+                    visit(*binding, true);
+                }
+                statement.visit_expressions(|root| expressions.push(root));
+                statement.visit_regions(|child| regions.push(child));
+                if let Statement::Function { function, .. } = statement {
+                    regions.push(self.functions[function.index()].body);
+                }
+            }
+        }
+    }
+
     /// `let x=v;S` becomes `S` with `v` in place of `x` when `x` is referenced
     /// exactly once, as the first thing `S` evaluates: the same evaluations
     /// in the same order, one binding fewer. A function or class value keeps
@@ -2274,9 +2330,15 @@ impl Module {
             crate::compilation_policy::WorkKind::Analysis,
             self.exports.len() as u64,
         )?;
-        // Only code that can run counts: edits leave unreachable nodes.
-        self.walk(&mut vec![self.root], &mut Vec::new(), budget, |binding| {
+        // Only code that can run counts: edits leave unreachable nodes. The
+        // same walk finds the bindings that code assigns, so the two cannot
+        // disagree about which nodes are live.
+        let mut written = budget.filled(AllocationClass::Scratch, self.bindings.len(), false)?;
+        self.walk_mentions(&mut vec![self.root], &mut Vec::new(), budget, |binding, write| {
             references[binding.index()] = references[binding.index()].saturating_add(1);
+            if write {
+                written[binding.index()] = true;
+            }
         })?;
         for export in &self.exports {
             references[export.binding.index()] = u32::MAX;
@@ -2310,7 +2372,11 @@ impl Module {
                     Expr::Function(function) => Some(function),
                     _ => None,
                 };
+                // Its one mention must be a read: a binding reachable code
+                // assigns is not its initializer everywhere, and an
+                // assignment's target is not a place a value can take.
                 let movable = references[binding.index()] == 1
+                    && !written[binding.index()]
                     && !self.bindings[binding.index()].pinned
                     && !matches!(self.expressions[value.index()], Expr::Class { .. })
                     && function.is_none_or(|function| {
