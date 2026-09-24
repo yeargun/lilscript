@@ -101,18 +101,34 @@ fn run() -> Result<(), String> {
     }
 
     // The JavaScript lanes: the production policy (the repository's
-    // `lilscript.toml`), development mode (no candidate search), and formation
-    // only (every tactic vetoed and no search, `tests/config/no-optimization.toml`).
+    // `lilscript.toml`, which keeps `print`), development mode (the same
+    // policy without candidate search), and formation only (every tactic
+    // vetoed and no search, `tests/config/no-optimization.toml`). Each names
+    // its configuration, so the output directory does not decide it.
     //
     // The native lanes are masked. Every generated program uses `Record<int>`
     // (the `differentialIdentity` prelude), which the native target refuses
     // until native records land; plan M11.4 owns them and restores these lanes.
+    let production = root.join("lilscript.toml");
     let formation_only = root.join("tests/config/no-optimization.toml");
     let lanes: [(&str, Vec<&std::ffi::OsStr>); 3] = [
-        ("production JavaScript", vec!["--mode".as_ref(), "production".as_ref()]),
+        (
+            "production JavaScript",
+            vec![
+                "--mode".as_ref(),
+                "production".as_ref(),
+                "--config".as_ref(),
+                production.as_os_str(),
+            ],
+        ),
         (
             "development JavaScript",
-            vec!["--mode".as_ref(), "development".as_ref()],
+            vec![
+                "--mode".as_ref(),
+                "development".as_ref(),
+                "--config".as_ref(),
+                production.as_os_str(),
+            ],
         ),
         (
             "formation-only JavaScript",

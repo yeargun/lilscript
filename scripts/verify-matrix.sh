@@ -33,7 +33,7 @@ verify_case() {
 
   node "$base.js" > "$base.js.out"
   "$base" > "$base.native.out"
-  "$CC" -std=c11 -O3 "$base.c" -o "$base.from-c"
+  "$CC" -std=c11 -O3 -fno-fast-math -ffp-contract=off "$base.c" -o "$base.from-c" -lm
   "$base.from-c" > "$base.c.out"
 
   diff -u "$expected" "$base.js.out"
