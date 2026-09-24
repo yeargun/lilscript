@@ -46,13 +46,32 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
         json!({"name":bucket.name,"calls":calls-before[index],"elapsed_ns":nanos-phases_before[index]})
     }).collect();
     if enabled() {
-        let renders = compiled.report()["search"]["renders"].as_u64().unwrap();
+        // The terminal stage builds one demand plan and one formed head per
+        // objective it forms challengers for, then one tail, target and
+        // render per challenger, and scores the ones that differ.
+        let stages = compiled.report()["search"]["terminal"]["objectives"]
+            .as_array()
+            .unwrap();
+        let tried: u64 = stages
+            .iter()
+            .map(|stage| stage["tried"].as_u64().unwrap())
+            .sum();
+        let heads = stages
+            .iter()
+            .filter(|stage| stage["tried"].as_u64().unwrap() > 0)
+            .count() as u64;
+        let terminal_encodes: u64 = stages
+            .iter()
+            .map(|stage| stage["codec_probes"].as_u64().unwrap())
+            .sum();
+        let renders = compiled.report()["search"]["renders"].as_u64().unwrap() + tried;
         assert_eq!(phases[5]["calls"], renders);
         assert_eq!(phases[6]["calls"], renders);
         let encodes = compiled.report()["search"]["codec_probes"]
             .as_u64()
             .unwrap()
-            + 2;
+            + 2
+            + terminal_encodes;
         assert_eq!(
             phases[7]["calls"].as_u64().unwrap() + phases[8]["calls"].as_u64().unwrap(),
             encodes
@@ -63,12 +82,17 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
             } else {
                 [1, 1, 2, 2, 2, 3, 3]
             };
+            let terminal = [heads, heads + tried, tried, tried, tried, tried, tried];
             assert_eq!(
                 phases[..7]
                     .iter()
                     .map(|row| row["calls"].as_u64().unwrap())
                     .collect::<Vec<_>>(),
                 expected
+                    .iter()
+                    .zip(terminal)
+                    .map(|(search, terminal)| search + terminal)
+                    .collect::<Vec<_>>()
             );
         } else {
             assert!(phases[0]["calls"].as_u64().unwrap() > 1);

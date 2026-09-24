@@ -165,7 +165,7 @@ fn render(
                 dead_code_elimination: false,
                 target_compaction: false,
                 literals: LiteralOutput::Original,
-                raw_structure: false,
+                families: crate::js::OutputFamilies::NONE,
             },
             WorkDomain::Baseline,
             |output| {

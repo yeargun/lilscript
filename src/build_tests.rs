@@ -233,14 +233,33 @@ fn shared_winner_handoff_and_all_optional_off_keep_source_literals_and_api() {
     .unwrap();
     check_scores(&result);
     assert_eq!(result.report()["search"]["proposals"], 0);
-    let first = result.javascript(Objective::Raw).unwrap();
-    for codec in [Objective::Gzip, Objective::Brotli] {
-        assert!(std::ptr::eq(first, result.javascript(codec).unwrap()));
+    // One search winner serves every codec; a codec whose terminal stage
+    // kept a challenger delivers its own artifact instead.
+    let stages = result.report()["search"]["terminal"]["objectives"]
+        .as_array()
+        .unwrap();
+    let unchanged: Vec<Objective> = [Objective::Raw, Objective::Gzip, Objective::Brotli]
+        .into_iter()
+        .zip(stages)
+        .filter(|(_, stage)| stage["before"] == stage["after"])
+        .map(|(codec, _)| codec)
+        .collect();
+    for pair in unchanged.windows(2) {
+        assert!(std::ptr::eq(
+            result.javascript(pair[0]).unwrap(),
+            result.javascript(pair[1]).unwrap()
+        ));
     }
-    assert_eq!(
-        execute_javascript(first.javascript(), "", "console.log(library.answer());"),
-        "kept\n"
-    );
+    for codec in [Objective::Raw, Objective::Gzip, Objective::Brotli] {
+        assert_eq!(
+            execute_javascript(
+                result.javascript(codec).unwrap().javascript(),
+                "",
+                "console.log(library.answer());"
+            ),
+            "kept\n"
+        );
+    }
 }
 
 #[test]

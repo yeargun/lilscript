@@ -1,0 +1,50 @@
+// Output families judged by the codec (plan M5.4, M9.2, M9.3): each
+// objective starts from its own seed of statement spellings, block inlining,
+// string pooling and raw naming, and the terminal stage keeps whichever
+// assignment makes its complete artifact smaller under its own codec. At
+// level 15, when this case landed, the three objectives kept three different
+// assignments (`build_terminal_tests.rs` checks that they differ). Every lane
+// must print the same lines.
+int pick(int a, int b, bool first) {
+    int chosen = 0;
+    if (first) { chosen = a * 3 + b; } else { chosen = b * 5 - a; }
+    return chosen;
+}
+string grade(int score) {
+    string label = "";
+    if (score > 90) { label = "excellent"; } else { label = "fine"; }
+    if (score < 10) { label = "poor"; } else { label = label + "!"; }
+    return label;
+}
+int clamp(int value, int low, int high) {
+    if (value < low) { return low; }
+    if (value > high) { return high; }
+    return value;
+}
+int firstMultiple(int[] values, int factor) {
+    int i = 0;
+    while (i < values.length) {
+        if (values[i] % factor == 0) { return values[i]; }
+        i = i + 1;
+    }
+    return -1;
+}
+void report(string name, int value) {
+    if (value < 0) {
+        print(name + ": missing");
+        return;
+    }
+    print(name + ": " + value);
+}
+int total = 0;
+int i = 0;
+while (i < 20) {
+    total = total + pick(i, 20 - i, i % 2 == 0) + clamp(i * 7, 5, 60);
+    print(grade(i * 6));
+    i = i + 1;
+}
+print(total);
+int[] values = [3, 5, 7, 10, 12];
+report("multiple of five", firstMultiple(values, 5));
+report("multiple of four", firstMultiple(values, 4));
+report("multiple of eleven", firstMultiple(values, 11));

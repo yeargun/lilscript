@@ -26,11 +26,10 @@ pub struct OutputTactics {
     pub dead_code_elimination: bool,
     pub target_compaction: bool,
     pub literals: LiteralOutput,
-    /// Compaction shaped for raw bytes: a function called once becomes a
-    /// block at its call, and nested blocks flatten. Both cut raw bytes and
-    /// break the repetition a codec matches (measured mixed under Brotli), so
-    /// only a raw objective chooses them.
-    pub raw_structure: bool,
+    /// The output families formation applied (M9.2). The objective supplies
+    /// only their seed; the terminal stage keeps another assignment when the
+    /// exact codec says the whole artifact shrank.
+    pub families: crate::js::OutputFamilies,
 }
 
 impl OutputTactics {
@@ -45,16 +44,19 @@ impl OutputTactics {
             } else {
                 LiteralOutput::Original
             },
-            raw_structure: target_compaction
-                && policy.objective().is_some_and(|objective| {
-                    objective.codec == crate::js::selection::Objective::Raw
-                }),
+            families: match policy.objective() {
+                Some(objective) if target_compaction => {
+                    crate::js::OutputFamilies::seed(objective.codec)
+                }
+                _ => crate::js::OutputFamilies::NONE,
+            },
         }
     }
 
     /// Permission only; artifact admission separately checks cost evidence.
     pub fn check_policy(self, policy: &ResolvedPolicy) -> Result<(), AdmissionError> {
-        if (self.literals == LiteralOutput::Observed || self.raw_structure)
+        if (self.literals == LiteralOutput::Observed
+            || self.families != crate::js::OutputFamilies::NONE)
             && !self.target_compaction
         {
             return Err(AdmissionError::ForbiddenTactic(TacticId::TargetCompaction));
@@ -331,7 +333,7 @@ mod tests {
         literals: LiteralOutput::Original,
         dead_code_elimination: false,
         target_compaction: false,
-        raw_structure: false,
+        families: crate::js::OutputFamilies::NONE,
     };
     const WORK: u64 = 100_000;
     const MEMORY: u64 = 100_000;

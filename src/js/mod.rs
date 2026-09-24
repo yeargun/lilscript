@@ -19,6 +19,8 @@ use crate::primitive::{IntBinary, Intrinsic};
 mod calls;
 mod declarations;
 pub(crate) mod delivery;
+mod families;
+pub use families::{Challenger, OutputFamilies, Spelling, StatementSpellings};
 pub mod extract;
 mod literal_output;
 pub mod manifest;
@@ -1029,13 +1031,15 @@ pub struct Module {
     /// Import sources the output carries instead of importing; a classic
     /// script can use these.
     pub carried: Vec<String>,
-    /// Print `{let i=v;for(;c;u)b}` as `for(let i=v;c;u)b`. Shorter, but
-    /// measured +125 Brotli on katexlil for -243 raw (neutral elsewhere), so
-    /// it waits for 010 to score it per artifact.
+    /// Print `{let i=v;for(;c;u)b}` as `for(let i=v;c;u)b`: the
+    /// `loop_heads` output family, written here by formation. Shorter, but
+    /// measured both +125 and −33 Brotli on katexlil, so the codec judges it
+    /// per artifact (a terminal challenger).
     pub loop_head_declarations: bool,
     /// Print `if(c)e;` as `c&&e;` (and `if(!c)e;` as `c||e;`) where neither
-    /// side needs grouping. Shorter, but measured +34 Brotli on zodlil and
-    /// +38 on katexlil (-4 on markedlil), so it waits for 010 as well.
+    /// side needs grouping: the `logical_statements` output family. Shorter,
+    /// but measured +34 Brotli on zodlil and +38 on katexlil (−4 on
+    /// markedlil), so the codec judges it per artifact as well.
     pub logical_statements: bool,
 }
 
@@ -3166,6 +3170,47 @@ impl Module {
             loop_head_declarations: false,
             logical_statements: false,
         })
+    }
+
+    /// An admitted copy of the whole tree. The copy's arenas are charged at
+    /// their exact lengths, as retained output, the way formation charges the
+    /// arenas it grows; nested storage follows the same partial accounting.
+    pub(crate) fn clone_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        fn bytes<T>(items: &[T]) -> Result<u64, AllocationError> {
+            items
+                .len()
+                .checked_mul(std::mem::size_of::<T>())
+                .and_then(|bytes| u64::try_from(bytes).ok())
+                .ok_or(AllocationError::Capacity)
+        }
+        let arenas = [
+            bytes(&self.expressions)?,
+            bytes(&self.origins)?,
+            bytes(&self.regions)?,
+            bytes(&self.functions)?,
+            bytes(&self.scopes)?,
+            bytes(&self.bindings)?,
+            bytes(&self.imports)?,
+            bytes(&self.exports)?,
+            bytes(&self.defined_parameters)?,
+            bytes(&self.binding_classes)?,
+            bytes(&self.root_modules)?,
+            bytes(&self.reserved)?,
+            bytes(&self.carried)?,
+        ];
+        let mut total = 0u64;
+        for arena in arenas {
+            total = total.checked_add(arena).ok_or(AllocationError::Capacity)?;
+        }
+        budget.work(
+            crate::compilation_policy::WorkKind::Render,
+            (self.expressions.len() + self.regions.len()) as u64,
+        )?;
+        budget.retain(AllocationClass::Retained, total)?;
+        Ok(self.clone())
     }
 
     pub fn binding(&mut self, binding: Binding) -> BindingId {

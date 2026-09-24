@@ -397,6 +397,36 @@ fn explain_human(report: &Value) -> String {
                     }
                 ),
             );
+            for stage in search["terminal"]["objectives"]
+                .as_array()
+                .map(Vec::as_slice)
+                .unwrap_or(&[])
+            {
+                let trials = stage["trials"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+                let kept = trials
+                    .iter()
+                    .filter(|trial| trial["outcome"] == "kept")
+                    .map(|trial| {
+                        format!("{} {}", text(&trial["challenger"]), text(&trial["delta"]))
+                    })
+                    .collect::<Vec<_>>();
+                line(
+                    &format!("terminal {}", text(&stage["codec"])),
+                    format!(
+                        "{} -> {}; {} of {} challenger(s) tried, {} codec probe(s); kept: {}",
+                        text(&stage["before"]),
+                        text(&stage["after"]),
+                        text(&stage["tried"]),
+                        trials.len(),
+                        text(&stage["codec_probes"]),
+                        if kept.is_empty() {
+                            "none".to_string()
+                        } else {
+                            kept.join(", ")
+                        }
+                    ),
+                );
+            }
         }
         let tactics = policy["tactics"]
             .as_array()

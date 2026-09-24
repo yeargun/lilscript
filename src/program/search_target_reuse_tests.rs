@@ -445,10 +445,22 @@ fn public_service_transfers_winners_without_reforming_targets() {
         },
     )
     .unwrap();
-    check_counts(before, 1, 2);
-    for codec in CODECS {
+    // The search forms one target; each terminal challenger forms its own
+    // (from one shared head) and the handoff forms none.
+    let stages = output.report()["search"]["terminal"]["objectives"]
+        .as_array()
+        .unwrap();
+    let challengers: usize = stages
+        .iter()
+        .map(|stage| stage["tried"].as_u64().unwrap() as usize)
+        .sum();
+    check_counts(before, 1 + challengers, 2 + challengers);
+    for (codec, stage) in CODECS.into_iter().zip(stages) {
+        assert_eq!(stage["codec"], format!("{codec:?}").to_lowercase());
         let artifact = output.javascript(codec).unwrap();
-        assert_eq!(artifact.javascript(), MANGLED);
+        if stage["before"] == stage["after"] {
+            assert_eq!(artifact.javascript(), MANGLED);
+        }
         exact_sizes(artifact.javascript(), artifact.sizes());
         execute_answer(artifact.javascript());
     }

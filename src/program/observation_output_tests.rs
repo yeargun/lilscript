@@ -427,6 +427,7 @@ fn literal_output_refusals_preserve_prior_artifacts_and_never_return_false_avail
             let off = OutputTactics {
                 target_compaction: false,
                 literals: LiteralOutput::Original,
+                families: crate::js::OutputFamilies::NONE,
                 ..OutputTactics::from_policy(&p)
             };
             compiler
