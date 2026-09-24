@@ -15,12 +15,6 @@
       "owner": "M4.1"
     },
     {
-      "case": "cases/regressions/compiler-every_production_objective_preserves_async_function_boundaries",
-      "lanes": "production",
-      "reason": "Miscompile: `async int f(){return 1;}` is folded to the constant 1, so `f().then(...)` throws \"a.then is not a function\". Formation-only passes; production fails on every script lane and on production/raw/module.",
-      "owner": "M1.9"
-    },
-    {
       "case": "cases/regressions/compiler-object_has_own_direct_and_detached_calls_preserve_runtime_order",
       "reason": "Name-keyed host helper: the old route lowered the extern `objectHasOwn` to Object.hasOwn by its name; the one compiler gives extern names no meaning (dropped by design), so the program throws \"objectHasOwn is not defined\". The case's prelude must declare the binding (`globalThis.objectHasOwn = Object.hasOwn`).",
       "owner": "M1.5 (the harvested case gets a declared binding; M10.2 owns the host catalog)"
@@ -48,11 +42,6 @@
       ],
       "reason": "A struct value passed to an extern is refused: Unsupported \"foreign value-struct storage adaptation\".",
       "owner": "M1.9"
-    },
-    {
-      "case": "cases/regressions/irjs-dynamic_js_coercion_preserves_order_and_pre_branch_evaluation-pre_branch",
-      "reason": "`JsValue == 0` is lowered to `=== 0`: the ToPrimitive coercion never runs. The language spec says dynamic equality coerces.",
-      "owner": "M1.9 (follow the spec until M10.9 changes it by owner ruling)"
     },
     {
       "case": "cases/regressions/irjs-suppresses_adapter_name_in_variable_and_aggregate_initializers-aggregate",
