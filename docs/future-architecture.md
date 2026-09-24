@@ -581,7 +581,7 @@ The owner can revise any of these; each has a recommended default. Rows marked *
 
 ### D2 for value structs
 
-Inside an artifact a value struct is whatever representation the compiler chooses: positional storage, scalars in locals, or fields passed as separate arguments. At a declared public boundary it is one documented shape. Milestone 006 implements this adapter for JavaScript ([javascript_public_structs.rs](../src/semantic_program/javascript_public_structs.rs)).
+Inside an artifact a value struct is whatever representation the compiler chooses: positional storage, scalars in locals, or fields passed as separate arguments. At a declared public boundary it is one documented shape. Milestone 006 implements this adapter for JavaScript ([javascript_public_structs.rs](../src/program/javascript_public_structs.rs)).
 
 | Rule | Contract |
 |---|---|
@@ -611,7 +611,7 @@ Each clause is stated so it can become an executable case; clauses already exerc
 | D3.9 Frames | Script, strict and module frames are distinct: a closed world alone never implies strict mode, and `this`, `arguments` and sloppy-mode globals keep their frame's meaning. | `d3_clause_tests::d3_9_*`: `this` is the global object in a sloppy script and `undefined` in a module; a script frame needing strict mode is refused |
 | D3.10 Resources | Exhausting memory, string length or stack is engine-dependent in *when* it happens and need not match; a program that stays within the configured limits must not start exhausting them. Every transformation that can increase peak memory, recursion depth or string size records that risk. | `d3_clause_tests::d3_10_*`: recursion 5,000 deep runs; helper inlining refuses a recursive helper |
 
-D3.6-D3.10 each have a positive and a refusal case since 007 (`src/semantic_program/d3_clause_tests.rs`), run on the semantic route. A family that could affect one of them must keep its case passing before it is enabled by default.
+D3.6-D3.10 each have a positive and a refusal case since 007 (`src/program/d3_clause_tests.rs`), run on the semantic route (now the one compiler). A family that could affect one of them must keep its case passing before it is enabled by default.
 
 **Owner guidance, 2026-09-20 — be pragmatic about strategies.** Optimization is not deterministic: a strategy that is better on average is often worse for some libraries, and the compiler's decisions are already controllable per port through `lilscript.toml`. So two different questions get two different rules. A *strategy default* is adopted when it wins on the fleet average; a library it hurts sets its own flag, and that loss is a tuning task for the library rather than a veto on the default. A *qualification cell* is still judged per library, but with that library's best configuration, not with whatever the default happens to be. This supports D5's model — flags permit or forbid a family, per port — without deciding D5's remaining questions.
 

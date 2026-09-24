@@ -11,7 +11,41 @@ History and records:
 
 ---
 
-## Where we are (2026-09-23)
+## Where we are
+
+### Now (2026-09-24, M1 closed)
+
+**There is one compiler.** Branch `one-compiler`, merged into `finer/059-idiom-directed-naming`.
+
+**What M1 removed and changed.**
+- The old route is deleted: about 157K lines, including its 1,555 tests. The test-only tree experiment, the fixed two-file resource cut and interaction pairs are also deleted: about 18.7K lines.
+- `--backend` and `[compiler] backend` are gone.
+- Modules are named by role: `check`, `program`, `js`, `build`; `compile_source` and `compile_path` are the entry points.
+- The LSP, playground and lint compile through the one compiler.
+- 61 retired configuration keys warn ("no effect") or refuse, from one table applied before parsing.
+- Old-pipeline docs moved to `docs/knowledge/history/`, and `docs/current-status.md` is rewritten.
+
+**Correctness and coverage.**
+- Four wrong programs were fixed, each with regression coverage: an async body inlined as its return value; field defaults created before constructor arguments; `==` on a `JsValue` lowered to `===`; and a raw-objective forwarding into an assignment target.
+- 288 regression cases were harvested from the old route's tests.
+- Two runners with expected-failure ledgers (`docs/testing.md`) replace the old census and port scripts.
+
+**Evidence (binary `m1-merged`, then the M1.7 rename, which changed no artifact).**
+- **Unit tests:** 1,462 pass; the binaries' tests pass.
+- **Case runner:** 361 cases × 18 lanes, with no failure outside the ledger. Against the pre-M1 binary, no lane's size total grew; the production Brotli module lane went from 31,056 to 30,833.
+- **Port suites:** all green (markedlil, zodlil, katexlil, jquerylil, posthoglil, motionlil, micromarklil). A pre-deletion fleet run found no compiler-caused failure in 26 ports; five known failures are ledgered with owners.
+
+**Carried into later phases.**
+- The M1.9 coverage gaps: struct values passed to an `extern`, generic struct transport, and the adapter-name spec question.
+- Four production bugs found by porting the experiment's tests, now ignored tests with reasons:
+  - `??=` on a place;
+  - generic methods;
+  - an explicit `JS.undefined()` argument still takes the default;
+  - a detached `charCodeAt`.
+
+  They are owned by M4 and M10.
+
+### Where we started (2026-09-23)
 
 **Two compilers share one binary.** `[compiler] backend` or `--backend` selects between them.
 
@@ -100,8 +134,8 @@ History and records:
 | Phase | Name | Depends on | State |
 |---|---|---|---|
 | M0 | Record and freeze | — | done 2026-09-23 |
-| M1 | One compiler: the old route leaves the product | M0 | active |
-| M2 | Verification ladder, baseline and interim release | M1.3 (runs alongside M1) | ready |
+| M1 | One compiler: the old route leaves the product | M0 | done 2026-09-24 |
+| M2 | Verification ladder, baseline and interim release | M1.3 (runs alongside M1) | active: M2.2 and M2.6 done |
 | M3 | Honest configuration, one public API, delivery contract | M1 | waiting |
 | M4 | Checker identities and checker-owned facts | M1 | waiting |
 | M5 | The machinery: edit kernel, annotations, scheduler, monotone selection | M1, M4.1 | waiting |
@@ -188,7 +222,7 @@ History and records:
 | M3.2 Family registry | Every program rule, JS rule and choice registers `{id, mandatory or optional, legality, risk}`. `TargetCompaction` splits into its real families. The five tactics without a producer are removed. The receipt lists the families that actually ran |
 | M3.3 Delivery contract | preserve-modules keeps every source module a file; lazy `import()` gets its chunk. Deploy cost uses the objective's codec only. `verify-bundles.mjs` is split into contract assertions and plan assertions, and its fixtures stop depending on `strip_console` |
 | M3.4 Public API | `build::{check, build, with_session}` with a typed `BuildReceipt` and `Delivered { files, manifest, sizes }`. The multi-objective CLI (`--objective raw,gzip,brotli`) gives one winner per objective |
-| M3.5 Budgets in policy | Search budgets enter the policy, receipt and fingerprint. `compiler_service::search_request`'s hard caps and `LILSCRIPT_SEMANTIC_WORK` go. Level calibration waits for M9.10 |
+| M3.5 Budgets in policy | Search budgets enter the policy, receipt and fingerprint. `build::search_request`'s hard caps and `LILSCRIPT_SEMANTIC_WORK` go. Level calibration waits for M9.10 |
 | M3.6 Codec pool | Bounded threads for render and codec work, with deterministic batch order |
 | M3.7 Environment variables | Only diagnostic variables remain |
 
@@ -407,7 +441,7 @@ Every pass of the old optimizer chain (`optimizer.rs:243-430`, `compress_passes.
 
 | Rule or setting | Where | Disposition |
 |---|---|---|
-| `self_method_calls`, `dissolve_receiver_adapters`, `array_receiver_calls` | `structured_js/calls.rs`, `typed.rs` | Deleted in M8.2 (formation) and M10.2 (dynamic type) |
+| `self_method_calls`, `dissolve_receiver_adapters`, `array_receiver_calls` | `js/calls.rs`, `js/typed.rs` | Deleted in M8.2 (formation) and M10.2 (dynamic type) |
 | `group_prototype_stores` ("only katexlil declares both assumptions") | `declarations.rs:77` | Generic legality stated or deleted |
 | Per-site namespace flattening for katex's `let _c;…;_c=$c` | `inline.rs` | Replaced by M7.6 |
 | `fold_logical_assignments` / `fold_logical_returns` (transliteration temporaries) | `statements.rs` | Kept as canonical if a generic legality holds; otherwise a choice |
@@ -437,8 +471,7 @@ Every pass of the old optimizer chain (`optimizer.rs:243-430`, `compress_passes.
 
 ## Next action
 
-M1 is active on branch `one-compiler` (worktree `~/lilscript-work/wt/one-compiler`):
-- **Done:** M1.5 harvest, 288 cases.
-- **In flight:** M1.1, M1.3 and M1.4 (the core batch), and M1.2 (tools, on branch `one-compiler-tools`).
-- **Next:** M1.8's pre-deletion fleet gate; the M1.9 correctness debts; then M1.6 and M1.7.
-- **Alongside:** M2.1 and M2.2.
+M1 is closed. Next:
+1. **M2.8 and M2.9.** Each goal port's rewrite is committed to its own repository: the patches, plus the integrated motion and zod rewrites from `~/lilscript-work/portwork/`. Every port is rebuilt with the pinned post-M1 compiler and no post-minifier. The Pages sites get sizes and compile times. The report goes out.
+2. **M2.1.** A green CI job.
+3. **Then M3.5, M4 and M5.** Budgets in policy, checker identities, then the machinery that facts need.
