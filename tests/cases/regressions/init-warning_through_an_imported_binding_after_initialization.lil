@@ -1,0 +1,8 @@
+// motionlil's shape across modules: `errors` exports development-only
+// `warning`/`invariant` bindings holding empty bodies; `mix` calls them from
+// functions the entry calls after both modules initialized. The calls go
+// (M6.5 settles the bindings before the callers can run); an argument's own
+// effect (`noted`) still runs, once, in order.
+import {mix} from "./init-warning_through_an_imported_binding_after_initialization/mix";
+print(mix(3, 20));
+print(mix(-1, 2));

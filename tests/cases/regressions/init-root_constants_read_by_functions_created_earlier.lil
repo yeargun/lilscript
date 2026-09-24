@@ -1,0 +1,15 @@
+// zodlil's kind constants: `kindOf` is a named function, created before the
+// constants' statements, and called only by later statements. Its reads are
+// past initialization (M6.5); the output must be unchanged by that proof.
+int KString = 0;
+int KNumber = 1;
+int KCustom = 2;
+int kindOf(string t) {
+  if (t == "int") { return KNumber; }
+  if (t == "string") { return KString; }
+  return KCustom;
+}
+int[] kinds = [kindOf("int"), kindOf("string"), kindOf("x")];
+print(kinds[0]);
+print(kinds[1]);
+print(kinds[2]);

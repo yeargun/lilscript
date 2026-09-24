@@ -707,7 +707,9 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     owner: self.program.modules[module].initializer,
                     region: RegionId::from_index(0).unwrap(),
                     declaration: symbol.span,
-                    assigned: semantics.symbol_is_assigned(symbol.id),
+                    reassigned: semantics.symbol_is_reassigned(symbol.id),
+                    observable_before_initialization: semantics
+                        .symbol_is_observable_before_initialization(symbol.id),
                     binding: if symbol.is_foreign() {
                         CellBinding::Foreign
                     } else {
@@ -1280,7 +1282,8 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 owner: unit,
                 region,
                 declaration: provenance.span,
-                assigned: true,
+                reassigned: true,
+                observable_before_initialization: true,
                 binding: CellBinding::Local,
                 synthetic: true,
                 declared_pure: false,
@@ -1890,7 +1893,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             )?;
             let data = &mut building_table(&mut self.program.cells)[cell.index()];
             data.binding = CellBinding::Function(unit);
-            data.assigned = false;
+            data.reassigned = false;
             data.declared_pure = match member {
                 ast::ClassMember::Method(function) => function.declared_pure,
                 _ => false,
@@ -2679,7 +2682,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 continue;
             }
             let cell = self.units[unit.index()].parameters[position];
-            building_table(&mut self.program.cells)[cell.index()].assigned = true;
+            building_table(&mut self.program.cells)[cell.index()].reassigned = true;
             let ty = self.program.cells[cell.index()].ty;
             let boolean = self.ty(&Type::Bool)?;
             let current = self.load_cell(unit, entry, cell, parameter.span)?;

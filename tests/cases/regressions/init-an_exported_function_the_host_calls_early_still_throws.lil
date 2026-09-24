@@ -1,0 +1,8 @@
+// An exported function handed to the host by a statement before the cell it
+// reads is initialized: the host calls it right away, and its read throws.
+// Once `K` settles the same function returns 3.
+extern void hostCall(func()->int f);
+hostCall(readK);
+int K = 3;
+export int readK() { return K; }
+print(readK());

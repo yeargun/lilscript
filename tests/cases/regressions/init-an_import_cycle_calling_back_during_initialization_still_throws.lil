@@ -1,0 +1,8 @@
+// The entry imports `b`, which imports the entry back, so `b` initializes
+// first. Its root statement calls the entry's `readA` before `KA` is set:
+// the read throws there, and `b` records it. The entry then reads 5.
+import {fromB} from "./init-an_import_cycle_calling_back_during_initialization_still_throws/b";
+export int KA = 5;
+export int readA() { return KA; }
+print(fromB);
+print(readA());
