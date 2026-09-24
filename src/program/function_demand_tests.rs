@@ -138,7 +138,7 @@ fn shared_field_transport_records_each_raw_projection_and_captures_the_packed_ac
 
 #[test]
 fn zero_width_transport_captures_the_original_callee_and_retains_argument_control_execution() {
-    checked("struct Empty{}extern bool mark();void step(Empty value){}step(if(mark()){Empty{}}else{Empty{}});",|program|{
+    checked("struct Empty{}extern bool mark();extern void note();void step(Empty value){note();}step(if(mark()){Empty{}}else{Empty{}});",|program|{
         let mut ledger=ledger();let uses=UseIndex::build(program,&mut ledger,WorkDomain::Baseline).unwrap();
         let layout=layout(program,&uses,&mut ledger);let call=layout.inputs().calls()[0];let data=program.unit(call.caller).unwrap();
         let CallTarget::Value{callee,..}=data.calls[call.target.index()].target else {panic!("value call")};

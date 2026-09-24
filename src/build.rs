@@ -945,6 +945,15 @@ fn check_source_frontend<'src>(
                                     format!("unsupported source: {}", error.feature),
                                 ),
                             ),
+                            ConversionError::Contract(violation) => ServiceError::module(
+                                "check",
+                                ModuleError::new(
+                                    "<source>",
+                                    source,
+                                    violation.span,
+                                    violation.message,
+                                ),
+                            ),
                             ConversionError::Resources(error) => {
                                 ServiceError::resources("conversion resources", error)
                             }
@@ -1077,6 +1086,18 @@ fn check_path_frontend<'src, T>(
                                         module.source,
                                         unsupported.span,
                                         format!("unsupported source: {}", unsupported.feature),
+                                    ),
+                                )
+                            }
+                            ConversionError::Contract(violation) => {
+                                let module = &modules.modules[error.module];
+                                ServiceError::module(
+                                    "check",
+                                    ModuleError::new(
+                                        &module.path,
+                                        module.source,
+                                        violation.span,
+                                        violation.message,
                                     ),
                                 )
                             }

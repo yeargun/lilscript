@@ -638,7 +638,9 @@ fn cheap_effect_transfer_preserves_initialization_host_and_construction_obligati
             let mut domains = vec![false; unit.values.len()];
             let mut seen = [false; 6];
             for operation in &unit.operations {
-                let effects = operation_evaluation_behavior(program, unit, operation, &domains);
+                let effects = operation_evaluation_behavior(
+                    program, None, unit_id, unit, operation, &domains,
+                );
                 match operation.kind {
                     OperationKind::Load(place) => match unit.places[place.index()] {
                         Place::Cell(cell) if program.cells[cell.index()].name == "value" => {
@@ -646,9 +648,11 @@ fn cheap_effect_transfer_preserves_initialization_host_and_construction_obligati
                             assert_eq!(effects.reads, MemoryAccess::Cell(cell));
                             assert!(effects.may_throw, "primitive type is not TDZ evidence");
                         }
+                        // A record the host returned may hold an accessor:
+                        // reading it can run a hook, as a conversion can.
                         Place::Member { .. } => {
                             seen[1] = true;
-                            assert_eq!(effects, EvaluationBehavior::UNKNOWN);
+                            assert_eq!(effects, EvaluationBehavior::COERCION);
                         }
                         _ => {}
                     },
@@ -656,7 +660,14 @@ fn cheap_effect_transfer_preserves_initialization_host_and_construction_obligati
                         seen[2] = true;
                         assert_eq!(effects, EvaluationBehavior::COERCION);
                         assert_eq!(
-                            operation_evaluation_behavior(program, unit, operation, &[]),
+                            operation_evaluation_behavior(
+                                program,
+                                None,
+                                unit_id,
+                                unit,
+                                operation,
+                                &[]
+                            ),
                             EvaluationBehavior::COERCION
                         );
                     }
@@ -670,11 +681,22 @@ fn cheap_effect_transfer_preserves_initialization_host_and_construction_obligati
                             }
                         );
                     }
+                    // The length of a proven primitive string reads nothing.
                     OperationKind::Intrinsic(ResolvedIntrinsic::Property(
                         crate::primitive::Intrinsic::StringLength,
                     )) => {
                         seen[4] = true;
-                        assert_eq!(effects, EvaluationBehavior::UNKNOWN);
+                        assert_eq!(effects, EvaluationBehavior::TOTAL);
+                    }
+                    OperationKind::Call(call)
+                        if matches!(
+                            unit.calls[call.index()].target,
+                            CallTarget::Builtin(crate::check::BuiltinCall::Print)
+                        ) =>
+                    {
+                        // Printing writes host output.
+                        assert!(effects.requires_evaluation());
+                        assert_eq!(effects.writes, MemoryAccess::Unknown);
                     }
                     OperationKind::Call(_) => {
                         seen[5] = true;
@@ -716,11 +738,11 @@ fn copy_transfer_is_effect_free_but_primitive_knowledge_needs_an_operand_proof()
             if matches!(op.kind, OperationKind::CopyValue) {
                 copy = Some(OpId::from_index(index).unwrap());
                 assert_eq!(
-                    operation_evaluation_behavior(&edited, unit, op, &domains),
+                    operation_evaluation_behavior(&edited, None, unit_id, unit, op, &domains),
                     EvaluationBehavior::TOTAL
                 );
                 assert_eq!(
-                    operation_evaluation_behavior(&edited, unit, op, &[]),
+                    operation_evaluation_behavior(&edited, None, unit_id, unit, op, &[]),
                     EvaluationBehavior::TOTAL
                 );
                 assert!(primitive_result_domain(&edited, unit, op, &domains));
@@ -757,7 +779,14 @@ fn copy_transfer_is_effect_free_but_primitive_knowledge_needs_an_operand_proof()
                     copies += 1;
                     assert!(!primitive_result_domain(program, unit, op, &domains));
                     assert_eq!(
-                        operation_evaluation_behavior(program, unit, op, &domains),
+                        operation_evaluation_behavior(
+                            program,
+                            None,
+                            program.initialization[0],
+                            unit,
+                            op,
+                            &domains
+                        ),
                         EvaluationBehavior {
                             may_exhaust_resources: true,
                             ..EvaluationBehavior::TOTAL
@@ -1112,6 +1141,16 @@ fn getters_unknown_calls_and_unproved_lexical_initialization_stay_conservative()
                             result.facts.can_drop(op, ObservationDemand::Discarded),
                             Legality::PermittedUnderContext
                         );
+                    }
+                    // Printing writes host output; the unknown host call
+                    // may do anything.
+                    OperationKind::Call(target)
+                        if matches!(
+                            data.calls[target.index()].target,
+                            CallTarget::Builtin(crate::check::BuiltinCall::Print)
+                        ) =>
+                    {
+                        assert!(effects.requires_evaluation());
                     }
                     OperationKind::Call(_) => {
                         call = true;

@@ -77,6 +77,37 @@ pub struct ModuleUnsupported {
 pub(crate) enum ConversionError {
     Unsupported(Unsupported),
     Resources(AllocationError),
+    /// A checked contract the program breaks, found once its meaning is
+    /// known: a check-phase diagnostic, not an unsupported feature.
+    Contract(ContractViolation),
+}
+
+/// A source-owned contract diagnostic.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ContractViolation {
+    pub span: Span,
+    pub message: String,
+}
+
+/// The `pure` contract (M6.3): the first declared `pure` function, in unit
+/// order, whose effect summary shows an observable side effect. Checked
+/// after verification, so every analysis reads a well-formed program.
+fn check_contracts(program: &Program<'_>) -> Result<(), (ModuleId, ContractViolation)> {
+    match super::effects::pure_contract_violations(program)
+        .into_iter()
+        .next()
+    {
+        Some((module, span, name)) => Err((
+            module,
+            ContractViolation {
+                span,
+                message: format!(
+                    "function `{name}` is declared `pure` but may perform an observable side effect"
+                ),
+            },
+        )),
+        None => Ok(()),
+    }
 }
 
 #[derive(Debug)]
@@ -105,6 +136,7 @@ pub(crate) fn from_checked_source_admitted<'ast, 'src>(
     let mut scope = budget.scope();
     let program = convert_source(source, semantics, &mut scope)?;
     verify_conversion(&program, source.span, &mut scope)?;
+    check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
     publication::PreparedProgram::new(program, &mut scope)
         .map_err(|error| publication_conversion_error(error, source.span))
 }
@@ -121,6 +153,10 @@ pub(crate) fn from_checked_modules_admitted<'ast, 'src>(
             module: semantics.root(),
             error,
         }
+    })?;
+    check_contracts(&program).map_err(|(module, violation)| ModuleConversionError {
+        module: module.index(),
+        error: ConversionError::Contract(violation),
     })?;
     publication::PreparedProgram::new(program, &mut scope).map_err(|error| ModuleConversionError {
         module: semantics.root(),
@@ -156,10 +192,12 @@ pub fn from_checked_source<'ast, 'src>(
     let result = (|| {
         let program = convert_source(source, semantics, &mut budget)?;
         verify_conversion(&program, source.span, &mut budget)?;
+        check_contracts(&program).map_err(|(_, violation)| ConversionError::Contract(violation))?;
         Ok(program)
     })();
     result.map_err(|error| match error {
         ConversionError::Unsupported(error) => error,
+        ConversionError::Contract(violation) => impure(violation),
         ConversionError::Resources(error) => {
             if std::env::var_os("LILSCRIPT_DEBUG_VERIFY").is_some() {
                 eprintln!("semantic conversion resources: {error:?}");
@@ -167,6 +205,15 @@ pub fn from_checked_source<'ast, 'src>(
             invalid_conversion(source.span)
         }
     })
+}
+
+/// The inspection entry points report contract diagnostics as their fixed
+/// feature name; builds carry the full message with the function's name.
+fn impure(violation: ContractViolation) -> Unsupported {
+    Unsupported {
+        span: violation.span,
+        feature: "a function declared `pure` may perform an observable side effect",
+    }
 }
 
 fn invalid_conversion(span: Span) -> Unsupported {
@@ -253,12 +300,17 @@ pub fn from_checked_modules<'ast, 'src>(
                 error,
             },
         )?;
+        check_contracts(&program).map_err(|(module, violation)| ModuleConversionError {
+            module: module.index(),
+            error: ConversionError::Contract(violation),
+        })?;
         Ok(program)
     })();
     result.map_err(|error: ModuleConversionError| ModuleUnsupported {
         module: error.module,
         error: match error.error {
             ConversionError::Unsupported(error) => error,
+            ConversionError::Contract(violation) => impure(violation),
             ConversionError::Resources(_) => invalid_conversion(
                 sources
                     .get(error.module)
@@ -618,6 +670,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                 initialization: table(initialization, budget)?,
                 modules: table(modules, budget)?,
                 entry,
+                views: Default::default(),
             },
             units,
             allocations: budget.filled(Scratch, sources.len(), 0)?,
@@ -661,6 +714,7 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                         CellBinding::Local
                     },
                     synthetic: false,
+                    declared_pure: false,
                 },
             )?;
         }
@@ -683,12 +737,19 @@ impl<'budget, 'ledger, 'sem, 'ast, 'src> Lower<'budget, 'ledger, 'sem, 'ast, 'sr
                     let cell = self.cell(function.name)?;
                     self.units[id.index()].callable_type =
                         Some(self.program.cells[cell.index()].ty);
-                    building_table(&mut self.program.cells)[cell.index()].binding =
-                        CellBinding::Function(id);
+                    let data = &mut building_table(&mut self.program.cells)[cell.index()];
+                    data.binding = CellBinding::Function(id);
+                    data.declared_pure = function.declared_pure;
                 }
                 // The shared declaration owner already classified these
                 // cells; foreign declarations have no source body to register.
-                Item::Extern(_) | Item::ExternGlobal(_) => {}
+                // A `pure extern` is a trusted declaration attribute.
+                Item::Extern(declaration) => {
+                    let cell = self.cell(declaration.name)?;
+                    building_table(&mut self.program.cells)[cell.index()].declared_pure =
+                        declaration.declared_pure;
+                }
+                Item::ExternGlobal(_) => {}
                 Item::Struct(declaration) => {
                     let identity = semantics
                         .binding_type(declaration.name.span)
@@ -1222,6 +1283,7 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
                 assigned: true,
                 binding: CellBinding::Local,
                 synthetic: true,
+                declared_pure: false,
             },
         )?;
         Ok(id)
@@ -1829,6 +1891,10 @@ impl<'sem, 'ast, 'src> Lower<'_, '_, 'sem, 'ast, 'src> {
             let data = &mut building_table(&mut self.program.cells)[cell.index()];
             data.binding = CellBinding::Function(unit);
             data.assigned = false;
+            data.declared_pure = match member {
+                ast::ClassMember::Method(function) => function.declared_pure,
+                _ => false,
+            };
             self.budget.push(
                 Scratch,
                 &mut self.class_methods,

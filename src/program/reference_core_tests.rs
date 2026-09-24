@@ -246,7 +246,7 @@ fn reference_formal_access_and_preparation_remain_effectful_when_results_are_dis
         for (index,operation) in data.operations.iter().enumerate() {
             if matches!(operation.kind,OperationKind::Load(_)|OperationKind::Store(_)) {
                 accesses+=1;
-                assert_eq!(facts::operation_evaluation_behavior(&program,data,operation,&domains),EvaluationBehavior::UNKNOWN);
+                assert!(facts::operation_evaluation_behavior(&program,None,body,data,operation,&domains).requires_evaluation());
                 assert!(demand.needs_execution(context,OpId::from_index(index).unwrap()));
             }
         }

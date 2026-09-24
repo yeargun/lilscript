@@ -1,0 +1,7 @@
+// A getter or valueOf reached through a JsValue runs user code: a discarded
+// call that reaches one stays.
+extern JsValue probe;
+bool loose(JsValue value){return value==1;}
+int read(JsValue value){JsValue field=value["field"];return 0;}
+void run(){loose(probe);read(probe);print("ran");}
+run();

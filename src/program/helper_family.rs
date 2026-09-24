@@ -520,7 +520,9 @@ impl PreparedHelper {
                             ..EvaluationBehavior::TOTAL
                         }
                     }
-                    _ => EvaluationBehavior::UNKNOWN,
+                    // Operations this representation does not specialize
+                    // keep the one per-operation answer.
+                    _ => facts.effects(id),
                 },
             };
             if let Some(value) = op.result {
@@ -537,18 +539,13 @@ impl PreparedHelper {
             good &= !behavior.may_suspend
                 && !behavior.creates_identity
                 && (!behavior.transfers_control || Some(id) == self.family.tail_return);
-            effects.reads = merge_memory(effects.reads, behavior.reads);
-            effects.writes = merge_memory(effects.writes, behavior.writes);
-            effects.may_exhaust_resources |= behavior.may_exhaust_resources;
-            effects.may_throw |= behavior.may_throw;
-            effects.may_reenter |= behavior.may_reenter;
-            effects.may_diverge |= behavior.may_diverge;
-            effects.may_suspend |= behavior.may_suspend;
-            effects.creates_identity |= behavior.creates_identity;
             // The one tail return is consumed by the selected call recipe;
             // it does not transfer control out of the caller's source region.
-            effects.transfers_control |=
-                behavior.transfers_control && Some(id) != self.family.tail_return;
+            effects = effects.join(EvaluationBehavior {
+                transfers_control: behavior.transfers_control
+                    && Some(id) != self.family.tail_return,
+                ..behavior
+            });
         }
         self.family.body_effects = effects;
         self.status = if good {
@@ -605,14 +602,6 @@ fn supported_scalar_storage_type(ty: &Type<'_>) -> bool {
         Type::Int | Type::Float | Type::Bool | Type::String | Type::Null | Type::Enum(_)
     )
 }
-fn merge_memory(a: MemoryAccess, b: MemoryAccess) -> MemoryAccess {
-    match (a, b) {
-        (MemoryAccess::None, other) | (other, MemoryAccess::None) => other,
-        (a, b) if a == b => a,
-        _ => MemoryAccess::Unknown,
-    }
-}
-
 enum Stop {
     Unknown(UnknownReason),
     Truncated(ResourceLimit),

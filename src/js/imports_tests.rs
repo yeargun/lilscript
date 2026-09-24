@@ -99,7 +99,7 @@ fn policy(module: bool) -> crate::compilation_policy::ResolvedPolicy {
 #[test]
 fn imported_live_cells_keep_snapshots_across_calls_in_every_name_plan() {
     let mut module = formed(
-        "int longCounter=0;void advance(){}int prior=longCounter;advance();print(prior);print(longCounter);int a=7;int nested(int prior){return prior+longCounter;}print(nested(a));",
+        "int longCounter=0;int calls=0;void advance(){calls=calls+1;}int prior=longCounter;advance();print(prior);print(longCounter);int a=7;int nested(int prior){return prior+longCounter;}print(nested(a));",
     );
     replace_declaration(
         &mut module,

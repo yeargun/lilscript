@@ -891,6 +891,7 @@ fn share_program_without_units<'src>(program: &Program<'src>) -> Program<'src> {
         initialization: program.initialization.clone(),
         modules: program.modules.clone(),
         entry: program.entry,
+        views: Default::default(),
     }
 }
 

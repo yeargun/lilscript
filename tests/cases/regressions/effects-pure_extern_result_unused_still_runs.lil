@@ -1,0 +1,7 @@
+// D3.6 as settled: a `pure extern` is trusted to have no observable effect,
+// but its host code has no termination proof, so a discarded call stays.
+// (The pending amendment would let a declared `pure` assert termination.)
+pure extern int measure(int x);
+pure int scaled(int x){return measure(x)*2;}
+void run(){measure(2);print(scaled(3));}
+run();

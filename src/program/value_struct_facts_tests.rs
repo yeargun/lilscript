@@ -83,8 +83,12 @@ fn logical_struct_values_have_resource_cost_without_reference_identity_or_host_e
                     OperationKind::Load(place) | OperationKind::Store(place)
                         if matches!(unit.places[place.index()], Place::Field {..}) => {
                         field_accesses += 1;
-                        assert_eq!(facts.effects(id), EvaluationBehavior::UNKNOWN,
+                        // Value identity is not an initialized product-domain
+                        // proof: the store writes the struct's cell, and the
+                        // `int` read may normalize a raw host value.
+                        assert!(facts.effects(id).requires_evaluation(),
                             "value identity is not an initialized product-domain/host-access proof");
+                        assert_ne!(facts.can_duplicate(id), Legality::PermittedUnderContext);
                     }
                     _ => {}
                 }

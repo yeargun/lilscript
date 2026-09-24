@@ -1,0 +1,7 @@
+// M7.2: discarded calls of effect-free, terminating bodies with proven
+// arguments are removed; the program prints the same.
+pure int twice(int x){return x+x;}
+int sum(int n){int total=0;for(int i=0;i<n;i=i+1){total=total+i;}return total;}
+int length(string text){int count=0;int i=0;while(i<text.length){count=count+1;i+=1;}return count;}
+void run(){twice(3);sum(4);length("abc");print(twice(5));print(sum(4));print(length("abcd"));}
+run();

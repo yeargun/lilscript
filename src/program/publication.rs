@@ -2795,6 +2795,7 @@ fn share_program<'src>(program: &Program<'src>) -> Program<'src> {
         initialization: program.initialization.clone(),
         modules: program.modules.clone(),
         entry: program.entry,
+        views: Default::default(),
     }
 }
 

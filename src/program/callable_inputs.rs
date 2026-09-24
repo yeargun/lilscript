@@ -3,17 +3,14 @@
 //! remains conditional until its consumer establishes a separate frame proof.
 //! All owned arrays use the caller's existing admission scope and must be
 //! discarded through that scope; there is no cache, evaluator or semantic copy.
+use super::call_graph::Seal;
 use super::raw_domains::Admission;
 use super::record_family::OpRef;
 use super::uses::{CellUse, CellUseSite, UseIndex, ValueUse};
 use super::*;
 use crate::compilation_contract::JavaScriptExecution;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Seal {
-    StructuralOnly,
-    Module,
-}
+/// The call graph's sealing of root storage, applied to one producer.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct CallObservations {
     seal: Seal,
@@ -21,11 +18,7 @@ pub(super) struct CallObservations {
 impl CallObservations {
     pub(super) fn from_execution(execution: JavaScriptExecution) -> Self {
         Self {
-            seal: if execution == JavaScriptExecution::Module {
-                Seal::Module
-            } else {
-                Seal::StructuralOnly
-            },
+            seal: Seal::from_execution(execution),
         }
     }
 }

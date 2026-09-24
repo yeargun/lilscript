@@ -1,0 +1,6 @@
+// An int parameter may receive a raw host value (D2). The discarded call's
+// body converts it, so the call stays and valueOf runs twice.
+extern int input();
+int twice(int x){return x+x;}
+void run(){twice(input());print("ran");}
+run();

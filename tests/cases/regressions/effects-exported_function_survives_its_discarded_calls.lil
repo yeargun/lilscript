@@ -1,0 +1,4 @@
+// A discarded internal call of an exported function is removed; the export
+// stays callable.
+export int shown(int x){return x+1;}
+export void run(){shown(2);print("ran");}

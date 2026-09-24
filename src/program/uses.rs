@@ -540,7 +540,9 @@ fn sort_work(count: usize) -> Result<usize, UseError> {
         .ok_or(UseError::Capacity)
 }
 
-enum Event {
+/// One structural occurrence in a unit, in schedule order. The use index
+/// and the call graph read this one enumeration.
+pub(super) enum Event {
     Tick,
     Value(ValueId, ValueUse),
     Cell(CellId, CellUse),
@@ -548,7 +550,7 @@ enum Event {
     Call(CallId, OpId),
 }
 
-fn walk(
+pub(super) fn walk(
     unit: &UnitData,
     mut emit: impl FnMut(Event) -> Result<(), UseError>,
 ) -> Result<(), UseError> {

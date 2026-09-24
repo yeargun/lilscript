@@ -205,8 +205,14 @@ fn preflight_keeps_root_execution_and_dependencies_when_no_store_or_leaf_value_s
                 .then(|| operation.result.unwrap())
             })
             .unwrap();
-        let effects =
-            operation_evaluation_behavior(&program, data, &data.operations[check.index()], &[]);
+        let effects = operation_evaluation_behavior(
+            &program,
+            None,
+            unit,
+            data,
+            &data.operations[check.index()],
+            &[],
+        );
         assert!(effects.may_throw && effects.requires_evaluation());
         assert!(!primitive_result_domain(
             &program,

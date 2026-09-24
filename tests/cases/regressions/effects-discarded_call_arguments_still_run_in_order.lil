@@ -1,0 +1,7 @@
+// A discarded call is removed, never its arguments: their effects run once,
+// in source order.
+int first(){print("first");return 1;}
+int second(){print("second");return 2;}
+void ignore(int a,int b){}
+void run(){ignore(first(),second());print("done");}
+run();

@@ -311,6 +311,9 @@ pub(super) struct DemandPlan<'program, 'src> {
     pending: Vec<Pending>,
     work: DemandWork,
     charge: Option<(WorkDomain, u64)>,
+    /// The program's effect summaries under this contract's sealing: calls
+    /// whose callee has no observable effect and terminates are not roots.
+    effects: std::sync::Arc<super::effects::ProgramEffects>,
 }
 
 impl<'program, 'src> DemandPlan<'program, 'src> {
@@ -411,6 +414,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             pending: Vec::new(),
             work: DemandWork::default(),
             charge: None,
+            effects: program.effects(super::call_graph::Seal::from_execution(contract.execution)),
         };
         plan.index_implementations(implementations, &mut budget)?;
         for &unit in program.initialization.iter() {
@@ -1093,8 +1097,14 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                     })
                     .ok_or_else(|| unsupported("demand work capacity"))?,
             )?;
-            effects[index] =
-                facts::operation_evaluation_behavior(self.program, data, operation, &domains);
+            effects[index] = facts::operation_evaluation_behavior(
+                self.program,
+                Some(&self.effects),
+                unit,
+                data,
+                operation,
+                &domains,
+            );
             let id = OpId::from_index(index).unwrap();
             if let Some(value) = operation.result {
                 domains[value.index()] =
@@ -1389,23 +1399,27 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                 | OperationKind::Block(_) => {}
                 OperationKind::Return if kind.is_inline() => {}
                 _ => {
-                    let mut behavior = match kind {
-                        ContextKind::Inline { helper, .. } => {
-                            self.helpers[helper]
-                                .operation_facts(operation)
-                                .expect("complete inline family operation evidence")
-                                .behavior
-                        }
-                        ContextKind::Named => {
-                            self.summaries[unit.index()].as_ref().unwrap().effects[index]
-                        }
-                    };
-                    if let OperationKind::Load(place) = op.kind {
-                        if let Place::Cell(cell) = data.places[place.index()] {
-                            if self.isolated_cell(cell)
-                                && self.initialized(id, cell, operation, budget)?
+                    let mut behavior = self.seeded_behavior(id, kind, unit, operation, budget)?;
+                    // A discarded call takes its callee's evaluation with it.
+                    // When that evaluation must stay on its own (a read whose
+                    // initialization is not proven), the call stays too: a
+                    // bare read left in its place removes nothing.
+                    if let OperationKind::Call(call) = op.kind {
+                        if let CallTarget::Value { callee, .. } = data.calls[call.index()].target {
+                            let definition = data.values[callee.index()].definition;
+                            if !behavior.requires_evaluation()
+                                && matches!(
+                                    data.operations[definition.index()].kind,
+                                    OperationKind::Load(_)
+                                )
+                                && self.helper_operation(unit, definition).is_none()
+                                && self.record_operation(unit, definition).is_none()
+                                && self
+                                    .seeded_behavior(id, kind, unit, definition, budget)?
+                                    .requires_evaluation()
                             {
-                                behavior.may_throw = false;
+                                self.need_operation(id, operation, budget)?;
+                                continue;
                             }
                         }
                     }
@@ -1422,7 +1436,7 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
                     {
                         behavior = EvaluationBehavior::TOTAL;
                     }
-                    if required(behavior) {
+                    if behavior.requires_evaluation() {
                         self.need_operation(id, operation, budget)?;
                     }
                 }
@@ -1432,6 +1446,39 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
             self.preserve_context(id, budget)?;
         }
         Ok(())
+    }
+
+    /// The behavior an operation roots itself by in a context: the one
+    /// per-operation answer (an inline helper's certified one), with a local
+    /// read's temporal dead zone excluded when its initialization is proven.
+    fn seeded_behavior(
+        &mut self,
+        context: ContextId,
+        kind: ContextKind,
+        unit: UnitId,
+        operation: OpId,
+        budget: &mut Budget<'_>,
+    ) -> Result<EvaluationBehavior, DemandError> {
+        let data = self.program.units[unit.index()].data();
+        let mut behavior = match kind {
+            ContextKind::Inline { helper, .. } => {
+                self.helpers[helper]
+                    .operation_facts(operation)
+                    .expect("complete inline family operation evidence")
+                    .behavior
+            }
+            ContextKind::Named => {
+                self.summaries[unit.index()].as_ref().unwrap().effects[operation.index()]
+            }
+        };
+        if let OperationKind::Load(place) = data.operations[operation.index()].kind {
+            if let Place::Cell(cell) = data.places[place.index()] {
+                if self.isolated_cell(cell) && self.initialized(context, cell, operation, budget)? {
+                    behavior.may_throw = false;
+                }
+            }
+        }
+        Ok(behavior)
     }
 
     fn preserve_context(
@@ -2595,9 +2642,6 @@ impl<'program, 'src> DemandPlan<'program, 'src> {
     }
 }
 
-fn required(behavior: EvaluationBehavior) -> bool {
-    behavior.requires_evaluation()
-}
 fn sort_work(len: usize) -> Result<usize, DemandError> {
     len.checked_mul((usize::BITS - len.max(1).leading_zeros()) as usize)
         .ok_or_else(|| unsupported("demand sorting capacity"))

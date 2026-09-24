@@ -1,7 +1,10 @@
 //! Bounded, read-only facts for one semantic unit at a time.
 //!
-//! This first query has no host assumptions or cross-unit summaries. Its coarse
-//! dependencies deliberately include the whole unit and owned program tables.
+//! This query has no host assumptions and reads no cross-unit summary: its
+//! calls stay unknown. Per-operation effects come from the one effects owner
+//! (`effects.rs`); program-level clients with a contract read its summaries
+//! through `operation_evaluation_behavior`. Its coarse dependencies
+//! deliberately include the whole unit and owned program tables.
 //! Unknown and incomplete are different answers; discovering an exact value
 //! never selects a literal, deletes its producer, or proves evaluation harmless.
 
@@ -25,12 +28,13 @@ use std::mem::size_of;
 use std::sync::Arc;
 
 pub const LOCAL_FACTS_PLAN: u32 = 1;
+// Version 7 takes per-operation effects from the one effects owner.
 // Version 5 distinguishes immutable struct values from reference identities.
 // Version 4 no longer invents runtime domains from source cell annotations.
 // Version 3 transfers existing exact primitive knowledge through CopyValue.
 // Version 2 introduced shared transfer and separate resource-exhaustion effects.
 // Older receipts cannot qualify this version's answers.
-pub const LOCAL_FACTS_VERSION: u32 = 6;
+pub const LOCAL_FACTS_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Dependencies {
@@ -234,6 +238,27 @@ impl EvaluationBehavior {
     }
     fn repeatable_without_observation(self) -> bool {
         !self.requires_evaluation() && self.reads == MemoryAccess::None && !self.creates_identity
+    }
+    /// Both evaluations in sequence: every possibility of either.
+    pub fn join(self, other: Self) -> Self {
+        let memory = |left: MemoryAccess, right: MemoryAccess| match (left, right) {
+            (MemoryAccess::None, access) | (access, MemoryAccess::None) => access,
+            (MemoryAccess::Cell(left), MemoryAccess::Cell(right)) if left == right => {
+                MemoryAccess::Cell(left)
+            }
+            _ => MemoryAccess::Unknown,
+        };
+        Self {
+            reads: memory(self.reads, other.reads),
+            writes: memory(self.writes, other.writes),
+            may_throw: self.may_throw || other.may_throw,
+            may_exhaust_resources: self.may_exhaust_resources || other.may_exhaust_resources,
+            may_diverge: self.may_diverge || other.may_diverge,
+            may_reenter: self.may_reenter || other.may_reenter,
+            may_suspend: self.may_suspend || other.may_suspend,
+            creates_identity: self.creates_identity || other.creates_identity,
+            transfers_control: self.transfers_control || other.transfers_control,
+        }
     }
 }
 
@@ -919,7 +944,8 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
                 if !work.charge(1) {
                     break;
                 }
-                facts.effects[index] = behavior(program, unit, operation, &facts);
+                facts.effects[index] =
+                    behavior(program, key.dependencies.unit, unit, operation, &facts);
                 // A plain local read's only failure is the temporal dead zone,
                 // which an earlier `Initialize` in the same region excludes.
                 if initialized_loads[index] {
@@ -974,6 +1000,7 @@ fn compute(program: &Program<'_>, unit: &UnitData, key: Key) -> (UnitFacts, Anal
 
 fn behavior(
     program: &Program<'_>,
+    id: UnitId,
     unit: &UnitData,
     operation: &Operation,
     facts: &UnitFacts,
@@ -994,177 +1021,54 @@ fn behavior(
     {
         return EvaluationBehavior::TOTAL;
     }
-    operation_evaluation_behavior(program, unit, operation, &facts.primitive_domains)
+    // Unit-local facts carry no contract, so they read no program summary:
+    // calls stay unknown here.
+    operation_evaluation_behavior(program, None, id, unit, operation, &facts.primitive_domains)
 }
 
-/// Shared conservative effect transfer for a checked semantic operation. The
-/// supplied unit-local slice proves primitive value domains at this context;
-/// a missing entry means unknown. This reads only operation/operand metadata,
-/// and neither evaluates exact values nor creates a cache/session. The caller
-/// admits its domain storage and charges operation/operand traversal work.
-/// Initialization, child-region completion and host assumptions remain the
-/// caller's separate obligations, never inferred from a refined result type.
+/// The liveness view of one operation: the projection of the one effects
+/// owner (`effects::operation_effects`). The supplied unit-local slice proves
+/// primitive value domains at this context; a missing entry means unknown.
+/// With the program's effect summaries a call is answered by its callee's
+/// summary; without them every call stays unknown. A structured operation's
+/// child regions need completion summaries (a loop may diverge although no
+/// operation in it writes), so it stays unknown here; unit summaries answer
+/// it. Initialization and host assumptions remain the caller's obligations.
 pub(super) fn operation_evaluation_behavior(
     program: &Program<'_>,
-    unit: &UnitData,
+    effects: Option<&super::effects::ProgramEffects>,
+    unit: UnitId,
+    data: &UnitData,
     operation: &Operation,
     primitive_domains: &[bool],
 ) -> EvaluationBehavior {
+    use OperationKind as Op;
     if matches!(
         operation.kind,
-        OperationKind::IntBinary(_) | OperationKind::Unary { .. } | OperationKind::Binary(_)
+        Op::If { .. }
+            | Op::Loop { .. }
+            | Op::Try { .. }
+            | Op::Block(_)
+            | Op::Select { .. }
+            | Op::ShortCircuit { .. }
+            | Op::ForIn { .. }
+            | Op::ForOf { .. }
     ) {
-        return primitive_evaluation_behavior(
-            program,
-            unit,
-            operation,
-            primitive_inputs(unit, operation, primitive_domains),
-        )
-        .expect("primitive operation contract");
+        return EvaluationBehavior::UNKNOWN;
     }
-    use OperationKind as Op;
-    match &operation.kind {
-        Op::Constant(_) => EvaluationBehavior::TOTAL,
-        Op::IsUndefined => EvaluationBehavior::TOTAL,
-        // `typeof` never throws; `Array.isArray` throws on a revoked proxy.
-        Op::TypeTest(target) => {
-            match crate::primitive::runtime_type_test(&program.types[target.index()]) {
-                Some(crate::primitive::RuntimeTypeTest::TypeOf(_)) => EvaluationBehavior::TOTAL,
-                _ => EvaluationBehavior {
-                    may_throw: true,
-                    ..EvaluationBehavior::TOTAL
-                },
-            }
-        }
-        // Building the string can exhaust memory; converting a non-primitive
-        // operand can run user code or throw (a Symbol).
-        Op::Template => {
-            if primitive_inputs(unit, operation, primitive_domains) {
-                EvaluationBehavior {
-                    may_exhaust_resources: true,
-                    ..EvaluationBehavior::TOTAL
-                }
-            } else {
-                EvaluationBehavior::COERCION
-            }
-        }
-        // Logical value transfer never invokes a conversion or reads host
-        // fields. Struct value fields become independent; reference fields
-        // retain their handles. A representation may copy immutable backing,
-        // but that introduces no language reference identity. Wrapper/generic
-        // cases conservatively retain possible resource cost without walking
-        // nested type payloads in this constant-time transfer.
-        Op::CopyValue => EvaluationBehavior {
-            may_exhaust_resources: operation.result.is_none_or(|value| {
-                matches!(
-                    program.types[unit.values[value.index()].ty.index()],
-                    Type::Struct(_)
-                        | Type::StructInstance { .. }
-                        | Type::Nullable(_)
-                        | Type::Union(_)
-                        | Type::TypeParameter(_)
-                )
-            }),
-            ..EvaluationBehavior::TOTAL
-        },
-        // This validates an address, never loads/coerces the leaf value.
-        // Presence/TDZ and product-domain evidence are separate obligations;
-        // keep access effects conservative without an uncharged path walk.
-        Op::CheckPlace(_) => EvaluationBehavior::UNKNOWN,
-        Op::Load(place) => match unit.places[place.index()] {
-            Place::Value(_) => EvaluationBehavior::TOTAL,
-            Place::Cell(cell)
-                if program.cells[cell.index()].binding != CellBinding::Foreign
-                    && !program.is_reference_parameter(cell) =>
-            {
-                EvaluationBehavior {
-                    reads: MemoryAccess::Cell(cell),
-                    may_throw: true,
-                    ..EvaluationBehavior::TOTAL
-                }
-            }
-            _ => EvaluationBehavior::UNKNOWN,
-        },
-        Op::Store(place) => match unit.places[place.index()] {
-            Place::Cell(cell)
-                if program.cells[cell.index()].binding != CellBinding::Foreign
-                    && !program.is_reference_parameter(cell) =>
-            {
-                EvaluationBehavior {
-                    writes: MemoryAccess::Cell(cell),
-                    may_throw: true,
-                    ..EvaluationBehavior::TOTAL
-                }
-            }
-            _ => EvaluationBehavior::UNKNOWN,
-        },
-        Op::Initialize(cell) => EvaluationBehavior {
-            writes: MemoryAccess::Cell(*cell),
-            ..EvaluationBehavior::TOTAL
-        },
-        Op::PrepareCall(call)
-            if matches!(unit.calls[call.index()].target, CallTarget::Value { .. }) =>
-        {
-            EvaluationBehavior::TOTAL
-        }
-        // `JS.object(...)`, `JS.array(...)` and `JS.undefined()` print as
-        // literals, their operands separately scheduled: defining data
-        // properties on a fresh object neither throws nor runs user code.
-        Op::PrepareCall(call) | Op::Call(call)
-            if matches!(
-                unit.calls[call.index()].target,
-                CallTarget::Builtin(
-                    BuiltinCall::JsObject | BuiltinCall::JsArray | BuiltinCall::JsUndefined
-                )
-            ) =>
-        {
-            if matches!(operation.kind, Op::Call(_))
-                && !matches!(
-                    unit.calls[call.index()].target,
-                    CallTarget::Builtin(BuiltinCall::JsUndefined)
-                )
-            {
-                EvaluationBehavior {
-                    may_exhaust_resources: true,
-                    creates_identity: true,
-                    ..EvaluationBehavior::TOTAL
-                }
-            } else {
-                EvaluationBehavior::TOTAL
-            }
-        }
-        Op::Closure(_)
-        | Op::Allocate {
-            kind: AllocationKind::Array | AllocationKind::Record(_) | AllocationKind::Object(_),
-            ..
-        } => EvaluationBehavior {
-            may_exhaust_resources: true,
-            creates_identity: true,
-            ..EvaluationBehavior::TOTAL
-        },
-        // Constructor operands remain separately scheduled. A logical struct
-        // value has neither a constructor hook nor observable reference identity.
-        Op::Allocate {
-            kind: AllocationKind::Struct(_),
-            ..
-        } => EvaluationBehavior {
-            may_exhaust_resources: true,
-            ..EvaluationBehavior::TOTAL
-        },
-        Op::Return | Op::Break | Op::Continue => EvaluationBehavior {
-            transfers_control: true,
-            ..EvaluationBehavior::TOTAL
-        },
-        Op::Throw => EvaluationBehavior {
-            may_throw: true,
-            transfers_control: true,
-            ..EvaluationBehavior::TOTAL
-        },
-        // Child regions and calls need completion/resource summaries before
-        // this query can prove them removable. A loop may diverge even when no
-        // individual operation writes, and an apparently simple getter reenters.
-        _ => EvaluationBehavior::UNKNOWN,
-    }
+    let context = super::effects::Context {
+        program,
+        unit,
+        data,
+        graph: effects.map(|effects| effects.graph()),
+        summaries: effects.map(|effects| effects.summaries()),
+    };
+    let values = super::effects::DomainFacts {
+        data,
+        domains: primitive_domains,
+        roots: effects.map_or(&[], |effects| effects.roots(unit)),
+    };
+    super::effects::operation_effects(&context, &values, operation).behavior()
 }
 
 /// Shared primitive operation contract. The caller supplies a proved operand

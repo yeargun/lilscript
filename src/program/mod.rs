@@ -11,8 +11,10 @@ mod activation;
 mod ambient;
 mod artifact_provenance;
 mod artifacts;
+pub mod call_graph;
 mod callable_inputs;
 mod demand;
+pub mod effects;
 pub mod facts;
 mod from_source;
 mod function_layout;
@@ -47,6 +49,7 @@ mod string_family;
 pub mod uses;
 mod value_placement;
 mod verify;
+pub mod views;
 
 #[cfg(test)]
 mod call_contract_tests;
@@ -77,6 +80,12 @@ mod observation_edit_tests;
 
 #[cfg(test)]
 mod callable_inputs_tests;
+
+#[cfg(test)]
+mod call_graph_tests;
+
+#[cfg(test)]
+mod effects_tests;
 
 #[cfg(test)]
 mod raw_domains_call_tests;
@@ -325,6 +334,8 @@ pub struct Program<'src> {
     initialization: Arc<Vec<UnitId>>,
     modules: Arc<Vec<ModuleInterface>>,
     entry: ModuleId,
+    /// Derived views (call graph, effect summaries), filled on demand.
+    views: views::ProgramViews,
 }
 
 /// Checked module meaning after original source aliases resolve to declarations.
@@ -468,6 +479,9 @@ pub struct Cell {
     /// Conversion-owned storage with no checked symbol of its own (a
     /// `for...of` array and counter). Synthetic cells follow every checked one.
     pub synthetic: bool,
+    /// The declaration is `pure`: a function or method whose summary the
+    /// contract check holds to it, or a trusted `pure extern`.
+    pub declared_pure: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

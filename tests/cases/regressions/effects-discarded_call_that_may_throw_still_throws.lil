@@ -1,0 +1,4 @@
+// A discarded call whose body may throw stays: the exception is observed.
+int boom(int x){if(x>0){throw "boom";}return x;}
+void run(){try{boom(1);print("missed");}catch(auto e){print("caught");}}
+run();
