@@ -106,7 +106,7 @@ error, not a silently ignored setting.
 | `tactics` | `BTreeMap<TacticId, TacticPermission>` | `BTreeMap::new()` | Per-tactic permission (`on`, `off` or `auto`): `off` vetoes a tactic in direct and searched use, `on` permits it but never forces it. |
 | `resources` | `ResourceLimits` | `ResourceLimits::default()` | Hard resource ceilings for one compilation: logical work, retained bytes, codec probes and an optional deadline. |
 | `constraints` | `CandidateConstraints` | `CandidateConstraints::default()` | Hard constraints an admitted artifact must meet regardless of objective, checked before size is compared. |
-| `search` | `SearchSchedule` | `SearchSchedule::default()` | The versioned search schedule: codec cadence, render batch, diversity and interaction intervals. |
+| `search` | `SearchSchedule` | `SearchSchedule::default()` | The versioned search schedule: codec cadence, render batch and diversity interval. |
 
 ## Retired keys
 
@@ -119,6 +119,7 @@ path covers every key in that table.
 |---|---|---|
 | `compiler.backend` | refused | there is one compiler; remove [compiler] backend |
 | `compiler.resources` | no effect | the compiler compiles and encodes on one thread; worker threads and codec workers are not implemented yet |
+| `policy.search.interaction_interval` | no effect | the search has no pairwise interaction phase |
 | `policy.constraints` | refused | size is the objective; runtime constraints need runtime estimators that do not exist yet; remove [policy.constraints] |
 | `optimization.algebraic_simplification` | no effect | it switched a pass of the old compiler's optimizer, which was deleted; this compiler's optional transformations are permitted per family in `[policy.tactics]` |
 | `optimization.common_subexpression_elimination` | no effect | it switched a pass of the old compiler's optimizer, which was deleted; this compiler's optional transformations are permitted per family in `[policy.tactics]` |
