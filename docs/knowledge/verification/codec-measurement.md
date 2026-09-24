@@ -1,7 +1,7 @@
 # Codec measurement
 
 Parent: [verification](README.md). Compiler config:
-[cost model](../config/cost-model.md). Research: [gzip/Brotli](../research/gzip-brotli.md).
+[cost model](../history/config/cost-model.md). Research: [gzip/Brotli](../research/gzip-brotli.md).
 
 ## Byte identity
 

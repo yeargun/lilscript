@@ -27,9 +27,8 @@ Dependency visibility belongs to the importer. Root code sees only root dependen
 a package sees only dependencies declared by that package. Bare subpaths resolve
 inside the locked package root and cannot escape it.
 
-Writing a lock also emits package effect summaries where possible. Those summaries
-are optimization inputs, not permission to trust arbitrary package code: a changed
-package invalidates the lock/effect evidence.
+Writing a lock no longer emits package effect summaries: they were read only by
+the deleted compiler route. Effects will come from the effect fact (plan M6.2).
 
 Package configuration changes the closed world and therefore invalidates semantic,
 size, and reproducibility reports even when the entry source did not change.

@@ -1,6 +1,8 @@
 # Closure and corpus
 
-Parent: [Evidence](README.md). Mapping: [`docs/optimization-coverage.md`](../../optimization-coverage.md). Audit: [post-minify](vite-closure-minification-audit.md).
+> Measured on the compiler route deleted on 2026-09-23 (plan M1); a record of that route, not a claim about the one compiler.
+
+Parent: [Evidence](README.md). Mapping: [old-route optimization coverage](../history/optimization-coverage.md). Audit: [post-minify](vite-closure-minification-audit.md).
 
 ## What LilScript claims relative to Closure `ADVANCED`
 

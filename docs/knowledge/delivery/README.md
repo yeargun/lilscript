@@ -22,7 +22,7 @@ Parent: [tree](../README.md). Language: [modules](../language/modules-lazy.md). 
 
 | Tool | Owns | Chunking |
 |---|---|---|
-| `lilscript` | Closed `.lil` world, SSA, codec search | `bundle.mode` single / split / preserve-modules |
+| `lilscript` | Closed `.lil` world, whole-program optimization, codec search | `bundle.mode` single / split / preserve-modules |
 | `lilpack` | Application graph: `.lil` + JS/TS/CSS/assets/npm | Vite/Rollup after `--delegate-bundling` (LilScript emits one ESM) |
 
 LilScript at the **root** of a mixed app is intentional. JS is not the source of truth; it is a host and a foreign leaf.
@@ -35,7 +35,7 @@ The language is built so authors can:
 - keep **source module** identity (`preserve-modules`) for cache granularity;
 - ask the compiler to **search** shared/lazy splits under deploy cost (`split`);
 - write `import("./feature")` for a **typed** lazy boundary the compiler must honor;
-- keep a **public facade** (`mangle.exports = false`) or a fully mangled app.
+- keep a **public facade** (`--target js-module`: the root module's exports are the API) or a closed app with no names to keep (`--target js`).
 
 Automatic split applies `min_chunk_bytes` / `shared_min_imports` to optional eager
 chunks and enforces `max_chunks` across mandatory lazy plus selected optional chunks;

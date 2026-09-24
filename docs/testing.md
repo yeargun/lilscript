@@ -7,7 +7,7 @@ Two versioned runners check a compiler binary. Both pin the binary by SHA-256, b
 | `scripts/cases.mjs` | M2.2 | `finer/tools/semantic-census.mjs` (development mode only) and the knob configs in `tests/config/` |
 | `scripts/ports.mjs` | M2.6 | `finer/tools/semantic-port-tests.mjs`, `finer/tools/portgate.mjs` and the unversioned `~/lilscript-work/tools/*.sh` |
 
-Run both with Node 24 (`~/.nvm/versions/node/v24.11.1/bin/node` on the build host). Neither passes `--backend`: there is one compiler.
+Run both with Node 24 (`~/.nvm/versions/node/v24.11.1/bin/node` on the build host). There is one compiler, so neither selects a route. The generated differential batch, a third check, is described in [differential-testing.md](differential-testing.md).
 
 ## The case runner
 
@@ -99,7 +99,7 @@ The mask is declared once, in `FEATURES` in `scripts/cases.mjs`. Detection is le
 | `object { … }` | script, module | JavaScript-only | — |
 | `JSON.parse` | script, module | returns `JsValue` | — |
 
-The first five rows are the base rule: a case with a `.host.js`, a `.module-probe.mjs`, or source mentioning `JsValue`, `extern` or `export` is JavaScript-only. The other rows are the native rejections that `docs/language-v0.1.md` states. A compiler gap is never a mask: native `Record<T>` is missing, so it is a ledgered failure owned by M11.4.
+The first five rows are the base rule: a case with a `.host.js`, a `.module-probe.mjs`, or source mentioning `JsValue`, `extern` or `export` is JavaScript-only. The other rows are the native rejections that [language-v0.1.md](language-v0.1.md) states. A compiler gap is never a mask: native `Record<T>` is missing, so it is a ledgered failure owned by M11.4.
 
 ### Artifacts and comparison
 

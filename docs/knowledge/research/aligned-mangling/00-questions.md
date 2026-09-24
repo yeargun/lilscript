@@ -62,4 +62,4 @@ than the entire aligned-naming ceiling on the same file
 
 The compiler already has the regime that produces it. It is off by default and
 reachable only through candidate search in this historical inspection. Current
-reachability work belongs to [step 010](../../../migration/index.md#010-bounded-codec-search).
+reachability work belongs to [step 010](../../../migration/record-2026-09.md#010-bounded-codec-search).

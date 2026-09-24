@@ -35,24 +35,27 @@ element.setAttribute("data-state","ready")
 ```
 
 The compiler emits no host wrappers, registries, proxies, reflection tables, or
-runtime type checks. External global and member names are ABI names and remain
-exact by default. The legacy explicit closed-key configuration assumes a
-coordinated non-host ABI and is not valid for arbitrary browser objects. Internal
-values passed to or returned from a host operation are marked as escaping so
-representation-changing optimizations remain sound.
+runtime type checks. External global and member names are ABI names and stay
+exact; no configuration renames them (the old `mangle.extern_fields` switch is
+retired and has no effect). Internal values passed to or returned from a host
+operation are marked as escaping so representation-changing optimizations remain
+sound.
 
-Known pure host factories used by ports may also lower in the optimizer before
-codegen: `createEmptyObject()` becomes a plain `{}` (distinct from null-proto
-`record{}`), `createArray()` becomes `[]`, `callN(f, null, …)` becomes a direct
-call, and rare DOM field getters expand to `.prop` when a mangled helper would
-cost more than the property spelling. That is the same class of whole-program
-knowledge Closure `ADVANCED` applies to externs — LilScript just starts from
-typed `extern` contracts instead of JSDoc.
+An `extern` means nothing by its name. The compiler keeps no table of host
+helpers recognized by spelling: an extern called `createEmptyObject`,
+`isWindowValue`, `mathMax` or `objectHasOwn` is an ordinary host call to
+whatever the host binds under that name. (The deleted compiler route gave such
+names built-in JavaScript bodies; that was dropped by design.) A program that
+wants an operation the compiler understands writes it as one: a language
+operation, a `JS.*` operation, or a host module delivered with the output
+(`bundle.host_modules`). Plan task M10.2 replaces the `JS.*` operations with a
+dynamic type and a typed host catalog in which each host operation has an
+identity, a signature and an effect class.
 
 Property reads and ordinary host calls are conservatively effectful because a Web
 IDL getter or operation may throw, mutate host state, or run custom behavior. A
-`pure` external method is a trusted host contract and an unused call may be
-removed:
+`pure` external method is a trusted host contract, and an unused call to it may
+be removed (**until M7.2** the compiler keeps it):
 
 ```lilscript
 extern class Clock {
@@ -77,10 +80,10 @@ same direct property and method lowering. Inheritance, overload sets, readonly
 attributes, callbacks, dictionaries, and per-realm exposure still need explicit
 language-model support before a complete Web IDL package can be claimed.
 
-Host-object member access is JavaScript-target-only. The C and native backends
+Host-object member access is JavaScript-target-only. The C and native targets
 reject it with a source diagnostic because browser object identity and behavior do
-not have a portable C ABI. Ordinary `extern` functions remain the explicit route
-for a user-defined C host ABI.
+not have a portable C ABI. Ordinary `extern` functions are the explicit route for
+a user-defined C host ABI; **until M11.3** the native target refuses them.
 
 For APIs whose documented JavaScript boundary is intentionally dynamic,
 `JsValue` preserves the raw host value rather than requiring an allocation-heavy

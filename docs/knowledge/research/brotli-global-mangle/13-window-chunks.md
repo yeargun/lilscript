@@ -37,7 +37,7 @@ A “measure the first chunk, assume the rest is similar” lab
 
 ## What layout search is actually for
 
-[javascript-emission.md](../../compilation/javascript-emission.md)
+[javascript-emission.md](../../history/compilation/javascript-emission.md)
 already discounts layout matches beyond gzip 32 KiB or Brotli 4 MiB.
 That is the right *proposal* window. It is not proof the encoder
 uses those matches.

@@ -26,7 +26,7 @@ A configuration is read in two steps:
 
 ```toml
 [javascript]
-priority = "size-first"      # the only accepted value; see "Refused keys"
+priority = "size-first"      # the only accepted value; see "Retired keys"
 cost_model = "brotli"         # raw | gzip | brotli: the codec whose bytes are minimized
 optimization_level = 13       # effort, 0..16; 13 is the default
 candidate_search = "production" # off | production | always; --mode development sets off
@@ -77,7 +77,6 @@ version = 2
 codec_schedule = "staged"     # staged | immediate
 render_batch = 8
 diversity_interval = 4
-# interaction_interval = 16
 
 [bundle]
 mode = "single"               # single | split | preserve-modules
@@ -175,9 +174,8 @@ re-measured on this one.
 
 `[policy.search]` fixes the search's cadence: `codec_schedule` (`staged`
 groups renders before codec measurement, `immediate` scores each at once),
-`render_batch`, `diversity_interval` (every Nth expansion serves an old
-pending cursor) and the opt-in `interaction_interval`. Remaining budgets never
-change these values. `[policy.resources]` sets hard ceilings on logical work,
+`render_batch` and `diversity_interval` (every Nth expansion serves an old
+pending cursor). Remaining budgets never change these values. `[policy.resources]` sets hard ceilings on logical work,
 retained bytes and cooperative wall time. Exhausting one stops optional work
 and keeps the best artifact found; a ceiling below what the mandatory artifact
 needs fails the build.
@@ -230,7 +228,8 @@ The full table, generated from the source, is in
   search bounds (`max_candidate_raw_growth_percent`,
   `function_layout_exact_limit`, `terminal_cleanup_finalists`), inliner bounds,
   `[javascript.startup]`, `[javascript.performance]`, `[profile]`, `[native]`,
-  `[compiler.resources]`, `mangle.exports`, `mangle.extern_fields` and
+  `[compiler.resources]`, `policy.search.interaction_interval` (the search has
+  no pairwise interaction phase), `mangle.exports`, `mangle.extern_fields` and
   `mangle.internal_properties`; the `migration/target-tree` line's
   `name_ordering`, `terminal_cleanup_chain` and `wide_single_use_collapse`;
   `javascript.function_scope` (the module wrapper returns as the `format`
@@ -245,7 +244,7 @@ The full table, generated from the source, is in
   |---|---|
   | `[compiler] backend` | there is one compiler; remove [compiler] backend |
   | `javascript.priority` other than `"size-first"` | size is the objective; runtime priorities need runtime estimators that do not exist yet |
-  | any `[policy.constraints]` limit | size is the objective; runtime constraints need runtime estimators that do not exist yet |
+  | a `[policy.constraints]` table | size is the objective; runtime constraints need runtime estimators that do not exist yet |
   | `javascript.public_aggregate_abi = "positional"` | public aggregates are plain objects with named fields (D2); the positional shape is not produced |
   | nonzero `optimization.for_of_specialize_family` | the for-of family specialization was an old-compiler source rewrite and was removed |
 

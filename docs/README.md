@@ -1,17 +1,28 @@
 # LilScript documentation
 
-Read from general intent to specific implementation. Do not load migration notes
-or research when a contract or current-architecture page answers the question.
+Read from general intent to specific implementation. Do not load history or
+research when a contract or current-architecture page answers the question.
+
+There is one compiler. The route that preceded it was deleted on 2026-09-23
+(plan phase M1); the pages that describe it are in
+[knowledge/history](knowledge/history/README.md) and never describe current
+behavior.
 
 ## Authority
 
 1. **Language and configuration contracts** define supported interfaces.
 2. **Source and tests** define implemented behavior.
-3. **Current architecture** explains that implementation without overriding it.
-4. **Tracked generated reports** define numerical evidence.
-5. **Current status** describes the checkout; [future architecture](future-architecture.md) is the architecture of the one compiler and the size-relevant language design.
-6. **Migration plan and progress** live only in [migration/index.md](migration/index.md), including all numbered steps. Retired plans are archived outside the repository. A proposal or checkbox without verified evidence does not establish implementation.
-7. **Research, journals, and landed notes** are historical evidence only.
+3. **[future-architecture.md](future-architecture.md) is the architecture** of the
+   compiler and the size-relevant language design.
+   [Current architecture](knowledge/compilation/current-architecture.md) describes
+   today's code against it, without overriding the source.
+4. **[migration/index.md](migration/index.md) is the plan**: every numbered step and
+   its progress. There is no other plan, board or packet.
+5. **[testing.md](testing.md) is the verification tools**: the case runner, the port
+   runner and their expected-failure ledgers. Tracked generated reports define
+   numerical evidence.
+6. **[Current status](current-status.md)** describes the checkout.
+7. **History, research, journals and landed notes** are historical evidence only.
 
 If two pages disagree, use the higher authority and fix the lower one.
 
@@ -27,8 +38,9 @@ If two pages disagree, use the higher authority and fix the lower one.
 | How the compiler works now | [Current architecture](knowledge/compilation/current-architecture.md) |
 | The compiler's architecture and the language designed for size | [Future architecture](future-architecture.md) |
 | Implement a bounded migration step or check progress | [Single migration plan](migration/index.md) |
-| Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
 | Check a compiler binary: the case runner, the port runner and their expected-failure ledgers | [Testing](testing.md) |
+| Whether a size claim is valid | [Verification](knowledge/verification/README.md) → [evidence](knowledge/evidence/README.md) |
+| How the deleted route did something | [History](knowledge/history/README.md) |
 | Full linked map | [Knowledge tree](knowledge/README.md) |
 
 ## Normative Contracts
@@ -40,9 +52,6 @@ If two pages disagree, use the higher authority and fix the lower one.
 | [modules-and-delivery.md](modules-and-delivery.md) | Imports, chunks, lockfiles, Lilpack |
 | [web-platform.md](web-platform.md) | Host and `extern` boundary |
 | [differential-testing.md](differential-testing.md) | Independent semantic oracle |
-
-There is one compiler. The route that existed before 2026-09-18 is being deleted
-(plan phase M1); pages that still describe it are history until M1.7 rewrites them.
 
 Do not create separate migration packets or boards. Add bounded work under its
 phase in the single plan. The architecture owns the target; the plan owns how to

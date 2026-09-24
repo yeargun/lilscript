@@ -12,8 +12,8 @@ canonical architecture.
 
 How those ideas must enter the compiler (registered recipe, not a package-shaped
 special case): [compiler design](../../compiler-design.md),
-[objectives](../compilation/objectives.md),
-[migration plan](../../migration/index.md#009-reusable-compression-families).
+[objectives](../history/compilation/objectives.md),
+[migration plan](../../migration/record-2026-09.md#009-reusable-compression-families).
 What the language must state so Closure/Terser cannot uniquely guess it:
 [compressor surface](../language/compressor-surface.md).
 

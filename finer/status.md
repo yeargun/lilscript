@@ -1,4 +1,6 @@
-# Status
+# Status (historical, 2026-09-02)
+
+> History: the finer loop's standings as of 2026-09-02, measured on the compiler route deleted on 2026-09-23 (plan M1); kept as a record. The current status is [docs/current-status.md](../docs/current-status.md), the architecture [docs/future-architecture.md](../docs/future-architecture.md) and the plan [docs/migration/index.md](../docs/migration/index.md).
 
 Standings, settled facts and ranked leads for the [finer loop](README.md). Volatile: rewritten
 after every fleet measure and every verdict. Contract: [objective.md](objective.md). History:

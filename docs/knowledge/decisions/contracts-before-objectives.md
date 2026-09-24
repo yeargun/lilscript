@@ -11,7 +11,7 @@ changing what the source, host, or unknown library consumer can observe.
 
 Normalize language semantics, compilation world, boundary roots, artifact
 format, public/host ABI, explicit source obligations, unsafe assumptions, and
-effect-removal policy before profitability search. Keep codec, priority, enabled
+effect-removal policy before profitability search. Keep codec, effort, enabled
 families, guards, and budgets in a separate objective.
 
 An objective may rank only artifacts legal under the same immutable contract.
@@ -31,5 +31,5 @@ raw config or where API compatibility is inferred after selection.
 - Do not claim the current source-derived ABI manifest validates final bytes.
 
 Implementation: [`src/compilation_contract.rs`](../../../src/compilation_contract.rs).
-Target: [compiler design](../../compiler-design.md). Implementation:
-[policy and resource ownership](../../migration/index.md#003-policy-and-resource-ownership).
+Target: [future architecture](../../future-architecture.md). History:
+[policy and resource ownership](../../migration/record-2026-09.md#003-policy-and-resource-ownership).

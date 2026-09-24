@@ -1,5 +1,7 @@
 # LilScript v0.1 Bundle Benchmark
 
+> Measured on the compiler route deleted on 2026-09-23 (plan M1); a record of that route, not a claim about the one compiler.
+
 Parent: [Evidence](README.md).
 
 Historically measured on 2026-08-07 with LilScript release mode and Google Closure

@@ -16,10 +16,17 @@ more specific question and links to detail instead of repeating it.
    architecture chooses contracts, proofs, exact scoring, explicit ABI, and a
    narrow target representation.
 5. **Implementation:** [current architecture](compilation/current-architecture.md)
-   and its topic pages describe the code that exists.
-6. **Target and migration:** [compiler design](../compiler-design.md) records the objective, proposed architecture and open decisions; the single [migration plan](../migration/index.md) contains all implementation steps and verified progress.
-7. **Proof of claims:** [verification](verification/README.md) defines valid evidence; [evidence](evidence/README.md) links results.
-8. **Existing tools/history:** [finer](../../finer/README.md) retains measurement tools and old experiments; it does not coordinate the redesign.
+   describes the one compiler as it exists now.
+6. **Architecture and plan:** [future-architecture.md](../future-architecture.md) is
+   the compiler's architecture and the size-relevant language design; the single
+   [migration plan](../migration/index.md) contains all implementation steps and
+   verified progress.
+7. **Verification tools:** [testing.md](../testing.md) (the case runner, the port
+   runner and their expected-failure ledgers); [verification](verification/README.md)
+   defines valid evidence; [evidence](evidence/README.md) links results.
+8. **History:** [history](history/README.md) describes the compiler route deleted in
+   plan M1, as prior art. [finer](../../finer/README.md) retains measurement tools
+   and old experiments; it does not coordinate the redesign.
 9. **Research:** [research](research/README.md) contains experiments and rejected
    ideas. Load it only when the canonical pages cite a specific finding.
 
@@ -33,10 +40,11 @@ more specific question and links to detail instead of repeating it.
 | Why is a semantic rule not a codec choice? | [Contracts before objectives](decisions/contracts-before-objectives.md) |
 | Why not add a library-specific fold? | [Typed proofs, not glue](decisions/typed-proofs-not-glue.md) |
 | What pipeline exists now? | [Current architecture](compilation/current-architecture.md) |
-| How do we decide the replacement together? | [Compiler design](../compiler-design.md) |
-| Is a choice mandatory, ABI-fixed, or scored? | [Decision registry](compilation/decision-registry.md) |
-| How are raw/gzip/Brotli winners selected? | [Objectives](compilation/objectives.md) -> [candidate search](compilation/candidate-search.md) |
+| What is the architecture we are building? | [Future architecture](../future-architecture.md) |
+| How are raw/gzip/Brotli winners selected? | [Future architecture §9](../future-architecture.md#9-choices-search-and-the-objective) |
+| How did the old route do something? | [History](history/README.md) |
 | Is a size number publishable? | [Verification](verification/README.md) -> [evidence](evidence/README.md) |
+| How do I check a compiler binary? | [Testing](../testing.md) |
 | What happens next? | [Single migration plan](../migration/index.md); see readiness, dependencies and unverified gates |
 
 ## Domain Tree
@@ -64,55 +72,42 @@ more specific question and links to detail instead of repeating it.
 
 [Compilation index](compilation/README.md)
 
-- Architecture: [router](compilation/architecture.md),
-  [current](compilation/current-architecture.md),
-  [design discussion](../compiler-design.md)
-- Policy: [objectives](compilation/objectives.md),
-  [decision registry](compilation/decision-registry.md),
-  [global optima](compilation/global-optima.md)
-- Frontend/IR: [pipeline](compilation/pipeline.md),
-  [linking/lowering](compilation/frontend-linking-lowering.md),
-  [analyses](compilation/analyses.md), [optimizer](compilation/ir-optimizer.md),
-  [DCE](compilation/dce-tree-shaking.md),
-  [inlining](compilation/inlining-specialization-sharing.md),
-  [aggregates](compilation/aggregate-lowering.md),
-  [class identity](compilation/class-identity.md)
-- Backend/search: [emission](compilation/javascript-emission.md),
-  [mangling/layout](compilation/mangling-layout-pooling.md),
-  [search](compilation/candidate-search.md),
-  [peephole](compilation/peephole.md),
-  [chunks](compilation/chunk-planning.md),
-  [native](compilation/native-backend.md),
-  [fallbacks](compilation/correctness-fallbacks.md)
+- [Current architecture](compilation/current-architecture.md)
+- [Future architecture](../future-architecture.md)
+- [History of the deleted route](history/README.md)
 
 ### Operation
 
 - [Config](config/README.md)
 - [Delivery](delivery/README.md)
-- [Verification](verification/README.md)
+- [Verification](verification/README.md) and [testing](../testing.md)
 - [Evidence](evidence/README.md), including the
   [library proof matrix](evidence/library-proof-matrix.md) and
   [Motion](evidence/motion-compatibility.md), [Marked](evidence/marked.md),
   [MobX](evidence/mobx.md), [jQuery](evidence/jquery.md)
-- [Joint design discussion](../compiler-design.md)
 - [Research](research/README.md)
 
 ## Source Authority Map
 
+After plan M1.7's rename. Where a path moves again, the
+[architecture's source layout](../future-architecture.md#15-source-layout-at-the-end-of-the-migration)
+says where to.
+
 | Concern | Primary source |
 |---|---|
 | Grammar and AST | `src/lexer.rs`, `src/parser.rs`, `src/ast.rs` |
-| Semantics and effects | `src/semantic.rs`, `src/interpreter.rs` |
-| Modules/packages | `src/module.rs`, `src/package.rs` |
-| Typed IR and provenance | `src/ir.rs`, `src/lower.rs` |
-| Compilation contract/objective/ABI | `src/compilation_contract.rs`, `src/config.rs` |
-| IR optimization and proofs | `src/optimizer.rs`, `src/compress_passes.rs`, `src/value_analysis.rs` |
-| Decision census and families | `src/decision_registry.rs` |
-| Search and orchestration | `src/compiler.rs` |
-| JavaScript emission | `src/codegen_ir_js.rs`, `src/js_syntax_target.rs` |
-| Generated-JS migration layer | `src/js_peephole/` |
-| Native backend | `src/codegen_native.rs` |
-| Exact codecs | `src/bin/lilscript-codec.rs`, `benchmarks/codec-contract.mjs` |
-| Semantic verification | `tests/cases/`, `src/bin/lilscript-differential.rs` |
+| Checking (names, types, effects declared, boundaries) | `src/check.rs`, `src/check/` |
+| Modules and packages | `src/module.rs`, `src/package.rs` |
+| The Program IR: elaboration, verifier, facts, demand, families, search, artifacts | `src/program/` |
+| JavaScript formation | `src/program/javascript*.rs` |
+| JavaScript target tree: rewrites, naming, printing, delivery | `src/js/` |
+| Native plan and C writer | `src/program/native*.rs`, `src/program/artifact_native.rs` |
+| Public API (CLI, LSP, lint, playground) | `src/build.rs`, `src/main.rs`, `src/bin/` |
+| Configuration, policy, contract | `src/config.rs`, `src/compilation_policy.rs`, `src/compilation_contract.rs` |
+| Primitive semantics shared by both targets and the interpreter | `src/primitive.rs`, `src/typed_array.rs` |
+| Reference interpreter | `src/interpreter.rs` |
+| Exact codecs | `src/compression.rs`, `src/bin/lilscript-codec.rs`, `benchmarks/codec-contract.mjs` |
+| Semantic verification | `tests/cases/`, `scripts/cases.mjs`, `src/bin/lilscript-differential.rs` |
+| Port verification | `scripts/ports.mjs`, `tests/ports/expected-failures.json` |
 | Compression verification | `comparison/cases/`, `comparison/algorithms/`, `comparison/large-libraries/` |
 | Release gates | `scripts/release-check.sh`, `comparison/run-all.sh` |

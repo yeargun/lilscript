@@ -1,7 +1,9 @@
 # Manual bundling and partition control
 
-Parent: [delivery](README.md). Algorithm:
-[chunk planning](../compilation/chunk-planning.md). Config: [`[bundle]`](../config/bundle.md).
+Parent: [delivery](README.md). Algorithm: the delivery plan in `src/js/delivery.rs`
+(the deleted route's planner is in [history](../history/compilation/chunk-planning.md)).
+Config: [`[bundle]`](../config/bundle.md). **Until plan M3.3**, `preserve-modules`
+chunks and lazy `import()` chunks are broken on this compiler.
 
 LilScript does not require one automatic partition policy. Authors choose semantic
 boundaries in source and deployment policy in TOML:

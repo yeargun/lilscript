@@ -1,6 +1,6 @@
 # Use a narrow hygienic target-JS representation
 
-Status: historical rationale; current target is [compiler design A5](../../compiler-design.md#a5--target-identities-and-complete-delivery). Parent: [design decisions](README.md).
+Status: historical rationale; current target is contract A5 in [future architecture §4](../../future-architecture.md#4-contracts-carried-from-the-2026-09-18-design) and the JavaScript target in [§10](../../future-architecture.md#10-the-javascript-target). Parent: [design decisions](README.md).
 
 ## Intent
 
@@ -22,9 +22,10 @@ module links, and observed ABI; it does not claim to prove program equivalence.
 
 ## Tradeoff
 
-The legacy compiler uses parsed peephole processing. In the replacement pipeline,
-families move through common semantic/target owners; silent fallback to the old
-pipeline cannot establish new-route support. An independent parser remains a
-verification tool. Do not build a third general optimizer.
+The deleted compiler route re-parsed its own output in a text peephole. That
+route is gone (plan M1): the one compiler's JavaScript target tree carries
+identities from formation to printing, and no stage parses its own output to
+optimize it. An independent parser of every delivered file remains a
+verification tool (plan M2.5). Do not build a second general optimizer.
 
-Plan: [ownership and replacement rules](../../migration/index.md#ownership-and-replacement-rules).
+Plan: [ownership and replacement rules](../../migration/record-2026-09.md#ownership-and-replacement-rules).

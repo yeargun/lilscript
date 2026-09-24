@@ -1,10 +1,11 @@
 # Modules and Delivery
 
-Reasoning: [knowledge/language/modules-lazy.md](knowledge/language/modules-lazy.md), [knowledge/delivery](knowledge/delivery/README.md), [chunk planning](knowledge/compilation/chunk-planning.md). This page is the delivery contract.
+Reasoning: [knowledge/language/modules-lazy.md](knowledge/language/modules-lazy.md), [knowledge/delivery](knowledge/delivery/README.md). Keys: [configuration.md](configuration.md#delivery-bundle). The deleted route's chunk planner is in [history](knowledge/history/compilation/chunk-planning.md). This page is the delivery contract.
 
-LilScript resolves a closed, typed module graph before SSA optimization. Static
-imports remain the default because they permit cross-file inlining, scalar
-replacement, and complete tree shaking without a runtime loader.
+LilScript checks a closed, typed module graph as one program before any
+optimization. Static imports remain the default because they permit cross-file
+inlining, scalar replacement, and complete tree shaking without a runtime
+loader.
 
 ## Foreign JavaScript and TypeScript
 
@@ -20,23 +21,27 @@ print(hostAdd(20, 22));
 
 `import extern` is resolved and owned by the LilScript module loader. Every
 local import requires a matching `extern` function, global, or class in that
-module. This keeps the SSA optimizer's host boundary explicit: foreign calls
+module. This keeps the program's host boundary explicit: foreign calls
 remain effectful unless an allowed `pure extern` contract says otherwise, host
 names stay exact, and native targets reject the JavaScript-only edge.
 Side-effect-only modules use `import extern "./setup.ts";` and need no binding
 contract.
 
 Relative `.js`, `.mjs`, `.ts`, `.mts`, `.jsx`, and `.tsx` imports are supported.
-The Lilscript compiler validates local sources and emits the original specifier
-as a native ESM edge. It does not parse TypeScript or pretend that type erasure
-is sufficient for the full language. Bare specifiers remain package edges.
+By default (`bundle.host_modules = "external"`) the compiler validates local
+sources and emits the original specifier as a native ESM edge. With `"auto"` or
+`"embed"` the relative host modules travel with the output: the compiler parses
+them with Oxc to deliver them, and their effects stay unknown to the program
+(plan M8.4 replaces today's ESTree walk with typed host units). It does not
+type-check TypeScript or pretend that type erasure is sufficient for the full
+language. Bare specifiers remain package edges.
 
 Lilpack owns the complete application graph. Its integrated Vite engine resolves
 foreign static and dynamic imports, npm packages, TypeScript, JSX/TSX, CSS,
 JSON, WebAssembly, workers, URLs, and assets using Vite's normal semantics. In a
-production build Vite tree-shakes and chunks that graph after Lilscript has
-finished closed-world linking, SSA optimization, and compression of the `.lil`
-side. The final hashed assets and `lilpack.manifest.json` are Lilpack output.
+production build Vite tree-shakes and chunks that graph after LilScript has
+finished checking, whole-program optimization and codec-scored selection of the
+`.lil` side. The final hashed assets and `lilpack.manifest.json` are Lilpack output.
 
 Running `lilscript --target js-module` directly intentionally leaves foreign
 ESM edges in its output. Use Lilpack when a deployable mixed-language graph is
@@ -51,7 +56,7 @@ lilpack dev src/main.lil --root . --port 5173
 ```
 
 Lilpack compiles the Lilscript entry as reusable ESM and registers every
-compiler-discovered `.lil`, config, lock, and profile input with Vite's watcher.
+compiler-discovered `.lil`, config and lock input with Vite's watcher.
 Vite owns its transform cache, TypeScript and asset transforms, dependency
 optimizer, WebSocket update channel, browser client, and compile-error overlay.
 Production compressor candidate search is disabled in development.
@@ -102,6 +107,13 @@ diagnostic because LilScript does not claim that a JavaScript chunk has a
 portable C ABI.
 
 ## Chunk planning
+
+**Until M3.3**, `preserve-modules` chunks and lazy `import()` chunks are broken
+on this compiler: the build writes no chunks. Today's delivery plan keeps module
+state, initialization and every function that touches either in the entry file,
+and moves only functions whose free references allow it into their source
+module's chunk. Plan M3.3 makes `preserve-modules` keep every source module a
+file, and gives lazy `import()` its chunk, as this section states.
 
 `bundle.mode = "single"` keeps the asynchronous type but lowers dynamic imports
 to `Promise.resolve(namespace)` inside one artifact. `split` and

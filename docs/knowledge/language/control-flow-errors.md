@@ -2,8 +2,8 @@
 
 Parent: [language](README.md). Contract: [statements and expressions](../../language-v0.1.md#statements-and-expressions)
 and [async/exceptions](../../language-v0.1.md#async-tasks-and-exceptions). Compiler
-anchors: structured shapes and phis in `src/ir.rs`, lowering in `src/lower.rs`, and
-CFG simplification in `src/optimizer.rs`.
+anchors: checking in `src/check.rs`, elaboration into regions in
+`src/program/from_source.rs`, and JavaScript formation in `src/program/javascript.rs`.
 
 LilScript evaluates expressions left to right. `&&`, `||`, `??`, optional access,
 conditional flow, and `match` evaluate only the selected arm. Assignment and update
@@ -18,38 +18,36 @@ Closed enum `match` is exhaustive unless the final arm is `_`. Scalar literal
 `match` also supports enum, integer, string, and boolean patterns with duplicate
 and exhaustiveness checks. The scrutinee runs once and only one arm executes.
 `if` / `else` has both statement and value-producing expression forms; the
-expression form requires `else` and lowers to a conditional phi. `?` remains the
-nullable type marker, not ternary syntax. The emitter can score structured and
-conditional-expression spellings when both preserve evaluation order.
+expression form requires `else` and lowers to a `Select` region. `?` remains the
+nullable type marker, not ternary syntax. The JavaScript target may spell a
+branch as a statement or a conditional expression when both preserve evaluation
+order.
 
 `throw` accepts any non-`void` value. `try` requires `catch`, `finally`, or both, and
 native JavaScript completion order is preserved: `finally` runs for normal and abrupt
 completion and may replace the earlier completion. Catch values are `JsValue`; no
 error-record shape is assumed.
 
-[Compiler design D3](../../compiler-design.md#decisions-and-scope) proposes that
+Owner decision [D3](../../future-architecture.md#d3-in-full) settles that
 implementation-specific resource-exhaustion timing may differ after optimization,
-while ordinary throws/argument errors, host effects and divergence remain observable.
-Its exact wording and cross-target obligations are settled in
-[step 002](../../migration/index.md#002-language-and-public-boundaries).
-This proposal is not permission to remove ordinary exceptions or perform unbounded
-evaluation, and does not establish current backend enforcement.
+while results, ordinary throws, argument errors, host effects and divergence remain
+observable; each clause has an executable case. It is not permission to remove
+ordinary exceptions or perform unbounded evaluation.
 
 ## Compiler boundary
 
-Ordinary reducible flow enters SSA with explicit phis and structure metadata. The JS
-emitter may compare conditional/comma/state-machine/loop spellings, but exception
-regions retain native structured bindings and are excluded from CFG rewrites that
-cannot preserve throw timing. Unused catch binding elision requires a checked zero-use
-binding. The parsed peephole validates generated syntax before any final contraction.
+The Program IR keeps control flow as nested regions (`If`, `Loop`, `Try`, `Block`,
+`ShortCircuit`, `Select`, `ForIn`, `ForOf`). There is no CFG and there are no phis:
+values merge through cells, and formation maps each region to the structured
+JavaScript (or C) statement it came from. Exception regions stay `try` statements
+with mutable bindings, so throw timing is preserved. An unused catch binding is
+omitted only when it has no use.
 
-Optional member/index phis retain their receiver provenance. JavaScript emission may
-recover a native optional chain only after proving receiver identity, the matching
-null branch, lazy arm order, and a safe structured merge; otherwise the explicit CFG
-is the correctness fallback. A separately proven non-null receiver can erase the
-guard before CFG simplification. See the
-[IR optimizer](../compilation/ir-optimizer.md#proof-scoped-nullable-simplification).
+Optional member and index access evaluates its receiver once and is formed today
+as a conditional on that receiver (`a!=null?a.v:null`), not as a native `?.`
+chain. The deleted route's optional-chain recovery is in
+[history](../history/compilation/ir-optimizer.md#proof-scoped-nullable-simplification).
 
-Tests must exercise effects in conditions/arms/indexes, loop-carried phis, labeled
+Tests must exercise effects in conditions/arms/indexes, loop-carried values, labeled
 completion equivalents, updates on members, throws between mutable assignments, and
 `finally` overriding return/throw/break/continue.

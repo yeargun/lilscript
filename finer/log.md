@@ -2,7 +2,7 @@
 
 One row per hypothesis, newest first. The verdict cell is the folder's summary: open the folder only
 when the row is the idea you are about to have. Lanes are `lang` · `port` · `compiler` ·
-`measure` ([README](README.md#lanes)). `node finer/tools/new.mjs <slug> --lane <lane>` opens the
+`measure` ([README](README.md)). `node finer/tools/new.mjs <slug> --lane <lane>` opens the
 next folder and prints its row; `node finer/tools/new.mjs check` keeps rows and folders in step.
 
 | # | lane | question | verdict |

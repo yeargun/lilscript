@@ -10,10 +10,14 @@ in the [single migration plan](../../migration/index.md); external ideas live un
 Claims about compression need a semantic boundary, source revision, compiler,
 config, artifact, baseline toolchain, codec, and harness fingerprint. Tracked
 generated reports own numbers; prose here explains scope and limitations.
+**Most pages here were measured on the compiler route deleted on 2026-09-23 (plan
+M1)**; each records its compiler, and a number from the old route is a record of
+that route, never a claim about the one compiler. Current standings are in
+[current status](../../current-status.md).
 
 How the compiler decides representations (including heuristics that evidence
 cannot yet justify as global): [current architecture](../compilation/current-architecture.md),
-[objectives](../compilation/objectives.md). When a port loses, classify
+[future architecture §9](../../future-architecture.md#9-choices-search-and-the-objective). When a port loses, classify
 compiler bug vs missing proof vs JS-shaped rewrite:
 [compressor surface](../language/compressor-surface.md).
 
@@ -49,7 +53,7 @@ compiler bug vs missing proof vs JS-shaped rewrite:
 - [Benchmark results](benchmark-results.md) — core synthetic corpus sizes (no jQuery row)
 - [Post-minify audit](vite-closure-minification-audit.md) — post-minify is not a global win
 
-Related contracts: [`docs/optimization-coverage.md`](../../optimization-coverage.md),
+Related: the old route's [optimization coverage](../history/optimization-coverage.md),
 [`docs/differential-testing.md`](../../differential-testing.md).
 Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESULTS.md),
 [`comparison/README.md`](../../../comparison/README.md).
@@ -75,5 +79,5 @@ Related labs: [`benchmarks/popular/RESULTS.md`](../../../benchmarks/popular/RESU
 `comparison/cases/summary.json` and other working summaries may be ignored or
 regenerated. Publication requires a tracked immutable report. The current
 large-library seed does not yet represent every latest Motion, Marked, MobX, and
-jQuery artifact; the [baseline/support inventory](../../migration/index.md#001-baselines-and-support-inventory)
+jQuery artifact; the [baseline/support inventory](../../migration/record-2026-09.md#001-baselines-and-support-inventory)
 must requalify the complete maintained set.

@@ -2,9 +2,9 @@
 
 Parent: [language](README.md). Contracts: [tasks/exceptions](../../language-v0.1.md#async-tasks-and-exceptions),
 [generators](../../language-v0.1.md#generators), and `Regex` in
-[types](../../language-v0.1.md#types). Compiler anchors: semantic checks in
-`src/semantic.rs`, IR operations in `src/ir.rs`, and direct JS rendering in
-`src/codegen_ir_js.rs`.
+[types](../../language-v0.1.md#types). Compiler anchors: checks in
+`src/check.rs`, Program IR operations in `src/program/`, JavaScript formation in
+`src/program/javascript.rs` and printing in `src/js/print.rs`.
 
 These features use the JavaScript platform directly; LilScript does not ship a
 scheduler, generator runtime, or regex engine.

@@ -6,7 +6,7 @@ Reasoning (types vs glue, closed world, escape, delivery): [knowledge/language](
 
 LilScript is an independent statically typed language. LilScript source is never
 parsed as JavaScript or TypeScript, and neither language defines LilScript
-semantics. JavaScript and native object code are backend targets of the same
+semantics. JavaScript and native object code are targets of the same checked,
 typed whole-program IR.
 
 Every executable program is analyzed as a closed world. An explicit `extern`
@@ -17,8 +17,16 @@ Values that reach either boundary are considered escaping and must use the
 boundary ABI representation.
 
 The entry `.lil` file and every transitive static import form one compilation
-unit. Module boundaries are resolved before semantic analysis and erased before
-SSA optimization; they are not JavaScript wrappers in the generated bundle.
+unit. One module-graph checker resolves every module boundary, and the unit is
+compiled as one program; a source module is not a JavaScript wrapper in the
+generated bundle.
+
+### Status markers
+
+This page is the language contract. Where the compiler does not yet implement a
+clause, the clause says **Until M…**, naming the task in the
+[migration plan](migration/index.md) that implements it, and states what the
+compiler does meanwhile.
 
 ## Lexical grammar
 
@@ -41,7 +49,7 @@ SSA optimization; they are not JavaScript wrappers in the generated bundle.
 | `int`               | signed 32-bit integer with operator-defined overflow behavior | number with i32 normalization                     | `i32`                                       |
 | `number` / `float`  | IEEE-754 binary64 web number                                  | number                                            | `f64`                                       |
 | `bool`              | `true` or `false`                                             | boolean                                           | C11 `bool`                                  |
-| `string`            | immutable UTF-8 text                                          | string                                            | runtime string handle                       |
+| `string`            | immutable sequence of UTF-16 code units                       | string                                            | length plus UTF-16 code units (`ls_string`) |
 | `T[]`               | mutable homogeneous array                                     | optimized array representation                    | runtime array handle                        |
 | `Record<T>`         | mutable open string-keyed homogeneous record                  | null-prototype object                             | tagged-value string map handle              |
 | `Map<K, V>`         | mutable insertion-ordered key/value collection                | native `Map`                                      | tagged-value map handle                     |
@@ -223,16 +231,12 @@ lexically scoped. JavaScript's native completion rules are preserved: finally
 runs on normal completion, throw, return, break, and continue, and a completion
 from finally overrides the earlier one.
 
-Exception regions are emitted as native structured JavaScript. Their mutable
-locals deliberately remain native mutable bindings instead of being promoted
-to exception-insensitive SSA, so a catch observes every assignment completed
-before the exact operation that threw. Exception-bearing functions are also
-excluded from CFG rewrites that cannot preserve structured regions. The
-`unused-catch-binding-elision` compression decision removes `(error)` only when
-the checked binding has zero uses; codec-specific release fixtures require a
-strict gzip/Brotli win and guard output, runtime, and retained heap. Async,
-tasks, and exceptions are rejected by the native backend rather than
-approximated.
+Exception regions are emitted as structured JavaScript `try` statements. Locals
+assigned inside them stay mutable bindings, so a catch observes every
+assignment completed before the exact operation that threw. A catch binding
+with no use is omitted (`catch{…}`) when the syntax floor is ES2019 or later.
+Async, tasks, and exceptions are rejected by the native target rather than
+approximated (**until M11.6**).
 
 ## Generators
 
@@ -310,12 +314,13 @@ because JavaScript string iteration uses Unicode code points while the native
 string indexing contract is UTF-16-oriented, and silently combining those
 semantics would be target-dependent.
 
-`inline for (T value of [/* const list */])` unrolls at compile time. The
-iterable must be an array literal of `int`, `float`, `string`, or `bool`
-values. `break` and `continue` are rejected because there is no runtime loop.
-A closed program uses this when the table is in the compilation unit. When
-`optimization.for_of_specialize_family` is set, a residual `for` over a
-function's first array parameter also gets unrolled clones plus a picker.
+`inline for (T value of [/* const list */])` asks for the loop to be unrolled
+at compile time. The iterable must be an array literal of `int`, `float`,
+`string`, or `bool` values, and `break` and `continue` are rejected, because an
+unrolled loop has no runtime loop to leave. **Until M10.11** the compiler does
+not unroll it: it compiles as an ordinary loop over the literal, with the same
+results. The old `optimization.for_of_specialize_family` key is refused unless
+it is `0`.
 
 `Map<K, V>` and `Set<T>` are mutable and invariant. `Map.get(key)` returns
 `V?`; missing keys and stored `null` values therefore have the same result, as
@@ -366,9 +371,8 @@ extern Document document;
 
 External globals are read-only bindings, external classes cannot be constructed,
 and declared member accesses emit direct JavaScript property operations. Their
-global and member names are exact by default. The current explicitly configured
-closed-key mode assumes every producer and consumer shares the renamed ABI; it
-must not be used for ordinary browser/host objects. Host property reads and methods are
+global and member names are exact; no configuration renames them (the old
+`mangle.extern_fields` switch is retired). Host property reads and methods are
 effectful unless a method has a trusted `pure` contract. The C and native targets
 reject host-object access because the Web platform has no portable C ABI. See
 [web-platform.md](web-platform.md) for the complete implemented boundary and
@@ -401,10 +405,10 @@ functions without weakening the callback's static signature:
 
 Each evaluation returns a fresh anonymous, constructible ordinary function.
 Each `methodN` wrapper has JavaScript `length == N`; both rest wrappers have
-`length == 0`, and every callback is invoked as a plain function. Semantic analysis
+`length == 0`, and every callback is invoked as a plain function. The checker
 resolves these operations by builtin identity and checks the exact callback
 arity and types; an unrelated extern with the same spelling has no special
-behavior. The JavaScript backend may fuse a private callback with its wrapper
+behavior. The JavaScript target may fuse a private callback with its wrapper
 only after proving its identity and lexical bindings do not escape; where
 JavaScript would infer a function name, the fused spelling explicitly
 preserves the wrapper's anonymous reflection. Otherwise it emits a
@@ -413,10 +417,17 @@ compiler-private shared factory. C/native targets reject all thirteen adapters.
 String concatenation may consume a guarded `JsValue` and uses JavaScript's
 ordinary coercion. An unguarded Symbol therefore throws exactly as it would in
 JavaScript. A declared `extern JsValue arguments;` refers to the current
-function's JavaScript `arguments` object; the emitter forces that function to
-ordinary-function syntax even when public arrows are requested. Every
-`JsValue` operation is rejected by the C/native backend rather than receiving a
-different approximation.
+function's JavaScript `arguments` object; the compiler spells that function
+as an ordinary function, never an arrow. Every `JsValue` operation is rejected
+by the C/native target rather than receiving a different approximation.
+
+Equality with a `JsValue` operand is JavaScript's dynamic equality: `a == b`
+and `a != b` are JavaScript's `==` and `!=`, with their coercions, and an
+operand that is not `null` and not a proved primitive makes the comparison an
+observable evaluation point (below). `JS.strictEqual(a, b)` and
+`JS.strictNotEqual(a, b)` are the strict forms, `===` and `!==`. Plan task M10.9
+may change the default by owner ruling (strict against primitive literals, an
+explicit loose form otherwise).
 
 `JsValue` does not carry a blanket purity assumption. An operation that can run
 user-controlled JavaScript coercion (`Symbol.toPrimitive`, `valueOf`, or
@@ -425,7 +436,8 @@ dynamic conversion is an observable evaluation point. This includes applicable
 dynamic arithmetic/equality/string conversion, dynamic indexing and property
 inspection, and `isArray()` on an unknown host value. Such an evaluation is not
 deleted merely because its result is unused, is not merged with an equal-looking
-evaluation, stays in source order, and makes a declared `pure` function invalid.
+evaluation, stays in source order, and makes a declared `pure` function invalid
+(a check that waits for M6.3; see Purity below).
 Non-coercive operations such as truthiness, `typeof`-based narrowing, and nullish
 tests remain pure when their operands need no observable access.
 
@@ -456,7 +468,7 @@ both branches. `!` swaps the branch narrowings. Guards are deliberately limited
 to runtime categories that have identical JavaScript and native semantics:
 `int`/`float` numbers, `string`, `bool`, arrays, and functions. A guard is
 rejected when another member has the same runtime category, so `int | float`
-cannot be distinguished with `is`; no backend-dependent reflection is exposed.
+cannot be distinguished with `is`; no target-dependent reflection is exposed.
 JavaScript lowers guards to `typeof` or `Array.isArray`, while native code tests
 the union tag and unboxes the narrowed member.
 For `(A | B)?`, a preceding `value != null` guard first narrows to `A | B`;
@@ -511,14 +523,12 @@ explicit `Math.imul` into ordinary multiplication. The two operations agree
 when the binary64 product is exact but can differ for large operands.
 
 Integer division truncates toward zero; division or remainder by zero produces
-`0` on every backend. These are language guarantees shared by JavaScript and
+`0` on every target. These are language guarantees shared by JavaScript and
 native output. A source-written live `value | 0` is an explicit JavaScript
 lowering obligation and remains `|0` under every objective; dead enclosing code
 may still disappear. JavaScript may drop compiler-generated, proven-redundant
-signed-i32 normalization for `size-first` and `balanced`.
-`performance-first`, `realistic-performance-first`, and
-`javascript.integer_coercions = true` keep generated normalization too.
-Overflow-capable operations still wrap. Float arithmetic follows IEEE-754 binary64 behavior.
+signed-i32 normalization; no configuration changes that (the old priorities and
+`javascript.integer_coercions` are retired). Overflow-capable operations still wrap. Float arithmetic follows IEEE-754 binary64 behavior.
 
 ## Declarations
 
@@ -562,11 +572,16 @@ export constructor InternalWidget as Widget;
 
 Only explicitly exported top-level functions, variables, structs, classes, objects, and
 externs can be imported. Imported names may be aliased with `as`. Module-private
-bindings are namespaced by the linker, so equal private names in different files
-cannot collide.
+functions, variables and structs with equal names in different files do not
+collide. **Until M4.1**, two modules' private classes or enums with the same
+name are refused ("duplicate type declaration"), because the checker still
+identifies classes and enums by name.
 
 `export constructor Name [as PublicName];` is the runtime constructor-value
-form. It preserves a named ES class, constructor arity/name/constructibility,
+form. **Until M4.1** the compiler refuses it ("direct module checking does not
+yet support nominal constructor exports"); the rest of this paragraph is the
+contract it restores. It preserves a named ES class, constructor
+arity/name/constructibility,
 prototype methods, and the public export alias. It requires a non-`object`,
 non-extern class. A zero-arity constructor is synthesized when a published base
 class omits `init`; inherited exports require explicit `init` with `super(...)`.
@@ -593,7 +608,8 @@ class VFileMessage extends Error {
 export constructor VFileMessage;
 ```
 
-This emits `class VFileMessage extends Error{…constructor(e){super(e);…}}`. A
+This emits `class VFileMessage extends Error{…constructor(e){super(e);…}}`
+(**until M4.1**, without the `export constructor` line, which is refused). A
 class with a host ancestor always stays a real named class, exported or not,
 because its instances are host objects; it is never dissolved into flat data.
 An extern class may declare its host constructor with `init(params);` at most
@@ -657,9 +673,11 @@ The dynamic expression `import("./feature")` returns a typed `Task<module>`.
 parameters receive the module namespace or a general `JsValue` rejection.
 Split builds normalize loader-created failures to objects with stable
 `specifier` and `message` fields, while user-created task rejections may carry
-any non-void JavaScript value. Lazy chunks tree-shake unreferenced namespace exports. Lazy-only modules must be
-initialization-free. Dynamic module tasks are JavaScript-only. The complete
-delivery and package contract is in `docs/modules-and-delivery.md`.
+any non-void JavaScript value. Lazy chunks tree-shake unreferenced namespace
+exports. Lazy-only modules must be initialization-free. Dynamic module tasks are
+JavaScript-only. **Until M3.3**, `preserve-modules` chunks and lazy `import()`
+chunks are not produced: the build writes no chunks. The complete delivery and
+package contract is in [modules-and-delivery.md](modules-and-delivery.md).
 
 ## Aggregates and classes
 
@@ -727,9 +745,12 @@ print(priced.total(2));
 ```
 
 A closed `object` is a singleton with ABI keys. Method bodies are ordinary
-private functions: they nest, mangle, and fold like other helpers. Keys stay
-stable unless `[mangle].exports` is enabled. Multiple files may contribute
-methods to the same exported object; the compiler owns one identity.
+private functions: they nest, mangle, and fold like other helpers. Keys are ABI
+and stay stable. Multiple files may contribute methods to the same exported
+object; the compiler owns one identity. **Until M10.10** the compiler does not
+compile `object` singletons: the checker accepts the declaration, but a use of it
+fails ("unknown identifier"). The architecture recommends deleting the feature
+in favour of module namespaces and const records; the owner decides.
 
 ```lilscript
 object Api {
@@ -753,14 +774,14 @@ chains remain separate. A derived `init` must put `super(...)` first and call it
 exactly once when the base declares a constructor. Inherited member shadowing
 and method overriding are rejected: silently static-dispatching an override
 would be unsound, while per-instance vtables would add the size and memory cost
-this representation is designed to avoid. The optimized C backend rejects
-inheritance until its subtype pointer ABI is fixed rather than emitting
-incompatible C pointer calls.
+this representation is designed to avoid. The native target compiles internal
+inheritance, including calls through a base-typed reference.
 
 Structs and classes that do not escape are eligible for scalar replacement.
 Class calls are statically devirtualized, including inherited calls. Crossing
-`extern` materializes the boundary representation. JavaScript may use SSA
-scalars, positional arrays, owned named objects, or a proof-required named class;
+`extern` materializes the boundary representation. JavaScript may use plain
+locals, positional arrays, owned named objects, or a named class where identity
+requires one;
 the declared public/host ABI constrains boundary shape. Native C uses generated
 positional value records for structs and pointer records for classes.
 
@@ -784,8 +805,9 @@ than closure captures.
 All paths of a non-`void` function must return a value.
 
 Trailing parameters can provide scalar, typed array, struct, class-construction,
-or typed arrow defaults. Omitted arguments are materialized before SSA lowering,
-so JavaScript and native calls use the same full-arity ABI. Reference defaults
+or typed arrow defaults. Omitted arguments are materialized by the checked call
+contract before any target is chosen, so JavaScript and native calls use the
+same full-arity ABI. Reference defaults
 allocate a fresh value for every omitted call:
 
 ```lilscript
@@ -822,6 +844,34 @@ Exported JavaScript functions retain declared parameters and scalar defaults in
 their public signature, preserving omitted-call behavior and `Function.length`
 across the ESM boundary.
 
+### Mutable references (`ref`)
+
+Structs are values (owner decision D1): assigning or passing one copies it.
+Mutating the caller's storage takes an explicit mutable reference, marked on
+both sides:
+
+```lilscript
+void bump(ref int value) {
+  value += 1;
+}
+
+int count = 1;
+bump(ref count);   // count is now 2
+```
+
+- The argument must be an explicit `ref` place whose type is exactly the
+  parameter's: a local or top-level variable, or a field path through
+  non-nullable, non-generic value structs rooted in one (`ref point.x`). Indexed
+  and host-backed locations and class fields are rejected.
+- A `ref` parameter has no default, cannot be captured by a closure (copy it
+  into a local first), and is rejected on constructors, `async` and generator
+  functions, and foreign callable contracts.
+- JavaScript needs a strict module frame: a program that passes a reference
+  builds with `--target js-module` and is refused as a script (`--target js`).
+  A binding exported from the root module cannot be passed by reference.
+  **Until M4.5** these two refusals come from formation, without a source span.
+- Native C supports references to the same places.
+
 Parentheses disambiguate compound callable types. For example, the following
 declares an array of callbacks rather than a callback returning an array:
 
@@ -830,7 +880,11 @@ declares an array of callbacks rather than a callback returning an array:
 ```
 
 Purity is inferred for every function by interprocedural effect analysis. The
-optional `pure` modifier turns that inference into a checked contract:
+optional `pure` modifier turns that inference into a checked contract.
+**Until M6.3** the contract is not checked: the interprocedural effect engine
+that infers purity (M6.2) is not built, so a declared `pure` is recorded and a
+function that violates it compiles. Removing unused calls to pure functions
+waits for M7.2.
 
 ```lilscript
 pure int square(int value) {
@@ -847,6 +901,22 @@ is unused can be removed when their target is inferred or declared pure.
 error. Dynamic `JsValue` coercions, proxy-sensitive operations, and operations
 that may throw through the explicit JavaScript boundary are observable effects;
 writing `pure` cannot override that analysis.
+
+An `@` attribute before a top-level declaration pins a behavior to that region
+of the program, whatever the objective would decide. The one attribute is
+`@pool`: string constants written in the declaration are admitted to the string
+pool. An unknown or repeated attribute is an error. **Until M10.11** `@pool` is
+checked but has no effect on the output.
+
+```lilscript
+@pool
+string label(int kind) {
+  if (kind == 0) {
+    return "paragraph";
+  }
+  return "heading";
+}
+```
 
 Untyped host calls must be declared explicitly:
 
@@ -927,14 +997,17 @@ same-element-type array. Strings provide UTF-16 code-unit `length`,
 `indexOf`, `lastIndexOf`, `repeat`, `toUpperCase`, `toLowerCase`, `trim`,
 `trimStart`, `trimEnd`, `search(regex)`, `slice(start, end?)`,
 `replace(regex, replacement)`, `split(separator)`, and `codePointLength()`
-(Unicode scalar count; JavaScript emits `[...s].length`). This
-matches JavaScript string indexing while native storage uses UTF-8 plus WTF-8
-for lone surrogate code units produced by `charAt`.
+(Unicode scalar count; JavaScript emits `[...s].length`). Both targets
+implement a string as UTF-16 code units: JavaScript natively, and native C as a
+length plus a `uint16_t` array. Indexing, `length`, comparison and lone
+surrogates therefore agree across targets. `print` writes UTF-8 and replaces a
+lone surrogate with U+FFFD, as Node does.
 `charCodeAt` returns `0` for an out-of-range index. `charAt` returns an empty
-string out of range, otherwise a one-code-unit string.
+string out of range, otherwise a one-code-unit string. Plan task M10.9 may change
+the out-of-range result of `charCodeAt` by owner ruling (architecture L7).
 `Regex` provides `test`, `exec`, readable flag/source metadata, and mutable
 `lastIndex`. Calls are statically checked
-and are intrinsic optimization candidates; they are not untyped JavaScript
+and are intrinsic operations; they are not untyped JavaScript
 dispatch.
 
 Non-mutating typed array, string, and `Math` operations are pure LilScript
@@ -946,7 +1019,7 @@ receiver-mutation effect, and effectful callbacks remain effectful.
 Every core typed-array view provides checked same-kind `set(source, offset =
 0)`, plus fluent `fill(value, start = 0, end = length)` and
 `copyWithin(target, start, end = length)`. Overlapping source and destination
-ranges use snapshot/memmove semantics on every backend. Cross-kind `set` is
+ranges use snapshot/memmove semantics on every target. Cross-kind `set` is
 rejected until an element-wise conversion contract is implemented.
 
 Integers provide `toString(radix = 10)` for signed output and
@@ -968,18 +1041,21 @@ String `+` accepts strings, numbers, and booleans. Template strings evaluate
 embedded expressions left to right and apply the same string conversion rules.
 
 The `print(value)` intrinsic is the portable observable-output operation used
-by examples and backend equivalence tests.
+by examples and cross-target equivalence tests.
 
 ## Compiler conformance
 
-This contract defines behavior, not a required optimization pass list. Optimized
-and optimizer-disabled paths must preserve these semantics. Backend-specific
+This contract defines behavior, not a required optimization pass list. Every
+effort level, and the formation-only lane with every optional transformation
+vetoed, must preserve these semantics. Target-specific
 representations and target contractions may differ only where this contract and
 the selected boundary permit them.
 
 The implemented pipeline is documented in
-[current architecture](knowledge/compilation/current-architecture.md). The
-Closure responsibility comparison is
-[optimization-coverage.md](optimization-coverage.md). Project-wide completion
-criteria and current state live in the [migration plan](migration/index.md) and
-[current status](current-status.md), not in the language semantics contract.
+[current architecture](knowledge/compilation/current-architecture.md), and the
+architecture it is moving to, including what the compiler learns from Closure
+ADVANCED, in [future-architecture.md](future-architecture.md). Project-wide
+completion criteria and current state live in the
+[migration plan](migration/index.md) and [current status](current-status.md),
+not in the language semantics contract. The clauses marked **Until M…** are the
+ones the compiler does not yet implement.

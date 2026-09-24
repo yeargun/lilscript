@@ -1,10 +1,10 @@
 # Differential Semantic Testing
 
-LilScript has an independent Rust reference evaluator for the typed scalar and
-control-flow core. It walks the checked AST directly and does not call CFG
-lowering, SSA optimization, constant-folding helpers, JavaScript codegen, or C
-codegen. This separation makes it an oracle for transformations shared by both
-production backends.
+LilScript has an independent Rust reference evaluator (`src/interpreter.rs`)
+for the typed scalar and control-flow core. It walks the checked AST directly
+and never calls the compiler's elaboration, Program IR, JavaScript formation,
+target rules or C writer. That separation makes it an oracle for every
+transformation the compiler makes, on both targets.
 
 The evaluator currently covers:
 
@@ -21,9 +21,12 @@ The evaluator currently covers:
 - fixed `ArrayBuffer` and `SharedArrayBuffer` storage, `Uint8Array` byte
   coercion, view metadata, copying slices, aliasing subarrays, and buffer/view
   identity;
+- open `Record<T>` values with null-prototype key order and `??` reads;
 - short-circuit evaluation and the observable `print` intrinsic.
 
 Struct/class instances, maps, sets, and host calls are rejected explicitly.
+Plan task M2.4 extends the interpreter to structs, classes, enums, generics and
+collections, feature by feature.
 They continue to be covered by the checked-in conformance matrix until their
 independent evaluator models exist. A step budget and recursion budget make a
 generated infinite program fail deterministically instead of hanging a gate.
@@ -37,53 +40,58 @@ negative and oversized shift counts, branches, bounded loops, `break`,
 `continue`, short-circuit side effects, shadowing, function calls, updates,
 array aliases, indexed mutation, push/pop, captured arrows, and all four array
 callback pipelines. Each callback appends to its receiver, checking that the
-original iteration length is respected. Every batch also includes a binary
-memory kernel covering byte coercion, indexed updates, buffer/view aliasing,
-copying slices, shared storage, and negative range indices. The complete
-generated source and oracle output remain under
-`target/differential` after each run for reproduction.
+original iteration length is respected. Every batch also starts with a fixed
+prologue of pinned regression shapes: `Record<int>` snapshot, rebind and
+captured-rebind functions, and a binary memory kernel covering byte coercion,
+indexed updates, buffer/view aliasing, copying slices, shared storage, and
+negative range indices. The complete generated source and oracle output remain
+under `target/differential` after each run for reproduction.
 
 ```sh
 cargo build --release --bins
 target/release/lilscript-differential --cases 64
+target/release/lilscript-differential --cases 64 --random-seed
 target/release/lilscript-differential \
   --cases 96 \
   --seed 0xdeadbeefcafebabe \
   --output-dir target/differential-deadbeef
 ```
 
-For one generated batch, the harness requires exact output agreement from:
+Without a seed flag the pinned seed `0x6c696c7363726970` makes the batch a
+regression corpus: the same programs every run. `--random-seed` draws a fresh
+seed, prints it before starting and repeats it on every divergence, so a failure
+replays with `--seed <printed value>`. `scripts/verify.sh` draws a fresh seed
+unless `LILSCRIPT_DIFFERENTIAL_SEED` is set.
 
-1. the checked-AST Rust evaluator;
-2. production optimized JavaScript in Node;
-3. JavaScript emitted with optional IR optimization disabled;
-4. optimized JavaScript with the parsed peephole disabled;
-5. optimizer-disabled JavaScript with the parsed peephole disabled;
-6. the native executable produced by `--target all`;
-7. the emitted C compiled independently with the configured `CC`.
+For one generated batch, the harness requires exact output agreement between
+the checked-AST reference evaluator and three JavaScript lanes of the one
+compiler, each run in Node with `--target js` and a named configuration:
 
-This four-lane JavaScript matrix means every parsed peephole rewrite is checked
-both with maximum IR optimization and without optional optimizer passes. The
-peephole-off lanes hold the remaining policy constant through exact
-`javascript.optimizations` allowlists, so a post-codegen rewrite cannot conceal
-an optimizer-specific semantic error.
+| Lane | Flags | What it checks |
+|---|---|---|
+| production | `--mode production --config lilscript.toml` | The repository's policy, which keeps `print`, with the candidate search |
+| development | `--mode development --config lilscript.toml` | The same policy without the candidate search |
+| formation-only | `--mode production --config tests/config/no-optimization.toml` | Every optional tactic vetoed and no search: formation and the mandatory work alone |
 
-Maximum mode also enables the performance-shape model, higher-order call-site
-specialization, constant-capture cloning, and native partial escape placement.
-Optimizer-disabled mode removes the optional clones, while emitted C/native
-execution exercises the conservative heap fallback. Dedicated unit tests force
-stack, region, and heap array plans, and the profile-guided ablation supplies an
-external hot-loop profile while requiring identical execution before size
-measurement.
+The formation-only lane is the optimizer-disabled baseline: a divergence that
+appears only in production points at an optional transformation, one that
+appears in all three at formation or the printer.
 
-The fixed release seed is `0x6c696c7363726970`. During implementation, that
-seed found an invalid `a--626380242` token boundary and two integer-expression
-precedence failures involving nested shifts and `|0` coercions. Widening the
-oracle to arrays also found native callback loops consuming elements appended
-during `reduce`; all array callback loops now snapshot their entry length.
-Regression tests pin these cases, and `scripts/verify.sh` runs the 64-case batch
-on every release verification. Seeds `0xdeadbeefcafebabe` and
-`0x0123456789abcdef` also pass 96 generated functions each.
+The native lanes are masked. Every generated program uses `Record<int>` (the
+prologue above), which the native target refuses until native records land;
+plan task M11.4 owns them and restores the native executable and
+independently compiled C lanes. The case runner's C lanes cover the native
+target meanwhile ([testing.md](testing.md)). Plan task M2.7 makes the generator
+type-directed, with per-target masks, and moves its pinned prologue shapes to
+`tests/cases`.
+
+During implementation, the pinned seed found an invalid `a--626380242` token
+boundary and two integer-expression precedence failures involving nested shifts
+and `|0` coercions. Widening the oracle to arrays also found native callback
+loops consuming elements appended during `reduce`; all array callback loops now
+snapshot their entry length. Regression tests pin these cases. Those findings
+were made on the compiler route deleted in plan M1; the prologue keeps their
+shapes.
 
 This gate proves agreement only over generated programs in the documented
 subset. It complements rather than replaces module, nominal aggregate,

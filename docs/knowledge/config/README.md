@@ -1,87 +1,29 @@
 # Config
 
-Compiler policy lives in `lilscript.toml`. Unknown keys and invalid numeric limits are errors (`deny_unknown_fields`). The schema dump with examples is [`docs/configuration.md`](../../configuration.md). This folder explains **layers, precedence, and how each knob changes compilation**.
+Parent: [knowledge tree](../README.md). Behavior: [compilation](../compilation/README.md).
 
-Which behaviors are actually searched vs hardcoded is the
-[decision registry](../compilation/decision-registry.md), not only this folder.
-How `priority` and `cost_model` combine: [objectives](../compilation/objectives.md).
-Root `lilscript.toml` is a **subset** of size-first tactics; omitting a name
-disables that canonical representation even when `priority = "size-first"`.
+Compiler policy lives in `lilscript.toml`. The contract is
+[configuration.md](../../configuration.md): what each key means, how per-library
+configuration splits into contract, objective, effort and permission, and which
+old keys are retired. The key-by-key reference with defaults is
+[schema.md](schema.md), generated from the source by
+`node finer/tools/config-schema.mjs` (`--check` fails on drift).
 
-Parent: [tree](../README.md). Behavior: [compilation](../compilation/README.md).
+A configuration is read in two steps. First the retired-key table: a key of the
+deleted compiler route warns "no effect in this compiler" and is removed, or
+refuses the build. Then strict reading: an unknown key or value is an error.
+`lilscript <input> --print-policy` prints the resolved policy.
 
 ## Pages
 
-### Layers
-
-- [Discovery and precedence](discovery-precedence.md)
-- [package / dependencies / lockfiles](package-dependencies.md)
-- [optimization](optimization.md) — semantic IR passes (all backends)
-
-### JavaScript policy
-
-- [`javascript.priority`](javascript-priority.md)
-- [`javascript.compression`](compression-decisions.md) — which representations are legal
-- [`javascript.optimizations`](javascript-optimizations.md) — which searches run
-- [Cost model and search budgets](cost-model.md)
-
-### ABI and shape
-
-- [mangle](mangle.md)
-- [JavaScript shape and ABI](javascript-shape-abi.md)
-- [Startup and performance](startup-performance.md)
-
-### After optimize
-
-- [bundle](bundle.md)
-- [profile](profile.md)
-- [native](native.md)
-- [lint / format](lint-format.md)
-
-### Matrices
-
-- [Tradeoff matrix](tradeoffs.md)
-- [Behavior matrix](behavior-matrix.md)
-- [Build profiles](build-profiles.md)
-
-## Two allowlists people confuse
-
-| Key | Question it answers |
+| Page | Keys |
 |---|---|
-| `javascript.compression` | May this representation exist at all? (mangling, packing, outlining, …) |
-| `javascript.optimizations` | Which alternative **searches** and post-emit analyses run? |
+| [schema.md](schema.md) | Every accepted key, its type and default; the retired-key table |
+| [`[bundle]`](bundle.md) | Delivery modes, chunk limits and deploy-cost weights |
+| [`[package]`, `[dependencies]` and lockfiles](package-dependencies.md) | Package identity, path dependencies, `lilscript.lock` |
+| [`[lint]` and `[format]`](lint-format.md) | Author constraints; no effect on emitted code |
 
-If `compression` is omitted, `javascript.priority` supplies the list. Listing a
-name opts that representation in even if the profile would leave it off.
-`compression = []` disables all contested tactics. Canonical options follow the
-listed names when the table is present. Size-first search-only spellings such as
-`indexed-char-at` still compete unless the list is empty.
-
-If `optimizations` is omitted, `optimization_level` (0–16) supplies the feature
-set. If present, it is an exact feature allowlist; the level still bounds count,
-byte, beam, structural-proposal, and terminal-codec effort.
-
-`javascript.ecmascript` and `javascript.browsers` are a third axis: they choose
-which JavaScript syntax is legal. They do not enable compression tactics or
-searches. Default `es2022` matches the historical backend.
-
-Search may turn **off** an enabled compression tactic to compare. Size-first
-search-only spellings still compete from the priority matrix when a non-empty
-`compression` list omitted the new name. Most other omitted names stay off;
-`length-to-number-elision` is registry-gated and remains off when omitted.
-
-## Mental model
-
-```
-[optimization]          → what IR rewrites are allowed (false is a hard off)
-javascript.priority     → default compression set + inline budgets + rank key
-javascript.compression  → overlay / opt-in names (optional; `[]` disables)
-javascript.optimizations / optimization_level → search dimensions
-javascript.cost_model   → what “smaller” means (raw | gzip | brotli)
-candidate_*             → compile-time budget for measuring “smaller”
-[mangle]                → highest-precedence name/pool overrides
-[bundle]                → artifact layout; does not by itself define public world
-[profile]               → optional hotness for specialization
-[native]                → C storage placement only
-[lint] / [format]       → author constraints (eager host, allocations); not codegen
-```
+The pages that explained the old route's knobs (`[optimization]` passes,
+`javascript.priority`, the compression and optimization lists as the old route
+read them, `[mangle]`, `[profile]`, `[native]`, cost model, tradeoff matrices)
+are in [history](../history/README.md#configuration).

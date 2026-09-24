@@ -54,7 +54,7 @@ JavaScript minifiers start after JavaScript has committed to object shapes,
 property strings, wrappers, dynamic calls, and erased types. LilScript can make
 different legal programs before JavaScript is spelled:
 
-- a non-escaping aggregate can disappear into SSA values;
+- a non-escaping aggregate can disappear into plain locals;
 - a private owned field can become a positional slot or codec-friendly name;
 - a constructor whose identity is unobserved can dissolve, while a public
   constructor value remains a named class;
@@ -93,9 +93,10 @@ Every contested optimization spends three resources:
 2. compile time and peak memory;
 3. runtime/startup/allocation shape.
 
-`javascript.priority` defines their order and guards. `size-first` protects the
-selected transfer metric against its retained incumbent. Other priorities may
-accept a documented size/runtime trade. More search, more choices, more knobs,
+Size comes first (owner, 2026-09-23): `size-first` is the only accepted
+`javascript.priority`, and it protects the selected transfer metric against its
+retained incumbent. Runtime is a reported lane, not a gate, until runtime
+estimators exist; compile time is a gate per phase (plan rule 3). More search, more choices, more knobs,
 or a more abstract architecture is not automatically better.
 
 ## Refusals
@@ -119,4 +120,4 @@ or a more abstract architecture is not automatically better.
 7. Does the appropriate semantic/API corpus pass before a size claim is made?
 
 Existing implementation: [current architecture](compilation/current-architecture.md).
-Future design and migration: [joint discussion](../compiler-design.md); old plans are retired.
+Architecture: [future-architecture.md](../future-architecture.md). Plan: [migration/index.md](../migration/index.md); old plans are retired.

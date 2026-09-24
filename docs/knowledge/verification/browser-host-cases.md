@@ -1,7 +1,7 @@
 # Browser and host cases
 
 Parent: [verification](README.md). Migration:
-[public compiler and fleet integration](../../migration/index.md#011-public-compiler-and-fleet-integration). Web ABI:
+[public compiler and fleet integration](../../migration/record-2026-09.md#011-public-compiler-and-fleet-integration). Web ABI:
 [`docs/web-platform.md`](../../web-platform.md).
 
 ## Harness shape

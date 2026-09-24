@@ -1,8 +1,10 @@
 # `[bundle]`
 
-Parent: [Config](README.md). Language: [modules](../language/modules-lazy.md). Algorithm: [chunk planning](../compilation/chunk-planning.md).
+Parent: [Config](README.md). Language: [modules](../language/modules-lazy.md). Contract: [configuration.md](../../configuration.md#delivery-bundle). The old route's chunk planner: [history](../history/compilation/chunk-planning.md).
 
-Separate from optimizer policy. Every mode links and optimizes the **complete** static graph first.
+Separate from optimizer policy. Every mode checks and compiles the **complete** static graph first.
+
+**Today:** `preserve-modules` chunks and lazy `import()` chunks are broken on this compiler (`chunks: []`); plan M3.3 restores them.
 
 ## Keys
 

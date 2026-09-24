@@ -1,6 +1,6 @@
 # Modules, lazy loading, progressive enhancement
 
-Parent: [Language](README.md). Related: [closed world](closed-world.md), [chunk planning](../compilation/chunk-planning.md), [delivery](../delivery/README.md). Contract: [`docs/modules-and-delivery.md`](../../modules-and-delivery.md).
+Parent: [Language](README.md). Related: [closed world](closed-world.md), [delivery](../delivery/README.md), the old route's [chunk planning](../history/compilation/chunk-planning.md). Contract: [`docs/modules-and-delivery.md`](../../modules-and-delivery.md).
 
 ## Static imports are the default because they shrink code
 
@@ -9,7 +9,7 @@ import { square } from "./math";
 export pure int area(int w, int h) { return w * h; }
 ```
 
-Static imports are **compiler inputs**. After linking, there is one SSA module. Cross-file inlining can turn `print(square(5))` into `console.log(25)`. Emitting JS `import` wrappers by default would block that.
+Static imports are **compiler inputs**. After checking, the module graph is one program. Cross-file inlining can turn `print(square(5))` into `console.log(25)`. Emitting JS `import` wrappers by default would block that.
 
 `bundle.mode = "single"` (default) keeps even `import("./feature")`’s **type** but lowers it to `Promise.resolve(namespace)` inside one artifact.
 
@@ -28,7 +28,7 @@ specialize away behavior that an eventual JavaScript importer can observe.
 
 ## Bundle modes (language-visible delivery)
 
-Whole-program optimize **first**, then partition. Config: [`[bundle]`](../config/bundle.md).
+Whole-program optimize **first**, then partition. Config: [`[bundle]`](../config/bundle.md). **Until plan M3.3**, `preserve-modules` chunks and lazy `import()` chunks are broken on this compiler (the build writes no chunks); the table states the contract M3.3 restores.
 
 | Mode | What the language/runtime sees |
 |---|---|
@@ -60,12 +60,11 @@ import extern { add as hostAdd } from "./host.ts";
 extern int hostAdd(int left, int right);
 ```
 
-LilScript emits the specifier as native ESM and type-checks the `extern`. It does not parse TypeScript. Lilpack + Vite resolve the foreign graph. Running `lilscript --target js-module` leaves those edges in the output on purpose.
+By default (`bundle.host_modules = "external"`) LilScript emits the specifier as native ESM and type-checks the `extern`; with `"auto"` or `"embed"` it carries the relative host modules with the output. It does not type-check TypeScript. Lilpack + Vite resolve the foreign graph. Running `lilscript --target js-module` leaves those edges in the output on purpose.
 
 ## Config
 
-`[bundle]`, `[bundle.cost]`, JavaScript candidate search (split skips the full
-single-file two-level optimizer/emission beam, but its narrower joint chunk/symbol
-search can score layout/name-reserve options and preserves the winner), and
-`--delegate-bundling` (Lilpack forces `bundle.mode = single` so Vite owns chunking of
-the mixed graph).
+`[bundle]`, `[bundle.cost]`, and `--delegate-bundling` (Lilpack forces
+`bundle.mode = single` so Vite owns chunking of the mixed graph). The delivery
+plan runs after the program is formed and named; chunking as a scored plan is
+the architecture's delivery-plan design (§10).

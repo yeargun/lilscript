@@ -1,194 +1,92 @@
 # Current compiler architecture
 
-Authority: source and tests. Status snapshot:
-[`docs/current-status.md`](../../current-status.md). Parent:
-[compilation](README.md). Future design: [joint discussion](../../compiler-design.md).
+Parent: [compilation](README.md). Authority: the source and its tests. Status:
+[current status](../../current-status.md). Where it is going:
+[future architecture](../../future-architecture.md) and the
+[migration plan](../../migration/index.md).
 
-This page describes implemented behavior in the 2026-08-29 checkout. It does
-not turn current limitations into design goals.
+This page describes the compiler in the checkout of 2026-09-24, after plan
+phase M1. There is one compiler. The route that preceded it (typed CFG/SSA IR,
+IR optimizer, string emitter, text peephole) was deleted in M1; its pages are in
+[history](../history/README.md). Where today's code falls short of the
+architecture, the plan task that closes the gap is named.
 
-The owner reset architecture planning on 2026-09-18. The gaps below are historical
-observations, not an approved implementation sequence. Current status is linked above.
-
-## System Shape
+## Shape
 
 ```text
-source graph + config
-  -> parse and link
-  -> semantic analysis
-  -> typed CFG/SSA lowering with operation provenance
-  -> JavaScript optimization/selection
-       configured IR incumbent
-       scored IR variants
-       emission options and scored families
-       generated-JS contraction/naming challengers
-       exact complete-artifact ranking
-  -> JavaScript artifact or chunk set
+lilscript.toml + source graph
+  -> parse                     src/lexer.rs, src/parser.rs, src/ast.rs
+  -> module discovery          src/module.rs, src/package.rs
+  -> check                     src/check.rs, src/check/        one module-graph checker
+  -> elaborate once            src/program/from_source.rs     checked syntax -> Program IR
+  -> program core              src/program/                   uses, facts, demand, families
+  -> JavaScript
+       formation               src/program/javascript*.rs     Program -> JS target tree
+       target rewrites         src/js/                        a hand-ordered chain (below)
+       naming, print, delivery src/js/
+       admission and search    src/program/artifacts.rs, search*.rs
+  -> native C                  src/program/native*.rs, artifact_native.rs
 
-lowered IR clone
-  -> native-specific optimization
-  -> C/native artifact for the portable subset
+policy: src/config.rs -> src/compilation_policy.rs (ResolvedPolicy, BudgetLedger)
+entry:  src/build.rs (compile_source, compile_path, check_source, check_path,
+        with_checked_source, with_checked_path)
 ```
 
-`src/codegen_js.rs` is a facade into the IR path; new production optimization
-belongs in typed IR, `src/codegen_ir_js.rs`, the decision registry, or the
-target-side migration layer.
+The CLI (`lilscript`), the language server (a check-only session), lint and the
+playground call `src/build.rs` directly. Lilpack, the Vite plugin and
+`lilscript-differential` run the CLI; the differential harness also runs the
+independent reference interpreter.
 
-## Contract And Objective
+## Stages
 
-`src/compilation_contract.rs` defines:
+| Stage | What it does today | Open against the architecture |
+|---|---|---|
+| Parse | Tokens, syntax, spans. Node ids exist on expressions only | Ids on identifiers, declarations and statements (M4.4) |
+| Check | Name resolution, types, definite initialization, narrowing, boundary and frame rules, `ref` places. Classes and enums are keyed by name, so two modules' private classes or enums with the same name are refused, and `export constructor` is refused | `NominalId` for every nominal kind (M4.1). `pure` is parsed and recorded but not checked (M6.3) |
+| Elaborate | Converts the checked program once into the Program IR (`from_source.rs`) and verifies it (`verify.rs`) | Class fields are lowered to name-keyed members here (M4.1); `inline for` becomes an ordinary loop and `@pool` is ignored (M10.11) |
+| Program IR | Units (module initializers, functions, closures) holding ordered operations in nested regions; values with one definition; cells for mutable storage; places; calls split into prepare and call. There is no CFG | A structural edit kernel (M5.1) |
+| Facts | Per-unit exact values, evaluation behavior and primitive domains (`facts.rs`, `raw_domains.rs`). Every user call is an unknown effect | The fact spine: call graph, effects, values, escape, fields, initialization order (M6) |
+| Demand | Whole-program liveness with an observation lattice (`demand*.rs`): the production dead-code elimination, JavaScript only | Applied as an edit, for native too (M5.1) |
+| Families | Five hand-written representation choices (record, product, helper, string, function layout), held per candidate in an `ImplementationMap` | One `Choice` interface (M9.1) |
+| Formation | Projects the demanded program onto the JavaScript target tree, then runs about 40 target rewrites in a fixed, hand-written order (`form_with_demand`), gated as one tactic, `target-compaction`. Most of today's bytes come from this chain | A scheduler (M5.3), program rules that remove operations (M7), canonical formation (M8) |
+| JavaScript target tree | One owner per node, identities for bindings, scopes, functions and regions, retained language operations until printing, no raw-text node, a verifier with edition checks | Annotation columns carrying facts to the tree (M5.2) |
+| Naming and printing | Names are allocated per scope by one of three naming styles, crossed with two literal modes; the printer renders the verified tree | Naming as a codec-judged choice (M9.5); a printer with no structural rewrites (M8.3) |
+| Delivery | Entry, chunks, imports and exports, the manifest; `host_modules` decides whether foreign JavaScript travels with the output | preserve-modules chunks and lazy `import()` chunks are broken today (M3.3) |
+| Admission and search | One admission function (`ResolvedPolicy::admit_evidence`) and exact codec scores: Brotli quality 11 / window 22, gzip level 9, raw. A bounded beam over family unions, naming plans and literal modes, under the effort level's budgets | An independent Oxc parse of every delivered file (M2.5); monotone selection and the terminal slot (M5.4) |
+| Native | A native plan chooses layout, ownership and calls; a C11 writer spells them with runtime helpers. Strings are UTF-16 code units; the floating-point ABI is pinned. The C is clean under ASan, UBSan and LSan | Refused today: `Record<T>` and JSON (M11.4), the user-facing C extern ABI (M11.3), exceptions, async, generators and regex (M11.6). Native gets no program optimization yet (M11.5) |
+| Host modules | Foreign JavaScript or TypeScript named by `import extern` is parsed by Oxc and walked as ESTree JSON (`src/host_modules.rs`) | A typed visitor producing host units (M8.4) |
 
-- `JavaScriptCompilationContract` for world, syntax target, ABI policy, unsafe
-  assumptions, and effect-removal policy;
-- `JavaScriptOptimizationObjective` for transfer metric and priority;
-- `JavaScriptAbiManifest` derived from typed IR.
+## Configuration and policy
 
-`src/compiler.rs` compares the pre-selection and selected-IR manifests. This
-prevents some optimizer drift, but it is not a complete emitted-ABI gate:
-
-- the manifest is source/IR-derived rather than extracted from final artifacts;
-- fields are not owner-qualified and ordered for every public boundary;
-- ESM live bindings, lazy/module identity, descriptors, emitted export spelling,
-  and all host interactions are not fully represented;
-- single, split, and preserve-module paths do not yet share one contract and
-  observed-artifact validation path;
-- compilation world is still coupled too closely to module output.
-
-These are active correctness boundaries. The planned design separates world,
-artifact format, and boundary roots and compares expected ABI with an observed
-artifact witness.
-
-## Typed IR And Proofs
-
-`src/ir.rs` and `src/lower.rs` retain source/generated operation origin and
-optional `NodeId`. A live source `value | 0` carries
-`PreserveJavaScriptBitOrZero`; generated integer normalization remains
-optimizable. Current provenance is function-local and broad peephole skipping is
-still used when an obligation survives, so this is a first contract, not a
-general witness system.
-
-`src/semantic.rs`, `src/optimizer.rs`, and `src/value_analysis.rs` provide
-conservative type, escape, use, range, alias, identity, and effect facts. Several
-effect and observability queries remain duplicated between optimizer and
-emitter. `EscapeState` alone is not a proof that identity is unobservable;
-transforms also inspect uses and boundaries.
-
-Implemented representation work includes:
-
-- scalar replacement with a scored `keep-object` IR alternative when admitted;
-- positional/named aggregate emission and proof-marked named classes;
-- `export constructor C [as PublicC]` distinct from type-only `export class`;
-- owner/slot identity on typed fields and optional owner-scoped property naming;
-- lexical mutable captures and scored immutable scalar snapshots;
-- expression `if`, scalar literal `match`, and ordinary `object{...}`.
-
-## Decision Registry
-
-`src/decision_registry.rs` is both a census and scheduler:
-
-- all 77 `IrJsOptions` fields are classified;
-- 48 scored emission families are named and gated;
-- scored IR variants include reversible priors and `keep-object`;
-- ABI, unsafe, and illegal fields are excluded from scored axes.
-
-This is not yet a complete declarative proof engine. Only a small subset uses the
-new `DecisionSpec` form. Phase-order/compress probes, entropy/naming work, target
-contractions, validators, and some candidate construction remain specialized in
-`src/compiler.rs`. The 77-field exhaustiveness check is based on a maintained
-list rather than a type-level generated schema.
-
-The registry should remain a compact census and recipe owner. Typed
-materializers should return a candidate plus proof witness or a rejection
-reason; a generic proof-query DSL is not required.
-
-## Search And Scoring
-
-The configured IR/emission artifact is retained. Search adds proof/config-gated
-IR variants, Cartesian seed axes, sequential emission families, naming/entropy
-alternatives, and terminal generated-JS challengers. It uses deterministic work
-budgets, family reserves, exact codec scores, startup/performance guards, and
-starvation reporting.
-
-Important limitations:
-
-- production search is a bounded portfolio, not exhaustive;
-- family order and beam retention affect which interactions are reached;
-- larger beam/limits are not guaranteed to consume a strict prefix of smaller
-  work and have measured regressions under fixed budgets;
-- current frontier diversity computes exact raw/gzip/Brotli costs for more
-  intermediate candidates than the selected metric alone requires;
-- some validation occurs only when finalists are prepared, so rejected shapes
-  can consume earlier beam work;
-- no stable serialized recipe can replay a previous compiler winner directly;
-- split planning uses a separate greedy mixed deployment-cost path and
-  preserve-modules has a narrower fixed path.
-
-Normal explain output reports best-observed search and starvation, but does not
-yet serialize every option, parent recipe, rejection, and evidence fingerprint
-needed for exact regression replay.
-
-## JavaScript Target Layer
-
-`src/codegen_ir_js.rs` emits strings with local expression metadata.
-`src/js_peephole/` tokenizes/parses generated JavaScript for binding-aware folds,
-naming, class/prototype contraction, control/loop contraction, and final
-validation. Search-on, canonical-winner, and search-off challengers are now
-scored against an incumbent.
-
-This layer has prevented real miscompiles, but semantic identity is still being
-reconstructed from generated text. The parser is targeted at compiler output,
-not a standards-complete ECMAScript frontend. It cannot prove general semantic
-equivalence, and it does not yet provide a complete target-syntax/ABI witness.
-
-The active architecture task is a narrow hygienic emission IR carrying binding,
-external/global, property, function/call, allocation, effect-order, module,
-syntax-floor, and lowering-obligation identities. The existing parser remains an
-independent final-byte checker during migration.
-
-## Boundaries And Mangling
-
-Private owned properties may be mangled or owner-scoped. Public manifest fields,
-dynamic/reflected keys, records, and host fields require exact treatment unless
-an explicit coordinated closed-world ABI owns both producer and consumer.
-
-The current `mangle.extern_fields = false` mode and trailing-underscore key
-convention predate that distinction. They are legacy closed-world mechanisms,
-not proof that an arbitrary host `extern` field is safe to rename. The planned
-architecture replaces them with typed ownership or an explicit foreign ABI map;
-ordinary host names remain exact.
+`src/config.rs` reads `lilscript.toml` in two steps: the retired-key table first
+(a key of the deleted route warns "no effect in this compiler" or refuses the
+build), then strict deserialization. `src/compilation_policy.rs` resolves the
+result, for each requested target, into one `ResolvedPolicy`: the JavaScript
+contract (`src/compilation_contract.rs`), the objective (`cost_model`), the
+effort level, each tactic's permission, and resource ceilings, with a
+fingerprint. `--print-policy` prints it. One `BudgetLedger` accounts logical work
+and retained bytes for the whole build. See
+[configuration.md](../../configuration.md).
 
 ## Verification
 
-- Rust unit/integration/all-target tests own compiler behavior.
-- The differential evaluator checks a portable semantic subset independently of
-  CFG/SSA optimization.
-- Canonical paired cases compare compiler output with independently authored JS
-  under matching raw/gzip/Brotli objectives.
-- The codec contract pins encoder behavior.
-- External library suites check scoped API/behavior boundaries.
-- Large-library evidence tooling exists but does not yet capture every current
-  artifact, explain recipe, resource metric, or deployment boundary needed for
-  the planned regression workflow.
+- `cargo test`: unit and integration tests, including the D3 clause tests.
+- The case runner (`scripts/cases.mjs`) and the port runner
+  (`scripts/ports.mjs`), each against an expected-failure ledger:
+  [testing.md](../../testing.md).
+- The reference interpreter (`src/interpreter.rs`) and
+  [differential testing](../../differential-testing.md), independent of the
+  compiler's lowering.
+- `scripts/verify.sh`: JavaScript against C on the example programs and
+  `tests/cases`, the differential batch, the LSP smoke test and the bundle
+  contract.
 
-Current counts and mixed size results live only in
-[`docs/current-status.md`](../../current-status.md).
+## What the old route had and this compiler does not yet
 
-## Primary Gaps
-
-1. Freeze expected ABI independently of artifact format and validate observed
-   final artifact/module-set ABI.
-2. Validate syntax/bindings/properties/ABI/obligations before exact scoring;
-   behavioral semantics remain test-suite evidence.
-3. Serialize complete recipes and make evidence replayable before restoring old
-   size incumbents.
-4. Consolidate candidate ownership and acceptance without inventing a universal
-   choice graph or proof DSL.
-5. Introduce the minimal hygienic target-JS representation and retire text
-   identity recovery family by family.
-6. Recover current Motion/Marked/MobX regressions, then close maintained library
-   gaps with generic proofs and measured interactions.
-7. Defer unified chunk optimization until a maintained chunk workload defines a
-   calibrated delivery objective.
-
-Replacement execution order: [single migration plan](../../migration/index.md).
-Rationale: [design decisions](../decisions/README.md).
+The plan lists each with its owner ("What M1 does not restore" in
+[migration/index.md](../../migration/index.md)). In short: the `pure` contract
+check (M6.3), removal of discarded pure calls (M7.2), typed interprocedural
+optimization (M6–M7: small closed programs still compiled smaller on the old
+route), native `Record<T>`/JSON and the C extern ABI (M11.3, M11.4), native
+stack storage (M11.5), and source maps (M8.6). Name-keyed host helpers are
+dropped by design: an `extern` means nothing by its name.

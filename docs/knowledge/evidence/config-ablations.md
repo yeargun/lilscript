@@ -1,5 +1,7 @@
 # Configuration and optimization ablations
 
+> Measured on the compiler route deleted on 2026-09-23 (plan M1); a record of that route, not a claim about the one compiler.
+
 Parent: [evidence](README.md). Config behavior:
 [config](../config/README.md). Measurement contract:
 [codec measurement](../verification/codec-measurement.md).
