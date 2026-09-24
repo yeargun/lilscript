@@ -62,7 +62,7 @@ error, not a silently ignored setting.
 | `max_chunks` | `usize` | `32` | See [configuration.md](../../configuration.md). |
 | `shared_min_imports` | `usize` | `2` | See [configuration.md](../../configuration.md). |
 | `preload` | `PreloadPolicy` | `PreloadPolicy::None` | See [configuration.md](../../configuration.md). |
-| `host_modules` | `HostModules` | `HostModules::External` | Whether relative host modules travel with the output (semantic route). |
+| `host_modules` | `HostModules` | `HostModules::External` | Whether relative host modules travel with the output. |
 | `cost` | `ChunkCostConfig` | `ChunkCostConfig::default()` | Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions. |
 
 ### `[bundle.cost]` — closed

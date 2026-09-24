@@ -1409,8 +1409,7 @@ impl BundleMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum HostModules {
-    /// Import them from their original specifiers, as the default route
-    /// does for every helper it does not recognize.
+    /// Import them from their original specifiers.
     #[default]
     External,
     /// Carry them when every one can be delivered; otherwise import them.
@@ -1506,7 +1505,7 @@ pub struct BundleConfig {
     pub max_chunks: usize,
     pub shared_min_imports: usize,
     pub preload: PreloadPolicy,
-    /// Whether relative host modules travel with the output (semantic route).
+    /// Whether relative host modules travel with the output.
     pub host_modules: HostModules,
     /// Weights that turn delivered bytes, requests and dependency depth into one bundle cost for chunking decisions.
     pub cost: ChunkCostConfig,
