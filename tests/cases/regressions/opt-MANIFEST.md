@@ -56,10 +56,10 @@ The legacy route passes the other five with `-std=gnu11` and refuses inheritance
 ## Observations
 
 - **Failing on the remaining compiler: `opt-wrapped_and_generic_dynamic_aliases_keep_nominal_object_semantics`.** This is a gap, not a wrong answer: the program is refused at compile time. It has three parts, and each is refused on its own:
-  - a struct union widened to `JsValue` (`src/semantic_program/javascript_struct_boundaries.rs:73-110`);
-  - a generic function taking a struct, which needs a complete private interface on scripts (`src/semantic_program/demand.rs:2469`);
+  - a struct union widened to `JsValue` (`src/program/javascript_struct_boundaries.rs:73-110`);
+  - a generic function taking a struct, which needs a complete private interface on scripts (`src/program/demand.rs:2469`);
   - a generic body that does not return its parameter, on modules (`demand.rs:2482`).
-- **`==` on `JsValue` differs between the routes.** The old route emits loose `==`. The remaining compiler lowers `BinaryOp::Eq` to `===` (`src/semantic_program/javascript.rs:4721`) and loosens it only between two operands of one primitive type.
+- **`==` on `JsValue` differs between the routes.** The old route emits loose `==`. The remaining compiler lowers `BinaryOp::Eq` to `===` (`src/program/javascript.rs:4721`) and loosens it only between two operands of one primitive type.
   Take `extern JsValue v;print(v=="7");` with host `v={toString(){return "7"}}`: legacy prints `true`, semantic prints `false`.
   `docs/language-v0.1.md` (the JsValue section) counts dynamic equality among the coercing operations, and the old `pure` check treated `value==0` as an observation.
   So one of the two is the language rule, and the case runner cannot decide which. The harvested `javascript_coercions…` case passes on both routes because `{eqValue:7}` is unequal to `"7"` under either rule.

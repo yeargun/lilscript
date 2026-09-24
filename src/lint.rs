@@ -7,13 +7,13 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::ast::{self, ArrowBody, ClassMember, Expr, ExprKind, ExternClassMember, Item, Stmt};
-use crate::compiler_service::{with_checked_program, CheckedProgram, ServiceError};
+use crate::build::{with_checked_program, CheckedProgram, ServiceError};
 use crate::config::{BundleMode, LintConfig, LintPreset, LintSeverity, ProjectConfig};
 use crate::lexer::{lex, TokenKind};
 use crate::module::{ModuleError, ModuleId, ModuleSet};
 use crate::primitive::{Intrinsic, ResolvedIntrinsic};
-use crate::semantic::{CheckedModules, SymbolId};
-use crate::semantic_program::{
+use crate::check::{CheckedModules, SymbolId};
+use crate::program::{
     host_call, host_receiver, AllocationKind, CallTarget, CellBinding, Operation, OperationKind,
     Place, PlaceId, Program, RegionId, UnitData, ValueId,
 };
@@ -458,7 +458,7 @@ fn lint_unused_private_symbols(
         };
         if !matches!(
             symbol.ty,
-            crate::semantic::Type::Struct(_) | crate::semantic::Type::Class(_)
+            crate::check::Type::Struct(_) | crate::check::Type::Class(_)
         ) && !type_declarations.contains(&(module, symbol.span))
             && references.get(&symbol.id).copied().unwrap_or(0) <= 1
             && !symbol.name.starts_with('_')
@@ -1057,7 +1057,7 @@ fn produced_by_pipeline_stage(data: &UnitData, value: ValueId) -> bool {
 fn class_instance(program: &Program<'_>, data: &UnitData, value: ValueId) -> bool {
     matches!(
         program.ty(data.values[value.index()].ty),
-        Some(crate::semantic::Type::Class(_) | crate::semantic::Type::ClassInstance { .. })
+        Some(crate::check::Type::Class(_) | crate::check::Type::ClassInstance { .. })
     )
 }
 

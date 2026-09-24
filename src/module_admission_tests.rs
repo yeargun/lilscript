@@ -38,7 +38,7 @@ fn ledger(work: u64, memory: u64) -> BudgetLedger {
 #[test]
 fn admitted_source_graph_matches_legacy_and_releases_exact_capacities() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/semantic_program/fixtures/modules-javascript/entry.lil");
+        .join("src/program/fixtures/modules-javascript/entry.lil");
     let config = ProjectConfig::default();
     let legacy = discover_modules_configured(&root, &config).unwrap();
     let mut ledger = ledger(1_000_000, 1_000_000);

@@ -348,10 +348,10 @@ impl ResolvedIntrinsic {
 /// semantic core. The checker and verifier share these exact defaults; a
 /// target cannot mistake a same-shaped user callable for a primitive contract.
 pub(crate) struct IntrinsicCallContract {
-    pub receiver: Option<crate::semantic::Type<'static>>,
-    pub parameters: &'static [crate::semantic::Type<'static>],
-    pub defaults: &'static [Option<crate::semantic::DefaultValue<'static>>],
-    pub result: &'static crate::semantic::Type<'static>,
+    pub receiver: Option<crate::check::Type<'static>>,
+    pub parameters: &'static [crate::check::Type<'static>],
+    pub defaults: &'static [Option<crate::check::DefaultValue<'static>>],
+    pub result: &'static crate::check::Type<'static>,
 }
 
 impl IntrinsicCallContract {
@@ -366,17 +366,17 @@ impl IntrinsicCallContract {
         arity >= self.required_params() && arity <= self.parameters.len()
     }
 
-    pub fn signature<'src>(&self) -> crate::semantic::FunctionType<'src> {
+    pub fn signature<'src>(&self) -> crate::check::FunctionType<'src> {
         // These immutable catalog slices describe Value-only primitives, not
         // an independently mutable function signature. Build the one shared
         // parameter record per slot without compatibility type/default views.
         debug_assert_eq!(self.parameters.len(), self.defaults.len());
-        crate::semantic::FunctionType::new(crate::semantic::FunctionSignature {
+        crate::check::FunctionType::new(crate::check::FunctionSignature {
             params: self
                 .parameters
                 .iter()
                 .zip(self.defaults)
-                .map(|(ty, default)| crate::semantic::FunctionParameter {
+                .map(|(ty, default)| crate::check::FunctionParameter {
                     ty: ty.clone(),
                     passing: ParameterPassing::Value,
                     default: default.clone(),
@@ -386,21 +386,21 @@ impl IntrinsicCallContract {
         })
     }
 
-    pub fn matches(&self, ty: &crate::semantic::Type<'_>) -> bool {
-        match self.matches_with(ty, &mut crate::semantic::type_relation::Unmetered) {
+    pub fn matches(&self, ty: &crate::check::Type<'_>) -> bool {
+        match self.matches_with(ty, &mut crate::check::type_relation::Unmetered) {
             Ok(matches) => matches,
             Err(never) => match never {},
         }
     }
 
-    pub(crate) fn matches_with<A: crate::semantic::type_relation::RelationAdmission>(
+    pub(crate) fn matches_with<A: crate::check::type_relation::RelationAdmission>(
         &self,
-        ty: &crate::semantic::Type<'_>,
+        ty: &crate::check::Type<'_>,
         admission: &mut A,
     ) -> Result<bool, A::Error> {
-        use crate::semantic::type_relation::{type_equal_with, RelationEvent};
+        use crate::check::type_relation::{type_equal_with, RelationEvent};
         admission.admit(RelationEvent::TypeWork(1))?;
-        let crate::semantic::Type::Function(signature) = ty else {
+        let crate::check::Type::Function(signature) = ty else {
             return Ok(false);
         };
         if signature.params.len() != self.parameters.len()
@@ -437,7 +437,7 @@ impl IntrinsicCallContract {
 pub(crate) fn intrinsic_call_contract(
     operation: ResolvedIntrinsic,
 ) -> Option<IntrinsicCallContract> {
-    use crate::semantic::{DefaultValue, Type};
+    use crate::check::{DefaultValue, Type};
     static INDEX_PARAMETERS: [Type<'static>; 1] = [Type::Int];
     static REQUIRED_SINGLE: [Option<DefaultValue<'static>>; 1] = [None];
     static SEARCH_PARAMETERS: [Type<'static>; 2] = [Type::String, Type::Int];
@@ -502,15 +502,15 @@ pub(crate) fn intrinsic_call_contract(
     })
 }
 
-/// The runtime test for `value is T`, as the legacy emitter spells it.
+/// The runtime test for `value is T`, as the old route's emitter spelled it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RuntimeTypeTest {
     TypeOf(&'static str),
     IsArray,
 }
 
-pub(crate) fn runtime_type_test(target: &crate::semantic::Type<'_>) -> Option<RuntimeTypeTest> {
-    use crate::semantic::Type;
+pub(crate) fn runtime_type_test(target: &crate::check::Type<'_>) -> Option<RuntimeTypeTest> {
+    use crate::check::Type;
     Some(match target {
         Type::Int | Type::Float => RuntimeTypeTest::TypeOf("number"),
         Type::String => RuntimeTypeTest::TypeOf("string"),
@@ -547,10 +547,10 @@ pub(crate) fn builtin_constructor(operation: Intrinsic) -> bool {
 pub(crate) fn constructor_accepts(
     operation: Intrinsic,
     count: usize,
-    first: Option<&crate::semantic::Type<'_>>,
-    result: &crate::semantic::Type<'_>,
+    first: Option<&crate::check::Type<'_>>,
+    result: &crate::check::Type<'_>,
 ) -> bool {
-    use crate::semantic::Type;
+    use crate::check::Type;
     let one = |accepts: fn(&Type<'_>) -> bool| count == 1 && first.is_some_and(accepts);
     match operation {
         Intrinsic::MapNew => count == 0 && matches!(result, Type::Map(_, _)),
@@ -577,8 +577,8 @@ pub(crate) fn constructor_accepts(
 /// `JS.*`, `Object.*`, `JSON.*`, `Task.*` and URI builtins: host operations
 /// the JavaScript target spells directly. The checker owns their arities and
 /// operand types; natively they are unsupported.
-pub(crate) fn host_builtin(builtin: crate::semantic::BuiltinCall) -> bool {
-    use crate::semantic::BuiltinCall as B;
+pub(crate) fn host_builtin(builtin: crate::check::BuiltinCall) -> bool {
+    use crate::check::BuiltinCall as B;
     !matches!(builtin, B::Print | B::MathImul | B::JsOr | B::JsAnd)
 }
 
@@ -587,14 +587,14 @@ pub(crate) fn host_builtin(builtin: crate::semantic::BuiltinCall) -> bool {
 /// missing callable metadata. Unsupported builtins have no contract here.
 pub(crate) struct BuiltinCallContract {
     pub arity: usize,
-    pub argument: Option<crate::semantic::Type<'static>>,
-    pub result: crate::semantic::Type<'static>,
+    pub argument: Option<crate::check::Type<'static>>,
+    pub result: crate::check::Type<'static>,
 }
 
 pub(crate) fn builtin_call_contract(
-    builtin: crate::semantic::BuiltinCall,
+    builtin: crate::check::BuiltinCall,
 ) -> Option<BuiltinCallContract> {
-    use crate::semantic::{BuiltinCall, Type};
+    use crate::check::{BuiltinCall, Type};
     Some(match builtin {
         BuiltinCall::Print => BuiltinCallContract {
             arity: 1,
@@ -611,10 +611,10 @@ pub(crate) fn builtin_call_contract(
 }
 
 pub(crate) fn resolve_member(
-    receiver: &crate::semantic::Type<'_>,
+    receiver: &crate::check::Type<'_>,
     property: &str,
 ) -> Option<ResolvedIntrinsic> {
-    use crate::semantic::Type;
+    use crate::check::Type;
     match (receiver, property) {
         (Type::String, "length") => Some(ResolvedIntrinsic::Property(Intrinsic::StringLength)),
         (Type::Array(_), "length") => Some(ResolvedIntrinsic::Property(Intrinsic::ArrayLength)),
@@ -634,8 +634,8 @@ pub(crate) fn resolve_member(
 
 /// Called by the constructor checker after establishing the builtin type and
 /// its argument contract. Ordinary values of these types are not construction.
-pub(crate) fn constructor_intrinsic(ty: &crate::semantic::Type<'_>) -> Option<Intrinsic> {
-    use crate::semantic::Type;
+pub(crate) fn constructor_intrinsic(ty: &crate::check::Type<'_>) -> Option<Intrinsic> {
+    use crate::check::Type;
     Some(match ty {
         Type::Map(_, _) => Intrinsic::MapNew,
         Type::Set(_) => Intrinsic::SetNew,
@@ -647,8 +647,8 @@ pub(crate) fn constructor_intrinsic(ty: &crate::semantic::Type<'_>) -> Option<In
     })
 }
 
-fn member_intrinsic(receiver: &crate::semantic::Type<'_>, property: &str) -> Option<Intrinsic> {
-    use crate::semantic::Type;
+fn member_intrinsic(receiver: &crate::check::Type<'_>, property: &str) -> Option<Intrinsic> {
+    use crate::check::Type;
     use crate::typed_array::TypedArrayKind;
     match (receiver, property) {
         (Type::TypeParameter("$js"), "truthy") => Some(Intrinsic::JsTruthy),
@@ -729,7 +729,7 @@ fn member_intrinsic(receiver: &crate::semantic::Type<'_>, property: &str) -> Opt
 #[cfg(test)]
 mod parameter_contract_tests {
     use super::*;
-    use crate::semantic::{DefaultValue, FunctionType, Type};
+    use crate::check::{DefaultValue, FunctionType, Type};
 
     #[test]
     fn primitive_signatures_retain_value_modes_defaults_and_reject_reference_substitution() {

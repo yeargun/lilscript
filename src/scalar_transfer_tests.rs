@@ -1,5 +1,5 @@
 use super::scalar_transfer::NumberFacts;
-use crate::structured_js::{Binary, Unary};
+use crate::js::{Binary, Unary};
 use std::process::Command;
 
 fn range(minimum: i64, maximum: i64) -> NumberFacts {

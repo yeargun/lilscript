@@ -178,7 +178,7 @@ for (const port of ports) {
       ms: Date.now() - started,
       errors: (build.stdout + build.stderr)
         .split("\n")
-        .filter((line) => /error|semantic compiler/i.test(line) && !/^warning/.test(line))
+        .filter((line) => /error|compiler \(/i.test(line) && !/^warning/.test(line))
         .slice(0, 10),
     }
   }

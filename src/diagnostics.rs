@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::compiler_service::ServiceError;
+use crate::build::ServiceError;
 use crate::module::ModuleError;
 use crate::parser::ParseError;
 use crate::span::Span;

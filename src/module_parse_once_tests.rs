@@ -1,9 +1,9 @@
 use super::*;
 use crate::compilation_policy::{BaselineFirstPlan, BudgetError, ResourceLimits};
 use crate::parser::admitted_arena_activity_for_test;
-use crate::semantic::with_analyzed_modules;
-use crate::semantic_program::from_checked_modules_admitted;
-use crate::semantic_program::publication::{CheckpointLimit, Compilation};
+use crate::check::with_analyzed_modules;
+use crate::program::from_checked_modules_admitted;
+use crate::program::publication::{CheckpointLimit, Compilation};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const WORK: u64 = 10_000_000;
@@ -81,7 +81,7 @@ fn discover_and_discard(
 #[test]
 fn retained_discovery_parses_each_canonical_source_once_and_preserves_checked_identity() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/semantic_program/fixtures/modules-javascript/entry.lil");
+        .join("src/program/fixtures/modules-javascript/entry.lil");
     let expected = discover_modules_configured(&root, &ProjectConfig::default()).unwrap();
     let mut ledger = ledger(WORK, MEMORY);
     let sources = StableSourceArena::new(WorkDomain::Baseline);
@@ -215,7 +215,7 @@ fn static_foreign_and_nested_dynamic_imports_share_the_original_collector() {
         assert_eq!(admitted_arena_activity_for_test().1, before.1 + 3);
         // Both checkers accept the lazy loader and agree on the order: the
         // static graph from the entry, then the module only `import()` loads.
-        let expected_order = crate::semantic::analyze_modules(&programs, &expected)
+        let expected_order = crate::check::analyze_modules(&programs, &expected)
             .unwrap()
             .initialization_order()
             .to_vec();

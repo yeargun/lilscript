@@ -9,7 +9,7 @@ use lilscript::config::{load_project_config, ProjectConfig};
 use lilscript::formatter::format_source;
 use lilscript::lexer::{lex, lex_lossless, SyntaxElement, TokenKind, TriviaKind};
 use lilscript::lint::{lint_checked, DiagnosticSeverity, LintDiagnostic};
-use lilscript::semantic::analyze;
+use lilscript::check::analyze;
 use lilscript::span::Span;
 use lilscript::{check_source, parse_source, with_checked_program, ServiceError};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, Response};
@@ -1428,7 +1428,7 @@ mod tests {
             assert_eq!(result[0]["source"], "lilscript");
             assert_eq!(
                 result[0]["message"],
-                "unsupported semantic source: suspending method conversion"
+                "unsupported source: suspending method conversion"
             );
             assert_eq!(range_text(source, &result[0]), "int load(){return 1;}");
         }

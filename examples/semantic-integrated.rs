@@ -3,12 +3,12 @@
 //! Source edits are observable changes, not claims of optimization equivalence.
 use clap::{Parser, ValueEnum};
 use lilscript::compilation_policy::{BudgetLedger, WorkDomain, WorkKind};
-use lilscript::compiler_service::{
+use lilscript::build::{
     with_checked_path, CheckedSourceSession, ServiceJavaScript, ServiceOptions, ServiceTarget,
 };
-use lilscript::semantic_program::publication::*;
-use lilscript::semantic_program::{CellBinding, CellId, Constant, OpId, OperationKind, UnitId};
-use lilscript::structured_js::selection::{Objective, Objectives};
+use lilscript::program::publication::*;
+use lilscript::program::{CellBinding, CellId, Constant, OpId, OperationKind, UnitId};
+use lilscript::js::selection::{Objective, Objectives};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt::Debug;

@@ -181,7 +181,7 @@ fn service_options(args: &Args) -> ServiceOptions {
 }
 
 fn build(args: &Args, config: &ProjectConfig, options: ServiceOptions) -> Result<(), String> {
-    let result = lilscript::compile_path_semantic(&args.input, config, options)
+    let result = lilscript::compile_path(&args.input, config, options)
         .map_err(|error| render_service_error(&error))?;
     if let Some(format) = args.explain {
         let text = match format {

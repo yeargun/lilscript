@@ -1,0 +1,7 @@
+{
+  "source": "src/program/javascript_tests.rs",
+  "sourceSha256": "d272af27fd6e542d15b39430744ce29b4086a36e2286696027d0e83466448183",
+  "test": "direct_units_match_interpreter_for_calls_recursion_and_integer_obligations",
+  "adaptation": "Extract the raw string body byte for byte; no source changes.",
+  "fixtureSha256": "02ebcd61d8758dc024bb4d9d30ac360595e5acc57722da905e1e207ba3518e8b"
+}

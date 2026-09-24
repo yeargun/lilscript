@@ -1,8 +1,8 @@
 use super::*;
 use crate::compilation_policy::{BudgetLedger, BudgetPlan, ResourceLimits, WorkDomain};
-use crate::compiler_service::{ServiceOptions, ServiceTarget, compile_source_semantic};
+use crate::build::{ServiceOptions, ServiceTarget, compile_source};
 use crate::output_budget::AllocationBudget;
-use crate::structured_js::selection::{Objective, Objectives, Plan, Style};
+use crate::js::selection::{Objective, Objectives, Plan, Style};
 use serde_json::{Value, json};
 use std::process::Command;
 use std::time::Instant;
@@ -10,7 +10,7 @@ use std::time::Instant;
 const CHILD: &str = "LILSCRIPT_PHASE_TIMING_TEST_CHILD";
 const TEST: &str = "timing::tests::semantic_phase_timing_is_observational_and_covers_refusal";
 const ANSWER: &str = "export int answer(){return 17;}";
-const VALLEY: &str = include_str!("semantic_program/fixtures/search-structural-valley/entry.lil");
+const VALLEY: &str = include_str!("program/fixtures/search-structural-valley/entry.lil");
 
 fn configuration(proposals: usize, inlining: bool) -> crate::config::ProjectConfig {
     toml::from_str(&format!(
@@ -30,7 +30,7 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
     let before = phase_counts();
     let phases_before = PHASE_BUCKETS.map(|bucket| bucket.snapshot().0);
     let started = Instant::now();
-    let compiled = compile_source_semantic(
+    let compiled = compile_source(
         source,
         &configuration(proposals, inlining),
         ServiceOptions {
@@ -100,8 +100,8 @@ fn compile_case(label: &str, source: &str, proposals: usize, inlining: bool) -> 
 }
 
 fn check_refusal_and_native() {
-    use crate::structured_js::extract::OutputError;
-    use crate::structured_js::{Expr, Literal, Module, Statement};
+    use crate::js::extract::OutputError;
+    use crate::js::{Expr, Literal, Module, Statement};
     let before = phase_counts();
     let mut invalid = Module::default();
     invalid.scopes.clear();
@@ -147,7 +147,7 @@ fn check_refusal_and_native() {
             [0; 9]
         }
     );
-    let refused = compile_source_semantic(
+    let refused = compile_source(
         ANSWER,
         &configuration(0, false),
         ServiceOptions {
@@ -157,7 +157,7 @@ fn check_refusal_and_native() {
     )
     .unwrap_err();
     assert!(refused.message.contains("native exported ABI"));
-    let native = compile_source_semantic(
+    let native = compile_source(
         "int answer(){return 17;}print(answer());",
         &configuration(0, false),
         ServiceOptions {
@@ -177,7 +177,7 @@ fn check_refusal_and_native() {
         after,
         "native does not enter JS target phases"
     );
-    let raw = compile_source_semantic(
+    let raw = compile_source(
         ANSWER,
         &configuration(0, false),
         ServiceOptions {

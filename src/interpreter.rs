@@ -11,7 +11,7 @@ use crate::ast::{
     FunctionDecl, Item, MatchPattern, Param, Program, RecordElement, Stmt, TemplatePart, TypeKind,
     UnaryOp, UpdateOp, VarDecl,
 };
-use crate::semantic::{BuiltinCall, SemanticModel, SymbolId, Type};
+use crate::check::{BuiltinCall, CheckedModule, SymbolId, Type};
 use crate::span::Span;
 use crate::typed_array::TypedArrayKind;
 
@@ -184,14 +184,14 @@ impl Default for InterpreterLimits {
 /// map/set, and class operations fail explicitly instead of approximating them.
 pub fn interpret_program<'ast, 'src>(
     program: &Program<'ast, 'src>,
-    semantics: &SemanticModel<'_, 'src>,
+    semantics: &CheckedModule<'_, 'src>,
 ) -> Result<String, InterpretError> {
     interpret_program_with_limits(program, semantics, InterpreterLimits::default())
 }
 
 pub fn interpret_program_with_limits<'ast, 'src>(
     program: &Program<'ast, 'src>,
-    semantics: &SemanticModel<'_, 'src>,
+    semantics: &CheckedModule<'_, 'src>,
     limits: InterpreterLimits,
 ) -> Result<String, InterpretError> {
     if !semantics.belongs_to(program.source_identity()) {
@@ -211,7 +211,7 @@ pub fn interpret_program_with_limits<'ast, 'src>(
 
 struct ReferenceInterpreter<'program, 'ast, 'src> {
     program: &'program Program<'ast, 'src>,
-    semantics: &'program SemanticModel<'ast, 'src>,
+    semantics: &'program CheckedModule<'ast, 'src>,
     functions: AHashMap<SymbolId, &'program FunctionDecl<'ast, 'src>>,
     globals: AHashMap<SymbolId, Value>,
     frames: Vec<AHashMap<SymbolId, BindingCell>>,
@@ -225,7 +225,7 @@ struct ReferenceInterpreter<'program, 'ast, 'src> {
 impl<'program, 'ast, 'src> ReferenceInterpreter<'program, 'ast, 'src> {
     fn new(
         program: &'program Program<'ast, 'src>,
-        semantics: &'program SemanticModel<'ast, 'src>,
+        semantics: &'program CheckedModule<'ast, 'src>,
         limits: InterpreterLimits,
     ) -> Self {
         let functions = program

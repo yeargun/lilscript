@@ -55,7 +55,7 @@ pub enum CompilationContract {
     },
 }
 
-/// The default route's split rule: a module keeps its chunk when at least
+/// The old route's split rule: a module keeps its chunk when at least
 /// `shared_min_imports` modules import it and the chunk has at least
 /// `min_chunk_bytes`; up to `max_chunks` such chunks are then added while
 /// each lowers the bundle's deploy cost.

@@ -205,11 +205,11 @@ fn same_grammar_preserves_ast_and_observed_javascript() {
         // inspection path, so equal syntax must give equal JavaScript.
         let emit = |syntax: &Program<'_, '_>| {
             let semantics = crate::analyze(syntax).unwrap();
-            crate::semantic_program::from_checked_source(syntax, &semantics)
+            crate::program::from_checked_source(syntax, &semantics)
                 .unwrap()
                 .to_javascript()
                 .unwrap()
-                .render(crate::structured_js::PrintPolicy {
+                .render(crate::js::PrintPolicy {
                     mangle_bindings: true,
                 })
                 .unwrap()
@@ -240,7 +240,7 @@ fn arena_release_preserves_other_same_ledger_owners_and_source_lifetime() {
     let arena = AdmittedArena::new(&mut ledger, WorkDomain::Baseline);
     let syntax = arena.parse(&source).unwrap();
     let semantics = crate::analyze(&syntax).unwrap();
-    let program = crate::semantic_program::from_checked_source(&syntax, &semantics).unwrap();
+    let program = crate::program::from_checked_source(&syntax, &semantics).unwrap();
     arena.with_ledger(|ledger, domain| ledger.retain(domain, 19).unwrap());
     drop(semantics);
     drop(syntax);

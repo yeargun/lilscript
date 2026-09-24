@@ -1,16 +1,18 @@
 mod arena_budget;
 pub mod ast;
+pub mod build;
+pub mod check;
 pub mod compilation_contract;
 pub mod compilation_policy;
 #[cfg(test)]
 mod compilation_policy_evidence_tests;
-pub mod compiler_service;
 pub mod compression;
-mod host_modules;
 pub mod config;
 pub mod diagnostics;
 pub mod formatter;
+mod host_modules;
 pub mod interpreter;
+pub mod js;
 pub mod js_platform;
 mod js_regex;
 mod js_string;
@@ -23,14 +25,12 @@ mod output_budget;
 pub mod package;
 pub mod parser;
 pub mod primitive;
+pub mod program;
 pub(crate) mod scalar_transfer;
 #[cfg(test)]
 mod scalar_transfer_tests;
-pub mod semantic;
-pub mod semantic_program;
 pub mod span;
 mod stable_hash;
-pub mod structured_js;
 pub mod timing;
 pub mod typed_array;
 
@@ -42,16 +42,16 @@ pub use diagnostics::{
     SourceDiagnostic, render_diagnostic, render_message_diagnostic, render_module_diagnostic,
     render_service_error,
 };
-pub use structured_js::manifest::{
+pub use js::manifest::{
     JavaScriptBundle, JavaScriptBundleFile, JavaScriptBundleManifest,
     JavaScriptBundleManifestChunk, JavaScriptBundleObjectiveManifest, ManifestFile,
     javascript_bundle,
 };
-pub use compiler_service::{
+pub use build::{
     BuildInputs, CheckedProgram, CheckedSourceSession, FinishedSourceSession, ServiceCompilation,
     ServiceError, ChunkExtension, ServiceJavaScript, ServiceJavaScriptBatch, ServiceOptions,
-    ServiceTarget, build_inputs, check_path, check_source, compile_path_semantic,
-    compile_source_semantic, with_checked_path, with_checked_program, with_checked_source,
+    ServiceTarget, build_inputs, check_path, check_source, compile_path, compile_source,
+    with_checked_path, with_checked_program, with_checked_source,
 };
 pub use interpreter::{
     InterpretError, InterpreterLimits, interpret_program, interpret_program_with_limits,
@@ -62,4 +62,4 @@ pub use lint::{
 };
 pub use module::ModuleError;
 pub use parser::{ParseError, Parser, parse_source};
-pub use semantic::{SemanticError, SemanticModel, Type, analyze};
+pub use check::{CheckError, CheckedModule, Type, analyze};

@@ -12,7 +12,7 @@
 //! https://tc39.es/ecma262/multipage/ecmascript-data-types-and-values.html#sec-numeric-types
 //! https://tc39.es/ecma262/multipage/abstract-operations.html#sec-toint32
 
-use crate::structured_js::{Binary, Unary};
+use crate::js::{Binary, Unary};
 
 const SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 const NUMBER: u8 = 1;

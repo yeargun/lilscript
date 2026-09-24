@@ -9,7 +9,7 @@ use std::thread;
 use clap::Parser;
 use lilscript::config::ProjectConfig;
 use lilscript::{
-    compile_source_semantic, render_module_diagnostic, ServiceError, ServiceOptions, ServiceTarget,
+    compile_source, render_module_diagnostic, ServiceError, ServiceOptions, ServiceTarget,
 };
 
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;
@@ -194,7 +194,7 @@ fn compile_playground(source: &str) -> Result<String, String> {
         preserve_root_exports: false,
         ..ServiceOptions::default()
     };
-    let compilation = compile_source_semantic(source, &config, options).map_err(render_error)?;
+    let compilation = compile_source(source, &config, options).map_err(render_error)?;
     compilation
         .javascript(config.javascript.cost_model)
         .map(|artifact| artifact.javascript().to_string())

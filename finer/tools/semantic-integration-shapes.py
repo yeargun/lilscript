@@ -15,7 +15,7 @@ import shutil
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_FIXTURE = ROOT / 'src/semantic_program/fixtures/integrated-architecture'
+DEFAULT_FIXTURE = ROOT / 'src/program/fixtures/integrated-architecture'
 MAX_SIZE = 8192
 JS_MODULES = {
     'entry.lil', 'editable.lil', 'products.lil', 'marked-api.lil',
