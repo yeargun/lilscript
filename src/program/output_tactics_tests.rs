@@ -15,7 +15,7 @@ const ALL: OutputTactics = OutputTactics {
     literals: LiteralOutput::Original,
     dead_code_elimination: true,
     target_compaction: true,
-    raw_structure: false,
+    families: crate::js::OutputFamilies::NONE,
 };
 const SOURCE: &str = r#"
     string unused="DROP_ONLY_MARKER"+"unused";
@@ -128,7 +128,7 @@ fn four_output_choices_preserve_closure_exception_and_public_observations() {
                     literals: LiteralOutput::Original,
                     dead_code_elimination,
                     target_compaction,
-                    raw_structure: false,
+                    families: crate::js::OutputFamilies::NONE,
                 };
                 let javascript = emit(compiler, candidate, &resolved, choices);
                 assert_eq!(
@@ -200,7 +200,7 @@ fn output_choices_preserve_host_lookup_arguments_and_integer_result_coercion() {
                         literals: LiteralOutput::Original,
                         dead_code_elimination,
                         target_compaction,
-                        raw_structure: false,
+                        families: crate::js::OutputFamilies::NONE,
                     },
                 );
                 assert_eq!(
@@ -292,7 +292,7 @@ fn output_permission_checks_do_not_fabricate_runtime_evidence_for_rank_policy() 
                     literals: LiteralOutput::Original,
                     dead_code_elimination: false,
                     target_compaction: false,
-                    raw_structure: false,
+                    families: crate::js::OutputFamilies::NONE,
                 },
             ] {
                 assert_eq!(

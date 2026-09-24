@@ -733,7 +733,11 @@ struct JavaScriptTarget<'scope, 'src> {
     literals: Vec<crate::js::LiteralAlternative>,
     #[cfg(test)]
     _test_lifetime: super::search_target_reuse_tests::TargetLifetime,
-    checkpoint: &'scope mut Checkpoint<'src>,
+    /// The candidate's checkpoint, borrowed field by field so that one
+    /// demand plan can serve several formations (the terminal stage).
+    semantic: &'scope SemanticSnapshot<'src>,
+    implementations: &'scope ImplementationMap,
+    identity: &'scope mut Option<SharedImplementationIdentity>,
     artifacts: &'scope mut ArtifactArena,
     store: RevisionId,
     candidate: CandidateId,
@@ -751,7 +755,9 @@ impl JavaScriptTarget<'_, '_> {
         let Self {
             module,
             literals,
-            checkpoint,
+            semantic,
+            implementations,
+            identity,
             artifacts,
             store,
             candidate,
@@ -797,7 +803,7 @@ impl JavaScriptTarget<'_, '_> {
                 preload,
                 ..
             } if *bundle_mode != crate::config::BundleMode::Single => {
-                let program = &checkpoint.semantic.program;
+                let program = &semantic.program;
                 let modules = program.modules();
                 let entry = program.entry_module().index();
                 // Importing modules per module, counted once per importer.
@@ -860,15 +866,15 @@ impl JavaScriptTarget<'_, '_> {
             #[cfg(test)]
             let output = super::search_target_reuse_tests::AdmittedOutputOwner::new(output);
             output.with_allocation_budget(|budget| budget.work(WorkKind::Render, 0))?;
-            let map = checkpoint.implementations.as_ref().unwrap();
+            let map: &ImplementationMap = implementations;
             // Failed preparation must not install a persistent descriptor cache.
             output.with_allocation_budget(|budget| {
                 SharedImplementationIdentity::ensure(
-                    &mut checkpoint.identity,
+                    identity,
                     Some(map),
-                    checkpoint.semantic.identity,
-                    checkpoint.semantic.meaning,
-                    &checkpoint.semantic.lineage,
+                    semantic.identity,
+                    semantic.meaning,
+                    &semantic.lineage,
                     *store,
                     budget,
                 )
@@ -877,7 +883,7 @@ impl JavaScriptTarget<'_, '_> {
                 &output,
                 artifacts,
                 *candidate,
-                checkpoint.identity.as_ref().unwrap(),
+                identity.as_ref().unwrap(),
                 map.tactics(),
                 policy,
                 policy.javascript_contract().unwrap().execution,
@@ -886,6 +892,98 @@ impl JavaScriptTarget<'_, '_> {
             .with_bundle(bundle.as_ref());
             Ok(inspect(&mut facade))
         })
+    }
+}
+
+fn formation_error(error: super::javascript::FormationError) -> CandidateError {
+    match error {
+        super::javascript::FormationError::Unsupported(error) => CandidateError::Unsupported(error),
+        super::javascript::FormationError::Budget(error) => CandidateError::Budget(error),
+        super::javascript::FormationError::Allocation(error) => error.into(),
+    }
+}
+
+/// One candidate's formations under one demand plan (the terminal stage).
+/// Each formation is transient: its target and staging storage release when
+/// `form` returns, and only artifacts retained into the arena outlive it.
+pub(super) struct Formations<'scope, 'src> {
+    module_names: &'scope [String],
+    chunk_extension: &'static str,
+    hosts: Option<&'scope crate::host_modules::HostDelivery>,
+    contract: &'scope CompilationContract,
+    semantic: &'scope SemanticSnapshot<'src>,
+    implementations: &'scope ImplementationMap,
+    identity: &'scope mut Option<SharedImplementationIdentity>,
+    /// The candidate formed up to its output families.
+    head: &'scope super::javascript::FormedHead,
+    dead_code_elimination: bool,
+    target_compaction: bool,
+    ledger: &'scope mut BudgetLedger,
+    artifacts: &'scope mut ArtifactArena,
+    store: RevisionId,
+    candidate: CandidateId,
+    policy: &'scope ResolvedPolicy,
+    domain: WorkDomain,
+}
+
+impl Formations<'_, '_> {
+    /// Form the candidate under `choices` and inspect its prepared output,
+    /// exactly as `with_javascript_output_choices_in` would.
+    pub(super) fn form<T>(
+        &mut self,
+        choices: OutputTactics,
+        inspect: impl FnOnce(&mut BudgetedJavaScriptOutput<'_, '_>) -> T,
+    ) -> Result<T, CandidateError> {
+        self.ledger.charge(self.domain, WorkKind::Analysis, 2)?;
+        choices
+            .check_policy(self.policy)
+            .map_err(|error| match error {
+                crate::compilation_policy::AdmissionError::ForbiddenTactic(tactic) => {
+                    CandidateError::ForbiddenTactic(tactic)
+                }
+                _ => unreachable!("output pass permission check does not evaluate costs"),
+            })?;
+        if choices.dead_code_elimination != self.dead_code_elimination
+            || choices.target_compaction != self.target_compaction
+        {
+            return Err(CandidateError::Artifact(
+                "a formation's head belongs to other dead-code or compaction choices",
+            ));
+        }
+        let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
+        let head = self.head.clone_in(&mut budget)?;
+        let (module, literals) =
+            super::javascript::form_tail_admitted(head, choices.families, &mut budget)
+                .map_err(formation_error)?;
+        let mut target = JavaScriptTarget {
+            module_names: self.module_names,
+            chunk_extension: self.chunk_extension,
+            hosts: self.hosts,
+            module,
+            literals,
+            #[cfg(test)]
+            _test_lifetime: super::search_target_reuse_tests::TargetLifetime::new(),
+            semantic: self.semantic,
+            implementations: self.implementations,
+            identity: &mut *self.identity,
+            artifacts: &mut *self.artifacts,
+            store: self.store,
+            candidate: self.candidate,
+            policy: self.policy,
+            choices,
+            budget,
+        };
+        target.with_output_in(self.domain, inspect)
+    }
+
+    /// The retained artifact arena and the formation contract its artifacts
+    /// are qualified against, under this stage's budget domain.
+    pub(super) fn with_arena<R>(
+        &mut self,
+        inspect: impl FnOnce(&mut ArtifactArena, &CompilationContract, &mut AllocationBudget<'_>) -> R,
+    ) -> R {
+        let mut budget = AllocationBudget::new(Some((&mut *self.ledger, self.domain)));
+        inspect(self.artifacts, self.contract, &mut budget)
     }
 }
 
@@ -2078,7 +2176,14 @@ impl<'src> Compilation<'src> {
             .as_ref()
             .ok_or(CandidateError::UnknownCandidate)?;
         let checkpoint = self.slots[index].checkpoint.as_mut().unwrap();
-        let map = checkpoint.implementations.as_ref().unwrap();
+        let Checkpoint {
+            semantic,
+            implementations,
+            identity,
+            ..
+        } = &mut **checkpoint;
+        let semantic: &SemanticSnapshot<'src> = semantic;
+        let map = implementations.as_ref().unwrap();
         // No source edits can mutate a retained snapshot. The map was already
         // validated atomically against this exact snapshot at publication.
         let demand = if choices.dead_code_elimination {
@@ -2088,23 +2193,17 @@ impl<'src> Compilation<'src> {
         };
         let mut budget = AllocationBudget::new(Some((&mut self.ledger, domain)));
         let (module, literals) = super::javascript::lower_output_admitted(
-            &checkpoint.semantic.program,
-            &checkpoint.semantic.uses,
+            &semantic.program,
+            &semantic.uses,
             map,
             target.language(),
             demand,
             choices.target_compaction,
-            choices.raw_structure,
+            choices.families,
             self.host_modules.as_ref().map(|(delivery, _)| delivery),
             &mut budget,
         )
-        .map_err(|error| match error {
-            super::javascript::FormationError::Unsupported(error) => {
-                CandidateError::Unsupported(error)
-            }
-            super::javascript::FormationError::Budget(error) => CandidateError::Budget(error),
-            super::javascript::FormationError::Allocation(error) => error.into(),
-        })?;
+        .map_err(formation_error)?;
         let mut target = JavaScriptTarget {
             module_names: self
                 .module_names
@@ -2116,7 +2215,9 @@ impl<'src> Compilation<'src> {
             literals,
             #[cfg(test)]
             _test_lifetime: super::search_target_reuse_tests::TargetLifetime::new(),
-            checkpoint,
+            semantic,
+            implementations: map,
+            identity,
             artifacts: &mut self.artifacts,
             store: self.store,
             candidate,
@@ -2125,6 +2226,138 @@ impl<'src> Compilation<'src> {
             budget,
         };
         Ok(inspect(&mut target))
+    }
+
+    /// The terminal stage's formations of one candidate (M5.4): its demand
+    /// plan is built once, before any of them, and `drive` forms the same
+    /// candidate under as many output choices as it asks for. Demand depends
+    /// on the candidate and on dead-code elimination, never on the output
+    /// families, so every formation here is the one `with_javascript_target_in`
+    /// would build for the same choices.
+    pub(super) fn with_javascript_formations_in<R>(
+        &mut self,
+        candidate: CandidateId,
+        policy: &ResolvedPolicy,
+        dead_code_elimination: bool,
+        compact: bool,
+        domain: WorkDomain,
+        drive: impl FnOnce(&mut Formations<'_, 'src>) -> R,
+    ) -> Result<R, CandidateError> {
+        let index = self.candidate_slot(candidate)?;
+        self.check_existing_javascript_contract(policy, domain)?;
+        let checkpoint = self.slots[index].checkpoint.as_ref().unwrap();
+        let map = checkpoint.implementations.as_ref().unwrap();
+        work(
+            &mut self.ledger,
+            domain,
+            checkpoint.semantic.lineage.tactics().len(),
+        )?;
+        check_semantic_policy(&checkpoint.semantic, policy)?;
+        self.ledger
+            .charge(domain, WorkKind::Analysis, map.tactics().len() as u64)?;
+        check_candidate_policy(map, policy)?;
+        let Self {
+            slots,
+            ledger,
+            artifacts,
+            store,
+            javascript,
+            module_names,
+            chunk_extension,
+            host_modules,
+            ..
+        } = self;
+        let target = javascript
+            .as_ref()
+            .ok_or(CandidateError::UnknownCandidate)?;
+        let Checkpoint {
+            semantic,
+            implementations,
+            identity,
+            ..
+        } = &mut **slots[index].checkpoint.as_mut().unwrap();
+        let semantic: &SemanticSnapshot<'src> = semantic;
+        let map = implementations.as_ref().unwrap();
+        let mode = if dead_code_elimination {
+            super::demand::DemandMode::Prune
+        } else {
+            super::demand::DemandMode::Preserve
+        };
+        let demand = super::demand::DemandPlan::build(
+            &semantic.program,
+            Some(&semantic.uses),
+            Some(map),
+            target.language(),
+            mode,
+            Some((&mut *ledger, domain)),
+        )
+        .map_err(|error| formation_error(error.into()))?;
+        let hosts = host_modules.as_ref().map(|(delivery, _)| delivery);
+        // Everything formation does before the output families, once: each
+        // challenger forms from an admitted copy of it.
+        let mut budget = AllocationBudget::new(Some((&mut *ledger, domain)));
+        let head = super::javascript::form_head_admitted(
+            &semantic.program,
+            &semantic.uses,
+            target.language(),
+            &demand,
+            compact,
+            hosts,
+            &mut budget,
+        );
+        let head = match head {
+            Ok(head) => {
+                let bytes = budget.retained_bytes(crate::output_budget::AllocationClass::Retained);
+                match budget.detach_retained(*store, bytes) {
+                    Ok(charge) => Ok((head, charge)),
+                    Err(error) => {
+                        drop(head);
+                        Err(CandidateError::from(error))
+                    }
+                }
+            }
+            Err(error) => Err(formation_error(error)),
+        };
+        drop(budget);
+        let (head, head_charge) = match head {
+            Ok(head) => head,
+            Err(error) => {
+                demand
+                    .discard(Some(ledger))
+                    .map_err(CandidateError::Budget)?;
+                return Err(error);
+            }
+        };
+        let mut formations = Formations {
+            module_names: module_names
+                .as_ref()
+                .map_or(&[][..], |(names, _)| names.as_slice()),
+            chunk_extension: *chunk_extension,
+            hosts,
+            contract: &target.contract,
+            semantic,
+            implementations: map,
+            identity,
+            head: &head,
+            dead_code_elimination,
+            target_compaction: compact,
+            ledger: &mut *ledger,
+            artifacts,
+            store: *store,
+            candidate,
+            policy,
+            domain,
+        };
+        let result = drive(&mut formations);
+        drop(formations);
+        drop(head);
+        head_charge
+            .discard(store, ledger)
+            .map_err(|(_, error)| CandidateError::from(error))?;
+        demand
+            .discard(Some(ledger))
+            .map_err(CandidateError::Budget)?;
+        Ok(result)
     }
 
     /// Borrow a retained complete artifact; the callback cannot return its borrow.

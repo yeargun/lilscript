@@ -1,0 +1,94 @@
+// The rules that remove exits run under every objective (plan M9.3):
+// same-exit merge, trailing-statement dedup and exit to `break`. Every path
+// below must print the same lines in every lane.
+int findIndex(int[] values, int wanted) {
+    int index = 0;
+    while (index < values.length) {
+        if (values[index] == wanted) {
+            print("found " + wanted);
+            return -2;
+        }
+        index = index + 1;
+    }
+    return -2;
+}
+int firstOver(int[] values, int limit) {
+    int found = -1;
+    for (int i = 0; i < values.length; i++) {
+        if (values[i] > limit) {
+            found = values[i];
+            return found;
+        }
+    }
+    return found;
+}
+string describe(int value) {
+    string text = "small";
+    if (value > 10) {
+        print("checking " + value);
+        return text + "?";
+    }
+    return text + "?";
+}
+int tally(int value) {
+    int count = value;
+    if (value % 2 == 0) {
+        count = count + 2;
+        print("even " + value);
+        count = count * 3;
+    } else {
+        count = count + 1;
+        print("odd " + value);
+        count = count * 3;
+    }
+    return count;
+}
+void announce(int value) {
+    if (value < 0) {
+        print("negative");
+        return;
+    } else {
+        print("non-negative");
+    }
+}
+int skipOdd(int[] values) {
+    int total = 0;
+    for (int i = 0; i < values.length; i++) {
+        if (values[i] % 2 == 1) {
+            print("skip " + values[i]);
+            continue;
+        } else {
+            total = total + values[i];
+        }
+    }
+    return total;
+}
+int nested(int[] values, int target) {
+    int i = 0;
+    while (i < values.length) {
+        int j = i + 1;
+        while (j < values.length) {
+            if (values[i] + values[j] == target) {
+                print("pair " + values[i] + " " + values[j]);
+                return -1;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+int[] values = [4, 9, 2, 15, 6, 11];
+print(findIndex(values, 15));
+print(findIndex(values, 3));
+print(firstOver(values, 10));
+print(firstOver(values, 20));
+print(describe(4));
+print(describe(40));
+print(tally(6));
+print(tally(7));
+announce(-3);
+announce(3);
+print(skipOdd(values));
+print(nested(values, 17));
+print(nested(values, 100));

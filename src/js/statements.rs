@@ -1,34 +1,59 @@
-//! Statements as expressions, a raw objective's choice: Terser's
-//! `conditionals`, `if_return` and `sequences`, which a leave-one-out on
-//! jquerylil's raw build ranks first (1,452, 630 and 450 bytes).
+//! Statement forms, in two sets (plan M9.3, record 013-T7.2).
+//!
+//! **Rules that remove operations** run under every objective, since they
+//! pay under every codec (architecture L3). They are Closure's
+//! PeepholeMinimizeConditions exit rules and repeated-statement removal
+//! (`closure-compiler@0da58e1 PeepholeMinimizeConditions.java:240-345, 722-777`)
+//! and the redundant-exit half of MinimizeExitPoints
+//! (`MinimizeExitPoints.java:84-94`):
+//!
+//! * same-exit merge: `if(c){A;return x}return x` is `if(c){A}return x`, and
+//!   a `return;` (a `continue`) ending a branch at a function body's (a loop
+//!   body's) end goes, since that end exits the same way;
+//! * trailing-statement dedup: `if(c){A;S}else{B;S}` is `if(c){A}else{B}S`;
+//! * exit to `break`: `while(c){…return x…}return x` is
+//!   `while(c){…break…}return x`.
+//!
+//! **Spellings** re-spell the same evaluations. Each group is a family the
+//! objective seeds and the terminal stage offers as a challenger
+//! (`StatementSpellings`): Terser's `conditionals`, `if_return` and
+//! `sequences`, which a leave-one-out on jquerylil's raw build ranks first
+//! (1,452, 630 and 450 bytes), and Closure's late MinimizeExitPoints,
+//! MinimizeConditions and StatementFusion:
 //!
 //! * `if(c){a;b}` is `c&&(a,b)`, `if(c)a;else b` is `c?a:b`, and an empty
 //!   branch negates: `if(c);else b` is `c||b`. Branches hold only expression
 //!   statements, so they declare nothing and leave nothing: evaluating the
-//!   expression runs exactly the statements' evaluations, in order.
-//! * `if(c)x=a;else x=b` is `x=c?a:b` for one binding.
+//!   expression runs exactly the statements' evaluations, in order
+//!   (logical branches).
+//! * `if(c)x=a;else x=b` is `x=c?a:b` for one binding, and
+//!   `if(c)o.k=a;else o.k=b` is `o.k=c?a:b` where reading `o` (and a key)
+//!   before the condition changes nothing (`same_store`) (conditional values).
 //! * `if(c)return a;e;return b` is `return c?a:(e,b)`, and so is an `if`
-//!   whose branches both return: the same evaluations, then the same return.
-//! * `if(c)o.k=a;else o.k=b` is `o.k=c?a:b` where reading `o` (and a key)
-//!   before the condition changes nothing (`same_store`).
-//! * `while(c){…;u}` is `for(;c;u){…}` when no `continue` skips `u`.
+//!   whose branches both return: the same evaluations, then the same return
+//!   (conditional returns).
+//! * `while(c){…;u}` is `for(;c;u){…}` when no `continue` skips `u` (loop
+//!   fusion).
 //! * `if(c){A;return}R` ending a function body, or `if(c){A;continue}R`
-//!   ending a loop body, is `if(c){A}else{R}` (`if(!c){R}` for an empty `A`).
+//!   ending a loop body, is `if(c){A}else{R}` (`if(!c){R}` for an empty `A`)
+//!   (exit points).
 //! * `if(a){if(b)S}` is `if(a&&b)S`, and conditionals with a repeated
 //!   binding or a boolean condition and branch are `&&`/`||`
-//!   (`compress_conditionals`).
+//!   (`compress_conditionals`) (logical branches).
 //!
 //! A codec matches the statement forms' repeated shapes nearly for free
-//! (Terser's compression over our Brotli output made it larger), so only a
-//! raw objective chooses these.
+//! (Terser's compression over our Brotli output made it larger), so the
+//! exact codec, not the objective, decides each group per artifact.
 use super::*;
 use crate::compilation_policy::WorkKind::Analysis;
 
 impl Module {
-    /// Rewrite statements into expressions throughout, until nothing more
-    /// applies. Returns how many rewrites.
+    /// Remove redundant exits and repeated statements throughout, and
+    /// rewrite statements into the spellings `spellings` selects, until
+    /// nothing more applies. Returns how many rewrites.
     pub(crate) fn compress_statements(
         &mut self,
+        spellings: StatementSpellings,
         budget: &mut AllocationBudget<'_>,
     ) -> Result<usize, AllocationError> {
         let mut total = 0;
@@ -46,9 +71,15 @@ impl Module {
                 if depths[region.index()].is_none_or(|depth| depth + 64 > verify::MAX_NESTING) {
                     continue;
                 }
-                changed += self.compress_region(region, &frames, &reach.captured, budget)?;
+                changed += self.minimize_exits(region, &frames, budget)?;
+                if spellings != StatementSpellings::NONE {
+                    changed +=
+                        self.compress_region(region, spellings, &frames, &reach.captured, budget)?;
+                }
             }
-            changed += self.compress_conditionals(&reach, budget)?;
+            if spellings.logical_branches {
+                changed += self.compress_conditionals(&reach, budget)?;
+            }
             total += changed;
             if changed == 0 {
                 break;
@@ -60,6 +91,7 @@ impl Module {
     fn compress_region(
         &mut self,
         region: RegionId,
+        spellings: StatementSpellings,
         frames: &Frames,
         captured: &[bool],
         budget: &mut AllocationBudget<'_>,
@@ -77,6 +109,10 @@ impl Module {
                 body,
             } = statement
             {
+                if !spellings.loop_fusion {
+                    index += 1;
+                    continue;
+                }
                 if let Some(&Statement::Evaluate(last)) =
                     self.regions[body.index()].statements.last()
                 {
@@ -101,7 +137,8 @@ impl Module {
             // `if(c){A;return}R` ending a function body is `if(c){A}else{R}`,
             // as is `if(c){A;continue}R` ending a loop body: both branches end
             // where the body does.
-            if no.is_none()
+            if spellings.exit_points
+                && no.is_none()
                 && index + 1 < self.regions[region.index()].statements.len()
                 && self.exits_at_end(region, yes, frames)
                 && self.tail_movable(region, index, budget)?
@@ -137,7 +174,7 @@ impl Module {
                 continue;
             }
             // `if(a){if(b)S}` is `if(a&&b)S`: `b` runs exactly when `a` holds.
-            if no.is_none() {
+            if spellings.logical_branches && no.is_none() {
                 if let Some(
                     &[Statement::If {
                         condition: inner,
@@ -167,9 +204,11 @@ impl Module {
                 }
             }
             // Both branches return: one return of a conditional.
-            if let (Some([Statement::Return(Some(a))]), Some([Statement::Return(Some(b))])) =
-                (self.only(yes, 1), no.and_then(|no| self.only(no, 1)))
-            {
+            if let (true, Some([Statement::Return(Some(a))]), Some([Statement::Return(Some(b))])) = (
+                spellings.conditional_returns,
+                self.only(yes, 1),
+                no.and_then(|no| self.only(no, 1)),
+            ) {
                 let (a, b) = (*a, *b);
                 self.adopt(yes, region, budget)?;
                 if let Some(no) = no {
@@ -190,7 +229,9 @@ impl Module {
                 continue;
             }
             // `if(c)return a;e…;return b`.
-            if let (Some([Statement::Return(Some(a))]), None) = (self.only(yes, 1), no) {
+            if let (true, Some([Statement::Return(Some(a))]), None) =
+                (spellings.conditional_returns, self.only(yes, 1), no)
+            {
                 let a = *a;
                 let statements = &self.regions[region.index()].statements;
                 let mut end = index + 1;
@@ -238,9 +279,10 @@ impl Module {
                 index += 1;
                 continue;
             };
+            let logical = spellings.logical_branches;
             let replacement = match (yes_values.is_empty(), no_values) {
                 (true, None) => None,
-                (false, None) => {
+                (false, None) if logical => {
                     let value = self.sequence(yes_values, budget)?;
                     Some(Expr::Binary {
                         op: Binary::And,
@@ -248,8 +290,9 @@ impl Module {
                         right: value,
                     })
                 }
+                (false, None) => None,
                 (true, Some(no_values)) if no_values.is_empty() => None,
-                (true, Some(no_values)) => {
+                (true, Some(no_values)) if logical => {
                     let value = self.sequence(no_values, budget)?;
                     Some(Expr::Binary {
                         op: Binary::Or,
@@ -257,13 +300,18 @@ impl Module {
                         right: value,
                     })
                 }
+                (true, Some(_)) => None,
                 (false, Some(no_values)) if no_values.is_empty() => {
-                    let value = self.sequence(yes_values, budget)?;
-                    Some(Expr::Binary {
-                        op: Binary::And,
-                        left: condition,
-                        right: value,
-                    })
+                    if logical {
+                        let value = self.sequence(yes_values, budget)?;
+                        Some(Expr::Binary {
+                            op: Binary::And,
+                            left: condition,
+                            right: value,
+                        })
+                    } else {
+                        None
+                    }
                 }
                 (false, Some(no_values)) => {
                     // `x=c?a:b` when each branch assigns one binding, and
@@ -275,8 +323,12 @@ impl Module {
                         },
                         _ => None,
                     };
-                    let same = match (assigned(&yes_values), assigned(&no_values)) {
-                        (Some((left, a)), Some((right, b))) => self
+                    let same = match (
+                        spellings.conditional_values,
+                        assigned(&yes_values),
+                        assigned(&no_values),
+                    ) {
+                        (true, Some((left, a)), Some((right, b))) => self
                             .same_store(
                                 left, right, condition, region, index, frames, captured, budget,
                             )?
@@ -296,7 +348,7 @@ impl Module {
                             )?;
                             Some(Expr::Assign { target, value })
                         }
-                        _ => {
+                        None if logical => {
                             let a = self.sequence(yes_values, budget)?;
                             let b = self.sequence(no_values, budget)?;
                             Some(Expr::Conditional {
@@ -305,6 +357,7 @@ impl Module {
                                 no: b,
                             })
                         }
+                        None => None,
                     }
                 }
             };
@@ -320,6 +373,481 @@ impl Module {
             index += 1;
         }
         Ok(changed)
+    }
+
+    /// The rules that remove operations, on one region: same-exit merge,
+    /// trailing-statement dedup and exit to `break` (module documentation).
+    /// Each is exact: every path runs the same evaluations in the same order,
+    /// and only a statement that a following one repeats goes. Returns how
+    /// many statements went or moved.
+    fn minimize_exits(
+        &mut self,
+        region: RegionId,
+        frames: &Frames,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let end = self.end_exit(region, frames);
+        let mut changed = 0;
+        let mut index = 0;
+        while index < self.regions[region.index()].statements.len() {
+            budget.work(Analysis, 1)?;
+            let statements = &self.regions[region.index()].statements;
+            // What runs next: the following exit statement, or the exit the
+            // region's own end takes.
+            let follow = match statements.get(index + 1) {
+                Some(next @ (Statement::Return(_) | Statement::Throw(_))) => Some(next.clone()),
+                Some(_) => None,
+                None => end.clone(),
+            };
+            match statements[index].clone() {
+                // A body's final `return;`, or a loop body's final
+                // `continue`, is where the body ends anyway.
+                exit @ (Statement::Return(None) | Statement::Continue)
+                    if index + 1 == statements.len() && end.as_ref() == Some(&exit) =>
+                {
+                    self.regions[region.index()].statements.pop();
+                    if region == self.root && index < self.root_modules.len() {
+                        self.root_modules.truncate(index);
+                    }
+                    changed += 1;
+                    continue;
+                }
+                Statement::If { yes, no, .. } => {
+                    if let Some(no) = no {
+                        changed += self.hoist_repeated(region, index, yes, no, budget)?;
+                    }
+                    // Re-read: hoisting may have emptied both branches, and
+                    // the `if` is then its condition alone.
+                    if let (Some(follow), Statement::If { yes, no, .. }) = (
+                        &follow,
+                        self.regions[region.index()].statements[index].clone(),
+                    ) {
+                        let mut stripped = self.strip_exit(yes, follow, budget)?;
+                        if let Some(no) = no {
+                            stripped += self.strip_exit(no, follow, budget)?;
+                        }
+                        if stripped != 0 {
+                            self.settle_if(region, index, budget)?;
+                            changed += stripped;
+                        }
+                    }
+                }
+                Statement::Loop { body, .. } | Statement::ForIn { body, .. } => {
+                    if let Some(follow @ (Statement::Return(_) | Statement::Throw(_))) = &follow {
+                        changed += self.exits_to_break(body, follow, budget)?;
+                    }
+                }
+                // Leaving a `for…of` closes its iterator: after a return's
+                // value, but before the value read after a `break`, and a
+                // throw's own completion wins over a failed close. Only a
+                // return of nothing or of a literal moves.
+                Statement::ForOf { body, .. } => {
+                    if let Some(follow @ Statement::Return(value)) = &follow {
+                        if value.is_none_or(|value| {
+                            matches!(self.expressions[value.index()], Expr::Literal(_))
+                        }) {
+                            changed += self.exits_to_break(body, follow, budget)?;
+                        }
+                    }
+                }
+                _ => {}
+            }
+            index += 1;
+        }
+        Ok(changed)
+    }
+
+    /// The exit statement that runs when control falls off `region`'s end
+    /// (Closure's `computeFollowNode`): `return;` for a function body,
+    /// `continue` for a loop body, and for a block or a branch of an `if`,
+    /// the exit statement right after it, or its own region's. Nothing for
+    /// the root, a `try`'s regions (a finalizer runs in between) or anything
+    /// else.
+    fn end_exit(&self, region: RegionId, frames: &Frames) -> Option<Statement> {
+        let mut region = region;
+        loop {
+            if frames.bodies[region.index()].is_some() {
+                return Some(Statement::Return(None));
+            }
+            let (parent, index) = frames.parents[region.index()]?;
+            let statements = &self.regions[parent.index()].statements;
+            match statements.get(index)? {
+                Statement::Loop { body, .. }
+                | Statement::ForIn { body, .. }
+                | Statement::ForOf { body, .. }
+                    if *body == region =>
+                {
+                    return Some(Statement::Continue);
+                }
+                Statement::Block(inner) if *inner == region => {}
+                Statement::If { yes, no, .. } if *yes == region || *no == Some(region) => {}
+                _ => return None,
+            }
+            match statements.get(index + 1) {
+                Some(next @ (Statement::Return(_) | Statement::Throw(_))) => {
+                    return Some(next.clone())
+                }
+                Some(_) => return None,
+                None => region = parent,
+            }
+        }
+    }
+
+    /// Same-exit merge: drop `exit` where it ends `region`, or ends a branch
+    /// of an `if` ending it, and so on down, since falling out of the region
+    /// reaches the same `exit` right after. Returns how many went. Iterative:
+    /// an `else if` chain nests as deep as it is long.
+    fn strip_exit(
+        &mut self,
+        region: RegionId,
+        exit: &Statement,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut stripped = 0;
+        // Each `if` whose branches were visited, in visiting order: settled
+        // in reverse, so an inner `if` settles before the one holding it.
+        let mut visited = Vec::new();
+        let mut pending = vec![region];
+        while let Some(region) = pending.pop() {
+            budget.work(Analysis, 1)?;
+            let Some(last) = self.regions[region.index()].statements.last().cloned() else {
+                continue;
+            };
+            if self.same_statement(&last, exit, budget)? {
+                self.regions[region.index()].statements.pop();
+                stripped += 1;
+                continue;
+            }
+            if let Statement::If { yes, no, .. } = last {
+                let at = self.regions[region.index()].statements.len() - 1;
+                visited.push((region, at));
+                pending.push(yes);
+                pending.extend(no);
+            }
+        }
+        if stripped != 0 {
+            for &(region, at) in visited.iter().rev() {
+                self.settle_if(region, at, budget)?;
+            }
+        }
+        Ok(stripped)
+    }
+
+    /// Trailing-statement dedup: `if(c){A;S}else{B;S}` is `if(c){A}else{B}S`
+    /// for simple statements `S` (no declaration, no nested region). `S` is
+    /// the same in both branches, so every binding it reads is declared
+    /// outside them, and it runs at the same point on either path.
+    fn hoist_repeated(
+        &mut self,
+        region: RegionId,
+        index: usize,
+        yes: RegionId,
+        no: RegionId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut moved = Vec::new();
+        loop {
+            let (Some(a), Some(b)) = (
+                self.regions[yes.index()].statements.last(),
+                self.regions[no.index()].statements.last(),
+            ) else {
+                break;
+            };
+            let (a, b) = (a.clone(), b.clone());
+            if !self.same_statement(&a, &b, budget)? {
+                break;
+            }
+            self.regions[yes.index()].statements.pop();
+            self.regions[no.index()].statements.pop();
+            moved.push(a);
+        }
+        if moved.is_empty() {
+            return Ok(0);
+        }
+        let count = moved.len();
+        moved.reverse();
+        let at = index + 1;
+        if region == self.root && index < self.root_modules.len() {
+            let module = self.root_modules[index];
+            self.root_modules
+                .splice(at..at, std::iter::repeat_n(module, count));
+        }
+        self.regions[region.index()]
+            .statements
+            .splice(at..at, moved);
+        self.settle_if(region, index, budget)?;
+        Ok(count)
+    }
+
+    /// Exit to `break`: in a loop followed by `exit`, an `exit` the loop's
+    /// body runs (outside any nested loop, function or `try`, whose
+    /// `break` or finalizer would differ) is a `break`, which reaches the
+    /// same `exit` right after the loop.
+    fn exits_to_break(
+        &mut self,
+        body: RegionId,
+        exit: &Statement,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<usize, AllocationError> {
+        let mut replaced = 0;
+        let mut regions = vec![body];
+        while let Some(region) = regions.pop() {
+            for index in 0..self.regions[region.index()].statements.len() {
+                budget.work(Analysis, 1)?;
+                let statement = self.regions[region.index()].statements[index].clone();
+                match statement {
+                    Statement::If { yes, no, .. } => {
+                        regions.push(yes);
+                        regions.extend(no);
+                    }
+                    Statement::Block(inner) => regions.push(inner),
+                    _ if self.same_statement(&statement, exit, budget)? => {
+                        self.regions[region.index()].statements[index] = Statement::Break;
+                        replaced += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(replaced)
+    }
+
+    /// An `if` left with an empty branch: `if(c){}` is `c`, `if(c){}else B`
+    /// is `if(!c)B`, and `if(c)A;else{}` is `if(c)A`. The condition still
+    /// runs exactly once.
+    fn settle_if(
+        &mut self,
+        region: RegionId,
+        index: usize,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<(), AllocationError> {
+        let Statement::If { condition, yes, no } =
+            self.regions[region.index()].statements[index].clone()
+        else {
+            return Ok(());
+        };
+        let empty =
+            |module: &Self, region: RegionId| module.regions[region.index()].statements.is_empty();
+        let no = no.filter(|&no| !empty(self, no));
+        let statement = match (empty(self, yes), no) {
+            (true, None) => Statement::Evaluate(condition),
+            (true, Some(no)) => {
+                let negated = match self.negated(condition, budget)? {
+                    Some(negated) => negated,
+                    None => self.expression_in(
+                        Expr::Unary {
+                            op: Unary::Not,
+                            value: condition,
+                        },
+                        None,
+                        budget,
+                    )?,
+                };
+                Statement::If {
+                    condition: negated,
+                    yes: no,
+                    no: None,
+                }
+            }
+            (false, no) => Statement::If { condition, yes, no },
+        };
+        self.regions[region.index()].statements[index] = statement;
+        Ok(())
+    }
+
+    /// Two simple statements that run the same evaluations: the same kind,
+    /// with structurally equal expressions.
+    fn same_statement(
+        &self,
+        left: &Statement,
+        right: &Statement,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        Ok(match (left, right) {
+            (Statement::Evaluate(a), Statement::Evaluate(b))
+            | (Statement::Throw(a), Statement::Throw(b))
+            | (Statement::Return(Some(a)), Statement::Return(Some(b))) => {
+                self.same_expression(*a, *b, budget)?
+            }
+            (Statement::Return(None), Statement::Return(None))
+            | (Statement::Break, Statement::Break)
+            | (Statement::Continue, Statement::Continue) => true,
+            _ => false,
+        })
+    }
+
+    /// Whether two expressions are the same tree: the same operations on the
+    /// same bindings and literals (numbers by bits). One that creates a
+    /// function or class, or loads a module, has its own identity and is
+    /// never the same as another.
+    pub(super) fn same_expression(
+        &self,
+        left: ExprId,
+        right: ExprId,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<bool, AllocationError> {
+        let mut pending = vec![(left, right)];
+        while let Some((left, right)) = pending.pop() {
+            budget.work(Analysis, 1)?;
+            if left == right {
+                continue;
+            }
+            let mut pairs = |a: &[ExprId], b: &[ExprId]| {
+                let same = a.len() == b.len();
+                if same {
+                    pending.extend(a.iter().copied().zip(b.iter().copied()));
+                }
+                same
+            };
+            let property =
+                |a: &Property,
+                 b: &Property,
+                 pairs: &mut dyn FnMut(&[ExprId], &[ExprId]) -> bool| match (a, b) {
+                    (Property::Named(a), Property::Named(b)) => a == b,
+                    (Property::Computed(a), Property::Computed(b)) => pairs(&[*a], &[*b]),
+                    _ => false,
+                };
+            let same = match (
+                &self.expressions[left.index()],
+                &self.expressions[right.index()],
+            ) {
+                (Expr::Literal(Literal::Number(a)), Expr::Literal(Literal::Number(b))) => {
+                    a.to_bits() == b.to_bits()
+                }
+                (Expr::Literal(a), Expr::Literal(b)) => a == b,
+                (Expr::Binding(a), Expr::Binding(b)) => a == b,
+                (Expr::Host(a), Expr::Host(b)) => a == b,
+                (Expr::This, Expr::This) => true,
+                (Expr::Regex(a), Expr::Regex(b)) => a == b,
+                (
+                    Expr::Unary { op, value },
+                    Expr::Unary {
+                        op: other,
+                        value: with,
+                    },
+                ) => op == other && pairs(&[*value], &[*with]),
+                (Expr::ToInt32(a), Expr::ToInt32(b))
+                | (Expr::IntNegate(a), Expr::IntNegate(b))
+                | (Expr::Spread(a), Expr::Spread(b))
+                | (Expr::Await(a), Expr::Await(b)) => pairs(&[*a], &[*b]),
+                (
+                    Expr::Yield { value, delegate },
+                    Expr::Yield {
+                        value: with,
+                        delegate: other,
+                    },
+                ) => delegate == other && pairs(&[*value], &[*with]),
+                (
+                    Expr::IntBinary { op, left, right },
+                    Expr::IntBinary {
+                        op: other,
+                        left: l,
+                        right: r,
+                    },
+                ) => op == other && pairs(&[*left, *right], &[*l, *r]),
+                (
+                    Expr::Binary { op, left, right },
+                    Expr::Binary {
+                        op: other,
+                        left: l,
+                        right: r,
+                    },
+                ) => op == other && pairs(&[*left, *right], &[*l, *r]),
+                (
+                    Expr::Intrinsic {
+                        operation,
+                        receiver,
+                        arguments,
+                    },
+                    Expr::Intrinsic {
+                        operation: other,
+                        receiver: r,
+                        arguments: a,
+                    },
+                ) => operation == other && pairs(&[*receiver], &[*r]) && pairs(arguments, a),
+                (
+                    Expr::ConstructIntrinsic {
+                        operation,
+                        arguments,
+                    },
+                    Expr::ConstructIntrinsic {
+                        operation: other,
+                        arguments: a,
+                    },
+                ) => operation == other && pairs(arguments, a),
+                (
+                    Expr::Member {
+                        object,
+                        property: p,
+                    },
+                    Expr::Member {
+                        object: o,
+                        property: q,
+                    },
+                ) => pairs(&[*object], &[*o]) && property(p, q, &mut pairs),
+                (
+                    Expr::Call {
+                        callee,
+                        arguments,
+                        invocation,
+                    },
+                    Expr::Call {
+                        callee: c,
+                        arguments: a,
+                        invocation: other,
+                    },
+                ) => invocation == other && pairs(&[*callee], &[*c]) && pairs(arguments, a),
+                (
+                    Expr::Construct { callee, arguments },
+                    Expr::Construct {
+                        callee: c,
+                        arguments: a,
+                    },
+                ) => pairs(&[*callee], &[*c]) && pairs(arguments, a),
+                (
+                    Expr::Conditional { condition, yes, no },
+                    Expr::Conditional {
+                        condition: c,
+                        yes: y,
+                        no: n,
+                    },
+                ) => pairs(&[*condition, *yes, *no], &[*c, *y, *n]),
+                (
+                    Expr::Assign { target, value },
+                    Expr::Assign {
+                        target: t,
+                        value: v,
+                    },
+                ) => pairs(&[*target, *value], &[*t, *v]),
+                (Expr::Sequence(a), Expr::Sequence(b)) | (Expr::Array(a), Expr::Array(b)) => {
+                    pairs(a, b)
+                }
+                (Expr::SuperCall { arguments }, Expr::SuperCall { arguments: a }) => {
+                    pairs(arguments, a)
+                }
+                (Expr::Object(a), Expr::Object(b)) => {
+                    a.len() == b.len()
+                        && a.iter().zip(b).all(|((p, x), (q, y))| {
+                            property(p, q, &mut pairs) && pairs(&[*x], &[*y])
+                        })
+                }
+                (Expr::Template(a), Expr::Template(b)) => {
+                    a.len() == b.len()
+                        && a.iter().zip(b).all(|parts| match parts {
+                            (TemplatePart::String(x), TemplatePart::String(y)) => x == y,
+                            (TemplatePart::Expression(x), TemplatePart::Expression(y)) => {
+                                pairs(&[*x], &[*y])
+                            }
+                            _ => false,
+                        })
+                }
+                _ => false,
+            };
+            if !same {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// Conditionals that say less: `x?x:y` is `x||y` and `x?y:x` is `x&&y`

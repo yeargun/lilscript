@@ -1684,3 +1684,113 @@ fn host_getters_and_key_coercion_run_in_evaluation_order() {
         }
     }
 }
+
+/// Structural equality for the exit rules: the same operations on the same
+/// bindings and literals, numbers by bits; a created function is its own.
+#[test]
+fn same_expression_compares_structure_numbers_by_bits_and_never_functions() {
+    let mut module = Module::default();
+    let region = module.root;
+    let x = binding(&mut module, region, 0, "x");
+    let mut sum = |module: &mut Module, right: f64| {
+        let left = expr(module, Expr::Binding(x));
+        let right = number(module, right);
+        expr(
+            module,
+            Expr::Binary {
+                op: Binary::Add,
+                left,
+                right,
+            },
+        )
+    };
+    let (a, b, c) = (
+        sum(&mut module, 1.0),
+        sum(&mut module, 1.0),
+        sum(&mut module, 2.0),
+    );
+    let (zero, negative_zero) = (number(&mut module, 0.0), number(&mut module, -0.0));
+    let (nan, other_nan) = (number(&mut module, f64::NAN), number(&mut module, f64::NAN));
+    let body = module.region(module.regions[0].scope);
+    module.functions.push(Function {
+        name: FunctionName::Unobserved,
+        strict: false,
+        length: None,
+        suspension: crate::js::Suspension::None,
+        arrow: true,
+        parameters: vec![],
+        body,
+    });
+    let first = expr(&mut module, Expr::Function(FunctionId::new(0)));
+    let second = expr(&mut module, Expr::Function(FunctionId::new(0)));
+    let mut budget = AllocationBudget::new(None);
+    let mut same = |left, right| module.same_expression(left, right, &mut budget).unwrap();
+    assert!(same(a, b));
+    assert!(!same(a, c));
+    assert!(!same(zero, negative_zero));
+    assert!(same(nan, other_nan));
+    assert!(!same(first, second));
+}
+
+/// Exit to `break` in a `for…of`: leaving it closes the iterator, after a
+/// return's value is evaluated but before the value read after a `break`,
+/// so only a return of nothing or of a literal becomes a `break`.
+#[test]
+fn a_for_of_exit_becomes_a_break_only_when_it_evaluates_nothing() {
+    for literal in [true, false] {
+        let mut module = Module::default();
+        let body = module.region(module.regions[0].scope);
+        let loop_body = module.region(module.regions[body.index()].scope);
+        let yes = module.region(module.regions[loop_body.index()].scope);
+        let item = binding(&mut module, loop_body, 0, "item");
+        let value = |module: &mut Module| {
+            if literal {
+                number(module, 7.0)
+            } else {
+                host(module, "value")
+            }
+        };
+        let inner = value(&mut module);
+        module.regions[yes.index()]
+            .statements
+            .push(Statement::Return(Some(inner)));
+        let condition = expr(&mut module, Expr::Binding(item));
+        module.regions[loop_body.index()]
+            .statements
+            .push(Statement::If {
+                condition,
+                yes,
+                no: None,
+            });
+        let iterable = host(&mut module, "values");
+        module.regions[body.index()]
+            .statements
+            .push(Statement::ForOf {
+                binding: item,
+                iterable,
+                body: loop_body,
+            });
+        let after = value(&mut module);
+        module.regions[body.index()]
+            .statements
+            .push(Statement::Return(Some(after)));
+        module.functions.push(Function {
+            name: FunctionName::Unobserved,
+            strict: false,
+            length: None,
+            suspension: crate::js::Suspension::None,
+            arrow: true,
+            parameters: vec![],
+            body,
+        });
+        let function = expr(&mut module, Expr::Function(FunctionId::new(0)));
+        module.regions[0]
+            .statements
+            .push(Statement::Evaluate(function));
+        module
+            .compress_statements(StatementSpellings::NONE, &mut AllocationBudget::new(None))
+            .unwrap();
+        let exit = &module.regions[yes.index()].statements[0];
+        assert_eq!(matches!(exit, Statement::Break), literal, "{exit:?}");
+    }
+}

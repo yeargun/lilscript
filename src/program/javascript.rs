@@ -355,13 +355,15 @@ pub(super) fn lower_admitted(
         contract,
         mode,
         compact,
-        false,
+        // The canonical families: what a codec objective seeds.
+        js::OutputFamilies::seed(js::selection::Objective::Brotli),
         None,
         budget,
     )
 }
 
-/// `lower_admitted` with the output's raw-structure choice and host modules.
+/// `lower_admitted` with the output's families and host modules.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn lower_output_admitted(
     program: &Program<'_>,
     uses: &UseIndex,
@@ -369,7 +371,7 @@ pub(super) fn lower_output_admitted(
     contract: &JavaScriptCompilationContract,
     mode: DemandMode,
     compact: bool,
-    raw_structure: bool,
+    families: js::OutputFamilies,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
@@ -390,7 +392,7 @@ pub(super) fn lower_output_admitted(
         contract,
         &demand,
         compact,
-        raw_structure,
+        families,
         hosts,
         &mut phase,
     );
@@ -434,7 +436,7 @@ fn form(
         contract,
         &demand,
         false,
-        false,
+        js::OutputFamilies::NONE,
         None,
         &mut AllocationBudget::new(None),
     );
@@ -450,17 +452,103 @@ fn form(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn form_with_demand(
     program: &Program<'_>,
     uses: Option<&UseIndex>,
     contract: &JavaScriptCompilationContract,
     demand: &DemandPlan<'_, '_>,
     compact: bool,
-    raw_structure: bool,
+    families: js::OutputFamilies,
     hosts: Option<&crate::host_modules::HostDelivery>,
     budget: &mut AllocationBudget<'_>,
 ) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
     let _timing = crate::timing::JS_FORMATION.scope(0);
+    let head = form_head(program, uses, contract, demand, compact, hosts, budget)?;
+    form_tail(head, families, budget)
+}
+
+/// A formed tree before its output families: everything formation does that
+/// no family changes. The terminal stage forms it once per candidate and
+/// runs `form_tail` on a copy for each challenger.
+pub(super) struct FormedHead {
+    module: js::Module,
+    literals: Vec<js::LiteralAlternative>,
+    /// The contract facts the family tail reads; absent without target
+    /// compaction, which runs no tail.
+    tail: Option<TailContext>,
+}
+
+#[derive(Clone, Copy)]
+struct TailContext {
+    strict: bool,
+    pristine: bool,
+    prunes: bool,
+    numeric_lengths: bool,
+    year: u16,
+}
+
+impl FormedHead {
+    /// An admitted copy, charged like the formation that built the original.
+    pub(super) fn clone_in(
+        &self,
+        budget: &mut AllocationBudget<'_>,
+    ) -> Result<Self, AllocationError> {
+        let module = self.module.clone_in(budget)?;
+        let mut literals = budget.vector(AllocationClass::Retained, self.literals.len())?;
+        literals.extend_from_slice(&self.literals);
+        Ok(Self {
+            module,
+            literals,
+            tail: self.tail,
+        })
+    }
+}
+
+/// Form the head from an existing demand plan: the terminal stage forms one
+/// candidate under several families and builds its demand and head once.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn form_head_admitted(
+    program: &Program<'_>,
+    uses: &UseIndex,
+    contract: &JavaScriptCompilationContract,
+    demand: &DemandPlan<'_, '_>,
+    compact: bool,
+    hosts: Option<&crate::host_modules::HostDelivery>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<FormedHead, FormationError> {
+    let _timing = crate::timing::JS_FORMATION.scope(0);
+    form_head(
+        program,
+        Some(uses),
+        contract,
+        demand,
+        compact,
+        hosts,
+        budget,
+    )
+}
+
+/// Apply the output families to a formed head.
+pub(super) fn form_tail_admitted(
+    head: FormedHead,
+    families: js::OutputFamilies,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+    let _timing = crate::timing::JS_FORMATION.scope(0);
+    form_tail(head, families, budget)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn form_head(
+    program: &Program<'_>,
+    uses: Option<&UseIndex>,
+    contract: &JavaScriptCompilationContract,
+    demand: &DemandPlan<'_, '_>,
+    compact: bool,
+    hosts: Option<&crate::host_modules::HostDelivery>,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<FormedHead, FormationError> {
     let mut phase = budget.scope();
     let struct_plan = structs::plan(program, contract, &mut phase)?;
     let reference_plan = references::Plan::new();
@@ -492,9 +580,6 @@ fn form_with_demand(
     module.pristine_builtins = contract.assumptions.pristine_builtins;
     module.pure_property_reads = contract.assumptions.pure_property_reads;
     module.unconstructed_callbacks = contract.assumptions.unconstructed_callbacks;
-    // `for(let i=0;…)`: never larger in Brotli on the reference ports
-    // (katexlil −33). `&&`/`||` statements stay off: they lost on three.
-    module.loop_head_declarations = compact;
     let mut formation = Formation {
         program,
         uses,
@@ -640,6 +725,7 @@ fn form_with_demand(
     }
     // One-use forwarding: a checked target edit on the finished tree, part
     // of target compaction.
+    let mut tail = None;
     if formation.compact {
         let pristine = formation.contract.assumptions.pristine_builtins;
         // Removing an unused declaration or a bare inert statement is dead-code
@@ -858,60 +944,173 @@ fn form_with_demand(
                 return Err(error.into());
             }
         }
+        // Calls through the host's call machinery that name plain calls:
+        // `x.m.call(x,…)`, and receiver adapters of lambdas that ignore
+        // their receiver.
+        if let Err(error) = formation
+            .module
+            .self_method_calls(formation.budget)
+            .and_then(|_| {
+                formation
+                    .module
+                    .dissolve_receiver_adapters(formation.budget)
+            })
+        {
+            drop(formation);
+            return Err(error.into());
+        }
+        tail = Some(TailContext {
+            strict,
+            pristine,
+            prunes,
+            numeric_lengths,
+            year,
+        });
+    }
+    let Formation {
+        module,
+        literal_alternatives,
+        contexts,
+        entry_depths,
+        records,
+        struct_plan,
+        reference_plan,
+        ..
+    } = formation;
+    drop(contexts);
+    drop(entry_depths);
+    drop(records);
+    drop(struct_plan);
+    drop(reference_plan);
+    phase.finish_retained()?;
+    Ok(FormedHead {
+        module,
+        literals: literal_alternatives,
+        tail,
+    })
+}
+
+/// The output families on a formed head: block inlining, flat blocks, the
+/// statement rules and spellings, and the late passes that follow them, then
+/// string pooling; and the print decisions, written onto the tree (live-16):
+/// the printer renders what this artifact chose, and nothing else.
+fn form_tail(
+    head: FormedHead,
+    families: js::OutputFamilies,
+    budget: &mut AllocationBudget<'_>,
+) -> Result<(js::Module, Vec<js::LiteralAlternative>), FormationError> {
+    let FormedHead {
+        mut module,
+        mut literals,
+        tail,
+    } = head;
+    let Some(TailContext {
+        strict,
+        pristine,
+        prunes,
+        numeric_lengths,
+        year,
+    }) = tail
+    else {
+        module.loop_head_declarations = false;
+        module.logical_statements = false;
+        return Ok((module, literals));
+    };
+    module.loop_head_declarations = families.loop_heads;
+    module.logical_statements = families.logical_statements;
+    // The tail edits storage the head admitted, and can release it: it runs
+    // in the scope that owns the head's charges.
+    let mut formation = Tail {
+        module: &mut module,
+        literal_alternatives: &mut literals,
+        budget,
+    };
+    let result = formation.run(families, strict, pristine, prunes, numeric_lengths, year);
+    drop(formation);
+    match result {
+        Ok(()) => Ok((module, literals)),
+        Err(error) => {
+            drop(module);
+            drop(literals);
+            Err(error.into())
+        }
+    }
+}
+
+/// The tree and its literal alternatives while the family tail edits them.
+struct Tail<'a, 'b> {
+    module: &'a mut js::Module,
+    literal_alternatives: &'a mut Vec<js::LiteralAlternative>,
+    budget: &'a mut AllocationBudget<'b>,
+}
+
+impl Tail<'_, '_> {
+    #[allow(clippy::too_many_arguments)]
+    fn run(
+        &mut self,
+        families: js::OutputFamilies,
+        strict: bool,
+        pristine: bool,
+        prunes: bool,
+        numeric_lengths: bool,
+        year: u16,
+    ) -> Result<(), AllocationError> {
+        let formation = self;
         let edited = Ok::<_, AllocationError>(()).and_then(|()| {
-            // Calls through the host's call machinery that name plain calls:
-            // `x.m.call(x,…)`, and receiver adapters of lambdas that ignore
-            // their receiver.
-            formation.module.self_method_calls(formation.budget)?;
-            formation
-                .module
-                .dissolve_receiver_adapters(formation.budget)?;
-            if raw_structure {
-                // Functions with one call, as statements, take its place;
-                // their parameters are then copies to forward.
-                if formation
+            // Functions with one call, as statements, take its place;
+            // their parameters are then copies to forward.
+            if families.block_inlining
+                && formation
                     .module
                     .inline_single_calls(strict, formation.budget)?
                     != 0
-                {
-                    formation.module.eliminate_aliases(formation.budget)?;
-                    if let (_, Some(map)) =
-                        formation.module.forward_single_uses(formation.budget)?
-                    {
-                        remap_alternatives(&mut formation.literal_alternatives, &map);
-                    }
+            {
+                formation.module.eliminate_aliases(formation.budget)?;
+                if let (_, Some(map)) = formation.module.forward_single_uses(formation.budget)? {
+                    remap_alternatives(formation.literal_alternatives, &map);
                 }
+            }
+            if families.flat_blocks {
                 formation.module.flatten_blocks(formation.budget)?;
-                if formation.module.compress_statements(formation.budget)? != 0 {
-                    // A store of a conditional is a store the fold can take.
-                    if pristine {
-                        fold_stores(
-                            &mut formation.module,
-                            &mut formation.literal_alternatives,
-                            formation.budget,
-                        )?;
-                    }
-                    // Conditionals built from statements meet the operator
-                    // rules for the first time (`x===void 0?null:x`).
-                    let protected: Vec<js::ExprId> = formation
-                        .literal_alternatives
-                        .iter()
-                        .map(|alternative| alternative.expression())
-                        .collect();
-                    formation.module.simplify_operators(
-                        numeric_lengths,
-                        year,
-                        &protected,
+            }
+            // Redundant exits and repeated statements go under every
+            // objective; the statement spellings are this artifact's choice.
+            // Only spelled statements make new conditionals and stores for
+            // the folds below.
+            if formation
+                .module
+                .compress_statements(families.statements, formation.budget)?
+                != 0
+                && families.statements != js::StatementSpellings::NONE
+            {
+                // A store of a conditional is a store the fold can take.
+                if pristine {
+                    fold_stores(
+                        formation.module,
+                        formation.literal_alternatives,
                         formation.budget,
                     )?;
                 }
+                // Conditionals built from statements meet the operator
+                // rules for the first time (`x===void 0?null:x`).
+                let protected: Vec<js::ExprId> = formation
+                    .literal_alternatives
+                    .iter()
+                    .map(|alternative| alternative.expression())
+                    .collect();
+                formation.module.simplify_operators(
+                    numeric_lengths,
+                    year,
+                    &protected,
+                    formation.budget,
+                )?;
             }
             // A function left with one call is created there.
             if let (_, Some(map)) = formation
                 .module
                 .place_single_calls(strict, formation.budget)?
             {
-                remap_alternatives(&mut formation.literal_alternatives, &map);
+                remap_alternatives(formation.literal_alternatives, &map);
             }
             // Initializer stores the construction literal already holds.
             formation
@@ -937,7 +1136,7 @@ fn form_with_demand(
             // array methods on bindings that only hold arrays.
             formation.module.truthy_null_tests(formation.budget)?;
             if let (_, Some(map)) = formation.module.array_receiver_calls(formation.budget)? {
-                remap_alternatives(&mut formation.literal_alternatives, &map);
+                remap_alternatives(formation.literal_alternatives, &map);
             }
             // Large constant string tables as data: front-coded keys and
             // joined values, decoded once where the literal stood.
@@ -956,7 +1155,7 @@ fn form_with_demand(
         // Repeated strings last, once no other edit reads a literal: packed
         // arrays, then root constants.
         let edited = edited.and_then(|_| {
-            if !raw_structure {
+            if !families.string_pooling {
                 return Ok(0);
             }
             let protected: Vec<js::ExprId> = formation
@@ -982,28 +1181,9 @@ fn form_with_demand(
                 .collect();
             formation.module.pool_strings(&protected, formation.budget)
         });
-        if let Err(error) = edited {
-            drop(formation);
-            return Err(error.into());
-        }
+
+        edited.map(|_| ())
     }
-    let Formation {
-        module,
-        literal_alternatives,
-        contexts,
-        entry_depths,
-        records,
-        struct_plan,
-        reference_plan,
-        ..
-    } = formation;
-    drop(contexts);
-    drop(entry_depths);
-    drop(records);
-    drop(struct_plan);
-    drop(reference_plan);
-    phase.finish_retained()?;
-    Ok((module, literal_alternatives))
 }
 
 /// The value class a cell of this source type always holds, if any.

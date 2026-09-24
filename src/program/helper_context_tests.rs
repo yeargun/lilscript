@@ -184,6 +184,7 @@ fn check_shared_body(text: &str, selections: &[&[&str]], expected: &str) {
             tactics.target_compaction = compact;
             if !compact {
                 tactics.literals = LiteralOutput::Original;
+                tactics.families = crate::js::OutputFamilies::NONE;
             }
             compilation.with_javascript_output_choices_in(candidate, &policy, tactics, WorkDomain::Optional, |output| {
                 for style in [Style::Source, Style::Global, Style::Scoped] {
