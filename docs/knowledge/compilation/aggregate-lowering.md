@@ -1,5 +1,7 @@
 # Aggregate lowering and scalar replacement
 
+> **Old compiler.** This page describes the old route, whose sources (`src/optimizer.rs`, `src/codegen_ir_js.rs`, `src/lower.rs`, `src/ir.rs` and the rest) were deleted in plan M1.6. They remain in git history before the deletion commit; plan M1.7 rewrites or retires this page.
+
 Parent: [compilation](README.md). Language model:
 [aggregates](../language/aggregates.md). Source anchors: aggregate/field IR in
 `src/ir.rs`, escape and scalar replacement in `src/optimizer.rs`, layout options in
@@ -84,5 +86,5 @@ projected IR would be unsound: ambient `Object.prototype`, an inherited `toJSON`
 a missing-key read can distinguish `{}` from a null-prototype record. Enabling
 ordinary backing requires carrying a pre-projection proof as provenance; until then,
 every surviving record uses the contract-preserving null-prototype spelling. See
-[`src/compiler.rs`](../../../src/compiler.rs) and
-[`src/optimizer.rs`](../../../src/optimizer.rs).
+`src/compiler.rs` and
+`src/optimizer.rs`.

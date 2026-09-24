@@ -1,8 +1,10 @@
 # IR optimizer
 
+> **Old compiler.** This page describes the old route, whose sources (`src/optimizer.rs`, `src/codegen_ir_js.rs`, `src/lower.rs`, `src/ir.rs` and the rest) were deleted in plan M1.6. They remain in git history before the deletion commit; plan M1.7 rewrites or retires this page.
+
 Parent: [Compilation](README.md). Sources:
-[`src/optimizer.rs`](../../../src/optimizer.rs),
-[`src/value_analysis.rs`](../../../src/value_analysis.rs). Gates:
+`src/optimizer.rs`,
+`src/value_analysis.rs`. Gates:
 [`[optimization]`](../config/optimization.md). Closure mapping:
 [`docs/optimization-coverage.md`](../../optimization-coverage.md).
 
@@ -54,8 +56,8 @@ Finite-value facts become unknown at exported, extern, indirect-call, closure, o
 
 Optional member/index lowering records an `ExpressionPhi::OptionalAccess` carrying
 the receiver identity in
-[`src/ir.rs`](../../../src/ir.rs) and
-[`src/lower.rs`](../../../src/lower.rs). The JS emitter reconstructs
+`src/ir.rs` and
+`src/lower.rs`. The JS emitter reconstructs
 `receiver?.member ?? absent` or `receiver?.[index] ?? absent` only when the surviving
 structured region still proves all of the following: the branch is the matching null
 comparison, the present access uses that receiver through identity-only nullable
@@ -66,16 +68,16 @@ optional chains produce `undefined` while LilScript nullable values use `null`. 
 integer normalization would turn a nullable absence into zero, or any region proof
 fails, emission retains the explicit structured control flow. See
 `render_optional_access_region` in
-[`src/codegen_ir_js.rs`](../../../src/codegen_ir_js.rs).
+`src/codegen_ir_js.rs`.
 
 Separately, scalar folding removes an optional-access null guard only when the
 receiver's propagated IR type proves that `null`/`undefined` cannot occur. `Null`,
 `Nullable`, `void`, type parameters, or a union containing one of those keep the
 guard. This is a closed-world type proof, not a truthiness assumption about a host
 value. Regressions: `folds_optional_access_guard_for_a_proven_non_null_receiver` in
-[`src/optimizer.rs`](../../../src/optimizer.rs) and
+`src/optimizer.rs` and
 `reconstructs_optional_access_conditional_expression_phis` in
-[`src/codegen_ir_js.rs`](../../../src/codegen_ir_js.rs).
+`src/codegen_ir_js.rs`.
 
 ## Late entry-global internalization
 
@@ -93,7 +95,7 @@ marks the entry unpromoted and mem2reg runs again. Promotion is re-entrant: it s
 phi placement from existing local-origin phis and fills incoming edges only for phis
 created in the new round, so it neither duplicates nor mutates the first round's
 SSA. The regression is `mem2reg_is_reentrant_for_newly_internalized_entry_globals`
-in [`src/optimizer.rs`](../../../src/optimizer.rs).
+in `src/optimizer.rs`.
 
 ## Subsumption and merging
 

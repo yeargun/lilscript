@@ -1,203 +1,91 @@
 # Compiler Configuration
 
-Why knobs exist, precedence, and how they change compilation: [knowledge/config](knowledge/config/README.md). This page is the schema dump.
+Why knobs exist, precedence, and how they change compilation: [knowledge/config](knowledge/config/README.md). The generated key-by-key reference, with defaults, is [knowledge/config/schema.md](knowledge/config/schema.md). This page explains the file.
 
 The CLI discovers `lilscript.toml` by walking from the input module toward the
 filesystem root. Pass `--config path/to/config.toml` to select one explicitly.
-Unknown keys and invalid numeric limits are errors.
+`lilscript <input> --print-policy` prints the exact policy a build uses: the
+contract, objective, effort, every tactic's permission, resources, and the
+retired-key warnings, with a fingerprint.
 
-The new semantic JavaScript pipeline under migration also reads this search
-schedule. These settings do not reroute the legacy optimizer or affect native
-compilation:
+A configuration is read in two steps:
 
-```toml
-[policy.search]
-codec_schedule = "staged" # staged | immediate
-render_batch = 8          # fixed render batch; must be positive
-diversity_interval = 4    # structural/artifact exploration cadence; must be positive
-```
+1. **Retired keys.** Keys that belong to the deleted old compiler, or that this
+   compiler reads nowhere, are handled first, by one table
+   (`RETIRED_KEYS` in `src/config.rs`; the full list is in
+   [schema.md](knowledge/config/schema.md#retired-keys)). A key with *no
+   effect* is removed and the CLI prints
+   `warning: <file>: `<key>` has no effect in this compiler: <reason>; remove it`.
+   `--print-policy` reports the same lines under `"warnings"`. A key whose
+   meaning the compiler cannot honour is *refused*: the build stops with the
+   reason.
+2. **Strict reading.** Everything else must be a known key with a valid value.
+   A misspelled key or value is an error. Nothing is accepted silently.
 
-Staged scheduling groups rendered candidates before codec measurement.
-Immediate scheduling scores each artifact through the same search and output
-machinery with a minimal queue. Batch size and diversity cadence remain fixed
-for the compilation; resource exhaustion stops work instead of changing them.
-Existing `[javascript]` proposal, codec-probe, candidate and byte caps still
-apply. Resolved JavaScript policy receipts include the complete schedule and
-its version; native policies have no JavaScript search objective.
-
-For this semantic pipeline, search schedule version 3 preserves
-`javascript.candidate_proposal_limit` with one meaning: optional complete-artifact
-attempts, one per attempted naming plan. Failed attempts still count. Source
-inventory visits, proof queries and compatible recipe unions consume the common
-analysis-work budget, separately from this artifact ceiling. Inventory storage
-is admitted against memory and work limits; a small artifact allowance does not
-hide later source opportunities. Cached Unknown and Truncated proofs remain
-distinct and are skipped only under the same pinned source, output contract and
-fixed query bounds. Stronger bounds require a fresh attempt.
-
-Version 3 also serves an old pending structural cursor every
-`diversity_interval` expansion attempts and protects one such cursor within the
-existing beam. Other turns retain objective-guided ranking. The same configured
-interval controls old-artifact selection at staged scoring events; artifact
-scoring and structural expansion have distinct clocks. This keeps an early
-profitable choice from indefinitely starving every surviving branch that omits
-it. It does not guarantee exhaustive exploration under finite limits. At beam
-width one, continuation progress can discard descendants; a wider beam is needed
-for simultaneous branch breadth. Remaining budgets do not silently alter this
-schedule.
-
-A proved shared-call layout adds no search child when every sealed creator is
-already covered by an exact selected inline helper. This per-parent support
-check consumes analysis work and is reported as `inactive_function_layouts`; it
-spends no artifact proposal or codec probe. Explicitly published layouts and the
-global proof seed remain available.
-
-The mandatory direct artifact and its requested scores precede optional search.
-`terminal_codec_probe_limit` caps optional encodes; retained candidate count and
-bytes bound queued artifacts together with per-codec winners. Exhausting artifact
-attempts can still drain already rendered artifacts through the remaining codec
-and work allowance. Receipts expose artifact attempts, structural attempts,
-proof queries, skipped proofs, renders and codec calls separately. Changing the
-schedule version can change explored artifacts at the same numeric limits; it
-does not promise equal work or general monotonic quality across different caps.
-The legacy optimizer's separate accounting is described below.
+## The schema
 
 ```toml
-[compiler.resources]
-# threads = 12 # omit to use RAYON_NUM_THREADS or the host/Rayon default
-codec_workers = 4 # terminal Brotli finalizer workers; must be nonzero
+[javascript]
+priority = "size-first"      # the only accepted value; see "Refused keys"
+cost_model = "brotli"         # raw | gzip | brotli: the codec whose bytes are minimized
+optimization_level = 13       # effort, 0..16; 13 is the default
+candidate_search = "production" # off | production | always; --mode development sets off
+candidate_limit = 1536        # retained whole-artifact candidates
+candidate_byte_budget = 1048576 # retained candidate bytes
+candidate_beam_width = 12
+# candidate_proposal_limit = 384   # optional structural proposals; 0 disables
+# terminal_codec_probe_limit = 384 # optional terminal codec probes; 0 disables
+# ecmascript = "es2022"       # es2015 … es2022 | esnext
+# browsers = ["chrome80", "firefox78"] # intersected with ecmascript; the lower floor wins
+strip_console = true          # drop print()/debugLog; tests and oracles set false
+assume_pristine_builtins = false
+assume_pure_property_reads = false
+assume_unconstructed_callbacks = false
+keep_function_names = false
+keep_published_function_names = true
+operand_order_fusion = true   # false turns the target-compaction tactic off
+# compression = ["identifier-mangling", "string-pooling"] # exact allowlist, see below
+# optimizations = ["call-site-specialization"]            # exact allowlist, see below
 
 [optimization]
-preset = "maximum" # maximum | none
-constant_folding = true
-algebraic_simplification = true
-common_subexpression_elimination = true
-finite_value_propagation = true
-global_optimization = true
-inlining = true
-inline_closure_factories = true
-constant_parameter_specialization = true # false keeps generic constant-argument call sites
-specialize_tagged_constants = true # include boxed/union constants when specializing
-scalar_replacement = true
-dead_store_elimination = true
-dead_code_elimination = true
-call_site_specialization = true
-capture_signature_cloning = true
-identical_function_folding = true
-# function_subsumption = true # explicit all-backend enable; false is a hard disable
-# pipeline_fusion = true
-# partial_escape_sinking = true
-# region_outlining = true
-# expression_superopt = true
-# path_sensitive_propagation = true
+preset = "maximum"            # maximum | none: the default of the preset-following tactics
+# constant_folding = true     # each of these sets one tactic's permission
+# inlining = true
+# scalar_replacement = true
+# dead_code_elimination = true
+# call_site_specialization = true
 # parameterized_function_merging = true
-profile_guided = true
-# for_of_specialize_family = 8 # 0 off; residual for-of over the first array parameter emits clones plus a picker
-
-[javascript]
-priority = "size-first"
-# ecmascript = "es2022" # es2015 | es2016 | ... | es2022 | esnext; omitted = es2022
-# browsers = ["chrome80", "firefox78"] # optional; intersected with ecmascript (conservative floor wins)
-optimization_level = 13 # 0..15 compiler-effort budget; 13 is the default (see note below)
-cost_model = "brotli" # raw | gzip | brotli
-pool_numeric_literals = true # alias repeated profitable numeric literals
-# integer_coercions = true # keep generated `|0`; source-written `value | 0` is always retained while live
-candidate_search = "production" # off | production | always
-candidate_limit = 1536
-candidate_byte_budget = 1048576 # aggregate whole-artifact search-work budget
-candidate_beam_width = 12
-# candidate_proposal_limit = 384 # structural plans admitted before emission; 0 disables
-# terminal_codec_probe_limit = 384 # terminal whole-artifact work; 0 disables
-max_candidate_raw_growth_percent = 0 # raw-side admission allowance; maximum 1000
-function_layout_exact_limit = 13 # 0 = heuristic only; maximum 18
-local_name_reserve = 48 # consistent short identifiers reserved for lexical locals
-stable_local_names = true # preserve source-local affinity across generated kernels
-local_name_coalescing = true # reuse bindings for SSA values with disjoint live ranges
-# emit_pure_annotations = false # retain checked pure-export contracts for downstream ESM tree shaking
-# function_scope = true # single-bundle internals inside one function scope; exports assigned outside (V8 context slots instead of module cells)
-# truthy_nullable_checks = false # `x!==null` instead of `x` for always-truthy nullables; default off under the performance priorities
-# function_spelling = "arrow" # arrow | function; see public-ABI note below
-# strip_console = true # drop print()/debugLog; default on. Tests/oracles set false.
-# assume_pristine_builtins = false # required before regex literals may bypass ambient RegExp
-# public_aggregate_abi = "named" # named | positional; positional requires opaque array handles
-# optimizations = ["parsed-peephole", "startup-cost-guard"]
-compression = [
-  "identifier-mangling",
-  "entropy-aware-mangling",
-  "quote-style-selection",
-  "string-pooling",
-  "size-aware-inlining",
-  "compact-boolean-literals",
-  "standard-grammar-elision",
-  "structured-closure-inlining",
-  "pure-helper-inlining",
-  "dense-string-return-tables",
-  "host-alias-spelling",
-  "string-array-packing",
-  "regex-literals",
-  "unused-catch-binding-elision",
-  "compact-generator-star",
-  "callee-default-arguments",
-  "scalar-phi-copies",
-  "phi-affinity-coalescing",
-  "ir-inlining-variants",
-  "ir-closure-factory-variants",
-  "ir-phase-ordering-variants",
-  "loop-spelling-selection",
-  "mutation-spelling-selection",
-  "array-pipeline-fusion",
-  "partial-escape-sinking",
-  "region-outlining",
-  "expression-superoptimization",
-  "path-sensitive-propagation",
-  "joint-representation-search",
-  "joint-chunk-symbol-search",
-  "parameterized-function-merging",
-]
-# inline_instruction_limit = 18
-# inline_control_flow_limit = 45
-# max_inline_growth = 16
-
-[javascript.startup]
-parse_weight = 1
-compile_weight = 1
-memory_weight = 1
-# max_nesting = 128 # optional absolute generated-syntax ceiling
-parse_overhead_limit_percent = 30
-compile_overhead_limit_percent = 30
-memory_overhead_limit_percent = 35
-
-[javascript.performance]
-deoptimization_weight = 32
-allocation_weight = 12
-indirect_call_weight = 24
-hot_code_weight = 1
-max_regression_percent = 25
-
-[profile]
-# path = "lilscript.profile.json"
-specialization_min_count = 100
-max_specializations_per_function = 8
-max_clone_instructions = 64
-
-[native]
-partial_escape_analysis = true
-stack_allocation = true
-region_allocation = true
-stack_array_element_limit = 64
 
 [mangle]
 # identifiers = true
-# properties = true # size-first default; set false to keep owned property names
-# exports = false
-# pool_strings = true # optional explicit override
+# properties = true
+# pool_strings = true
+# preserve_properties = ["onChange"] # contract: names the port's callers read
+
+[policy]
+version = 2
+
+[policy.tactics]              # auto | on | off per tactic; `off` is a veto
+# inlining = "off"
+
+[policy.resources]            # hard ceilings for one compilation
+# logical_work = 1000000000
+# retained_bytes = 268435456
+# wall_time_ms = 60000
+
+[policy.search]
+codec_schedule = "staged"     # staged | immediate
+render_batch = 8
+diversity_interval = 4
+# interaction_interval = 16
 
 [bundle]
-mode = "single" # single | split | preserve-modules
+mode = "single"               # single | split | preserve-modules
 min_chunk_bytes = 16384
 max_chunks = 32
 shared_min_imports = 2
-preload = "none" # none | entry | all
+preload = "none"              # none | entry | all
+host_modules = "external"     # external | auto | embed
 
 [bundle.cost]
 raw_weight = 0
@@ -210,7 +98,7 @@ cache_reuse_discount_percent = 20
 
 [lint]
 enabled = true
-preset = "recommended" # minimal | recommended | strict
+preset = "recommended"        # minimal | recommended | strict
 deny_warnings = false
 providers = ["correctness", "effects", "performance", "size", "web"]
 exclude = ["**/generated/**"]
@@ -222,741 +110,169 @@ pure_extern_allowlist = ["auditedHostFunction"]
 [format]
 enabled = true
 line_width = 100
-newline = "lf" # lf | crlf
+newline = "lf"                # lf | crlf
 organize_imports = true
 ```
 
-`compiler.resources.threads` creates a local Rayon pool for one configured
-JavaScript compilation. Omitting it preserves the process-global Rayon policy,
-including `RAYON_NUM_THREADS`. `compiler.resources.codec_workers` defaults to
-`4` and is capped by the active pool size. It bounds terminal Brotli plan
-finalization, where every worker finalizes its assigned plans serially, and the
-same ceiling applies to terminal binding-remap codec probes.
-Selected-model candidate scoring uses the active Rayon pool, while the short
-entropy-alphabet source searches stay serial to avoid multiplying Brotli-11
-workspaces. These controls change scheduling and peak concurrent working state,
-not the candidate frontier or the selected artifact. The CLI overrides TOML
-with `-j N` / `--jobs N` and `--codec-jobs N`.
+Per-library configuration is contract, objective, effort and permission
+(architecture law L12). The sections below follow that split.
 
-`javascript.candidate_limit`, `candidate_byte_budget`,
-`candidate_beam_width`, `candidate_proposal_limit`, and
-`terminal_codec_probe_limit` are different: they bound search effort and retained
-whole-artifact source bytes, so changing them can change the selected output.
-`candidate_limit` is the retained-frontier count, not an attempted-work count.
-Terminal scope-naming and string-pooling challengers debit the remaining shared
-plan and source-byte ledger before codec scoring; the already-retained incumbent
-remains eligible when that tail is exhausted.
-`candidate_byte_budget` is not a promise about total process RSS; optimizer IR
-clones and codec workspaces are outside that accounting.
-`candidate_proposal_limit` is charged when a new structural plan identity is
-admitted, before IR-to-JavaScript emission. Failed emissions and candidates
-later rejected by syntax, size, or codec ranking therefore still consume a
-slot. Already-scored IR context seeds are outside this optional budget, and a
-separate terminal tail remains available for factored naming/declaration
-challengers. Omitted defaults additionally honor `candidate_limit` and scale to
-one quarter for 16–64 KiB artifacts and one twelfth above 64 KiB. An explicit
-value can exceed the survivor count and bypass artifact scaling, but it cannot
-raise the optimization-level or `candidate_search` tier.
-`terminal_codec_probe_limit` is the shared terminal-search work ceiling after
-structural plans have been emitted. Parsed-peephole, cleanup, and binding-remap
-families share the same counter. The current post-selection canonical peephole
-may perform one additional codec comparison outside it. A proposal is charged before whole-artifact
-repair/validation, and each exact-codec call also requires an admitted unit.
-Exhaustion skips remaining leaves and retains the best already-scored artifact. A rare
-missing score for the mandatory configured incumbent is measured outside this
-optional budget so the fallback cannot disappear. Omitted defaults use artifact
-scaling; an explicit ceiling bypasses that scaling while remaining bounded by
-the optimization-level and search tier.
+## Contract: what the output must preserve
 
-## Choosing `optimization_level`
+- `--target js` builds a closed script; `--target js-module` builds a library
+  whose exports are the API. The target decides the world and the execution
+  mode; there is no key for it.
+- `javascript.ecmascript` is the syntax floor (`es2015` … `es2022`, or
+  `esnext`; default `es2022`). `javascript.browsers` tokens (`chrome80`,
+  `firefox78`, `safari14`, `edge80`) intersect with it, and the most
+  conservative floor wins. Unknown tokens are errors. There is no ES5 mode and
+  no polyfill; a construct with no spelling at the floor fails the build.
+- `javascript.strip_console` (default `true`) drops `print()` and `debugLog`
+  from JavaScript; argument side effects stay, and `console.warn` is never
+  stripped. Language tests and the repository's `lilscript.toml` set `false`,
+  because `print` is their observation channel.
+- `javascript.keep_published_function_names` (default `true`) keeps each
+  exported function's source `name` (D2). `keep_function_names` extends that to
+  every function whose name some code could read.
+- The `assume_*` keys are contract assumptions about foreign values, each off
+  by default because a library cannot know its callers:
+  `assume_pristine_builtins` (ambient constructors are the originals),
+  `assume_pure_property_reads` (a dynamic member read runs no getter, Terser's
+  `pure_getters`), `assume_unconstructed_callbacks` (callers never construct a
+  lambda the program hands them, Terser's `unsafe_arrows`). A port that sets one
+  records why.
+- `compression` entry `length-to-number-elision` (on under `size-first` when
+  the list is omitted) is the assumption that a host value's `length` is an
+  int32 Number.
+- `mangle.preserve_properties` names properties the port's callers read in code
+  the compiler never sees. Nothing renames properties yet, so every property is
+  preserved; typed property renaming (plan M9.6) reads this list.
 
-The level is a compile-effort budget, not a quality dial, and it is strongly
-non-linear. Measured on the jQuery port (219 KB of `.lil`, ~90 KB emitted, Brotli
-objective, `candidate_search = "production"`):
+## Objective and effort
 
-| level | CPU seconds | peak RSS | Brotli-11 bytes | canonical encodes | emissions |
-|---|---:|---:|---:|---:|---:|
-| 15 | 1829.0 | 250 MB | 30225 | 500 | 94 |
-| 14 | 151.1 | 199 MB | 30607 | 72 | 63 |
-| 13 (default) | 89.8 | 170 MB | 30651 | 52 | 58 |
-| 12 | 74.8 | 154 MB | 30635 | 47 | 51 |
+`javascript.cost_model` is the objective: the compiler minimizes the delivered
+file's bytes under that codec. `raw` counts bytes, `gzip` is zlib 1.3.1 level
+9, and `brotli` is Google Brotli 1.1.0 at quality 11, `lgwin = 22`, the same
+encoders `lilscript-codec` measures with.
 
-Level 15 costs **20x the CPU of level 13 for 1.4% of the bytes**, and the step
-from 14 to 15 alone is 12x the CPU for 382 bytes. Levels 12 through 14 form a
-plateau — on the acorn port they are within 3 bytes (0.1%) of each other — and
-the curve only breaks down at 11 and below. More search is also not monotone:
-acorn's smallest Brotli artifact was produced at level 14, and jQuery's at
-level 12.
+`javascript.optimization_level` (0 to 16, default 13) is the effort: a
+versioned schedule of search breadth and tactic gates, printed in the policy.
+It never weakens checking or a correctness normalization. The effective
+retained-candidate count, candidate bytes and beam width are each the lower of
+the level's tier and the configured ceiling (`candidate_limit`,
+`candidate_byte_budget`, `candidate_beam_width`). `candidate_proposal_limit`
+and `terminal_codec_probe_limit` default from the level; an explicit value may
+exceed the level's default but not the `candidate_search` tier, and level 0
+turns both off whatever they say. `candidate_search = "off"` (and
+`--mode development`) keeps only the mandatory artifact.
 
-The `terminal_codec_probe_limit` ladder was subsequently retuned on the strength
-of that measurement — level 13's base went from 192 to 384 — because the terminal
-probe budget turned out to be the one ladder dimension that reliably buys bytes.
-Levels 14 and 15 were deliberately left at 384: raising them was tried and
-measured at **three times the CPU for 192 Brotli bytes** on jQuery, so it was
-reverted.
-With it, level 13 produces **30593** Brotli on jQuery (from 30651) and **3063**
-on acorn (from 3071), the latter smaller than what level 15 produces on the same
-port. Set `terminal_codec_probe_limit` explicitly to go further: an explicit
-value bypasses artifact scaling, and jQuery keeps gaining to roughly 768 probes
-(30550).
+Level 13 is the default because the measured curve is a plateau around it:
+on the jQuery port, level 15 cost 20 times the CPU of level 13 for 1.4% of the
+Brotli bytes, and levels 12 to 14 were within 0.15% of each other
+([007](../finer/hypotheses/007-level-13-sweet-spot/README.md)). Those numbers were
+measured on the old compiler; the default stands until the effort schedule is
+re-measured on this one.
 
-**13 is therefore the default.** Raise it only for an artifact whose last
-percent is worth minutes of wall clock, and measure rather than assume — the
-same sweep is reproducible with `finer/tools/bench.sh`. Lower it to 9
-or 10 for fast iteration; expect roughly +1% Brotli.
+`[policy.search]` fixes the search's cadence: `codec_schedule` (`staged`
+groups renders before codec measurement, `immediate` scores each at once),
+`render_batch`, `diversity_interval` (every Nth expansion serves an old
+pending cursor) and the opt-in `interaction_interval`. Remaining budgets never
+change these values. `[policy.resources]` sets hard ceilings on logical work,
+retained bytes and cooperative wall time. Exhausting one stops optional work
+and keeps the best artifact found; a ceiling below what the mandatory artifact
+needs fails the build.
 
-Note that the level interacts with `cost_model`. Level 15 spends *raw* bytes to
-buy Brotli bytes: jQuery's raw output is 92706 at level 15 against 89858 at
-level 13. A project whose objective is `raw` gains nothing from the top levels.
+## Permission: tactics
 
-Every optional optimization key overrides its preset independently. The
-`none` preset disables optional transforms but retains mandatory IR
-normalization and correctness analyses. This makes it useful for debugging and
-for isolating pass regressions without changing language semantics.
+Every optional transformation belongs to a tactic in `[policy.tactics]`, each
+`auto` (the default), `on` (permitted, never forced) or `off` (vetoed in direct
+and searched use). `--print-policy` lists them with their resolved state. `auto`
+follows the tactic's own default and its effort gate.
 
-`finite_value_propagation` controls the bounded interprocedural lattice for
-booleans, strings, nullable `null`, and owned nominal fields. The default is
-enabled. Facts widen after four alternatives and become unknown at exported,
-extern, indirect-call, closure, or untyped aggregate boundaries.
+Several older keys set a tactic's permission. An explicit `true` is `on` and an
+explicit `false` is `off`; a `[policy.tactics]` value that contradicts one is an
+error.
 
-`identical_function_folding` runs after specialization and inlining decisions.
-It redirects directly called private functions with identical normalized CFGs
-and compatible escape states to one implementation. Exported, address-taken,
-method, constructor, closure, and host-visible identities are excluded. For
-JavaScript, level-derived or exact `identical-function-folding` selection can
-additionally bound this late
-whole-program work; native optimization uses the semantic pass switch directly.
+| Key | Tactic |
+|---|---|
+| `optimization.dead_code_elimination` | `dead-code-elimination` |
+| `optimization.constant_folding` | `constant-folding` |
+| `optimization.inlining` | `inlining` |
+| `optimization.scalar_replacement` | `scalar-replacement` |
+| `optimization.call_site_specialization`, or `javascript.optimizations` naming `call-site-specialization` | `call-specialization` |
+| `optimization.parameterized_function_merging`, or the `compression` entry `parameterized-function-merging` | `helper-sharing` |
+| `javascript.operand_order_fusion = false` | `target-compaction` (off) |
+| `mangle.identifiers`, or the `compression` entry `identifier-mangling` | `identifier-mangling` |
+| `mangle.properties`, or the `compression` entry `property-mangling` | `property-mangling` |
+| `mangle.pool_strings`, or the `compression` entry `string-pooling` | `string-pooling` |
+| the `compression` entry `string-array-packing` | `string-array-packing` |
+| `javascript.optimizations` naming `entropy-cross-scope-reuse` | `naming-search` |
 
-`function_subsumption` controls proof-driven implementation sharing. A private,
-direct-call-only function may be redirected to an existing function with extra
-parameters only when binding those parameters to typed scalar literals or known
-direct functions makes the normalized SSA/CFG bodies exactly equal. Calls receive
-explicit arguments without permuting source argument evaluation; LilScript
-never relies on JavaScript omitted-argument behavior. Exports, address-taken
-functions, methods, constructors, closures, type mismatches, and non-equal
-bodies are rejected. The default leaves native
-output unchanged and lets size-first JavaScript level 14+ compare transformed
-and untouched IR under the selected codec. `function_subsumption = false`
-suppresses that candidate; `true` enables the pass for native output and permits
-it for every JavaScript priority when the level-derived or exact JavaScript
-feature is enabled.
+`optimization.preset = "none"` turns off the default of the tactics that follow
+the preset (dead-code elimination, constant folding, inlining, scalar
+replacement, call specialization, helper sharing); explicit settings still
+apply. `javascript.compression` and `javascript.optimizations` are exact
+allowlists: when present, a listed entry is on and an entry the list omits is
+off. `helper-sharing` and `property-mangling` have no producer in this compiler
+yet, so their permission changes nothing today.
 
-`javascript.priority` is a JavaScript-target policy. It never weakens semantic
-checks, mandatory IR normalization, DCE correctness, or host-boundary rules:
+## Retired keys
 
-- `performance-first` uses straight-line/control-flow limits of `24`/`60`, has
-  no inline-growth cap, disables automatic string pooling, and keeps signed-i32
-  `|0` normalization on ordinary `int` math.
-- `realistic-performance-first` uses limits of `18`/`45`,
-  allows up to `16` estimated additional IR instructions from repeated-call
-  inlining, and enables profitable string pooling. It keeps `|0`.
-- `balanced` uses limits of `12`/`30`, permits up to `4` estimated additional
-  instructions, and enables profitable string pooling. Proven-redundant `|0` is
-  dropped; `|0` does not help gzip/Brotli.
-- `size-first` is the default. It uses limits of `12`/`30`, permits up to `16`
-  temporary IR instructions of inline growth so the following fold/DCE fixed
-  point can expose a net byte win, enables profitable string pooling, enables
-  owned-property mangling while leaving public export names stable, and
-  considers delimiter-packed string literal tables. Packing adds startup work,
-  so the performance-oriented profiles leave it disabled. Proven-redundant `|0`
-  is dropped. Set `integer_coercions = true` to keep it.
+The full table, generated from the source, is in
+[schema.md](knowledge/config/schema.md#retired-keys). In summary:
 
-`javascript.strip_console` defaults to `true` so production JavaScript does not
-ship `print()` as `console.log`. Language tests and the root `lilscript.toml`
-oracle set `false`. `debugLog` is also dropped; argument side effects stay.
-`console.warn` is not stripped. Policy: [javascript.priority](knowledge/config/javascript-priority.md).
+- **No effect (warned and removed).** Every key that steered the old compiler:
+  its optimizer passes (`optimization.algebraic_simplification`,
+  `finite_value_propagation`, `identical_function_folding` and the rest),
+  emitter spellings (`javascript.function_spelling`, `pool_numeric_literals`,
+  `truthy_nullable_checks`, `struct_method_shorthand` …), naming
+  (`local_name_reserve`, `stable_local_names`, `idiom_directed_naming` …),
+  search bounds (`max_candidate_raw_growth_percent`,
+  `function_layout_exact_limit`, `terminal_cleanup_finalists`), inliner bounds,
+  `[javascript.startup]`, `[javascript.performance]`, `[profile]`, `[native]`,
+  `[compiler.resources]`, `mangle.exports`, `mangle.extern_fields` and
+  `mangle.internal_properties`; the `migration/target-tree` line's
+  `name_ordering`, `terminal_cleanup_chain` and `wide_single_use_collapse`;
+  `javascript.function_scope` (the module wrapper returns as the `format`
+  contract axis, plan M3.1); and `public_aggregate_abi = "named"` and
+  `optimization.for_of_specialize_family = 0`, which only restate what the
+  compiler always does. Retired entries of the `javascript.compression` and
+  `javascript.optimizations` lists are removed the same way, with one warning
+  per list; the remaining entries keep their exact-allowlist meaning.
+- **Refused.**
 
-`javascript.function_spelling` is an explicit JavaScript ABI and spelling
-override. When omitted, exported functions retain ordinary-function
-constructibility while the compressor search may choose arrows or function
-declarations for private bindings. `"function"` forces ordinary functions.
-`"arrow"` also permits public arrows, which removes `prototype` and rejects
-construction with `new`; use it only when the selected public API is itself
-nonconstructible (for example Nano ID's published browser arrows). The
-benchmark verifier checks arity and constructibility before a result is
-eligible, so this setting cannot silently buy bytes by changing that API.
+  | Key | Message |
+  |---|---|
+  | `[compiler] backend` | there is one compiler; remove [compiler] backend |
+  | `javascript.priority` other than `"size-first"` | size is the objective; runtime priorities need runtime estimators that do not exist yet |
+  | any `[policy.constraints]` limit | size is the objective; runtime constraints need runtime estimators that do not exist yet |
+  | `javascript.public_aggregate_abi = "positional"` | public aggregates are plain objects with named fields (D2); the positional shape is not produced |
+  | nonzero `optimization.for_of_specialize_family` | the for-of family specialization was an old-compiler source rewrite and was removed |
 
-Source closures inherit their enclosing `this` and `arguments`; changing
-callable syntax must preserve that lexical ownership. Declared functions that
-need their own receiver or arguments, directly or through lexical descendants,
-require ordinary-function syntax even when arrows are requested. Use
-`JS.methodN` / `JS.methodRest` ([language](language-v0.1.md)) to request a
-host-callable receiver explicitly.
+## Delivery: `[bundle]`
 
-The legacy emitter still has a known violation: forcing `"function"` can rebind
-a closure's ambient `this` to the closure's caller
-([061](../finer/hypotheses/061-the-arrow-spelling-rebinds-this/README.md)). This
-is a compiler hazard, not an additional language meaning selected by this
-option. The new semantic output path preserves the lexical owner with shared
-activation captures. Its currently unsupported combination of an ordinary
-closure and module-level ambient `arguments` rejects before output rather than
-moving a potentially throwing global lookup to module initialization. That
-path is still under migration; it is not yet the production replacement.
+Every mode first checks and optimizes the complete static module graph, so
+whole-program work happens before any chunk boundary is chosen.
 
-`javascript.public_aggregate_abi` defaults to `"named"`: structs and classes
-that cross a reusable JavaScript boundary use stable named fields, including
-aggregate types reachable through their public fields. `"positional"` emits
-compact array-backed handles instead. It is an explicit ABI choice for modules
-whose JavaScript consumers treat every exported aggregate as opaque and only
-pass handles back to compiled functions; JavaScript must not inspect fields or
-construct those handles as objects in that mode.
-
-`javascript.ecmascript` is the JavaScript *syntax* floor (`es2015`…`es2022`,
-or `esnext`). It is independent of CLI `--target js`. Omitted values match the
-historical backend (`es2022`), so existing goldens stay byte-stable. Optional
-`javascript.browsers` tokens (`chrome80`, `firefox78`, `safari14`, `edge80`)
-intersect with that edition; the most conservative floor wins. Unknown tokens
-are config errors. The floor is ES2015: there is no ES5 mode and no polyfill
-emission. If a required construct has no exact older spelling, compilation
-fails rather than emitting illegal JavaScript. Comparison and benchmark
-baselines stay `es2022` unless a case is explicitly about a lower target.
-
-`javascript.compression` overlays named size tactics on the selected
-`javascript.priority` defaults. If omitted, the profile supplies the list.
-Listing a name turns that tactic on even when the profile would leave it off.
-`compression = []` disables all of them. Canonical options still follow the
-   listed names when the table is present. Size-first **search-only** spellings
-   such as `indexed-char-at` still compete unless the list is empty. A live
-   source-written `value | 0` is an explicit lowering obligation and is not in
-   that bargain; only compiler-generated redundant normalization may be dropped
-   by proof/policy.
-
-- `identifier-mangling` assigns short names by whole-program use frequency.
-- `entropy-aware-mangling` compares the canonical identifier alphabet with an
-  alphabet ranked by emitted-character frequency, then lets the configured
-  exact compressor choose the result. Size-first builds also run a bounded,
-  deterministic permutation search over one-character emitted identifiers.
-  The trial budget scales down with artifact size so quality-11 codec probes
-  do not make large modules impractical; every proposed alphabet is re-emitted
-  through the normal scope-aware mangler before it can be selected.
-- `quote-style-selection` compares semantically equivalent single- and
-  double-quoted string literals.
-- `property-mangling` renames LilScript-owned properties. Escape-owned aggregates
-  that cross an `extern` boundary may rename without `export-mangling`; ESM
-  export-surface aggregate field names stay stable unless `export-mangling` is
-  listed or `mangle.exports` is set. Size-first enables property mangling by
-  default. Other priorities leave it off unless an exact allowlist or
-  `mangle.properties` opts in.
-- `export-mangling` permits public ESM export names to be shortened.
-- `[mangle] extern_fields` (default on) keeps `extern class` member names exact.
-  `false` is a legacy coordinated closed-key mode for compiler-controlled
-  producer/consumer pairs, not permission to rename arbitrary browser/host
-  fields. Core host members such as `string.length` remain exact.
-- `array-pipeline-fusion` fuses eligible same-block `map`→`map` chains.
-- `partial-escape-sinking` sinks LocalOnly allocations into the single Branch
-  arm that uses them.
-- `region-outlining` extracts repeated pure instruction regions into helpers.
-- `expression-superoptimization` applies bounded pure Int/Bool rewrites.
-- `path-sensitive-propagation` runs sparse conditional constant propagation.
-- `joint-representation-search` competes named vs positional aggregate spelling.
-- `joint-chunk-symbol-search` scores chunk plans against layout and name-reserve
-  emission variants under deploy cost.
-- `parameterized-function-merging` merges permuted-parameter and single-operand-
-  divergent private functions.
-- `string-pooling` aliases repeated strings only when the emitter's raw-size
-  model predicts a reduction.
-- `size-aware-inlining` applies the profile's positive-growth limit to repeated
-  straight-line calls.
-- `safe-integer-coercion-elision` is not a transfer tactic. `|0` never helps
-  gzip/Brotli of served code, so size-first and balanced drop proven-redundant
-  coercions even when this name is omitted from an exact allowlist.
-  `performance-first` and `realistic-performance-first` keep `|0`. Set
-  `javascript.integer_coercions = true` to keep it on size-first or balanced.
-  Overflow-capable operations still wrap.
-- `compact-boolean-literals` compares `!0`/`!1` with `true`/`false` for
-  surviving boolean constants and typed default fields.
-- `standard-grammar-elision` permits three independent, standards-valid
-  emission choices: block-terminal semicolons supplied by ECMAScript ASI,
-  empty parentheses on zero-argument `new`, and redundant grouping around a
-  call before member/index access. Candidate search keeps punctuation-retaining
-  variants because fewer raw bytes can still be worse under gzip or Brotli.
-  This does not enable malformed JavaScript, Annex B, sloppy-mode globals,
-  `with`, `eval`, or browser-only syntax recovery.
-- `structured-closure-inlining` compares compact nested structured closures
-  with reusable outlined helpers under the selected compressor.
-- `pure-helper-inlining` lets candidate search substitute a proof-gated private
-  pure return-helper DAG at its static calls. It compares the named baseline,
-  single-static-use substitution, and all-eligible substitution; cached effectful
-  arguments, public identity, recursion, captures, exception regions, and host or
-  allocating operations are refused.
-- `dense-string-return-tables` lets candidate search replace a same-selector
-  integer equality ladder returning constant strings with a complete literal
-  table. Integer analysis must prove the entire zero-based domain (maximum 256
-  entries); default-filled gaps make every lookup an own array element, so the
-  rewrite does not depend on `Array.prototype`.
-- `host-alias-spelling` compares a shared top-level binding with the native dotted
-  spelling at each call site for direct-only static host callees such as
-  `Object.hasOwn`. A detached function value, export, method/bound convention,
-  constructor use, or lazy-module boundary keeps its binding; the configured
-  baseline is shared and exact whole-artifact codec scoring may select direct.
-- `string-array-packing` considers immutable literal tables such as
-  `["a","b"]` as a delimiter-joined string plus `.split()`. It is a size/startup
-  tradeoff and remains a compressor-scored candidate rather than a mandatory
-  lowering.
-- `regex-literals` replaces `new Regex(pattern, flags)` only for a statically
-  valid, use-complete, shorter subset when
-  `javascript.assume_pristine_builtins = true`. Open-world output keeps the
-  constructor because a literal bypasses the ambient `RegExp` binding. Complex
-  or potentially invalid ECMAScript patterns retain construction and exception
-  timing.
-- `unused-catch-binding-elision` emits `catch { ... }` instead of
-  `catch (name) { ... }` only when semantic use counts prove the catch binding
-  is unused. Source clauses without bindings already use the shorter grammar.
-  Whole-artifact candidate search also retains the explicit-binding variant,
-  because raw deletion can still lose under a selected transfer codec.
-- `compact-generator-star` compares the standards-equivalent generator
-  declaration spellings `function*name` and `function* name`. Candidate search
-  keeps the spaced form: removing whitespace is not accepted merely for a raw
-  byte win when gzip or Brotli scores it worse.
-- `callee-default-arguments` compares private JavaScript parameter defaults
-  with materializing the typed default at each direct call. Exported functions
-  keep full-arity signatures so `Function.length` and omitted-call behavior do
-  not change.
-- `scalar-phi-copies` lets cyclic SSA parallel copies compete as scalar
-  assignments against tuple destructuring. The scalar scheduler reuses a
-  liveness-proven dead local for cycle breaking when one exists. Size-first
-  enables the comparison; omitting this decision keeps tuple copies.
-- `phi-affinity-coalescing` lets direct phi inputs share their destination name
-  when normal liveness proves the pair does not interfere. Candidate search
-  compares conservative deferred-expression interference, direct affinity,
-  and contracted non-interfering phi groups because fewer raw assignments can
-  still compress worse. A loop-carried update cannot overwrite its old value
-  in place when a sibling phi still consumes that value on the same edge; the
-  parallel-copy dependency remains a hard correctness constraint in every
-  effort profile.
-- `ir-inlining-variants` lets the configured inlining pipeline compete with a
-  fully outlined IR under the exact selected codec. It is enabled by
-  size-first, applies to single-file and reusable ESM output, and is omitted by
-  performance-oriented profiles because it runs a second optimizer pipeline.
-- `ir-closure-factory-variants` adds a partial-inlining IR that preserves
-  straight-line factories returning closures while retaining ordinary and CFG
-  inlining everywhere else. Exact codec scoring chooses between reusable
-  factory environments and capture-specialized closure sites. The independent
-  `[optimization] inline_closure_factories` switch disables factory inlining
-  for every backend when an explicit policy is required.
-- `ir-phase-ordering-variants` lets size-first builds compare the configured IR
-  against bounded aggressive-inlining candidates, both with and without early
-  common-subexpression elimination. This avoids materializing reusable
-  temporaries before later inlining duplicates or exposes their expressions.
-  These probes start only from the configured and unspecialized pipelines;
-  they are not multiplied across unrelated outlining, capture-cloning, call-
-  specialization, or function-subsumption toggles. Modules above the bounded
-  function/IR-size threshold retain one combined unspecialized + no-early-CSE
-  + aggressive-inlining proposal instead of six additional complete emission
-  searches.
-  The selected raw/gzip/Brotli codec scores complete artifacts; startup and
-  performance-shape guards still apply. Omit this decision, lower
-  `optimization_level` below 14, or disable candidate search for faster builds.
-- `loop-spelling-selection` lets equivalent condition-only loops compete as
-  `while(condition)` and `for(;condition;)`. They have equal raw spelling
-  length, but different token context under gzip and Brotli. Size-first scores
-  both forms for the best eight final-emission candidates; other profiles keep
-  the frequency heuristic and avoid the extra emissions.
-- `mutation-spelling-selection` compares assignment, prefix, and postfix forms
-  for loop-carried increments. The shorthand is eligible only when SSA proves
-  the add feeds one phi edge, its result is otherwise unused, and integer range
-  analysis proves signed-i32 normalization unnecessary. Overflow-capable or
-  observed increments retain explicit assignment and coercion.
-- `indexed-char-at` lets size-first search compete proven in-range
-  `string.charAt(i)` against `s[i]`. Canonical emission stays `.charAt`. Out of
-  range the two spellings differ (`""` vs `undefined`), so the alternative is
-  admitted only with constant-string length facts or a length-bounded loop
-  (`i < s.length`). A snippet
-  atlas win is not a ship gate; complete-artifact scoring decides.
-- `effect-ternary` lets search compare discarded `if(x)a();else b()`
-  against `x?a():b()`. Canonical emission already recovers that ternary when
-  `conditional_expressions` is on; listing the decision only admits the
-  statement-shaped alternative. No priority preset enables this search: the
-  statement form lost raw/gzip/Brotli on the measured artifact.
-- `array-pipeline-fusion` fuses eligible typed array `map`/`filter`/`reduce`
-  pipelines when the exact selected codec prefers the fused form. Size-first
-  enables it; other priorities keep the unfused IR unless listed.
-- `partial-escape-sinking` sinks or scalarizes allocations that escape only on
-  some paths. Size-first enables the comparison.
-- `region-outlining` outlines repeated pure or effect-equivalent statement
-  regions when helper calls win the codec objective. Size-first enables it.
-- `expression-superoptimization` searches bounded rewrites of pure scalar and
-  string expressions. Size-first and balanced enable it.
-- `path-sensitive-propagation` adds relational/path-sensitive constants before
-  ordinary fold and DCE. Size-first and balanced enable it.
-- `joint-representation-search` compares aggregate, closure-environment, and
-  related layout forms under escape facts and codec cost. Size-first enables it.
-- `joint-chunk-symbol-search` scores chunk boundaries together with symbol
-  assignment and declaration layout. Size-first enables it.
-- `parameterized-function-merging` extends private-function sharing across
-  compatible parameterizations. Size-first enables it when
-  `[optimization] parameterized_function_merging` remains on.
-
-The numeric `inline_instruction_limit`, `inline_control_flow_limit`, and
-`max_inline_growth` keys override the selected profile. Setting
-`max_inline_growth` explicitly also enables the growth guard, even when
-`size-aware-inlining` is absent from the allowlist. These are IR instruction
-budgets, not output-byte limits.
-
-`javascript.optimization_level` controls JavaScript search effort from `0` to
-`15`; it does not weaken type checking or the selected `[optimization]` IR
-passes. Levels progressively raise the candidate cap and enable additional
-dimensions. Level 0 emits one configured layout, levels 4-8 add inexpensive
-conditional, update, mutation, SSA, comma, and entropy choices, levels 9-12 add
-parsed peepholes plus structural IR/loop/switch alternatives, level 13 adds
-late identical-body folding, declaration layout, and joint representation
-search, and levels 14-15 add proof-driven function-subsumption IR candidates,
-compress-pass variants, and joint chunk/symbol search. Effective count, byte,
-and beam caps are always the lower of their level tier and configured ceiling.
-Omitted proposal and terminal-work caps additionally scale by artifact size;
-explicit ceilings bypass only that artifact scaling and stay within the
-level/search tier. This remains true with an exact `optimizations` allowlist:
-the list chooses behavior, while `optimization_level` chooses effort.
-`candidate_beam_width` controls how many distinct leading
-emission layouts advance to each subsequent structural decision. Raising it
-can recover interactions whose first step is not locally best; lowering it
-reduces complete-artifact emissions and compressor work. It must be greater
-than zero and is always bounded by the effective candidate limit.
-
-Typical effort settings are:
-
-```toml
-# Fast edit/build loop: one configured emission, with optional terminal
-# exact-codec work disabled.
-[javascript]
-optimization_level = 0
-candidate_search = "off"
-candidate_limit = 1
-candidate_byte_budget = 1
-candidate_beam_width = 1
-candidate_proposal_limit = 0
-terminal_codec_probe_limit = 0
-```
-
-```toml
-# Maximum release search: all level-derived dimensions, the full configured
-# cap even outside normal production mode, and a wider interaction beam.
-[javascript]
-optimization_level = 15
-candidate_search = "always"
-candidate_limit = 1536
-candidate_byte_budget = 67108864
-candidate_beam_width = 48
-candidate_proposal_limit = 1536
-terminal_codec_probe_limit = 1536
-cost_model = "brotli"
-```
-
-At level 15, `candidate_search = "always"` defaults the terminal tier to 1536
-even when the explicit key is omitted. Production remains capped at 384.
-
-The checked-in default sits between these at level 15, `production` search,
-an effective 384-candidate cap shared across all IR optimizer variants, a 1 MiB
-aggregate candidate byte budget, a beam width of 12, and at most 384 optional
-structural proposals plus 384 optional terminal work units for artifacts up to
-16 KiB. Both work defaults scale to one quarter through 64 KiB and one twelfth
-above that. The byte budget is
-divided across optimizer variants and converted to a candidate count from each
-variant's configured baseline size. Thus tiny outputs can exhaust the count
-cap, while broad outputs automatically run fewer whole-artifact emissions and
-structural scores. At least the configured output from each retained IR
-variant is always measured. Initial representation cross-products are bounded
-before full emission and codec probing. A small terminal plan/byte slice is
-reserved before structural retention so the selected incumbent can still expose
-its factored naming/declaration challenger. Raise `candidate_byte_budget`,
-`candidate_proposal_limit`, and `terminal_codec_probe_limit` for slower
-maximum-compression releases. These controls change
-compiler work and representation search only; they do not disable type checks
-or mandatory correctness normalization.
-
-`javascript.optimizations` replaces the level-derived feature set with an exact
-allowlist. This is separate from the older `compression` policy: `compression`
-controls whether a representation is permitted, while `optimizations` controls
-which alternative searches and post-emission analyses are run. Available names
-are `ir-inlining-variants`, `ir-closure-factory-variants`,
-`ir-phase-ordering-variants`,
-`ir-function-subsumption-variants`, `ir-specialization-variants`,
-`structural-control-flow-variants`,
-`ssa-destruction-variants`, `conditional-expression-variants`,
-`expression-phi-region-variants`, `local-phi-expression-region-variants`,
-`phi-edge-value-forwarding-variants`, `constructor-initializer-fusion-variants`,
-`fresh-literal-factory-inlining-variants`, `default-argument-variants`,
-`comma-expression-variants`, `structural-loop-variants`, `do-loop-variants`,
-`update-loop-variants`, `switch-lowering-variants`,
-`compound-mutation-variants`, `entropy-cross-scope-reuse`,
-`entropy-property-assignment`, `function-layout-variants`, `parsed-peephole`,
-`startup-cost-guard`, `ir-compress-pass-variants`, `joint-chunk-symbol-search`,
-and `joint-representation-search`.
-The remaining names are `performance-shape-model`,
-`profile-guided-optimization`, `call-site-specialization`, and
-`capture-signature-cloning`, plus `identical-function-folding`.
-An empty list disables all of these features. Duplicate names and levels above
-15 are configuration errors. An exact allowlist does not imply exhaustive work:
-the level-derived count, byte, beam, and terminal-codec effort tiers still
-apply. Set level 15 plus `candidate_search = "always"` and explicit larger
-ceilings for a deeper laboratory run. It is exhaustive only if the report names
-a finite candidate domain and records that the domain was fully enumerated.
-
-`fresh-literal-factory-inlining-variants` (minimum level 5) is a late,
-emitter-local candidate for an unexported ordinary zero-argument function whose
-complete body is `return []` and whose only uses are zero-argument direct calls.
-It replaces every call with a distinct `[]` and suppresses the now-unobservable
-declaration; captures, async/generator functions, address taking, method or
-constructor use, and any other body shape are refused. At most the best two
-complete structural/name layouts are re-emitted with this option, then the exact
-configured raw/gzip/Brotli objective selects the compiler's one output. This is
-part of the same compiler invocation, not a downstream Terser/Oxc stage. Explicit
-chunk plans conservatively retain the factory until chunk ownership/import
-planning carries the same declaration-suppression proof.
-
-`ir-function-subsumption-variants` is automatically searched only by
-`size-first`; `balanced`, `realistic-performance-first`, and
-`performance-first` require this exact feature name or
-`optimization.function_subsumption = true`. This is the explicit control for a
-semantics-preserving size transform that may add scalar or function arguments
-at surviving call sites. The unmodified IR always remains a complete-artifact
-candidate.
-
-`function-layout-variants` proposes two declaration orders from repeated
-emitted eight-byte runs. The adjacency order uses exact Held-Karp dynamic
-programming through `function_layout_exact_limit` declarations and bounded
-deterministic insertion for larger groups. The default is 13; `0` always uses
-the bounded heuristic, while release builds can raise the cutoff to at most 18
-when the exponential compile-time and memory cost is acceptable.
-The window order additionally discounts or rejects similarities beyond the
-selected codec's history: 32 KiB for gzip and 4 MiB for the configured Brotli
-encoder. These remain proposal mechanisms: unchanged source order stays in the
-beam, and the exact configured raw/gzip/Brotli model scores every complete
-artifact before selection.
-
-`local_name_reserve` keeps the first N mangled spellings out of module-scope
-function/global assignment, then releases them inside each lexical function
-scope. This makes structurally similar functions use a consistent short local
-alphabet, improving raw size and cross-function gzip/Brotli matches. Module
-bindings remain collision-free, referenced globals are still reserved in every
-function that uses them, `0` disables the reservation, and the maximum is 256.
-With production candidate search active, reservations `0`, `8`, `16`, and `32`
-also compete with the configured value. Exact raw/gzip/Brotli scoring can
-therefore choose a compact-module alphabet without discarding a larger
-configured reservation that benefits broad reusable surfaces.
-`stable_local_names = true` assigns the available spellings to interference
-colors using non-semantic source-local affinity, with deterministic definition
-order as the fallback. It does not alter liveness or the number of slots; it
-makes duplicated numerical and generated kernels retain similar local
-spellings for transport compression.
-`emit_pure_annotations = true` adds `/*@__PURE__*/` to direct calls bound to
-checked `export pure` functions in the final single-module JavaScript. The pass
-resolves bindings, including export aliases, and leaves shadowed names and
-property calls alone. Argument evaluation remains observable. The default is
-false. This is optimization metadata; type annotations still add no runtime
-validation. Explicit source casts and type tests retain their semantics.
-
-`function_scope = true` wraps a single-bundle module's internal bindings in one
-function scope and assigns the export bindings outside it (`var a,b;(function(){…;a=x;b=y})();export{a as x,b as y}`).
-V8 reaches a module-scope binding through a module cell — several dependent loads — and a
-function-scope binding through one context slot, so a library whose hot state lives at module scope
-pays per access; upstream libraries hand-write that state as closures. Measured on cnlil (finer
-048): the wrapper is +53 raw / +27 Brotli and takes the cold merge lanes from 1.15x to 1.00x of
-upstream. It is refused, and the artifact left as is, when the module has any `export` other than
-the trailing list, a top-level `await`, or an exported binding assigned from inside a nested
-function (the outer alias is a one-time snapshot, not a live binding). Off by default; a port turns
-it on against its own measure. Multi-chunk bundles are not wrapped.
-
-One observable difference remains and is the price of the knob: the exported bindings hold
-`undefined` until the module body has run. A module that imports this artifact and calls into it
-*during its own evaluation*, in an import cycle, would previously have seen a hoisted function
-declaration and now sees `undefined`. Ordinary (acyclic) importers are unaffected: their code runs
-after the imported module has finished evaluating. Leave the knob off for an artifact that
-participates in an import cycle.
-
-`truthy_nullable_checks` chooses how `x != null` is spelled when `x` is a nullable whose present
-values are always truthy (a class, array, map, set or buffer): `x` and `!x` are the shortest
-spelling, and V8 evaluates an object's truthiness in about 3.8 ns against 2.6 ns for `x!==null`
-(finer 048). Omitted, the truthiness spelling is used by `size-first` and `balanced` and the
-strict comparison by `performance-first` and `realistic-performance-first`; a port that ships
-`size-first` under a runtime gate sets it to `false`.
-
-`local_name_coalescing = true` (the default) lets identifier-mangled JavaScript
-reuse one local binding for SSA values whose live ranges provably do not
-interfere. Setting it to `false` retains distinct bindings; liveness and
-interference remain hard correctness constraints in both regimes. Unmangled
-output keeps source-oriented names and does not use this switch.
-Maximum-effort SSA-destruction search may retain both mangled regimes through
-finalization. The exact whole-artifact raw/gzip/Brotli scorer then chooses
-between them because the coalesced form's reassignments and the uncoalesced
-form's declarations can have codec-dependent costs.
-
-`max_candidate_raw_growth_percent` participates in candidate admission both
-within one emitted-IR search and across optimizer variants. Under the `raw`
-cost model it is a hard raw-size boundary relative to the configured baseline.
-Under `gzip` or `brotli`, a candidate is admitted when its transfer bytes do
-not exceed baseline **or** its raw bytes are within this allowance. Therefore
-the default `0` can still admit raw growth when gzip/Brotli does not regress.
-Raising the percentage (up to 1000) widens the raw-side fallback; the unchanged
-baseline remains a candidate.
-
-The parsed peephole validates the complete generated artifact and Pratt-parses
-eligible expressions before rewriting. It contracts AST-proven simple-local
-`x=x op y` statements to compound assignments, removes only unreferenced
-function-scoped bindings, fuses adjacent same-kind declarations, folds
-two-return arrow guards to conditional expressions, and rotates a generated
-`flag=true; while(flag) { ...; flag=condition }` only when token/use analysis
-proves the flag is synthetic and the loop has no `continue`. It does not use
-unparsed text substitutions. The startup guard compares deterministic syntax-derived
-parse, engine-compile, and memory estimates against the configured baseline.
-The three overhead limits are hard rejection thresholds, while the three
-weights break equal-transfer-size ties. Optional `max_nesting` is an absolute
-candidate ceiling and remains active even when `startup-cost-guard` is not in
-an exact optimization allowlist; `0` is invalid. `--explain human` and
-`--explain json`
-report the selected syntax metrics, candidate count, rewrite count, selected
-codec bytes, typed-IR performance metrics, and measured LilScript compiler
-time.
-
-The performance shape model is deterministic static analysis, not a browser
-measurement. It weights state-machine control flow, dynamically shaped values,
-host operations, allocations, unresolved indirect calls, and known direct or
-closure calls. `size-first` keeps exact transfer bytes as its primary key;
-`balanced` combines normalized transfer and shape scores;
-`realistic-performance-first` adds an over-limit bucket penalty to normalized
-transfer before using the performance ratio as its next key; it does not hard-reject
-an over-limit candidate. `performance-first` ranks the shape score first. The four
-weights allow a project to tune that proxy without changing language semantics.
-
-`[profile]` accepts an optional version-1 JSON file plus inline `functions` and
-`loops` tables. Inline counters override file counters. Generate all stable
-keys without annotating source:
-
-```sh
-lilscript src/main.lil --profile-template lilscript.profile.json
-```
-
-Function keys are `$entry`, a function name, `Class.method`,
-`Class.constructor`, or a source-span-keyed closure. Loop keys append the
-structured shape index, such as `$entry#0`. Counters must be positive. A hot
-or statically byte-profitable direct call can clone a bounded callee for
-constant and known-function arguments; constant closure captures can clone the
-closure body and remove its environment slots. Each clone re-enters ordinary
-folding and DCE and is bounded by the profile limits. The clones are transforms
-within an optimizer pipeline, not independently codec-accepted functions. When
-candidate search is active, disabled-specialization optimizer variants can let
-the complete specialized and unspecialized artifacts compete. The corresponding
-`[optimization]` switches are authoritative global gates; a JavaScript effort
-level or exact feature allowlist cannot re-enable a pass explicitly set to
-`false` there.
-
-`javascript.cost_model` selects the exact objective used by optimizer-IR and
-bounded final-emission candidate search. `raw` compares emitted bytes, `gzip` uses level 9, and
-`brotli` uses the statically bundled official Google Brotli C 1.1.0 encoder in
-generic mode, quality 11, with `lgwin = 22`. `gzip` uses statically bundled
-upstream stock zlib C 1.3.1 at level 9 with deterministic `mtime = 0` framing.
-Compiler selection and `lilscript-codec` share the same library measurement
-functions; hard-gate verification invokes that batch scorer. Node's built-in codec
-sizes are diagnostics.
-The checked-in Cargo environment forces the bundled zlib path and disables
-libz-sys's earlier vcpkg probe on Windows. This canonical-provenance guarantee
-currently covers the Linux, macOS, and Windows release targets. Android, Haiku,
-and OpenHarmony use libz-sys's platform-zlib path and must not publish canonical
-LilScript codec measurements without an additional vendoring or rejection gate.
-Under `size-first`, exact transfer bytes are the
-primary rank key and performance breaks only exact transfer ties. Final ties use
-the configured startup score, raw bytes, and then lexical output order. Search
-can disable enabled tactics, and explicitly defined size-first search-only
-spellings may compete under a non-empty exact list. Other omitted tactics remain
-off. `candidate_search = "production"` is the
-default. CLI `--mode development` forces multi-IR/emission candidate expansion off
-for every configured search value, including `always`. `off` still runs the configured
-optimizer/emission and mandatory validation, but it grants zero optional terminal
-codec probes: parsed-peephole and binding-remap leaves cannot enter exact-codec
-search. Configured profile/startup/performance features remain active. The current
-search space compares profitable string pooling, literal-table packing,
-numeric-literal pooling, boolean literals,
-conservatively proven regular-expression literals,
-structured closures, identifier alphabets, adaptive local-name reservations,
-quote styles, and equivalent top-level declaration,
-phi-affinity, SSA parallel-copy, conditional/comma, structured/state-machine,
-`while`/`for`/`do`, update-clause, switch/conditional-dispatch, and assignment/
-prefix/postfix/compound-mutation layouts, bounded by the effective candidate
-limit. `candidate_beam_width` sets the cross-dimension search window, and
-`terminal_codec_probe_limit` bounds the shared post-emission exact-codec tail; the
-configured baseline is always retained as a startup-safe fallback. Transfer
-scores already measured during search are reused when the parsed peephole
-leaves a finalist unchanged, avoiding a second quality-11 compression pass.
-
-When an intermediate emission pool must be truncated, the compiler visits rankings
-for the selected objective, raw, gzip, and Brotli round-robin, with the selected
-objective first and duplicate artifacts skipped. Structural finalist selection,
-entropy sources, and one-character identifier mappings use the same bounded
-objective stratification. Final selection still uses only the configured cost model
-and priority. Optimizer-IR probes have their own selected-objective beam. Therefore
-production output is the best artifact found within configured proposal/count/byte/
-beam budgets, not a mathematical global minimum; only small test-only exhaustive
-candidate spaces can prove an exact optimum.
-
-The priority is applied after `[optimization]`: setting `inlining = false`
-disables inlining in every profile. Explicit `[mangle]` values have the highest
-precedence, followed by the exact compression allowlist, then profile defaults.
-The aliases `realisticperf-first` and `realistic-perf-first` are accepted for
-`realistic-performance-first`. Raw, gzip, and Brotli sizes can disagree, so
-size policy is a compiler cost-model preference rather than a universal
-guarantee for every compressor and workload. Measure release artifacts with
-the intended transport compression.
-
-The policy affects only JavaScript. A configured `--target all` build shares
-parsing and semantic analysis, then optimizes separate JavaScript and native IR
-copies. Changing `javascript.priority` therefore does not change generated C or
-the native executable's optimizer policy.
-
-`[native]` controls conservative partial escape analysis in the C/native
-backend. Fixed local arrays up to `stack_array_element_limit`, non-escaping
-class values, and eligible captured closures use function-frame storage.
-Larger bounded local arrays use a function region when enabled. Values that are
-returned, stored globally, captured across an unsafe boundary, passed to an
-unknown call, merged through a phi, or resized remain heap allocated. Every
-region is released on every generated return path. These switches alter
-storage placement, not source-visible ownership semantics.
-
-`mangle.properties` renames eligible LilScript-owned fields. Named aggregate
-fields that cross an untyped JavaScript boundary remain stable unless
-`mangle.exports` is also explicitly enabled; this keeps the default reusable
-JavaScript ABI constructible and inspectable. Members declared by `extern
-class` are host ABI names and are never renamed. Internal struct and class
-fields already lower to scalar values or numeric slots. `mangle.exports`
-removes stable public ESM names (and permits public aggregate-field mangling)
-and is intended for LilScript-only applications whose static imports are linked
-before codegen.
-
-The bundle policy is separate from optimizer policy. Every mode first links and
-optimizes the complete static module graph, so cross-file inlining, scalar
-replacement, and DCE happen before a chunk boundary is selected.
-
-- `single` emits one whole-program artifact and has no chunk overhead.
-- `preserve-modules` emits surviving, movable dependency functions in one
-  static ESM chunk per source module. Root functions and functions that assign
-  module globals remain in the entry chunk. Size/import/count limits do not
-  override source-module preservation.
+- `single` emits one artifact.
 - `split` considers modules imported by at least `shared_min_imports` distinct
-  modules, rejects optional chunks smaller than `min_chunk_bytes`, then scores
-  complete emitted plans. The score combines weighted raw/gzip/Brotli bytes,
-  request overhead, dependency depth, preload behavior, shared reachability,
-  and cache reuse. Every optional eager/shared chunk, including the first, must
-  strictly lower complete deploy cost. Mandatory lazy chunks count toward
-  `max_chunks`; compilation fails if the required lazy graph already exceeds
-  that cap. `preserve-modules` remains exempt from the split-mode cap.
+  modules, rejects optional chunks smaller than `min_chunk_bytes`, and keeps up
+  to `max_chunks` chunks while each lowers the bundle's deploy cost. The cost
+  combines the `[bundle.cost]` weights of raw, gzip and Brotli bytes, request
+  overhead, dependency depth, preload and cache reuse. At least one byte weight
+  must be nonzero; the percentages are 0 to 100.
+- `preserve-modules` keeps one chunk per source module.
 
-For `--target js` and `--target js-module`, `split` and `preserve-modules`
-require `--output`. `--target all` instead keeps its implicit output behavior:
-when `--output` is omitted, it derives `<input-stem>.js` as the bundle entry.
-These modes write the entry module, sibling chunks, and
-`<entry-stem>.manifest.json`. Static imports load eagerly.
-`import("./feature")` creates a typed asynchronous module task and a mandatory
-lazy chunk for a lazy-only module. `preload = "entry"` preloads chunks directly
-requested by the entry artifact; `all` preloads every lazy root. Manifest v2
-contains deterministic build/cache hashes, exact transport sizes, dependency
-edges, and deploy-cost values. Use an `.mjs` output when running directly in
-Node without a `"type": "module"` package boundary.
+`split` and `preserve-modules` need `--output`; they write the entry, sibling
+chunks and `<entry-stem>.manifest.json`. `preload = "entry"` preloads the
+entry's direct lazy chunks and `all` every lazy root. `host_modules` decides
+whether the relative JavaScript or TypeScript modules that `import extern`
+declarations name are imported from their specifiers (`external`), carried
+when every one can be delivered (`auto`), or carried with a refusal when one
+cannot (`embed`). `preserve-modules` chunks and lazy `import()` chunks are
+broken on this compiler today (plan M3.3).
 
-`[bundle.cost]` values are integer deployment-policy weights, not runtime
-measurements. At least one byte weight must be nonzero. Request/depth values are
-byte-equivalent penalties; preload and cache values are percentages from 0 to
-100. Candidate code is always measured with gzip level 9 and Brotli quality 11.
-
-Package metadata and locked path dependencies are configured at the top level:
+## Packages
 
 ```toml
 [package]
@@ -971,36 +287,27 @@ mathkit = { path = "../mathkit", version = "^1.2", abi = 1 }
 
 Run `lilscript src/main.lil --write-lock -o build/app.js` to rewrite
 `lilscript.lock`. Normal builds verify the complete transitive graph, semver,
-ABI, package-root confinement, and SHA-256 source checksum without mutating the
-lockfile. See `docs/modules-and-delivery.md` for the full contract.
+ABI, package-root confinement and SHA-256 source checksums without changing the
+lockfile. See [modules-and-delivery](modules-and-delivery.md).
 
 ## Lint and format policy
 
-`lilscript-lint` performs module-aware semantic checks and inspects optimized
-IR for allocation and materialization findings. `minimal` enables only
-correctness errors. `recommended` adds effect/performance warnings and size
-hints. `strict` promotes effect findings to errors and size findings to
-warnings. Configure any rule in `[lint.rules]` with `off`, `hint`, `warn`, or
-`error`. Set
-`deny_warnings = true` or pass `--deny-warnings` for a warning-free CI gate.
-Trusted `pure extern` functions must appear in `pure_extern_allowlist` because
-their effects cannot be verified from LilScript source.
+`lilscript-lint` runs the same frontend a build runs, then checks each module's
+syntax, the module-graph checker's results and the program they elaborate to.
+`minimal` enables only correctness errors, `recommended` adds effect and
+performance warnings and size hints, and `strict` promotes effect findings to
+errors and size findings to warnings. Configure any rule in `[lint.rules]` with
+`off`, `hint`, `warn` or `error`. Set `deny_warnings = true` or pass
+`--deny-warnings` for a warning-free CI gate. Trusted `pure extern` functions
+must appear in `pure_extern_allowlist`, because their effects cannot be
+verified from LilScript source.
 
-Loop-cost analysis reports surviving arrays, aggregates, maps, sets, buffers,
-typed-array views, materializing array operations, closures, and unresolved
-indirect calls. Because it runs after optimization, values removed by DCE or
-scalar replacement do not produce allocation findings.
-
-`lint.providers` is an exact namespace allowlist. Built-in namespaces are
-`correctness`, `effects`, `performance`, `size`, and `web`; the web provider
-adds `web/eager-host-access` for top-level host work that can run before a
+`lint.providers` is an exact namespace allowlist. The built-in namespaces are
+`correctness`, `effects`, `performance`, `size` and `web`; the web provider adds
+`web/eager-host-access` for top-level host work that can run before a
 progressive-enhancement boundary. Embedders can call
-`lint_path_with_providers` with Rust `LintRuleProvider` implementations. A
-provider receives the checked module, optimized IR, source, path, and project
-config, and emits stable namespaced diagnostics with optional evidence, help,
-and fixes. Duplicate namespaces and undeclared rule IDs are rejected before
-rules run. This is an in-process Rust API rather than an unstable dynamic
-library ABI.
+`lint_path_with_providers` with Rust `LintRuleProvider` implementations; a
+provider receives the checked program and the project configuration.
 
 ```sh
 lilscript-lint src
@@ -1010,14 +317,12 @@ lilscript-lint src --fix
 ```
 
 Use `// lilscript-lint-disable RULE` to suppress a rule from that line onward,
-or `// lilscript-lint-disable-next-line RULE` for one following line. The
-current machine-applicable fix removes unreachable expression statements;
-findings that require intent remain diagnostic-only.
+or `// lilscript-lint-disable-next-line RULE` for the following line.
 
 `lilscript-fmt` is a deterministic, comment-preserving formatter and import
-organizer. It writes by default, supports `--check` for CI and `--stdout` for a
-single file, and is idempotence-tested. Set `format.enabled = false` to disable
-CLI/LSP formatting by policy; `--force` explicitly overrides it in the CLI.
+organizer. It writes by default and supports `--check` for CI and `--stdout`
+for a single file. Set `format.enabled = false` to disable CLI and LSP
+formatting; `--force` overrides it in the CLI.
 
 ```sh
 lilscript-fmt src

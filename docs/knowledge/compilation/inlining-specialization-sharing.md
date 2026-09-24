@@ -1,11 +1,13 @@
 # Inlining, specialization, and function sharing
 
+> **Old compiler.** This page describes the old route, whose sources (`src/optimizer.rs`, `src/codegen_ir_js.rs`, `src/lower.rs`, `src/ir.rs` and the rest) were deleted in plan M1.6. They remain in git history before the deletion commit; plan M1.7 rewrites or retires this page.
+
 Parent: [compilation](README.md). Search behavior:
 [candidate search](candidate-search.md). Ranking:
 [objectives](objectives.md). Source anchors: the inlining fixed point,
 specialization, subsumption, parameterized merging, and identical folding families in
-[`src/optimizer.rs`](../../../src/optimizer.rs), plus emission-only function
-representations in [`src/codegen_ir_js.rs`](../../../src/codegen_ir_js.rs).
+`src/optimizer.rs`, plus emission-only function
+representations in `src/codegen_ir_js.rs`.
 
 These transforms solve opposing size problems:
 
@@ -60,7 +62,7 @@ declaration into a repeated call would create a fresh function each iteration. A
 call from a reusable helper is also refused even if that helper is invoked only once
 in the current artifact. See `assign_inline_single_use_functions` and
 `render_single_use_function_expression` in
-[`src/codegen_ir_js.rs`](../../../src/codegen_ir_js.rs); the paired positive/refusal
+`src/codegen_ir_js.rs`; the paired positive/refusal
 regressions are `emits_private_single_use_functions_at_their_only_call_site` and
 `preserves_named_functions_when_single_use_expression_is_disabled_or_public`.
 
@@ -82,7 +84,7 @@ declaration compresses better.
 
 Exports, direct/method/constructor uses, adapters, defaults, async/generator
 functions, and unstructured multi-block bodies are refused. See
-`assign_inline_exclusive_closures` in [`src/codegen_ir_js.rs`](../../../src/codegen_ir_js.rs).
+`assign_inline_exclusive_closures` in `src/codegen_ir_js.rs`.
 
 ## Pure-helper expression substitution
 

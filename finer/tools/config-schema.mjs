@@ -54,10 +54,53 @@ export function parseDefaults(text, name) {
 }
 
 const SECTIONS = [
-  ["compiler", "CompilerConfig"], ["optimization", "OptimizationConfig"], ["javascript", "JavaScriptConfig"],
-  ["mangle", "MangleConfig"], ["bundle", "BundleConfig"], ["profile", "OptimizationProfileConfig"],
-  ["native", "NativeConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"], ["policy", "PolicyConfig"],
+  ["optimization", "OptimizationConfig"], ["javascript", "JavaScriptConfig"], ["mangle", "MangleConfig"],
+  ["bundle", "BundleConfig"], ["lint", "LintConfig"], ["format", "FormatConfig"], ["policy", "PolicyConfig"],
 ]
+
+/** String constants (`const NAME: &str = "…";`), with Rust's `\` line continuations joined. */
+function stringConstants(text) {
+  const constants = new Map()
+  for (const match of text.matchAll(/^const ([A-Z_]+): &str\s*=\s*((?:"(?:[^"\\]|\\[\s\S])*"\s*)+);/gm)) {
+    constants.set(match[1], rustString(match[2]))
+  }
+  return constants
+}
+
+/** The value of one Rust string literal (or adjacent literals), unescaped. */
+function rustString(literal) {
+  return [...literal.matchAll(/"((?:[^"\\]|\\[\s\S])*)"/g)].map(([, body]) =>
+    body.replace(/\\\n\s*/g, "").replace(/\\(["\\])/g, "$1")).join("")
+}
+
+/** The retired-key table (`RETIRED_KEYS` in src/config.rs) and its list-entry companions. */
+export function parseRetiredKeys(text) {
+  const constants = stringConstants(text)
+  const reason = token => token.startsWith('"') ? rustString(token) : constants.get(token) ?? token
+  const start = text.indexOf("pub const RETIRED_KEYS")
+  const body = text.slice(start, text.indexOf("\n];", start))
+  const string = String.raw`"(?:[^"\\]|\\[\s\S])*"`
+  const entries = []
+  const pattern = new RegExp(String.raw`\(\s*(${string}),\s*Retirement::(NoEffect|Refused|RefusedUnless)\s*(?:\(\s*(${string}|[A-Z_]+)\s*,?\s*\)|\{([\s\S]*?)\})\s*,?\s*\)`, "g")
+  for (const match of body.matchAll(pattern)) {
+    const [, key, kind, simple, fields] = match
+    if (kind !== "RefusedUnless") { entries.push({ key: rustString(key), kind, reason: reason(simple) }); continue }
+    const value = /value:\s*RetiredValue::(?:String\((".*?")\)|Integer\((-?\d+)\))/.exec(fields)
+    const then = new RegExp(String.raw`then:\s*(None|Some\(\s*(${string})\s*\))`).exec(fields)
+    const refused = new RegExp(String.raw`refused:\s*(${string})`).exec(fields)
+    entries.push({
+      key: rustString(key), kind,
+      value: value[1] ?? value[2],
+      then: then[1] === "None" ? null : rustString(then[2]),
+      reason: rustString(refused[1]),
+    })
+  }
+  const list = name => {
+    const at = text.indexOf(`pub const ${name}`)
+    return [...text.slice(at, text.indexOf("\n];", at)).matchAll(/^\s+"([a-z-]+)",$/gm)].map(match => match[1])
+  }
+  return { entries, compression: list("RETIRED_COMPRESSION_DECISIONS"), optimizations: list("RETIRED_JAVASCRIPT_OPTIMIZATIONS") }
+}
 
 function firstSentence(text) {
   if (!text) return ""
@@ -115,6 +158,34 @@ export function buildSchema() {
     for (const [name, inner] of nested) visit(name, inner, depth + 1)
   }
   for (const [section, structName] of SECTIONS) visit(section, structName, 0)
+  const retired = parseRetiredKeys(text)
+  const cell = value => value.replace(/\|/g, "\\|")
+  lines.push(
+    "## Retired keys",
+    "",
+    "Applied to the parsed file before the tables above are read (`RETIRED_KEYS` in `src/config.rs`). A",
+    "*no effect* key is removed and the CLI warns `<key> has no effect in this compiler: <reason>; remove it`;",
+    "`--print-policy` lists the same warnings. A *refused* key stops the build with its reason. A table",
+    "path covers every key in that table.",
+    "",
+    "| Key | Outcome | Reason |",
+    "|---|---|---|",
+  )
+  for (const entry of retired.entries) {
+    const outcome = entry.kind === "NoEffect" ? "no effect" : entry.kind === "Refused" ? "refused" :
+      `refused unless \`${cell(String(entry.value))}\`, which ${entry.then ? "has no effect" : "is kept"}`
+    const why = entry.kind === "RefusedUnless" && entry.then ? `${entry.reason} (with \`${cell(String(entry.value))}\`: ${entry.then})` : entry.reason
+    lines.push(`| \`${entry.key}\` | ${outcome} | ${cell(why)} |`)
+  }
+  lines.push(
+    "",
+    "Retired `javascript.compression` entries (no effect; the rest of the list keeps its exact-allowlist meaning):",
+    retired.compression.map(name => `\`${name}\``).join(", ") + ".",
+    "",
+    "Retired `javascript.optimizations` entries (no effect):",
+    retired.optimizations.map(name => `\`${name}\``).join(", ") + ".",
+    "",
+  )
   return { markdown: lines.join("\n"), undocumented }
 }
 
